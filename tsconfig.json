@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationDir": "./lib",
+    "module": "es6",
+    "moduleResolution": "node",
+    "outDir": "./lib",
+    "target": "es5",
+    "esModuleInterop": true,
+    "allowJs": true
+  },
+  "typedocOptions": {
+    "mode": "file",
+    "out": "docs/ts",
+    "exclude": "**/*+(test|index).ts",
+    "plugin": ["typedoc-plugin-markdown"],
+    "excludeExternals": true,
+    "excludeNotExported": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "hideGenerator": true,
+    "readme": "none"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
