@@ -1,5 +1,5 @@
 {
-  "name": "telnyx-rtc",
+  "name": "@telnyx/webrtc",
   "version": "0.0.0",
   "description": "Telnyx WebRTC Client",
   "keywords": [
@@ -17,26 +17,25 @@
   "scripts": {
     "build": "rollup -c",
     "prepare": "npm run build",
+    "prepublishOnly": "npm run test",
     "test": "jest",
     "docs": "typedoc src",
-    "prepublishOnly": "npm run test"
+    "release": "release-it"
   },
   "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
   "repository": {
     "type": "git",
-    "url": "git://github.com/team-telnyx/telnyx-webrtc-sdk.git"
+    "url": "git://github.com/team-telnyx/webrtc.git"
   },
-  "bugs:": "https://github.com/team-telnyx/telnyx-webrtc-sdk/issues",
+  "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
-  "publishConfig": {
-    "@telnyx:registry": "https://registry.npmjs.org"
-  },
   "devDependencies": {
     "@types/jest": "^24.0.18",
     "babel-jest": "^24.9.0",
     "events": "^3.0.0",
     "jest": "^24.9.0",
     "md-gum-polyfill": "^1.0.0",
+    "release-it": "^12.4.1",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",
     "rollup-plugin-commonjs": "^10.0.2",
@@ -49,5 +48,17 @@
     "typescript": "^3.6.2",
     "uuid": "^3.3.2",
     "webrtc-adapter": "^7.3.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "@telnyx:registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "git": {
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true
+    }
   }
 }

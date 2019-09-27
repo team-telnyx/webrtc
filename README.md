@@ -161,3 +161,21 @@ To generate TypeScript documentation:
 ```
 npm run docs
 ```
+
+---
+
+## Releases
+
+Releases are handled by the [release-it](https://github.com/release-it/release-it) package. This is available as an npm script:
+
+```
+# start a release with prompts
+npm run release
+
+# pass in specific arguments
+npm run release -- <type|version>
+npm run release -- minor
+npm run release -- major
+```
+
+You'll need a [personal access token](https://github.com/release-it/release-it#github-releases) to make the GitHub release.

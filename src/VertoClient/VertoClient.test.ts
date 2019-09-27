@@ -66,7 +66,7 @@ describe('VertoClient', () => {
       });
 
     client.connect();
-  });
+  }, 10000);
 
   /**
    * @TODO This doesn't establish RTCPeerConnection as it's not available in jsdom.
@@ -97,5 +97,5 @@ describe('VertoClient', () => {
         }
       })
       .on('socket.close', done);
-  });
+  }, 10000);
 });
