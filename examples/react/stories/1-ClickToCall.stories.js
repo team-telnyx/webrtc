@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { withKnobs, text, boolean, number } from '@storybook/addon-knobs/react';
 
-import { TelnyxRTC } from 'telnyx-rtc';
+import { TelnyxRTC } from '@telnyx/webrtc';
 
 export default {
   title: 'ClickToCall',

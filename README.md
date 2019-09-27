@@ -28,7 +28,7 @@ The package needs to be configured with a SIP username and password. You can add
 
 ```js
 // Import and initialize the client
-import { TelnyxRTC } from 'telnyx-rtc';
+import { TelnyxRTC } from '@telnyx/webrtc';
 
 const client = new TelnyxRTC({
   credentials: {

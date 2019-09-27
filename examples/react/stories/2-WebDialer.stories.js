@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { TelnyxRTC } from 'telnyx-rtc';
+import { TelnyxRTC } from '@telnyx/webrtc';
 
 import { withKnobs, text, boolean, number } from '@storybook/addon-knobs/react';
 
