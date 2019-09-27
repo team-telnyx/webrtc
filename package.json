@@ -2,6 +2,15 @@
   "name": "telnyx-rtc",
   "version": "0.0.0",
   "description": "Telnyx WebRTC Client",
+  "keywords": [
+    "telnyx",
+    "webrtc",
+    "sip",
+    "json-rpc",
+    "soft phone",
+    "freeswitch",
+    "voip"
+  ],
   "main": "lib/bundle.js",
   "module": "lib/bundle.mjs",
   "types": "lib/index.d.ts",
