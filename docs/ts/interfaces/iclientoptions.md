@@ -1,4 +1,4 @@
-[telnyx-rtc](../README.md) › [IClientOptions](iclientoptions.md)
+[@telnyx/webrtc](../README.md) › [IClientOptions](iclientoptions.md)
 
 # Interface: IClientOptions
 
@@ -28,7 +28,7 @@
 
 • **credentials**: *[ICredentials](icredentials.md)*
 
-*Defined in [utils/interfaces.ts:14](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L14)*
+*Defined in [utils/interfaces.ts:14](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L14)*
 
 ___
 
@@ -36,7 +36,7 @@ ___
 
 • **displayName**? : *string*
 
-*Defined in [utils/interfaces.ts:20](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L20)*
+*Defined in [utils/interfaces.ts:20](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L20)*
 
 ___
 
@@ -44,7 +44,7 @@ ___
 
 • **env**? : *[Env](../README.md#env)*
 
-*Defined in [utils/interfaces.ts:12](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L12)*
+*Defined in [utils/interfaces.ts:12](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L12)*
 
 ___
 
@@ -52,7 +52,7 @@ ___
 
 • **host**? : *string*
 
-*Defined in [utils/interfaces.ts:10](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L10)*
+*Defined in [utils/interfaces.ts:10](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L10)*
 
 ___
 
@@ -60,7 +60,7 @@ ___
 
 • **localElement**? : *[RTCElement](../README.md#rtcelement)*
 
-*Defined in [utils/interfaces.ts:15](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L15)*
+*Defined in [utils/interfaces.ts:15](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L15)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 • **port**? : *number*
 
-*Defined in [utils/interfaces.ts:11](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L11)*
+*Defined in [utils/interfaces.ts:11](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L11)*
 
 ___
 
@@ -76,7 +76,7 @@ ___
 
 • **project**? : *string*
 
-*Defined in [utils/interfaces.ts:13](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L13)*
+*Defined in [utils/interfaces.ts:13](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L13)*
 
 ___
 
@@ -84,7 +84,7 @@ ___
 
 • **remoteElement**? : *[RTCElement](../README.md#rtcelement)*
 
-*Defined in [utils/interfaces.ts:16](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L16)*
+*Defined in [utils/interfaces.ts:16](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L16)*
 
 ___
 
@@ -92,7 +92,7 @@ ___
 
 • **useCamera**? : *string | boolean*
 
-*Defined in [utils/interfaces.ts:19](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L19)*
+*Defined in [utils/interfaces.ts:19](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L19)*
 
 ___
 
@@ -100,7 +100,7 @@ ___
 
 • **useMic**? : *string | boolean*
 
-*Defined in [utils/interfaces.ts:17](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L17)*
+*Defined in [utils/interfaces.ts:17](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L17)*
 
 ___
 
@@ -108,4 +108,4 @@ ___
 
 • **useSpeaker**? : *string | boolean*
 
-*Defined in [utils/interfaces.ts:18](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L18)*
+*Defined in [utils/interfaces.ts:18](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L18)*

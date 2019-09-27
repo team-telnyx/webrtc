@@ -1,4 +1,4 @@
-[telnyx-rtc](../README.md) › [ICall](icall.md)
+[@telnyx/webrtc](../README.md) › [ICall](icall.md)
 
 # Interface: ICall
 
@@ -32,7 +32,7 @@
 
 • **isHeld**? : *Boolean*
 
-*Defined in [utils/interfaces.ts:52](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L52)*
+*Defined in [utils/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L52)*
 
 ___
 
@@ -40,7 +40,7 @@ ___
 
 • **isMuted**? : *Boolean*
 
-*Defined in [utils/interfaces.ts:53](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L53)*
+*Defined in [utils/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L53)*
 
 ___
 
@@ -48,7 +48,7 @@ ___
 
 • **state**: *[CallState](../README.md#callstate)*
 
-*Defined in [utils/interfaces.ts:51](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L51)*
+*Defined in [utils/interfaces.ts:51](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L51)*
 
 ## Methods
 
@@ -56,7 +56,7 @@ ___
 
 ▸ **answer**(): *void*
 
-*Defined in [utils/interfaces.ts:55](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L55)*
+*Defined in [utils/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L55)*
 
 **Returns:** *void*
 
@@ -66,7 +66,7 @@ ___
 
 ▸ **dtmf**(`input`: string): *void*
 
-*Defined in [utils/interfaces.ts:60](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L60)*
+*Defined in [utils/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L60)*
 
 **Parameters:**
 
@@ -82,7 +82,7 @@ ___
 
 ▸ **hangup**(): *void*
 
-*Defined in [utils/interfaces.ts:54](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L54)*
+*Defined in [utils/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L54)*
 
 **Returns:** *void*
 
@@ -92,7 +92,7 @@ ___
 
 ▸ **hold**(): *void*
 
-*Defined in [utils/interfaces.ts:56](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L56)*
+*Defined in [utils/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L56)*
 
 **Returns:** *void*
 
@@ -102,7 +102,7 @@ ___
 
 ▸ **mute**(): *void*
 
-*Defined in [utils/interfaces.ts:58](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L58)*
+*Defined in [utils/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L58)*
 
 **Returns:** *void*
 
@@ -112,7 +112,7 @@ ___
 
 ▸ **setAudioOutDevice**(`sinkId`: string, `callback?`: Function): *Promise‹undefined›*
 
-*Defined in [utils/interfaces.ts:62](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L62)*
+*Defined in [utils/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L62)*
 
 **Parameters:**
 
@@ -129,7 +129,7 @@ ___
 
 ▸ **transfer**(`input`: string): *void*
 
-*Defined in [utils/interfaces.ts:61](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L61)*
+*Defined in [utils/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L61)*
 
 **Parameters:**
 
@@ -145,7 +145,7 @@ ___
 
 ▸ **unhold**(): *void*
 
-*Defined in [utils/interfaces.ts:57](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L57)*
+*Defined in [utils/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L57)*
 
 **Returns:** *void*
 
@@ -155,6 +155,6 @@ ___
 
 ▸ **unmute**(): *void*
 
-*Defined in [utils/interfaces.ts:59](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L59)*
+*Defined in [utils/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L59)*
 
 **Returns:** *void*

@@ -1,6 +1,6 @@
-[telnyx-rtc](README.md)
+[@telnyx/webrtc](README.md)
 
-# telnyx-rtc
+# @telnyx/webrtc
 
 ## Index
 
@@ -30,7 +30,7 @@
 
 Ƭ **CallState**: *"new" | "ringing" | "connecting" | "active" | "held" | "done"*
 
-Defined in utils/types.ts:1
+*Defined in [utils/types.ts:1](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/types.ts#L1)*
 
 ___
 
@@ -38,7 +38,7 @@ ___
 
 Ƭ **Env**: *"production" | "development"*
 
-Defined in utils/types.ts:8
+*Defined in [utils/types.ts:8](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/types.ts#L8)*
 
 ___
 
@@ -46,4 +46,4 @@ ___
 
 Ƭ **RTCElement**: *HTMLMediaElement | string | Function*
 
-Defined in utils/types.ts:9
+*Defined in [utils/types.ts:9](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/types.ts#L9)*

@@ -1,4 +1,4 @@
-[telnyx-rtc](../README.md) › [ICallOptions](icalloptions.md)
+[@telnyx/webrtc](../README.md) › [ICallOptions](icalloptions.md)
 
 # Interface: ICallOptions
 
@@ -34,7 +34,7 @@
 
 • **attach**? : *boolean*
 
-*Defined in [utils/interfaces.ts:38](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L38)*
+*Defined in [utils/interfaces.ts:38](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L38)*
 
 ___
 
@@ -42,7 +42,7 @@ ___
 
 • **audio**? : *boolean | MediaTrackConstraints*
 
-*Defined in [utils/interfaces.ts:36](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L36)*
+*Defined in [utils/interfaces.ts:36](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L36)*
 
 ___
 
@@ -50,7 +50,7 @@ ___
 
 • **callerName**? : *string*
 
-*Defined in [utils/interfaces.ts:28](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L28)*
+*Defined in [utils/interfaces.ts:28](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L28)*
 
 ___
 
@@ -58,7 +58,7 @@ ___
 
 • **callerNumber**? : *string*
 
-*Defined in [utils/interfaces.ts:29](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L29)*
+*Defined in [utils/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L29)*
 
 ___
 
@@ -66,7 +66,7 @@ ___
 
 • **destination**: *string*
 
-*Defined in [utils/interfaces.ts:24](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L24)*
+*Defined in [utils/interfaces.ts:24](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L24)*
 
 ___
 
@@ -74,7 +74,7 @@ ___
 
 • **id**? : *string*
 
-*Defined in [utils/interfaces.ts:30](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L30)*
+*Defined in [utils/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L30)*
 
 ___
 
@@ -82,7 +82,7 @@ ___
 
 • **localElement**? : *HTMLMediaElement | string | Function*
 
-*Defined in [utils/interfaces.ts:34](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L34)*
+*Defined in [utils/interfaces.ts:34](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L34)*
 
 ___
 
@@ -90,7 +90,7 @@ ___
 
 • **localStream**? : *MediaStream*
 
-*Defined in [utils/interfaces.ts:32](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L32)*
+*Defined in [utils/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L32)*
 
 ___
 
@@ -98,7 +98,7 @@ ___
 
 • **remoteCallerName**? : *string*
 
-*Defined in [utils/interfaces.ts:26](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L26)*
+*Defined in [utils/interfaces.ts:26](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L26)*
 
 ___
 
@@ -106,7 +106,7 @@ ___
 
 • **remoteCallerNumber**? : *string*
 
-*Defined in [utils/interfaces.ts:27](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L27)*
+*Defined in [utils/interfaces.ts:27](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L27)*
 
 ___
 
@@ -114,7 +114,7 @@ ___
 
 • **remoteElement**? : *HTMLMediaElement | string | Function*
 
-*Defined in [utils/interfaces.ts:35](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L35)*
+*Defined in [utils/interfaces.ts:35](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L35)*
 
 ___
 
@@ -122,7 +122,7 @@ ___
 
 • **remoteSdp**? : *string*
 
-*Defined in [utils/interfaces.ts:31](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L31)*
+*Defined in [utils/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L31)*
 
 ___
 
@@ -130,7 +130,7 @@ ___
 
 • **remoteStream**? : *MediaStream*
 
-*Defined in [utils/interfaces.ts:33](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L33)*
+*Defined in [utils/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L33)*
 
 ___
 
@@ -138,7 +138,7 @@ ___
 
 • **screenShare**? : *boolean*
 
-*Defined in [utils/interfaces.ts:46](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L46)*
+*Defined in [utils/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L46)*
 
 ___
 
@@ -146,7 +146,7 @@ ___
 
 • **useStereo**? : *boolean*
 
-*Defined in [utils/interfaces.ts:39](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L39)*
+*Defined in [utils/interfaces.ts:39](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L39)*
 
 ___
 
@@ -154,7 +154,7 @@ ___
 
 • **userVariables**? : *Object*
 
-*Defined in [utils/interfaces.ts:45](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L45)*
+*Defined in [utils/interfaces.ts:45](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L45)*
 
 ___
 
@@ -162,4 +162,4 @@ ___
 
 • **video**? : *boolean | MediaTrackConstraints*
 
-*Defined in [utils/interfaces.ts:37](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L37)*
+*Defined in [utils/interfaces.ts:37](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L37)*

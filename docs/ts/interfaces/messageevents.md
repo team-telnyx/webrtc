@@ -1,4 +1,4 @@
-[telnyx-rtc](../README.md) › [MessageEvents](messageevents.md)
+[@telnyx/webrtc](../README.md) › [MessageEvents](messageevents.md)
 
 # Interface: MessageEvents
 
@@ -25,7 +25,7 @@
 
 • **callUpdate**: *function*
 
-*Defined in [utils/interfaces.ts:72](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L72)*
+*Defined in [utils/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L72)*
 
 #### Type declaration:
 
@@ -43,7 +43,7 @@ ___
 
 • **error**: *function*
 
-*Defined in [utils/interfaces.ts:71](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L71)*
+*Defined in [utils/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L71)*
 
 #### Type declaration:
 
@@ -55,7 +55,7 @@ ___
 
 • **ready**: *function*
 
-*Defined in [utils/interfaces.ts:68](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L68)*
+*Defined in [utils/interfaces.ts:68](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L68)*
 
 #### Type declaration:
 
@@ -67,7 +67,7 @@ ___
 
 • **registered**: *function*
 
-*Defined in [utils/interfaces.ts:69](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L69)*
+*Defined in [utils/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L69)*
 
 #### Type declaration:
 
@@ -79,7 +79,7 @@ ___
 
 • **socket.close**: *function*
 
-*Defined in [utils/interfaces.ts:75](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L75)*
+*Defined in [utils/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L75)*
 
 #### Type declaration:
 
@@ -97,7 +97,7 @@ ___
 
 • **socket.connect**: *function*
 
-*Defined in [utils/interfaces.ts:74](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L74)*
+*Defined in [utils/interfaces.ts:74](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L74)*
 
 #### Type declaration:
 
@@ -109,7 +109,7 @@ ___
 
 • **socket.error**: *function*
 
-*Defined in [utils/interfaces.ts:73](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L73)*
+*Defined in [utils/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L73)*
 
 #### Type declaration:
 
@@ -127,7 +127,7 @@ ___
 
 • **unregistered**: *function*
 
-*Defined in [utils/interfaces.ts:70](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/utils/interfaces.ts#L70)*
+*Defined in [utils/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L70)*
 
 #### Type declaration:
 

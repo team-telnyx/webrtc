@@ -1,4 +1,4 @@
-[telnyx-rtc](../README.md) › [VertoClient](vertoclient.md)
+[@telnyx/webrtc](../README.md) › [VertoClient](vertoclient.md)
 
 # Class: VertoClient
 
@@ -48,7 +48,7 @@
 
 *Overrides [BaseClient](baseclient.md).[constructor](baseclient.md#constructor)*
 
-*Defined in [VertoClient/VertoClient.ts:27](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/VertoClient/VertoClient.ts#L27)*
+*Defined in [VertoClient/VertoClient.ts:27](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/VertoClient/VertoClient.ts#L27)*
 
 **Parameters:**
 
@@ -66,7 +66,7 @@ Name | Type |
 
 *Inherited from [BaseClient](baseclient.md).[credentials](baseclient.md#credentials)*
 
-*Defined in [BaseClient.ts:35](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L35)*
+*Defined in [BaseClient.ts:35](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L35)*
 
 ___
 
@@ -76,7 +76,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[displayName](baseclient.md#displayname)*
 
-*Defined in [BaseClient.ts:39](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L39)*
+*Defined in [BaseClient.ts:39](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L39)*
 
 ___
 
@@ -86,7 +86,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[env](baseclient.md#env)*
 
-*Defined in [BaseClient.ts:33](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L33)*
+*Defined in [BaseClient.ts:33](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L33)*
 
 ___
 
@@ -96,7 +96,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[host](baseclient.md#host)*
 
-*Defined in [BaseClient.ts:31](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L31)*
+*Defined in [BaseClient.ts:31](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L31)*
 
 ___
 
@@ -106,7 +106,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[port](baseclient.md#port)*
 
-*Defined in [BaseClient.ts:32](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L32)*
+*Defined in [BaseClient.ts:32](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L32)*
 
 ___
 
@@ -116,7 +116,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[project](baseclient.md#optional-project)*
 
-*Defined in [BaseClient.ts:34](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L34)*
+*Defined in [BaseClient.ts:34](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L34)*
 
 ___
 
@@ -126,7 +126,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[useCamera](baseclient.md#usecamera)*
 
-*Defined in [BaseClient.ts:38](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L38)*
+*Defined in [BaseClient.ts:38](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L38)*
 
 ___
 
@@ -136,7 +136,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[useMic](baseclient.md#usemic)*
 
-*Defined in [BaseClient.ts:36](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L36)*
+*Defined in [BaseClient.ts:36](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L36)*
 
 ___
 
@@ -146,7 +146,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[useSpeaker](baseclient.md#usespeaker)*
 
-*Defined in [BaseClient.ts:37](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L37)*
+*Defined in [BaseClient.ts:37](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L37)*
 
 ## Accessors
 
@@ -156,7 +156,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[localElement](baseclient.md#localelement)*
 
-*Defined in [BaseClient.ts:62](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L62)*
+*Defined in [BaseClient.ts:62](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L62)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
@@ -164,7 +164,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[localElement](baseclient.md#localelement)*
 
-*Defined in [BaseClient.ts:58](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L58)*
+*Defined in [BaseClient.ts:58](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L58)*
 
 **Parameters:**
 
@@ -182,7 +182,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[remoteElement](baseclient.md#remoteelement)*
 
-*Defined in [BaseClient.ts:70](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L70)*
+*Defined in [BaseClient.ts:70](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L70)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
@@ -190,7 +190,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[remoteElement](baseclient.md#remoteelement)*
 
-*Defined in [BaseClient.ts:66](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L66)*
+*Defined in [BaseClient.ts:66](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L66)*
 
 **Parameters:**
 
@@ -208,7 +208,7 @@ Name | Type |
 
 *Overrides [BaseClient](baseclient.md).[connect](baseclient.md#abstract-connect)*
 
-*Defined in [VertoClient/VertoClient.ts:36](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/VertoClient/VertoClient.ts#L36)*
+*Defined in [VertoClient/VertoClient.ts:36](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/VertoClient/VertoClient.ts#L36)*
 
 **Returns:** *Promise‹void›*
 
@@ -220,7 +220,7 @@ ___
 
 *Overrides [BaseClient](baseclient.md).[disconnect](baseclient.md#abstract-disconnect)*
 
-*Defined in [VertoClient/VertoClient.ts:97](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/VertoClient/VertoClient.ts#L97)*
+*Defined in [VertoClient/VertoClient.ts:97](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/VertoClient/VertoClient.ts#L97)*
 
 **Returns:** *void*
 
@@ -232,7 +232,7 @@ ___
 
 *Overrides [BaseClient](baseclient.md).[newCall](baseclient.md#abstract-newcall)*
 
-*Defined in [VertoClient/VertoClient.ts:75](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/VertoClient/VertoClient.ts#L75)*
+*Defined in [VertoClient/VertoClient.ts:75](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/VertoClient/VertoClient.ts#L75)*
 
 **Parameters:**
 
@@ -250,7 +250,7 @@ ___
 
 *Inherited from [BaseClient](baseclient.md).[on](baseclient.md#on)*
 
-*Defined in [BaseClient.ts:74](https://github.com/team-telnyx/telnyx-webrtc-sdk/blob/abc8c08/src/BaseClient.ts#L74)*
+*Defined in [BaseClient.ts:74](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L74)*
 
 **Type parameters:**
 
