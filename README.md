@@ -1,6 +1,6 @@
-# telnyx-rtc
+# Telnyx WebRTC
 
-The Telnyx RTC SDK provides all the functionality you need to start making WebRTC calls from a browser.
+The Telnyx WebRTC SDK provides all the functionality you need to start making calls from a browser.
 
 **NOTE**: Video will be supported in a future release.
 
@@ -15,7 +15,7 @@ You'll also need a Telnyx account. [Sign up for free](https://telnyx.com/sign-up
 Install the package with:
 
 ```
-npm install telnyx-rtc --save
+npm install @telnyx/webrtc --save
 ```
 
 As long as you can import NPM packages with a bundler like [webpack](https://webpack.js.org/), you're ready to begin.
