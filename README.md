@@ -8,7 +8,7 @@ The Telnyx WebRTC SDK provides all the functionality you need to start making vo
 
 You'll need node 8.6.0 or later.
 
-You'll also need a Telnyx account to in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
+You'll also need a Telnyx account in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
 
 ---
 
