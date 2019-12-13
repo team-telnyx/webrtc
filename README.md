@@ -1,14 +1,16 @@
-# Telnyx WebRTC
+# Telnyx WebRTC SDK
 
-The Telnyx WebRTC SDK provides all the functionality you need to start making calls from a browser.
+![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc)
 
-**NOTE**: Video will be supported in a future release.
+The Telnyx WebRTC SDK provides all the functionality you need to start making voice calls from a browser to phone numbers or other browsers.
 
 ## Requirements
 
 You'll need node 8.6.0 or later.
 
-You'll also need a Telnyx account. [Sign up for free](https://telnyx.com/sign-up) and then follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a Connection with Credentials Authentication. Make note of your Connection username and password.
+You'll also need a Telnyx account to in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
+
+---
 
 ## Installation
 
@@ -18,25 +20,28 @@ Install the package with:
 npm install @telnyx/webrtc --save
 ```
 
-As long as you can import NPM packages with a bundler like [webpack](https://webpack.js.org/), you're ready to begin.
+As long as you can import npm packages with a bundler like [Webpack](https://webpack.js.org/), you're ready to import `TelnyxRTC` and begin:
 
----
+```js
+import { TelnyxRTC } from '@telnyx/webrtc';
+```
 
 ## Usage
 
-The package needs to be configured with a SIP username and password. You can add credentials to a [connection](https://portal.telnyx.com/#/app/connections) under your Telnyx account.
+To initialize the JavaScript SDK, you'll need to authenticate using a Telnyx Connection. You can access the Connection credentials in the [Telnyx Portal](https://portal.telnyx.com/#/app/connections).
 
 ```js
-// Import and initialize the client
-import { TelnyxRTC } from '@telnyx/webrtc';
-
+// Initialize the client
 const client = new TelnyxRTC({
+  // Required credentials
   credentials: {
     // Telnyx Connection Username
     username: 'username',
     // Telnyx Connection Password
     password: 'password',
   },
+  // Other options
+  //
   // This can be a DOM element, DOM selector, or a function that returns an element.
   remoteElement: '#videoOrAudioSelector',
   useMic: true,
@@ -48,11 +53,12 @@ const client = new TelnyxRTC({
 let activeCall;
 
 // Attach event listeners
-newClient
+client
   .on('socket.connect', () => console.log('socket connected'))
   .on('socket.close', () => console.log('socket closed'))
   .on('registered', () => console.log('registered'))
   .on('unregistered', () => console.log('unregistered'))
+  // Event fired on call updates, e.g. when there's an incoming call
   .on('callUpdate', (call) => {
     activeCall = call;
 
@@ -79,25 +85,33 @@ newClient
     }
   });
 
+// Connect and login
 client.connect();
 
 // You can disconnect when you're done
 // client.disconnect();
 ```
 
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](examples/react) for sample React code that handles username and password by prompting the user.
+
 ### Calls
 
+To initiate a call from your application:
+
 ```js
-// You can save this call or wait for callUpdate
-const newCall = client.newCall({
+// You can save this call or wait for `callUpdate` and use the returned `activeCall`
+const call = client.newCall({
+  // Destination is required and can be a phone number or SIP URI
   destination: '18004377950',
   callerName: 'Caller ID Name',
-  // You can only specify numbers which were purchased and assigned to your connection
+  // Caller ID number is optional.
+  // You can only specify a phone number that you own and have assigned
+  // to your Connection in the Telnyx Portal
   callerNumber: '‬',
 });
 ```
 
-A Call has more methods that can be hooked up to your UI:
+A [Call](./docs/ts/interfaces/icall.md) has methods that can be hooked up to your UI:
 
 ```js
 // End a call
@@ -125,7 +139,7 @@ call.reject();
 
 ## Examples
 
-We've included a few [React examples](examples/react) to help you get started. This library can be used with any framework of your choosing.
+We've included a few [examples in React](examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 ```
 cd examples/react
@@ -134,13 +148,15 @@ npm install
 npm run storybook
 ```
 
-Configuration options for your Telnyx account are available under the **Storybook Knobs**.
+Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
 ---
 
-## Development
+## Contributing
 
-This library is written in TypeScript to define a clear API with optional typechecking benefits.
+### Development
+
+This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
 
 To contribute, clone this repo and install locally:
 
@@ -162,9 +178,7 @@ To generate TypeScript documentation:
 npm run docs
 ```
 
----
-
-## Releases
+### Releasing
 
 Releases are handled by the [release-it](https://github.com/release-it/release-it) package. This is available as an npm script:
 
@@ -178,4 +192,4 @@ npm run release -- minor
 npm run release -- major
 ```
 
-You'll need a [personal access token](https://github.com/release-it/release-it#github-releases) to make the GitHub release.
+Open a new pull request with your changes to propose a new release.
