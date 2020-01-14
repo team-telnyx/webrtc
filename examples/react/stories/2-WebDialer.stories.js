@@ -184,8 +184,6 @@ const WebDialer = ({
   defaultDestination,
   callerName,
   callerNumber,
-  host,
-  port,
 }) => {
   const clientRef = useRef();
   const mediaRef = useRef();
@@ -219,7 +217,7 @@ const WebDialer = ({
   };
 
   const connectAndCall = () => {
-    const configsTelnyxRTC = {
+    const newClient = new TelnyxRTC({
       env: environment,
       credentials: {
         username,
@@ -229,15 +227,7 @@ const WebDialer = ({
       useMic: true,
       useSpeaker: true,
       useCamera: false,
-    };
-
-    // These parameters comes from URL Params
-    if (host && port) {
-      configsTelnyxRTC['host'] = host;
-      configsTelnyxRTC['port'] = port;
-    }
-
-    const newClient = new TelnyxRTC(configsTelnyxRTC)
+    })
       .on('registered', () => {
         setRegistered(true);
         setRegistering(false);
@@ -323,23 +313,6 @@ const WebDialer = ({
   );
 };
 
-const getUrlParams = () => {
-  const queryString = window.location.search;
-  if (!queryString) {
-    return {
-      host: null,
-      port: null,
-    };
-  }
-
-  const urlParams = new URLSearchParams(queryString);
-
-  return {
-    host: urlParams.get('host') || null,
-    port: urlParams.get('port') || null,
-  };
-};
-
 export const Example = () => {
   const production = boolean('Production', true);
   const username = text('Connection Username', 'username');
@@ -347,13 +320,6 @@ export const Example = () => {
   const defaultDestination = text('Default Destination', '18004377950');
   const callerName = text('Caller Name', 'Caller ID Name');
   const callerNumber = text('Caller Number', 'Caller ID Number');
-  let host = null;
-  let port = null;
-  const configs = getUrlParams();
-  if (configs.host && configs.port) {
-    host = text('Hostname', configs.host);
-    port = text('Port', configs.port);
-  }
 
   return (
     <WebDialer
@@ -363,8 +329,6 @@ export const Example = () => {
       defaultDestination={defaultDestination}
       callerName={callerName}
       callerNumber={callerNumber}
-      host={host}
-      port={port}
     />
   );
 };
