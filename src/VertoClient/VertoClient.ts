@@ -28,7 +28,7 @@ export default class VertoClient extends BaseClient {
 
   constructor(o?: IClientOptions) {
     super(o);
-    this.host = HOST;
+    this.host = this.host || HOST;
     this.port =
       this.port || (this.env === 'development' ? VERTO_DEV_PORT : VERTO_PORT);
   }
