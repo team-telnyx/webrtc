@@ -326,7 +326,10 @@ const WebDialer = ({
 const getUrlParams = () => {
   const queryString = window.location.search;
   if (!queryString) {
-    return null;
+    return {
+      host: null,
+      port: null,
+    };
   }
 
   const urlParams = new URLSearchParams(queryString);
