@@ -1,4 +1,4 @@
-import VertoClient from './VertoClient';
+import TelnyxRTCClient from './TelnyxRTCClient';
 
 // Create an element for the call
 document.body.innerHTML = '<audio id="rtc-container"></audio>';
@@ -23,8 +23,8 @@ Object.defineProperty((global as any).navigator, 'mediaDevices', {
   configurable: true,
 });
 
-describe('VertoClient', () => {
-  const client = new VertoClient({
+describe('TelnyxRTCClient', () => {
+  const client = new TelnyxRTCClient({
     credentials: {
       username: 'username',
       password: 'password',
@@ -39,7 +39,7 @@ describe('VertoClient', () => {
     expect(client.credentials.username).toBe('username');
     expect(client.credentials.password).toBe('password');
     expect(client.remoteElement).toBeInstanceOf(HTMLAudioElement);
-    expect(client.verto).not.toBeNull();
+    expect(client.telnyxRTC).not.toBeNull();
     expect(client.useMic).toBe(true);
     expect(client.useSpeaker).toBe(true);
     expect(client.useCamera).toBe(false);
@@ -70,7 +70,7 @@ describe('VertoClient', () => {
 
   /**
    * @TODO This doesn't establish RTCPeerConnection as it's not available in jsdom.
-   * However, it should still initiate a call with verto and call commands.
+   * However, it should still initiate a call with TelnyxRTC and call commands.
    */
   it('can make a call', (done) => {
     let didHangUp = false;

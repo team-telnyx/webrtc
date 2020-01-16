@@ -1,29 +1,29 @@
 import { CallState } from '../utils/types';
 import { ICall } from '../utils/interfaces';
-import IVertoDialog from './IVertoDialog';
-import { VertoCallState } from '../Verto/Enum';
+import ITelnyxRTCDialog from './ITelnyxRTCDialog';
+import { TelnyxRTCCallState } from '../TelnyxRTC/Enum';
 
 /**
  * @hidden
  */
-export default class VertoCall implements ICall {
-  constructor(private call: IVertoDialog) {}
+export default class TelnyxRTCCall implements ICall {
+  constructor(private call: ITelnyxRTCDialog) {}
 
   get state(): CallState {
     switch (this.call.state) {
-      case VertoCallState.requesting:
-      case VertoCallState.recovering:
-      case VertoCallState.trying:
-      case VertoCallState.early:
+      case TelnyxRTCCallState.requesting:
+      case TelnyxRTCCallState.recovering:
+      case TelnyxRTCCallState.trying:
+      case TelnyxRTCCallState.early:
         return 'connecting';
-      case VertoCallState.active:
+      case TelnyxRTCCallState.active:
         return 'active';
-      case VertoCallState.held:
+      case TelnyxRTCCallState.held:
         return 'held';
-      case VertoCallState.hangup:
-      case VertoCallState.destroy:
+      case TelnyxRTCCallState.hangup:
+      case TelnyxRTCCallState.destroy:
         return 'done';
-      case VertoCallState.answering:
+      case TelnyxRTCCallState.answering:
         return 'ringing';
       default:
         return 'new';
