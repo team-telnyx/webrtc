@@ -1,6 +1,7 @@
 import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
 import IVertoDialog from './IVertoDialog';
 
+const MODULE = 'verto';
 const HOST = `webrtc2.telnyx.com`;
 const VERTO_PORT = 14939;
 const VERTO_DEV_PORT = 14938;
@@ -31,6 +32,7 @@ export default class VertoClient extends BaseClient {
     this.host = this.host || HOST;
     this.port =
       this.port || (this.env === 'development' ? VERTO_DEV_PORT : VERTO_PORT);
+      this.module = this.module || MODULE;
   }
 
   async connect() {
@@ -59,6 +61,7 @@ export default class VertoClient extends BaseClient {
         login: `${this.credentials.username}@${this.host}`,
         password: this.credentials.token || this.credentials.password,
         socketUrl: `wss://${this.host}:${this.port}`,
+        module: this.module,
         // ringFile: 'bell_ring2.wav',
         iceServers: [this.stunServer, this.turnServer],
         deviceParams: {
