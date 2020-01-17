@@ -1,4 +1,5 @@
 import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
+import { getDeviceString, checkAllowedModules } from './helpers'
 import ITelnyxRTCDialog from './ITelnyxRTCDialog';
 
 const MODULE = 'verto';
@@ -10,15 +11,6 @@ import Verto from '../TelnyxRTC/Verto';
 import BaseClient from '../BaseClient';
 import TelnyxRTCCall from './TelnyxRTCCall';
 
-const getDeviceString = (input: string | Boolean): string => {
-  if (typeof input === 'boolean') {
-    return input ? 'any' : 'none';
-  } else if (typeof input === 'string') {
-    return input;
-  }
-
-  return 'none';
-};
 
 export default class TelnyxRTCClient extends BaseClient {
   /**
@@ -33,6 +25,10 @@ export default class TelnyxRTCClient extends BaseClient {
     this.port =
       this.port || (this.env === 'development' ? TelnyxRTC_DEV_PORT : TelnyxRTC_PORT);
       this.module = this.module || MODULE;
+
+      if(!checkAllowedModules(this.module)) {
+        throw new Error(`Module ${this.module} is not supported`)
+      }
   }
 
   async connect() {
