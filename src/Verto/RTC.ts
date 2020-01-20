@@ -49,7 +49,7 @@ function findLineInRange(sdpLines, startLine, endLine, prefix, substr) {
 
 // Find the line in sdpLines that starts with |prefix|, and, if specified,
 // contains |substr| (case-insensitive search).
-function findLine(sdpLines, prefix, substr) {
+function findLine(sdpLines, prefix, substr?) {
   return findLineInRange(sdpLines, 0, -1, prefix, substr);
 }
 
@@ -101,13 +101,13 @@ function onICE(self, candidate) {
   doCallback(self, 'onICE');
 }
 
-function doCallback(self, func, arg) {
+function doCallback(self, func, arg?) {
   if (func in self.options.callbacks) {
     self.options.callbacks[func](self, arg);
   }
 }
 
-function onICEComplete(self, candidate) {
+function onICEComplete(self, candidate?) {
   // console.log('ICE Complete');
   doCallback(self, 'onICEComplete');
 }
@@ -481,6 +481,17 @@ let ttl = 0;
  * @hidden
  */
 export default class VertoRTC {
+	public options: any;
+	public audioEnabled: any;
+	public videoEnabled: any;
+	public mediaData: any;
+	public constraints: any;
+	public peer: any;
+	public localStream: any;
+	public type: any;
+	public remoteSDP: any;
+	public validRes: any;
+
   constructor(options) {
     this.options = Object.assign(
       {

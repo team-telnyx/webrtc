@@ -34,6 +34,8 @@
  * @hidden
  */
 export default class VertoHashArray {
+	public array: any;
+
   constructor() {
     this.hash = {};
     this.array = [];
@@ -172,6 +174,23 @@ export default class VertoHashArray {
  * @hidden
  */
 export class VertoLiveArray extends VertoHashArray {
+	public verto: any;
+	public lastSerno: any;
+	public binding: any;
+	public user_obj: any;
+	public config: any;
+	public local: any;
+	public _add: any;
+	public _del: any;
+	public _reorder: any;
+	public _clear: any;
+	public context: any;
+	public name: any;
+	public errs: any;
+	public onChange: any;
+	public onErr: any;
+	public hb_pid: any;
+
   constructor(verto, context, name, config) {
     super();
     this.verto = verto;
@@ -354,7 +373,7 @@ export class VertoLiveArray extends VertoHashArray {
     }
   }
 
-  eventHandler(v, e, la) {
+  eventHandler(v, e?, la?) {
     const packet = e.data;
 
     console.debug('READ:', packet);

@@ -36,6 +36,12 @@ let CONFMAN_SERNO = 0;
  * @hidden
  */
 export default class VertoConfMan {
+	public params: any;
+	public verto: any;
+	public serno: any;
+	public canvasCount: any;
+	public destroyed: any;
+
   constructor(verto, params) {
     this.params = Object.assign(
       {
@@ -101,7 +107,7 @@ export default class VertoConfMan {
     // if (this.params.laData.role === "moderator")
   }
 
-  modCommand(cmd, id, value) {
+  modCommand(cmd, id, value?) {
     this.verto.call('verto.broadcast', {
       eventChannel: this.params.laData.modChannel,
       data: {
