@@ -10,11 +10,15 @@ export default interface ITelnyxRTCCall {
   getMute(): Boolean;
   hangup(): void;
   answer(): void;
-  hold(): void;
-  unhold(): void;
+  hold(params?: any): void;
+  unhold(params?: any): void;
   mute(): void;
   unmute(): void;
   dtmf(text: string): void;
-  transfer(destination: string): void;
-  setAudioOutDevice(sinkId: string, callback?: Function): Promise<undefined>;
+  transfer(destination: string, params?: any): void;
+  setAudioOutDevice(
+    sinkId: string,
+    callback?: Function,
+    arg?: any
+  ): Promise<undefined>;
 }

@@ -37,6 +37,30 @@ import Enum from './Enum';
  * @hidden
  */
 export default class VertoDialog {
+  public params: any;
+  public verto: any;
+  public direction: any;
+  public lastState: any;
+  public state: any;
+  public callbacks: any;
+  public answered: any;
+  public attach: any;
+  public screenShare: any;
+  public useCamera: any;
+  public useMic: any;
+  public useSpeak: any;
+  public onStateChange: any;
+  public rtc: any;
+  public callID: any;
+  public audioStream: any;
+  public videoStream: any;
+  public localVideo: any;
+  public setAudioPlaybackDevice: any;
+  public causeCode: any;
+  public cause: any;
+  public gotAnswer: any;
+  public gotEarly: any;
+
   constructor(direction, verto, params) {
     this.params = Object.assign(
       {
@@ -92,7 +116,7 @@ export default class VertoDialog {
 
     this.verto.dialogs[this.callID] = this;
 
-    const RTCcallbacks = {};
+    const RTCcallbacks: any = {};
 
     if (this.direction == Enum.direction.inbound) {
       if (this.params.display_direction === 'outbound') {
@@ -272,7 +296,7 @@ export default class VertoDialog {
           }
         })
         .catch((error) => {
-          const errorMessage = error;
+          let errorMessage = error;
           if (error.name === 'SecurityError') {
             errorMessage =
               'Dialog: ' +
@@ -438,7 +462,7 @@ export default class VertoDialog {
     }
   }
 
-  hangup(params) {
+  hangup(params?) {
     if (params) {
       if (params.causeCode) {
         this.causeCode = params.causeCode;
@@ -541,7 +565,7 @@ export default class VertoDialog {
   }
 
   rtt(obj) {
-    const pobj = {};
+    const pobj: any = {};
 
     if (!obj) {
       return false;
@@ -615,7 +639,7 @@ export default class VertoDialog {
     return true;
   }
 
-  answer(params) {
+  answer(params?) {
     if (this.answered) return;
 
     if (!params) params = {};
