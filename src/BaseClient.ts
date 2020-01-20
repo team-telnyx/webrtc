@@ -7,7 +7,7 @@ import {
   ICredentials,
   MessageEvents,
 } from './utils/interfaces';
-import { Env, RTCElement } from './utils/types';
+import { Env, RTCElement, Module } from './utils/types';
 
 const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
 const TURN_SERVER = {
@@ -31,6 +31,7 @@ export default abstract class BaseClient {
   public host: string;
   public port: number;
   public env: Env;
+  public module: Module;
   public project?: string;
   public credentials: ICredentials;
   public useMic: string | boolean;
