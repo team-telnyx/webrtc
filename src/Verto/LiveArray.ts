@@ -34,19 +34,20 @@
  * @hidden
  */
 export default class VertoHashArray {
-	public array: any;
+  public hash: any;
+  public array: any;
 
   constructor() {
     this.hash = {};
     this.array = [];
   }
 
-  reorder(a) {
+  reorder(a, arg?) {
     this.array = a;
     let h = this.hash;
     this.hash = {};
 
-    const len = array.length;
+    const len = this.array.length;
 
     for (let i = 0; i < len; i++) {
       const key = this.array[i];
@@ -65,7 +66,7 @@ export default class VertoHashArray {
     this.array = [];
   }
 
-  add(name, val, insertAt) {
+  add(name, val, insertAt, arg?): any {
     let redraw = false;
 
     if (!this.hash[name]) {
@@ -77,7 +78,7 @@ export default class VertoHashArray {
         this.array.push(name);
       } else {
         let x = 0;
-        const n = [];
+        let n = [];
         const len = this.array.length;
 
         for (let i = 0; i < len; i++) {
@@ -99,7 +100,7 @@ export default class VertoHashArray {
     return redraw;
   }
 
-  del(name) {
+  del(name, arg1?, arg2?): any {
     let r = false;
 
     if (this.hash[name]) {
@@ -119,10 +120,6 @@ export default class VertoHashArray {
 
   order() {
     return this.array;
-  }
-
-  hash() {
-    return this.hash;
   }
 
   indexOf(name) {
@@ -157,14 +154,14 @@ export default class VertoHashArray {
   dump(html) {
     let str = '';
 
-    vha.each((name, val) => {
-      str +=
-        'name: ' +
-        name +
-        'val: ' +
-        JSON.stringify(val) +
-        (html ? '<br>' : '\n');
-    });
+    // vha.each((name, val) => {
+    //   str +=
+    //     'name: ' +
+    //     name +
+    //     'val: ' +
+    //     JSON.stringify(val) +
+    //     (html ? '<br>' : '\n');
+    // });
 
     return str;
   }
@@ -174,22 +171,22 @@ export default class VertoHashArray {
  * @hidden
  */
 export class VertoLiveArray extends VertoHashArray {
-	public verto: any;
-	public lastSerno: any;
-	public binding: any;
-	public user_obj: any;
-	public config: any;
-	public local: any;
-	public _add: any;
-	public _del: any;
-	public _reorder: any;
-	public _clear: any;
-	public context: any;
-	public name: any;
-	public errs: any;
-	public onChange: any;
-	public onErr: any;
-	public hb_pid: any;
+  public verto: any;
+  public lastSerno: any;
+  public binding: any;
+  public user_obj: any;
+  public config: any;
+  public local: any;
+  public _add: any;
+  public _del: any;
+  public _reorder: any;
+  public _clear: any;
+  public context: any;
+  public name: any;
+  public errs: any;
+  public onChange: any;
+  public onErr: any;
+  public hb_pid: any;
 
   constructor(verto, context, name, config) {
     super();
@@ -216,7 +213,6 @@ export class VertoLiveArray extends VertoHashArray {
       this.binding = verto.subscribe(context, {
         handler: this.eventHandler.bind(this),
         userData: verto,
-        userData: this,
         subParams: config.subParams,
       });
     }
@@ -247,7 +243,7 @@ export class VertoLiveArray extends VertoHashArray {
 
     if (this.lastSerno > 0 && serno != this.lastSerno + 1) {
       if (this.onErr) {
-        this.onErr(la, {
+        this.onErr(this, {
           lastSerno: this.lastSerno,
           serno: serno,
         });
@@ -281,8 +277,8 @@ export class VertoLiveArray extends VertoHashArray {
       key = serno;
     }
     if (this.checkSerno(serno)) {
-      if (la.onChange) {
-        la.onChange(la, {
+      if (this.onChange) {
+        this.onChange(this, {
           serno: serno,
           action: 'init',
           index: index,
@@ -311,9 +307,9 @@ export class VertoLiveArray extends VertoHashArray {
     }
   }
 
-  // 	// @param serno  La is the serial number for la particular request.
-  // 	// @param key    If looking at it as a hash table, la represents the key in the hashArray object where you want to store the val object.
-  // 	// @param index  If looking at it as an array, la represents the position in the array where you want to store the val object.
+  // 	// @param serno  This is the serial number for this particular request.
+  // 	// @param key    If looking at it as a hash table, this represents the key in the hashArray object where you want to store the val object.
+  // 	// @param index  If looking at it as an array, this represents the position in the array where you want to store the val object.
   // 	// @param val    La is the object you want to store at the key or index location in the hash table / array.
   add(serno, val, key, index) {
     if (key === null || key === undefined) {
@@ -472,8 +468,8 @@ export class VertoLiveArray extends VertoHashArray {
     this.broadcast(this.context, {
       liveArray: {
         command: 'changepage',
-        context: la.context,
-        name: la.name,
+        context: this.context,
+        name: this.name,
         obj: obj,
       },
     });

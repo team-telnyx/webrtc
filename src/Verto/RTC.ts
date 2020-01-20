@@ -135,8 +135,12 @@ function onMessage(self, msg) {
 }
 
 function FSRTCattachMediaStream(element, stream) {
-  if (element && element.id && typeof attachMediaStream == 'function') {
-    attachMediaStream(element, stream);
+  if (
+    element &&
+    element.id &&
+    typeof (<any>window).attachMediaStream == 'function'
+  ) {
+    (<any>window).attachMediaStream(element, stream);
   } else {
     if (typeof element.srcObject !== 'undefined') {
       element.srcObject = stream;
@@ -168,10 +172,10 @@ function onOfferSDP(self, sdp) {
   doCallback(self, 'onOfferSDP');
 }
 
-function FSRTCPeerConnection(options) {
-  let gathering = false;
+function FSRTCPeerConnection(options: any) {
+  let gathering: any = false;
   let done = false;
-  const config = {};
+  const config: any = {};
   const default_ice = {
     urls: ['stun:stun.l.google.com:19302'],
   };
@@ -232,7 +236,10 @@ function FSRTCPeerConnection(options) {
   };
 
   // attachStream = MediaStream;
-  if (options.attachStream) peer.addStream(options.attachStream);
+
+  // @TODO Migrate to `addTrack`
+  // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
+  if (options.attachStream) (<any>peer).addStream(options.attachStream);
 
   // attachStreams[0] = audio-stream;
   // attachStreams[1] = video-stream;
@@ -240,7 +247,7 @@ function FSRTCPeerConnection(options) {
   if (options.attachStreams && options.attachStream.length) {
     const streams = options.attachStreams;
     streams.forEach((stream) => {
-      peer.addStream(stream);
+      (<any>peer).addStream(stream);
     });
   }
 
@@ -248,7 +255,7 @@ function FSRTCPeerConnection(options) {
     const remoteMediaStream = event.streams[0];
 
     // onRemoteStreamEnded(MediaStream)
-    remoteMediaStream.oninactive = function() {
+    (<any>remoteMediaStream).oninactive = function() {
       if (options.onRemoteStreamEnded)
         options.onRemoteStreamEnded(remoteMediaStream);
     };
@@ -268,7 +275,9 @@ function FSRTCPeerConnection(options) {
   function createOffer() {
     if (!options.onOfferSDP) return;
 
-    peer.createOffer(
+    // @TODO Migrate to single options argument
+    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
+    (<any>peer).createOffer(
       (sessionDescription) => {
         sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
         peer.setLocalDescription(sessionDescription);
@@ -284,12 +293,14 @@ function FSRTCPeerConnection(options) {
     if (options.type != 'answer') return;
 
     //options.offerSDP.sdp = addStereo(options.offerSDP.sdp);
-    peer.setRemoteDescription(
+
+    // @TODO Verify `setRemoteDescription` and `createAnswer` call signature
+    (<any>peer).setRemoteDescription(
       new window.RTCSessionDescription(options.offerSDP),
       onSdpSuccess,
       onSdpError
     );
-    peer.createAnswer(function(sessionDescription) {
+    (<any>peer).createAnswer(function(sessionDescription) {
       sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
       peer.setLocalDescription(sessionDescription);
       if (options.onAnswerSDP) {
@@ -315,10 +326,10 @@ function FSRTCPeerConnection(options) {
   // old: FF<>Chrome interoperability management
   function getInteropSDP(sdp) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const extractedChars = '';
+    let extractedChars = '';
 
     function getChars() {
-      extractedChars += chars[parseInt(Math.random() * 40)] || '';
+      extractedChars += chars[Math.floor(Math.random() * 40)] || '';
       if (extractedChars.length < 40) getChars();
 
       return extractedChars;
@@ -359,9 +370,14 @@ function FSRTCPeerConnection(options) {
   }
 
   function _openOffererChannel() {
-    channel = peer.createDataChannel(options.channel || 'RTCDataChannel', {
-      reliable: false,
-    });
+    // @TODO Remove `reliable`
+    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel
+    channel = (<any>peer).createDataChannel(
+      options.channel || 'RTCDataChannel',
+      {
+        reliable: false,
+      }
+    );
 
     setChannelEvents();
   }
@@ -397,7 +413,7 @@ function FSRTCPeerConnection(options) {
 
   // fake:true is also available on chrome under a flag!
   function useless() {
-    log('Error in fake:true');
+    console.log('Error in fake:true');
   }
 
   function onSdpSuccess() {}
@@ -411,7 +427,7 @@ function FSRTCPeerConnection(options) {
 
   return {
     addAnswerSDP: (sdp, cbSuccess, cbError) => {
-      peer.setRemoteDescription(
+      (<any>peer).setRemoteDescription(
         new window.RTCSessionDescription(sdp),
         cbSuccess ? cbSuccess : onSdpSuccess,
         cbError ? cbError : onSdpError
@@ -481,16 +497,17 @@ let ttl = 0;
  * @hidden
  */
 export default class VertoRTC {
-	public options: any;
-	public audioEnabled: any;
-	public videoEnabled: any;
-	public mediaData: any;
-	public constraints: any;
-	public peer: any;
-	public localStream: any;
-	public type: any;
-	public remoteSDP: any;
-	public validRes: any;
+  public options: any;
+  public audioEnabled: any;
+  public videoEnabled: any;
+  public mediaData: any;
+  public constraints: any;
+  public peer: any;
+  public localStream: any;
+  public type: any;
+  public remoteSDP: any;
+  public validRes: any = [];
+  public static validRes: any = [];
 
   constructor(options) {
     this.options = Object.assign(
@@ -757,7 +774,7 @@ export default class VertoRTC {
       });
     }
 
-    let video = {};
+    let video: any = {};
     let useVideo = false;
     const bestFrameRate = this.options.videoParams.vertoBestFrameRate;
     const minFrameRate = this.options.videoParams.minFrameRate || 15;
@@ -767,7 +784,7 @@ export default class VertoRTC {
       console.log('screenShare');
       // fix for chrome to work for now, will need to change once we figure out how to do this in a non-mandatory style constraint.
 
-      if (!!navigator.mozGetUserMedia) {
+      if (!!(<any>navigator).mozGetUserMedia) {
         const dowin = confirm(
           'Do you want to share an application window? If not you will share a screen.'
         );
@@ -934,7 +951,7 @@ export default class VertoRTC {
   call(profile) {
     checkCompat();
 
-    const screen = false;
+    let screen = false;
 
     this.type = 'offer';
 
@@ -1077,7 +1094,7 @@ export default class VertoRTC {
       return;
     }
 
-    let video = {
+    let video: any = {
       mandatory: {},
       optional: [],
     };
@@ -1120,5 +1137,3 @@ export default class VertoRTC {
     });
   }
 }
-
-VertoRTC.validRes = [];
