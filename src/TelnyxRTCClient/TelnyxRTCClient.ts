@@ -1,36 +1,34 @@
 import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
-import IVertoDialog from './IVertoDialog';
+import { getDeviceString, checkAllowedModules } from './helpers'
+import ITelnyxRTCDialog from './ITelnyxRTCDialog';
 
+const MODULE = 'verto';
 const HOST = `webrtc2.telnyx.com`;
-const VERTO_PORT = 14939;
-const VERTO_DEV_PORT = 14938;
+const TelnyxRTC_PORT = 14939;
+const TelnyxRTC_DEV_PORT = 14938;
 
-import Verto from '../Verto';
+import Verto from '../TelnyxRTC/Verto';
 import BaseClient from '../BaseClient';
-import VertoCall from './VertoCall';
+import TelnyxRTCCall from './TelnyxRTCCall';
 
-const getDeviceString = (input: string | Boolean): string => {
-  if (typeof input === 'boolean') {
-    return input ? 'any' : 'none';
-  } else if (typeof input === 'string') {
-    return input;
-  }
 
-  return 'none';
-};
-
-export default class VertoClient extends BaseClient {
+export default class TelnyxRTCClient extends BaseClient {
   /**
-   * Verto instance, only exposed for testing.
+   * TelnyxRTC instance, only exposed for testing.
    * @hidden
    */
-  public verto: Verto;
+  public telnyxRTC: Verto;
 
   constructor(o?: IClientOptions) {
     super(o);
     this.host = this.host || HOST;
     this.port =
-      this.port || (this.env === 'development' ? VERTO_DEV_PORT : VERTO_PORT);
+      this.port || (this.env === 'development' ? TelnyxRTC_DEV_PORT : TelnyxRTC_PORT);
+      this.module = this.module || MODULE;
+
+      if(!checkAllowedModules(this.module)) {
+        throw new Error(`Module ${this.module} is not supported`)
+      }
   }
 
   async connect() {
@@ -49,16 +47,17 @@ export default class VertoClient extends BaseClient {
         this.eventBus.emit('unregistered');
         this.eventBus.emit('socket.close');
       },
-      onDialogState: (d: IVertoDialog) => {
-        this.eventBus.emit('callUpdate', new VertoCall(d));
+      onDialogState: (d: ITelnyxRTCDialog) => {
+        this.eventBus.emit('callUpdate', new TelnyxRTCCall(d));
       },
     };
 
-    this.verto = new Verto(
+    this.telnyxRTC = new Verto(
       {
         login: `${this.credentials.username}@${this.host}`,
         password: this.credentials.token || this.credentials.password,
         socketUrl: `wss://${this.host}:${this.port}`,
+        module: this.module,
         // ringFile: 'bell_ring2.wav',
         iceServers: [this.stunServer, this.turnServer],
         deviceParams: {
@@ -77,7 +76,7 @@ export default class VertoClient extends BaseClient {
       throw new TypeError('destination is required');
     }
 
-    const call = this.verto.newCall({
+    const call = this.telnyxRTC.newCall({
       destination_number: options.destination,
       caller_id_name: options.callerName || 'Telnyx',
       caller_id_number: options.callerNumber || this.credentials.username,
@@ -91,13 +90,13 @@ export default class VertoClient extends BaseClient {
       // tag: '#verto-container',
     });
 
-    return new VertoCall(call);
+    return new TelnyxRTCCall(call);
   }
 
   disconnect() {
-    if (this.verto) {
-      this.verto.logout();
-      this.verto = null;
+    if (this.telnyxRTC) {
+      this.telnyxRTC.logout();
+      this.telnyxRTC = null;
     }
 
     this.eventBus.removeAllListeners();

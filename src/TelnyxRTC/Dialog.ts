@@ -162,13 +162,13 @@ export default class VertoDialog {
       if (rtc.type == 'offer') {
         if (this.state == Enum.state.active) {
           this.setState(Enum.state.requesting);
-          this.sendMethod('verto.attach', {
+          this.sendMethod(`${this.verto.module}.attach`, {
             sdp: rtc.mediaData.SDP,
           });
         } else {
           this.setState(Enum.state.requesting);
 
-          this.sendMethod('verto.invite', {
+          this.sendMethod(`${this.verto.module}.invite`, {
             sdp: rtc.mediaData.SDP,
           });
         }
@@ -176,7 +176,7 @@ export default class VertoDialog {
         //answer
         this.setState(Enum.state.answering);
 
-        this.sendMethod(this.attach ? 'verto.attach' : 'verto.answer', {
+        this.sendMethod(this.attach ? `${this.verto.module}.attach` : `${this.verto.module}.answer`, {
           sdp: this.rtc.mediaData.SDP,
         });
       }
@@ -243,7 +243,7 @@ export default class VertoDialog {
     obj.dialogParams = {};
 
     for (let i in this.params) {
-      if (i == 'sdp' && method != 'verto.invite' && method != 'verto.attach') {
+      if (i == 'sdp' && method != `${this.verto.module}.invite` && method != `${this.verto.module}.attach`) {
         continue;
       }
 
@@ -390,7 +390,7 @@ export default class VertoDialog {
           this.lastState > Enum.state.requesting &&
           this.lastState < Enum.state.hangup
         ) {
-          this.sendMethod('verto.bye', {});
+          this.sendMethod(`${this.verto.module}.bye`, {});
         }
 
         this.setState(Enum.state.destroy);
@@ -421,15 +421,15 @@ export default class VertoDialog {
     // );
 
     switch (method) {
-      case 'verto.answer':
-      case 'verto.attach':
+      case `${this.verto.module}.answer`:
+      case `${this.verto.module}.attach`:
         if (success) {
           this.setState(Enum.state.active);
         } else {
           this.hangup();
         }
         break;
-      case 'verto.invite':
+      case `${this.verto.module}.invite`:
         if (success) {
           this.setState(Enum.state.trying);
         } else {
@@ -437,10 +437,10 @@ export default class VertoDialog {
         }
         break;
 
-      case 'verto.bye':
+      case `${this.verto.module}.bye`:
         this.hangup();
         break;
-      case 'verto.modify':
+      case `${this.verto.module}.modify`:
         if (e.holdState) {
           if (e.holdState == 'held') {
             if (this.state != Enum.state.held) {
@@ -558,7 +558,7 @@ export default class VertoDialog {
 
   dtmf(digits) {
     if (digits) {
-      this.sendMethod('verto.info', {
+      this.sendMethod(`${this.verto.module}.info`, {
         dtmf: digits,
       });
     }
@@ -575,7 +575,7 @@ export default class VertoDialog {
     pobj.chars = obj.chars;
 
     if (pobj.chars || pobj.code) {
-      this.sendMethod('verto.info', {
+      this.sendMethod(`${this.verto.module}.info`, {
         txt: obj,
         noDialogParams: true,
       });
@@ -584,7 +584,7 @@ export default class VertoDialog {
 
   transfer(dest, params) {
     if (dest) {
-      this.sendMethod('verto.modify', {
+      this.sendMethod(`${this.verto.module}.modify`, {
         action: 'transfer',
         destination: dest,
         params: params,
@@ -593,21 +593,21 @@ export default class VertoDialog {
   }
 
   hold(params) {
-    this.sendMethod('verto.modify', {
+    this.sendMethod(`${this.verto.module}.modify`, {
       action: 'hold',
       params: params,
     });
   }
 
   unhold(params) {
-    this.sendMethod('verto.modify', {
+    this.sendMethod(`${this.verto.module}.modify`, {
       action: 'unhold',
       params: params,
     });
   }
 
   toggleHold(params) {
-    this.sendMethod('verto.modify', {
+    this.sendMethod(`${this.verto.module}.modify`, {
       action: 'toggleHold',
       params: params,
     });
@@ -632,7 +632,7 @@ export default class VertoDialog {
       return false;
     }
 
-    this.sendMethod('verto.info', {
+    this.sendMethod(`${this.verto.module}.info`, {
       msg: msg,
     });
 

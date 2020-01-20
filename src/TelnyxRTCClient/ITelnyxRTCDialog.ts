@@ -1,11 +1,11 @@
-import { VertoCallState } from '../Verto/Enum';
+import { TelnyxRTCCallState } from '../TelnyxRTC/Enum';
 
 /**
  * @hidden
- * @TODO Remove once Verto is converted to TypeScript.
+ * @TODO Remove once TelnyxRTC is converted to TypeScript.
  */
-export default interface IVertoCall {
-  state: VertoCallState;
+export default interface ITelnyxRTCCall {
+  state: TelnyxRTCCallState;
 
   getMute(): Boolean;
   hangup(): void;

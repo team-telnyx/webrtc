@@ -120,7 +120,7 @@ export default class VertoConfMan {
   }
 
   sendChat(message, type) {
-    this.verto.call('verto.broadcast', {
+    this.verto.call(`${this.verto.module}.broadcast`, {
       eventChannel: this.params.laData.chatChannel,
       data: {
         action: 'send',

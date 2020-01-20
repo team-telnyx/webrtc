@@ -37,6 +37,7 @@ import VertoConf from './ConfMan';
 import VertoDialog from './Dialog';
 import VertoRTC from './RTC';
 import Enum from './Enum';
+import { Module } from '../utils/types';
 
 interface DeviceParams {
   useCamera?: 'none' | 'any' | string;
@@ -107,6 +108,7 @@ export default class Verto {
   down_dur: number;
   speedBytes: number;
   last_response: any;
+  module: Module;
 
   static videoDevices: any[];
   static audioInDevices: any[];
@@ -130,6 +132,7 @@ export default class Verto {
     this.dialog = null;
     this.dialogs = {};
     this.params = params;
+    this.module = params.module;
     this.callbacks = callbacks;
     this.rpcClient = this; // backward compatible
     this.generateGUID = generateGUID();
@@ -482,27 +485,27 @@ export default class Verto {
     }
     if (data.params.callID) {
       let dialog = this.dialogs[data.params.callID];
-      if (data.method === 'verto.attach' && dialog) {
+      if (data.method === `${this.module}.attach` && dialog) {
         delete dialog.verto.dialogs[dialog.callID];
         dialog.rtc.stop();
         dialog = null;
       }
       if (dialog) {
         switch (data.method) {
-          case 'verto.bye':
+          case `${this.module}.bye`:
             console.log(data.params);
             dialog.hangup(data.params);
             break;
-          case 'verto.answer':
+          case `${this.module}.answer`:
             dialog.handleAnswer(data.params);
             break;
-          case 'verto.media':
+          case `${this.module}.media`:
             dialog.handleMedia(data.params);
             break;
-          case 'verto.display':
+          case `${this.module}.display`:
             dialog.handleDisplay(data.params);
             break;
-          case 'verto.info':
+          case `${this.module}.info`:
             dialog.handleInfo(data.params);
             break;
           default:
@@ -515,7 +518,7 @@ export default class Verto {
         }
       } else {
         switch (data.method) {
-          case 'verto.attach':
+          case `${this.module}.attach`:
             data.params.attach = true;
             if (data.params.sdp && data.params.sdp.indexOf('m=video') > 0) {
               data.params.useVideo = true;
@@ -526,7 +529,7 @@ export default class Verto {
             dialog = new VertoDialog(Enum.direction.inbound, this, data.params);
             dialog.setState(Enum.state.recovering);
             break;
-          case 'verto.invite':
+          case `${this.module}.invite`:
             if (data.params.sdp && data.params.sdp.indexOf('m=video') > 0) {
               data.params.wantVideo = true;
             }
@@ -547,11 +550,11 @@ export default class Verto {
       };
     } else {
       switch (data.method) {
-        case 'verto.punt':
+        case `${this.module}.punt`:
           this.purge();
           this.logout();
           break;
-        case 'verto.event':
+        case `${this.module}.event`:
           let list = null;
           let key = null;
           if (data.params) {
@@ -593,7 +596,7 @@ export default class Verto {
             });
           }
           break;
-        case 'verto.info':
+        case `${this.module}.info`:
           if (this.callbacks.onMessage) {
             this.callbacks.onMessage(
               this,
@@ -605,7 +608,7 @@ export default class Verto {
           //console.error(data);
           // console.debug("MESSAGE from: " + data.params.msg.from, data.params.msg.body);
           break;
-        case 'verto.clientReady':
+        case `${this.module}.clientReady`:
           if (this.callbacks.onMessage) {
             this.callbacks.onMessage(
               this,
@@ -629,7 +632,7 @@ export default class Verto {
   processReply(method, success, e) {
     console.log('Response: ' + method, success, e);
     switch (method) {
-      case 'verto.subscribe':
+      case `${this.module}.subscribe`:
         Object.keys(e.unauthorizedChannels || {}).forEach((channel) => {
           console.error('drop unauthorized channel: ' + channel);
           delete this.eventSUBS[channel];
@@ -646,7 +649,7 @@ export default class Verto {
           });
         });
         break;
-      case 'verto.unsubscribe':
+      case `${this.module}.unsubscribe`:
         //console.error(e);
         break;
     }
@@ -678,7 +681,7 @@ export default class Verto {
         ...params,
       },
     };
-    this.sendMethod('verto.broadcast', msg);
+    this.sendMethod(`${this.module}.broadcast`, msg);
   }
 
   fsAPI(cmd, arg, success_cb, failed_cb) {
@@ -780,7 +783,7 @@ export default class Verto {
       });
     }
     if (subChannels.length) {
-      this.sendMethod('verto.subscribe', {
+      this.sendMethod(`${this.module}.subscribe`, {
         eventChannel: subChannels.length == 1 ? subChannels[0] : subChannels,
         subParams: params.subParams,
       });
@@ -831,7 +834,7 @@ export default class Verto {
       });
 
       if (sendChannels.length) {
-        this.sendMethod('verto.unsubscribe', {
+        this.sendMethod(`${this.module}.unsubscribe`, {
           eventChannel:
             sendChannels.length == 1 ? sendChannels[0] : sendChannels,
         });
