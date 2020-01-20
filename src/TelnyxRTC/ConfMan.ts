@@ -108,7 +108,7 @@ export default class VertoConfMan {
   }
 
   modCommand(cmd, id, value?) {
-    this.verto.call('verto.broadcast', {
+    this.verto.call(`${this.verto.module}.broadcast`, {
       eventChannel: this.params.laData.modChannel,
       data: {
         application: 'conf-control',

@@ -13,7 +13,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@telnyx/webrtc": "1.0.0"
+    "@telnyx/webrtc": "1.0.4"
   },
   "devDependencies": {
     "@babel/core": "^7.6.2",
