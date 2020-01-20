@@ -29,6 +29,27 @@
  * RTC.js - Verto RTC glue code
  *
  */
+// @TODO Migrate deprecated methods and update arguments
+// https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection
+interface OldRTCPeerConnection extends RTCPeerConnection {
+  addStream?(stream: any): void;
+  createOffer(
+    optionsOrSuccessCb?: any,
+    errorCb?,
+    options?
+  ): Promise<RTCSessionDescriptionInit>;
+  createAnswer(
+    optionsOrSuccessCb?: any,
+    errorCb?,
+    options?
+  ): Promise<RTCSessionDescriptionInit>;
+  setRemoteDescription(
+    sessionDescription: any,
+    successCb?,
+    errorCb?
+  ): Promise<void>;
+  createDataChannel(label: string, options?): RTCDataChannel;
+}
 
 // Find the line in sdpLines[startLine...endLine - 1] that starts with |prefix|
 // and, if specified, contains |substr| (case-insensitive search).
@@ -188,7 +209,7 @@ function FSRTCPeerConnection(options: any) {
     }
   }
 
-  const peer = new RTCPeerConnection(config);
+  const peer: OldRTCPeerConnection = new RTCPeerConnection(config);
 
   openOffererChannel();
   let x = 0;
@@ -239,7 +260,7 @@ function FSRTCPeerConnection(options: any) {
 
   // @TODO Migrate to `addTrack`
   // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
-  if (options.attachStream) (<any>peer).addStream(options.attachStream);
+  if (options.attachStream) peer.addStream(options.attachStream);
 
   // attachStreams[0] = audio-stream;
   // attachStreams[1] = video-stream;
@@ -247,7 +268,7 @@ function FSRTCPeerConnection(options: any) {
   if (options.attachStreams && options.attachStream.length) {
     const streams = options.attachStreams;
     streams.forEach((stream) => {
-      (<any>peer).addStream(stream);
+      peer.addStream(stream);
     });
   }
 
@@ -277,7 +298,7 @@ function FSRTCPeerConnection(options: any) {
 
     // @TODO Migrate to single options argument
     // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
-    (<any>peer).createOffer(
+    peer.createOffer(
       (sessionDescription) => {
         sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
         peer.setLocalDescription(sessionDescription);
@@ -294,13 +315,12 @@ function FSRTCPeerConnection(options: any) {
 
     //options.offerSDP.sdp = addStereo(options.offerSDP.sdp);
 
-    // @TODO Verify `setRemoteDescription` and `createAnswer` call signature
-    (<any>peer).setRemoteDescription(
+    peer.setRemoteDescription(
       new window.RTCSessionDescription(options.offerSDP),
       onSdpSuccess,
       onSdpError
     );
-    (<any>peer).createAnswer(function(sessionDescription) {
+    peer.createAnswer(function(sessionDescription) {
       sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
       peer.setLocalDescription(sessionDescription);
       if (options.onAnswerSDP) {
@@ -370,14 +390,9 @@ function FSRTCPeerConnection(options: any) {
   }
 
   function _openOffererChannel() {
-    // @TODO Remove `reliable`
-    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel
-    channel = (<any>peer).createDataChannel(
-      options.channel || 'RTCDataChannel',
-      {
-        reliable: false,
-      }
-    );
+    channel = peer.createDataChannel(options.channel || 'RTCDataChannel', {
+      reliable: false,
+    });
 
     setChannelEvents();
   }
@@ -427,7 +442,7 @@ function FSRTCPeerConnection(options: any) {
 
   return {
     addAnswerSDP: (sdp, cbSuccess, cbError) => {
-      (<any>peer).setRemoteDescription(
+      peer.setRemoteDescription(
         new window.RTCSessionDescription(sdp),
         cbSuccess ? cbSuccess : onSdpSuccess,
         cbError ? cbError : onSdpError
