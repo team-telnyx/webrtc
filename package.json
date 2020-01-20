@@ -45,7 +45,7 @@
     "ts-jest": "^24.1.0",
     "typedoc": "^0.15.0",
     "typedoc-plugin-markdown": "^2.2.6",
-    "typescript": "^3.6.2",
+    "typescript": "^3.7.5",
     "uuid": "^3.3.2",
     "webrtc-adapter": "^7.3.0"
   },
