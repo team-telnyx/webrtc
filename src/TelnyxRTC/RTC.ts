@@ -189,7 +189,6 @@ function FSRTCPeerConnection(options: any) {
   }
 
   const peer = new RTCPeerConnection(config);
-
   openOffererChannel();
   let x = 0;
 
@@ -211,6 +210,7 @@ function FSRTCPeerConnection(options: any) {
   }
 
   peer.onicecandidate = (event) => {
+
     if (done) {
       return;
     }
@@ -218,7 +218,6 @@ function FSRTCPeerConnection(options: any) {
     if (!gathering) {
       gathering = setTimeout(ice_handler, 1000);
     }
-
     if (event) {
       if (event.candidate) {
         options.onICE(event.candidate);
@@ -243,8 +242,7 @@ function FSRTCPeerConnection(options: any) {
 
   if (options.attachStream && options.attachStream.getTracks().length) {
     for (const track of options.attachStream.getTracks()) {
-      console.log("TYPE+++++=====>", track);
-      (<any>peer).addTrack(track);
+      peer.addTrack(track);
     }
   }
 
@@ -272,17 +270,13 @@ function FSRTCPeerConnection(options: any) {
   function createOffer() {
     if (!options.onOfferSDP) return;
 
-    // @TODO Migrate to single options argument
-    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createOffer
-    (<any>peer).createOffer(
-      (sessionDescription) => {
-        sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
-        peer.setLocalDescription(sessionDescription);
-        options.onOfferSDP(sessionDescription);
-      },
-      onSdpError,
-      options.constraints
-    );
+    peer.createOffer().then(function (offer) {
+      return peer.setLocalDescription(offer);
+    }).then(function (success) {
+      console.log("success createOffer", success)
+    }).catch(function (reason) {
+      console.error("error createOffer", reason)
+    });
   }
 
   // onAnswerSDP(RTCSessionDescription)
