@@ -75,7 +75,7 @@ function setDefaultCodec(mLine, payload) {
   return newLine.join(' ');
 }
 
-function setCompat() {}
+function setCompat() { }
 
 function checkCompat() {
   return true;
@@ -239,23 +239,20 @@ function FSRTCPeerConnection(options: any) {
 
   // @TODO Migrate to `addTrack`
   // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
-  if (options.attachStream) (<any>peer).addStream(options.attachStream);
 
-  // attachStreams[0] = audio-stream;
-  // attachStreams[1] = video-stream;
-  // attachStreams[2] = screen-capturing-stream;
-  if (options.attachStreams && options.attachStream.length) {
-    const streams = options.attachStreams;
-    streams.forEach((stream) => {
-      (<any>peer).addStream(stream);
-    });
+
+  if (options.attachStream && options.attachStream.getTracks().length) {
+    for (const track of options.attachStream.getTracks()) {
+      console.log("TYPE+++++=====>", track);
+      (<any>peer).addTrack(track);
+    }
   }
 
-  peer.ontrack = function(event) {
+  peer.ontrack = function (event) {
     const remoteMediaStream = event.streams[0];
 
     // onRemoteStreamEnded(MediaStream)
-    (<any>remoteMediaStream).oninactive = function() {
+    (<any>remoteMediaStream).oninactive = function () {
       if (options.onRemoteStreamEnded)
         options.onRemoteStreamEnded(remoteMediaStream);
     };
@@ -300,7 +297,7 @@ function FSRTCPeerConnection(options: any) {
       onSdpSuccess,
       onSdpError
     );
-    (<any>peer).createAnswer(function(sessionDescription) {
+    (<any>peer).createAnswer(function (sessionDescription) {
       sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
       peer.setLocalDescription(sessionDescription);
       if (options.onAnswerSDP) {
@@ -346,9 +343,9 @@ function FSRTCPeerConnection(options: any) {
     sdp =
       sdp.indexOf('a=crypto') == -1
         ? sdp.replace(
-            /c=IN/g,
-            'a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:' + inline + 'c=IN'
-          )
+          /c=IN/g,
+          'a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:' + inline + 'c=IN'
+        )
         : sdp;
 
     return sdp;
@@ -383,18 +380,18 @@ function FSRTCPeerConnection(options: any) {
   }
 
   function setChannelEvents() {
-    channel.onmessage = function(event) {
+    channel.onmessage = function (event) {
       if (options.onChannelMessage) options.onChannelMessage(event);
     };
-    channel.onopen = function() {
+    channel.onopen = function () {
       if (options.onChannelOpened) options.onChannelOpened(channel);
     };
-    channel.onclose = function(event) {
+    channel.onclose = function (event) {
       if (options.onChannelClosed) options.onChannelClosed(event);
 
       console.warn('WebRTC DataChannel closed', event);
     };
-    channel.onerror = function(event) {
+    channel.onerror = function (event) {
       if (options.onChannelError) options.onChannelError(event);
 
       console.error('WebRTC DataChannel error', event);
@@ -416,7 +413,7 @@ function FSRTCPeerConnection(options: any) {
     console.log('Error in fake:true');
   }
 
-  function onSdpSuccess() {}
+  function onSdpSuccess() { }
 
   function onSdpError(e) {
     if (options.onChannelError) {
@@ -522,9 +519,9 @@ export default class VertoRTC {
         videoParams: {},
         audioParams: {},
         callbacks: {
-          onICEComplete: function() {},
-          onICE: function() {},
-          onOfferSDP: function() {},
+          onICEComplete: function () { },
+          onICE: function () { },
+          onOfferSDP: function () { },
         },
       },
       options
@@ -913,11 +910,11 @@ export default class VertoRTC {
           },
         },
         localVideo: this.options.localVideo,
-        onsuccess: function(e) {
+        onsuccess: function (e) {
           this.options.localVideoStream = e;
           // console.log('local video ready');
         },
-        onerror: function(e) {
+        onerror: function (e) {
           console.error('local video error!');
         },
       });
@@ -973,7 +970,7 @@ export default class VertoRTC {
         onICE: (candidate) => onICE(this, candidate),
         onICEComplete: () => onICEComplete(this),
         onRemoteStream: screen
-          ? (stream) => {}
+          ? (stream) => { }
           : (stream) => onRemoteStream(this, stream),
         onOfferSDP: (sdp) => onOfferSDP(this, sdp),
         onICESDP: (sdp) => onICESDP(this, sdp),
@@ -1055,7 +1052,7 @@ export default class VertoRTC {
         video: check_video,
         // video: false,
       },
-      onsuccess: function(e) {
+      onsuccess: function (e) {
         e.getTracks().forEach((track) => {
           track.stop();
         });
@@ -1123,7 +1120,7 @@ export default class VertoRTC {
         video: cam !== 'none' ? video : false,
       },
       onsuccess: (e) => {
-        e.getTracks().forEach(function(track) {
+        e.getTracks().forEach(function (track) {
           track.stop();
         });
         // console.info(w + 'x' + h + ' supported.');
