@@ -235,11 +235,6 @@ function FSRTCPeerConnection(options: any) {
   };
 
   // attachStream = MediaStream;
-
-  // @TODO Migrate to `addTrack`
-  // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/addStream
-
-
   if (options.attachStream && options.attachStream.getTracks().length) {
     for (const track of options.attachStream.getTracks()) {
       peer.addTrack(track);
