@@ -76,6 +76,24 @@ const DialPadContainer = styled.div`
   }
 `;
 
+const ButtonAnswer = styled.button`
+  color: #fff !important;
+  border-radius: 50%;
+  width: 80px !important;
+  height: 80px !important;
+  background-color: #1ea7fd;
+  cursor: pointer;
+`;
+
+const ButtonEnd = styled.button`
+  cursor: pointer;
+  color: #fff !important;
+  border-radius: 50%;
+  width: 80px !important;
+  height: 80px !important;
+  background-color: #ff6666;
+`;
+
 const DialPad = ({
   call,
   onDigit,
@@ -90,88 +108,117 @@ const DialPad = ({
   const muted = call && call.isMuted;
   const makeSendDigit = (x) => () => onDigit(x);
 
+  const isInbound = call && call.call.direction === 'inbound';
+  const isIncomingCall = isInbound && call.state === 'new';
+
+  const answerCall = () => {
+    if (call) {
+      call.answer();
+    }
+  };
+
+  const hangup = () => {
+    call.hangup();
+  };
+
   return (
     <DialPadContainer>
-      <button type='button' onClick={makeSendDigit('1')}>
-        1
-      </button>
-      <button type='button' onClick={makeSendDigit('2')}>
-        2<span>ABC</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('3')}>
-        3<span>DEF</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('4')}>
-        4<span>GHI</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('5')}>
-        5<span>JKL</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('6')}>
-        6<span>MNO</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('7')}>
-        7<span>PQRS</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('8')}>
-        8<span>TUV</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('9')}>
-        9<span>WXYZ</span>
-      </button>
-      <button type='button' onClick={makeSendDigit('*')}>
-        *
-      </button>
-      <button type='button' onClick={makeSendDigit('0')}>
-        0
-      </button>
-      <button type='button' onClick={makeSendDigit('#')}>
-        #
-      </button>
+      {isIncomingCall ? (
+        <React.Fragment>
+          <ButtonAnswer type='button' onClick={answerCall}>
+            Answer
+          </ButtonAnswer>
 
-      {call ? (
-        <button
-          type='button'
-          onClick={toggleMute}
-          className={muted ? 'active' : ''}
-        >
-          <span role='img' aria-label={muted ? 'Unmute' : 'Mute'}>
-            🔇
-          </span>
-        </button>
-      ) : (
-        <div />
-      )}
+          <div />
 
-      {call ? (
-        <button type='button' onClick={onEndCall} className='EndButton'>
-          End
-        </button>
+          <ButtonEnd type='button' onClick={hangup}>
+            Reject
+          </ButtonEnd>
+        </React.Fragment>
       ) : (
-        <button
-          type='button'
-          onClick={onStartCall}
-          className='CallButton'
-          disabled={disabled}
-        >
-          Call
-        </button>
-      )}
+        <React.Fragment>
+          <button type='button' onClick={makeSendDigit('1')}>
+            1
+          </button>
+          <button type='button' onClick={makeSendDigit('2')}>
+            2<span>ABC</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('3')}>
+            3<span>DEF</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('4')}>
+            4<span>GHI</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('5')}>
+            5<span>JKL</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('6')}>
+            6<span>MNO</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('7')}>
+            7<span>PQRS</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('8')}>
+            8<span>TUV</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('9')}>
+            9<span>WXYZ</span>
+          </button>
+          <button type='button' onClick={makeSendDigit('*')}>
+            *
+          </button>
+          <button type='button' onClick={makeSendDigit('0')}>
+            0
+          </button>
+          <button type='button' onClick={makeSendDigit('#')}>
+            #
+          </button>
 
-      {call ? (
-        <button
-          type='button'
-          onClick={toggleHold}
-          className={held ? 'active' : ''}
-        >
-          <span role='img' aria-label={held ? 'Unhold' : 'Hold'}>
-            ⏸
-          </span>
-        </button>
-      ) : (
-        <button type='button' onClick={onBackspace}>
-          ⌫
-        </button>
+          {call ? (
+            <button
+              type='button'
+              onClick={toggleMute}
+              className={muted ? 'active' : ''}
+            >
+              <span role='img' aria-label={muted ? 'Unmute' : 'Mute'}>
+                🔇
+              </span>
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {call ? (
+            <button type='button' onClick={onEndCall} className='EndButton'>
+              End
+            </button>
+          ) : (
+            <button
+              type='button'
+              onClick={onStartCall}
+              className='CallButton'
+              disabled={disabled}
+            >
+              Call
+            </button>
+          )}
+
+          {call ? (
+            <button
+              type='button'
+              onClick={toggleHold}
+              className={held ? 'active' : ''}
+            >
+              <span role='img' aria-label={held ? 'Unhold' : 'Hold'}>
+                ⏸
+              </span>
+            </button>
+          ) : (
+            <button type='button' onClick={onBackspace}>
+              ⌫
+            </button>
+          )}
+        </React.Fragment>
       )}
     </DialPadContainer>
   );
