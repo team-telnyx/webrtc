@@ -272,32 +272,25 @@ function FSRTCPeerConnection(options: any) {
 
     peer.createOffer().then(function (offer) {
       return peer.setLocalDescription(offer);
-    }).then(function (success) {
-      console.log("success createOffer", success)
     }).catch(function (reason) {
       console.error("error createOffer", reason)
     });
   }
 
   // onAnswerSDP(RTCSessionDescription)
-  function createAnswer() {
+  async function createAnswer() {
     if (options.type != 'answer') return;
 
-    //options.offerSDP.sdp = addStereo(options.offerSDP.sdp);
+    await peer.setRemoteDescription(options.offerSDP).catch(onSdpError);
 
-    // @TODO Verify `setRemoteDescription` and `createAnswer` call signature
-    (<any>peer).setRemoteDescription(
-      new window.RTCSessionDescription(options.offerSDP),
-      onSdpSuccess,
-      onSdpError
-    );
-    (<any>peer).createAnswer(function (sessionDescription) {
-      sessionDescription.sdp = serializeSdp(sessionDescription.sdp);
-      peer.setLocalDescription(sessionDescription);
-      if (options.onAnswerSDP) {
-        options.onAnswerSDP(sessionDescription);
-      }
-    }, onSdpError);
+    peer.createAnswer()
+      .then(function (answer) {
+        if (options.onAnswerSDP) {
+          options.onAnswerSDP(answer);
+        }
+        return peer.setLocalDescription(answer);
+      })
+      .catch(onSdpError);
   }
 
   if (options.onChannelMessage || !options.onChannelMessage) {
