@@ -1,13 +1,13 @@
 import { CallState } from '../utils/types';
 import { ICall } from '../utils/interfaces';
 import ITelnyxRTCDialog from './ITelnyxRTCDialog';
-import { TelnyxRTCCallState } from '../TelnyxRTC/Enum';
+import { TelnyxRTCCallState } from '../Modules/TelnyxRTC/Enum';
 
 /**
  * @hidden
  */
 export default class TelnyxRTCCall implements ICall {
-  constructor(private call: ITelnyxRTCDialog) {}
+  constructor(private call: ITelnyxRTCDialog) { }
 
   get state(): CallState {
     switch (this.call.state) {

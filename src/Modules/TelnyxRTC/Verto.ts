@@ -37,7 +37,7 @@ import VertoConf from './ConfMan';
 import VertoDialog from './Dialog';
 import VertoRTC from './RTC';
 import Enum from './Enum';
-import { Module } from '../utils/types';
+import { Module } from '../../utils/types';
 
 interface DeviceParams {
   useCamera?: 'none' | 'any' | string;
@@ -54,8 +54,8 @@ interface VideoParams {
 }
 
 // These are currently unused by Telnyx.
-interface LoginParams {}
-interface UserVariables {}
+interface LoginParams { }
+interface UserVariables { }
 interface IceServer {
   urls: string | [string];
   username?: string;
@@ -238,10 +238,10 @@ export default class Verto {
           }
           console.error(
             'Websocket Lost ' +
-              this.ws_cnt +
-              ' sleep: ' +
-              this.ws_sleep +
-              'msec'
+            this.ws_cnt +
+            ' sleep: ' +
+            this.ws_sleep +
+            'msec'
           );
           this.to = setTimeout(() => {
             console.log('Attempting Reconnection....');
@@ -420,25 +420,25 @@ export default class Verto {
             },
             this._ws_callbacks[response.id].request_obj.method == 'login'
               ? (e) => {
-                  this.authing = false;
-                  // console.log('logged in');
-                  delete this._ws_callbacks[response.id];
-                  if (this.options.onWSLogin) {
-                    this.options.onWSLogin(this, true);
-                  }
+                this.authing = false;
+                // console.log('logged in');
+                delete this._ws_callbacks[response.id];
+                if (this.options.onWSLogin) {
+                  this.options.onWSLogin(this, true);
                 }
+              }
               : (e) => {
-                  this.authing = false;
-                  // console.log(
-                  //   'logged in, resending request id: ' + response.id
-                  // );
-                  if (this._ws_socket) {
-                    this._ws_socket.send(orig_req);
-                  }
-                  if (this.options.onWSLogin) {
-                    this.options.onWSLogin(this, true);
-                  }
-                },
+                this.authing = false;
+                // console.log(
+                //   'logged in, resending request id: ' + response.id
+                // );
+                if (this._ws_socket) {
+                  this._ws_socket.send(orig_req);
+                }
+                if (this.options.onWSLogin) {
+                  this.options.onWSLogin(this, true);
+                }
+              },
             (e) => {
               // console.log('error logging in, request id:', response.id);
               delete this._ws_callbacks[response.id];

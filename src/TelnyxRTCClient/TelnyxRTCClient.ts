@@ -9,7 +9,7 @@ const HOST_DEV = 'rtc.telnyx.com';
 const TelnyxRTC_PORT = 14939;
 const TelnyxRTC_DEV_PORT = 14938;
 
-import Verto from '../TelnyxRTC/Verto';
+import Verto from '../Modules/TelnyxRTC/Verto';
 import BaseClient from '../BaseClient';
 import TelnyxRTCCall from './TelnyxRTCCall';
 
