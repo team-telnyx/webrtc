@@ -4,7 +4,7 @@ import ITelnyxRTCDialog from './ITelnyxRTCDialog';
 
 const MODULE = 'telnyx_rtc';
 const HOST = 'rtc.telnyx.com';
-const HOST_DEV = 'rtc.telnyx.com';
+const HOST_DEV = 'rtcdev.telnyx.com';
 
 const TelnyxRTC_PORT = 14939;
 const TelnyxRTC_DEV_PORT = 14938;
