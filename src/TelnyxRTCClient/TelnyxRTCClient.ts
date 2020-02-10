@@ -6,8 +6,7 @@ const MODULE = 'telnyx_rtc';
 const HOST = 'rtc.telnyx.com';
 const HOST_DEV = 'rtcdev.telnyx.com';
 
-const TelnyxRTC_PORT = 14939;
-const TelnyxRTC_DEV_PORT = 14938;
+const TelnyxRTC_PORT = 14938;
 
 import Verto from '../Modules/TelnyxRTC/Verto';
 import BaseClient from '../BaseClient';
@@ -24,9 +23,8 @@ export default class TelnyxRTCClient extends BaseClient {
   constructor(o?: IClientOptions) {
     super(o);
     this.module = this.module || MODULE;
+    this.port = this.port || TelnyxRTC_PORT;
     this.host = this.host || (this.env === 'development' ? HOST_DEV : HOST);
-    this.port =
-      this.port || (this.env === 'development' ? TelnyxRTC_DEV_PORT : TelnyxRTC_PORT);
 
     if (!checkAllowedModules(this.module)) {
       throw new Error(`Module ${this.module} is not supported`)
