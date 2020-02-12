@@ -37,7 +37,7 @@ import VertoConf from './ConfMan';
 import VertoDialog from './Dialog';
 import VertoRTC from './RTC';
 import Enum from './Enum';
-import { Module } from '../utils/types';
+import { Module } from '../../utils/types';
 
 interface DeviceParams {
   useCamera?: 'none' | 'any' | string;
@@ -54,8 +54,8 @@ interface VideoParams {
 }
 
 // These are currently unused by Telnyx.
-interface LoginParams {}
-interface UserVariables {}
+interface LoginParams { }
+interface UserVariables { }
 interface IceServer {
   urls: string | [string];
   username?: string;
@@ -140,8 +140,6 @@ export default class Verto {
   }
 
   connect(params = this.params, callbacks = this.callbacks) {
-    // console.log('verto connect', this.options.socketUrl);
-
     if (!params || !params.socketUrl) {
       return;
     }
@@ -163,7 +161,6 @@ export default class Verto {
         iceServers: false,
         ringSleep: 6000,
         sessid: null,
-        // la: new VertoLiveArray(),
         onmessage: (e) => {
           return this.handleMessage(e.eventData);
         },
@@ -238,10 +235,10 @@ export default class Verto {
           }
           console.error(
             'Websocket Lost ' +
-              this.ws_cnt +
-              ' sleep: ' +
-              this.ws_sleep +
-              'msec'
+            this.ws_cnt +
+            ' sleep: ' +
+            this.ws_sleep +
+            'msec'
           );
           this.to = setTimeout(() => {
             console.log('Attempting Reconnection....');
@@ -284,7 +281,7 @@ export default class Verto {
   }
 
   purge() {
-    // console.log('purging dialogs');
+    // purging dialogs
     Object.keys(this.dialogs).forEach((dialog) => {
       this.dialogs[dialog].setState(Enum.state.purge);
     });
@@ -327,7 +324,6 @@ export default class Verto {
       this.q.push(requestJson);
     } else {
       // We have a socket and it should be ready to send on.
-      // console.log(requestJson);
       this._ws_socket.send(requestJson);
     }
     // Setup callbacks.  If there is an id, this is a call and not a notify.
@@ -420,27 +416,23 @@ export default class Verto {
             },
             this._ws_callbacks[response.id].request_obj.method == 'login'
               ? (e) => {
-                  this.authing = false;
-                  // console.log('logged in');
-                  delete this._ws_callbacks[response.id];
-                  if (this.options.onWSLogin) {
-                    this.options.onWSLogin(this, true);
-                  }
+                this.authing = false;
+                // console.log('logged in');
+                delete this._ws_callbacks[response.id];
+                if (this.options.onWSLogin) {
+                  this.options.onWSLogin(this, true);
                 }
+              }
               : (e) => {
-                  this.authing = false;
-                  // console.log(
-                  //   'logged in, resending request id: ' + response.id
-                  // );
-                  if (this._ws_socket) {
-                    this._ws_socket.send(orig_req);
-                  }
-                  if (this.options.onWSLogin) {
-                    this.options.onWSLogin(this, true);
-                  }
-                },
+                this.authing = false;
+                if (this._ws_socket) {
+                  this._ws_socket.send(orig_req);
+                }
+                if (this.options.onWSLogin) {
+                  this.options.onWSLogin(this, true);
+                }
+              },
             (e) => {
-              // console.log('error logging in, request id:', response.id);
               delete this._ws_callbacks[response.id];
               error_cb(response.error, this);
               if (this.options.onWSLogin) {
@@ -605,8 +597,6 @@ export default class Verto {
               data.params.msg
             );
           }
-          //console.error(data);
-          // console.debug("MESSAGE from: " + data.params.msg.from, data.params.msg.body);
           break;
         case `${this.module}.clientReady`:
           if (this.callbacks.onMessage) {
@@ -641,8 +631,6 @@ export default class Verto {
         Object.keys(e.subscribedChannels || {}).forEach((channel) => {
           this.eventSUBS[channel].forEach((sub) => {
             sub.ready = true;
-
-            // console.log('subscribed to channel: ' + channel);
             if (sub.readyHandler) {
               sub.readyHandler(this, channel);
             }
@@ -650,7 +638,7 @@ export default class Verto {
         });
         break;
       case `${this.module}.unsubscribe`:
-        //console.error(e);
+        console.error(e);
         break;
     }
   }
@@ -662,7 +650,6 @@ export default class Verto {
       (e) => {
         /* Success */
         this.processReply(method, true, e);
-        // console.log('sendMethod success', e);
         if (success_cb) success_cb(e);
       },
       (e) => {
@@ -829,7 +816,7 @@ export default class Verto {
       }
 
       sendChannels = Object.keys(unsubChannels).map((i) => {
-        // console.log('Sending Unsubscribe for: ', i);
+        // Sending Unsubscribe
         return i;
       });
 
@@ -856,7 +843,7 @@ export default class Verto {
   }
 
   logout(msg?) {
-    // console.log('verto logout', msg);
+    // verto logout
     this.closeSocket();
     if (this.callbacks.onWSClose) {
       this.callbacks.onWSClose(this, false);
@@ -925,7 +912,6 @@ export default class Verto {
   }
 
   login(msg?) {
-    // this.logout();
     this.call('login', {});
   }
 
@@ -948,7 +934,7 @@ Verto.audioInDevices = [];
 Verto.audioOutDevices = [];
 Verto.unloadJobs = [];
 Verto.checkDevices = (runtime?: any) => {
-  // console.info('enumerating devices');
+
   const aud_in = [];
   const aud_out = [];
   const vid = [];
@@ -957,7 +943,7 @@ Verto.checkDevices = (runtime?: any) => {
     // Handles being called several times to update labels. Preserve values.
     deviceInfos.forEach((deviceInfo) => {
       let text = '';
-      // console.log(deviceInfo);
+
       if (deviceInfo.kind === 'audioinput') {
         text = deviceInfo.label || 'microphone ' + (aud_in.length + 1);
         aud_in.push({
@@ -979,8 +965,6 @@ Verto.checkDevices = (runtime?: any) => {
           kind: 'video',
           label: text,
         });
-      } else {
-        // console.log('Some other kind of source/device: ', deviceInfo);
       }
     });
 

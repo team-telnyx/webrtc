@@ -1,4 +1,4 @@
-import { TelnyxRTCCallState } from '../TelnyxRTC/Enum';
+import { TelnyxRTCCallState } from '../Modules/TelnyxRTC/Enum';
 
 /**
  * @hidden

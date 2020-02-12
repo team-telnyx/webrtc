@@ -2,12 +2,13 @@ import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
 import { getDeviceString, checkAllowedModules } from './helpers'
 import ITelnyxRTCDialog from './ITelnyxRTCDialog';
 
-const MODULE = 'verto';
-const HOST = `webrtc2.telnyx.com`;
-const TelnyxRTC_PORT = 14939;
-const TelnyxRTC_DEV_PORT = 14938;
+const MODULE = 'telnyx_rtc';
+const HOST = 'rtc.telnyx.com';
+const HOST_DEV = 'rtcdev.telnyx.com';
 
-import Verto from '../TelnyxRTC/Verto';
+const TelnyxRTC_PORT = 14938;
+
+import Verto from '../Modules/TelnyxRTC/Verto';
 import BaseClient from '../BaseClient';
 import TelnyxRTCCall from './TelnyxRTCCall';
 
@@ -21,14 +22,13 @@ export default class TelnyxRTCClient extends BaseClient {
 
   constructor(o?: IClientOptions) {
     super(o);
-    this.host = this.host || HOST;
-    this.port =
-      this.port || (this.env === 'development' ? TelnyxRTC_DEV_PORT : TelnyxRTC_PORT);
-      this.module = this.module || MODULE;
+    this.module = this.module || MODULE;
+    this.port = this.port || TelnyxRTC_PORT;
+    this.host = this.host || (this.env === 'development' ? HOST_DEV : HOST);
 
-      if(!checkAllowedModules(this.module)) {
-        throw new Error(`Module ${this.module} is not supported`)
-      }
+    if (!checkAllowedModules(this.module)) {
+      throw new Error(`Module ${this.module} is not supported`)
+    }
   }
 
   async connect() {
