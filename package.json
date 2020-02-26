@@ -47,7 +47,7 @@
     "typedoc-plugin-markdown": "^2.2.6",
     "typescript": "^3.6.2",
     "uuid": "^3.3.2",
-    "webrtc-adapter": "^7.3.0"
+    "webrtc-adapter": "^7.4.0"
   },
   "publishConfig": {
     "access": "public",
