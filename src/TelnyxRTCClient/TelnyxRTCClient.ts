@@ -1,3 +1,4 @@
+import adapter from 'webrtc-adapter';
 import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
 import { getDeviceString, checkAllowedModules } from './helpers'
 import ITelnyxRTCDialog from './ITelnyxRTCDialog';

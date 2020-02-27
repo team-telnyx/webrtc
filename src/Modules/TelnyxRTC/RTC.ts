@@ -349,13 +349,8 @@ function FSRTCPeerConnection(options: any) {
   }
 
   function _openOffererChannel() {
-    // @TODO Remove `reliable`
-    // https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/createDataChannel
-    channel = (<any>peer).createDataChannel(
+    channel = peer.createDataChannel(
       options.channel || 'RTCDataChannel',
-      {
-        reliable: false,
-      }
     );
 
     setChannelEvents();
@@ -406,11 +401,9 @@ function FSRTCPeerConnection(options: any) {
 
   return {
     addAnswerSDP: (sdp, cbSuccess, cbError) => {
-      (<any>peer).setRemoteDescription(
-        new window.RTCSessionDescription(sdp),
-        cbSuccess ? cbSuccess : onSdpSuccess,
-        cbError ? cbError : onSdpError
-      );
+      peer.setRemoteDescription(new window.RTCSessionDescription(sdp))
+        .then(cbSuccess ? cbSuccess : onSdpSuccess)
+        .catch(cbError ? cbError : onSdpError);
     },
 
     addICE: (candidate) => {
