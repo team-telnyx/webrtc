@@ -103,15 +103,13 @@ const DialPad = ({
   toggleMute,
   toggleHold,
   disabled,
+  isIncomingCall,
 }) => {
   const held = call && call.isHeld;
   const muted = call && call.isMuted;
   const makeSendDigit = (x) => () => onDigit(x);
 
-  const isInbound = call && call.call.direction === 'inbound';
-  const isIncomingCall = isInbound && call.state === 'new';
-
-  const answerCall = () => {
+  const answerCall = async () => {
     if (call) {
       call.answer();
     }
