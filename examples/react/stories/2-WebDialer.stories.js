@@ -267,7 +267,7 @@ const WebDialer = ({
   const connectAndCall = () => {
     const session = new TelnyxRTC({
       host: 'rtcdev.telnyx.com:14938',
-      login: `${username}@rtcdev.telnyx.com`,
+      login: username,
       password: password,
     });
     session.on('telnyx.socket.open', (call) => {
