@@ -353,15 +353,18 @@ const WebDialer = ({
     }
   };
 
+  if (mediaRef.current && call && call.remoteStream) {
+    mediaRef.current.srcObject = call.remoteStream;
+  }
+
   return (
     <Container>
-      {/* <audio ref={mediaRef} /> */}
-      <video
+      <audio
         ref={mediaRef}
         id='dialogVideo'
         autoPlay='autoplay'
         controls={false}
-      ></video>
+      ></audio>
 
       <div>
         <NumberInput
