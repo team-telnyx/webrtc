@@ -1,5 +1,5 @@
 import BrowserSession from '../Modules/Verto/BrowserSession'
-import { SubscribeParams, BroadcastParams } from '../Modules/Verto/util/interfaces'
+import { SubscribeParams, BroadcastParams, ISignalWireOptions } from '../Modules/Verto/util/interfaces'
 import { CallOptions } from '../Modules/Verto/webrtc/interfaces'
 import { Login } from '../Modules/Verto/messages/Verto'
 import Call from '../Modules/Verto/webrtc/Call'
@@ -13,6 +13,18 @@ export default class Verto extends BrowserSession {
 
   public relayProtocol: string = VERTO_PROTOCOL
   public timeoutErrorCode = -329990 // fake verto timeout error code.
+
+  private _STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
+  private _TURN_SERVER = {
+    urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+    username: 'turnuser',
+    credential: 'turnpassword',
+  };
+
+  constructor(public options: ISignalWireOptions) {
+    super(options);
+    this.iceServers = [this._TURN_SERVER, this._STUN_SERVER];
+  }
 
   validateOptions() {
     const { login, passwd, password } = this.options

@@ -318,13 +318,7 @@ const WebDialer = ({
           break;
       }
     });
-    const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
-    const TURN_SERVER = {
-      urls: 'turn:turn.telnyx.com:3478?transport=tcp',
-      username: 'turnuser',
-      credential: 'turnpassword',
-    };
-    session.iceServers = [TURN_SERVER, STUN_SERVER];
+
     setRegistering(true);
     clientRef.current = session;
     clientRef.current.connect();
