@@ -238,6 +238,7 @@ const WebDialer = ({
   const [registered, setRegistered] = useState();
   const [call, setCall] = useState();
   const [destination, setDestination] = useState(defaultDestination);
+  const [isInboundCall, setIsInboundCall] = useState(false);
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -256,46 +257,71 @@ const WebDialer = ({
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
-      destination,
-      callerName,
-      callerNumber,
+      destinationNumber: destination,
+      audio: true,
+      video: false,
     });
     setCall(newCall);
   };
 
   const connectAndCall = () => {
-    const newClient = new TelnyxRTC({
-      env: environment,
-      credentials: {
-        username,
-        password,
-      },
-      remoteElement: () => mediaRef.current,
-      useMic: true,
-      useSpeaker: true,
-      useCamera: false,
-    })
-      .on('registered', () => {
-        setRegistered(true);
-        setRegistering(false);
+    const session = new TelnyxRTC({
+      host: 'rtcdev.telnyx.com:14938',
+      login: `${username}@rtcdev.telnyx.com`,
+      password: password,
+    });
+    session.on('signalwire.ready', (session) => {
+      setRegistered(true);
+      setRegistering(false);
 
-        startCall();
-      })
-      .on('unregistered', () => {
-        setRegistered(false);
-        setRegistering(false);
-      })
-      .on('callUpdate', (call) => {
-        if (call.state === 'done') {
-          setCall(null);
-        } else {
-          setCall(call);
-        }
-      });
+      startCall();
+    });
+    session.on('signalwire.error', (error) => {
+      alert(error.message);
+    });
 
-    clientRef.current = newClient;
+    session.on('signalwire.socket.error', (error) => {
+      session.disconnect();
+    });
+
+    session.on('signalwire.socket.close', (error) => {
+      console.log('close', error);
+      session.disconnect();
+    });
+
+    session.on('signalwire.notification', (notification) => {
+      // console.log('GLOBAL notification', notification)
+      console.log('signalwire.notification', notification);
+      switch (notification.type) {
+        case 'callUpdate':
+          if (
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
+          ) {
+            setIsInboundCall(false);
+            return setCall(null);
+          }
+          if (notification.call.state === 'active') {
+            setIsInboundCall(false);
+            return setCall(notification.call);
+          }
+          if (notification.call.state === 'ringing') {
+            setIsInboundCall(true);
+            return setCall(notification.call);
+          }
+          break;
+      }
+    });
+    const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
+    const TURN_SERVER = {
+      urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+      username: 'turnuser',
+      credential: 'turnpassword',
+    };
+    session.iceServers = [TURN_SERVER, STUN_SERVER];
     setRegistering(true);
-    newClient.connect();
+    clientRef.current = session;
+    clientRef.current.connect();
   };
 
   const connect = () => {
@@ -331,7 +357,13 @@ const WebDialer = ({
 
   return (
     <Container>
-      <audio ref={mediaRef} />
+      {/* <audio ref={mediaRef} /> */}
+      <video
+        ref={mediaRef}
+        id='dialogVideo'
+        autoPlay='autoplay'
+        controls={false}
+      ></video>
 
       <div>
         <NumberInput
@@ -342,6 +374,7 @@ const WebDialer = ({
         />
 
         <DialPad
+          isIncomingCall={isInboundCall}
           call={call}
           onEndCall={hangup}
           onStartCall={connect}
@@ -361,10 +394,13 @@ const WebDialer = ({
 };
 
 export const Example = () => {
-  const production = boolean('Production', true);
-  const username = text('Connection Username', 'username');
-  const password = text('Connection Password', 'password');
-  const defaultDestination = text('Default Destination', '18004377950');
+  const production = boolean('Production', false);
+  const username = text('Connection Username', 'zoiperother');
+  const password = text('Connection Password', 'zoiperother');
+  const defaultDestination = text(
+    'Default Destination',
+    'sip:deividzoiper@sipdev.telnyx.com'
+  );
   const callerName = text('Caller Name', 'Caller ID Name');
   const callerNumber = text('Caller Number', 'Caller ID Number');
 

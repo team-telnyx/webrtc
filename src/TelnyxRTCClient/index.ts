@@ -1,2 +1,2 @@
-import TelnyxRTCClient from './TelnyxRTCClient';
+import TelnyxRTCClient from './Verto';
 export default TelnyxRTCClient;
