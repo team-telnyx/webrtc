@@ -86,7 +86,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (execute) {
       const bye = new Bye({ sessid: this.session.sessionid, dialogParams: this.options })
-      console.log("bye=====>", bye)
       this._execute(bye)
         .catch(error => logger.error('telnyl_rtc.bye failed!', error))
         .then(_close.bind(this))
@@ -674,14 +673,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
-      console.log("ENTROU===REMOTE===> addstream", this.options, event.stream)
       this.options.remoteStream = event.stream
     })
 
     instance.addEventListener('track', (event: RTCTrackEvent) => {
       this.options.remoteStream = event.streams[0]
       const { remoteElement, remoteStream, screenShare } = this.options
-      console.log("ENTROU===REMOTE===> track", remoteElement, event.streams[0])
       if (screenShare === false) {
         attachMediaStream(remoteElement, remoteStream)
       }

@@ -15,8 +15,8 @@ export default class Verto extends BrowserSession {
   public timeoutErrorCode = -329990 // fake verto timeout error code.
 
   validateOptions() {
-    const { host, login, passwd, password } = this.options
-    return Boolean(host) && Boolean(login && (passwd || password))
+    const { login, passwd, password } = this.options
+    return Boolean(login && (passwd || password))
   }
 
   newCall(options: CallOptions) {

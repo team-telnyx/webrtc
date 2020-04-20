@@ -27,7 +27,6 @@ class VertoHandler {
     const { session } = this
     const { id, method, params } = msg
     const { callID, eventChannel, eventType } = params
-    console.log("=====handleMessage====", params, method, session, id)
     const attach = method === VertoMethod.Attach
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData)
@@ -102,7 +101,6 @@ class VertoHandler {
         break
       case VertoMethod.ClientReady:
         params.type = NOTIFICATION_TYPE.vertoClientReady
-        console.log("VertoMethod.ClientReady", params, session)
         trigger(SwEvent.Notification, params, session.uuid)
         break
       default:

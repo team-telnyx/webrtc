@@ -56,7 +56,6 @@ export default class Peer {
       }
       this.startNegotiation()
     }
-    console.log("======> this.options", this.options)
     this.options.localStream = await this._retrieveLocalStream()
       .catch(error => {
         trigger(SwEvent.MediaError, error, this.options.id)
@@ -106,7 +105,6 @@ export default class Peer {
 
   private _setLocalDescription(sessionDescription: RTCSessionDescriptionInit) {
     const { useStereo, googleMaxBitrate, googleMinBitrate, googleStartBitrate } = this.options
-    console.log("THIS.opton===> _setLocalDescription", this.options)
     if (useStereo) {
       sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp)
     }

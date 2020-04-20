@@ -24,7 +24,6 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   if (!element.getAttribute('playsinline')) {
     element.setAttribute('playsinline', 'playsinline')
   }
-  console.log("SET========>", element.id, stream)
 
   element.srcObject = stream
 }

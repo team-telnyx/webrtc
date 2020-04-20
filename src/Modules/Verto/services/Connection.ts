@@ -20,7 +20,7 @@ const TIMEOUT_MS = 10 * 1000
 
 export default class Connection {
   private _wsClient: any = null
-  private _host: string = 'wss://relay.signalwire.com'
+  private _host: string = 'wss://rtc.telnyx.com:14938'
   private _timers: { [id: string]: any } = {}
 
   public upDur: number = null

@@ -11,7 +11,6 @@ class Login extends BaseRequest {
     if (sessionid) {
       params.sessid = sessionid
     }
-    console.log("this.method", this.method, params)
     this.buildRequest({ method: this.method, params })
   }
 }

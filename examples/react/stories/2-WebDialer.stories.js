@@ -270,26 +270,34 @@ const WebDialer = ({
       login: `${username}@rtcdev.telnyx.com`,
       password: password,
     });
+    session.on('telnyx.socket.open', (call) => {
+      console.log('telnyx.socket.open', call);
+    });
     session.on('telnyx.ready', (session) => {
+      console.log('telnyx.ready', session);
       setRegistered(true);
       setRegistering(false);
 
       startCall();
     });
     session.on('telnyx.error', (error) => {
+      console.log('telnyx.error', error);
       alert(error.message);
     });
 
     session.on('telnyx.socket.error', (error) => {
+      console.log('telnyx.socket.error', error);
       session.disconnect();
     });
 
     session.on('telnyx.socket.close', (error) => {
-      console.log('close', error);
+      console.log('telnyx.socket.close', error);
       session.disconnect();
     });
 
     session.on('telnyx.notification', (notification) => {
+      console.log('telnyx.notification', notification);
+
       switch (notification.type) {
         case 'callUpdate':
           if (
