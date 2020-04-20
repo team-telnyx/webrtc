@@ -255,6 +255,8 @@ const WebDialer = ({
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
+      callerName,
+      callerNumber,
       destinationNumber: destination,
       audio: true,
       video: false,
@@ -400,8 +402,8 @@ export const Example = () => {
     'Default Destination',
     'sip:deividzoiper@sipdev.telnyx.com'
   );
-  const callerName = text('Caller Name', 'Caller ID Name');
-  const callerNumber = text('Caller Number', 'Caller ID Number');
+  const callerName = text('Caller Name', 'Deivid V');
+  const callerNumber = text('Caller Number', '11953279203');
 
   return (
     <WebDialer
