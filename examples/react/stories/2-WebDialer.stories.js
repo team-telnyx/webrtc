@@ -268,28 +268,26 @@ const WebDialer = ({
       login: `${username}@rtcdev.telnyx.com`,
       password: password,
     });
-    session.on('signalwire.ready', (session) => {
+    session.on('telnyx.ready', (session) => {
       setRegistered(true);
       setRegistering(false);
 
       startCall();
     });
-    session.on('signalwire.error', (error) => {
+    session.on('telnyx.error', (error) => {
       alert(error.message);
     });
 
-    session.on('signalwire.socket.error', (error) => {
+    session.on('telnyx.socket.error', (error) => {
       session.disconnect();
     });
 
-    session.on('signalwire.socket.close', (error) => {
+    session.on('telnyx.socket.close', (error) => {
       console.log('close', error);
       session.disconnect();
     });
 
-    session.on('signalwire.notification', (notification) => {
-      // console.log('GLOBAL notification', notification)
-      console.log('signalwire.notification', notification);
+    session.on('telnyx.notification', (notification) => {
       switch (notification.type) {
         case 'callUpdate':
           if (

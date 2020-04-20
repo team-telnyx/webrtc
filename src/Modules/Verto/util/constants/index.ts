@@ -1,29 +1,29 @@
-export const STORAGE_PREFIX = '@signalwire:'
+export const STORAGE_PREFIX = '@telnyx:'
 export const ADD = 'add'
 export const REMOVE = 'remove'
 export const SESSION_ID = 'sessId'
 
 export enum SwEvent {
   // Socket Events
-  SocketOpen = 'signalwire.socket.open',
-  SocketClose = 'signalwire.socket.close',
-  SocketError = 'signalwire.socket.error',
-  SocketMessage = 'signalwire.socket.message',
+  SocketOpen = 'telnyx.socket.open',
+  SocketClose = 'telnyx.socket.close',
+  SocketError = 'telnyx.socket.error',
+  SocketMessage = 'telnyx.socket.message',
 
   // Internal events
-  SpeedTest = 'signalwire.internal.speedtest',
+  SpeedTest = 'telnyx.internal.speedtest',
 
   // Global Events
-  Ready = 'signalwire.ready',
-  Error = 'signalwire.error',
-  Notification = 'signalwire.notification',
+  Ready = 'telnyx.ready',
+  Error = 'telnyx.error',
+  Notification = 'telnyx.notification',
 
   // Blade Events
-  Messages = 'signalwire.messages',
-  Calls = 'signalwire.calls',
+  Messages = 'telnyx.messages',
+  Calls = 'telnyx.calls',
 
   // RTC Events
-  MediaError = 'signalwire.rtc.mediaError',
+  MediaError = 'telnyx.rtc.mediaError',
 }
 
 export enum BladeMethod {
