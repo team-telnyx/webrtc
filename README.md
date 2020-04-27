@@ -44,7 +44,7 @@ const client = new TelnyxRTC({
   //
   // This can be a DOM element, DOM selector, or a function that returns an element.
   remoteElement: '#videoOrAudioSelector',
-  //This file can be wav/mp3 in your local public folder or you can host in a CDN and pass only the URL, for example https://cdn.company.com/sounds/call.mp3
+  // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
   ringFile: './sounds/incoming_call.mp3',
   useMic: true,
   useSpeaker: true,
