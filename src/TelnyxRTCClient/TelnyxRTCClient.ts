@@ -2,7 +2,6 @@ import adapter from 'webrtc-adapter';
 import { ICall, IClientOptions, ICallOptions } from '../utils/interfaces';
 import { getDeviceString, checkAllowedModules } from './helpers'
 import ITelnyxRTCDialog from './ITelnyxRTCDialog';
-
 const MODULE = 'telnyx_rtc';
 const HOST = 'rtc.telnyx.com';
 const HOST_DEV = 'rtcdev.telnyx.com';
@@ -59,7 +58,7 @@ export default class TelnyxRTCClient extends BaseClient {
         password: this.credentials.token || this.credentials.password,
         socketUrl: `wss://${this.host}:${this.port}`,
         module: this.module,
-        // ringFile: 'bell_ring2.wav',
+        ringFile: this.ringFile,
         iceServers: [this.stunServer, this.turnServer],
         deviceParams: {
           useMic: getDeviceString(this.useMic),

@@ -274,6 +274,7 @@ const WebDialer = ({
       useMic: true,
       useSpeaker: true,
       useCamera: false,
+      ringFile: './sounds/incoming_call.mp3', //download from this site https://www.zedge.net/ringtone/01ed071d-4465-3a76-845f-d63b993ab2d5
     })
       .on('registered', () => {
         setRegistered(true);
