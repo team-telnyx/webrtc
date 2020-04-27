@@ -38,6 +38,8 @@ export default abstract class BaseClient {
   public useSpeaker: string | boolean;
   public useCamera: string | boolean;
   public displayName: string;
+  public ringFile?: string;
+
   protected turnServer = TURN_SERVER;
   protected stunServer = STUN_SERVER;
   protected registrarServer = REGISTRAR_SERVER;

@@ -201,7 +201,7 @@ export default class Verto {
       typeof tag === 'function' ? tag() : document.querySelector(tag);
 
     if (this.options.ringFile && element) {
-      this.ringer = element;
+      this.ringer = new Audio(this.options.ringFile);
     }
 
     this.login();

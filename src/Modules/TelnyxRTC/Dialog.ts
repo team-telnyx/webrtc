@@ -313,8 +313,8 @@ export default class VertoDialog {
     } else {
       console.warn(
         'Dialog: ' +
-          this.callID +
-          ' Browser does not support output device selection.'
+        this.callID +
+        ' Browser does not support output device selection.'
       );
       if (callback) {
         callback(false, null, arg);
@@ -332,11 +332,11 @@ export default class VertoDialog {
     if (this.state == state || !this.checkStateChange(this.state, state)) {
       console.error(
         'Dialog ' +
-          this.callID +
-          ': INVALID state change from ' +
-          this.state +
-          ' to ' +
-          state
+        this.callID +
+        ': INVALID state change from ' +
+        this.state +
+        ' to ' +
+        state
       );
       this.hangup();
       return false;
@@ -485,17 +485,18 @@ export default class VertoDialog {
   }
 
   stopRinging() {
-    // console.log('stop ringing');
     if (this.verto.ringer) {
+      this.verto.ringer.pause();
+      this.verto.ringer.currentTime = 0;
       this.rtc.stopRinger(this.verto.ringer);
     }
   }
 
-  indicateRing() {
+  async indicateRing() {
+
+
     if (this.verto.ringer) {
-      this.verto.ringer.src = this.verto.options.ringFile;
-      this.verto.ringer.play();
-      // console.log('playing ringer');
+      await this.verto.ringer.play();
 
       setTimeout(() => {
         this.stopRinging();

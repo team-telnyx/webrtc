@@ -18,6 +18,7 @@ export interface IClientOptions {
   useSpeaker?: string | boolean;
   useCamera?: string | boolean;
   displayName?: string;
+  ringFile?: string;
 }
 
 export interface ICallOptions {
