@@ -1,4 +1,4 @@
-import TelnyxRTCClient from './TelnyxRTCClient';
+import TelnyxRTCClient from './TelnyxRTCClient1';
 
 // Create an element for the call
 document.body.innerHTML = '<audio id="rtc-container"></audio>';
