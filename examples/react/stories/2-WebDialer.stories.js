@@ -261,6 +261,7 @@ const WebDialer = ({
       audio: true,
       video: false,
     });
+
     setCall(newCall);
   };
 
@@ -269,6 +270,7 @@ const WebDialer = ({
       host: 'rtcdev.telnyx.com:14938',
       login: username,
       password: password,
+      ringFile: './sounds/incoming_call.mp3',
     });
     session.on('telnyx.socket.open', (call) => {
       console.log('telnyx.socket.open', call);
@@ -402,7 +404,7 @@ export const Example = () => {
   const password = text('Connection Password', 'zoiperother');
   const defaultDestination = text(
     'Default Destination',
-    'sip:deividzoiper@sipdev.telnyx.com'
+    'sip:zoiperother@sipdev.telnyx.com'
   );
   const callerName = text('Caller Name', 'Deivid V');
   const callerNumber = text('Caller Number', '11953279203');

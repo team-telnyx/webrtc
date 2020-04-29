@@ -34,10 +34,11 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _targetNodeId: string = null
   private _iceTimeout = null
   private _iceDone: boolean = false
+  private _ringer: HTMLAudioElement
 
   constructor(protected session: BrowserSession, opts?: CallOptions) {
-    const { iceServers, speaker: speakerId, micId, micLabel, camId, camLabel, localElement, remoteElement, mediaConstraints: { audio, video } } = session
-    this.options = Object.assign({}, DEFAULT_CALL_OPTIONS, { audio, video, iceServers, localElement, remoteElement, micId, micLabel, camId, camLabel, speakerId }, opts)
+    const { iceServers, speaker: speakerId, micId, micLabel, camId, camLabel, localElement, remoteElement, mediaConstraints: { audio, video }, ringFile } = session
+    this.options = Object.assign({}, DEFAULT_CALL_OPTIONS, { audio, video, iceServers, localElement, remoteElement, micId, micLabel, camId, camLabel, speakerId, ringFile }, opts)
 
     this._onMediaError = this._onMediaError.bind(this)
     this._init()
@@ -70,19 +71,38 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   answer() {
+    this.stopRingtone();
     this.direction = Direction.Inbound
     this.peer = new Peer(PeerType.Answer, this.options)
     this._registerPeerEvents()
+  }
+
+  playRingtone() {
+    if (this.options.ringFile) {
+      this._ringer = new Audio(this.options.ringFile);
+      this._ringer.loop = true;
+      this._ringer.play();
+    }
+  }
+
+  stopRingtone() {
+    if (this._ringer) {
+      this._ringer.pause();
+      this._ringer.currentTime = 0;
+    }
   }
 
   hangup(params: any = {}, execute: boolean = true) {
     this.cause = params.cause || 'NORMAL_CLEARING'
     this.causeCode = params.causeCode || 16
     this.setState(State.Hangup)
+
     const _close = () => {
       this.peer ? this.peer.instance.close() : null
       this.setState(State.Destroy)
     }
+
+    this.stopRingtone();
 
     if (execute) {
       const bye = new Bye({ sessid: this.session.sessionid, dialogParams: this.options })

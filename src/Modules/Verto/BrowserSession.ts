@@ -18,6 +18,7 @@ export default abstract class BrowserSession extends BaseSession {
   public camId: string
   public camLabel: string
   public autoRecoverCalls: boolean = true
+  public ringFile?: string
 
   private _iceServers: RTCIceServer[] = []
   private _localElement: HTMLMediaElement = null

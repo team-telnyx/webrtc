@@ -24,6 +24,7 @@ export default class Verto extends BrowserSession {
   constructor(public options: ISignalWireOptions) {
     super(options);
     this.iceServers = [this._TURN_SERVER, this._STUN_SERVER];
+    this.ringFile = options.ringFile;
   }
 
   validateOptions() {
@@ -36,6 +37,7 @@ export default class Verto extends BrowserSession {
     if (!destinationNumber) {
       throw new Error('Verto.newCall() error: destinationNumber is required.')
     }
+    // console.log("CADE o RINFG", options)
     const call = new Call(this, options)
     call.invite()
     return call
