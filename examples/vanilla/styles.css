@@ -6,10 +6,11 @@ body {
 .container-title {
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .telnyx_logo {
-  width: 80%;
+  width: 50%;
   margin-right: 20px;
 }
 
