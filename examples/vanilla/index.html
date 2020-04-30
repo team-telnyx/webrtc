@@ -178,11 +178,7 @@
         document.getElementById('audio').checked = audio === '1';
         document.getElementById('video').checked = video === '1';
       });
-      const stun = 'stun:stun.telnyx.com:3843';
-      const turn = 'turn:turn.telnyx.com:3478?transport=tcp';
-      const turnuser = 'turnuser';
-      const turnpwd = 'turnpassword';
-      const host = 'rtcdev.telnyx.com:14938';
+
       /**
        * Connect with TelnyxWebRTC.TelnyxRTC creating a client and attaching all the event handler.
        */
@@ -193,9 +189,6 @@
           password: document.getElementById('password').value,
           ringFile: './sounds/incoming_call.mp3',
         });
-
-        console.log('USER', document.getElementById('username').value);
-        console.log('Password', document.getElementById('password').value);
 
         client.remoteElement = 'remoteVideo';
         client.localElement = 'localVideo';
