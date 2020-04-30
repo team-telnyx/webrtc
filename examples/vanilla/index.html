@@ -56,6 +56,13 @@
                     placeholder="Enter your password"
                   />
                 </div>
+                <div class="telnyx-labels">Environment Options:</div>
+                <div class="form-check">
+                  <input type="checkbox" id="env" value="0" />
+                  <label class="form-check-label telnyx-labels" for="env">
+                    Production
+                  </label>
+                </div>
 
                 <button
                   id="btnConnect"
@@ -168,15 +175,13 @@
       var client;
       var currentCall = null;
 
-      var audio = '1';
-      var video = '1';
-
       /**
        * On document ready auto-fill the input values from the localStorage.
        */
       ready(function () {
-        document.getElementById('audio').checked = audio === '1';
-        document.getElementById('video').checked = video === '1';
+        document.getElementById('audio').checked = '1';
+        document.getElementById('video').checked = '1';
+        document.getElementById('env').checked = '1';
       });
 
       /**
@@ -184,7 +189,9 @@
        */
       function connect() {
         client = new TelnyxWebRTC.TelnyxRTC({
-          host: 'rtcdev.telnyx.com:14938',
+          host: document.getElementById('env').checked
+            ? null
+            : 'rtcdev.telnyx.com:14938',
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
           ringFile: './sounds/incoming_call.mp3',
