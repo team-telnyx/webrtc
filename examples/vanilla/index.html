@@ -191,6 +191,7 @@
           host: 'rtcdev.telnyx.com:14938',
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
+          ringFile: './sounds/incoming_call.mp3',
         });
 
         console.log('USER', document.getElementById('username').value);
@@ -276,11 +277,14 @@
             }
             break;
           case 'ringing': // Someone is calling you
-            if (confirm('Pick up the call?')) {
-              currentCall.answer();
-            } else {
-              currentCall.hangup();
-            }
+            //used to avoid alert block audio play, I delayed to audio play first.
+            setTimeout(function () {
+              if (confirm('Pick up the call?')) {
+                currentCall.answer();
+              } else {
+                currentCall.hangup();
+              }
+            }, 1000);
             break;
           case 'active': // Call has become active
             startCall.classList.add('d-none');
