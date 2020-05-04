@@ -22,6 +22,9 @@
     "docs": "typedoc src",
     "release": "release-it"
   },
+  "engines": {
+    "node": ">=12.16.1"
+  },
   "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
   "repository": {
     "type": "git",
