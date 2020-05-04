@@ -2,7 +2,7 @@
 
 ## Version v1
 
-To access first version click [here](./README-v1.md)
+To access first version click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
 
 ## Version v2
 
