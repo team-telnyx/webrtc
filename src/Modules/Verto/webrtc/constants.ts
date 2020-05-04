@@ -10,23 +10,6 @@ export enum Direction {
   Outbound = 'outbound'
 }
 
-// export enum VertoMethod {
-//   Invite = 'verto.invite',
-//   Attach = 'verto.attach',
-//   Answer = 'verto.answer',
-//   Info = 'verto.info',
-//   Display = 'verto.display',
-//   Media = 'verto.media',
-//   Event = 'verto.event',
-//   Bye = 'verto.bye',
-//   Punt = 'verto.punt',
-//   Broadcast = 'verto.broadcast',
-//   Subscribe = 'verto.subscribe',
-//   Unsubscribe = 'verto.unsubscribe',
-//   ClientReady = 'verto.clientReady',
-//   Modify = 'verto.modify',
-// }
-
 export enum VertoMethod {
   Invite = 'telnyx_rtc.invite',
   Attach = 'telnyx_rtc.attach',
