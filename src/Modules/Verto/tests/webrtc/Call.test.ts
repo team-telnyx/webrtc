@@ -1,8 +1,8 @@
-import { isQueued } from '../../src/Modules/Verto/services/Handler'
-import { State } from '../../src/Modules/Verto/webrtc/constants'
-import Call from '../../src/Modules/Verto/webrtc/Call'
-import Verto from '../../src/TelnyxRTCClient/Verto'
-const Connection = require('../../src/Modules/Verto/services/Connection')
+import { isQueued } from '../../services/Handler'
+import { State } from '../../webrtc/constants'
+import Call from '../../webrtc/Call'
+import Verto from '../..'
+const Connection = require('../../services/Connection')
 
 describe('Call', () => {
   let session: Verto

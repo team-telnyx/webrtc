@@ -267,7 +267,7 @@ const WebDialer = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
-      host: 'rtcdev.telnyx.com:14938',
+      host: environment === 'development' ? 'rtcdev.telnyx.com:14938' : null,
       login: username,
       password: password,
       ringFile: './sounds/incoming_call.mp3',
@@ -400,14 +400,11 @@ const WebDialer = ({
 
 export const Example = () => {
   const production = boolean('Production', false);
-  const username = text('Connection Username', 'zoiperother');
-  const password = text('Connection Password', 'zoiperother');
-  const defaultDestination = text(
-    'Default Destination',
-    'sip:zoiperother@sipdev.telnyx.com'
-  );
-  const callerName = text('Caller Name', 'Deivid V');
-  const callerNumber = text('Caller Number', '11953279203');
+  const username = text('Connection Username', 'username');
+  const password = text('Connection Password', 'password');
+  const defaultDestination = text('Default Destination', '18004377950');
+  const callerName = text('Caller Name', 'Caller ID Name');
+  const callerNumber = text('Caller Number', 'Caller ID Number');
 
   return (
     <WebDialer

@@ -1,10 +1,10 @@
 import behaveLikeBaseSession from './behaveLike/BaseSession.spec'
 import VertoHandler from './webrtc/VertoHandler'
 import LayoutHandler from './webrtc/LayoutHandler'
-import { isQueued } from '../src/Modules/Verto/services/Handler'
-import Verto, { VERTO_PROTOCOL } from '../src/TelnyxRTCClient/Verto'
+import { isQueued } from '../services/Handler'
+import Verto, { VERTO_PROTOCOL } from '..'
 
-const Connection = require('../src/Modules/Verto/services/Connection')
+const Connection = require('../services/Connection')
 
 describe('Verto', () => {
   const _buildInstance = (): Verto => {

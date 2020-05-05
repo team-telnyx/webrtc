@@ -1,4 +1,4 @@
-import { register, registerOnce, deRegister, deRegisterAll, trigger, isQueued, queueLength } from '../src/Modules/Verto/services/Handler'
+import { register, registerOnce, deRegister, deRegisterAll, trigger, isQueued, queueLength } from '../services/Handler'
 
 describe('Handler', () => {
   const fnMock = jest.fn()

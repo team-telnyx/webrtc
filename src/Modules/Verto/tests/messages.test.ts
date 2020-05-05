@@ -1,6 +1,6 @@
-import { setAgentName, Connect } from '../src/Modules/Verto/messages/blade/Connect'
-import { Execute, Subscription, Ping } from '../src/Modules/Verto/messages/Blade'
-import { Login, Invite, Answer, Bye, Modify, Info, Result } from '../src/Modules/Verto/messages/Verto'
+import { setAgentName, Connect } from '../messages/blade/Connect'
+import { Execute, Subscription, Ping } from '../messages/Blade'
+import { Login, Invite, Answer, Bye, Modify, Info, Result } from '../messages/Verto'
 
 describe('Messages', function () {
   describe('BladeConnect', function () {

@@ -1,6 +1,6 @@
-import BrowserSession from '../../src/Modules/Verto/BrowserSession'
-import { MCULayoutEventHandler } from '../../src/Modules/Verto/webrtc/LayoutHandler'
-import Call from '../../src/Modules/Verto/webrtc/Call'
+import BrowserSession from '../../BrowserSession'
+import { MCULayoutEventHandler } from '../../webrtc/LayoutHandler'
+import Call from '../../webrtc/Call'
 
 export default (klass: any) => {
   const CALL_PARAMS = { id: 'c1d19df5-5cdf-439a-9678-079549a43f40', destinationNumber: 'x3599', remoteCallerName: 'Js Client Test', remoteCallerNumber: '1234', callerName: 'Jest Client', callerNumber: '5678' }

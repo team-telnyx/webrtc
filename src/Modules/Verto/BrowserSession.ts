@@ -1,9 +1,3 @@
-/**
- * Copyright (c) 2018 SignalWire
- * @authors Edoardo Gallo and Luca Pradovera
- * @license MIT
- */
-
 import logger from './util/logger'
 import BaseSession from './BaseSession'
 import { ICacheDevices, IAudioSettings, IVideoSettings, BroadcastParams, SubscribeParams } from './util/interfaces'

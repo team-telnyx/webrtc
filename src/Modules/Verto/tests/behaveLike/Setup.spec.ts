@@ -1,6 +1,6 @@
-import Setup from '../../src/Modules/Verto/services/Setup'
-const Connection = require('../../src/Modules/Verto/services/Connection')
-jest.mock('../../src/Modules/Verto/services/Connection')
+import Setup from '../../services/Setup'
+const Connection = require('../../services/Connection')
+jest.mock('../../services/Connection')
 
 describe('Setup', () => {
   it("should be true", () => {

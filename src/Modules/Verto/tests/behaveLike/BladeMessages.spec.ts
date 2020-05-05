@@ -1,6 +1,6 @@
-import { trigger } from '../../src/Modules/Verto/services/Handler'
-import { SwEvent } from '../../src/Modules/Verto/util/constants'
-import { Execute } from '../../src/Modules/Verto/messages/Blade'
+import { trigger } from '../../services/Handler'
+import { SwEvent } from '../../util/constants'
+import { Execute } from '../../messages/Blade'
 
 /**
  * Module to test "blade.xxx" messages in both browser/node following DRY principle.

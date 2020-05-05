@@ -1,5 +1,5 @@
-import { findElementByType } from '../../src/Modules/Verto/util/helpers'
-import { sdpStereoHack, sdpMediaOrderHack, sdpBitrateHack, getDevices, assureDeviceId } from '../../src/Modules/Verto/webrtc/helpers'
+import { findElementByType } from '../../util/helpers'
+import { sdpStereoHack, sdpMediaOrderHack, sdpBitrateHack, getDevices, assureDeviceId } from '../../webrtc/helpers'
 
 describe('Helpers browser functions', () => {
   describe('findElementByType', () => {

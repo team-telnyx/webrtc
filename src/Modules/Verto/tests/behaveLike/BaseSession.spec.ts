@@ -1,6 +1,6 @@
-import { isQueued } from '../../src/Modules/Verto/services/Handler'
-import BaseSession from '../../src/Modules/Verto/BaseSession'
-const Connection = require('../../src/Modules/Verto/services/Connection')
+import { isQueued } from '../../services/Handler'
+import BaseSession from '../../BaseSession'
+const Connection = require('../../services/Connection')
 
 
 describe('BaseSession', () => {

@@ -1,4 +1,4 @@
-import CantinaAuth from '../../src/Modules/Verto/webrtc/CantinaAuth'
+import CantinaAuth from '../../webrtc/CantinaAuth'
 
 declare var global: any;
 

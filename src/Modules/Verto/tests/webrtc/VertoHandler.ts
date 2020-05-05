@@ -1,8 +1,8 @@
-import BrowserSession from '../../src/Modules/Verto/BrowserSession'
-import VertoHandler from '../../src/Modules/Verto/webrtc/VertoHandler'
-import Call from '../../src/Modules/Verto/webrtc/Call'
-import { State } from '../../src/Modules/Verto/webrtc/constants'
-const Connection = require('../../src/Modules/Verto/services/Connection')
+import BrowserSession from '../../BrowserSession'
+import VertoHandler from '../../webrtc/VertoHandler'
+import Call from '../../webrtc/Call'
+import { State } from '../../webrtc/constants'
+const Connection = require('../../services/Connection')
 
 export default (klass: any) => {
   const DEFAULT_PARAMS = { destinationNumber: 'x3599', remoteCallerName: 'Js Client Test', remoteCallerNumber: '1234', callerName: 'Jest Client', callerNumber: '5678' }

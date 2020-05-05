@@ -1,4 +1,4 @@
-import { objEmpty, mutateLiveArrayData, safeParseJson, isDefined, checkWebSocketHost, destructResponse } from '../src/Modules/Verto/util/helpers'
+import { objEmpty, mutateLiveArrayData, safeParseJson, isDefined, checkWebSocketHost, destructResponse } from '../util/helpers'
 
 describe('Helpers functions', () => {
   describe('objEmpty', () => {
