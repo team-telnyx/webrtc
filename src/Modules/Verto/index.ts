@@ -17,8 +17,8 @@ export default class Verto extends BrowserSession {
   private _STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
   private _TURN_SERVER = {
     urls: 'turn:turn.telnyx.com:3478?transport=tcp',
-    username: 'turnuser',
-    credential: 'turnpassword',
+    username: 'testuser',
+    credential: 'testpassword',
   };
 
   constructor(public options: ISignalWireOptions) {
