@@ -267,7 +267,6 @@ const WebDialer = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
-      host: environment === 'development' ? 'rtcdev.telnyx.com:14938' : null,
       login: username,
       password: password,
       ringFile: './sounds/incoming_call.mp3',
@@ -399,7 +398,7 @@ const WebDialer = ({
 };
 
 export const Example = () => {
-  const production = boolean('Production', false);
+  const production = boolean('Production', true);
   const username = text('Connection Username', 'username');
   const password = text('Connection Password', 'password');
   const defaultDestination = text('Default Destination', '18004377950');

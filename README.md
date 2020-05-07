@@ -2,7 +2,7 @@
 
 ## Version v1
 
-To access first version click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
+To access v1 click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
 
 ## Version v2
 
@@ -42,7 +42,7 @@ const client = new TelnyxRTC({
   // Required credentials
   login: username,
   password: password,
-  //Other properties
+  // Other options
   // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
   ringFile: './sounds/incoming_call.mp3',
 });
@@ -152,7 +152,9 @@ call.reject();
 
 ### HTML
 
-```Js using with React audio call
+#### Using with React audio call
+
+```Js
     if (mediaRef.current && call && call.remoteStream) {
         mediaRef.current.srcObject = call.remoteStream;
     }
@@ -164,6 +166,8 @@ call.reject();
       controls={false}
     />
 ```
+
+#### Using with vanilla video call
 
 ```Js using with vanilla video call
     client.remoteElement = 'remoteVideo';

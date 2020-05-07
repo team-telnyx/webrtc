@@ -191,9 +191,6 @@
        */
       function connect() {
         client = new TelnyxWebRTC.TelnyxRTC({
-          host: document.getElementById('env').checked
-            ? null
-            : 'rtcdev.telnyx.com:14938',
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
           ringFile: './sounds/incoming_call.mp3',
@@ -237,7 +234,6 @@
 
         connectStatus.innerHTML = 'Connecting...';
         client.connect();
-        console.log('client', client);
       }
 
       function disconnect() {
@@ -249,7 +245,6 @@
        * Handle notification from the client.
        */
       function handleNotification(notification) {
-        console.log('notification', notification.type, notification);
         switch (notification.type) {
           case 'callUpdate':
             handleCallUpdate(notification.call);
@@ -310,8 +305,8 @@
       function makeCall() {
         const params = {
           destinationNumber: document.getElementById('number').value, // required!
-          callerName: 'Deivid',
-          callerNumber: '5511952379203',
+          callerName: 'Caller Name',
+          callerNumber: 'Caller Number',
           audio: document.getElementById('audio').checked,
           video: document.getElementById('video').checked
             ? { aspectRatio: 16 / 9 }
