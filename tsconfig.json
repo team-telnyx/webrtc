@@ -6,7 +6,8 @@
     "moduleResolution": "node",
     "outDir": "./lib",
     "target": "es5",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "sourceMap": false
   },
   "typedocOptions": {
     "mode": "file",

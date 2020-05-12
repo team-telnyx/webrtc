@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "1.0.9",
+  "version": "2.0.0",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",
@@ -22,6 +22,9 @@
     "docs": "typedoc src",
     "release": "release-it"
   },
+  "engines": {
+    "node": ">=12.16.1"
+  },
   "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
   "repository": {
     "type": "git",
@@ -31,6 +34,7 @@
   "license": "MIT",
   "devDependencies": {
     "@types/jest": "^24.0.18",
+    "@types/webrtc": "0.0.26",
     "babel-jest": "^24.9.0",
     "events": "^3.0.0",
     "jest": "^24.9.0",
@@ -46,7 +50,7 @@
     "typedoc": "^0.15.0",
     "typedoc-plugin-markdown": "^2.2.6",
     "typescript": "^3.6.2",
-    "uuid": "^3.3.2",
+    "@types/uuid": "^7.0.0",
     "webrtc-adapter": "^7.4.0"
   },
   "publishConfig": {
@@ -60,5 +64,12 @@
     "github": {
       "release": true
     }
+  },
+  "dependencies": {
+    "@react-native-community/async-storage": "^1.9.0",
+    "loglevel": "^1.6.8",
+    "react-native-incall-manager": "^3.2.7",
+    "react-native-webrtc": "^1.75.3",
+    "uuid": "^7.0.2"
   }
 }

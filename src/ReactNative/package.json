@@ -1,0 +1,38 @@
+{
+  "name": "@telnyx/react-native",
+  "version": "1.0.0",
+  "description": "React-Native library for connecting to Telnyx.",
+  "author": "Telnyx Team",
+  "main": "dist/ReactNative/index.js",
+  "module": "dist/ReactNative/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean-build": "rm -rf dist/* && npm run build",
+    "build": "mkdir ./dist && tsc"
+  },
+  "keywords": [
+    "telnyx",
+    "telnyxRTC",
+    "webrtc",
+    "sip",
+    "freeswitch",
+    "react-native"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "execa": "^1.0.0",
+    "fs-extra": "^7.0.1",
+    "listr": "^0.14.3",
+    "loglevel": "^1.6.7",
+    "uuid": "^7.0.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.11.1",
+    "@types/uuid": "^7.0.2",
+    "jest": "^25.3.0",
+    "ts-jest": "^25.3.1",
+    "tslint": "^6.1.1",
+    "typescript": "^3.8.3"
+  }
+}

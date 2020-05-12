@@ -1,12 +1,18 @@
 # Telnyx WebRTC SDK
 
+## Version v1
+
+To access v1 click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
+
+## Version v2
+
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) <!-- GEN:chromium-version-badge-if-release -->[![Chromium version](https://img.shields.io/badge/chromium-82.0.4057.0-blue.svg?logo=google-chrome)](https://www.chromium.org/Home)<!-- GEN:stop --> <!-- GEN:firefox-version-badge-if-release -->[![Firefox version](https://img.shields.io/badge/firefox-72-blue.svg?logo=mozilla-firefox)](https://www.mozilla.org/en-US/firefox/new/)<!-- GEN:stop --> [![WebKit version](https://img.shields.io/badge/webkit-13.0.4-blue.svg?logo=safari)](https://webkit.org/) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
 
 The Telnyx WebRTC SDK provides all the functionality you need to start making voice calls from a browser to phone numbers or other browsers.
 
 ## Requirements
 
-You'll need node 8.6.0 or later.
+You'll need node v12.16.1 or later.
 
 You'll also need a Telnyx account in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
 
@@ -34,21 +40,11 @@ To initialize the JavaScript SDK, you'll need to authenticate using a Telnyx Con
 // Initialize the client
 const client = new TelnyxRTC({
   // Required credentials
-  credentials: {
-    // Telnyx Connection Username
-    username: 'username',
-    // Telnyx Connection Password
-    password: 'password',
-  },
+  login: username,
+  password: password,
   // Other options
-  //
-  // This can be a DOM element, DOM selector, or a function that returns an element.
-  remoteElement: '#videoOrAudioSelector',
   // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
   ringFile: './sounds/incoming_call.mp3',
-  useMic: true,
-  useSpeaker: true,
-  useCamera: false,
 });
 
 // Create a variable to track the current call
@@ -56,34 +52,47 @@ let activeCall;
 
 // Attach event listeners
 client
-  .on('socket.connect', () => console.log('socket connected'))
-  .on('socket.close', () => console.log('socket closed'))
-  .on('registered', () => console.log('registered'))
-  .on('unregistered', () => console.log('unregistered'))
+  .on('telnyx.socket.open', () => console.log('socket open'))
+  .on('telnyx.socket.close', () => {
+    console.log('socket closed');
+    client.disconnect();
+  })
+  .on('telnyx.socket.error', (error) => {
+    console.log('telnyx.socket.error', error);
+    client.disconnect();
+  })
+  .on('telnyx.ready', () => console.log('ready to call'))
+  .on('telnyx.error', () => console.log('error'))
   // Event fired on call updates, e.g. when there's an incoming call
-  .on('callUpdate', (call) => {
-    activeCall = call;
+  .on('telnyx.notification', (notification) => {
+    activeCall = notification.call;
 
-    switch (call.state) {
-      // Connecting to a call
-      case 'connecting':
-        return;
-      // Receiving an inbound call
-      case 'ringing':
-        return;
-      // An established and active call
-      case 'active':
-        return;
-      // Call is active but on hold
-      case 'held':
-        return;
-      // Call is over and can be removed
-      case 'done':
-        activeCall = null;
-      // New calls that haven't started connecting yet
-      case 'new':
-      default:
-        return;
+    switch (notification.type) {
+      case 'callUpdate':
+        // Call is over and can be removed
+        if (
+          notification.call.state === 'hangup' ||
+          notification.call.state === 'destroy'
+        ) {
+          activeCall = null;
+        }
+        // An established and active call
+        if (notification.call.state === 'active') {
+          return;
+        }
+        // New calls that haven't started connecting yet
+        if (notification.call.state === 'new') {
+          return;
+        }
+        // Receiving an inbound call
+        if (notification.call.state === 'ringing') {
+          return;
+        }
+        // Call is active but on hold
+        if (notification.call.state === 'held') {
+          return;
+        }
+        break;
     }
   });
 
@@ -104,12 +113,14 @@ To initiate a call from your application:
 // You can save this call or wait for `callUpdate` and use the returned `activeCall`
 const call = client.newCall({
   // Destination is required and can be a phone number or SIP URI
-  destination: '18004377950',
+  destinationNumber: '18004377950',
   callerName: 'Caller ID Name',
   // Caller ID number is optional.
   // You can only specify a phone number that you own and have assigned
   // to your Connection in the Telnyx Portal
   callerNumber: '‬',
+  audio: true,
+  video: false, //Used to enable/disable video
 });
 ```
 
@@ -139,6 +150,42 @@ call.reject();
 
 ---
 
+### HTML
+
+#### Using with React audio call
+
+```Js
+    if (mediaRef.current && call && call.remoteStream) {
+        mediaRef.current.srcObject = call.remoteStream;
+    }
+
+    <audio
+      ref={mediaRef}
+      id='audioCall'
+      autoPlay='autoplay'
+      controls={false}
+    />
+```
+
+#### Using with vanilla video call
+
+```Js using with vanilla video call
+    client.remoteElement = 'remoteVideo';
+    client.localElement = 'localVideo';
+
+    <video
+      id="localVideo"
+      autoplay="true"
+      playsinline="true"
+    />
+     <video
+      id="remoteVideo"
+      autoplay="true"
+      playsinline="true"
+    />
+
+```
+
 ## Examples
 
 We've included a few [examples in React](examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
@@ -153,6 +200,13 @@ npm run storybook
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
 ---
+
+We've included a few [examples in Javascript(ES6)](examples/vanilla) to help you get started.
+
+```
+cd examples/vanilla
+open index.html
+```
 
 ## Contributing
 
