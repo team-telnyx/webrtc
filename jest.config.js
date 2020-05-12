@@ -7,4 +7,9 @@ module.exports = {
   transform: {
     ...tsjPreset.transform,
   },
+  setupFiles: [
+    '<rootDir>/src/Modules/Verto/tests/setup/browsers.ts',
+    '<rootDir>/src/Modules/Verto/tests/setup/connection.ts',
+    '<rootDir>/src/Modules/Verto/tests/setup/webrtcMocks.ts',
+  ],
 };

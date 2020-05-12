@@ -1,0 +1,27 @@
+body {
+  background-color: #1d2241;
+  color: #fff;
+}
+
+.container-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.telnyx_logo {
+  width: 50%;
+  margin-right: 20px;
+}
+
+.webrtc_logo {
+  height: 110px;
+}
+
+.utils-margin-top-bg {
+  margin-top: 80px;
+}
+
+.telnyx-labels {
+  color: #1d2241;
+}
