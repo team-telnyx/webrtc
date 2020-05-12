@@ -8,7 +8,11 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean-build": "rm -rf dist/* && npm run build",
-    "build": "mkdir ./dist && tsc"
+    "build": "mkdir ./dist && tsc",
+    "release": "release-it"
+  },
+  "engines": {
+    "node": ">=12.16.1"
   },
   "keywords": [
     "telnyx",
@@ -19,11 +23,24 @@
     "react-native"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "@telnyx:registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "git": {
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true
+    }
+  },
   "dependencies": {
     "execa": "^1.0.0",
     "fs-extra": "^7.0.1",
     "listr": "^0.14.3",
     "loglevel": "^1.6.7",
+    "release-it": "^13.5.8",
     "uuid": "^7.0.2"
   },
   "devDependencies": {
