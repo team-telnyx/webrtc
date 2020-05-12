@@ -11,13 +11,21 @@
   },
   "dependencies": {
     "@react-native-community/async-storage": "^1.9.0",
+    "@react-native-community/masked-view": "^0.1.10",
+    "@react-navigation/native": "^5.3.0",
+    "@react-navigation/stack": "^5.3.3",
+    "@telnyx/react-native": "file:../../src/ReactNative/telnyx-react-native-1.0.0.tgz",
     "react": "16.9.0",
     "react-native": "0.61.5",
+    "react-native-elements": "^2.0.0",
+    "react-native-gesture-handler": "^1.6.1",
     "react-native-get-random-values": "^1.3.1",
     "react-native-incall-manager": "^3.2.7",
+    "react-native-reanimated": "^1.8.0",
+    "react-native-safe-area-context": "^1.0.0",
+    "react-native-screens": "^2.7.0",
     "react-native-vector-icons": "^6.6.0",
-    "react-native-webrtc": "^1.75.3",
-    "@telnyx/react-native": "file:../../src/ReactNative/telnyx-react-native-1.0.0.tgz"
+    "react-native-webrtc": "^1.75.3"
   },
   "devDependencies": {
     "@babel/core": "^7.8.7",
