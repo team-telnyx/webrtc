@@ -37,9 +37,9 @@ export default class App extends Component<Props> {
     this.state = {
       connected: false,
       call: null,
-      extension: 'sip:zoiperother@sipdev.telnyx.com',
-      username: 'deividzoiper',
-      password: 'zoiper2019',
+      extension: '',
+      username: '',
+      password: '',
       btnMicActive: true,
       btnDeafActive: true,
       btnCamActive: true,
