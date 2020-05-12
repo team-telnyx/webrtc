@@ -10,9 +10,12 @@ const Stack = createStackNavigator();
 function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen name="Welcome to Telnyx" component={CredentialScreen} />
-        <Stack.Screen name="Telnyx 2" component={DialerScreen} />
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}>
+        <Stack.Screen name="credentials" component={CredentialScreen} />
+        <Stack.Screen name="dialer" component={DialerScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
