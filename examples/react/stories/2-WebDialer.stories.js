@@ -103,15 +103,13 @@ const DialPad = ({
   toggleMute,
   toggleHold,
   disabled,
+  isIncomingCall,
 }) => {
   const held = call && call.isHeld;
   const muted = call && call.isMuted;
   const makeSendDigit = (x) => () => onDigit(x);
 
-  const isInbound = call && call.call.direction === 'inbound';
-  const isIncomingCall = isInbound && call.state === 'new';
-
-  const answerCall = () => {
+  const answerCall = async () => {
     if (call) {
       call.answer();
     }
@@ -238,6 +236,7 @@ const WebDialer = ({
   const [registered, setRegistered] = useState();
   const [call, setCall] = useState();
   const [destination, setDestination] = useState(defaultDestination);
+  const [isInboundCall, setIsInboundCall] = useState(false);
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -256,47 +255,74 @@ const WebDialer = ({
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
-      destination,
       callerName,
       callerNumber,
+      destinationNumber: destination,
+      audio: true,
+      video: false,
     });
+
     setCall(newCall);
   };
 
   const connectAndCall = () => {
-    const newClient = new TelnyxRTC({
-      env: environment,
-      credentials: {
-        username,
-        password,
-      },
-      remoteElement: () => mediaRef.current,
-      useMic: true,
-      useSpeaker: true,
-      useCamera: false,
-      ringFile: './sounds/incoming_call.mp3', // downloaded from this site https://www.zedge.net/ringtone/01ed071d-4465-3a76-845f-d63b993ab2d5
-    })
-      .on('registered', () => {
-        setRegistered(true);
-        setRegistering(false);
+    const session = new TelnyxRTC({
+      login: username,
+      password: password,
+      ringFile: './sounds/incoming_call.mp3',
+    });
+    session.on('telnyx.socket.open', (call) => {
+      console.log('telnyx.socket.open', call);
+    });
+    session.on('telnyx.ready', (session) => {
+      console.log('telnyx.ready', session);
+      setRegistered(true);
+      setRegistering(false);
 
-        startCall();
-      })
-      .on('unregistered', () => {
-        setRegistered(false);
-        setRegistering(false);
-      })
-      .on('callUpdate', (call) => {
-        if (call.state === 'done') {
-          setCall(null);
-        } else {
-          setCall(call);
-        }
-      });
+      startCall();
+    });
+    session.on('telnyx.error', (error) => {
+      console.log('telnyx.error', error);
+      alert(error.message);
+    });
 
-    clientRef.current = newClient;
+    session.on('telnyx.socket.error', (error) => {
+      console.log('telnyx.socket.error', error);
+      session.disconnect();
+    });
+
+    session.on('telnyx.socket.close', (error) => {
+      console.log('telnyx.socket.close', error);
+      session.disconnect();
+    });
+
+    session.on('telnyx.notification', (notification) => {
+      console.log('telnyx.notification', notification);
+
+      switch (notification.type) {
+        case 'callUpdate':
+          if (
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
+          ) {
+            setIsInboundCall(false);
+            return setCall(null);
+          }
+          if (notification.call.state === 'active') {
+            setIsInboundCall(false);
+            return setCall(notification.call);
+          }
+          if (notification.call.state === 'ringing') {
+            setIsInboundCall(true);
+            return setCall(notification.call);
+          }
+          break;
+      }
+    });
+
     setRegistering(true);
-    newClient.connect();
+    clientRef.current = session;
+    clientRef.current.connect();
   };
 
   const connect = () => {
@@ -330,9 +356,18 @@ const WebDialer = ({
     }
   };
 
+  if (mediaRef.current && call && call.remoteStream) {
+    mediaRef.current.srcObject = call.remoteStream;
+  }
+
   return (
     <Container>
-      <audio ref={mediaRef} />
+      <audio
+        ref={mediaRef}
+        id='dialogVideo'
+        autoPlay='autoplay'
+        controls={false}
+      ></audio>
 
       <div>
         <NumberInput
@@ -343,6 +378,7 @@ const WebDialer = ({
         />
 
         <DialPad
+          isIncomingCall={isInboundCall}
           call={call}
           onEndCall={hangup}
           onStartCall={connect}
