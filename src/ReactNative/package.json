@@ -1,14 +1,16 @@
 {
   "name": "@telnyx/react-native",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React-Native library for connecting to Telnyx.",
   "author": "Telnyx Team",
   "main": "dist/ReactNative/index.js",
   "module": "dist/ReactNative/index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "clean-build": "rm -rf dist/* && npm run build",
-    "build": "mkdir ./dist && tsc",
+    "build": "rm -rf ./dist && mkdir ./dist && tsc",
     "release": "release-it"
   },
   "engines": {
