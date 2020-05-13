@@ -39,7 +39,7 @@ export default class Dialer extends Component<Props> {
       call: null,
       extension: 'sip:zoiperother@sipdev.telnyx.com',
       username: 'deividzoiper',
-      password: 'zoiper2019',
+      password: 'deivid2020',
       btnMicActive: true,
       btnDeafActive: true,
       btnCamActive: true,

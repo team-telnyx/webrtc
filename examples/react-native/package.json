@@ -14,7 +14,7 @@
     "@react-native-community/masked-view": "^0.1.10",
     "@react-navigation/native": "^5.3.0",
     "@react-navigation/stack": "^5.3.3",
-    "@telnyx/react-native": "file:../../src/ReactNative/telnyx-react-native-1.0.0.tgz",
+    "@telnyx/react-native": "^1.0.1",
     "react": "16.9.0",
     "react-native": "0.61.5",
     "react-native-elements": "^2.0.0",

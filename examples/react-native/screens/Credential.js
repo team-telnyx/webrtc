@@ -9,7 +9,7 @@ export default class CredentialScreen extends Component {
     this.state = {
       destinationNumber: 'sip:zoiperother@sipdev.telnyx.com',
       username: 'deividzoiper',
-      password: 'zoiper2019',
+      password: 'deivid2020',
     };
   }
 
@@ -25,9 +25,7 @@ export default class CredentialScreen extends Component {
         style={{
           flex: 1,
           justifyContent: 'center',
-          borderColor: 'blue',
-          borderStyle: 'solid',
-          borderWidth: 10,
+          backgroundColor: '#1D2241',
         }}>
         <View
           style={{
@@ -35,27 +33,28 @@ export default class CredentialScreen extends Component {
             justifyContent: 'space-between',
             textAlign: 'center',
             marginTop: 50,
-            borderColor: 'green',
-            borderStyle: 'solid',
-            borderWidth: 10,
           }}>
           <Image
-            style={{width: '100%', height: 50, objectFit: 'contain'}}
-            source={require('../assets/images/telnyx-logo.png')}
+            style={{width: '100%', height: 50, aspectRatio: 300 / 50}}
+            source={require('../assets/images/telnyx-logo-white.png')}
           />
-          {/* <Image
-            style={{width: 100, height: 50}}
-            source={require('../assets/images/webrtc_logo.png')}
-          /> */}
         </View>
         <View
+          elevation={5}
           style={{
             flex: 2,
             alignItems: 'center',
             justifyContent: 'center',
-            borderColor: 'red',
-            borderStyle: 'solid',
-            borderWidth: 10,
+            borderRadius: 4,
+            backgroundColor: '#fff',
+            marginHorizontal: 30,
+            marginVertical: 50,
+            shadowColor: 'red',
+            shadowOpacity: 0.8,
+            shadowOffset: {
+              height: 1,
+              width: 1,
+            },
           }}>
           <Input
             leftIcon={{type: 'font-awesome', name: 'user'}}
