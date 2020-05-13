@@ -38,8 +38,8 @@ export default class Dialer extends Component<Props> {
       connected: false,
       call: null,
       extension: 'sip:zoiperother@sipdev.telnyx.com',
-      username: 'deividzoiper',
-      password: 'deivid2020',
+      username: '',
+      password: '',
       btnMicActive: true,
       btnDeafActive: true,
       btnCamActive: true,
@@ -225,7 +225,8 @@ export default class Dialer extends Component<Props> {
         </View>
       );
     } else {
-      const {username, password, extension, connected} = this.state;
+      const {username, password} = this.props.route.params;
+      const {extension, connected} = this.state;
       const disableCall = !username || !password || !extension || !connected;
       return (
         <View style={styles.wrapperBottom}>
@@ -246,7 +247,8 @@ export default class Dialer extends Component<Props> {
   }
 
   render() {
-    const {username, password, extension, connected} = this.state;
+    const {username, password} = this.props.route.params;
+    const {extension, connected} = this.state;
     if (username && password && extension && !connected) {
       this.client = new TelnyxRTC({
         host: 'rtcdev.telnyx.com:14938',

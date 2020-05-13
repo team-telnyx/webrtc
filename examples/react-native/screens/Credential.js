@@ -7,7 +7,6 @@ export default class CredentialScreen extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      destinationNumber: 'sip:zoiperother@sipdev.telnyx.com',
       username: 'deividzoiper',
       password: 'deivid2020',
     };
@@ -15,8 +14,10 @@ export default class CredentialScreen extends Component {
 
   handleRegister = () => {
     const {navigation} = this.props;
-    console.log('PROPS', this.props);
-    return navigation.navigate('dialer');
+    return navigation.navigate('dialer', {
+      username: this.state.username,
+      password: this.state.password,
+    });
   };
 
   render() {
