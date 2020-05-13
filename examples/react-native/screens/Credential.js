@@ -1,15 +1,14 @@
 import React, {Component} from 'react';
-import {View, Image} from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import {Input, Button, Text} from 'react-native-elements';
+import {View, Image, KeyboardAvoidingView, ScrollView} from 'react-native';
+import {Input, Button} from 'react-native-elements';
 import Colors from '../Colors';
 
 export default class CredentialScreen extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      username: 'deividzoiper',
-      password: 'deivid2020',
+      username: '',
+      password: '',
     };
   }
 
@@ -22,12 +21,15 @@ export default class CredentialScreen extends Component {
   };
 
   render() {
+    const {username, password} = this.state;
     return (
-      <View
+      <ScrollView
         style={{
           flex: 1,
-          justifyContent: 'center',
           backgroundColor: Colors.telnyxDark,
+        }}
+        contentContainerStyle={{
+          justifyContent: 'center',
         }}>
         <View
           style={{
@@ -41,7 +43,7 @@ export default class CredentialScreen extends Component {
             source={require('../assets/images/telnyx-logo-white.png')}
           />
         </View>
-        <View
+        <KeyboardAvoidingView
           elevation={5}
           style={{
             flex: 2,
@@ -51,6 +53,7 @@ export default class CredentialScreen extends Component {
             backgroundColor: Colors.white,
             marginHorizontal: 30,
             marginVertical: 50,
+            paddingVertical: 50,
           }}>
           <Input
             leftIcon={{type: 'font-awesome', name: 'user'}}
@@ -65,9 +68,14 @@ export default class CredentialScreen extends Component {
             value={this.state.password}
             onChangeText={password => this.setState({password: password})}
           />
-          <Button title="Connect" onPress={this.handleRegister} />
-        </View>
-      </View>
+
+          <Button
+            disabled={!username || !password}
+            title="Connect"
+            onPress={this.handleRegister}
+          />
+        </KeyboardAvoidingView>
+      </ScrollView>
     );
   }
 }

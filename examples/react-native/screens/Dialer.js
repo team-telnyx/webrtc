@@ -38,9 +38,7 @@ export default class Dialer extends Component<Props> {
     this.state = {
       connected: false,
       call: null,
-      extension: 'sip:zoiperother@sipdev.telnyx.com',
-      username: '',
-      password: '',
+      extension: '',
       btnMicActive: true,
       btnDeafActive: true,
       btnCamActive: true,
