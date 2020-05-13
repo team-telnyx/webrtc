@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Alert,
 } from 'react-native';
+import {Input} from 'react-native-elements';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {TelnyxRTC} from '@telnyx/react-native';
 import {RTCView} from 'react-native-webrtc';
@@ -151,10 +152,9 @@ export default class Dialer extends Component<Props> {
     } else {
       return (
         <View style={styles.wrapperMiddle}>
-          <Text style={styles.instructions}>Enter a number:</Text>
-          <TextInput
-            style={styles.textInput}
-            textAlign={'center'}
+          <Input
+            label="Destination:"
+            placeholder="Enter SIP or Number to Dial"
             onChangeText={extension => this.setState({extension})}
             value={this.state.extension}
           />
@@ -175,7 +175,7 @@ export default class Dialer extends Component<Props> {
               <Icon
                 name="microphone"
                 size={25}
-                color={this.state.btnMicActive ? '#000' : 'gray'}
+                color={this.state.btnMicActive ? '#fff' : 'gray'}
               />
               <Text style={styles.buttonText}>Mute</Text>
             </TouchableOpacity>
@@ -184,7 +184,7 @@ export default class Dialer extends Component<Props> {
               <Icon
                 name="volume-mute"
                 size={25}
-                color={this.state.btnDeafActive ? '#000' : 'gray'}
+                color={this.state.btnDeafActive ? '#fff' : 'gray'}
               />
               <Text style={styles.buttonText}>Deaf</Text>
             </TouchableOpacity>
@@ -193,13 +193,13 @@ export default class Dialer extends Component<Props> {
               <Icon
                 name="camera"
                 size={25}
-                color={this.state.btnCamActive ? '#000' : 'gray'}
+                color={this.state.btnCamActive ? '#fff' : 'gray'}
               />
               <Text style={styles.buttonText}>Camera</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.button} onPress={this.switchCamera}>
-              <Icon name="camera-retake" size={25} color="#000" />
+              <Icon name="camera-retake" size={25} color="#fff" />
               <Text style={styles.buttonText}>Flip Cam</Text>
             </TouchableOpacity>
 
@@ -209,7 +209,7 @@ export default class Dialer extends Component<Props> {
               <Icon
                 name="volume-high"
                 size={25}
-                color={this.state.btnSpeakerActive ? '#000' : 'gray'}
+                color={this.state.btnSpeakerActive ? '#fff' : 'gray'}
               />
               <Text style={styles.buttonText}>Speaker</Text>
             </TouchableOpacity>
@@ -306,6 +306,8 @@ const styles = StyleSheet.create({
   wrapperTop: {
     flex: 0.5,
     justifyContent: 'center',
+    backgroundColor: Colors.telnyxDark,
+    color: Colors.white,
   },
   wrapperMiddle: {
     flex: 2,
@@ -319,6 +321,8 @@ const styles = StyleSheet.create({
     borderColor: '#000',
     borderTopWidth: 1,
     borderBottomWidth: 1,
+    backgroundColor: Colors.telnyxDark,
+    color: Colors.white,
   },
   wrapperBottomRow: {
     flex: 0.5,
@@ -336,11 +340,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     margin: 10,
+    color: Colors.white,
   },
   instructions: {
     textAlign: 'center',
-    color: '#333333',
     marginBottom: 5,
+    color: Colors.white,
   },
   statusCall: {
     textAlign: 'center',
@@ -357,5 +362,6 @@ const styles = StyleSheet.create({
   buttonText: {
     textAlign: 'center',
     fontSize: 12,
+    color: '#ccc',
   },
 });

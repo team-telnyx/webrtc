@@ -2,6 +2,7 @@ import React, {Component} from 'react';
 import {View, Image} from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import {Input, Button, Text} from 'react-native-elements';
+import Colors from '../Colors';
 
 export default class CredentialScreen extends Component {
   constructor(props) {
@@ -26,7 +27,7 @@ export default class CredentialScreen extends Component {
         style={{
           flex: 1,
           justifyContent: 'center',
-          backgroundColor: '#1D2241',
+          backgroundColor: Colors.telnyxDark,
         }}>
         <View
           style={{
@@ -47,15 +48,9 @@ export default class CredentialScreen extends Component {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: 4,
-            backgroundColor: '#fff',
+            backgroundColor: Colors.white,
             marginHorizontal: 30,
             marginVertical: 50,
-            shadowColor: 'red',
-            shadowOpacity: 0.8,
-            shadowOffset: {
-              height: 1,
-              width: 1,
-            },
           }}>
           <Input
             leftIcon={{type: 'font-awesome', name: 'user'}}
@@ -70,7 +65,7 @@ export default class CredentialScreen extends Component {
             value={this.state.password}
             onChangeText={password => this.setState({password: password})}
           />
-          <Button title="Register" onPress={this.handleRegister} />
+          <Button title="Connect" onPress={this.handleRegister} />
         </View>
       </View>
     );

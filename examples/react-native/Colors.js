@@ -25,5 +25,6 @@ export default {
   green: '#64d76c',
   red: '#FF0000',
   black: '#000000',
-  grey: '#898989'
-}
+  grey: '#898989',
+  telnyxDark: '#1D2241',
+};
