@@ -1,8 +1,7 @@
 import React, {Component} from 'react';
 import {View, Image, KeyboardAvoidingView, ScrollView} from 'react-native';
-import {Input, Button, Icon} from 'react-native-elements';
+import {Input, Button, Icon, CheckBox} from 'react-native-elements';
 import Colors from '../Colors';
-// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default class CredentialScreen extends Component {
   constructor(props) {
@@ -10,6 +9,7 @@ export default class CredentialScreen extends Component {
     this.state = {
       username: '',
       password: '',
+      production: true,
       showPassword: false,
     };
   }
@@ -19,6 +19,7 @@ export default class CredentialScreen extends Component {
     return navigation.navigate('dialer', {
       username: this.state.username,
       password: this.state.password,
+      production: this.state.production,
     });
   };
 
@@ -57,8 +58,6 @@ export default class CredentialScreen extends Component {
           elevation={5}
           style={{
             flex: 2,
-            alignItems: 'center',
-            justifyContent: 'center',
             borderRadius: 4,
             backgroundColor: Colors.white,
             marginHorizontal: 30,
@@ -89,12 +88,20 @@ export default class CredentialScreen extends Component {
             value={this.state.password}
             onChangeText={password => this.setState({password: password})}
           />
-
-          <Button
-            disabled={!username || !password}
-            title="Connect"
-            onPress={this.handleRegister}
+          <CheckBox
+            style={{alignSelf: 'center'}}
+            title="Production"
+            checked={this.state.production}
+            onPress={() => this.setState({production: !this.state.production})}
           />
+          <View style={{alignSelf: 'center', marginTop: 10}}>
+            <Button
+              disabled={!username || !password}
+              title="Connect"
+              style={{alignSelf: 'center'}}
+              onPress={this.handleRegister}
+            />
+          </View>
         </KeyboardAvoidingView>
       </ScrollView>
     );

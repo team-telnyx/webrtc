@@ -245,10 +245,11 @@ export default class Dialer extends Component<Props> {
   }
 
   render() {
-    const {username, password} = this.props.route.params;
+    const {username, password, production} = this.props.route.params;
     const {extension, connected} = this.state;
     if (username && password && extension && !connected) {
       this.client = new TelnyxRTC({
+        host: production ? null : 'rtcdev.telnyx.com:14938',
         login: username,
         password: password,
       });
