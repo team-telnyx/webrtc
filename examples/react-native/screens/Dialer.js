@@ -47,6 +47,44 @@ export default class Dialer extends Component<Props> {
       cause: '',
     };
     this.client = null;
+    const {username, password, production} = props.route.params;
+    if (username && password) {
+      this.client = new TelnyxRTC({
+        host: production ? null : 'rtcdev.telnyx.com:14938',
+        login: username,
+        password: password,
+      });
+
+      this.client.on('telnyx.ready', () => {
+        this.setState({connected: true, status: 'connected'});
+      });
+
+      this.client.on('telnyx.error', error => {
+        console.log('error', error);
+      });
+
+      this.client.on('telnyx.notification', notification => {
+        switch (notification.type) {
+          case 'callUpdate':
+            return this._handleCallUpdate(notification.call);
+        }
+      });
+
+      this.client.on('telnyx.socket.open', () => {
+        console.log('Socket Open');
+      });
+      this.client.on('telnyx.socket.close', event => {
+        console.log('Socket Close', event);
+      });
+      this.client.on('telnyx.socket.error', error => {
+        console.log('error', error);
+
+        console.log('Socket Error');
+      });
+
+      this.client.connect();
+      console.log('CLIENT====>', this.client);
+    }
   }
 
   makeCall() {
@@ -87,7 +125,7 @@ export default class Dialer extends Component<Props> {
 
   _handleCallUpdate(call) {
     this.setState({status: call.state, cause: call.cause});
-    console.log('_handleCallUpdate', call);
+    console.log('_handleCallUpdate===>', call);
     switch (call.state) {
       case 'ringing': {
         const {remoteCallerName, remoteCallerNumber} = call.options;
@@ -245,45 +283,6 @@ export default class Dialer extends Component<Props> {
   }
 
   render() {
-    const {username, password, production} = this.props.route.params;
-    const {extension, connected} = this.state;
-    if (username && password && extension && !connected) {
-      this.client = new TelnyxRTC({
-        host: production ? null : 'rtcdev.telnyx.com:14938',
-        login: username,
-        password: password,
-      });
-
-      this.client.on('telnyx.ready', () => {
-        this.setState({connected: true, status: 'connected'});
-      });
-
-      this.client.on('telnyx.error', error => {
-        console.log('error', error);
-      });
-
-      this.client.on('telnyx.notification', notification => {
-        switch (notification.type) {
-          case 'callUpdate':
-            return this._handleCallUpdate(notification.call);
-        }
-      });
-
-      this.client.on('telnyx.socket.open', () => {
-        console.log('Socket Open');
-      });
-      this.client.on('telnyx.socket.close', event => {
-        console.log('Socket Close', event);
-      });
-      this.client.on('telnyx.socket.error', error => {
-        console.log('error', error);
-
-        console.log('Socket Error');
-      });
-
-      this.client.connect();
-    }
-
     return (
       <KeyboardAvoidingView style={styles.container}>
         <View style={styles.wrapperTop}>

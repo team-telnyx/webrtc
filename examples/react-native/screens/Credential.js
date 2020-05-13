@@ -7,8 +7,8 @@ export default class CredentialScreen extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      username: '',
-      password: '',
+      username: 'deividzoiper',
+      password: 'deivid2020',
       production: true,
       showPassword: false,
     };
