@@ -1,7 +1,8 @@
 import React, {Component} from 'react';
 import {View, Image, KeyboardAvoidingView, ScrollView} from 'react-native';
-import {Input, Button} from 'react-native-elements';
+import {Input, Button, Icon} from 'react-native-elements';
 import Colors from '../Colors';
+// import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default class CredentialScreen extends Component {
   constructor(props) {
@@ -9,6 +10,7 @@ export default class CredentialScreen extends Component {
     this.state = {
       username: '',
       password: '',
+      showPassword: false,
     };
   }
 
@@ -17,6 +19,14 @@ export default class CredentialScreen extends Component {
     return navigation.navigate('dialer', {
       username: this.state.username,
       password: this.state.password,
+    });
+  };
+
+  handleEyes = () => {
+    this.setState(prev => {
+      return {
+        showPassword: !prev.showPassword,
+      };
     });
   };
 
@@ -56,15 +66,26 @@ export default class CredentialScreen extends Component {
             paddingVertical: 50,
           }}>
           <Input
-            leftIcon={{type: 'font-awesome', name: 'user'}}
+            leftIcon={{type: 'font-awesome', name: 'user', color: 'gray'}}
             placeholder="Username"
             value={this.state.username}
             onChangeText={username => this.setState({username: username})}
           />
           <Input
-            leftIcon={{type: 'font-awesome', name: 'lock'}}
+            leftIcon={{type: 'font-awesome', name: 'lock', color: 'gray'}}
+            rightIcon={{
+              Component: () => (
+                <Icon
+                  type="font-awesome"
+                  name={this.state.showPassword ? 'eye-slash' : 'eye'}
+                  size={25}
+                  color={'gray'}
+                  onPress={this.handleEyes}
+                />
+              ),
+            }}
             placeholder="Password"
-            secureTextEntry={true}
+            secureTextEntry={!this.state.showPassword}
             value={this.state.password}
             onChangeText={password => this.setState({password: password})}
           />
