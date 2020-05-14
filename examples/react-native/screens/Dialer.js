@@ -50,7 +50,6 @@ export default class Dialer extends Component<Props> {
     const {username, password, production} = props.route.params;
     if (username && password) {
       this.client = new TelnyxRTC({
-        host: production ? null : 'rtcdev.telnyx.com:14938',
         login: username,
         password: password,
       });
@@ -83,7 +82,6 @@ export default class Dialer extends Component<Props> {
       });
 
       this.client.connect();
-      console.log('CLIENT====>', this.client);
     }
   }
 
@@ -129,7 +127,7 @@ export default class Dialer extends Component<Props> {
 
   _handleCallUpdate(call) {
     this.setState({status: call.state, cause: call.cause});
-    console.log('_handleCallUpdate===>', call);
+
     switch (call.state) {
       case 'ringing': {
         const {remoteCallerName, remoteCallerNumber} = call.options;

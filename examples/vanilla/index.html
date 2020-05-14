@@ -191,9 +191,6 @@
        */
       function connect() {
         client = new TelnyxWebRTC.TelnyxRTC({
-          host: document.getElementById('env').checked
-            ? null
-            : 'rtcdev.telnyx.com:14938',
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
           ringFile: './sounds/incoming_call.mp3',
