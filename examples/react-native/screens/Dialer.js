@@ -123,6 +123,10 @@ export default class Dialer extends Component<Props> {
     });
   }
 
+  handleDestination = extension => {
+    return this.setState({extension});
+  };
+
   _handleCallUpdate(call) {
     this.setState({status: call.state, cause: call.cause});
     console.log('_handleCallUpdate===>', call);
@@ -191,7 +195,7 @@ export default class Dialer extends Component<Props> {
           <Input
             label="Destination:"
             placeholder="Enter SIP or Number to Dial"
-            onChangeText={extension => this.setState({extension})}
+            onChangeText={this.handleDestination}
             value={this.state.extension}
           />
           <Text style={styles.statusCall}>{`${this.state.status} ${

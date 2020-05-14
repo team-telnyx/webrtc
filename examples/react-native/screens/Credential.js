@@ -7,8 +7,8 @@ export default class CredentialScreen extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      username: 'deividzoiper',
-      password: 'deivid2020',
+      username: '',
+      password: '',
       production: true,
       showPassword: false,
     };
@@ -29,6 +29,18 @@ export default class CredentialScreen extends Component {
         showPassword: !prev.showPassword,
       };
     });
+  };
+
+  handlePassword = password => {
+    return this.setState({password: password});
+  };
+
+  handleUserName = username => {
+    return this.setState({username: username});
+  };
+
+  handleEnvironment = () => {
+    return this.setState({production: !this.state.production});
   };
 
   render() {
@@ -68,7 +80,7 @@ export default class CredentialScreen extends Component {
             leftIcon={{type: 'font-awesome', name: 'user', color: 'gray'}}
             placeholder="Username"
             value={this.state.username}
-            onChangeText={username => this.setState({username: username})}
+            onChangeText={this.handleUserName}
           />
           <Input
             leftIcon={{type: 'font-awesome', name: 'lock', color: 'gray'}}
@@ -86,13 +98,13 @@ export default class CredentialScreen extends Component {
             placeholder="Password"
             secureTextEntry={!this.state.showPassword}
             value={this.state.password}
-            onChangeText={password => this.setState({password: password})}
+            onChangeText={this.handlePassword}
           />
           <CheckBox
             style={{alignSelf: 'center'}}
             title="Production"
             checked={this.state.production}
-            onPress={() => this.setState({production: !this.state.production})}
+            onPress={this.handleEnvironment}
           />
           <View style={{alignSelf: 'center', marginTop: 10}}>
             <Button
