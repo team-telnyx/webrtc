@@ -14,7 +14,7 @@
     "release": "release-it"
   },
   "engines": {
-    "node": ">=12.16.1"
+    "node": ">=11"
   },
   "keywords": [
     "telnyx",
