@@ -130,7 +130,7 @@ Making a call
 3. Connect a real mobile device in your computer. This is necessary because it needs to access real camera and microphone.
 4. Run `npm run android` or `npm run ios`
 
-## Third libraries dependencies
+## Third-party libraries dependencies
 
 1. react-native-elements
 2. react-native-vector-icons
