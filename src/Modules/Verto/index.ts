@@ -14,11 +14,6 @@ export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL
   public timeoutErrorCode = -329990 // fake verto timeout error code.
 
-  constructor(public options: ITelnyxRTCOptions) {
-    super(options);
-    this.ringFile = options.ringFile;
-  }
-
   validateOptions() {
     const { login, passwd, password } = this.options
     return Boolean(login && (passwd || password))

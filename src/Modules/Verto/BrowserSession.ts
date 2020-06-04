@@ -33,6 +33,7 @@ export default abstract class BrowserSession extends BaseSession {
   constructor(options: ITelnyxRTCOptions) {
     super(options);
     this.iceServers = options.iceServers
+    this.ringFile = options.ringFile;
   }
 
   get reconnectDelay() {
@@ -253,7 +254,6 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   set iceServers(servers: RTCIceServer[] | boolean) {
-    debugger
     if (typeof servers === 'boolean') {
       this._iceServers = servers ? [{ urls: ['stun:stun.l.google.com:19302'] }] : []
     } else {
