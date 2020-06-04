@@ -9,21 +9,13 @@ import { localStorage } from './util/storage'
 import VertoHandler from './webrtc/VertoHandler'
 
 export const VERTO_PROTOCOL = 'verto-protocol'
-export default class Verto extends BrowserSession {
 
+export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL
   public timeoutErrorCode = -329990 // fake verto timeout error code.
 
-  private _STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
-  private _TURN_SERVER = {
-    urls: 'turn:turn.telnyx.com:3478?transport=tcp',
-    username: 'testuser',
-    credential: 'testpassword',
-  };
-
   constructor(public options: ITelnyxRTCOptions) {
     super(options);
-    this.iceServers = [this._TURN_SERVER, this._STUN_SERVER];
     this.ringFile = options.ringFile;
   }
 

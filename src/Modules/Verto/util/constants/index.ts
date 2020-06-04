@@ -3,6 +3,15 @@ export const ADD = 'add'
 export const REMOVE = 'remove'
 export const SESSION_ID = 'sessId'
 
+export const PROD_HOST = 'wss://rtc.telnyx.com:14938'
+export const DEV_HOST = 'wss://rtcdev.telnyx.com:14938'
+export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3843' };
+export const TURN_SERVER = {
+  urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+  username: 'testuser',
+  credential: 'testpassword',
+};
+
 export enum SwEvent {
   // Socket Events
   SocketOpen = 'telnyx.socket.open',
