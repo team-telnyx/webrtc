@@ -2,6 +2,14 @@
 
 The Telnyx SDK for React Native enables developers to connect and use Telnyx APIs within their own React Native apps. Our TelnyxRTC SDK allows developers to build or add robust and innovative communication services to their applications.
 
+## Requirements
+
+You'll need node v11.15.0 or later.
+
+You'll also need a Telnyx account in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
+
+---
+
 ## Getting Started
 
 Install the package with:
@@ -24,9 +32,6 @@ const client = new TelnyxRTC({
   // Required credentials
   login: username,
   password: password,
-  // Other options
-  // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
-  ringFile: './sounds/incoming_call.mp3',
 });
 
 // Create a variable to track the current call
@@ -85,7 +90,7 @@ client.connect();
 // client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](examples/react) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/examples/react-native) for sample React code that handles username and password by prompting the user.
 
 ### React Native
 

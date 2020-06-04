@@ -12,7 +12,7 @@ The Telnyx WebRTC SDK provides all the functionality you need to start making vo
 
 ## Requirements
 
-You'll need node v12.16.1 or later.
+You'll need node v11.15.0 or later.
 
 You'll also need a Telnyx account in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
 
@@ -103,7 +103,7 @@ client.connect();
 // client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](examples/react) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/examples/react) for sample React code that handles username and password by prompting the user.
 
 ### Calls
 
@@ -188,7 +188,7 @@ call.reject();
 
 ## Examples
 
-We've included a few [examples in React](examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 ```
 cd examples/react
@@ -201,7 +201,7 @@ Configuration options for your Telnyx account are available under the [Storybook
 
 ---
 
-We've included a few [examples in Javascript(ES6)](examples/vanilla) to help you get started.
+We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/examples/vanilla) to help you get started.
 
 ```
 cd examples/vanilla
