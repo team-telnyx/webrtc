@@ -267,6 +267,7 @@ const WebDialer = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
+      env: environment,
       login: username,
       password: password,
       ringFile: './sounds/incoming_call.mp3',

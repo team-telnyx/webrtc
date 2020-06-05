@@ -1,6 +1,6 @@
 import logger from '../util/logger'
 import BaseSession from '../BaseSession'
-import { SwEvent } from '../util/constants'
+import { SwEvent, PROD_HOST, DEV_HOST } from '../util/constants'
 import { safeParseJson, checkWebSocketHost, destructResponse } from '../util/helpers'
 import { registerOnce, trigger } from '../services/Handler'
 import { isFunction } from '../util/helpers'
@@ -20,16 +20,21 @@ const TIMEOUT_MS = 10 * 1000
 
 export default class Connection {
   private _wsClient: any = null
-  private _host: string = 'wss://rtc.telnyx.com:14938'
+  private _host: string = PROD_HOST
   private _timers: { [id: string]: any } = {}
 
   public upDur: number = null
   public downDur: number = null
 
   constructor(public session: BaseSession) {
-    const { host } = session.options
+    const { host, env } = session.options
+
     if (host) {
       this._host = checkWebSocketHost(host)
+    }
+
+    if (env) {
+      this._host = env === "development" ? DEV_HOST : PROD_HOST
     }
   }
 

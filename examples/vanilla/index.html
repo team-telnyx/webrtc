@@ -190,7 +190,12 @@
        * Connect with TelnyxWebRTC.TelnyxRTC creating a client and attaching all the event handler.
        */
       function connect() {
+        const env = document.getElementById('env').checked
+          ? 'production'
+          : 'development';
+
         client = new TelnyxWebRTC.TelnyxRTC({
+          env: env,
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
           ringFile: './sounds/incoming_call.mp3',

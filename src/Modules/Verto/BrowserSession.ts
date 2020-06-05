@@ -1,8 +1,8 @@
 import logger from './util/logger'
 import BaseSession from './BaseSession'
-import { ICacheDevices, IAudioSettings, IVideoSettings, BroadcastParams, SubscribeParams } from './util/interfaces'
+import { ICacheDevices, IAudioSettings, IVideoSettings, BroadcastParams, SubscribeParams, ITelnyxRTCOptions } from './util/interfaces'
 import { registerOnce, trigger } from './services/Handler'
-import { SwEvent, SESSION_ID } from './util/constants'
+import { SwEvent, SESSION_ID, TURN_SERVER, STUN_SERVER } from './util/constants'
 import { State, DeviceType } from './webrtc/constants'
 import { getDevices, scanResolutions, removeUnsupportedConstraints, checkDeviceIdConstraints, destructSubscribeResponse, getUserMedia, assureDeviceId } from './webrtc/helpers'
 import { findElementByType } from './util/helpers'
@@ -29,6 +29,12 @@ export default abstract class BrowserSession extends BaseSession {
   protected _audioConstraints: boolean | MediaTrackConstraints = true
   protected _videoConstraints: boolean | MediaTrackConstraints = false
   protected _speaker: string = null
+
+  constructor(options: ITelnyxRTCOptions) {
+    super(options);
+    this.iceServers = options.iceServers
+    this.ringFile = options.ringFile;
+  }
 
   get reconnectDelay() {
     return 1000
@@ -251,7 +257,7 @@ export default abstract class BrowserSession extends BaseSession {
     if (typeof servers === 'boolean') {
       this._iceServers = servers ? [{ urls: ['stun:stun.l.google.com:19302'] }] : []
     } else {
-      this._iceServers = servers
+      this._iceServers = servers ? servers : [TURN_SERVER, STUN_SERVER];
     }
   }
 

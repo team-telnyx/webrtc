@@ -50,6 +50,7 @@ export default class Dialer extends Component<Props> {
     const {username, password, production} = props.route.params;
     if (username && password) {
       this.client = new TelnyxRTC({
+        env: production ? 'production' : 'development',
         login: username,
         password: password,
       });

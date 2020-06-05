@@ -56,6 +56,7 @@ export interface IBladeSubscriptionRequest extends IMessageBase {
   }
 }
 
+type Environment = "production" | "development"
 export interface ITelnyxRTCOptions {
   host?: string,
   project?: string
@@ -65,6 +66,8 @@ export interface ITelnyxRTCOptions {
   password?: string
   userVariables?: Object,
   ringFile?: string
+  env?: Environment
+  iceServers?: RTCIceServer[]
 }
 
 export interface SubscribeParams {
