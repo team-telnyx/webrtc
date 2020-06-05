@@ -290,8 +290,6 @@ const sdpBitrateHack = (sdp: string, max: number, min: number, start: number) =>
   return lines.join(endOfLine)
 }
 
-
-
 export {
   getUserMedia,
   getDevices,
