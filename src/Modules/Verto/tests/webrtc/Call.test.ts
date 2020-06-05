@@ -342,4 +342,41 @@ describe('Call', () => {
       done()
     })
   })
+
+  describe('setStateTelnyx', () => {
+    it('should return null if call is null', () => {
+      const localCall = Call.setStateTelnyx(undefined);
+      expect(localCall).toEqual(undefined)
+    })
+
+    it('should return call without change', () => {
+      const localCall = Call.setStateTelnyx(call);
+      expect(localCall).toEqual(call)
+    })
+    it('set telnyx state call', () => {
+      call.setState(State.Recovering)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('connecting')
+
+      call.setState(State.Trying)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('connecting')
+
+      call.setState(State.Early)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('connecting')
+
+      call.setState(State.Hangup)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('done')
+
+      call.setState(State.Destroy)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('done')
+
+      call.setState(State.Answering)
+      Call.setStateTelnyx(call);
+      expect(call.state).toEqual('ringing')
+    })
+  })
 })

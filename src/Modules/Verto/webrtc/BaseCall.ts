@@ -12,6 +12,7 @@ import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers'
 import { CallOptions, IWebRTCCall } from './interfaces'
 import { attachMediaStream, detachMediaStream, sdpToJsonHack, stopStream, getUserMedia, setMediaElementSinkId } from '../util/webrtc'
 import { MCULayoutEventHandler } from './LayoutHandler'
+import Call from './Call'
 
 export default abstract class BaseCall implements IWebRTCCall {
   public id: string = ''
@@ -774,5 +775,39 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.peer = null
     this.session.calls[this.id] = null
     delete this.session.calls[this.id]
+  }
+
+  static setStateTelnyx = (call: Call) => {
+    if (!call) {
+      return;
+    }
+    switch (call._state) {
+      case State.Requesting:
+      case State.Recovering:
+      case State.Trying:
+      case State.Early:
+        call.state = 'connecting';
+        break;
+      case State.Active:
+        call.state = 'active';
+        break;
+      case State.Held:
+        call.state = 'held';
+        break;
+      case State.Hangup:
+      case State.Destroy:
+        call.state = 'done';
+        break;
+      case State.Answering:
+        call.state = 'ringing';
+        break;
+      case State.New:
+        call.state = 'new';
+        break;
+      default:
+        break;
+    }
+
+    return call;
   }
 }

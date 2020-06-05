@@ -4,12 +4,13 @@ import { ICacheDevices, IAudioSettings, IVideoSettings, BroadcastParams, Subscri
 import { registerOnce, trigger } from './services/Handler'
 import { SwEvent, SESSION_ID, TURN_SERVER, STUN_SERVER } from './util/constants'
 import { State, DeviceType } from './webrtc/constants'
-import { changeStateTelnyx, getDevices, scanResolutions, removeUnsupportedConstraints, checkDeviceIdConstraints, destructSubscribeResponse, getUserMedia, assureDeviceId } from './webrtc/helpers'
+import { getDevices, scanResolutions, removeUnsupportedConstraints, checkDeviceIdConstraints, destructSubscribeResponse, getUserMedia, assureDeviceId } from './webrtc/helpers'
 import { findElementByType } from './util/helpers'
 import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto'
 import { localStorage } from './util/storage/'
 import { stopStream } from './util/webrtc'
 import { IWebRTCCall } from './webrtc/interfaces'
+import Call from './webrtc/Call'
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {}
@@ -334,7 +335,7 @@ export default abstract class BrowserSession extends BaseSession {
     return response
   }
 
-  static telnyxStateCall(call) {
-    return changeStateTelnyx(call);
+  static telnyxStateCall(call: Call) {
+    return Call.setStateTelnyx(call);
   }
 }
