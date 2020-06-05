@@ -17,7 +17,7 @@ describe('Call', () => {
   const noop = (): void => { }
 
   beforeEach(async done => {
-    session = new Verto({ host: 'example.fs.edo', login: 'login', passwd: 'passwd' })
+    session = new Verto({ host: 'example.fs.telnyx', login: 'login', passwd: 'passwd' })
     await session.connect().catch(console.error)
     call = new Call(session, defaultParams)
     done()
