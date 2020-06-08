@@ -1,7 +1,7 @@
 import logger from '../util/logger'
 import * as WebRTC from '../util/webrtc'
 import { isDefined } from '../util/helpers'
-import { DeviceType } from './constants'
+import { DeviceType, State } from './constants'
 import { CallOptions } from './interfaces'
 
 const getUserMedia = async (constraints: MediaStreamConstraints): Promise<MediaStream | null> => {

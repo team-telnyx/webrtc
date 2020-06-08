@@ -7,8 +7,8 @@ import Verto, { VERTO_PROTOCOL } from '..'
 const Connection = require('../services/Connection')
 
 describe('Verto', () => {
-  const _buildInstance = (): Verto => {
-    const instance: Verto = new Verto({ host: 'example.telnyx.com', login: 'login', password: 'password' })
+  const _buildInstance = (props): Verto => {
+    const instance: Verto = new Verto(props)
     // @ts-ignore
     instance.connection = Connection.default()
     return instance
@@ -18,13 +18,13 @@ describe('Verto', () => {
   const noop = (): void => { }
 
   beforeAll(() => {
-    behaveLikeBaseSession.call(this, _buildInstance())
+    behaveLikeBaseSession.call(this, _buildInstance({ host: 'example.telnyx.com', login: 'login', password: 'password' }))
     VertoHandler.call(this, Verto)
     LayoutHandler.call(this, Verto)
   })
 
   beforeEach(() => {
-    instance = _buildInstance()
+    instance = _buildInstance({ host: 'example.telnyx.com', login: 'login', password: 'password' })
     instance.subscriptions = {}
     Connection.mockSend.mockClear()
     Connection.default.mockClear()
@@ -33,6 +33,44 @@ describe('Verto', () => {
 
   it('should instantiate Verto with default methods', () => {
     expect(instance).toBeInstanceOf(Verto)
+  })
+
+  it('should set env equal production ', () => {
+    const telnyxRTC = _buildInstance({ env: 'production', login: 'login', password: 'password' })
+    expect(telnyxRTC.options.env).toEqual("production")
+  })
+
+  it('should set env equal development', () => {
+    const telnyxRTC = _buildInstance({ env: 'development', login: 'login', password: 'password' })
+    expect(telnyxRTC.options.env).toEqual("development")
+  })
+
+  it('should set host equal wss://test.telnyx.com', () => {
+    const telnyxRTC = _buildInstance({ host: 'wss://test.telnyx.com', login: 'login', password: 'password' })
+    expect(telnyxRTC.options.host).toEqual("wss://test.telnyx.com")
+  })
+
+  it('should return iceServers with google servers when is true', () => {
+    const telnyxRTC = _buildInstance({ iceServers: true, login: 'login', password: 'password' })
+    expect(telnyxRTC.iceServers[0]).toEqual({ "urls": ["stun:stun.l.google.com:19302"] })
+  })
+
+  it('should return iceServers with empty [] when is false', () => {
+    const telnyxRTC = _buildInstance({ iceServers: false, login: 'login', password: 'password' })
+    expect(telnyxRTC.iceServers).toEqual([])
+  })
+
+  it('should return production iceServers when not pass iceServers', () => {
+    const telnyxRTC = _buildInstance({ login: 'login', password: 'password' })
+    expect(telnyxRTC.iceServers[0]).toEqual({ "credential": "testpassword", "urls": "turn:turn.telnyx.com:3478?transport=tcp", "username": "testuser" })
+    expect(telnyxRTC.iceServers[1]).toEqual({
+      "urls": "stun:stun.telnyx.com:3843",
+    })
+  })
+
+  it('should set iceServers equal stun.test.telnyx.com', () => {
+    const telnyxRTC = _buildInstance({ iceServers: ['stun.test.telnyx.com'], login: 'login', password: 'password' })
+    expect(telnyxRTC.iceServers[0]).toEqual('stun.test.telnyx.com')
   })
 
   describe('.validateOptions()', () => {

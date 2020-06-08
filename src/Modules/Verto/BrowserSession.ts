@@ -10,6 +10,7 @@ import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto'
 import { localStorage } from './util/storage/'
 import { stopStream } from './util/webrtc'
 import { IWebRTCCall } from './webrtc/interfaces'
+import Call from './webrtc/Call'
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {}
@@ -332,5 +333,9 @@ export default abstract class BrowserSession extends BaseSession {
     unsubscribed.forEach(channel => this._removeSubscription(this.relayProtocol, channel))
     notSubscribed.forEach(channel => this._removeSubscription(this.relayProtocol, channel))
     return response
+  }
+
+  static telnyxStateCall(call: Call) {
+    return Call.setStateTelnyx(call);
   }
 }
