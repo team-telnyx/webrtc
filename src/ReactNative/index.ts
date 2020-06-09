@@ -1,7 +1,7 @@
 import TelnyxRTC from '../TelnyxRTC';
 import { setAgentName } from '../Modules/Verto/messages/blade/Connect'
 
-export const VERSION = '1.0.0'
+export const VERSION = '1.0.3'
 setAgentName(`ReactNative SDK/${VERSION}`)
 
 export {
