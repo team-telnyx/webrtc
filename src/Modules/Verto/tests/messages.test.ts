@@ -73,14 +73,14 @@ describe('Messages', function () {
   describe('Verto', function () {
     describe('Login', function () {
       it('should match struct', function () {
-        const message = new Login('login', 'password', null).request
-        const res = JSON.parse(`{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","loginParams":{},"userVariables":{}}}`)
+        const message = new Login('login', 'password', 'dskbksdjbfkjsdf234y67234kjrwe98', null).request
+        const res = JSON.parse(`{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`)
         expect(message).toEqual(res)
       })
 
       it('should match struct with sessid', function () {
-        const message = new Login('login', 'password', '123456789').request
-        const res = JSON.parse(`{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","sessid":"123456789","loginParams":{},"userVariables":{}}}`)
+        const message = new Login('login', 'password', 'dskbksdjbfkjsdf234y67234kjrwe98', '123456789').request
+        const res = JSON.parse(`{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`)
         expect(message).toEqual(res)
       })
     })

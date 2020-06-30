@@ -15,8 +15,8 @@ export default class Verto extends BrowserSession {
   public timeoutErrorCode = -329990 // fake verto timeout error code.
 
   validateOptions() {
-    const { login, passwd, password } = this.options
-    return Boolean(login && (passwd || password))
+    const { login, passwd, password, login_token } = this.options
+    return Boolean((login && (passwd || password)) || login_token)
   }
 
   newCall(options: CallOptions) {
@@ -43,12 +43,12 @@ export default class Verto extends BrowserSession {
 
   protected async _onSocketOpen() {
     this._idle = false
-    const { login, password, passwd, userVariables } = this.options
+    const { login, password, passwd, login_token, userVariables } = this.options
     if (this.sessionid) {
       const sessidLogin = new Login(undefined, undefined, this.sessionid, undefined)
       await this.execute(sessidLogin).catch(console.error)
     }
-    const msg = new Login(login, (password || passwd), this.sessionid, userVariables)
+    const msg = new Login(login, (password || passwd), login_token, this.sessionid, userVariables)
     const response = await this.execute(msg).catch(this._handleLoginError)
     if (response) {
       this._autoReconnect = true
