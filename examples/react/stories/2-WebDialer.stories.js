@@ -365,7 +365,7 @@ const WebDialer = ({
     <Container>
       <audio
         ref={mediaRef}
-        id='dialogVideo'
+        id='dialogAudio'
         autoPlay='autoplay'
         controls={false}
       ></audio>

@@ -7,6 +7,7 @@ import { SwEvent, SESSION_ID } from './util/constants'
 import { trigger } from './services/Handler'
 import { localStorage } from './util/storage'
 import VertoHandler from './webrtc/VertoHandler'
+import { isValidOptions } from './util/helpers'
 
 export const VERTO_PROTOCOL = 'verto-protocol'
 
@@ -15,8 +16,7 @@ export default class Verto extends BrowserSession {
   public timeoutErrorCode = -329990 // fake verto timeout error code.
 
   validateOptions() {
-    const { login, passwd, password, login_token } = this.options
-    return Boolean((login && (passwd || password)) || login_token)
+    return isValidOptions(this.options);
   }
 
   newCall(options: CallOptions) {

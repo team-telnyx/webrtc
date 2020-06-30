@@ -1,4 +1,5 @@
-import { objEmpty, mutateLiveArrayData, safeParseJson, isDefined, checkWebSocketHost, destructResponse } from '../util/helpers'
+import { ITelnyxRTCOptions } from '../util/interfaces';
+import { objEmpty, mutateLiveArrayData, safeParseJson, isDefined, checkWebSocketHost, destructResponse, isValidOptions } from '../util/helpers'
 
 describe('Helpers functions', () => {
   describe('objEmpty', () => {
@@ -116,6 +117,41 @@ describe('Helpers functions', () => {
     it('should handle Verto error over Blade', () => {
       const msg = JSON.parse('{"jsonrpc":"2.0","id":"uuid","result":{"requester_nodeid":"req-id","responder_nodeid":"res-id","result":{"code":"200","node_id":"node-id","result":{"jsonrpc":"2.0","id":"123","error":{"message":"Random Error","callID":"call-id","code":"123"}}}}}')
       expect(destructResponse(msg)).toEqual({ error: { code: '123', message: 'Random Error', callID: 'call-id' } })
+    })
+  })
+  describe('isValidOptions()', () => {
+    it("should return false if is a empty object", () => {
+      const options: ITelnyxRTCOptions = {}
+      expect(isValidOptions(options)).toBeFalsy();
+    })
+    it("should return false if none of options is provided", () => {
+      const options: ITelnyxRTCOptions = {
+        login: "",
+        password: "",
+        passwd: "",
+        login_token: ""
+      }
+      expect(isValidOptions(options)).toBeFalsy();
+    })
+    it("should return true if login and password is provided", () => {
+      const options: ITelnyxRTCOptions = {
+        login: "deivid",
+        password: "test",
+      }
+      expect(isValidOptions(options)).toBeTruthy();
+    })
+    it("should return true if login and passwd is provided", () => {
+      const options: ITelnyxRTCOptions = {
+        login: "deivid",
+        passwd: "test",
+      }
+      expect(isValidOptions(options)).toBeTruthy();
+    })
+    it("should return true if only login_token is provided", () => {
+      const options: ITelnyxRTCOptions = {
+        login_token: "asdfkasdf1243123njn123oi4n"
+      }
+      expect(isValidOptions(options)).toBeTruthy();
     })
   })
 })

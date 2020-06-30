@@ -1,3 +1,4 @@
+import { ITelnyxRTCOptions } from './interfaces';
 import logger from './logger'
 import { STORAGE_PREFIX } from './constants'
 
@@ -86,4 +87,16 @@ export const destructResponse = (response: any, nodeId: string = null): { [key: 
 
 export const randomInt = (min: number, max: number) => {
   return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+/**
+  * Validates the options passed in.
+  * TelnyxRTC requires (login and password) OR (login_token)
+  * Verto requires host, login, passwd OR password
+  * @return boolean
+  */
+export const isValidOptions = ({ login, passwd, password, login_token }: ITelnyxRTCOptions) => {
+  const isLogin = login && (passwd || password);
+  const isToken = login_token
+  return Boolean(isLogin || isToken)
 }

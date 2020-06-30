@@ -21,6 +21,7 @@ const ClickToCall = ({
   const [registering, setRegistering] = useState();
   const [registered, setRegistered] = useState();
   const [call, setCall] = useState();
+  const [isInboundCall, setIsInboundCall] = useState(false);
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -39,46 +40,74 @@ const ClickToCall = ({
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
-      destination,
       callerName,
       callerNumber,
+      destinationNumber: destination,
+      audio: true,
+      video: false,
     });
     setCall(newCall);
   };
 
   const connectAndCall = () => {
-    const newClient = new TelnyxRTC({
+    const session = new TelnyxRTC({
       env: environment,
-      credentials: {
-        username,
-        password,
-      },
-      remoteElement: () => mediaRef.current,
-      useMic: true,
-      useSpeaker: true,
-      useCamera: false,
-    })
-      .on('registered', () => {
-        setRegistered(true);
-        setRegistering(false);
+      login: username,
+      password: password,
+      ringFile: './sounds/incoming_call.mp3',
+    });
+    session.on('telnyx.socket.open', (call) => {
+      console.log('telnyx.socket.open', call);
+    });
+    session.on('telnyx.ready', (session) => {
+      console.log('telnyx.ready', session);
+      setRegistered(true);
+      setRegistering(false);
 
-        startCall();
-      })
-      .on('unregistered', () => {
-        setRegistered(false);
-        setRegistering(false);
-      })
-      .on('callUpdate', (call) => {
-        if (call.state === 'done') {
-          setCall(null);
-        } else {
-          setCall(call);
-        }
-      });
+      startCall();
+    });
+    session.on('telnyx.error', (error) => {
+      console.log('telnyx.error', error);
+      alert(error.message);
+    });
 
-    clientRef.current = newClient;
+    session.on('telnyx.socket.error', (error) => {
+      console.log('telnyx.socket.error', error);
+      session.disconnect();
+    });
+
+    session.on('telnyx.socket.close', (error) => {
+      console.log('telnyx.socket.close', error);
+      session.disconnect();
+    });
+
+    session.on('telnyx.notification', (notification) => {
+      console.log('telnyx.notification', notification);
+
+      switch (notification.type) {
+        case 'callUpdate':
+          if (
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
+          ) {
+            setIsInboundCall(false);
+            return setCall(null);
+          }
+          if (notification.call.state === 'active') {
+            setIsInboundCall(false);
+            return setCall(notification.call);
+          }
+          if (notification.call.state === 'ringing') {
+            setIsInboundCall(true);
+            return setCall(notification.call);
+          }
+          break;
+      }
+    });
+
     setRegistering(true);
-    newClient.connect();
+    clientRef.current = session;
+    clientRef.current.connect();
   };
 
   const connect = () => {
@@ -91,10 +120,6 @@ const ClickToCall = ({
 
   const hangup = () => {
     call.hangup();
-  };
-
-  const mute = () => {
-    call.mute();
   };
 
   return (
@@ -111,14 +136,18 @@ const ClickToCall = ({
         <div>
           <div>
             <button onClick={hangup}>End Call</button>
-            {/* <button onClick={mute}>Mute</button> */}
           </div>
 
           <div>{call.state}</div>
         </div>
       )}
 
-      <audio ref={mediaRef} />
+      <audio
+        id='dialogAudio'
+        autoPlay='autoplay'
+        controls={false}
+        ref={mediaRef}
+      />
     </div>
   );
 };
