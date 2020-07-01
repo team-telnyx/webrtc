@@ -39,26 +39,28 @@
               <div class="card-body">
                 <h5>Connect</h5>
                 <div class="form-group">
-                  <label class="telnyx-labels" for="project">Username</label>
+                  <label class="telnyx-labels" for="username">Username</label>
                   <input
                     type="text"
                     class="form-control"
                     id="username"
                     placeholder="Enter your username"
+                    onchange="saveInLocalStorage(event)"
                   />
                 </div>
                 <div class="form-group">
-                  <label class="telnyx-labels" for="token">Password</label>
+                  <label class="telnyx-labels" for="password">Password</label>
                   <input
                     type="text"
                     class="form-control"
                     id="password"
                     placeholder="Enter your password"
+                    onchange="saveInLocalStorage(event)"
                   />
                 </div>
                 <div class="telnyx-labels">Environment Options:</div>
                 <div class="form-check">
-                  <input type="checkbox" id="env" value="0" />
+                  <input type="checkbox" id="env" value="1" />
                   <label class="form-check-label telnyx-labels" for="env">
                     Production
                   </label>
@@ -99,18 +101,29 @@
                     class="form-control"
                     id="number"
                     placeholder="Enter SIP or Number to Dial"
+                    onchange="saveInLocalStorage(event)"
                   />
                 </div>
 
                 <div class="telnyx-labels">Call Options:</div>
                 <div class="form-check">
-                  <input type="checkbox" id="audio" value="1" />
+                  <input
+                    type="checkbox"
+                    id="audio"
+                    value="1"
+                    onchange="saveInLocalStorage(event)"
+                  />
                   <label class="form-check-label telnyx-labels" for="audio">
                     Include Audio
                   </label>
                 </div>
                 <div class="form-check">
-                  <input type="checkbox" id="video" value="1" />
+                  <input
+                    type="checkbox"
+                    id="video"
+                    value="1"
+                    onchange="saveInLocalStorage(event)"
+                  />
                   <label class="form-check-label telnyx-labels" for="video">
                     Include Video
                   </label>
@@ -177,12 +190,21 @@
       var client;
       var currentCall = null;
 
+      var username = localStorage.getItem('telnyx.example.username') || '';
+      var password = localStorage.getItem('telnyx.example.password') || '';
+      var number = localStorage.getItem('telnyx.example.number') || '';
+      var audio = localStorage.getItem('telnyx.example.audio') || '1';
+      var video = localStorage.getItem('telnyx.example.video') || '1';
+
       /**
        * On document ready auto-fill the input values from the localStorage.
        */
       ready(function () {
-        document.getElementById('audio').checked = '1';
-        document.getElementById('video').checked = '1';
+        document.getElementById('username').value = username;
+        document.getElementById('password').value = password;
+        document.getElementById('number').value = number;
+        document.getElementById('audio').checked = audio === '1';
+        document.getElementById('video').checked = video === '1';
         document.getElementById('env').checked = '1';
       });
 
@@ -201,6 +223,7 @@
           ringFile: './sounds/incoming_call.mp3',
         });
 
+        // client.autoRecoverCalls = false;
         client.remoteElement = 'remoteVideo';
         client.localElement = 'localVideo';
 
@@ -256,6 +279,9 @@
             break;
           case 'userMediaError':
             // Permission denied or invalid audio/video params on `getUserMedia`
+            console.log(
+              'Permission denied or invalid audio/video params on `getUserMedia`'
+            );
             break;
         }
       }
@@ -265,7 +291,6 @@
        */
       function handleCallUpdate(call) {
         currentCall = call;
-
         switch (call.state) {
           case 'new': // Setup the UI
             break;
@@ -309,9 +334,9 @@
        */
       function makeCall() {
         const params = {
-          destinationNumber: document.getElementById('number').value, // required!
           callerName: 'Caller Name',
           callerNumber: 'Caller Number',
+          destinationNumber: document.getElementById('number').value, // required!
           audio: document.getElementById('audio').checked,
           video: document.getElementById('video').checked
             ? { aspectRatio: 16 / 9 }
@@ -328,6 +353,11 @@
         if (currentCall) {
           currentCall.hangup();
         }
+      }
+
+      function saveInLocalStorage(e) {
+        var key = e.target.name || e.target.id;
+        localStorage.setItem('telnyx.example.' + key, e.target.value);
       }
 
       // jQuery document.ready equivalent

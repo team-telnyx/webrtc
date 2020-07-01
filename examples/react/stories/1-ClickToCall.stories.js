@@ -122,6 +122,10 @@ const ClickToCall = ({
     call.hangup();
   };
 
+  if (mediaRef.current && call && call.remoteStream) {
+    mediaRef.current.srcObject = call.remoteStream;
+  }
+
   return (
     <div>
       {!call && (
