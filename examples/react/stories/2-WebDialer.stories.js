@@ -402,7 +402,6 @@ export const Example = () => {
   const production = boolean('Production', true);
   const username = text('Connection Username', 'username');
   const password = text('Connection Password', 'password');
-  const defaultDestination = text('Default Destination', '18004377950');
   const callerName = text('Caller Name', 'Caller ID Name');
   const callerNumber = text('Caller Number', 'Caller ID Number');
 
@@ -411,7 +410,7 @@ export const Example = () => {
       environment={production ? 'production' : 'development'}
       username={username}
       password={password}
-      defaultDestination={defaultDestination}
+      defaultDestination='18004377950'
       callerName={callerName}
       callerNumber={callerNumber}
     />
