@@ -38,19 +38,18 @@
     }
   },
   "dependencies": {
+    "@react-native-community/async-storage": "^1.9.0",
+    "react-native-incall-manager": "^3.2.7",
+    "react-native-webrtc": "^1.75.3",
     "execa": "^1.0.0",
     "fs-extra": "^7.0.1",
     "listr": "^0.14.3",
     "loglevel": "^1.6.7",
-    "release-it": "^13.5.8",
     "uuid": "^7.0.2"
   },
   "devDependencies": {
-    "@types/jest": "^25.2.1",
     "@types/node": "^13.11.1",
     "@types/uuid": "^7.0.2",
-    "jest": "^25.3.0",
-    "ts-jest": "^25.3.1",
     "tslint": "^6.1.1",
     "typescript": "^3.8.3"
   }
