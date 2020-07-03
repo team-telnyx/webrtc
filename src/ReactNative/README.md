@@ -128,6 +128,7 @@ Making a call
     });
 ```
 
+---
 ## Run our example.
 
 1. Navigate into the `examples/react-native`
@@ -143,6 +144,23 @@ Making a call
 4. @react-navigation
 5. @react-native-community
 
+## Troubleshooting
+
+If you have any trouble building the App follow the steps for each native library to double check all frameworks have been linked properly:
+
+#### iOS
+
+- Instructions for [react-native-webrtc](https://github.com/react-native-webrtc/react-native-webrtc/blob/master/Documentation/iOSInstallation.md#ios-installation)
+- Instructions for [react-native-incall-manager](https://github.com/react-native-webrtc/react-native-incall-manager#ios)
+- Instructions for [async-storage](https://github.com/react-native-community/async-storage/blob/LEGACY/docs/Linking.md#ios)
+
+#### Android
+
+- Instructions for [react-native-webrtc](https://github.com/react-native-webrtc/react-native-webrtc/blob/master/Documentation/AndroidInstallation.md)
+- Instructions for [react-native-incall-manager](https://github.com/react-native-webrtc/react-native-incall-manager#android)
+- Instructions for [async-storage](https://github.com/react-native-community/async-storage/blob/LEGACY/docs/Linking.md#android)
+
+---
 ## WebRTC Engine
 
 It's possible that an error will occur during the linking process of the native libraries. If your app does not compile, follow these steps to troubleshoot:
