@@ -223,7 +223,6 @@
           ringFile: './sounds/incoming_call.mp3',
         });
 
-        // client.autoRecoverCalls = false;
         client.remoteElement = 'remoteVideo';
         client.localElement = 'localVideo';
 
@@ -278,7 +277,6 @@
             handleCallUpdate(notification.call);
             break;
           case 'userMediaError':
-            // Permission denied or invalid audio/video params on `getUserMedia`
             console.log(
               'Permission denied or invalid audio/video params on `getUserMedia`'
             );
