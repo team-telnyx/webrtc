@@ -64,6 +64,7 @@ export interface ITelnyxRTCOptions {
   login?: string
   passwd?: string
   password?: string
+  login_token?: string
   userVariables?: Object,
   ringFile?: string
   env?: Environment

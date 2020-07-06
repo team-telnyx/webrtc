@@ -12,6 +12,7 @@ import { BroadcastParams, ITelnyxRTCOptions, SubscribeParams, IBladeConnectResul
 import { Subscription, Connect, Reauthenticate, Ping } from './messages/Blade'
 import { isFunction, randomInt } from './util/helpers'
 import { sessionStorage } from './util/storage/'
+import { isValidOptions } from './util/helpers'
 
 const KEEPALIVE_INTERVAL = 10 * 1000
 
@@ -105,13 +106,12 @@ export default abstract class BaseSession {
 
   /**
    * Validates the options passed in.
-   * TelnyxRTC requires project and token
+   * TelnyxRTC requires (login and password) OR login_token 
    * Verto requires host, login, passwd OR password
    * @return boolean
    */
   validateOptions() {
-    const { project = false, token = false } = this.options
-    return Boolean(project && token)
+    return isValidOptions(this.options)
   }
 
   /**

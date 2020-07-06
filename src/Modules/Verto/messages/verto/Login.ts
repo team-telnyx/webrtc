@@ -3,11 +3,11 @@ import BaseRequest from './BaseRequest'
 class Login extends BaseRequest {
   method: string = 'login'
 
-  constructor(login: string, passwd: string, sessionid: string, userVariables: Object = {}) {
+  constructor(login: string, passwd: string, login_token: string, sessionid: string, userVariables: Object = {}) {
     super()
 
     // TODO: handle loginParams && userVariables
-    const params: any = { login, passwd, userVariables, loginParams: {} }
+    const params: any = { login, passwd, login_token, userVariables, loginParams: {} }
     if (sessionid) {
       params.sessid = sessionid
     }
