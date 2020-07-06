@@ -32,25 +32,29 @@
   },
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
+  "dependencies": {
+    "loglevel": "^1.6.8",
+    "uuid": "^7.0.3"
+  },
   "devDependencies": {
-    "@types/jest": "^24.0.18",
+    "@types/jest": "^25.2.1",
+    "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
-    "babel-jest": "^24.9.0",
+    "babel-jest": "^26.1.0",
     "events": "^3.0.0",
-    "jest": "^24.9.0",
+    "jest": "^26.1.0",
     "md-gum-polyfill": "^1.0.0",
-    "release-it": "^12.4.1",
+    "release-it": "^13.6.4",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",
     "rollup-plugin-commonjs": "^10.0.2",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript2": "^0.24.0",
     "sip.js": "^0.15.4",
-    "ts-jest": "^24.1.0",
+    "ts-jest": "^26.1.1",
     "typedoc": "^0.15.0",
     "typedoc-plugin-markdown": "^2.2.6",
     "typescript": "^3.6.2",
-    "@types/uuid": "^7.0.0",
     "webrtc-adapter": "^7.4.0"
   },
   "publishConfig": {
@@ -64,12 +68,5 @@
     "github": {
       "release": true
     }
-  },
-  "dependencies": {
-    "@react-native-community/async-storage": "^1.9.0",
-    "loglevel": "^1.6.8",
-    "react-native-incall-manager": "^3.2.7",
-    "react-native-webrtc": "^1.75.3",
-    "uuid": "^7.0.2"
   }
 }
