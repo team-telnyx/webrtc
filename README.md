@@ -18,6 +18,11 @@ You'll also need a Telnyx account in order to authenticate your application. Fol
 
 ---
 
+## Our packages
+
+- `@telnyx/webrtc`
+- `@telnyx/react-native` - [React Native](https://www.npmjs.com/package/@telnyx/react-native)
+
 ## Installation
 
 Install the package with:
@@ -150,11 +155,10 @@ call.reject();
 
 ---
 
-### HTML
-
-#### Using with React audio call
+#### Using WebRTC with React to make an audio call
 
 ```Js
+    // Used to set remote stream
     if (mediaRef.current && call && call.remoteStream) {
         mediaRef.current.srcObject = call.remoteStream;
     }
@@ -167,9 +171,12 @@ call.reject();
     />
 ```
 
-#### Using with vanilla video call
+---
 
-```Js using with vanilla video call
+#### Using WebRTC with Vanilla Javascript to make video call
+
+```Js
+    // Used to set local and remote stream
     client.remoteElement = 'remoteVideo';
     client.localElement = 'localVideo';
 
@@ -186,7 +193,25 @@ call.reject();
 
 ```
 
+---
+
 ## Examples
+
+### Vanilla Javascript
+
+We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/examples/vanilla) to help you get started.
+
+```
+cd examples/vanilla
+open index.html
+```
+
+Screenshot:
+![Video call](examples/vanilla/vanilla-screeshot.png?raw=true)
+
+---
+
+### ReactJS
 
 We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
@@ -199,14 +224,26 @@ npm run storybook
 
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
+Screenshot:
+![Web Dialer](examples/react/storybook-screenshot.png?raw=true)
+
 ---
 
-We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/examples/vanilla) to help you get started.
+### React Native
+
+We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/examples/react-native) to help you get started.\
+You can access the documentation [here](https://www.npmjs.com/package/@telnyx) about `@telnyx/react-native` to have more information.
 
 ```
-cd examples/vanilla
-open index.html
+cd examples/react-native
+npm install
+npm run android or npm run ios
 ```
+
+Screenshot:
+![Video call app](examples/react-native/app-screenshot.png?raw=true)
+
+---
 
 ## Contributing
 
