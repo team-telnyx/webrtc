@@ -18,7 +18,7 @@ You'll also need a Telnyx account in order to authenticate your application. Fol
 
 ---
 
-## Products
+## Our packages
 
 - `@telnyx/webrtc`
 - `@telnyx/react-native` - [React Native](https://www.npmjs.com/package/@telnyx/react-native)
@@ -155,7 +155,7 @@ call.reject();
 
 ---
 
-#### Using WebRTC with React to make audio call
+#### Using WebRTC with React to make an audio call
 
 ```Js
     // Used to set remote stream
