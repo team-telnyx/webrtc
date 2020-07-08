@@ -28,7 +28,8 @@ export interface CallOptions {
   googleMaxBitrate?: number
   googleMinBitrate?: number
   googleStartBitrate?: number
-  ringFile?: string
+  ringtoneFile?: string
+  ringbackFile?: string
 }
 
 export interface IWebRTCCall {

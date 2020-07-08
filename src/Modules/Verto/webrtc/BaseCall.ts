@@ -35,11 +35,12 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _targetNodeId: string = null
   private _iceTimeout = null
   private _iceDone: boolean = false
-  private _ringer: HTMLAudioElement
+  private _ringtone: HTMLAudioElement
+  private _ringback: HTMLAudioElement
 
   constructor(protected session: BrowserSession, opts?: CallOptions) {
-    const { iceServers, speaker: speakerId, micId, micLabel, camId, camLabel, localElement, remoteElement, mediaConstraints: { audio, video }, ringFile } = session
-    this.options = Object.assign({}, DEFAULT_CALL_OPTIONS, { audio, video, iceServers, localElement, remoteElement, micId, micLabel, camId, camLabel, speakerId, ringFile }, opts)
+    const { iceServers, speaker: speakerId, micId, micLabel, camId, camLabel, localElement, remoteElement, mediaConstraints: { audio, video }, ringtoneFile, ringbackFile } = session
+    this.options = Object.assign({}, DEFAULT_CALL_OPTIONS, { audio, video, iceServers, localElement, remoteElement, micId, micLabel, camId, camLabel, speakerId, ringtoneFile, ringbackFile }, opts)
 
     this._onMediaError = this._onMediaError.bind(this)
     this._init()
@@ -73,23 +74,41 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   answer() {
     this.stopRingtone();
+
     this.direction = Direction.Inbound
     this.peer = new Peer(PeerType.Answer, this.options)
     this._registerPeerEvents()
   }
 
   playRingtone() {
-    if (this.options.ringFile) {
-      this._ringer = new Audio(this.options.ringFile);
-      this._ringer.loop = true;
-      this._ringer.play();
+    if (this.options.ringtoneFile) {
+      this._ringtone = new Audio(this.options.ringtoneFile);
+      this._ringtone.id = "_ringtone"
+      this._ringtone.loop = true;
+      this._ringtone.play();
     }
   }
 
   stopRingtone() {
-    if (this._ringer) {
-      this._ringer.pause();
-      this._ringer.currentTime = 0;
+    if (this._ringtone) {
+      this._ringtone.pause();
+      this._ringtone.currentTime = 0;
+    }
+  }
+
+  playRingback() {
+    if (this.options.ringbackFile) {
+      this._ringback = new Audio(this.options.ringbackFile);
+      this._ringback.id = "_ringback"
+      this._ringback.loop = true;
+      this._ringback.play();
+    }
+  }
+
+  stopRingback() {
+    if (this._ringback) {
+      this._ringback.pause();
+      this._ringback.currentTime = 0;
     }
   }
 
@@ -256,6 +275,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   handleMessage(msg: any) {
     const { method, params } = msg
+
     switch (method) {
       case VertoMethod.Answer: {
         this.gotAnswer = true
@@ -268,6 +288,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (!this.gotEarly) {
           this._onRemoteSdp(params.sdp)
         }
+        this.stopRingback();
+        this.stopRingtone();
         break
       }
       case VertoMethod.Media: {
@@ -298,7 +320,13 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         break
       }
+      case VertoMethod.Ringing: {
+        this.playRingback()
+        break
+      }
       case VertoMethod.Bye:
+        this.stopRingback();
+        this.stopRingtone();
         this.hangup(params, false)
         break
     }
