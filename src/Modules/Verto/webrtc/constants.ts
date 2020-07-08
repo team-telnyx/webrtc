@@ -25,6 +25,7 @@ export enum VertoMethod {
   Unsubscribe = 'telnyx_rtc.unsubscribe',
   ClientReady = 'telnyx_rtc.clientReady',
   Modify = 'telnyx_rtc.modify',
+  Ringing = 'telnyx_rtc.ringing',
 }
 
 export const NOTIFICATION_TYPE = {

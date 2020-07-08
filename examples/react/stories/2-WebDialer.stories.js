@@ -270,7 +270,9 @@ const WebDialer = ({
       env: environment,
       login: username,
       password: password,
-      ringFile: './sounds/incoming_call.mp3',
+      ringtoneFile: './sounds/incoming_call.mp3',
+      // Used when the Generate Ringback Tone option is disabled
+      ringbackFile: './sounds/ringback_tone.mp3',
     });
     session.on('telnyx.socket.open', (call) => {
       console.log('telnyx.socket.open', call);

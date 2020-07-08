@@ -26,8 +26,10 @@ class VertoHandler {
   handleMessage(msg: any) {
     const { session } = this
     const { id, method, params } = msg
+
     const { callID, eventChannel, eventType } = params
     const attach = method === VertoMethod.Attach
+
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData)
     }
@@ -41,6 +43,8 @@ class VertoHandler {
         return
       }
     }
+
+
     const _buildCall = () => {
       const call = new Call(session, {
         id: callID,
@@ -55,6 +59,7 @@ class VertoHandler {
       call.nodeId = this.nodeId
       return call
     }
+
     switch (method) {
       case VertoMethod.Punt:
         session.disconnect()

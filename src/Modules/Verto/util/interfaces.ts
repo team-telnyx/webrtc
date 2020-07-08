@@ -58,15 +58,16 @@ export interface IBladeSubscriptionRequest extends IMessageBase {
 
 type Environment = "production" | "development"
 export interface ITelnyxRTCOptions {
-  host?: string,
+  host?: string
   project?: string
   token?: string
   login?: string
   passwd?: string
   password?: string
   login_token?: string
-  userVariables?: Object,
-  ringFile?: string
+  userVariables?: Object
+  ringtoneFile?: string
+  ringbackFile?: string
   env?: Environment
   iceServers?: RTCIceServer[]
 }
