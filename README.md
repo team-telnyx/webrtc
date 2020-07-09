@@ -49,7 +49,7 @@ const client = new TelnyxRTC({
   password: password,
   // Other options
   // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
-  ringFile: './sounds/incoming_call.mp3',
+  ringtoneFile: './sounds/incoming_call.mp3',
 });
 
 // Create a variable to track the current call
