@@ -47,9 +47,13 @@ const client = new TelnyxRTC({
   // Required credentials
   login: username,
   password: password,
-  // Other options
-  // This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
+  /* ringtoneFile - This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
+   */
   ringtoneFile: './sounds/incoming_call.mp3',
+  /*
+    ringbackFile - Used when you disable Generate Ringback Tone to provide your own ringback sound - Enable Instant Ringback (180).
+  */
+  ringbackFile: './sounds/ringback_tone.mp3',
 });
 
 // Create a variable to track the current call
@@ -232,7 +236,7 @@ Screenshot:
 ### React Native
 
 We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/examples/react-native) to help you get started.\
-You can access the documentation [here](https://www.npmjs.com/package/@telnyx) about `@telnyx/react-native` to have more information.
+You can access the documentation [here](https://www.npmjs.com/package/@telnyx/react-native) about `@telnyx/react-native` to have more information.
 
 ```
 cd examples/react-native
