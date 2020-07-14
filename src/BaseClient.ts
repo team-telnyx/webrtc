@@ -45,7 +45,7 @@ export default abstract class BaseClient {
   protected registrarServer = REGISTRAR_SERVER;
   protected _localElement?: HTMLMediaElement;
   protected _remoteElement?: HTMLMediaElement;
-
+  //@ts-ignore
   protected eventBus = new EventEmitter() as TypedEmitter<MessageEvents>;
 
   constructor(o?: IClientOptions) {
