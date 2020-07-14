@@ -41,13 +41,16 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 
 To initialize the JavaScript SDK, you'll need to authenticate using a Telnyx Connection. You can access the Connection credentials in the [Telnyx Portal](https://portal.telnyx.com/#/app/connections).
 
+To use the `ringbackFile` make sure the option "Generate Ringback Tone" is disabled in your connection configuration on customer-portal
+
 ```js
 // Initialize the client
 const client = new TelnyxRTC({
   // Required credentials
   login: username,
   password: password,
-  /* ringtoneFile - This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
+  /* 
+    ringtoneFile - This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
    */
   ringtoneFile: './sounds/incoming_call.mp3',
   /*
