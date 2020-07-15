@@ -227,16 +227,16 @@
         client.remoteElement = 'remoteVideo';
         client.localElement = 'localVideo';
 
-        if (document.getElementById('audio').checked) {
-          client.enableMicrophone();
-        } else {
-          client.disableMicrophone();
-        }
-        if (document.getElementById('video').checked) {
-          client.enableWebcam();
-        } else {
-          client.disableWebcam();
-        }
+        // if (document.getElementById('audio').checked) {
+        //   client.enableMicrophone();
+        // } else {
+        //   client.disableMicrophone();
+        // }
+        // if (document.getElementById('video').checked) {
+        //   client.enableWebcam();
+        // } else {
+        //   client.disableWebcam();
+        // }
 
         client.on('telnyx.ready', function () {
           btnConnect.classList.add('d-none');
