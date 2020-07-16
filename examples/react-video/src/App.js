@@ -25,7 +25,7 @@ class App extends Component {
   connect(params) {
     setLoginParams(params);
 
-    this.session = new TelnyxRTC({ ...params, env: 'development' });
+    this.session = new TelnyxRTC({ ...params });
     this.session.enableMicrophone();
     this.session.enableWebcam();
 
