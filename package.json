@@ -20,7 +20,8 @@
     "prepublishOnly": "npm run test",
     "test": "jest",
     "docs": "typedoc src --externalPattern **/ReactNative/**",
-    "release": "release-it"
+    "release": "release-it",
+    "compile": "tsc -w"
   },
   "engines": {
     "node": ">=11"
@@ -77,7 +78,7 @@
     }
   },
   "lint-staged": {
-    "*.ts, *.tsx": [
+    "*.js, *.jsx, *.ts, *.tsx": [
       "eslint --fix"
     ]
   },

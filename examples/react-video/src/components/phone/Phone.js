@@ -1,15 +1,16 @@
-import React, { Component } from 'react'
+import React, { Component } from 'react';
 import Dialpad from './Dialpad';
 import Dialog from './Dialog';
-import './Phone.css'
+import './Phone.css';
+const test = '';
 
 export default class Phone extends Component {
   render() {
-    const { dialog } = this.props
+    const { dialog } = this.props;
     if (dialog) {
-      return <Dialog dialog={dialog} />
+      return <Dialog dialog={dialog} />;
     } else {
-      return <Dialpad newCall={this.props.newCall} />
+      return <Dialpad newCall={this.props.newCall} />;
     }
   }
 }
