@@ -32,7 +32,7 @@ export default class AuthForm extends Component {
         />
         <label>Password:</label>
         <input
-          type='text'
+          type='password'
           data-target='password'
           value={this.state.password}
           onChange={this._handleChange}

@@ -45,7 +45,6 @@ footer {
 }
 
 header {
-  height: 30px;
   background-color: #00c08b;
   margin-bottom: 10px;
   padding: 15px 0 10px;
@@ -53,7 +52,6 @@ header {
 }
 
 footer {
-  height: 30px;
   text-align: center;
   padding: 10px 0;
   border-top: 1px solid #00c08b;

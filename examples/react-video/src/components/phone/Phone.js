@@ -2,7 +2,6 @@ import React, { Component } from 'react';
 import Dialpad from './Dialpad';
 import Dialog from './Dialog';
 import './Phone.css';
-const test = '';
 
 export default class Phone extends Component {
   render() {

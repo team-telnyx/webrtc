@@ -93,11 +93,15 @@ class App extends Component {
     };
     return (
       <div className='App flex'>
-        <header>Telnyx Call Demo</header>
+        <header>
+          <h1>Telnyx Video Call Demo</h1>
+        </header>
         <main className='flex flex-center'>
           <Main />
         </main>
-        <footer>Telnyx - 2020</footer>
+        <footer>
+          <h2>Telnyx - 2020</h2>
+        </footer>
       </div>
     );
   }
