@@ -18,14 +18,14 @@ class App extends Component {
     const tmp = getLoginParams();
     const { login, password } = tmp;
     if (login && password) {
-      this.connect({ ...tmp, env: 'development' });
+      this.connect(tmp);
     }
   }
 
   connect(params) {
     setLoginParams(params);
 
-    this.session = new TelnyxRTC(params);
+    this.session = new TelnyxRTC({ ...params, env: 'development' });
     this.session.enableMicrophone();
     this.session.enableWebcam();
 
