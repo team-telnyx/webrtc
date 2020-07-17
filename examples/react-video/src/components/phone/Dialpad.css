@@ -1,0 +1,26 @@
+.dialpad {
+  width: 40%;
+  height: 200px;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.dialpad input,
+.dialpad button {
+  display: block;
+  margin: 10px 0;
+  height: 30px;
+  padding: 0;
+  border: 0 none;
+}
+.dialpad input {
+  text-align: center;
+}
+
+.dialpad button {
+  -webkit-appearance: button;
+  background-color: #00c08b;
+  color: white;
+  font-weight: bold;
+  font-size: 10pt;
+}

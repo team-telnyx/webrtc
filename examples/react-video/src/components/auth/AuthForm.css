@@ -1,0 +1,25 @@
+.connect {
+  width: 40%;
+  height: 300px;
+  align-items: stretch;
+}
+
+.connect input,
+.connect button {
+  display: block;
+  margin: 10px 0;
+  height: 30px;
+  padding: 0;
+  border: 0 none;
+}
+.connect input {
+  text-align: center;
+}
+
+.connect button {
+  -webkit-appearance: button;
+  background-color: #00c08b;
+  color: white;
+  font-weight: bold;
+  font-size: 10pt;
+}

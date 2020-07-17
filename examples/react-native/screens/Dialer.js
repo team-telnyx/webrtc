@@ -54,16 +54,17 @@ export default class Dialer extends Component<Props> {
         login: username,
         password: password,
       });
-
+      this.client.enableMicrophone();
+      this.client.enableWebcam();
       this.client.on('telnyx.ready', () => {
         this.setState({connected: true, status: 'connected'});
       });
 
-      this.client.on('telnyx.error', error => {
+      this.client.on('telnyx.error', (error) => {
         console.log('error', error);
       });
 
-      this.client.on('telnyx.notification', notification => {
+      this.client.on('telnyx.notification', (notification) => {
         switch (notification.type) {
           case 'callUpdate':
             return this._handleCallUpdate(notification.call);
@@ -73,10 +74,10 @@ export default class Dialer extends Component<Props> {
       this.client.on('telnyx.socket.open', () => {
         console.log('Socket Open');
       });
-      this.client.on('telnyx.socket.close', event => {
+      this.client.on('telnyx.socket.close', (event) => {
         console.log('Socket Close', event);
       });
-      this.client.on('telnyx.socket.error', error => {
+      this.client.on('telnyx.socket.error', (error) => {
         console.log('error', error);
 
         console.log('Socket Error');
@@ -122,7 +123,7 @@ export default class Dialer extends Component<Props> {
     });
   }
 
-  handleDestination = extension => {
+  handleDestination = (extension) => {
     return this.setState({extension});
   };
 

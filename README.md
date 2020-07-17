@@ -222,6 +222,8 @@ Screenshot:
 
 We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
+#### Audio call
+
 ```
 cd examples/react
 npm run setup
@@ -233,6 +235,18 @@ Configuration options for your Telnyx account are available under the [Storybook
 
 Screenshot:
 ![Web Dialer](examples/react/storybook-screenshot.png?raw=true)
+
+#### Video call
+
+```
+cd examples/react-video
+npm run setup
+npm install
+npm start
+```
+
+Screenshot:
+![Web Dialer](examples/react-video/react-video-screenshot.png?raw=true)
 
 ---
 
