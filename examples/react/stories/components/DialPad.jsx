@@ -1,5 +1,4 @@
 import React from 'react';
-/* eslint no-unused-vars: off */
 import {
   DialPadContainer, ButtonAnswer, ButtonEnd,
 } from './styles';

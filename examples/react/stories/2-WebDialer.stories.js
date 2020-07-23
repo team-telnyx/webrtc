@@ -1,11 +1,10 @@
-/* eslint import/no-extraneous-dependencies: off */
 import React from 'react';
 
 import {
   withKnobs, text, boolean,
 } from '@storybook/addon-knobs/react';
 
-import WebDialer from './WebDialer';
+import WebDialer from './components/WebDialer';
 
 export default {
   title: 'WebDialer',

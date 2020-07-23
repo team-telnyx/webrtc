@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import DialPad from './DialPad';
 
-/* eslint no-unused-vars: off */
 import {
   Container, NumberInput,
 } from './styles';
@@ -24,6 +23,8 @@ const WebDialer = ({
   const [isInboundCall, setIsInboundCall] = useState(false);
   const [isMute, setIsMute] = useState(false);
   const [isHold, setIsHold] = useState(false);
+  const [statusCall, setStatusCall] = useState('');
+
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -88,6 +89,7 @@ const WebDialer = ({
 
       switch (notification.type) {
         case 'callUpdate':
+          setStatusCall(notification.call.state)
           if (
             notification.call.state === 'hangup'
             || notification.call.state === 'destroy'
@@ -180,7 +182,7 @@ const WebDialer = ({
 
       {registering && !registered && <div>registering...</div>}
 
-      {call && call.state}
+      {statusCall}
     </Container>);
 };
 export default WebDialer;
