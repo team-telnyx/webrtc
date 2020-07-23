@@ -6,9 +6,10 @@
 
 ### Classes
 
+* [BaseCall](classes/basecall.md)
 * [BaseClient](classes/baseclient.md)
+* [Call](classes/call.md)
 * [TelnyxRTC](classes/telnyxrtc.md)
-* [VertoClient](classes/vertoclient.md)
 
 ### Interfaces
 

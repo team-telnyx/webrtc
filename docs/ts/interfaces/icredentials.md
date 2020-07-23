@@ -1,4 +1,4 @@
-[@telnyx/webrtc](../README.md) › [ICredentials](icredentials.md)
+[@telnyx/webrtc - v2.1.0](../README.md) › [ICredentials](icredentials.md)
 
 # Interface: ICredentials
 
@@ -20,7 +20,7 @@
 
 • **password**? : *string*
 
-*Defined in [utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L5)*
+*Defined in [src/utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/649bf48/src/utils/interfaces.ts#L5)*
 
 ___
 
@@ -28,7 +28,7 @@ ___
 
 • **token**? : *string*
 
-*Defined in [utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L6)*
+*Defined in [src/utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/649bf48/src/utils/interfaces.ts#L6)*
 
 ___
 
@@ -36,4 +36,4 @@ ___
 
 • **username**? : *string*
 
-*Defined in [utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/utils/interfaces.ts#L4)*
+*Defined in [src/utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/649bf48/src/utils/interfaces.ts#L4)*
