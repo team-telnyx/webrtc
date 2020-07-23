@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
+import PropTypes from 'prop-types';
 import DialPad from './DialPad';
+
 
 import {
   Container, NumberInput,
@@ -185,4 +187,14 @@ const WebDialer = ({
       {statusCall}
     </Container>);
 };
+
+WebDialer.propTypes = {
+  environment: PropTypes.string.isRequired,
+  username: PropTypes.string.isRequired,
+  password: PropTypes.string.isRequired,
+  defaultDestination: PropTypes.string.isRequired,
+  callerName: PropTypes.string.isRequired,
+  callerNumber: PropTypes.string.isRequired,
+}
+
 export default WebDialer;

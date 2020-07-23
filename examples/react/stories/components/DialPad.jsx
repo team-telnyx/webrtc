@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import {
   DialPadContainer, ButtonAnswer, ButtonEnd,
 } from './styles';
@@ -134,5 +135,20 @@ const DialPad = ({
     </DialPadContainer>
   );
 };
+
+DialPad.propTypes = {
+  call: PropTypes.object,
+  onDigit:PropTypes.func.isRequired,
+  onBackspace: PropTypes.func.isRequired,
+  onStartCall: PropTypes.func.isRequired,
+  onEndCall: PropTypes.func.isRequired,
+  toggleHold: PropTypes.func.isRequired,
+  toggleMute: PropTypes.func.isRequired,
+  isHold: PropTypes.bool.isRequired,
+  isMute:PropTypes.bool.isRequired,
+  disabled: PropTypes.bool.isRequired,
+  isIncomingCall: PropTypes.bool.isRequired,
+}
+
 
 export default DialPad;
