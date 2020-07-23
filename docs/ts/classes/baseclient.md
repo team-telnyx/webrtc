@@ -1,12 +1,10 @@
-[@telnyx/webrtc](../README.md) › [BaseClient](baseclient.md)
+[@telnyx/webrtc - v2.1.0](../README.md) › [BaseClient](baseclient.md)
 
 # Class: BaseClient
 
 ## Hierarchy
 
 * **BaseClient**
-
-  ↳ [VertoClient](vertoclient.md)
 
 ## Index
 
@@ -20,8 +18,10 @@
 * [displayName](baseclient.md#displayname)
 * [env](baseclient.md#env)
 * [host](baseclient.md#host)
+* [module](baseclient.md#module)
 * [port](baseclient.md#port)
 * [project](baseclient.md#optional-project)
+* [ringFile](baseclient.md#optional-ringfile)
 * [useCamera](baseclient.md#usecamera)
 * [useMic](baseclient.md#usemic)
 * [useSpeaker](baseclient.md#usespeaker)
@@ -44,7 +44,7 @@
 
 \+ **new BaseClient**(`o?`: [IClientOptions](../interfaces/iclientoptions.md)): *[BaseClient](baseclient.md)*
 
-*Defined in [BaseClient.ts:46](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L46)*
+*Defined in [src/BaseClient.ts:49](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L49)*
 
 **Parameters:**
 
@@ -60,7 +60,7 @@ Name | Type |
 
 • **credentials**: *[ICredentials](../interfaces/icredentials.md)*
 
-*Defined in [BaseClient.ts:35](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L35)*
+*Defined in [src/BaseClient.ts:36](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L36)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 • **displayName**: *string*
 
-*Defined in [BaseClient.ts:39](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L39)*
+*Defined in [src/BaseClient.ts:40](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L40)*
 
 ___
 
@@ -76,7 +76,7 @@ ___
 
 • **env**: *[Env](../README.md#env)*
 
-*Defined in [BaseClient.ts:33](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L33)*
+*Defined in [src/BaseClient.ts:33](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L33)*
 
 ___
 
@@ -84,7 +84,15 @@ ___
 
 • **host**: *string*
 
-*Defined in [BaseClient.ts:31](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L31)*
+*Defined in [src/BaseClient.ts:31](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L31)*
+
+___
+
+###  module
+
+• **module**: *[Module](../README.md#module)*
+
+*Defined in [src/BaseClient.ts:34](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L34)*
 
 ___
 
@@ -92,7 +100,7 @@ ___
 
 • **port**: *number*
 
-*Defined in [BaseClient.ts:32](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L32)*
+*Defined in [src/BaseClient.ts:32](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L32)*
 
 ___
 
@@ -100,7 +108,15 @@ ___
 
 • **project**? : *string*
 
-*Defined in [BaseClient.ts:34](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L34)*
+*Defined in [src/BaseClient.ts:35](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L35)*
+
+___
+
+### `Optional` ringFile
+
+• **ringFile**? : *string*
+
+*Defined in [src/BaseClient.ts:41](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L41)*
 
 ___
 
@@ -108,7 +124,7 @@ ___
 
 • **useCamera**: *string | boolean*
 
-*Defined in [BaseClient.ts:38](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L38)*
+*Defined in [src/BaseClient.ts:39](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L39)*
 
 ___
 
@@ -116,7 +132,7 @@ ___
 
 • **useMic**: *string | boolean*
 
-*Defined in [BaseClient.ts:36](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L36)*
+*Defined in [src/BaseClient.ts:37](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L37)*
 
 ___
 
@@ -124,7 +140,7 @@ ___
 
 • **useSpeaker**: *string | boolean*
 
-*Defined in [BaseClient.ts:37](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L37)*
+*Defined in [src/BaseClient.ts:38](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L38)*
 
 ## Accessors
 
@@ -132,13 +148,13 @@ ___
 
 • **get localElement**(): *string | Function | HTMLMediaElement*
 
-*Defined in [BaseClient.ts:62](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L62)*
+*Defined in [src/BaseClient.ts:65](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L65)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
 • **set localElement**(`el`: [RTCElement](../README.md#rtcelement)): *void*
 
-*Defined in [BaseClient.ts:58](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L58)*
+*Defined in [src/BaseClient.ts:61](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L61)*
 
 **Parameters:**
 
@@ -154,13 +170,13 @@ ___
 
 • **get remoteElement**(): *string | Function | HTMLMediaElement*
 
-*Defined in [BaseClient.ts:70](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L70)*
+*Defined in [src/BaseClient.ts:73](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L73)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
 • **set remoteElement**(`el`: [RTCElement](../README.md#rtcelement)): *void*
 
-*Defined in [BaseClient.ts:66](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L66)*
+*Defined in [src/BaseClient.ts:69](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L69)*
 
 **Parameters:**
 
@@ -176,7 +192,7 @@ Name | Type |
 
 ▸ **connect**(): *void*
 
-*Defined in [BaseClient.ts:82](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L82)*
+*Defined in [src/BaseClient.ts:85](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L85)*
 
 **Returns:** *void*
 
@@ -186,7 +202,7 @@ ___
 
 ▸ **disconnect**(): *void*
 
-*Defined in [BaseClient.ts:83](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L83)*
+*Defined in [src/BaseClient.ts:86](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L86)*
 
 **Returns:** *void*
 
@@ -196,7 +212,7 @@ ___
 
 ▸ **newCall**(`options`: [ICallOptions](../interfaces/icalloptions.md)): *[ICall](../interfaces/icall.md)*
 
-*Defined in [BaseClient.ts:92](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L92)*
+*Defined in [src/BaseClient.ts:95](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L95)*
 
 **Parameters:**
 
@@ -210,9 +226,9 @@ ___
 
 ###  on
 
-▸ **on**<**E**>(`message`: E, `cb`: MessageEvents[E]): *[BaseClient](baseclient.md)*
+▸ **on**‹**E**›(`message`: E, `cb`: MessageEvents[E]): *[BaseClient](baseclient.md)*
 
-*Defined in [BaseClient.ts:74](https://github.com/team-telnyx/webrtc/blob/1b602c0/src/BaseClient.ts#L74)*
+*Defined in [src/BaseClient.ts:77](https://github.com/team-telnyx/webrtc/blob/649bf48/src/BaseClient.ts#L77)*
 
 **Type parameters:**
 

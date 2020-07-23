@@ -3,3 +3,4 @@ lib
 coverage
 ./jest.config.js
 ./rollup.config.js
+examples
