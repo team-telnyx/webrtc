@@ -145,8 +145,8 @@ call.hangup();
 // Call states that can be toggled
 call.hold();
 call.unhold();
-call.mute();
-call.unmute();
+call.muteAudio();
+call.unmuteAudio();
 
 // Send digits and keypresses
 call.dtmf('1234');
