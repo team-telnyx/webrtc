@@ -40,6 +40,7 @@ const DialPadContainer = styled.div`
     border-radius: 50%;
     color: #5c5f64;
     font-size: 20px;
+    cursor: pointer;
 
     &:disabled {
       opacity: 0.5;

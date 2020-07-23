@@ -11,14 +11,12 @@ const DialPad = ({
   onStartCall,
   onEndCall,
   toggleHold,
+  toggleMute,
+  isHold,
+  isMute,
   disabled,
   isIncomingCall,
-  isMuted,
-  onMuted,
-  onUnMuted,
 }) => {
-  const held = call && call.isHeld;
-
   const makeSendDigit = (x) => () => onDigit(x);
 
   const answerCall = async () => {
@@ -85,12 +83,15 @@ const DialPad = ({
           {call ? (
             <button
               type='button'
-              onClick={isMuted ? onUnMuted : onMuted}
-              className={isMuted ? 'active' : ''}
+              onClick={toggleMute}
+              className={isMute ? 'active' : ''}
             >
-              <span role='img' aria-label={isMuted ? 'Unmute' : 'Mute'}>
+              {isMute ? <span role='img' aria-label={'Mute'}>
                 🔇
-              </span>
+              </span> : <span role='img' aria-label={'Unmute'}>
+                🔈
+              </span> }
+
             </button>
           ) : (
             <div />
@@ -115,11 +116,14 @@ const DialPad = ({
             <button
               type='button'
               onClick={toggleHold}
-              className={held ? 'active' : ''}
+              className={isHold ? 'active' : ''}
             >
-              <span role='img' aria-label={held ? 'Unhold' : 'Hold'}>
+              {isHold ? <span role='img' aria-label={'Hold'}>
                 ⏸
-              </span>
+              </span> : <span role='img' aria-label={'Unhold'}>
+                ▶️
+              </span>}
+
             </button>
           ) : (
             <button type='button' onClick={onBackspace}>

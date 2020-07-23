@@ -4,6 +4,7 @@ import React from 'react';
 import {
   withKnobs, text, boolean,
 } from '@storybook/addon-knobs/react';
+
 import WebDialer from './WebDialer';
 
 export default {

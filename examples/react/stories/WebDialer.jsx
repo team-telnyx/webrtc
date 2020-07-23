@@ -22,7 +22,8 @@ const WebDialer = ({
   const [call, setCall] = useState();
   const [destination, setDestination] = useState(defaultDestination);
   const [isInboundCall, setIsInboundCall] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMute, setIsMute] = useState(false);
+  const [isHold, setIsHold] = useState(false);
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -127,21 +128,16 @@ const WebDialer = ({
 
   const handleDigit = (x) => (call ? call.dtmf(x) : setDestination(`${destination}${x}`));
 
-  const handleMuted = () => {
-    setIsMuted(true);
-    console.log('handleMuted', isMuted);
-
-    call.muteAudio();
-  };
-
-  const handleUnmuted = () => {
-    setIsMuted(false);
-    console.log('handleUnmuted', isMuted);
-    call.unmuteAudio();
+  const toggleMute = () => {
+    if (call) {
+      setIsMute(!isMute);
+      call.toggleAudioMute();
+    }
   };
 
   const toggleHold = () => {
     if (call) {
+      setIsHold(!isHold);
       call.toggleHold();
     }
   };
@@ -174,10 +170,10 @@ const WebDialer = ({
           onStartCall={connect}
           onDigit={handleDigit}
           onBackspace={() => setDestination(destination.slice(0, -1))}
-          isMuted={isMuted}
-          onMuted={handleMuted}
-          onUnMuted={handleUnmuted}
+          toggleMute={toggleMute}
           toggleHold={toggleHold}
+          isMute={isMute}
+          isHold={isHold}
           disabled={registering || destination.length === 0}
         />
       </div>
@@ -185,7 +181,6 @@ const WebDialer = ({
       {registering && !registered && <div>registering...</div>}
 
       {call && call.state}
-    </Container>
-  );
+    </Container>);
 };
 export default WebDialer;
