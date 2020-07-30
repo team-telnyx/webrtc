@@ -8,6 +8,7 @@ import { trigger } from './services/Handler';
 import { localStorage } from './util/storage';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
+import webrtcAdapter from 'webrtc-adapter';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
