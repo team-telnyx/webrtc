@@ -73,7 +73,9 @@ const WebDialer = ({
       startCall();
     });
     session.on('telnyx.error', (error) => {
-      console.log('telnyx.error', error);
+      console.error('telnyx.error', error);
+      setRegistered(false);
+      setRegistering(false);
     });
 
     session.on('telnyx.socket.error', (error) => {
