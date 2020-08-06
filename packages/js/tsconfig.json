@@ -15,7 +15,7 @@
   },
   "typedocOptions": {
     "mode": "file",
-    "out": "docs/ts",
+    "out": "./docs/ts",
     "exclude": "**/*+(test|index).ts",
     "plugin": ["typedoc-plugin-markdown"],
     "excludeExternals": true,
@@ -25,6 +25,6 @@
     "hideGenerator": true,
     "readme": "none"
   },
-  "include": ["src/**/*"],
+  "include": ["./src/**/*"],
   "exclude": ["node_modules"]
 }

@@ -16,10 +16,10 @@
     "lib": ["es2015", "es2016", "es2017", "dom"]
   },
   "include": [
-    "./index.ts",
-    "../Modules/Verto/util/webrtc/*",
-    "../Modules/Verto/util/storage/*",
-    "../Modules/Verto/webrtc/Call.native.ts"
+    "src/index.ts",
+    "../js/src/Modules/Verto/util/rtc/*",
+    "../js/src/Modules/Verto/util/storage/*",
+    "../js/src/Modules/Verto/webrtc/Call.native.ts"
   ],
   "exclude": ["**/__mocks__/**/*"]
 }

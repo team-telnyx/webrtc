@@ -3,8 +3,8 @@
   "version": "1.0.5",
   "description": "React-Native library for connecting to Telnyx.",
   "author": "Telnyx Team",
-  "main": "dist/ReactNative/index.js",
-  "module": "dist/ReactNative/index.js",
+  "main": "dist/react-native/index.js",
+  "module": "dist/react-native/index.js",
   "files": [
     "dist"
   ],

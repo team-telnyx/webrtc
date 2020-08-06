@@ -1,0 +1,9 @@
+{
+  "name": "@telnyx/sip",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "sip.js": "^0.7.7"
+  }
+}

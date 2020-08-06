@@ -1,6 +1,6 @@
-import { CallState } from '../utils/types';
-import { ICall } from '../utils/interfaces';
-import SIP from 'sip.js';
+import { CallState } from "../../js/src/utils/types";
+import { ICall } from "../../js/src/utils/interfaces";
+import * as SIP from "sip.js";
 
 /**
  * @hidden
@@ -16,20 +16,20 @@ export default class SipCall implements ICall {
     const C = SIP.Web.Simple.C;
 
     if (this.isIncoming && this.sip.state === C.STATUS_NEW) {
-      return 'ringing';
+      return "ringing";
     }
 
     switch (this.sip.state) {
       case C.STATUS_CONNECTING:
-        return 'connecting';
+        return "connecting";
       case C.STATUS_CONNECTED:
-        return 'active';
+        return "active";
       case C.STATUS_COMPLETED:
-        return 'done';
+        return "done";
       case C.STATUS_NULL:
       case C.STATUS_NEW:
       default:
-        return 'new';
+        return "new";
     }
   }
 

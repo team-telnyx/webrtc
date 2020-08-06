@@ -1,22 +1,16 @@
-import {
-  ICall,
-  IClientOptions,
-  ICallOptions,
-  ICredentials,
-  MessageEvents,
-} from '../utils/interfaces';
+import { IClientOptions, ICallOptions } from "../../js/src/utils/interfaces";
 
-import SIP from 'sip.js';
+import SIP from "sip.js";
 
-import BaseClient from '../BaseClient';
-import SipCall from './SipCall';
+import BaseClient from "../../js/src/BaseClient";
+import SipCall from "./SipCall";
 
-const HOST = 'sip.telnyx.com';
+const HOST = "sip.telnyx.com";
 const PORT = 7443;
 
 const getDeviceString = (input: string | Boolean): string => {
   if (input instanceof Boolean) {
-    return input ? 'any' : 'none';
+    return input ? "any" : "none";
   }
 
   return input;
@@ -37,7 +31,7 @@ export default class SipClient extends BaseClient {
   connect() {
     const emitCallUpdate = (session, isIncoming) => {
       this.eventBus.emit(
-        'callUpdate',
+        "callUpdate",
         new SipCall(this.sip, session, isIncoming)
       );
     };
@@ -58,30 +52,23 @@ export default class SipClient extends BaseClient {
         password: this.credentials.token || this.credentials.password,
         displayName: this.displayName,
         wsServers: `wss://${this.host}:${this.port}`,
-        // sessionDescriptionHandlerFactoryOptions: {
-        //   peerConnectionOptions: {
-        //     rtcConfiguration: {
-        //       iceServers: [this.stunServer, this.turnServer],
-        //     },
-        //   },
-        // },
       },
     })
-      .on('registered', () => {
-        this.eventBus.emit('ready');
-        this.eventBus.emit('registered');
+      .on("registered", () => {
+        this.eventBus.emit("ready");
+        this.eventBus.emit("registered");
       })
-      .on('unregistered', () => {
-        this.eventBus.emit('unregistered');
+      .on("unregistered", () => {
+        this.eventBus.emit("unregistered");
       })
-      .on('connected', emitCallUpdate)
-      .on('ringing', (session) => emitCallUpdate(session, true))
-      .on('new', emitCallUpdate)
-      .on('done', emitCallUpdate)
-      .on('connecting', emitCallUpdate);
+      .on("connected", emitCallUpdate)
+      .on("ringing", (session) => emitCallUpdate(session, true))
+      .on("new", emitCallUpdate)
+      .on("done", emitCallUpdate)
+      .on("connecting", emitCallUpdate);
 
-    this.sip.ua.once('transportCreated', () =>
-      this.eventBus.emit('socket.connect')
+    this.sip.ua.once("transportCreated", () =>
+      this.eventBus.emit("socket.connect")
     );
 
     this.sip.ua.start();
@@ -90,7 +77,7 @@ export default class SipClient extends BaseClient {
   disconnect() {
     if (this.sip) {
       this.sip.ua.stop();
-      this.eventBus.emit('unregistered');
+      this.eventBus.emit("unregistered");
     }
 
     this.eventBus.removeAllListeners();
@@ -106,7 +93,7 @@ export default class SipClient extends BaseClient {
 
   newCall(options: ICallOptions): SipCall {
     if (!options.destination) {
-      throw new TypeError('destination is required');
+      throw new TypeError("destination is required");
     }
 
     const session = this.sip.call(options.destination);
