@@ -9,6 +9,6 @@
     "release": "release-it"
   },
   "dependencies": {
-    "sip.js": "^0.7.7"
+    "sip.js": "^0.15.4"
   }
 }
