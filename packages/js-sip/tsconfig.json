@@ -1,13 +1,20 @@
 {
   "compilerOptions": {
-    "target": "es2017",
-    "module": "commonjs",
-    "noEmit": true,
-    "resolveJsonModule": true,
+    "module": "ESNext",
+    "target": "es6",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    },
+    "removeComments": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "include": ["./src/**/*"],
-    "exclude": ["node_modules"]
-  }
+    "noImplicitAny": false,
+    "sourceMap": false,
+    "declaration": true,
+    "lib": ["es2015", "es2016", "es2017", "dom"]
+  },
+  "include": ["./src/*"],
+  "exclude": ["node_modules"]
 }

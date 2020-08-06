@@ -3,4 +3,6 @@ node_modules
 yarn-error.log
 lib
 coverage
-.vscode
+.vscode/
+dist/*
+*.tgz
