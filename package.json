@@ -5,7 +5,9 @@
   "private": true,
   "workspaces": {
     "packages": [
-      "packages/*"
+      "packages/js",
+      "packages/js-sip",
+      "packages/react-native"
     ],
     "nohoist": [
       "**/react-native",
