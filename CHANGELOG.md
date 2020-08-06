@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2020-08-06
+
+### Fixed
+
+- Fixed alert message about `Authentication required`
+
 ## [2.1.1] - 2020-08-03
 
 ### Added
