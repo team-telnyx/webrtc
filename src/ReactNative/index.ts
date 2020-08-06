@@ -1,12 +1,10 @@
 import TelnyxRTC from '../TelnyxRTC';
-import { setAgentName } from '../Modules/Verto/messages/blade/Connect'
+import { setAgentName } from '../Modules/Verto/messages/blade/Connect';
 
-export const VERSION = '1.0.4'
-setAgentName(`ReactNative SDK/${VERSION}`)
+export const VERSION = '1.0.5';
+setAgentName(`ReactNative SDK/${VERSION}`);
 
-export {
-  TelnyxRTC
-}
+export { TelnyxRTC };
 
-export * from '../Modules/Verto/util/interfaces'
-export * from '../Modules/Verto/webrtc/interfaces'
+export * from '../Modules/Verto/util/interfaces';
+export * from '../Modules/Verto/webrtc/interfaces';
