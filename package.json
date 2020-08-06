@@ -8,9 +8,7 @@
   },
   "workspaces": {
     "packages": [
-      "packages/js",
-      "packages/js-sip",
-      "packages/react-native"
+      "packages/*"
     ],
     "nohoist": [
       "**/react-native",

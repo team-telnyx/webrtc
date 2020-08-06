@@ -33,11 +33,21 @@
     "@react-native-community/eslint-config": "^1.0.0",
     "babel-jest": "^25.3.0",
     "eslint": "^6.8.0",
-    "jest": "^25.3.0",
+    "jest": "^25.5.4",
     "metro-react-native-babel-preset": "^0.59.0",
     "react-test-renderer": "^16.9.0"
   },
   "jest": {
-    "preset": "react-native"
+    "preset": "react-native",
+    "setupFiles": [
+      "./node_modules/react-native-gesture-handler/jestSetup.js"
+    ],
+    "moduleNameMapper": {
+      "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "<rootDir>/assetsTransformer.js",
+      "\\.(css|less)$": "<rootDir>/assetsTransformer.js"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(react-native|@telnyx/react-native|react-native-button)/)"
+    ]
   }
 }
