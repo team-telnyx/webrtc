@@ -1,6 +1,9 @@
 const { jsWithTs: tsjPreset } = require('ts-jest/presets');
+const { name } = require('./package.json');
 
 module.exports = {
+  displayName: name,
+  name,
   verbose: true,
   roots: ['<rootDir>/src'],
   testPathIgnorePatterns: ['/node_modules/', '/lib/', '/examples/'],

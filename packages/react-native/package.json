@@ -51,7 +51,6 @@
   "devDependencies": {
     "@types/node": "^13.11.1",
     "@types/uuid": "^7.0.2",
-    "tslint": "^6.1.1",
-    "typescript": "^3.8.3"
+    "tslint": "^6.1.1"
   }
 }

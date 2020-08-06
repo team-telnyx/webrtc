@@ -1,16 +1,9 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "declaration": true,
     "declarationDir": "./lib",
-    "module": "es6",
-    "moduleResolution": "node",
     "outDir": "./lib",
-    "target": "es5",
-    "esModuleInterop": true,
-    "sourceMap": false,
     "rootDir": "./src",
-    "allowJs": true,
-    "removeComments": true,
     "baseUrl": "."
   },
   "typedocOptions": {
