@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "module": "commonjs",
     "target": "es5",
+    "downlevelIteration": true,
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
@@ -16,5 +18,5 @@
     "../js/src/Modules/Verto/util/storage/*",
     "../js/src/Modules/Verto/webrtc/Call.native.ts"
   ],
-  "exclude": ["**/__mocks__/**/*"]
+  "exclude": ["**/__mocks__/**/*", "./examples/*"]
 }
