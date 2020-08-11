@@ -13,4 +13,4 @@ Refer to the README of each package for further details.
 
 ## License
 
-Copyright © 2020 Telnyx. It is free software, and may be redistributed under the terms specified in the MIT-LICENSE file.
+[`LICENSE`](./LICENSE)
