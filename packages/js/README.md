@@ -206,7 +206,7 @@ call.reject();
 
 ### Vanilla Javascript
 
-We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/examples/vanilla) to help you get started.
+We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/packages/js/examples/vanilla) to help you get started.
 
 ```
 cd examples/vanilla
@@ -220,12 +220,12 @@ Screenshot:
 
 ### ReactJS
 
-We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples/react) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 #### Audio call
 
 ```
-cd examples/react
+cd examples/react-audio
 npm run setup
 npm install
 npm run storybook
@@ -234,7 +234,7 @@ npm run storybook
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
 Screenshot:
-![Web Dialer](examples/react/storybook-screenshot.png?raw=true)
+![Web Dialer](examples/react-audio/storybook-screenshot.png?raw=true)
 
 #### Video call
 
@@ -252,7 +252,7 @@ Screenshot:
 
 ### React Native
 
-We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/examples/react-native) to help you get started.\
+We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) to help you get started.\
 You can access the documentation [here](https://www.npmjs.com/package/@telnyx/react-native) about `@telnyx/react-native` to have more information.
 
 ```
