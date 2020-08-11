@@ -250,22 +250,6 @@ Screenshot:
 
 ---
 
-### React Native
-
-We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) to help you get started.\
-You can access the documentation [here](https://www.npmjs.com/package/@telnyx/react-native) about `@telnyx/react-native` to have more information.
-
-```
-cd examples/react-native
-npm install
-npm run android or npm run ios
-```
-
-Screenshot:
-![Video call app](examples/react-native/app-screenshot.png?raw=true)
-
----
-
 ## Contributing
 
 ### Development

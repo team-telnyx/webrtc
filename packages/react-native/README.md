@@ -19,7 +19,7 @@ npm install @telnyx/react-native --save
 ```
 
 ```js
-import { TelnyxRTC } from '@telnyx/react-native';
+import { TelnyxRTC } from "@telnyx/react-native";
 ```
 
 ## Usage
@@ -39,44 +39,44 @@ let activeCall;
 
 // Attach event listeners
 client
-  .on('telnyx.socket.open', () => console.log('socket open'))
-  .on('telnyx.socket.close', () => {
-    console.log('socket closed');
+  .on("telnyx.socket.open", () => console.log("socket open"))
+  .on("telnyx.socket.close", () => {
+    console.log("socket closed");
     client.disconnect();
   })
-  .on('telnyx.socket.error', (error) => {
-    console.log('telnyx.socket.error', error);
+  .on("telnyx.socket.error", (error) => {
+    console.log("telnyx.socket.error", error);
     client.disconnect();
   })
-  .on('telnyx.ready', () => console.log('ready to call'))
-  .on('telnyx.error', () => console.log('error'))
+  .on("telnyx.ready", () => console.log("ready to call"))
+  .on("telnyx.error", () => console.log("error"))
   // Event fired on call updates, e.g. when there's an incoming call
-  .on('telnyx.notification', (notification) => {
+  .on("telnyx.notification", (notification) => {
     activeCall = notification.call;
 
     switch (notification.type) {
-      case 'callUpdate':
+      case "callUpdate":
         // Call is over and can be removed
         if (
-          notification.call.state === 'hangup' ||
-          notification.call.state === 'destroy'
+          notification.call.state === "hangup" ||
+          notification.call.state === "destroy"
         ) {
           activeCall = null;
         }
         // An established and active call
-        if (notification.call.state === 'active') {
+        if (notification.call.state === "active") {
           return;
         }
         // New calls that haven't started connecting yet
-        if (notification.call.state === 'new') {
+        if (notification.call.state === "new") {
           return;
         }
         // Receiving an inbound call
-        if (notification.call.state === 'ringing') {
+        if (notification.call.state === "ringing") {
           return;
         }
         // Call is active but on hold
-        if (notification.call.state === 'held') {
+        if (notification.call.state === "held") {
           return;
         }
         break;
@@ -90,7 +90,7 @@ client.connect();
 // client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/examples/react-native) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) for sample React code that handles username and password by prompting the user.
 
 ### React Native
 
@@ -129,12 +129,25 @@ Making a call
 ```
 
 ---
+
 ## Run our example.
 
-1. Navigate into the `examples/react-native`
+### React Native
+
+We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) to help you get started.\
+You can access the documentation [here](https://www.npmjs.com/package/@telnyx/react-native) about `@telnyx/react-native` to have more information.
+
+```
+1. Navigate into the `examples/calling-video-app`
 2. Run `npm install` to install dependencies.
 3. Connect a real mobile device in your computer. This is necessary because it needs to access real camera and microphone.
 4. Run `npm run android` or `npm run ios`
+```
+
+Screenshot:
+![Video call app](examples/calling-video-app/app-screenshot.png?raw=true)
+
+---
 
 ## Third-party libraries dependencies
 
@@ -161,6 +174,7 @@ If you have any trouble building the App follow the steps for each native librar
 - Instructions for [async-storage](https://github.com/react-native-community/async-storage/blob/LEGACY/docs/Linking.md#android)
 
 ---
+
 ## WebRTC Engine
 
 It's possible that an error will occur during the linking process of the native libraries. If your app does not compile, follow these steps to troubleshoot:
