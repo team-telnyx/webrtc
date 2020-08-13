@@ -145,7 +145,7 @@ You can access the documentation [here](https://www.npmjs.com/package/@telnyx/re
 ```
 
 Screenshot:
-![Video call app](examples/calling-video-app/app-screenshot.png?raw=true)
+![Video call app](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/react-native/examples/calling-video-app/app-screenshot.png)
 
 ---
 
