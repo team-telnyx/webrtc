@@ -1,0 +1,14 @@
+{
+  "name": "@telnyx/sip",
+  "version": "1.0.0",
+  "main": "dist/js-sip/src/index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf ./dist && mkdir ./dist && tsc",
+    "release": "release-it"
+  },
+  "dependencies": {
+    "sip.js": "^0.15.4"
+  }
+}

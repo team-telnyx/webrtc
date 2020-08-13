@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declarationDir": "./lib",
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "baseUrl": "."
+  },
+  "typedocOptions": {
+    "mode": "file",
+    "out": "./docs/ts",
+    "exclude": "**/*+(test|index).ts",
+    "plugin": ["typedoc-plugin-markdown"],
+    "excludeExternals": true,
+    "excludeNotExported": true,
+    "excludePrivate": true,
+    "excludeProtected": true,
+    "hideGenerator": true,
+    "readme": "none"
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["node_modules"]
+}
