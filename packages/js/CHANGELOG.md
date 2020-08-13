@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2020-08-13
+
+### Added
+
+- Added `SipReason` `SipCode` and `SIP Call ID` to show friendly error messages.
+
+### Changed
+
+- Changed the project structure to use monorepo yarn workspaces.
+
 ## [2.1.2] - 2020-08-06
 
 ### Fixed
