@@ -220,7 +220,7 @@ Screenshot:
 
 ### ReactJS
 
-We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 #### Audio call
 
