@@ -43,7 +43,6 @@
   },
   "dependencies": {
     "@react-native-community/async-storage": "^1.9.0",
-    "@types/webrtc": "0.0.26",
     "loglevel": "^1.6.7",
     "react-native-incall-manager": "^3.2.7",
     "react-native-webrtc": "^1.75.3",
@@ -52,6 +51,7 @@
   "devDependencies": {
     "@types/node": "^13.11.1",
     "@types/uuid": "^7.0.2",
-    "tslint": "^6.1.1"
+    "tslint": "^6.1.1",
+    "@types/webrtc": "0.0.26"
   }
 }
