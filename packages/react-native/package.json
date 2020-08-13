@@ -42,11 +42,12 @@
     }
   },
   "dependencies": {
-    "loglevel": "^1.6.7",
-    "uuid": "^7.0.2",
     "@react-native-community/async-storage": "^1.9.0",
+    "@types/webrtc": "0.0.26",
+    "loglevel": "^1.6.7",
     "react-native-incall-manager": "^3.2.7",
-    "react-native-webrtc": "^1.75.3"
+    "react-native-webrtc": "^1.75.3",
+    "uuid": "^7.0.2"
   },
   "devDependencies": {
     "@types/node": "^13.11.1",
