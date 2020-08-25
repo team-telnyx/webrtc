@@ -1,7 +1,9 @@
-import pkg from './package.json';
 import resolve from 'rollup-plugin-node-resolve';
 import commonJS from 'rollup-plugin-commonjs';
 import typescript from 'rollup-plugin-typescript2';
+import minify from 'rollup-plugin-babel-minify';
+import { uglify } from 'rollup-plugin-uglify';
+import pkg from './package.json';
 
 const input = 'src/index.ts';
 const output = [
@@ -24,6 +26,8 @@ const plugins = [
   }),
   commonJS(),
   typescript(),
+  minify({ mangle: false }),
+  uglify(),
 ];
 
 export default [
