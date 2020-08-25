@@ -1,55 +1,69 @@
 import logger from './util/logger';
 import BaseSession from './BaseSession';
 import {
-  ICacheDevices, IAudioSettings, IVideoSettings, BroadcastParams, SubscribeParams, ITelnyxRTCOptions,
+  ICacheDevices,
+  IAudioSettings,
+  IVideoSettings,
+  BroadcastParams,
+  SubscribeParams,
+  ITelnyxRTCOptions,
 } from './util/interfaces';
 import { registerOnce, trigger } from './services/Handler';
 import {
-  SwEvent, SESSION_ID, TURN_SERVER, STUN_SERVER,
+  SwEvent,
+  SESSION_ID,
+  TURN_SERVER,
+  STUN_SERVER,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
-  getDevices, scanResolutions, removeUnsupportedConstraints, checkDeviceIdConstraints, destructSubscribeResponse, getUserMedia, assureDeviceId,
+  getDevices,
+  scanResolutions,
+  removeUnsupportedConstraints,
+  checkDeviceIdConstraints,
+  destructSubscribeResponse,
+  getUserMedia,
+  assureDeviceId,
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
 import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
-import { localStorage } from './util/storage';
+import { sessionStorage } from './util/storage';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
 
 export default abstract class BrowserSession extends BaseSession {
-  public calls: { [callId: string]: IWebRTCCall } = {}
+  public calls: { [callId: string]: IWebRTCCall; } = {};
 
-  public micId: string
+  public micId: string;
 
-  public micLabel: string
+  public micLabel: string;
 
-  public camId: string
+  public camId: string;
 
-  public camLabel: string
+  public camLabel: string;
 
-  public autoRecoverCalls: boolean = true
+  public autoRecoverCalls: boolean = true;
 
-  public ringtoneFile?: string
+  public ringtoneFile?: string;
 
-  public ringbackFile?: string
+  public ringbackFile?: string;
 
-  private _iceServers: RTCIceServer[] = []
+  private _iceServers: RTCIceServer[] = [];
 
-  private _localElement: HTMLMediaElement = null
+  private _localElement: HTMLMediaElement = null;
 
-  private _remoteElement: HTMLMediaElement = null
+  private _remoteElement: HTMLMediaElement = null;
 
-  protected _jwtAuth: boolean = true
+  protected _jwtAuth: boolean = true;
 
-  protected _devices: ICacheDevices = {}
+  protected _devices: ICacheDevices = {};
 
-  protected _audioConstraints: boolean | MediaTrackConstraints = true
+  protected _audioConstraints: boolean | MediaTrackConstraints = true;
 
-  protected _videoConstraints: boolean | MediaTrackConstraints = false
+  protected _videoConstraints: boolean | MediaTrackConstraints = false;
 
-  protected _speaker: string = null
+  protected _speaker: string = null;
 
   constructor(options: ITelnyxRTCOptions) {
     super(options);
@@ -63,14 +77,17 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   async connect(): Promise<void> {
-    this.sessionid = await localStorage.getItem(SESSION_ID);
+    this.sessionid = await sessionStorage.getItem(SESSION_ID);
     super.connect();
   }
 
   /**
    * Check if the browser has the permission to access mic and/or webcam
    */
-  async checkPermissions(audio: boolean = true, video: boolean = true): Promise<boolean> {
+  async checkPermissions(
+    audio: boolean = true,
+    video: boolean = true
+  ): Promise<boolean> {
     try {
       const stream = await getUserMedia({ audio, video });
       stopStream(stream);
@@ -100,14 +117,21 @@ export default abstract class BrowserSession extends BaseSession {
 
   speedTest(bytes: number) {
     return new Promise((resolve, reject) => {
-      registerOnce(SwEvent.SpeedTest, (speedTestResult) => {
-        const { upDur, downDur } = speedTestResult;
-        const upKps = upDur ? (((bytes * 8) / (upDur / 1000)) / 1024) : 0;
-        const downKps = downDur ? (((bytes * 8) / (downDur / 1000)) / 1024) : 0;
-        resolve({
-          upDur, downDur, upKps: upKps.toFixed(0), downKps: downKps.toFixed(0),
-        });
-      }, this.uuid);
+      registerOnce(
+        SwEvent.SpeedTest,
+        (speedTestResult) => {
+          const { upDur, downDur } = speedTestResult;
+          const upKps = upDur ? (bytes * 8) / (upDur / 1000) / 1024 : 0;
+          const downKps = downDur ? (bytes * 8) / (downDur / 1000) / 1024 : 0;
+          resolve({
+            upDur,
+            downDur,
+            upKps: upKps.toFixed(0),
+            downKps: downKps.toFixed(0),
+          });
+        },
+        this.uuid
+      );
 
       bytes = Number(bytes);
       if (!bytes) {
@@ -167,7 +191,11 @@ export default abstract class BrowserSession extends BaseSession {
     });
   }
 
-  validateDeviceId(id: string, label: string, kind: MediaDeviceInfo['kind']): Promise<string> {
+  validateDeviceId(
+    id: string,
+    label: string,
+    kind: MediaDeviceInfo['kind']
+  ): Promise<string> {
     return assureDeviceId(id, label, kind);
   }
 
@@ -219,7 +247,9 @@ export default abstract class BrowserSession extends BaseSession {
    * @deprecated
    */
   get videoDevices() {
-    logger.warn('This property has been deprecated. Use getVideoDevices() instead.');
+    logger.warn(
+      'This property has been deprecated. Use getVideoDevices() instead.'
+    );
     return this._devices.videoinput || {};
   }
 
@@ -227,7 +257,9 @@ export default abstract class BrowserSession extends BaseSession {
    * @deprecated
    */
   get audioInDevices() {
-    logger.warn('This property has been deprecated. Use getAudioInDevices() instead.');
+    logger.warn(
+      'This property has been deprecated. Use getAudioInDevices() instead.'
+    );
     return this._devices.audioinput || {};
   }
 
@@ -235,7 +267,9 @@ export default abstract class BrowserSession extends BaseSession {
    * @deprecated
    */
   get audioOutDevices() {
-    logger.warn('This property has been deprecated. Use getAudioOutDevices() instead.');
+    logger.warn(
+      'This property has been deprecated. Use getAudioOutDevices() instead.'
+    );
     return this._devices.audiooutput || {};
   }
 
@@ -246,7 +280,12 @@ export default abstract class BrowserSession extends BaseSession {
   async setAudioSettings(settings: IAudioSettings) {
     const { micId, micLabel, ...constraints } = settings;
     removeUnsupportedConstraints(constraints);
-    this._audioConstraints = await checkDeviceIdConstraints(micId, micLabel, 'audioinput', constraints);
+    this._audioConstraints = await checkDeviceIdConstraints(
+      micId,
+      micLabel,
+      'audioinput',
+      constraints
+    );
     this.micId = micId;
     this.micLabel = micLabel;
     return this._audioConstraints;
@@ -263,7 +302,12 @@ export default abstract class BrowserSession extends BaseSession {
   async setVideoSettings(settings: IVideoSettings) {
     const { camId, camLabel, ...constraints } = settings;
     removeUnsupportedConstraints(constraints);
-    this._videoConstraints = await checkDeviceIdConstraints(camId, camLabel, 'videoinput', constraints);
+    this._videoConstraints = await checkDeviceIdConstraints(
+      camId,
+      camLabel,
+      'videoinput',
+      constraints
+    );
     this.camId = camId;
     this.camLabel = camLabel;
     return this._videoConstraints;
@@ -279,7 +323,9 @@ export default abstract class BrowserSession extends BaseSession {
 
   set iceServers(servers: RTCIceServer[] | boolean) {
     if (typeof servers === 'boolean') {
-      this._iceServers = servers ? [{ urls: ['stun:stun.l.google.com:19302'] }] : [];
+      this._iceServers = servers
+        ? [{ urls: ['stun:stun.l.google.com:19302'] }]
+        : [];
     } else {
       this._iceServers = servers || [TURN_SERVER, STUN_SERVER];
     }
@@ -313,7 +359,11 @@ export default abstract class BrowserSession extends BaseSession {
     return this._remoteElement;
   }
 
-  vertoBroadcast({ nodeId, channel: eventChannel = '', data }: BroadcastParams) {
+  vertoBroadcast({
+    nodeId,
+    channel: eventChannel = '',
+    data,
+  }: BroadcastParams) {
     if (!eventChannel) {
       throw new Error(`Invalid channel for broadcast: ${eventChannel}`);
     }
@@ -324,8 +374,15 @@ export default abstract class BrowserSession extends BaseSession {
     this.execute(msg).catch((error) => error);
   }
 
-  async vertoSubscribe({ nodeId, channels: eventChannel = [], handler }: SubscribeParams) {
-    eventChannel = eventChannel.filter((channel) => channel && !this._existsSubscription(this.relayProtocol, channel));
+  async vertoSubscribe({
+    nodeId,
+    channels: eventChannel = [],
+    handler,
+  }: SubscribeParams) {
+    eventChannel = eventChannel.filter(
+      (channel) =>
+        channel && !this._existsSubscription(this.relayProtocol, channel)
+    );
     if (!eventChannel.length) {
       return {};
     }
@@ -334,16 +391,28 @@ export default abstract class BrowserSession extends BaseSession {
       msg.targetNodeId = nodeId;
     }
     const response = await this.execute(msg);
-    const { unauthorized = [], subscribed = [] } = destructSubscribeResponse(response);
+    const { unauthorized = [], subscribed = [] } = destructSubscribeResponse(
+      response
+    );
     if (unauthorized.length) {
-      unauthorized.forEach((channel) => this._removeSubscription(this.relayProtocol, channel));
+      unauthorized.forEach((channel) =>
+        this._removeSubscription(this.relayProtocol, channel)
+      );
     }
-    subscribed.forEach((channel) => this._addSubscription(this.relayProtocol, handler, channel));
+    subscribed.forEach((channel) =>
+      this._addSubscription(this.relayProtocol, handler, channel)
+    );
     return response;
   }
 
-  async vertoUnsubscribe({ nodeId, channels: eventChannel = [] }: SubscribeParams) {
-    eventChannel = eventChannel.filter((channel) => channel && this._existsSubscription(this.relayProtocol, channel));
+  async vertoUnsubscribe({
+    nodeId,
+    channels: eventChannel = [],
+  }: SubscribeParams) {
+    eventChannel = eventChannel.filter(
+      (channel) =>
+        channel && this._existsSubscription(this.relayProtocol, channel)
+    );
     if (!eventChannel.length) {
       return {};
     }
@@ -352,9 +421,15 @@ export default abstract class BrowserSession extends BaseSession {
       msg.targetNodeId = nodeId;
     }
     const response = await this.execute(msg);
-    const { unsubscribed = [], notSubscribed = [] } = destructSubscribeResponse(response);
-    unsubscribed.forEach((channel) => this._removeSubscription(this.relayProtocol, channel));
-    notSubscribed.forEach((channel) => this._removeSubscription(this.relayProtocol, channel));
+    const { unsubscribed = [], notSubscribed = [] } = destructSubscribeResponse(
+      response
+    );
+    unsubscribed.forEach((channel) =>
+      this._removeSubscription(this.relayProtocol, channel)
+    );
+    notSubscribed.forEach((channel) =>
+      this._removeSubscription(this.relayProtocol, channel)
+    );
     return response;
   }
 
