@@ -55,6 +55,7 @@
     "release-it": "^13.6.6",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",
+    "rollup-plugin-babel-minify": "^10.0.0",
     "rollup-plugin-commonjs": "^10.0.2",
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript2": "^0.24.0",
