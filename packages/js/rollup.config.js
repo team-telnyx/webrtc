@@ -1,8 +1,7 @@
 import resolve from 'rollup-plugin-node-resolve';
 import commonJS from 'rollup-plugin-commonjs';
 import typescript from 'rollup-plugin-typescript2';
-import minify from 'rollup-plugin-babel-minify';
-import { uglify } from 'rollup-plugin-uglify';
+import { terser } from 'rollup-plugin-terser';
 import pkg from './package.json';
 
 const input = 'src/index.ts';
@@ -25,9 +24,10 @@ const plugins = [
     extensions: ['.mjs', '.js', '.jsx', '.json', '.ts'],
   }),
   commonJS(),
-  typescript(),
-  minify({ mangle: false }),
-  uglify(),
+  typescript({
+    objectHashIgnoreUnknownHack: true,
+  }),
+  terser(),
 ];
 
 export default [
