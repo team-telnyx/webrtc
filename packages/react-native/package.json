@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/react-native",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "React-Native library for connecting to Telnyx.",
   "author": "Telnyx Team",
   "main": "dist/react-native/src/index.js",
