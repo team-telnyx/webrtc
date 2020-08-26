@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Enabled multiple connections in multiple devices (browsers, tabs, and etc)
 - Changed localStorage to use sessionStorage on Login class to save `sessid`
+- Removed adapter-webrtc it was breaking the react-native SDK
 
 ## [1.0.6] - 2020-08-13
 

@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.5] - 2020-08-26
+
+### Changed
+
+- Removed adapter-webrtc it was breaking the react-native SDK
+
+### Added
+
+- Added improvements in production bundle code.
+
 ## [2.1.4] - 2020-08-26
 
 ### Changed
