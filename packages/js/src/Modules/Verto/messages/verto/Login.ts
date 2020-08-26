@@ -1,18 +1,30 @@
-import BaseRequest from './BaseRequest'
+import BaseRequest from './BaseRequest';
 
 class Login extends BaseRequest {
-  method: string = 'login'
+  method: string = 'login';
 
-  constructor(login: string, passwd: string, login_token: string, sessionid: string, userVariables: Object = {}) {
-    super()
+  constructor(
+    login: string,
+    passwd: string,
+    login_token: string,
+    sessionid: string,
+    userVariables: Object = {},
+  ) {
+    super();
 
     // TODO: handle loginParams && userVariables
-    const params: any = { login, passwd, login_token, userVariables, loginParams: {} }
+    const params: any = {
+      login,
+      passwd,
+      login_token,
+      userVariables,
+      loginParams: {},
+    };
     if (sessionid) {
-      params.sessid = sessionid
+      params.sessid = sessionid;
     }
-    this.buildRequest({ method: this.method, params })
+    this.buildRequest({ method: this.method, params });
   }
 }
 
-export { Login }
+export { Login };

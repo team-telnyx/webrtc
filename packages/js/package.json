@@ -35,7 +35,8 @@
   "license": "MIT",
   "dependencies": {
     "loglevel": "^1.6.8",
-    "uuid": "^7.0.3"
+    "uuid": "^7.0.3",
+    "webrtc-adapter": "^7.7.0"
   },
   "devDependencies": {
     "@types/uuid": "^7.0.0",
@@ -57,8 +58,7 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-typescript2": "^0.24.0",
     "typedoc": "^0.15.0",
-    "typedoc-plugin-markdown": "^2.2.6",
-    "webrtc-adapter": "^7.6.4"
+    "typedoc-plugin-markdown": "^2.2.6"
   },
   "publishConfig": {
     "access": "public",
