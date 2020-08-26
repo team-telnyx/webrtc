@@ -22,7 +22,6 @@
     "@types/jest": "^26.0.9",
     "babel-jest": "^26.1.0",
     "jest": "^26.2.2",
-    "rollup-plugin-babel-minify": "^10.0.0",
     "ts-jest": "^26.1.4",
     "typescript": "^3.9.7"
   }
