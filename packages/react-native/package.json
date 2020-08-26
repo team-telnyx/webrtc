@@ -14,7 +14,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rm -rf ./dist && mkdir ./dist && tsc",
+    "build": "rm -rf ./dist && mkdir ./dist && ../../node_modules/.bin/tsc",
     "release": "release-it"
   },
   "engines": {

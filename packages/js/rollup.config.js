@@ -1,7 +1,8 @@
-import pkg from './package.json';
 import resolve from 'rollup-plugin-node-resolve';
 import commonJS from 'rollup-plugin-commonjs';
 import typescript from 'rollup-plugin-typescript2';
+import { terser } from 'rollup-plugin-terser';
+import pkg from './package.json';
 
 const input = 'src/index.ts';
 const output = [
@@ -23,7 +24,10 @@ const plugins = [
     extensions: ['.mjs', '.js', '.jsx', '.json', '.ts'],
   }),
   commonJS(),
-  typescript(),
+  typescript({
+    objectHashIgnoreUnknownHack: true,
+  }),
+  terser(),
 ];
 
 export default [
