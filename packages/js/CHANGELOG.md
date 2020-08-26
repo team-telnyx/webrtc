@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2020-08-26
+
+### Changed
+
+- Enabled multiple connections in multiple devices (browsers, tabs, and etc)
+- Changed localStorage to use sessionStorage on Login class to save `sessid`
+
 ## [2.1.3] - 2020-08-13
 
 ### Added
