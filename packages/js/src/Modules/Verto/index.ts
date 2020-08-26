@@ -1,3 +1,4 @@
+import 'webrtc-adapter';
 import BrowserSession from './BrowserSession';
 import { SubscribeParams, BroadcastParams } from './util/interfaces';
 import { CallOptions } from './webrtc/interfaces';
