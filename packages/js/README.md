@@ -157,9 +157,6 @@ call.unmuteAudio();
 // Send digits and keypresses
 call.dtmf('1234');
 
-// Transfer the call to another destination
-call.transfer('destination');
-
 // Answer an incoming call
 call.answer();
 // Reject an incoming call
