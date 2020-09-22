@@ -14,7 +14,7 @@ The Telnyx WebRTC SDK provides all the functionality you need to start making vo
 
 You'll need node v11.15.0 or later.
 
-You'll also need a Telnyx account in order to authenticate your application. Follow our [quick start guide](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) to create a **Connection** with **Credentials Authentication** -- it's simple and quick to get set up with secure credentials that are automatically generated for you.
+You'll also need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
 
 ---
 
@@ -39,14 +39,20 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 
 ## Usage
 
-To initialize the JavaScript SDK, you'll need to authenticate using a Telnyx Connection. You can access the Connection credentials in the [Telnyx Portal](https://portal.telnyx.com/#/app/connections).
+To initialize the WebRTC client, you'll need to authenticate using a Telnyx SIP Connection. Follow our [quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to learn how to use our APIs to create **JWTs** (JSON Web Tokens) to authenticate. You can also [create a Credential Connection](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) and authenticate with its `username` and `password`.
 
 To use the `ringbackFile`, make sure the "Generate Ringback Tone" option is **disabled** in your [Telnyx Portal connection](https://portaldev.telnyx.com/#/app/connections) configuration (Inbound tab.)
 
 ```js
 // Initialize the client
 const client = new TelnyxRTC({
-  // Required credentials
+  /*
+    Use a JWT to authenticate (recommended)
+   */
+  login_token: login_token,
+  /*
+    or use your Connection credentials
+   */
   login: username,
   password: password,
   /* 
