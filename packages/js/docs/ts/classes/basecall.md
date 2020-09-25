@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.0](../README.md) › [BaseCall](basecall.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [BaseCall](basecall.md)
 
 # Class: BaseCall
 
@@ -32,6 +32,9 @@
 * [peer](basecall.md#peer)
 * [prevState](basecall.md#prevstate)
 * [role](basecall.md#role)
+* [sipCallId](basecall.md#sipcallid)
+* [sipCode](basecall.md#sipcode)
+* [sipReason](basecall.md#sipreason)
 * [state](basecall.md#state)
 
 ### Accessors
@@ -80,7 +83,7 @@
 
 \+ **new BaseCall**(`session`: [BrowserSession](browsersession.md), `opts?`: [CallOptions](../interfaces/calloptions.md)): *[BaseCall](basecall.md)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:39](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L39)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:90](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L90)*
 
 **Parameters:**
 
@@ -99,7 +102,7 @@ Name | Type |
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[cause](../interfaces/iwebrtccall.md#cause)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:24](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L24)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:56](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L56)*
 
 ___
 
@@ -109,7 +112,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[causeCode](../interfaces/iwebrtccall.md#causecode)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:25](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L25)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:58](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L58)*
 
 ___
 
@@ -119,7 +122,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[channels](../interfaces/iwebrtccall.md#channels)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:26](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L26)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:66](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L66)*
 
 ___
 
@@ -129,7 +132,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[direction](../interfaces/iwebrtccall.md#direction)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:21](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L21)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:50](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L50)*
 
 ___
 
@@ -139,7 +142,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[extension](../interfaces/iwebrtccall.md#extension)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:28](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L28)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:70](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L70)*
 
 ___
 
@@ -149,7 +152,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[id](../interfaces/iwebrtccall.md#id)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:18](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L18)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:44](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L44)*
 
 ___
 
@@ -159,7 +162,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[options](../interfaces/iwebrtccall.md#options)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:23](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L23)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:54](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L54)*
 
 ___
 
@@ -167,7 +170,7 @@ ___
 
 • **peer**: *[Peer](peer.md)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:22](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L22)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:52](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L52)*
 
 ___
 
@@ -177,7 +180,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[prevState](../interfaces/iwebrtccall.md#prevstate)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:20](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L20)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:48](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L48)*
 
 ___
 
@@ -187,7 +190,31 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[role](../interfaces/iwebrtccall.md#role)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:27](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L27)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:68](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L68)*
+
+___
+
+###  sipCallId
+
+• **sipCallId**: *string*
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:64](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L64)*
+
+___
+
+###  sipCode
+
+• **sipCode**: *number*
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:62](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L62)*
+
+___
+
+###  sipReason
+
+• **sipReason**: *string*
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:60](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L60)*
 
 ___
 
@@ -197,7 +224,7 @@ ___
 
 *Implementation of [IWebRTCCall](../interfaces/iwebrtccall.md).[state](../interfaces/iwebrtccall.md#state)*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:19](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L19)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:46](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L46)*
 
 ## Accessors
 
@@ -205,7 +232,7 @@ ___
 
 • **get localStream**(): *MediaStream*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:57](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L57)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:138](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L138)*
 
 **Returns:** *MediaStream*
 
@@ -215,7 +242,7 @@ ___
 
 • **get memberChannel**(): *string*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:65](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L65)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:146](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L146)*
 
 **Returns:** *string*
 
@@ -225,13 +252,13 @@ ___
 
 • **get nodeId**(): *string*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:49](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L49)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:130](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L130)*
 
 **Returns:** *string*
 
 • **set nodeId**(`what`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:53](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L53)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:134](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L134)*
 
 **Parameters:**
 
@@ -247,7 +274,7 @@ ___
 
 • **get remoteStream**(): *MediaStream*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:61](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L61)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:142](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L142)*
 
 **Returns:** *MediaStream*
 
@@ -257,7 +284,7 @@ ___
 
 ▸ **_addChannel**(`channel`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:384](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L384)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:579](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L579)*
 
 **Parameters:**
 
@@ -273,7 +300,7 @@ ___
 
 ▸ **answer**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:75](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L75)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:156](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L156)*
 
 **Returns:** *void*
 
@@ -283,7 +310,7 @@ ___
 
 ▸ **deaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:236](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L236)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:362](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L362)*
 
 **Returns:** *void*
 
@@ -293,7 +320,7 @@ ___
 
 ▸ **dtmf**(`dtmf`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:168](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L168)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:278](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L278)*
 
 **Parameters:**
 
@@ -309,7 +336,7 @@ ___
 
 ▸ **handleConferenceUpdate**(`packet`: any, `initialPvtData`: any): *Promise‹string›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:335](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L335)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:484](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L484)*
 
 **Parameters:**
 
@@ -326,7 +353,7 @@ ___
 
 ▸ **handleMessage**(`msg`: any): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:276](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L276)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:408](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L408)*
 
 **Parameters:**
 
@@ -342,7 +369,7 @@ ___
 
 ▸ **hangup**(`params`: any, `execute`: boolean): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:115](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L115)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:196](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L196)*
 
 **Parameters:**
 
@@ -359,7 +386,7 @@ ___
 
 ▸ **hold**(): *any*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:147](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L147)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:245](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L245)*
 
 **Returns:** *any*
 
@@ -369,7 +396,7 @@ ___
 
 ▸ **invite**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:69](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L69)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:150](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L150)*
 
 **Returns:** *void*
 
@@ -379,7 +406,7 @@ ___
 
 ▸ **message**(`to`: string, `body`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:173](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L173)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:287](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L287)*
 
 **Parameters:**
 
@@ -396,7 +423,7 @@ ___
 
 ▸ **muteAudio**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:179](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L179)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:297](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L297)*
 
 **Returns:** *void*
 
@@ -406,7 +433,7 @@ ___
 
 ▸ **muteVideo**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:207](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L207)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:329](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L329)*
 
 **Returns:** *void*
 
@@ -416,7 +443,7 @@ ___
 
 ▸ **playRingback**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:99](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L99)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:180](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L180)*
 
 **Returns:** *void*
 
@@ -426,7 +453,7 @@ ___
 
 ▸ **playRingtone**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:83](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L83)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:164](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L164)*
 
 **Returns:** *void*
 
@@ -436,7 +463,7 @@ ___
 
 ▸ **replace**(`replaceCallID`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:142](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L142)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:235](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L235)*
 
 **Parameters:**
 
@@ -452,7 +479,7 @@ ___
 
 ▸ **setAudioInDevice**(`deviceId`: string): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:191](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L191)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:309](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L309)*
 
 **Parameters:**
 
@@ -468,7 +495,7 @@ ___
 
 ▸ **setState**(`state`: [State](../enums/state.md)): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:248](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L248)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:374](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L374)*
 
 **Parameters:**
 
@@ -484,7 +511,7 @@ ___
 
 ▸ **setVideoDevice**(`deviceId`: string): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:219](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L219)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:341](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L341)*
 
 **Parameters:**
 
@@ -500,7 +527,7 @@ ___
 
 ▸ **stopRingback**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:108](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L108)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:189](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L189)*
 
 **Returns:** *void*
 
@@ -510,7 +537,7 @@ ___
 
 ▸ **stopRingtone**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:92](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L92)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:173](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L173)*
 
 **Returns:** *void*
 
@@ -520,7 +547,7 @@ ___
 
 ▸ **toggleAudioMute**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:187](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L187)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:305](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L305)*
 
 **Returns:** *void*
 
@@ -530,7 +557,7 @@ ___
 
 ▸ **toggleDeaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:244](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L244)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:370](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L370)*
 
 **Returns:** *void*
 
@@ -540,7 +567,7 @@ ___
 
 ▸ **toggleHold**(): *any*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:161](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L161)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:267](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L267)*
 
 **Returns:** *any*
 
@@ -550,7 +577,7 @@ ___
 
 ▸ **toggleVideoMute**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:215](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L215)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:337](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L337)*
 
 **Returns:** *void*
 
@@ -560,7 +587,7 @@ ___
 
 ▸ **transfer**(`destination`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:137](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L137)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:225](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L225)*
 
 **Parameters:**
 
@@ -576,7 +603,7 @@ ___
 
 ▸ **undeaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:240](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L240)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:366](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L366)*
 
 **Returns:** *void*
 
@@ -586,7 +613,7 @@ ___
 
 ▸ **unhold**(): *any*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:154](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L154)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:256](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L256)*
 
 **Returns:** *any*
 
@@ -596,7 +623,7 @@ ___
 
 ▸ **unmuteAudio**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:183](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L183)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:301](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L301)*
 
 **Returns:** *void*
 
@@ -606,7 +633,7 @@ ___
 
 ▸ **unmuteVideo**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:211](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L211)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:333](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L333)*
 
 **Returns:** *void*
 
@@ -616,7 +643,7 @@ ___
 
 ▸ **setStateTelnyx**(`call`: [Call](call.md)): *[Call](call.md)‹›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:808](https://github.com/team-telnyx/webrtc/blob/649bf48/src/Modules/Verto/webrtc/BaseCall.ts#L808)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/BaseCall.ts:1083](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L1083)*
 
 **Parameters:**
 
