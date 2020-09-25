@@ -159,8 +159,8 @@ call.dtmf('1234');
 
 // Answer an incoming call
 call.answer();
-// Reject an incoming call
-call.reject();
+// Hangup (reject) an incoming call
+call.hangup();
 ```
 
 ---
