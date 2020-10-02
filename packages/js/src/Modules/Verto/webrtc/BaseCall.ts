@@ -213,6 +213,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       const bye = new Bye({
         sessid: this.session.sessionid,
         dialogParams: this.options,
+        cause: 'USER_BUSY',
+        causeCode: 17,
       });
       this._execute(bye)
         .catch((error) => logger.error('telnyl_rtc.bye failed!', error))
