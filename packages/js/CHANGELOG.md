@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.6] - 2020-10-05
+
+### Changed
+
+- Added cause and causeCode when hangup the call
+
 ## [2.1.5] - 2020-08-26
 
 ### Changed
