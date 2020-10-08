@@ -6,7 +6,7 @@
     "@telnyx/webrtc": "^2.1.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "react-scripts": "^3.4.2"
+    "react-scripts": "^3.4.3"
   },
   "scripts": {
     "start": "SKIP_PREFLIGHT_CHECK=true react-scripts start",
