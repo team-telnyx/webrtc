@@ -20,7 +20,7 @@
     "@storybook/addon-links": "^5.2.1",
     "@storybook/addons": "^5.2.1",
     "@storybook/react": "^5.2.1",
-    "@telnyx/webrtc": "2.1.0",
+    "@telnyx/webrtc": "^2.2.0",
     "prop-types": "^15.7.2",
     "styled-components": "^4.4.0"
   },
