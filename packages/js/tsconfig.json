@@ -19,5 +19,5 @@
     "readme": "none"
   },
   "include": ["./src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "**/tests", "**/__mocks__"]
 }
