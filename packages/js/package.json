@@ -14,12 +14,15 @@
   "main": "lib/bundle.js",
   "module": "lib/bundle.mjs",
   "types": "lib/index.d.ts",
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "build": "rollup -c",
     "prepare": "npm run build",
     "prepublishOnly": "npm run test",
     "test": "jest",
-    "docs": "typedoc src --externalPattern **/ReactNative/**",
+    "docs": "typedoc src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w"
   },
