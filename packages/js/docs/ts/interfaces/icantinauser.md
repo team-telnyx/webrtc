@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [ICantinaUser](icantinauser.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [ICantinaUser](icantinauser.md)
 
 # Interface: ICantinaUser
 
@@ -26,7 +26,7 @@
 
 • **avatar**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L92)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:96](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L96)*
 
 ___
 
@@ -34,7 +34,7 @@ ___
 
 • **config**? : *object*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:96](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L96)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:100](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L100)*
 
 ___
 
@@ -42,7 +42,7 @@ ___
 
 • **email**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:90](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L90)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:94](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L94)*
 
 ___
 
@@ -50,7 +50,7 @@ ___
 
 • **first_name**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:88](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L88)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L92)*
 
 ___
 
@@ -58,7 +58,7 @@ ___
 
 • **jwt_token**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:94](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L94)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:98](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L98)*
 
 ___
 
@@ -66,7 +66,7 @@ ___
 
 • **last_name**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:89](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L89)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:93](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L93)*
 
 ___
 
@@ -74,7 +74,7 @@ ___
 
 • **phone**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:91](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L91)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:95](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L95)*
 
 ___
 
@@ -82,7 +82,7 @@ ___
 
 • **project**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:93](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L93)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:97](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L97)*
 
 ___
 
@@ -90,4 +90,4 @@ ___
 
 • **scopes**: *string[]*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:95](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L95)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:99](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L99)*

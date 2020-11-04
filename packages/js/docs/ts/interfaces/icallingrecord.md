@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [ICallingRecord](icallingrecord.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingRecord](icallingrecord.md)
 
 # Interface: ICallingRecord
 
@@ -28,7 +28,7 @@
 
 • **audio**? : *IRelayCallingRecordAudio*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:225](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L225)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:225](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L225)*
 
 ___
 
@@ -38,7 +38,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:211](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L211)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:211](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L211)*
 
 ___
 
@@ -48,7 +48,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:214](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L214)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:214](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L214)*
 
 ___
 
@@ -58,7 +58,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:216](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L216)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:216](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L216)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:212](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L212)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:212](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L212)*
 
 ___
 
@@ -78,7 +78,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:215](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L215)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:215](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L215)*
 
 ___
 
@@ -88,7 +88,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:213](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L213)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:213](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L213)*
 
 ___
 
@@ -98,7 +98,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:217](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L217)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:217](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L217)*
 
 ___
 
@@ -106,4 +106,4 @@ ___
 
 • **type**? : *"audio"*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:226](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L226)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:226](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L226)*

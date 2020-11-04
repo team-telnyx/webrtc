@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [Role](role.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [Role](role.md)
 
 # Enumeration: Role
 
@@ -15,7 +15,7 @@
 
 • **Moderator**: = "moderator"
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:73](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/constants.ts#L73)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:73](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/constants.ts#L73)*
 
 ___
 
@@ -23,4 +23,4 @@ ___
 
 • **Participant**: = "participant"
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:72](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/constants.ts#L72)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:72](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/webrtc/constants.ts#L72)*

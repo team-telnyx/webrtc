@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [DeepArray](deeparray.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [DeepArray](deeparray.md)
 
 # Interface: DeepArray ‹**T**›
 
@@ -63,7 +63,7 @@
 
 • **Array**: *ArrayConstructor*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1385
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1385
 
 ___
 
@@ -73,7 +73,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1215
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1215
 
 Gets or sets the length of the array. This is a number one higher than the highest element defined in an array.
 
@@ -85,7 +85,7 @@ Gets or sets the length of the array. This is a number one higher than the highe
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.iterable.d.ts:60
+Defined in node_modules/typescript/lib/lib.es2015.iterable.d.ts:60
 
 Iterator
 
@@ -99,7 +99,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts:94
+Defined in node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts:94
 
 Returns an object whose properties have the value 'true'
 when they will be absent when used in a 'with' statement.
@@ -114,7 +114,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1237
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1237
 
 Combines two or more arrays.
 
@@ -130,7 +130,7 @@ Name | Type | Description |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1242
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1242
 
 Combines two or more arrays.
 
@@ -150,7 +150,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.core.d.ts:64
+Defined in node_modules/typescript/lib/lib.es2015.core.d.ts:64
 
 Returns the this object after copying a section of the array identified by start and end
 to the same array starting at position target
@@ -173,7 +173,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.iterable.d.ts:65
+Defined in node_modules/typescript/lib/lib.es2015.iterable.d.ts:65
 
 Returns an iterable of key, value pairs for every entry in the array
 
@@ -187,7 +187,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1310
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1310
 
 Determines whether all the members of an array satisfy the specified test.
 
@@ -224,7 +224,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.core.d.ts:53
+Defined in node_modules/typescript/lib/lib.es2015.core.d.ts:53
 
 Returns the this object after filling the section identified by start and end with value
 
@@ -246,7 +246,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1337
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1337
 
 Returns the elements of an array that meet the condition specified in a callback function.
 
@@ -280,7 +280,7 @@ An object to which the this keyword can refer in the callbackfn function. If thi
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1343
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1343
 
 Returns the elements of an array that meet the condition specified in a callback function.
 
@@ -314,7 +314,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.core.d.ts:31
+Defined in node_modules/typescript/lib/lib.es2015.core.d.ts:31
 
 Returns the value of the first element in the array where predicate is true, and undefined
 otherwise.
@@ -353,7 +353,7 @@ predicate. If it is not provided, undefined is used instead.
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.core.d.ts:32
+Defined in node_modules/typescript/lib/lib.es2015.core.d.ts:32
 
 **Parameters:**
 
@@ -381,7 +381,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.core.d.ts:43
+Defined in node_modules/typescript/lib/lib.es2015.core.d.ts:43
 
 Returns the index of the first element in the array where predicate is true, and -1
 otherwise.
@@ -419,7 +419,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1325
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1325
 
 Performs the specified action for each element in an array.
 
@@ -453,7 +453,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2016.array.include.d.ts:27
+Defined in node_modules/typescript/lib/lib.es2016.array.include.d.ts:27
 
 Determines whether an array includes a certain element, returning true or false as appropriate.
 
@@ -474,7 +474,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1295
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1295
 
 Returns the index of the first occurrence of a value in an array.
 
@@ -495,7 +495,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1247
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1247
 
 Adds all the elements of an array separated by the specified separator string.
 
@@ -515,7 +515,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.iterable.d.ts:70
+Defined in node_modules/typescript/lib/lib.es2015.iterable.d.ts:70
 
 Returns an iterable of keys in the array
 
@@ -529,7 +529,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1301
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1301
 
 Returns the index of the last occurrence of a specified value in an array.
 
@@ -550,7 +550,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1331
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1331
 
 Calls a defined callback function on each element of an array, and returns an array that contains the results.
 
@@ -588,7 +588,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1227
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1227
 
 Removes the last element from an array and returns it.
 
@@ -602,7 +602,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1232
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1232
 
 Appends new elements to an array, and returns the new length of the array.
 
@@ -622,7 +622,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1349
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1349
 
 Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
 
@@ -649,7 +649,7 @@ Name | Type |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1350
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1350
 
 **Parameters:**
 
@@ -674,7 +674,7 @@ Name | Type |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1356
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1356
 
 Calls the specified callback function for all the elements in an array. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
 
@@ -713,7 +713,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1362
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1362
 
 Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
 
@@ -740,7 +740,7 @@ Name | Type |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1363
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1363
 
 **Parameters:**
 
@@ -765,7 +765,7 @@ Name | Type |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1369
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1369
 
 Calls the specified callback function for all the elements in an array, in descending order. The return value of the callback function is the accumulated result, and is provided as an argument in the next call to the callback function.
 
@@ -804,7 +804,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1251
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1251
 
 Reverses the elements in an Array.
 
@@ -818,7 +818,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1255
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1255
 
 Removes the first element from an array and returns it.
 
@@ -832,7 +832,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1261
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1261
 
 Returns a section of an array.
 
@@ -853,7 +853,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1319
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1319
 
 Determines whether the specified callback function returns true for any element of an array.
 
@@ -890,7 +890,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1271
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1271
 
 Sorts an array.
 
@@ -924,7 +924,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1277
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1277
 
 Removes elements from an array and, if necessary, inserts new elements in their place, returning the deleted elements.
 
@@ -941,7 +941,7 @@ Name | Type | Description |
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1284
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1284
 
 Removes elements from an array and, if necessary, inserts new elements in their place, returning the deleted elements.
 
@@ -963,7 +963,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1223
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1223
 
 Returns a string representation of an array. The elements are converted to string using their toLocalString methods.
 
@@ -977,7 +977,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1219
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1219
 
 Returns a string representation of an array.
 
@@ -991,7 +991,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es5.d.ts:1289
+Defined in node_modules/typescript/lib/lib.es5.d.ts:1289
 
 Inserts new elements at the start of an array.
 
@@ -1011,7 +1011,7 @@ ___
 
 *Inherited from void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.es2015.iterable.d.ts:75
+Defined in node_modules/typescript/lib/lib.es2015.iterable.d.ts:75
 
 Returns an iterable of values in the array
 

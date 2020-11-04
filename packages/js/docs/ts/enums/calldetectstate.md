@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [CallDetectState](calldetectstate.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [CallDetectState](calldetectstate.md)
 
 # Enumeration: CallDetectState
 
@@ -22,7 +22,7 @@
 
 • **CED**: = "CED"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:117](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L117)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:117](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L117)*
 
 ___
 
@@ -30,7 +30,7 @@ ___
 
 • **CNG**: = "CNG"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:118](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L118)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:118](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L118)*
 
 ___
 
@@ -38,7 +38,7 @@ ___
 
 • **Error**: = "error"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:115](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L115)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:115](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L115)*
 
 ___
 
@@ -46,7 +46,7 @@ ___
 
 • **Finished**: = "finished"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:116](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L116)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:116](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L116)*
 
 ___
 
@@ -54,7 +54,7 @@ ___
 
 • **Human**: = "HUMAN"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:120](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L120)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:120](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L120)*
 
 ___
 
@@ -62,7 +62,7 @@ ___
 
 • **Machine**: = "MACHINE"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:119](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L119)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:119](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L119)*
 
 ___
 
@@ -70,7 +70,7 @@ ___
 
 • **NotReady**: = "NOT_READY"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:123](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L123)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:123](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L123)*
 
 ___
 
@@ -78,7 +78,7 @@ ___
 
 • **Ready**: = "READY"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:122](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L122)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:122](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L122)*
 
 ___
 
@@ -86,4 +86,4 @@ ___
 
 • **Unknown**: = "UNKNOWN"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:121](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L121)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:121](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L121)*

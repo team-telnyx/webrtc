@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [IVideoSettings](ivideosettings.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [IVideoSettings](ivideosettings.md)
 
 # Interface: IVideoSettings
 
@@ -42,7 +42,7 @@
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:780
+Defined in node_modules/typescript/lib/lib.dom.d.ts:780
 
 ___
 
@@ -54,7 +54,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:762
+Defined in node_modules/typescript/lib/lib.dom.d.ts:762
 
 ___
 
@@ -66,7 +66,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:763
+Defined in node_modules/typescript/lib/lib.dom.d.ts:763
 
 ___
 
@@ -74,7 +74,7 @@ ___
 
 • **camId**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:101](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L101)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:101](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L101)*
 
 ___
 
@@ -82,7 +82,7 @@ ___
 
 • **camLabel**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:102](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L102)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:102](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L102)*
 
 ___
 
@@ -94,7 +94,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:764
+Defined in node_modules/typescript/lib/lib.dom.d.ts:764
 
 ___
 
@@ -106,7 +106,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:765
+Defined in node_modules/typescript/lib/lib.dom.d.ts:765
 
 ___
 
@@ -118,7 +118,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:766
+Defined in node_modules/typescript/lib/lib.dom.d.ts:766
 
 ___
 
@@ -130,7 +130,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:767
+Defined in node_modules/typescript/lib/lib.dom.d.ts:767
 
 ___
 
@@ -142,7 +142,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:768
+Defined in node_modules/typescript/lib/lib.dom.d.ts:768
 
 ___
 
@@ -154,7 +154,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:769
+Defined in node_modules/typescript/lib/lib.dom.d.ts:769
 
 ___
 
@@ -166,7 +166,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:770
+Defined in node_modules/typescript/lib/lib.dom.d.ts:770
 
 ___
 
@@ -178,7 +178,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:771
+Defined in node_modules/typescript/lib/lib.dom.d.ts:771
 
 ___
 
@@ -190,7 +190,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:772
+Defined in node_modules/typescript/lib/lib.dom.d.ts:772
 
 ___
 
@@ -202,7 +202,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:773
+Defined in node_modules/typescript/lib/lib.dom.d.ts:773
 
 ___
 
@@ -214,7 +214,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:774
+Defined in node_modules/typescript/lib/lib.dom.d.ts:774
 
 ___
 
@@ -226,7 +226,7 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:775
+Defined in node_modules/typescript/lib/lib.dom.d.ts:775
 
 ___
 
@@ -250,4 +250,4 @@ ___
 
 *Overrides void*
 
-Defined in node_modules/typedoc/node_modules/typescript/lib/lib.dom.d.ts:776
+Defined in node_modules/typescript/lib/lib.dom.d.ts:776

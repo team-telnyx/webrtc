@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [ICallingPlayParams](icallingplayparams.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingPlayParams](icallingplayparams.md)
 
 # Interface: ICallingPlayParams
 
@@ -19,7 +19,7 @@
 
 • **media**: *([ICallingPlay](icallingplay.md) | [IRelayCallingPlay](irelaycallingplay.md))[]*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:253](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L253)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:253](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L253)*
 
 ___
 
@@ -27,4 +27,4 @@ ___
 
 • **volume**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:254](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L254)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:254](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L254)*

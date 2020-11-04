@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [DisconnectSource](disconnectsource.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [DisconnectSource](disconnectsource.md)
 
 # Enumeration: DisconnectSource
 
@@ -17,7 +17,7 @@
 
 • **Client**: = "client"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:25](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L25)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:25](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L25)*
 
 ___
 
@@ -25,7 +25,7 @@ ___
 
 • **Endpoint**: = "endpoint"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:27](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L27)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:27](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L27)*
 
 ___
 
@@ -33,7 +33,7 @@ ___
 
 • **None**: = "none"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:24](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L24)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:24](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L24)*
 
 ___
 
@@ -41,4 +41,4 @@ ___
 
 • **Server**: = "server"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:26](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L26)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:26](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L26)*

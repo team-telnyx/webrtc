@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [ICallingCollect](icallingcollect.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingCollect](icallingcollect.md)
 
 # Interface: ICallingCollect
 
@@ -41,7 +41,7 @@
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[digits](irelaycallingcollect.md#optional-digits)*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:272](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L272)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:272](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L272)*
 
 #### Type declaration:
 
@@ -51,7 +51,7 @@ ___
 
 • **digits_max**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
 
 ___
 
@@ -59,7 +59,7 @@ ___
 
 • **digits_terminators**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:289](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L289)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:289](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L289)*
 
 ___
 
@@ -67,7 +67,7 @@ ___
 
 • **digits_timeout**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:290](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L290)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:290](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L290)*
 
 ___
 
@@ -75,7 +75,7 @@ ___
 
 • **end_silence_timeout**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:291](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L291)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:291](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L291)*
 
 ___
 
@@ -85,7 +85,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[initial_timeout](irelaycallingcollect.md#optional-initial_timeout)*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:271](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L271)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:271](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L271)*
 
 ___
 
@@ -93,7 +93,7 @@ ___
 
 • **media**? : *([ICallingPlay](icallingplay.md) | [IRelayCallingPlay](irelaycallingplay.md))[]*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:296](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L296)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:296](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L296)*
 
 ___
 
@@ -103,7 +103,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[partial_results](irelaycallingcollect.md#optional-partial_results)*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:283](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L283)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:283](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L283)*
 
 ___
 
@@ -113,7 +113,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[speech](irelaycallingcollect.md#optional-speech)*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
 
 #### Type declaration:
 
@@ -123,7 +123,7 @@ ___
 
 • **speech_hints**? : *string[]*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
 
 ___
 
@@ -131,7 +131,7 @@ ___
 
 • **speech_language**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:293](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L293)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:293](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L293)*
 
 ___
 
@@ -139,7 +139,7 @@ ___
 
 • **speech_timeout**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:292](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L292)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:292](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L292)*
 
 ___
 
@@ -147,7 +147,7 @@ ___
 
 • **type**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:287](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L287)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:287](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L287)*
 
 ___
 
@@ -155,4 +155,4 @@ ___
 
 • **volume**? : *number*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:295](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L295)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:295](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L295)*
