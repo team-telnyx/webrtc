@@ -78,7 +78,7 @@ export default abstract class BrowserSession extends BaseSession {
 
   /**
    * Creates a new WebSocket connection for exchanging data
-   * between the WebRTC server
+   * with the WebRTC server
    *
    * ## Examples
    *
