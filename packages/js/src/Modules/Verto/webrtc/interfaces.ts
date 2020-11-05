@@ -101,6 +101,6 @@ export interface ICantinaUser {
 }
 
 // https://webrtc.org/getting-started/unified-plan-transition-guide
-export interface IDeprecatedRTCConfiguration extends RTCConfiguration {
-  sdpSemantics: 'plan-b' | 'unified-plan';
+export interface IChromeRTCConfiguration extends RTCConfiguration {
+  sdpSemantics?: 'plan-b' | 'unified-plan';
 }
