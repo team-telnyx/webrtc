@@ -33,7 +33,7 @@ import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
 
 export default abstract class BrowserSession extends BaseSession {
-  public calls: { [callId: string]: IWebRTCCall; } = {};
+  public calls: { [callId: string]: IWebRTCCall } = {};
 
   public micId: string;
 

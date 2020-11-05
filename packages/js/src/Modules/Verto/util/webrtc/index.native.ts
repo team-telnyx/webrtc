@@ -1,42 +1,51 @@
 // @ts-ignore
-import { RTCPeerConnection, mediaDevices, MediaStream } from 'react-native-webrtc'
-import { objEmpty } from '../helpers'
-import logger from '../logger'
+import {
+  RTCPeerConnection,
+  mediaDevices,
+  MediaStream,
+} from 'react-native-webrtc';
+import { objEmpty } from '../helpers';
+import logger from '../logger';
 
 const _RTCPeerConnection = (config: RTCPeerConnectionConfig) => {
-  const _config = objEmpty(config) ? null : config
-  logger.info('_RTCPeerConnection', _config)
-  return new RTCPeerConnection(_config)
-}
+  const _config = objEmpty(config) ? null : config;
+  logger.info('_RTCPeerConnection', _config);
+  return new RTCPeerConnection(_config);
+};
 
-const _getUserMedia = (constraints: MediaStreamConstraints) => mediaDevices.getUserMedia(constraints)
+const _getUserMedia = (constraints: MediaStreamConstraints) =>
+  mediaDevices.getUserMedia(constraints);
 
-const _enumerateDevices = () => mediaDevices.enumerateDevices()
+const _enumerateDevices = () => mediaDevices.enumerateDevices();
 
-const streamIsValid = (stream: MediaStream) => stream && stream instanceof MediaStream
+const streamIsValid = (stream: MediaStream) =>
+  stream && stream instanceof MediaStream;
 
-const getSupportedConstraints = () => ({})
+const getSupportedConstraints = () => ({});
 
-const attachMediaStream = (htmlElementId: string, stream: MediaStream) => null
-const detachMediaStream = (htmlElementId: string) => null
+const attachMediaStream = (htmlElementId: string, stream: MediaStream) => null;
+const detachMediaStream = (htmlElementId: string) => null;
 
-const muteMediaElement = (htmlElementId: string) => null
-const unmuteMediaElement = (htmlElementId: string) => null
-const toggleMuteMediaElement = (htmlElementId: string) => null
+const muteMediaElement = (htmlElementId: string) => null;
+const unmuteMediaElement = (htmlElementId: string) => null;
+const toggleMuteMediaElement = (htmlElementId: string) => null;
 
-const setMediaElementSinkId = (htmlElementId: string, deviceId: string): Promise<boolean> => Promise.resolve(false)
+const setMediaElementSinkId = (
+  htmlElementId: string,
+  deviceId: string
+): Promise<boolean> => Promise.resolve(false);
 
-const sdpToJsonHack = sdp => {
-  Object.defineProperty(sdp, 'toJSON', { value: () => sdp })
-  return sdp
-}
+const sdpToJsonHack = (sdp) => {
+  Object.defineProperty(sdp, 'toJSON', { value: () => sdp });
+  return sdp;
+};
 
 const stopStream = (stream: MediaStream) => {
   if (streamIsValid(stream)) {
-    stream.getTracks().forEach(t => t.stop())
+    stream.getTracks().forEach((t) => t.stop());
   }
-  stream = null
-}
+  stream = null;
+};
 
 export {
   _RTCPeerConnection as RTCPeerConnection,
@@ -52,5 +61,5 @@ export {
   muteMediaElement,
   unmuteMediaElement,
   toggleMuteMediaElement,
-  setMediaElementSinkId
-}
+  setMediaElementSinkId,
+};

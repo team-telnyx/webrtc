@@ -1,13 +1,11 @@
-import logger from '../../util/logger'
-const Connection = require('../../services/Connection')
-jest.mock('../../services/Connection')
-
+import logger from '../../util/logger';
+const Connection = require('../../services/Connection');
+jest.mock('../../services/Connection');
 
 jest.mock('uuid', () => {
   return {
-    v4: jest.fn(() => 'mocked-uuid')
+    v4: jest.fn(() => 'mocked-uuid'),
   };
 });
 
-
-logger.disableAll()
+logger.disableAll();
