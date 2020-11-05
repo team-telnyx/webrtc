@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IRelayConsumerParams](irelayconsumerparams.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [IRelayConsumerParams](irelayconsumerparams.md)
 
 # Interface: IRelayConsumerParams
 
@@ -28,7 +28,7 @@
 
 • **contexts**? : *string[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:382](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L382)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:382](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L382)*
 
 ___
 
@@ -36,7 +36,7 @@ ___
 
 • **host**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:379](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L379)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:379](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L379)*
 
 ___
 
@@ -44,7 +44,7 @@ ___
 
 • **onIncomingCall**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:383](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L383)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:383](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L383)*
 
 ___
 
@@ -52,7 +52,7 @@ ___
 
 • **onIncomingMessage**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:384](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L384)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:384](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L384)*
 
 ___
 
@@ -60,7 +60,7 @@ ___
 
 • **onMessageStateChange**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:385](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L385)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:385](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L385)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 • **onTask**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:386](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L386)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:386](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L386)*
 
 ___
 
@@ -76,7 +76,7 @@ ___
 
 • **project**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:380](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L380)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:380](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L380)*
 
 ___
 
@@ -84,7 +84,7 @@ ___
 
 • **ready**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:388](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L388)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:388](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L388)*
 
 ___
 
@@ -92,7 +92,7 @@ ___
 
 • **setup**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:387](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L387)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:387](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L387)*
 
 ___
 
@@ -100,7 +100,7 @@ ___
 
 • **teardown**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:389](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L389)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:389](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L389)*
 
 ___
 
@@ -108,4 +108,4 @@ ___
 
 • **token**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:381](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L381)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:381](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L381)*

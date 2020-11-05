@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ISubscription](isubscription.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [ISubscription](isubscription.md)
 
 # Interface: ISubscription
 
@@ -20,7 +20,7 @@
 
 • **channel**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*
 
 ___
 
@@ -28,7 +28,7 @@ ___
 
 • **protocol**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*
 
 ___
 
@@ -36,4 +36,4 @@ ___
 
 • **subscribers**: *string[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L5)*

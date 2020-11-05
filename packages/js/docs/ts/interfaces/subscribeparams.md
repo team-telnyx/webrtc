@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [SubscribeParams](subscribeparams.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [SubscribeParams](subscribeparams.md)
 
 # Interface: SubscribeParams
 
@@ -21,7 +21,7 @@
 
 • **channels**? : *string[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L76)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L76)*
 
 ___
 
@@ -29,7 +29,7 @@ ___
 
 • **handler**? : *Function*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:78](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L78)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:78](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L78)*
 
 ___
 
@@ -37,7 +37,7 @@ ___
 
 • **nodeId**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L79)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L79)*
 
 ___
 
@@ -45,4 +45,4 @@ ___
 
 • **protocol**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L77)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L77)*

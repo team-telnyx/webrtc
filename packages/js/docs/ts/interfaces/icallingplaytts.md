@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingPlayTTS](icallingplaytts.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [ICallingPlayTTS](icallingplaytts.md)
 
 # Interface: ICallingPlayTTS
 
@@ -21,7 +21,7 @@
 
 • **gender**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:266](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L266)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:266](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L266)*
 
 ___
 
@@ -29,7 +29,7 @@ ___
 
 • **language**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:265](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L265)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:265](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L265)*
 
 ___
 
@@ -37,7 +37,7 @@ ___
 
 • **text**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:264](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L264)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:264](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L264)*
 
 ___
 
@@ -45,4 +45,4 @@ ___
 
 • **volume**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:267](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L267)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:267](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L267)*

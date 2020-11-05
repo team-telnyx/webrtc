@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICacheDevices](icachedevices.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [ICacheDevices](icachedevices.md)
 
 # Interface: ICacheDevices
 
@@ -20,7 +20,7 @@
 
 • **audioinput**? : *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:91](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L91)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:91](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L91)*
 
 #### Type declaration:
 
@@ -32,7 +32,7 @@ ___
 
 • **audiooutput**? : *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L92)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L92)*
 
 #### Type declaration:
 
@@ -44,7 +44,7 @@ ___
 
 • **videoinput**? : *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:90](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L90)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:90](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L90)*
 
 #### Type declaration:
 

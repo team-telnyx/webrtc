@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IBladeResultError](ibladeresulterror.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [IBladeResultError](ibladeresulterror.md)
 
 # Interface: IBladeResultError
 
@@ -22,7 +22,7 @@
 
 • **error**: *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:7](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L7)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:7](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L7)*
 
 #### Type declaration:
 
@@ -34,7 +34,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
 
 ___
 
@@ -44,4 +44,4 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IBladeExecuteResult](ibladeexecuteresult.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [IBladeExecuteResult](ibladeexecuteresult.md)
 
 # Interface: IBladeExecuteResult
 
@@ -24,7 +24,7 @@
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
 
 ___
 
@@ -34,7 +34,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
 
 ___
 
@@ -42,6 +42,6 @@ ___
 
 • **result**: *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L40)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L40)*
 
 #### Type declaration:

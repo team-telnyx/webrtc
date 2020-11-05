@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingTapFlat](icallingtapflat.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [ICallingTapFlat](icallingtapflat.md)
 
 # Interface: ICallingTapFlat
 
@@ -25,7 +25,7 @@
 
 • **audio_direction**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:366](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L366)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:366](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L366)*
 
 ___
 
@@ -33,7 +33,7 @@ ___
 
 • **codec**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
 
 ___
 
@@ -41,7 +41,7 @@ ___
 
 • **rate**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:372](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L372)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:372](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L372)*
 
 ___
 
@@ -49,7 +49,7 @@ ___
 
 • **target_addr**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:368](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L368)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:368](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L368)*
 
 ___
 
@@ -57,7 +57,7 @@ ___
 
 • **target_port**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:369](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L369)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:369](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L369)*
 
 ___
 
@@ -65,7 +65,7 @@ ___
 
 • **target_ptime**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:370](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L370)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:370](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L370)*
 
 ___
 
@@ -73,7 +73,7 @@ ___
 
 • **target_type**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:367](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L367)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:367](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L367)*
 
 ___
 
@@ -81,4 +81,4 @@ ___
 
 • **target_uri**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:371](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L371)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:371](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L371)*

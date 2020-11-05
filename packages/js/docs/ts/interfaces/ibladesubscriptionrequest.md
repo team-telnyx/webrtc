@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IBladeSubscriptionRequest](ibladesubscriptionrequest.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [IBladeSubscriptionRequest](ibladesubscriptionrequest.md)
 
 # Interface: IBladeSubscriptionRequest
 
@@ -25,7 +25,7 @@
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
 
 ___
 
@@ -35,7 +35,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:1](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L1)*
 
 ___
 
@@ -43,7 +43,7 @@ ___
 
 • **method**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L49)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L49)*
 
 ___
 
@@ -51,6 +51,6 @@ ___
 
 • **params**: *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/interfaces.ts#L50)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L50)*
 
 #### Type declaration:

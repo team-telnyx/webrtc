@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [CallTapState](calltapstate.md)
+[@telnyx/webrtc - v2.1.5](../README.md) › [CallTapState](calltapstate.md)
 
 # Enumeration: CallTapState
 
@@ -15,7 +15,7 @@
 
 • **Finished**: = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:91](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L91)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:91](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L91)*
 
 ___
 
@@ -23,4 +23,4 @@ ___
 
 • **Tapping**: = "tapping"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:90](https://github.com/team-telnyx/webrtc/blob/8cdca06/packages/js/src/Modules/Verto/util/constants/relay.ts#L90)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:90](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L90)*
