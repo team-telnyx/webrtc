@@ -76,6 +76,18 @@ export default abstract class BrowserSession extends BaseSession {
     return 1000;
   }
 
+  /**
+   * Creates a new WebSocket connection for exchanging data
+   * between the WebRTC server
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.connect();
+   * ```
+   */
   async connect(): Promise<void> {
     this.sessionid = await sessionStorage.getItem(SESSION_ID);
     super.connect();
