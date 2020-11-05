@@ -54,6 +54,7 @@
     "jest": "^26.1.0",
     "lint-staged": "^10.2.11",
     "md-gum-polyfill": "^1.0.0",
+    "prettier": "^2.1.2",
     "release-it": "^13.6.6",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",
