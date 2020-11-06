@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [BroadcastParams](broadcastparams.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [BroadcastParams](broadcastparams.md)
 
 # Interface: BroadcastParams
 
@@ -21,7 +21,7 @@
 
 • **channel**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:83](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L83)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L92)*
 
 ___
 
@@ -29,7 +29,7 @@ ___
 
 • **data**? : *object*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:85](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L85)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:94](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L94)*
 
 ___
 
@@ -37,7 +37,7 @@ ___
 
 • **nodeId**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:86](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L86)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:95](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L95)*
 
 ___
 
@@ -45,4 +45,4 @@ ___
 
 • **protocol**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:84](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/interfaces.ts#L84)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:93](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L93)*

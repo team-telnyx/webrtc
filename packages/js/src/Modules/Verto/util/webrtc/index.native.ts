@@ -1,8 +1,8 @@
-// @ts-ignore
 import {
   RTCPeerConnection,
   mediaDevices,
   MediaStream,
+  // @ts-ignore
 } from 'react-native-webrtc';
 import { objEmpty } from '../helpers';
 import logger from '../logger';

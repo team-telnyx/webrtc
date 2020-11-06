@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [IWebRTCCall](iwebrtccall.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [IWebRTCCall](iwebrtccall.md)
 
 # Interface: IWebRTCCall
 
@@ -65,7 +65,7 @@
 
 • **_addChannel**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L72)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L76)*
 
 #### Type declaration:
 
@@ -83,7 +83,7 @@ ___
 
 • **answer**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L49)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L53)*
 
 #### Type declaration:
 
@@ -95,7 +95,7 @@ ___
 
 • **cause**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L41)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:45](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L45)*
 
 ___
 
@@ -103,7 +103,7 @@ ___
 
 • **causeCode**: *number*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:42](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L42)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L46)*
 
 ___
 
@@ -111,7 +111,7 @@ ___
 
 • **channels**: *string[]*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:43](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L43)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L47)*
 
 ___
 
@@ -119,7 +119,7 @@ ___
 
 • **deaf**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:66](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L66)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L70)*
 
 #### Type declaration:
 
@@ -131,7 +131,7 @@ ___
 
 • **direction**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:39](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L39)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:43](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L43)*
 
 ___
 
@@ -139,7 +139,7 @@ ___
 
 • **dtmf**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L56)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L60)*
 
 #### Type declaration:
 
@@ -157,7 +157,7 @@ ___
 
 • **extension**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:45](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L45)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L49)*
 
 ___
 
@@ -165,7 +165,7 @@ ___
 
 • **handleConferenceUpdate**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L73)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L77)*
 
 #### Type declaration:
 
@@ -184,7 +184,7 @@ ___
 
 • **handleMessage**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L71)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L75)*
 
 #### Type declaration:
 
@@ -202,7 +202,7 @@ ___
 
 • **hangup**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L50)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L54)*
 
 #### Type declaration:
 
@@ -221,7 +221,7 @@ ___
 
 • **hold**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L53)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L57)*
 
 #### Type declaration:
 
@@ -233,7 +233,7 @@ ___
 
 • **id**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:36](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L36)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L40)*
 
 ___
 
@@ -241,7 +241,7 @@ ___
 
 • **invite**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:48](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L48)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L52)*
 
 #### Type declaration:
 
@@ -253,7 +253,7 @@ ___
 
 • **localStream**: *MediaStream*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L46)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L50)*
 
 ___
 
@@ -261,7 +261,7 @@ ___
 
 • **message**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L57)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L61)*
 
 #### Type declaration:
 
@@ -280,7 +280,7 @@ ___
 
 • **muteAudio**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L58)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L62)*
 
 #### Type declaration:
 
@@ -292,7 +292,7 @@ ___
 
 • **muteVideo**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L62)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:66](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L66)*
 
 #### Type declaration:
 
@@ -304,7 +304,7 @@ ___
 
 • **options**: *[CallOptions](calloptions.md)*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L40)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:44](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L44)*
 
 ___
 
@@ -312,7 +312,7 @@ ___
 
 • **prevState**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:38](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L38)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:42](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L42)*
 
 ___
 
@@ -320,7 +320,7 @@ ___
 
 • **remoteStream**: *MediaStream*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L47)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:51](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L51)*
 
 ___
 
@@ -328,7 +328,7 @@ ___
 
 • **replace**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L52)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L56)*
 
 #### Type declaration:
 
@@ -346,7 +346,7 @@ ___
 
 • **role**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:44](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L44)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:48](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L48)*
 
 ___
 
@@ -354,7 +354,7 @@ ___
 
 • **setAudioInDevice**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L61)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:65](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L65)*
 
 #### Type declaration:
 
@@ -372,7 +372,7 @@ ___
 
 • **setAudioOutDevice**? : *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L77)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:81](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L81)*
 
 #### Type declaration:
 
@@ -390,7 +390,7 @@ ___
 
 • **setSpeakerPhone**? : *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:80](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L80)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:84](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L84)*
 
 #### Type declaration:
 
@@ -408,7 +408,7 @@ ___
 
 • **setState**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L69)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L73)*
 
 #### Type declaration:
 
@@ -426,7 +426,7 @@ ___
 
 • **setVideoDevice**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:65](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L65)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L69)*
 
 #### Type declaration:
 
@@ -444,7 +444,7 @@ ___
 
 • **startScreenShare**? : *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L75)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L79)*
 
 #### Type declaration:
 
@@ -462,7 +462,7 @@ ___
 
 • **state**: *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:37](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L37)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L41)*
 
 ___
 
@@ -470,7 +470,7 @@ ___
 
 • **stopScreenShare**? : *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L76)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:80](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L80)*
 
 #### Type declaration:
 
@@ -482,7 +482,7 @@ ___
 
 • **switchCamera**? : *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L79)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:83](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L83)*
 
 #### Type declaration:
 
@@ -494,7 +494,7 @@ ___
 
 • **toggleAudioMute**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L60)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:64](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L64)*
 
 #### Type declaration:
 
@@ -506,7 +506,7 @@ ___
 
 • **toggleDeaf**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:68](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L68)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L72)*
 
 #### Type declaration:
 
@@ -518,7 +518,7 @@ ___
 
 • **toggleHold**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L55)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L59)*
 
 #### Type declaration:
 
@@ -530,7 +530,7 @@ ___
 
 • **toggleVideoMute**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:64](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L64)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:68](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L68)*
 
 #### Type declaration:
 
@@ -542,7 +542,7 @@ ___
 
 • **transfer**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:51](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L51)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L55)*
 
 #### Type declaration:
 
@@ -560,7 +560,7 @@ ___
 
 • **undeaf**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:67](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L67)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L71)*
 
 #### Type declaration:
 
@@ -572,7 +572,7 @@ ___
 
 • **unhold**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L54)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L58)*
 
 #### Type declaration:
 
@@ -584,7 +584,7 @@ ___
 
 • **unmuteAudio**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L59)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L63)*
 
 #### Type declaration:
 
@@ -596,7 +596,7 @@ ___
 
 • **unmuteVideo**: *function*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L63)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:67](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L67)*
 
 #### Type declaration:
 

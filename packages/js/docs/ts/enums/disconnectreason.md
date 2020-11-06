@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [DisconnectReason](disconnectreason.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [DisconnectReason](disconnectreason.md)
 
 # Enumeration: DisconnectReason
 
@@ -19,7 +19,7 @@
 
 • **Busy**: = "busy"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:17](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L17)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:17](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L17)*
 
 ___
 
@@ -27,7 +27,7 @@ ___
 
 • **Cancel**: = "cancel"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:16](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L16)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:16](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L16)*
 
 ___
 
@@ -35,7 +35,7 @@ ___
 
 • **Decline**: = "decline"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:19](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L19)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:19](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L19)*
 
 ___
 
@@ -43,7 +43,7 @@ ___
 
 • **Error**: = "error"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:20](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L20)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:20](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L20)*
 
 ___
 
@@ -51,7 +51,7 @@ ___
 
 • **Hangup**: = "hangup"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:15](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L15)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:15](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L15)*
 
 ___
 
@@ -59,4 +59,4 @@ ___
 
 • **NoAnswer**: = "noAnswer"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:18](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L18)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:18](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L18)*
