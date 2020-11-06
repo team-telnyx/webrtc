@@ -15,7 +15,7 @@ import {
   streamIsValid,
 } from '../util/webrtc';
 import { isFunction } from '../util/helpers';
-import { CallOptions } from './interfaces';
+import { CallOptions, IChromeRTCConfiguration } from './interfaces';
 import { trigger } from '../services/Handler';
 
 export default class Peer {
@@ -179,10 +179,9 @@ export default class Peer {
     return this.type === PeerType.Answer;
   }
 
-  private _config(): RTCConfiguration {
+  private _config(): IChromeRTCConfiguration {
     const { iceServers = [] } = this.options;
-    const config: RTCConfiguration = {
-      // @ts-ignore
+    const config: IChromeRTCConfiguration = {
       sdpSemantics: 'plan-b',
       bundlePolicy: 'max-compat',
       iceServers,
