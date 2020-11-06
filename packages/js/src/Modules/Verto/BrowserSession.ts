@@ -77,8 +77,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Creates a new WebSocket connection for exchanging data
-   * with the WebRTC server
+   * Creates a new connection for exchanging data with the WebRTC server
    *
    * ## Examples
    *
@@ -119,6 +118,14 @@ export default abstract class BrowserSession extends BaseSession {
 
   /**
    * Disconnect all active calls
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.disconnect();
+   * ```
    */
   async disconnect() {
     Object.keys(this.calls).forEach((k) => this.calls[k].setState(State.Purge));
