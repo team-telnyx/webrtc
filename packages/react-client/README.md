@@ -13,18 +13,26 @@ npm install --save @telnyx/react-client
 ## Usage
 
 ```tsx
-import React, { Component } from 'react'
+import React, { Component } from 'react';
 
-import MyComponent from '@telnyx/react-client'
-import '@telnyx/react-client/dist/index.css'
+import MyComponent from '@telnyx/react-client';
+import '@telnyx/react-client/dist/index.css';
 
 class Example extends Component {
   render() {
-    return <MyComponent />
+    return <MyComponent />;
   }
 }
 ```
 
+## Development
+
+```bash
+npm start
+# in another tab:
+cd example && npm start
+```
+
 ## License
 
-MIT © [telnyx](https://github.com/telnyx)
+MIT © [Telnyx](https://github.com/team-telnyx)
