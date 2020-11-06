@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [ICantinaAuthParams](icantinaauthparams.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [ICantinaAuthParams](icantinaauthparams.md)
 
 # Interface: ICantinaAuthParams
 
@@ -18,4 +18,4 @@
 
 • **hostname**? : *string*
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:84](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L84)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:88](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L88)*

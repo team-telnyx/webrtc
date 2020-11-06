@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [CallDetectType](calldetecttype.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [CallDetectType](calldetecttype.md)
 
 # Enumeration: CallDetectType
 
@@ -16,7 +16,7 @@
 
 • **Digit**: = "digit"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:129](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L129)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:129](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L129)*
 
 ___
 
@@ -24,7 +24,7 @@ ___
 
 • **Fax**: = "fax"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:127](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L127)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:127](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L127)*
 
 ___
 
@@ -32,4 +32,4 @@ ___
 
 • **Machine**: = "machine"
 
-*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:128](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/util/constants/relay.ts#L128)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:128](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L128)*

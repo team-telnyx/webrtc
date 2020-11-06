@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.1.5](../README.md) › [Direction](direction.md)
+[@telnyx/webrtc - v2.2.1](../README.md) › [Direction](direction.md)
 
 # Enumeration: Direction
 
@@ -15,7 +15,7 @@
 
 • **Inbound**: = "inbound"
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:9](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/constants.ts#L9)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:9](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L9)*
 
 ___
 
@@ -23,4 +23,4 @@ ___
 
 • **Outbound**: = "outbound"
 
-*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:10](https://github.com/team-telnyx/webrtc/blob/4f15142/packages/js/src/Modules/Verto/webrtc/constants.ts#L10)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:10](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L10)*
