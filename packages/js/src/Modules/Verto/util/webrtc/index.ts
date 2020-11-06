@@ -1,83 +1,91 @@
-import { findElementByType } from '../helpers'
+import { findElementByType } from '../helpers';
 
-const RTCPeerConnection = (config: RTCPeerConnectionConfig) => new window.RTCPeerConnection(config)
+const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
+  new window.RTCPeerConnection(config);
 
-const getUserMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getUserMedia(constraints)
+const getUserMedia = (constraints: MediaStreamConstraints) =>
+  navigator.mediaDevices.getUserMedia(constraints);
 
-// @ts-ignore
-const getDisplayMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getDisplayMedia(constraints)
+const getDisplayMedia = (constraints: MediaStreamConstraints) =>
+  // @ts-ignore
+  navigator.mediaDevices.getDisplayMedia(constraints);
 
-const enumerateDevices = () => navigator.mediaDevices.enumerateDevices()
+const enumerateDevices = () => navigator.mediaDevices.enumerateDevices();
 
-const getSupportedConstraints = () => navigator.mediaDevices.getSupportedConstraints()
+const getSupportedConstraints = () =>
+  navigator.mediaDevices.getSupportedConstraints();
 
-const streamIsValid = (stream: MediaStream) => stream && stream instanceof MediaStream
+const streamIsValid = (stream: MediaStream) =>
+  stream && stream instanceof MediaStream;
 
 const attachMediaStream = (tag: any, stream: MediaStream) => {
-  const element = findElementByType(tag)
+  const element = findElementByType(tag);
   if (element === null) {
-    return
+    return;
   }
   if (!element.getAttribute('autoplay')) {
-    element.setAttribute('autoplay', 'autoplay')
+    element.setAttribute('autoplay', 'autoplay');
   }
   if (!element.getAttribute('playsinline')) {
-    element.setAttribute('playsinline', 'playsinline')
+    element.setAttribute('playsinline', 'playsinline');
   }
 
-  element.srcObject = stream
-}
+  element.srcObject = stream;
+};
 
 const detachMediaStream = (tag: any) => {
-  const element = findElementByType(tag)
+  const element = findElementByType(tag);
   if (element) {
-    element.srcObject = null
+    element.srcObject = null;
   }
-}
+};
 
 const muteMediaElement = (tag: any) => {
-  const element = findElementByType(tag)
+  const element = findElementByType(tag);
   if (element) {
-    element.muted = true
+    element.muted = true;
   }
-}
+};
 
 const unmuteMediaElement = (tag: any) => {
-  const element = findElementByType(tag)
+  const element = findElementByType(tag);
   if (element) {
-    element.muted = false
+    element.muted = false;
   }
-}
+};
 
 const toggleMuteMediaElement = (tag: any) => {
-  const element = findElementByType(tag)
+  const element = findElementByType(tag);
   if (element) {
-    element.muted = !element.muted
+    element.muted = !element.muted;
   }
-}
+};
 
-const setMediaElementSinkId = async (tag: any, deviceId: string): Promise<boolean> => {
-  const element: HTMLMediaElement = findElementByType(tag)
+const setMediaElementSinkId = async (
+  tag: any,
+  deviceId: string
+): Promise<boolean> => {
+  const element: HTMLMediaElement = findElementByType(tag);
   if (element === null) {
-    return false
+    return false;
   }
   try {
     // @ts-ignore
-    await element.setSinkId(deviceId)
-    return true
+    await element.setSinkId(deviceId);
+    return true;
   } catch (error) {
-    return false
+    return false;
   }
-}
+};
 
-const sdpToJsonHack = sdp => sdp
+const sdpToJsonHack = (sdp) => sdp;
 
 const stopStream = (stream: MediaStream) => {
   if (streamIsValid(stream)) {
-    stream.getTracks().forEach(t => t.stop())
+    stream.getTracks().forEach((t) => t.stop());
   }
-  stream = null
-}
+  stream = null;
+};
 
 export {
   RTCPeerConnection,
@@ -93,5 +101,5 @@ export {
   muteMediaElement,
   unmuteMediaElement,
   toggleMuteMediaElement,
-  setMediaElementSinkId
-}
+  setMediaElementSinkId,
+};

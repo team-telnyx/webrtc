@@ -4,12 +4,12 @@ export enum CallState {
   Ringing = 'ringing',
   Answered = 'answered',
   Ending = 'ending',
-  Ended = 'ended'
+  Ended = 'ended',
 }
 
-export const CALL_STATES: string[] = Object.values(CallState)
+export const CALL_STATES: string[] = Object.values(CallState);
 
-export const DEFAULT_CALL_TIMEOUT = 30
+export const DEFAULT_CALL_TIMEOUT = 30;
 
 export enum DisconnectReason {
   Hangup = 'hangup',
@@ -17,20 +17,20 @@ export enum DisconnectReason {
   Busy = 'busy',
   NoAnswer = 'noAnswer',
   Decline = 'decline',
-  Error = 'error'
+  Error = 'error',
 }
 
 export enum DisconnectSource {
   None = 'none',
   Client = 'client',
   Server = 'server',
-  Endpoint = 'endpoint'
+  Endpoint = 'endpoint',
 }
 
 export enum CallType {
   Phone = 'phone',
   Sip = 'sip',
-  WebRTC = 'webrtc'
+  WebRTC = 'webrtc',
 }
 
 export enum CallConnectState {

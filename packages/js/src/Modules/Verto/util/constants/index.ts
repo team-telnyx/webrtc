@@ -37,5 +37,5 @@ export enum SwEvent {
 
 export enum BladeMethod {
   Broadcast = 'blade.broadcast',
-  Disconnect = 'blade.disconnect'
+  Disconnect = 'blade.disconnect',
 }

@@ -24,7 +24,8 @@
     "test": "jest",
     "docs": "typedoc src",
     "release": "release-it",
-    "compile": "../../node_modules/.bin/tsc -w"
+    "compile": "../../node_modules/.bin/tsc -w",
+    "format": "prettier --write 'src/**/*.ts'"
   },
   "engines": {
     "node": ">=11"
@@ -54,6 +55,7 @@
     "jest": "^26.1.0",
     "lint-staged": "^10.2.11",
     "md-gum-polyfill": "^1.0.0",
+    "prettier": "^2.1.2",
     "release-it": "^13.6.6",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",

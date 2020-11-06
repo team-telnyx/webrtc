@@ -1,12 +1,12 @@
-import BaseMessage from '../BaseMessage'
+import BaseMessage from '../BaseMessage';
 
 class Ping extends BaseMessage {
-  method: string = 'blade.ping'
+  method: string = 'blade.ping';
 
   constructor() {
-    super()
-    this.buildRequest({ method: this.method, params: {} })
+    super();
+    this.buildRequest({ method: this.method, params: {} });
   }
 }
 
-export { Ping }
+export { Ping };

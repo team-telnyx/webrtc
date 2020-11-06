@@ -1,13 +1,13 @@
-import { CallOptions } from './interfaces'
+import { CallOptions } from './interfaces';
 
 export enum PeerType {
   Offer = 'offer',
-  Answer = 'answer'
+  Answer = 'answer',
 }
 
 export enum Direction {
   Inbound = 'inbound',
-  Outbound = 'outbound'
+  Outbound = 'outbound',
 }
 
 export enum VertoMethod {
@@ -37,7 +37,7 @@ export const NOTIFICATION_TYPE = {
   vertoClientReady: 'vertoClientReady',
   userMediaError: 'userMediaError',
   refreshToken: 'refreshToken',
-}
+};
 
 export const DEFAULT_CALL_OPTIONS: CallOptions = {
   destinationNumber: '',
@@ -51,7 +51,7 @@ export const DEFAULT_CALL_OPTIONS: CallOptions = {
   attach: false,
   screenShare: false,
   userVariables: {},
-}
+};
 
 export enum State {
   New,
@@ -65,7 +65,7 @@ export enum State {
   Held,
   Hangup,
   Destroy,
-  Purge
+  Purge,
 }
 
 export enum Role {
@@ -92,5 +92,5 @@ export enum ConferenceAction {
 export enum DeviceType {
   Video = 'videoinput',
   AudioIn = 'audioinput',
-  AudioOut = 'audiooutput'
+  AudioOut = 'audiooutput',
 }

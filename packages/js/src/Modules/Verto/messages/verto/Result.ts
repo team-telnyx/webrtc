@@ -1,10 +1,10 @@
-import BaseRequest from './BaseRequest'
+import BaseRequest from './BaseRequest';
 
 class Result extends BaseRequest {
   constructor(id: number, method: string) {
-    super()
-    this.buildRequest({ id, result: { method } })
+    super();
+    this.buildRequest({ id, result: { method } });
   }
 }
 
-export { Result }
+export { Result };

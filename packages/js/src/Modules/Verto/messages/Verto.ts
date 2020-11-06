@@ -1,51 +1,51 @@
-import BaseRequest from './verto/BaseRequest'
-import { Login } from './verto/Login'
-import { Result } from './verto/Result'
-import { VertoMethod } from '../webrtc/constants'
+import BaseRequest from './verto/BaseRequest';
+import { Login } from './verto/Login';
+import { Result } from './verto/Result';
+import { VertoMethod } from '../webrtc/constants';
 
 class Invite extends BaseRequest {
   toString() {
-    return VertoMethod.Invite
+    return VertoMethod.Invite;
   }
 }
 class Answer extends BaseRequest {
   toString() {
-    return VertoMethod.Answer
+    return VertoMethod.Answer;
   }
 }
 class Attach extends BaseRequest {
   toString() {
-    return VertoMethod.Attach
+    return VertoMethod.Attach;
   }
 }
 class Bye extends BaseRequest {
   toString() {
-    return VertoMethod.Bye
+    return VertoMethod.Bye;
   }
 }
 class Modify extends BaseRequest {
   toString() {
-    return VertoMethod.Modify
+    return VertoMethod.Modify;
   }
 }
 class Info extends BaseRequest {
   toString() {
-    return VertoMethod.Info
+    return VertoMethod.Info;
   }
 }
 class Broadcast extends BaseRequest {
   toString() {
-    return VertoMethod.Broadcast
+    return VertoMethod.Broadcast;
   }
 }
 class Subscribe extends BaseRequest {
   toString() {
-    return VertoMethod.Subscribe
+    return VertoMethod.Subscribe;
   }
 }
 class Unsubscribe extends BaseRequest {
   toString() {
-    return VertoMethod.Unsubscribe
+    return VertoMethod.Unsubscribe;
   }
 }
 
@@ -60,5 +60,5 @@ export {
   Broadcast,
   Subscribe,
   Unsubscribe,
-  Result
-}
+  Result,
+};
