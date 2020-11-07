@@ -27,6 +27,16 @@ class Example extends Component {
 
 ## Development
 
+Install dependencies:
+
+```bash
+npm install
+# in another tab:
+cd example && npm install
+```
+
+Watch and compile files:
+
 ```bash
 npm start
 # in another tab:
