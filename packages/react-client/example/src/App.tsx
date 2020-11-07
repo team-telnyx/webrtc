@@ -6,6 +6,7 @@ const App = () => {
     { name: string; ts: number }[]
   >([]);
   const { client, call, clientState } = useTelnyxClient({
+    // TODO Actual token
     loginToken: 'mytoken',
   });
 
