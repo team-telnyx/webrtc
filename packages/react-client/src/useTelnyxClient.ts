@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
-type TokenCredentialOptions = {
+type TokenCredential = {
   login_token: string;
 };
 
-type UsernameCredentialOptions = {
+type UsernameCredential = {
   login: string;
   password: string;
 };
 
-type CredentialOptions = TokenCredentialOptions | UsernameCredentialOptions;
+export type CredentialOptions = TokenCredential | UsernameCredential;
 
 /**
  * Constructs a Telnyx client, connects the client and subscribes
