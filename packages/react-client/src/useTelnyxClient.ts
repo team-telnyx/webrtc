@@ -23,17 +23,8 @@ interface IPartialCall {
   unmuteAudio: Function;
 }
 
-type TokenCredentialParam = {
-  token: string;
-};
-
 type TokenCredentialOptions = {
   login_token: string;
-};
-
-type UsernameCredentialParam = {
-  username: string;
-  password: string;
 };
 
 type UsernameCredentialOptions = {
@@ -41,27 +32,7 @@ type UsernameCredentialOptions = {
   password: string;
 };
 
-type CredentialParam = TokenCredentialParam | UsernameCredentialParam;
 type CredentialOptions = TokenCredentialOptions | UsernameCredentialOptions;
-
-function makeCredentialOptions(
-  credentialParam: CredentialParam
-): CredentialOptions {
-  let credentialOpts: CredentialOptions;
-
-  if ('token' in credentialParam) {
-    credentialOpts = {
-      login_token: credentialParam.token,
-    };
-  } else {
-    credentialOpts = {
-      login: credentialParam.username,
-      password: credentialParam.password,
-    };
-  }
-
-  return credentialOpts;
-}
 
 /**
  * Constructs a Telnyx client, connects the client and subscribes
@@ -72,17 +43,17 @@ function makeCredentialOptions(
  * import { useTelnyxClient } from '@telnyx/react-client'
  *
  * // Login using On-Demand Credentials token
- * const { client, call, clientState } = useTelnyxClient({ token })
+ * const { client, call, clientState } = useTelnyxClient({ login_token })
  *
  * // Or, login using your SIP Connection username and password
- * // const { client, call, clientState } = useTelnyxClient({ username, password })
+ * // const { client, call, clientState } = useTelnyxClient({ login, password })
  *
- * @param {CredentialParam} credentialParam
+ * @param {CredentialOptions} credentialParam
  * @param {*} [clientOptions]
  * @returns
  */
 function useTelnyxClient(
-  credentialParam: CredentialParam,
+  credentialParam: CredentialOptions,
   clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
 ) {
   // Check if component is mounted before updating state
@@ -108,10 +79,8 @@ function useTelnyxClient(
       return;
     }
 
-    let credentialOpts = makeCredentialOptions(credentialParam);
-
     const telnyxClient = new TelnyxRTC({
-      ...credentialOpts,
+      ...credentialParam,
       ...clientOptions,
     });
 
