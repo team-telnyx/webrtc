@@ -46,7 +46,7 @@ type CredentialOptions = TokenCredentialOptions | UsernameCredentialOptions;
  * const { client, call, clientState } = useTelnyxClient({ login_token })
  *
  * // Or, login using your SIP Connection username and password
- * // const { client, call, clientState } = useTelnyxClient({ login, password })
+ * // const { client, clientState } = useTelnyxClient({ login, password })
  *
  * @param {CredentialOptions} credentialParam
  * @param {*} [clientOptions]
@@ -55,7 +55,11 @@ type CredentialOptions = TokenCredentialOptions | UsernameCredentialOptions;
 function useTelnyxClient(
   credentialParam: CredentialOptions,
   clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
-) {
+): {
+  client: TelnyxRTC;
+  call: IPartialCall | null;
+  clientState: ClientState | null;
+} {
   // Check if component is mounted before updating state
   // in the Telnyx WebRTC client callbacks
   let isMountedRef = useRef<boolean>(false);
@@ -63,8 +67,8 @@ function useTelnyxClient(
   // Save the Telnyx WebRTC client as a ref as to persist
   // the client object through component updates
   let telnyxClientRef = useRef<any>();
-  let [clientState, setClientState] = useState<ClientState | null>();
-  let [call, setCall] = useState<IPartialCall | null>();
+  let [clientState, setClientState] = useState<ClientState | null>(null);
+  let [call, setCall] = useState<IPartialCall | null>(null);
 
   const updateWebRTCState = (state: ClientState) => {
     if (isMountedRef.current) {
