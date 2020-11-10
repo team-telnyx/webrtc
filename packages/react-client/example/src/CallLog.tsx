@@ -10,8 +10,8 @@ function CallLog() {
   useEffect(() => {
     if (!notification) return;
 
-    setClientStateLog([
-      ...clientStateLog,
+    setClientStateLog((prevState) => [
+      ...prevState,
       {
         type: notification.type,
         timestamp: Date.now(),

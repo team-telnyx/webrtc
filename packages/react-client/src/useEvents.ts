@@ -3,20 +3,18 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 import TelnyxClientContext from './TelnyxClientContext';
 
 interface IProps {
-  onReady?: (client: TelnyxRTC) => any;
-  onError?: () => any;
-  onSocketError?: () => any;
-  onSocketClose?: () => any;
-  onNotification?: (notification: any) => any;
+  onReady?: (client?: TelnyxRTC) => any;
+  onError?: (e?: any) => any;
+  onSocketError?: (e?: any) => any;
+  onSocketClose?: (e?: any) => any;
+  onNotification?: (e?: any) => any;
 }
 
 function useEvents(props?: IProps) {
-  const contextValue = useContext(TelnyxClientContext);
+  const client = useContext(TelnyxClientContext);
 
   useEffect(() => {
-    if (!contextValue?.client) return;
-
-    const { client } = contextValue;
+    if (!client) return;
 
     if (props?.onReady) {
       client.on('telnyx.ready', props.onReady);
@@ -37,7 +35,7 @@ function useEvents(props?: IProps) {
     if (props?.onNotification) {
       client.on('telnyx.notification', props.onNotification);
     }
-  }, [contextValue?.client]);
+  }, [client]);
 
   return null;
 }
