@@ -23,8 +23,44 @@ interface IPartialCall {
   unmuteAudio: Function;
 }
 
-interface IUseTelnyxClientParams {
-  loginToken?: string;
+type TokenCredentialParam = {
+  token: string;
+};
+
+type TokenCredentialOptions = {
+  login_token: string;
+};
+
+type UsernameCredentialParam = {
+  username: string;
+  password: string;
+};
+
+type UsernameCredentialOptions = {
+  login: string;
+  password: string;
+};
+
+type CredentialParam = TokenCredentialParam | UsernameCredentialParam;
+type CredentialOptions = TokenCredentialOptions | UsernameCredentialOptions;
+
+function makeCredentialOptions(
+  credentialParam: CredentialParam
+): CredentialOptions {
+  let credentialOpts: CredentialOptions;
+
+  if ('token' in credentialParam) {
+    credentialOpts = {
+      login_token: credentialParam.token,
+    };
+  } else {
+    credentialOpts = {
+      login: credentialParam.username,
+      password: credentialParam.password,
+    };
+  }
+
+  return credentialOpts;
 }
 
 /**
@@ -35,12 +71,16 @@ interface IUseTelnyxClientParams {
  *
  * import { useTelnyxClient } from '@telnyx/react-client'
  *
- * const { client, call, clientState } = useTelnyxClient({ loginToken })
+ * // Login using On-Demand Credentials token
+ * const { client, call, clientState } = useTelnyxClient({ token })
  *
- * @param {IUseTelnyxClientParams} { loginToken, deferConnect }
+ * // Or, login using your SIP Connection username and password
+ * // const { client, call, clientState } = useTelnyxClient({ username, password })
+ *
+ * @param {CredentialParam} credentialParam
  * @returns { client, call, clientState }
  */
-function useTelnyxClient({ loginToken }: IUseTelnyxClientParams) {
+function useTelnyxClient(credentialParam: CredentialParam) {
   // Check if component is mounted before updating state
   // in the Telnyx WebRTC client callbacks
   let isMountedRef = useRef<boolean>(false);
@@ -60,12 +100,14 @@ function useTelnyxClient({ loginToken }: IUseTelnyxClientParams) {
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (!loginToken) {
+    if (!credentialParam) {
       return;
     }
 
+    let credentialOpts = makeCredentialOptions(credentialParam);
+
     const telnyxClient = new TelnyxRTC({
-      login_token: loginToken,
+      ...credentialOpts,
     });
 
     telnyxClient.on('telnyx.ready', () => {
@@ -129,7 +171,7 @@ function useTelnyxClient({ loginToken }: IUseTelnyxClientParams) {
       telnyxClientRef.current?.disconnect();
       telnyxClientRef.current = undefined;
     };
-  }, [loginToken]);
+  }, [credentialParam]);
 
   return { client: telnyxClientRef.current, call, clientState };
 }
