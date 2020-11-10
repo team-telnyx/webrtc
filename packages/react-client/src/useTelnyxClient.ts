@@ -78,9 +78,13 @@ function makeCredentialOptions(
  * // const { client, call, clientState } = useTelnyxClient({ username, password })
  *
  * @param {CredentialParam} credentialParam
- * @returns { client, call, clientState }
+ * @param {*} [clientOptions]
+ * @returns
  */
-function useTelnyxClient(credentialParam: CredentialParam) {
+function useTelnyxClient(
+  credentialParam: CredentialParam,
+  clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
+) {
   // Check if component is mounted before updating state
   // in the Telnyx WebRTC client callbacks
   let isMountedRef = useRef<boolean>(false);
@@ -108,6 +112,7 @@ function useTelnyxClient(credentialParam: CredentialParam) {
 
     const telnyxClient = new TelnyxRTC({
       ...credentialOpts,
+      ...clientOptions,
     });
 
     telnyxClient.on('telnyx.ready', () => {
