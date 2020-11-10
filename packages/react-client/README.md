@@ -12,16 +12,84 @@ npm install --save @telnyx/react-client
 
 ## Usage
 
-```tsx
-import React, { Component } from 'react';
+```jsx
+// App.jsx
+import { TelnyxClientProvider } from '@telnyx/react-client';
 
-import MyComponent from '@telnyx/react-client';
-import '@telnyx/react-client/dist/index.css';
+function App() {
+  const credential = {
+    login_token: 'mytoken',
+  };
 
-class Example extends Component {
-  render() {
-    return <MyComponent />;
-  }
+  return (
+    <TelnyxClientProvider credential={credential}>
+      <Phone />
+    </TelnyxClientProvider>
+  );
+}
+```
+
+```jsx
+// Phone.jsx
+import { useNotification } from '@telnyx/react-client';
+
+function Phone() {
+  const notification = useNotification();
+  const activeCall = notification && notification.call;
+
+  return (
+    <div>
+      {activeCall &&
+        activeCall.state === 'ringing' &&
+        'You have an incoming call.'}
+    </div>
+  );
+}
+```
+
+### with `useEvents`
+
+```jsx
+import { useEvents } from '@telnyx/react-client';
+
+function Phone() {
+  useNotification({
+    onReady: () => console.log('client ready'),
+    onError: () => console.log('client registration error'),
+    onNotification: (x) => console.log('received notification:', x),
+  });
+
+  // ...
+}
+```
+
+### with `TelnyxClientContext.Consumer`
+
+```jsx
+import { TelnyxClientContext } from '@telnyx/react-client';
+
+function PhoneWrapper() {
+  return (
+    <TelnyxClientContext.Consumer>
+      {(context) => <Phone client={context} />}
+    </TelnyxClientContext.Consumer>
+  );
+}
+```
+
+### Usage without `TelnyxClientProvider`
+
+```jsx
+import { useTelnyxClient } from '@telnyx/react-client';
+
+function Phone() {
+  const client = useTelnyxClient({ login_token: 'mytoken' });
+
+  client.on('telnyx.ready', () => {
+    console.log('client ready');
+  });
+
+  // ...
 }
 ```
 
