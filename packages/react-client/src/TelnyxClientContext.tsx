@@ -1,9 +1,6 @@
 import React from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
-const TelnyxClientContext = React.createContext<{
-  client: TelnyxRTC | null;
-  isReady: boolean;
-} | null>(null);
+const TelnyxClientContext = React.createContext<TelnyxRTC | null>(null);
 
 export default TelnyxClientContext;

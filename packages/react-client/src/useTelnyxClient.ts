@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -37,10 +37,7 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
 function useTelnyxClient(
   credentialParam: CredentialOptions,
   clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
-): {
-  client: TelnyxRTC;
-  isReady: boolean;
-} {
+): TelnyxRTC {
   // Check if component is mounted before updating state
   // in the Telnyx WebRTC client callbacks
   let isMountedRef = useRef<boolean>(false);
@@ -48,7 +45,6 @@ function useTelnyxClient(
   // Save the Telnyx WebRTC client as a ref as to persist
   // the client object through component updates
   let telnyxClientRef = useRef<any>();
-  let [isReady, setIsReady] = useState<boolean>(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -62,24 +58,12 @@ function useTelnyxClient(
       ...clientOptions,
     });
 
-    telnyxClient.on('telnyx.ready', () => {
-      if (isMountedRef.current) {
-        setIsReady(true);
-      }
-    });
-
     telnyxClient.on('telnyx.error', () => {
       telnyxClient.disconnect();
     });
 
     telnyxClient.on('telnyx.socket.error', () => {
       telnyxClient.disconnect();
-    });
-
-    telnyxClient.on('telnyx.socket.close', () => {
-      if (isMountedRef.current) {
-        setIsReady(false);
-      }
     });
 
     telnyxClientRef.current = telnyxClient;
@@ -95,7 +79,7 @@ function useTelnyxClient(
     };
   }, [credentialParam]);
 
-  return { client: telnyxClientRef.current, isReady };
+  return telnyxClientRef.current;
 }
 
 export default useTelnyxClient;
