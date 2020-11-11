@@ -79,8 +79,6 @@ function PhoneWrapper() {
 
 ### `useTelnyxClient` usage
 
-You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxClientContext`/`TelnyxClientProvider` instead of using this hook directly.
-
 ```jsx
 import { useTelnyxClient } from '@telnyx/react-client';
 
@@ -94,6 +92,8 @@ function Phone() {
   // ...
 }
 ```
+
+You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxClientContext`/`TelnyxClientProvider` instead of using this hook directly.
 
 ## Development
 

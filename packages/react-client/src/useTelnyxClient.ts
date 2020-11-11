@@ -40,7 +40,7 @@ function useTelnyxClient(
 ): TelnyxRTC | undefined {
   const telnyxClientRef = useRef<TelnyxRTC>();
 
-  if (telnyxClientRef.current) {
+  if (process.env.NODE_ENV === 'development' && telnyxClientRef.current) {
     console.warn(
       'Instance of Telnyx Client already exists. Did you mean to create multiple instances of Telnyx Client?'
     );
