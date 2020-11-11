@@ -22,14 +22,19 @@ function Media({ type, stream, isRemote, ...props }: IProps) {
   const mediaMountRef = useCallback((node: HTMLMediaElement) => {
     mediaRef.current = node;
 
-    console.log('hi?');
-
     if (client) {
-      console.log('hi');
       if (isRemote) {
         client.remoteElement = node;
+        console.log(client.remoteElement);
       } else {
         client.localElement = node;
+        // @ts-ignore
+        async function temp() {
+          const success = await client!.getVideoDevices();
+          console.log(success);
+        }
+
+        temp();
       }
     } else {
       if (process.env.NODE_ENV === 'development') {

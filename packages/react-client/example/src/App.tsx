@@ -2,6 +2,8 @@ import React from 'react';
 import { TelnyxRTCProvider } from '@telnyx/react-client';
 import ClientStatus from './ClientStatus';
 import CallLog from './CallLog';
+import Phone from './Phone';
+import VideoConference from './VideoCall';
 
 const App = () => {
   const credential = {
@@ -15,6 +17,8 @@ const App = () => {
     <TelnyxRTCProvider credential={credential}>
       <ClientStatus />
       <CallLog />
+      <Phone />
+      <VideoConference />
     </TelnyxRTCProvider>
   );
 };
