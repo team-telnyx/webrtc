@@ -25,16 +25,8 @@ function Media({ type, stream, isRemote, ...props }: IProps) {
     if (client) {
       if (isRemote) {
         client.remoteElement = node;
-        console.log(client.remoteElement);
       } else {
         client.localElement = node;
-        // @ts-ignore
-        async function temp() {
-          const success = await client!.getVideoDevices();
-          console.log(success);
-        }
-
-        temp();
       }
     } else {
       if (process.env.NODE_ENV === 'development') {
