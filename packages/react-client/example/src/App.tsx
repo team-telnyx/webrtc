@@ -1,43 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useTelnyxClient } from '@telnyx/react-client';
+import React from 'react';
+import { TelnyxRTCProvider } from '@telnyx/react-client';
+import ClientStatus from './ClientStatus';
+import CallLog from './CallLog';
 
 const App = () => {
-  let [clientStateLog, setClientStateLog] = useState<
-    { name: string; ts: number }[]
-  >([]);
-  const { client, call, clientState } = useTelnyxClient({
-    // TODO Actual token
-    loginToken: 'mytoken',
-  });
-
-  useEffect(() => {
-    console.log('client:', client);
-  }, [client]);
-
-  useEffect(() => {
-    console.log('call:', call);
-  }, [call]);
-
-  useEffect(() => {
-    if (!clientState) return;
-
-    setClientStateLog([
-      ...clientStateLog,
-      {
-        name: clientState,
-        ts: Date.now(),
-      },
-    ]);
-  }, [clientState]);
+  const credential = {
+    // Create a .env file with REACT_APP_TELNYX_LOGIN_TOKEN
+    // set to your On-Demand Credential Token to try this out
+    // https://developers.telnyx.com/docs/v2/webrtc/quickstart
+    login_token: process.env.REACT_APP_TELNYX_LOGIN_TOKEN || 'mytoken',
+  };
 
   return (
-    <div>
-      <ol>
-        {clientStateLog.map((loggedState) => (
-          <li key={loggedState.ts}>{loggedState.name}</li>
-        ))}
-      </ol>
-    </div>
+    <TelnyxRTCProvider credential={credential}>
+      <ClientStatus />
+      <CallLog />
+    </TelnyxRTCProvider>
   );
 };
 

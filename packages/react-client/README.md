@@ -12,18 +12,88 @@ npm install --save @telnyx/react-client
 
 ## Usage
 
-```tsx
-import React, { Component } from 'react';
+```jsx
+// App.jsx
+import { TelnyxRTCProvider } from '@telnyx/react-client';
 
-import MyComponent from '@telnyx/react-client';
-import '@telnyx/react-client/dist/index.css';
+function App() {
+  const credential = {
+    login_token: 'mytoken',
+  };
 
-class Example extends Component {
-  render() {
-    return <MyComponent />;
-  }
+  return (
+    <TelnyxRTCProvider credential={credential}>
+      <Phone />
+    </TelnyxRTCProvider>
+  );
 }
 ```
+
+```jsx
+// Phone.jsx
+import { useNotification } from '@telnyx/react-client';
+
+function Phone() {
+  const notification = useNotification();
+  const activeCall = notification && notification.call;
+
+  return (
+    <div>
+      {activeCall &&
+        activeCall.state === 'ringing' &&
+        'You have an incoming call.'}
+    </div>
+  );
+}
+```
+
+### with `useCallbacks`
+
+```jsx
+import { useCallbacks } from '@telnyx/react-client';
+
+function Phone() {
+  useCallbacks({
+    onReady: () => console.log('client ready'),
+    onError: () => console.log('client registration error'),
+    onNotification: (x) => console.log('received notification:', x),
+  });
+
+  // ...
+}
+```
+
+### with `TelnyxRTCContext.Consumer`
+
+```jsx
+import { TelnyxRTCContext } from '@telnyx/react-client';
+
+function PhoneWrapper() {
+  return (
+    <TelnyxRTCContext.Consumer>
+      {(context) => <Phone client={context} />}
+    </TelnyxRTCContext.Consumer>
+  );
+}
+```
+
+### `useTelnyxRTC` usage
+
+```jsx
+import { useTelnyxRTC } from '@telnyx/react-client';
+
+function Phone() {
+  const client = useTelnyxRTC({ login_token: 'mytoken' });
+
+  client.on('telnyx.ready', () => {
+    console.log('client ready');
+  });
+
+  // ...
+}
+```
+
+You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxRTCContext`/`TelnyxRTCProvider` instead of using this hook directly.
 
 ## Development
 
