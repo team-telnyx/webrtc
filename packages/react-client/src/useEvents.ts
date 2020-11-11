@@ -10,7 +10,28 @@ interface IProps {
   onNotification?: (e?: any) => any;
 }
 
-function useEvents(props?: IProps) {
+/**
+ * Specify callbacks for Telnyx client event handlers
+ *
+ * ## Examples
+ * ```jsx
+ * import { useEvents } from '@telnyx/react-client';
+ *
+ * function Phone() {
+ *   useEvents({
+ *     onReady: () => console.log('client ready'),
+ *     onError: () => console.log('client registration error'),
+ *     onNotification: (x) => console.log('received notification:', x),
+ *   });
+ *
+ *   // ...
+ * }
+ * ```
+ *
+ * @param {IProps} [props]
+ * @returns {null}
+ */
+function useEvents(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
 
   useEffect(() => {

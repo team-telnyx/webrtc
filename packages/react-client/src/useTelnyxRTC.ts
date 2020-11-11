@@ -17,7 +17,7 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * disconnecting the client during cleanup.
  *
  * ## Examples
- *
+ * ```jsx
  * import { useTelnyxRTC } from '@telnyx/react-client'
  *
  * // Login using On-Demand Credentials token
@@ -29,10 +29,11 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * client.on('telnyx.notification', ({ call }) => {
  *   console.log(call)
  * })
+ * ```
  *
  * @param {CredentialOptions} credentialParam
  * @param {*} [clientOptions]
- * @returns
+ * @returns {TelnyxRTC | undefined}
  */
 function useTelnyxRTC(
   credentialParam: CredentialOptions,

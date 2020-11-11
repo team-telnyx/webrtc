@@ -8,7 +8,11 @@ interface IProps {
   options?: any;
 }
 
-function TelnyxRTCProvider({ children, credential, options }: IProps) {
+function TelnyxRTCProvider({
+  children,
+  credential,
+  options,
+}: IProps): ReactNode {
   const telnyxClient = useTelnyxRTC(credential, options);
 
   return (
