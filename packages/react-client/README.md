@@ -53,7 +53,7 @@ function Phone() {
 import { useEvents } from '@telnyx/react-client';
 
 function Phone() {
-  useNotification({
+  useEvents({
     onReady: () => console.log('client ready'),
     onError: () => console.log('client registration error'),
     onNotification: (x) => console.log('received notification:', x),
