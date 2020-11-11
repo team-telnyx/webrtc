@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useEvents } from '@telnyx/react-client';
+import { useCallbacks } from '@telnyx/react-client';
 
 function ClientStatus() {
   let [clientStatus, setClientStatus] = useState<string>('');
 
-  useEvents({
+  useCallbacks({
     onReady: () => {
       setClientStatus('Ready to make and receive calls');
     },

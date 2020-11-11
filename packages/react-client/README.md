@@ -47,13 +47,13 @@ function Phone() {
 }
 ```
 
-### with `useEvents`
+### with `useCallbacks`
 
 ```jsx
-import { useEvents } from '@telnyx/react-client';
+import { useCallbacks } from '@telnyx/react-client';
 
 function Phone() {
-  useEvents({
+  useCallbacks({
     onReady: () => console.log('client ready'),
     onError: () => console.log('client registration error'),
     onNotification: (x) => console.log('received notification:', x),

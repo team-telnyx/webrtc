@@ -15,10 +15,10 @@ interface IProps {
  *
  * ## Examples
  * ```jsx
- * import { useEvents } from '@telnyx/react-client';
+ * import { useCallbacks } from '@telnyx/react-client';
  *
  * function Phone() {
- *   useEvents({
+ *   useCallbacks({
  *     onReady: () => console.log('client ready'),
  *     onError: () => console.log('client registration error'),
  *     onNotification: (x) => console.log('received notification:', x),
@@ -31,7 +31,7 @@ interface IProps {
  * @param {IProps} [props]
  * @returns {null}
  */
-function useEvents(props?: IProps): null {
+function useCallbacks(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
 
   useEffect(() => {
@@ -59,4 +59,4 @@ function useEvents(props?: IProps): null {
   return null;
 }
 
-export default useEvents;
+export default useCallbacks;

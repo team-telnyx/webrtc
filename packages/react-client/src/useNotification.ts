@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import useEvents from './useEvents';
+import useCallbacks from './useCallbacks';
 
 /**
  * Subcribe to notifications from the Telnyx client
@@ -27,7 +27,7 @@ import useEvents from './useEvents';
 function useNotification() {
   const [notification, setNotification] = useState<any | null>();
 
-  useEvents({
+  useCallbacks({
     onNotification: setNotification,
   });
 
