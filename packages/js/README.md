@@ -121,7 +121,7 @@ client.connect();
 // client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/examples/react) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/main/examples/react) for sample React code that handles username and password by prompting the user.
 
 ### Calls
 
@@ -209,7 +209,7 @@ call.hangup();
 
 ### Vanilla Javascript
 
-We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/master/packages/js/examples/vanilla) to help you get started.
+We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
 
 ```
 cd examples/vanilla
@@ -217,13 +217,13 @@ open index.html
 ```
 
 Screenshot:
-![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/vanilla/vanilla-screeshot.png)
+![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/vanilla/vanilla-screeshot.png)
 
 ---
 
 ### ReactJS
 
-We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/master/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 #### Audio call
 
@@ -237,7 +237,7 @@ npm run storybook
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
 Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-audio/storybook-screenshot.png)
+![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/react-audio/storybook-screenshot.png)
 
 #### Video call
 
@@ -249,7 +249,7 @@ npm start
 ```
 
 Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
+![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/react-video/react-video-screenshot.png)
 
 ---
 

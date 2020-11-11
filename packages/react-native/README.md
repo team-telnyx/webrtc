@@ -90,7 +90,7 @@ client.connect();
 // client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/main/packages/react-native/examples) for sample React code that handles username and password by prompting the user.
 
 ### React Native
 
@@ -134,7 +134,7 @@ Making a call
 
 ### React Native
 
-We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/master/packages/react-native/examples) to help you get started.\
+We've included a few [examples in React Native](https://github.com/team-telnyx/webrtc/tree/main/packages/react-native/examples) to help you get started.\
 You can access the documentation [here](https://www.npmjs.com/package/@telnyx/react-native) about `@telnyx/react-native` to have more information.
 
 ```
@@ -145,7 +145,7 @@ You can access the documentation [here](https://www.npmjs.com/package/@telnyx/re
 ```
 
 Screenshot:
-![Video call app](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/react-native/examples/calling-video-app/app-screenshot.png)
+![Video call app](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/react-native/examples/calling-video-app/app-screenshot.png)
 
 ---
 
@@ -205,4 +205,4 @@ TelnyxRTC SDK for React Native follows Semantic Versioning 2.0 as defined at <ht
 ## License
 
 The TelnyxRTC SDK for React Native is copyright © 2020
-[Telnyx](http://telnyx.com). It is free software, and may be redistributed under the terms specified in the [MIT-LICENSE](https://github.com/team-telnyx/webrtc/blob/master/LICENSE) file.
+[Telnyx](http://telnyx.com). It is free software, and may be redistributed under the terms specified in the [MIT-LICENSE](https://github.com/team-telnyx/webrtc/blob/main/LICENSE) file.
