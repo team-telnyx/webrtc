@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, Fragment } from 'react';
 import TelnyxClientContext from './TelnyxClientContext';
 import useTelnyxClient, { CredentialOptions } from './useTelnyxClient';
 
@@ -12,8 +12,8 @@ function TelnyxClientProvider({ children, credential, options }: IProps) {
   const telnyxClient = useTelnyxClient(credential, options);
 
   return (
-    <TelnyxClientContext.Provider value={telnyxClient}>
-      {React.Children.only(children)}
+    <TelnyxClientContext.Provider value={telnyxClient || null}>
+      <Fragment>{children}</Fragment>
     </TelnyxClientContext.Provider>
   );
 }

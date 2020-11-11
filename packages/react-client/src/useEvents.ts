@@ -11,31 +11,29 @@ interface IProps {
 }
 
 function useEvents(props?: IProps) {
-  const client = useContext(TelnyxClientContext);
+  const telnyxClient = useContext(TelnyxClientContext);
 
   useEffect(() => {
-    if (!client) return;
-
     if (props?.onReady) {
-      client.on('telnyx.ready', props.onReady);
+      telnyxClient!.on('telnyx.ready', props.onReady);
     }
 
     if (props?.onError) {
-      client.on('telnyx.error', props.onError);
+      telnyxClient!.on('telnyx.error', props.onError);
     }
 
     if (props?.onSocketError) {
-      client.on('telnyx.socket.error', props.onSocketError);
+      telnyxClient!.on('telnyx.socket.error', props.onSocketError);
     }
 
     if (props?.onSocketClose) {
-      client.on('telnyx.socket.close', props.onSocketClose);
+      telnyxClient!.on('telnyx.socket.close', props.onSocketClose);
     }
 
     if (props?.onNotification) {
-      client.on('telnyx.notification', props.onNotification);
+      telnyxClient!.on('telnyx.notification', props.onNotification);
     }
-  }, [client]);
+  }, []);
 
   return null;
 }

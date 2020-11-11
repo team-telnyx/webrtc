@@ -1,5 +1,6 @@
 import React from 'react';
 import { TelnyxClientProvider } from '@telnyx/react-client';
+import ClientStatus from './ClientStatus';
 import CallLog from './CallLog';
 
 const App = () => {
@@ -12,6 +13,7 @@ const App = () => {
 
   return (
     <TelnyxClientProvider credential={credential}>
+      <ClientStatus />
       <CallLog />
     </TelnyxClientProvider>
   );

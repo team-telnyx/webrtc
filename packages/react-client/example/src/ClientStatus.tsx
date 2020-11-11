@@ -2,26 +2,21 @@ import React, { useState } from 'react';
 import { useEvents } from '@telnyx/react-client';
 
 function ClientStatus() {
-  let [error, setError] = useState<string | null>();
+  let [clientStatus, setClientStatus] = useState<string>('');
 
   useEvents({
-    onReady: (e: any) => {
-      console.log('e:', e);
-      setError('error');
+    onReady: () => {
+      setClientStatus('Ready to make and receive calls');
     },
     onError: (e: any) => {
-      console.log('e:', e);
-      setError('error');
+      setClientStatus(e?.message || 'Cannot make or receive calls');
     },
     onSocketError: () => {
-      setError('error');
-    },
-    onSocketClose: () => {
-      setError('error');
+      setClientStatus('Cannot make or receive calls');
     },
   });
 
-  return <div>{error && <p>{error}</p>}</div>;
+  return <p>{clientStatus}</p>;
 }
 
 export default ClientStatus;

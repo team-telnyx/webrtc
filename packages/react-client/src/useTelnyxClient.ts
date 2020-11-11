@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -13,18 +13,18 @@ type UsernameCredential = {
 export type CredentialOptions = TokenCredential | UsernameCredential;
 
 /**
- * Constructs a Telnyx client, connects the client and subscribes
- * to events, e.g. an event for an incoming call.
+ * Constructs a Telnyx client, connects the client, and handles
+ * disconnecting the client during cleanup.
  *
  * ## Examples
  *
  * import { useTelnyxClient } from '@telnyx/react-client'
  *
  * // Login using On-Demand Credentials token
- * const { client, call, clientState } = useTelnyxClient({ login_token })
+ * const client = useTelnyxClient({ login_token })
  *
  * // Or, login using your SIP Connection username and password
- * // const { client, clientState } = useTelnyxClient({ login, password })
+ * // const client = useTelnyxClient({ login, password })
  *
  * client.on('telnyx.notification', ({ call }) => {
  *   console.log(call)
@@ -37,47 +37,36 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
 function useTelnyxClient(
   credentialParam: CredentialOptions,
   clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
-): TelnyxRTC {
-  // Check if component is mounted before updating state
-  // in the Telnyx WebRTC client callbacks
-  let isMountedRef = useRef<boolean>(false);
+): TelnyxRTC | undefined {
+  const telnyxClientRef = useRef<TelnyxRTC>();
 
-  // Save the Telnyx WebRTC client as a ref as to persist
-  // the client object through component updates
-  let telnyxClientRef = useRef<any>();
+  if (telnyxClientRef.current) {
+    console.warn(
+      'Instance of Telnyx Client already exists. Did you mean to create multiple instances of Telnyx Client?'
+    );
+  }
+
+  telnyxClientRef.current = new TelnyxRTC({
+    ...credentialParam,
+    ...clientOptions,
+  });
+
+  telnyxClientRef.current.on('telnyx.error', () => {
+    telnyxClientRef.current?.disconnect();
+  });
+
+  telnyxClientRef.current.on('telnyx.socket.error', () => {
+    telnyxClientRef.current?.disconnect();
+  });
 
   useEffect(() => {
-    isMountedRef.current = true;
-
-    if (!credentialParam) {
-      return;
-    }
-
-    const telnyxClient = new TelnyxRTC({
-      ...credentialParam,
-      ...clientOptions,
-    });
-
-    telnyxClient.on('telnyx.error', () => {
-      telnyxClient.disconnect();
-    });
-
-    telnyxClient.on('telnyx.socket.error', () => {
-      telnyxClient.disconnect();
-    });
-
-    telnyxClientRef.current = telnyxClient;
-
     // IDEA Allow caller to defer connect
-    telnyxClientRef.current.connect();
+    telnyxClientRef.current?.connect();
 
     return () => {
-      isMountedRef.current = false;
-
       telnyxClientRef.current?.disconnect();
-      telnyxClientRef.current = undefined;
     };
-  }, [credentialParam]);
+  }, []);
 
   return telnyxClientRef.current;
 }
