@@ -14,7 +14,7 @@ npm install --save @telnyx/react-client
 
 ```jsx
 // App.jsx
-import { TelnyxClientProvider } from '@telnyx/react-client';
+import { TelnyxRTCProvider } from '@telnyx/react-client';
 
 function App() {
   const credential = {
@@ -22,9 +22,9 @@ function App() {
   };
 
   return (
-    <TelnyxClientProvider credential={credential}>
+    <TelnyxRTCProvider credential={credential}>
       <Phone />
-    </TelnyxClientProvider>
+    </TelnyxRTCProvider>
   );
 }
 ```
@@ -63,27 +63,27 @@ function Phone() {
 }
 ```
 
-### with `TelnyxClientContext.Consumer`
+### with `TelnyxRTCContext.Consumer`
 
 ```jsx
-import { TelnyxClientContext } from '@telnyx/react-client';
+import { TelnyxRTCContext } from '@telnyx/react-client';
 
 function PhoneWrapper() {
   return (
-    <TelnyxClientContext.Consumer>
+    <TelnyxRTCContext.Consumer>
       {(context) => <Phone client={context} />}
-    </TelnyxClientContext.Consumer>
+    </TelnyxRTCContext.Consumer>
   );
 }
 ```
 
-### `useTelnyxClient` usage
+### `useTelnyxRTC` usage
 
 ```jsx
-import { useTelnyxClient } from '@telnyx/react-client';
+import { useTelnyxRTC } from '@telnyx/react-client';
 
 function Phone() {
-  const client = useTelnyxClient({ login_token: 'mytoken' });
+  const client = useTelnyxRTC({ login_token: 'mytoken' });
 
   client.on('telnyx.ready', () => {
     console.log('client ready');
@@ -93,7 +93,7 @@ function Phone() {
 }
 ```
 
-You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxClientContext`/`TelnyxClientProvider` instead of using this hook directly.
+You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxRTCContext`/`TelnyxRTCProvider` instead of using this hook directly.
 
 ## Development
 

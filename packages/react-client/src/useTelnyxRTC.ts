@@ -18,13 +18,13 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  *
  * ## Examples
  *
- * import { useTelnyxClient } from '@telnyx/react-client'
+ * import { useTelnyxRTC } from '@telnyx/react-client'
  *
  * // Login using On-Demand Credentials token
- * const client = useTelnyxClient({ login_token })
+ * const client = useTelnyxRTC({ login_token })
  *
  * // Or, login using your SIP Connection username and password
- * // const client = useTelnyxClient({ login, password })
+ * // const client = useTelnyxRTC({ login, password })
  *
  * client.on('telnyx.notification', ({ call }) => {
  *   console.log(call)
@@ -34,7 +34,7 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * @param {*} [clientOptions]
  * @returns
  */
-function useTelnyxClient(
+function useTelnyxRTC(
   credentialParam: CredentialOptions,
   clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
 ): TelnyxRTC | undefined {
@@ -71,4 +71,4 @@ function useTelnyxClient(
   return telnyxClientRef.current;
 }
 
-export default useTelnyxClient;
+export default useTelnyxRTC;

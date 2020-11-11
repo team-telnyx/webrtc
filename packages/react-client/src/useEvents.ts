@@ -1,6 +1,6 @@
 import { useContext, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
-import TelnyxClientContext from './TelnyxClientContext';
+import TelnyxRTCContext from './TelnyxRTCContext';
 
 interface IProps {
   onReady?: (client?: TelnyxRTC) => any;
@@ -11,7 +11,7 @@ interface IProps {
 }
 
 function useEvents(props?: IProps) {
-  const telnyxClient = useContext(TelnyxClientContext);
+  const telnyxClient = useContext(TelnyxRTCContext);
 
   useEffect(() => {
     if (props?.onReady) {
