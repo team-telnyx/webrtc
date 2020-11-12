@@ -1,4 +1,4 @@
-name: Pull request checks
+name: '@telnyx/webrtc CI'
 
 on:
   pull_request:
@@ -6,8 +6,8 @@ on:
     - 'packages/js/**'
 
 jobs:
-  test:
-    name: Test @telnyx/webrtc changes
+  build:
+    name: Test build
 
     runs-on: ubuntu-latest
 
@@ -21,9 +21,12 @@ jobs:
       run: npm ci
     - name: Install package dependencies
       working-directory: packages/js
-      run: npm ci
+      run: npm ci --ignore-scripts
     - name: Test
       working-directory: packages/js
       run: npm test
       env:
         CI: true
+    - name: Build
+      working-directory: packages/js
+      run: npm run build
