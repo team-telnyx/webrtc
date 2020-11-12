@@ -49,7 +49,9 @@ function Phone() {
 }
 ```
 
-### with `useCallbacks`
+### Hooks
+
+#### `useCallbacks`
 
 ```jsx
 import { useCallbacks } from '@telnyx/react-client';
@@ -65,21 +67,9 @@ function Phone() {
 }
 ```
 
-### with `TelnyxRTCContext.Consumer`
+#### `useTelnyxRTC`
 
-```jsx
-import { TelnyxRTCContext } from '@telnyx/react-client';
-
-function PhoneWrapper() {
-  return (
-    <TelnyxRTCContext.Consumer>
-      {(context) => <Phone client={context} />}
-    </TelnyxRTCContext.Consumer>
-  );
-}
-```
-
-### `useTelnyxRTC` usage
+If you need more fine-tuned control over TelnyxRTC, you also have access to `useTelnyxRTC` directly.
 
 ```jsx
 import { useTelnyxRTC } from '@telnyx/react-client';
@@ -95,7 +85,98 @@ function Phone() {
 }
 ```
 
-You should only have one Telnyx client instance running at a time. To ensure a single instance, it's recommended to use `TelnyxRTCContext`/`TelnyxRTCProvider` instead of using this hook directly.
+Take care to use this hook only once in your application. For most cases, we recommend you use `TelnyxRTCContext`/`TelnyxRTCProvider` instead of this hook directly. This ensures that you only have one Telnyx client instance running at a time.
+
+#### `useContext` with `TelnyxRTCContext`
+
+You can retrieve the current TelnyxRTC context value by using React's [`useContext` hook](https://reactjs.org/docs/hooks-reference.html#usecontext), as an alternative to `TelnyxRTCContext.Consumer`.
+
+```jsx
+import React, { useContext } from 'react';
+import { TelnyxRTCContext } from '@telnyx/react-client';
+
+function Phone() {
+  const client = useContext(TelnyxRTCContext);
+
+  client.on('telnyx.ready', () => {
+    console.log('client ready');
+  });
+
+  // ...
+}
+```
+
+### Components
+
+#### `TelnyxRTCContextProvider`
+
+```jsx
+import { TelnyxRTCProvider } from '@telnyx/react-client';
+
+function App() {
+  const credential = {
+    // You can either use your On-Demand Credential token
+    // or your Telnyx SIP username and password
+    // login_token: 'mytoken',
+    login: 'myusername',
+    password: 'mypassword',
+  };
+
+  const options = {
+    ringtoneFile: 'https://example.com/sounds/incoming_call.mp3',
+    ringbackFile: 'https://example.com/sounds/ringback_tone.mp3',
+  };
+
+  return (
+    <TelnyxRTCProvider credential={credential} options={options}>
+      <Phone />
+    </TelnyxRTCProvider>
+  );
+}
+```
+
+#### `TelnyxRTCContext.Consumer`
+
+```jsx
+import { TelnyxRTCContext } from '@telnyx/react-client';
+
+function PhoneWrapper() {
+  return (
+    <TelnyxRTCContext.Consumer>
+      {(context) => <Phone client={context} />}
+    </TelnyxRTCContext.Consumer>
+  );
+}
+```
+
+#### `Audio`
+
+```jsx
+import { Audio } from '@telnyx/react-client';
+
+function Phone({ activeCall }) {
+  return (
+    <div>
+      <Audio stream={activeCall.remoteStream} />
+    </div>
+  );
+}
+```
+
+#### `Video`
+
+```jsx
+import { Video } from '@telnyx/react-client';
+
+function VideoConference({ activeCall }) {
+  return (
+    <div>
+      <Video stream={activeCall.localStream} />
+      <Video stream={activeCall.remoteStream} />
+    </div>
+  );
+}
+```
 
 ## Development
 
