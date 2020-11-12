@@ -17,9 +17,13 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '11.x'
-    - name: Install
-      run: npm ci && cd packages/js && npm ci
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/js
+      run: npm ci
     - name: Test
+      working-directory: packages/js
       run: npm test
       env:
         CI: true
