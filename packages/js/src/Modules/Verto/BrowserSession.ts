@@ -93,7 +93,36 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Check if the browser has the permission to access mic and/or webcam
+   * Checks if the browser has the permission to access mic and/or webcam
+   *
+   * @param audio Whether to check for microphone permissions.
+   * @param video Whether to check for webcam permissions.
+   *
+   * ## Examples
+   *
+   * Checking for audio and video permissions:
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.checkPermissions();
+   * ```
+   *
+   * Checking only for audio permissions:
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.checkPermissions(true, false);
+   * ```
+   *
+   * Checking only for video permissions:
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.checkPermissions(false, true);
+   * ```
    */
   async checkPermissions(
     audio: boolean = true,
