@@ -11,10 +11,6 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: 'packages/js'
-
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js 11.x
@@ -22,7 +18,7 @@ jobs:
       with:
         node-version: '11.x'
     - name: Install
-      run: npm ci
+      run: npm ci && cd packages/js && npm ci
     - name: Test
       run: npm test
       env:
