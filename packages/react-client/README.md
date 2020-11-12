@@ -60,6 +60,8 @@ function Phone() {
   useCallbacks({
     onReady: () => console.log('client ready'),
     onError: () => console.log('client registration error'),
+    onSocketError: () => console.log('client socket error'),
+    onSocketClose: () => console.log('client disconnected'),
     onNotification: (x) => console.log('received notification:', x),
   });
 
@@ -85,11 +87,11 @@ function Phone() {
 }
 ```
 
-Take care to use this hook only once in your application. For most cases, we recommend you use `TelnyxRTCContext`/`TelnyxRTCProvider` instead of this hook directly. This ensures that you only have one Telnyx client instance running at a time.
+Take care to use this hook only once in your application. For most cases, we recommend you use [TelnyxRTCContext/TelnyxRTCProvider](#TelnyxRTCContextProvider) instead of this hook directly. This ensures that you only have one Telnyx client instance running at a time.
 
 #### `useContext` with `TelnyxRTCContext`
 
-You can retrieve the current TelnyxRTC context value by using React's [`useContext` hook](https://reactjs.org/docs/hooks-reference.html#usecontext), as an alternative to `TelnyxRTCContext.Consumer`.
+You can retrieve the current TelnyxRTC context value by using React's [`useContext` hook](https://reactjs.org/docs/hooks-reference.html#usecontext), as an alternative to [TelnyxRTCContext.Consumer](#TelnyxRTCContextConsumer).
 
 ```jsx
 import React, { useContext } from 'react';
