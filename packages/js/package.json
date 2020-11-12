@@ -51,7 +51,6 @@
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-plugin-import": "^2.22.0",
     "events": "^3.0.0",
-    "husky": "^4.2.5",
     "jest": "^26.1.0",
     "lint-staged": "^10.2.11",
     "md-gum-polyfill": "^1.0.0",
@@ -82,10 +81,5 @@
     "*.js, *.jsx, *.ts, *.tsx": [
       "eslint --fix"
     ]
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged && npm test"
-    }
   }
 }
