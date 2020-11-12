@@ -3,7 +3,7 @@ import { TelnyxRTCProvider } from '@telnyx/react-client';
 import ClientStatus from './ClientStatus';
 import CallLog from './CallLog';
 import Phone from './Phone';
-import VideoConference from './VideoCall';
+import VideoCall from './VideoCall';
 
 const App = () => {
   const credential = {
@@ -18,7 +18,7 @@ const App = () => {
       <ClientStatus />
       <CallLog />
       <Phone />
-      <VideoConference />
+      <VideoCall />
     </TelnyxRTCProvider>
   );
 };
