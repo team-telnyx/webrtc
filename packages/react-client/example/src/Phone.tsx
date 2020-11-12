@@ -21,7 +21,6 @@ function Phone() {
 
   const call = notification?.call;
   const callState = call?.state;
-  const callStream = call?.remoteStream;
 
   useEffect(() => {
     console.log('callState:', callState);
@@ -46,7 +45,7 @@ function Phone() {
         )}
       </form>
 
-      <Audio stream={callStream} />
+      <Audio stream={call?.remoteStream} />
     </div>
   );
 }

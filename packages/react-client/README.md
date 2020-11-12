@@ -31,7 +31,7 @@ function App() {
 
 ```jsx
 // Phone.jsx
-import { useNotification } from '@telnyx/react-client';
+import { useNotification, Audio } from '@telnyx/react-client';
 
 function Phone() {
   const notification = useNotification();
@@ -42,6 +42,8 @@ function Phone() {
       {activeCall &&
         activeCall.state === 'ringing' &&
         'You have an incoming call.'}
+
+      <Audio stream={activeCall && activeCall.remoteStream} />
     </div>
   );
 }
