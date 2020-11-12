@@ -1,9 +1,10 @@
 name: Pull request checks
 
-on:
-  pull_request:
-    paths:
-    - 'packages/js/**'
+on: [pull_request]
+# on:
+#   pull_request:
+#     paths:
+#     - 'packages/js/**'
 
 jobs:
   test:
