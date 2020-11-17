@@ -28,7 +28,7 @@ function Phone() {
 
   return (
     <div>
-      <strong>Audio-only call</strong>
+      <strong>Voice call</strong>
       <form onSubmit={handleSubmit}>
         <input
           name='destination_phone_number'
