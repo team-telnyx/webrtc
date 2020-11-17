@@ -187,14 +187,14 @@ Install dependencies:
 ```bash
 npm install
 # in another tab:
-cd example && npm install
+cd example && npm install && npm run setup
 ```
 
 Watch and compile files:
 
 ```bash
 npm start
-# in another tab:
+# fill in example/.env, then in another tab:
 cd example && npm start
 ```
 
