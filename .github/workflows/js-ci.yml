@@ -35,7 +35,6 @@ jobs:
       run: npm run build
     - name: Release dry run
       working-directory: packages/js
-      run: npm run release -- --ci --dry-run
+      run: npm run release -- --ci --dry-run --no-npm.publish
       env:
-        CI: true
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
