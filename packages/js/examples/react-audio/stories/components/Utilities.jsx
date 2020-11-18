@@ -52,6 +52,16 @@ function Utilities({ environment, username, password }) {
     );
   };
 
+  const getAudioOutDevices = async () => {
+    const results = await clientRef.current.getAudioOutDevices();
+
+    setMessage(
+      `Audio output devices: ${
+        results.length ? results.map(({ label }) => label).join(', ') : 'None'
+      }`
+    );
+  };
+
   if (!clientRef.current && environment && username && password) {
     initClient();
   }
@@ -66,7 +76,13 @@ function Utilities({ environment, username, password }) {
         <section>
           <div>
             <button type='button' onClick={() => getAudioInDevices()}>
-              Get Audio In Devices
+              Get Audio Input Devices
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => getAudioOutDevices()}>
+              Get Audio Output Devices
             </button>
           </div>
 
