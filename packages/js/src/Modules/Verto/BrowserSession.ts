@@ -221,6 +221,28 @@ export default abstract class BrowserSession extends BaseSession {
 
   /**
    * Return the audio input device list supported by the browser
+   *
+   * ## Examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *
+   *   let result = await client.getAudioInDevices();
+   *
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getAudioInDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
