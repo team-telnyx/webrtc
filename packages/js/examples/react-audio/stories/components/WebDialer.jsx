@@ -50,7 +50,7 @@ const WebDialer = ({
       callerNumber,
       destinationNumber: destination,
       // audio: true,
-      // FIXME Either audio or video must be true or the call
+      // NOTE Either audio or video must be true or the call
       // will be stuck on "new". Enabling video for now so that
       // we can test disabling the audio with Storybook Knobs
       video: true,
