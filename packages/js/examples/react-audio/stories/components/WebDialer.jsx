@@ -49,22 +49,25 @@ const WebDialer = ({
       callerName,
       callerNumber,
       destinationNumber: destination,
-      audio: true,
-      video: false,
+      // audio: true,
+      // FIXME Either audio or video must be true or the call
+      // will be stuck on "new". Enabling video for now so that
+      // we can test disabling the audio with Storybook Knobs
+      video: true,
     });
 
     setCall(newCall);
   };
 
   useEffect(() => {
-    if (!clientRef.current) return;
+    if (!registered || !clientRef.current) return;
 
     if (disableMicrophone) {
       clientRef.current.disableMicrophone();
     } else {
       clientRef.current.enableMicrophone();
     }
-  }, [disableMicrophone]);
+  }, [registered, disableMicrophone]);
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
