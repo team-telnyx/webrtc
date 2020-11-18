@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Test build
+    name: Draft release
 
     runs-on: ubuntu-latest
 
@@ -22,11 +22,9 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
-    - name: Test
+    - name: Draft release
       working-directory: packages/js
-      run: npm test
+      run: npm run release -- --ci --no-npm.publish --github.draft
       env:
         CI: true
-    - name: Build
-      working-directory: packages/js
-      run: npm run build
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
