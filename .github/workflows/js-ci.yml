@@ -14,6 +14,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Use Node.js 11.x
@@ -35,6 +37,6 @@ jobs:
       run: npm run build
     - name: Release dry run
       working-directory: packages/js
-      run: npm run release -- --ci --dry-run --npm.skipChecks --no-npm.publish
+      run: npm run release -- --ci --dry-run --verbose --npm.skipChecks --no-npm.publish
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
