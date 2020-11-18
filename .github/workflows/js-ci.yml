@@ -37,6 +37,7 @@ jobs:
       run: npm run build
     - name: Release dry run
       working-directory: packages/js
-      run: npm run release -- --ci --dry-run --npm.skipChecks --no-npm.publish
+      run: npm run release -- --ci --dry-run --no-npm.publish
       env:
+        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
