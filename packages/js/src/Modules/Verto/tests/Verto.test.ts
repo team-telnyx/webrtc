@@ -100,7 +100,7 @@ describe('Verto', () => {
       username: 'testuser',
     });
     expect(telnyxRTC.iceServers[1]).toEqual({
-      urls: 'stun:stun.telnyx.com:3843',
+      urls: 'stun:stun.telnyx.com:3478',
     });
   });
 
