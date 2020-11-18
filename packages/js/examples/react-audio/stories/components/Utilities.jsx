@@ -6,13 +6,13 @@ function Utilities({ environment, username, password }) {
   const [isConnected, setIsConnected] = useState(false);
   const [message, setMessage] = useState('');
 
-  if (!clientRef.current && environment && username && password) {
+  const initClient = () => {
     clientRef.current = new TelnyxRTC({
       env: environment,
       login: username,
       password,
     });
-  }
+  };
 
   const connect = async () => {
     if (environment && username && password) {
@@ -23,37 +23,60 @@ function Utilities({ environment, username, password }) {
         await clientRef.current.disconnect();
       }
 
-      const session = new TelnyxRTC({
-        env: environment,
-        login: username,
-        password,
-      });
+      initClient();
 
-      session.on('telnyx.ready', () => {
+      clientRef.current.on('telnyx.ready', () => {
         setIsConnected(true);
         setMessage('Connected');
       });
 
-      session.on('telnyx.error', () => {
+      clientRef.current.on('telnyx.error', () => {
         setMessage('Received error attempting to connect');
       });
 
-      await session.connect();
+      await clientRef.current.connect();
 
-      clientRef.current = session;
+      clientRef.current = clientRef.current;
     } else {
       setMessage('Username and Password are required');
     }
   };
 
+  const getAudioInDevices = async () => {
+    const results = await clientRef.current.getAudioInDevices();
+
+    setMessage(
+      `Audio input devices: ${
+        results.length ? results.map(({ label }) => label).join(', ') : 'None'
+      }`
+    );
+  };
+
+  if (!clientRef.current && environment && username && password) {
+    initClient();
+  }
+
   return (
     <div>
       <section>
-        <div>{message && <p>{message}</p>}</div>
-        <button type='button' onClick={() => connect()}>
-          {isConnected ? 'Reconnect' : 'Connect'}
-        </button>
+        <p>Log: {message}</p>
       </section>
+
+      {clientRef.current && (
+        <section>
+          <div>
+            <button type='button' onClick={() => getAudioInDevices()}>
+              Get Audio In Devices
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => connect()}>
+              {isConnected ? 'Reconnect' : 'Connect'}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

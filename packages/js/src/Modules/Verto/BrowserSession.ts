@@ -220,7 +220,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Return the audio input device list supported by the browser
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
