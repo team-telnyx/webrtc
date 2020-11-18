@@ -32,7 +32,7 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * ```
  *
  * @param {CredentialOptions} credentialParam
- * @param {*} [clientOptions]
+ * @param {*} [clientOptions] See https://github.com/team-telnyx/webrtc
  * @returns {TelnyxRTC | undefined}
  */
 function useTelnyxRTC(
