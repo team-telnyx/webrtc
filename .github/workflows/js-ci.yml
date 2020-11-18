@@ -25,6 +25,14 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
+    - name: Test
+      working-directory: packages/js
+      run: npm test
+      env:
+        CI: true
+    - name: Build
+      working-directory: packages/js
+      run: npm run build
     - name: Release dry run
       working-directory: packages/js
       run: npm run release -- --ci --dry-run

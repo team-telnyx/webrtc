@@ -23,7 +23,6 @@
     "prepublishOnly": "npm run test",
     "test": "jest",
     "docs": "typedoc src",
-    "prerelease": "npm run test && npm run build",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
     "format": "prettier --write 'src/**/*.ts'"
