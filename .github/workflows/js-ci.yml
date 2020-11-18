@@ -13,6 +13,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
     - name: Use Node.js 11.x
       uses: actions/setup-node@v1
       with:
