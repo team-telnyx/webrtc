@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
+    "@release-it/conventional-changelog": "^2.0.0",
     "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
     "@typescript-eslint/eslint-plugin": "^3.6.1",
@@ -76,6 +77,11 @@
     },
     "github": {
       "release": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "angular"
+      }
     }
   },
   "lint-staged": {
