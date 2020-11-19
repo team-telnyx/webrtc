@@ -27,12 +27,11 @@ function App() {
   function connect(params) {
     setLoginParams(params);
 
-    const session = new TelnyxRTC({ ...params });
+    const session = new TelnyxRTC({ ...params, env: 'development' });
     session.enableMicrophone();
     session.enableWebcam();
 
     session.on('telnyx.ready', (session) => {
-      console.log('Oiiiiii', session);
       setState({ connected: true });
     });
     session.on('telnyx.error', (error) => {
@@ -55,7 +54,6 @@ function App() {
 
       switch (notification.type) {
         case 'callUpdate':
-          console.log('notification ---> call.state', notification.call.state);
           if (
             notification.call.state === 'hangup' ||
             notification.call.state === 'destroy'
@@ -90,12 +88,10 @@ function App() {
         audio: true,
         video: true,
       });
-      console.log('newCall', newCall);
       setState({ call: newCall, connected: state.connected });
     }
   }
 
-  console.log('state=====>', state);
   const { connected, call } = state;
 
   const Main = () => {
