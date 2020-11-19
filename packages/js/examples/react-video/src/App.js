@@ -16,16 +16,12 @@ function App() {
     const tmp = getLoginParams();
     const { login, password } = tmp;
     if (login && password) {
-      if (telnyxRTCRef.current) {
-        telnyxRTCRef.current.disconnect();
-      }
+      disconnect();
       connect(tmp);
     }
 
     return function clean() {
-      if (telnyxRTCRef.current) {
-        telnyxRTCRef.current.disconnect();
-      }
+      disconnect();
     };
   }, []);
 
@@ -38,6 +34,12 @@ function App() {
       telnyxRTCRef.current.disableWebcam();
     }
   }, [state.connected, enabledVideo]);
+
+  function disconnect() {
+    if (telnyxRTCRef.current) {
+      telnyxRTCRef.current.disconnect();
+    }
+  }
 
   function connect(params) {
     setLoginParams(params);
