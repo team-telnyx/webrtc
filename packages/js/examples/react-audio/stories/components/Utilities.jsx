@@ -34,9 +34,7 @@ function Utilities({ environment, username, password }) {
         setMessage('Received error attempting to connect');
       });
 
-      await clientRef.current.connect();
-
-      clientRef.current = clientRef.current;
+      clientRef.current.connect();
     } else {
       setMessage('Username and Password are required');
     }
