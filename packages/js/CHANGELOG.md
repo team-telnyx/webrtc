@@ -1,10 +1,3 @@
-## [2.2.2](https://github.com/team-telnyx/webrtc/compare/v2.2.1...v2.2.2) (2020-11-19)
-
-
-### Bug Fixes
-
-* **ENGDESK-7173:** change the STUN_SERVER port from 3843 to 3478 ([#60](https://github.com/team-telnyx/webrtc/issues/60)) ([cc8f78f](https://github.com/team-telnyx/webrtc/commit/cc8f78f1454039efb55b921c0de54df5c1326e8f))
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
