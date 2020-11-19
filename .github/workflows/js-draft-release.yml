@@ -15,15 +15,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      # https://github.com/actions/checkout/issues/13
-      run: |
-        git config user.name github-actions[bot]
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
       with:
         # https://github.com/peter-evans/create-pull-request/issues/122
         ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
+    - name: Setup Git user
+      # https://github.com/actions/checkout/issues/13
+      run: |
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
     - name: Use Node.js 11.x
       uses: actions/setup-node@v1
       with:
