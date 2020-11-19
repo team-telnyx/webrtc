@@ -9,10 +9,6 @@ on:
         description: 'Package to publish'
         required: true
         default: 'webrtc'
-      reason:
-        description: 'Manual trigger reason'
-        required: false
-        default: 'Manually triggered GitHub workflow'
 
 jobs:
   publish-js:
@@ -24,8 +20,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Manual workflow trigger reason, if present
-      run: echo "${{ github.event.inputs.reason }}"
     - name: Use Node.js 11.x
       uses: actions/setup-node@v1
       with:

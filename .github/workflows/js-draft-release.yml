@@ -7,11 +7,6 @@ on:
     paths:
     - 'packages/js/src/**'
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Manual trigger reason'
-        required: false
-        default: 'Manually triggered GitHub workflow'
 
 jobs:
   build:
@@ -31,7 +26,6 @@ jobs:
       run: |
         git config user.name github-actions[bot]
         git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-        echo "${{ github.event.inputs.reason }}"
     - name: Use Node.js 11.x
       uses: actions/setup-node@v1
       with:
