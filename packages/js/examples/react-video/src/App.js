@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 import AuthForm from './components/auth/AuthForm';
 import { getLoginParams, setLoginParams } from './helpers';
@@ -6,57 +6,67 @@ import Phone from './components/phone/Phone';
 
 import './App.css';
 
-class App extends Component {
-  state = { connected: false, call: null };
+function App() {
+  const [state, setState] = React.useState({ connected: false, call: null });
+  const telnyxRTCRef = React.useRef(null);
 
-  constructor(props) {
-    super(props);
-
-    this.connect = this.connect.bind(this);
-    this.newCall = this.newCall.bind(this);
-
+  React.useEffect(() => {
     const tmp = getLoginParams();
     const { login, password } = tmp;
     if (login && password) {
-      this.connect(tmp);
+      connect(tmp);
     }
-  }
 
-  connect(params) {
+    return function clean() {
+      if (telnyxRTCRef.current) {
+        telnyxRTCRef.current.disconnect();
+      }
+    };
+  }, []);
+
+  function connect(params) {
     setLoginParams(params);
 
-    this.session = new TelnyxRTC({ ...params });
-    this.session.enableMicrophone();
-    this.session.enableWebcam();
+    const session = new TelnyxRTC({ ...params });
+    session.enableMicrophone();
+    session.enableWebcam();
 
-    this.session.on('telnyx.ready', (session) => {
-      this.setState({ connected: true });
+    session.on('telnyx.ready', (session) => {
+      console.log('Oiiiiii', session);
+      setState({ connected: true });
     });
-    this.session.on('telnyx.error', (error) => {
+    session.on('telnyx.error', (error) => {
       alert(error.message);
     });
 
-    this.session.on('telnyx.socket.error', (error) => {
-      this.setState({ connected: false });
-      this.session.disconnect();
+    session.on('telnyx.socket.error', (error) => {
+      setState({ connected: false });
+      session.disconnect();
     });
 
-    this.session.on('telnyx.socket.close', (error) => {
+    session.on('telnyx.socket.close', (error) => {
       console.log('close', error);
-      this.setState({ connected: false });
-      this.session.disconnect();
+      setState({ connected: false });
+      session.disconnect();
     });
 
-    this.session.on('telnyx.notification', (notification) => {
+    session.on('telnyx.notification', (notification) => {
       console.log('notification', notification);
 
       switch (notification.type) {
         case 'callUpdate':
-          const { call } = notification;
-          if (call.state === 'destroy') {
-            this.setState({ call: null });
-          } else {
-            this.setState({ call });
+          console.log('notification ---> call.state', call.state);
+          if (
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
+          ) {
+            return useState({ connected: false, call: notification.call });
+          }
+          if (notification.call.state === 'active') {
+            return useState({ connected: true, call: notification.call });
+          }
+          if (notification.call.state === 'ringing') {
+            return useState({ connected: true, call: notification.call });
           }
           break;
         case 'participantData':
@@ -69,42 +79,47 @@ class App extends Component {
       }
     });
 
-    this.session.connect();
+    telnyxRTCRef.current = session;
+    telnyxRTCRef.current.connect();
   }
 
-  newCall(extension) {
-    this.session.newCall({
-      destinationNumber: extension,
-      audio: true,
-      video: true,
-    });
+  function newCall(extension) {
+    if (telnyxRTCRef.current) {
+      const newCall = telnyxRTCRef.current.newCall({
+        destinationNumber: extension,
+        audio: true,
+        video: true,
+      });
+      console.log('newCall', newCall);
+      setState({ call: newCall });
+    }
   }
 
-  render() {
-    const { connected, call } = this.state;
-    const Main = () => {
-      if (connected) {
-        return (
-          <Phone session={this.session} dialog={call} newCall={this.newCall} />
-        );
-      } else {
-        return <AuthForm connect={this.connect} />;
-      }
-    };
-    return (
-      <div className='App flex'>
-        <header>
-          <h1>Telnyx Video Call Demo</h1>
-        </header>
-        <main className='flex flex-center'>
-          <Main />
-        </main>
-        <footer>
-          <h2>Telnyx - 2020</h2>
-        </footer>
-      </div>
-    );
-  }
+  const { connected, call } = state;
+
+  const Main = () => {
+    if (connected) {
+      return (
+        <Phone session={telnyxRTCRef.current} dialog={call} newCall={newCall} />
+      );
+    } else {
+      return <AuthForm connect={connect} />;
+    }
+  };
+
+  return (
+    <div className='App flex'>
+      <header>
+        <h1>Telnyx Video Call Demo</h1>
+      </header>
+      <main className='flex flex-center'>
+        <Main />
+      </main>
+      <footer>
+        <h2>Telnyx - 2020</h2>
+      </footer>
+    </div>
+  );
 }
 
 export default App;
