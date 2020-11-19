@@ -36,7 +36,7 @@
   "release-it": {
     "git": {
       "tagName": "react-native/v${version}",
-      "releaseName": "Release react-native@${version}"
+      "releaseName": "react-native@${version}"
     },
     "github": {
       "release": true

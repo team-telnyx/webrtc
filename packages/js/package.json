@@ -73,7 +73,7 @@
   "release-it": {
     "git": {
       "tagName": "webrtc/v${version}",
-      "releaseName": "Release webrtc@${version}"
+      "releaseName": "webrtc@${version}"
     },
     "github": {
       "release": true
