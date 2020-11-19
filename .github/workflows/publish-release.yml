@@ -25,6 +25,6 @@ jobs:
       run: npm ci --ignore-scripts
     - name: Publish package
       working-directory: packages/js
-      run: npm run release -- --ci --no-git --no-github --npm.publish
+      run: npm publish
       env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
