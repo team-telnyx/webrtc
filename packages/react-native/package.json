@@ -35,7 +35,7 @@
   },
   "release-it": {
     "git": {
-      "tagName": "v${version}"
+      "tagName": "@telnyx/react-native/v${version}"
     },
     "github": {
       "release": true
