@@ -72,7 +72,7 @@
   },
   "release-it": {
     "git": {
-      "tagName": "v${version}"
+      "tagName": "@telnyx/webrtc/v${version}"
     },
     "github": {
       "release": true
@@ -80,7 +80,9 @@
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": "angular",
-        "infile": "CHANGELOG.md"
+        "infile": "CHANGELOG.md",
+        "tagPrefix": "@telnyx/webrtc/v",
+        "path": "./src"
       }
     }
   },

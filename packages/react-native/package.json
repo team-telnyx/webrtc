@@ -35,10 +35,18 @@
   },
   "release-it": {
     "git": {
-      "tagName": "v${version}"
+      "tagName": "@telnyx/react-native/v${version}"
     },
     "github": {
       "release": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "angular",
+        "infile": "CHANGELOG.md",
+        "tagPrefix": "@telnyx/react-native/v",
+        "path": "./src"
+      }
     }
   },
   "dependencies": {
