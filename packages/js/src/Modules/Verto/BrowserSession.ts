@@ -364,7 +364,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Disables use of the webcam in subsequent calls.
    *
-   * Note: The method will disable the video even though `video: true` is specified.
+   * Note: This method will disable the video even if `video: true` is specified.
    *
    * ## Examples
    *
