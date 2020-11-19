@@ -7,8 +7,8 @@ on:
 jobs:
   publish-js:
     if: startsWith(github.ref, 'refs/tags/@telnyx/webrtc')
-    
-    name: Publish release
+
+    name: '@telnyx/webrtc Publish release'
 
     runs-on: ubuntu-latest
 
