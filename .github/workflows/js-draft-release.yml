@@ -15,6 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      # https://github.com/actions/checkout/issues/13
+      run: |
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
       with:
         # https://github.com/peter-evans/create-pull-request/issues/122
         ref: 'main'
@@ -39,7 +43,7 @@ jobs:
       run: npm run build
     - name: Create draft release
       working-directory: packages/js
-      run: npm run release -- --ci --github.draft --github.skipChecks --no-npm.publish
+      run: npm run release -- --ci --github.draft --no-npm.publish
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
