@@ -452,10 +452,46 @@ export default abstract class BrowserSession extends BaseSession {
     return this._videoConstraints;
   }
 
+  /**
+   * Disables use of the webcam in subsequent calls.
+   *
+   * Note: This method will disable the video even if `video: true` is specified.
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.disableWebcam();
+   * ```
+   *
+   * ```js
+   * const client = new TelnyxRTC({
+   *   ...options,
+   *   video: true
+   * });
+   *
+   * client.disableWebcam();
+   * ```
+   */
   disableWebcam() {
     this._videoConstraints = false;
   }
 
+  /**
+   * Enables use of the webcam in subsequent calls.
+   *
+   * Note: This setting will be ignored if `video: false` is
+   * specified when creating a new call.
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.enableWebcam();
+   * ```
+   */
   enableWebcam() {
     this._videoConstraints = true;
   }
