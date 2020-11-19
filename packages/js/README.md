@@ -293,4 +293,4 @@ npm run release -- minor
 npm run release -- major
 ```
 
-Open a new pull request with your changes to propose a new release.
+<!-- Open a new pull request with your changes to propose a new release. -->
