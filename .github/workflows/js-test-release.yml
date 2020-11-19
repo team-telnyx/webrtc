@@ -1,4 +1,4 @@
-name: '@telnyx/webrtc CI'
+name: '@telnyx/webrtc Test release'
 
 on:
   pull_request:
