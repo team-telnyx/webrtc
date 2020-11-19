@@ -72,7 +72,8 @@
   },
   "release-it": {
     "git": {
-      "tagName": "@telnyx/webrtc/v${version}"
+      "tagName": "webrtc/v${version}",
+      "releaseName": "Release webrtc@${version}"
     },
     "github": {
       "release": true
@@ -81,7 +82,7 @@
       "@release-it/conventional-changelog": {
         "preset": "angular",
         "infile": "CHANGELOG.md",
-        "tagPrefix": "@telnyx/webrtc/v",
+        "tagPrefix": "webrtc/v",
         "path": "./src"
       }
     }

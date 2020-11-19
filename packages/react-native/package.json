@@ -35,7 +35,8 @@
   },
   "release-it": {
     "git": {
-      "tagName": "@telnyx/react-native/v${version}"
+      "tagName": "react-native/v${version}",
+      "releaseName": "Release react-native@${version}"
     },
     "github": {
       "release": true
@@ -44,7 +45,7 @@
       "@release-it/conventional-changelog": {
         "preset": "angular",
         "infile": "CHANGELOG.md",
-        "tagPrefix": "@telnyx/react-native/v",
+        "tagPrefix": "react-native/v",
         "path": "./src"
       }
     }
