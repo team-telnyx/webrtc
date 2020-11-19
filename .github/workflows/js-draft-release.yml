@@ -39,7 +39,7 @@ jobs:
       run: npm run build
     - name: Create draft release
       working-directory: packages/js
-      run: npm run release -- --ci --github.draft --no-npm.publish
+      run: npm run release -- --ci --github.draft --github.skipChecks --no-npm.publish
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
