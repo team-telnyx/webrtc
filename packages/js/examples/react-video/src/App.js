@@ -55,18 +55,18 @@ function App() {
 
       switch (notification.type) {
         case 'callUpdate':
-          console.log('notification ---> call.state', call.state);
+          console.log('notification ---> call.state', notification.call.state);
           if (
             notification.call.state === 'hangup' ||
             notification.call.state === 'destroy'
           ) {
-            return useState({ connected: false, call: notification.call });
+            return setState({ connected: true, call: null });
           }
           if (notification.call.state === 'active') {
-            return useState({ connected: true, call: notification.call });
+            return setState({ connected: true, call: notification.call });
           }
           if (notification.call.state === 'ringing') {
-            return useState({ connected: true, call: notification.call });
+            return setState({ connected: true, call: notification.call });
           }
           break;
         case 'participantData':
@@ -91,10 +91,11 @@ function App() {
         video: true,
       });
       console.log('newCall', newCall);
-      setState({ call: newCall });
+      setState({ call: newCall, connected: state.connected });
     }
   }
 
+  console.log('state=====>', state);
   const { connected, call } = state;
 
   const Main = () => {
