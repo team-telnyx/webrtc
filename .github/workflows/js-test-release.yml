@@ -1,4 +1,4 @@
-name: '@telnyx/webrtc CI'
+name: '@telnyx/webrtc Test release'
 
 on:
   pull_request:
@@ -7,12 +7,17 @@ on:
 
 jobs:
   build:
-    name: Test build
+    name: Test release
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
     - name: Use Node.js 11.x
       uses: actions/setup-node@v1
       with:
@@ -30,3 +35,9 @@ jobs:
     - name: Build
       working-directory: packages/js
       run: npm run build
+    - name: Release dry run
+      working-directory: packages/js
+      run: npm run release -- --ci --dry-run --no-npm.publish
+      env:
+        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

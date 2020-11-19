@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
+    "@release-it/conventional-changelog": "^2.0.0",
     "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
     "@typescript-eslint/eslint-plugin": "^3.6.1",
@@ -55,7 +56,7 @@
     "lint-staged": "^10.2.11",
     "md-gum-polyfill": "^1.0.0",
     "prettier": "^2.1.2",
-    "release-it": "^13.6.6",
+    "release-it": "^14.0.2",
     "rollup": "^1.19.4",
     "rollup-plugin-babel": "^4.3.3",
     "rollup-plugin-commonjs": "^10.0.2",
@@ -75,6 +76,12 @@
     },
     "github": {
       "release": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "angular",
+        "infile": "CHANGELOG.md"
+      }
     }
   },
   "lint-staged": {

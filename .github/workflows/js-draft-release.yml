@@ -1,0 +1,45 @@
+name: '@telnyx/webrtc Draft release'
+
+on:
+  push:
+    branches:
+    - main
+    paths:
+    - 'packages/js/**'
+
+jobs:
+  build:
+    name: Draft release
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/js
+      run: npm ci --ignore-scripts
+    - name: Test
+      working-directory: packages/js
+      run: npm test
+      env:
+        CI: true
+    - name: Build
+      working-directory: packages/js
+      run: npm run build
+    - name: Create draft release
+      working-directory: packages/js
+      run: npm run release -- --ci --github.draft --no-npm.publish
+      env:
+        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
