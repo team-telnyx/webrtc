@@ -220,7 +220,29 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Return the audio output devices supported by the browser.
+   *
+   * ## Examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *
+   *   let result = await client.getAudioInDevices();
+   *
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getAudioInDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
@@ -230,7 +252,34 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Returns the audio output devices supported by the browser.
+   *
+   * Browser Compatibility Note: Firefox has yet to fully implement
+   * audio output devices. As of v63, this feature is behind the
+   * user preference `media.setsinkid.enabled`.
+   * See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
+   *
+   * ## Examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *
+   *   let result = await client.getAudioOutDevices();
+   *
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getAudioOutDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
    */
   getAudioOutDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioOut).catch((error) => {

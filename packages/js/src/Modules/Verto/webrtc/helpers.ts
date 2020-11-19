@@ -33,9 +33,14 @@ const _constraintsByKind = (
  * Retrieve device list using the browser APIs
  * If 'deviceId' or 'label' are missing it means we are on Safari (macOS or iOS)
  * so we must request permissions to the user and then refresh the device list.
+ *
+ * Browser Compatibility Note: Firefox has yet to fully implement
+ * audio output devices. As of v63, this feature is behind the
+ * user preference `media.setsinkid.enabled`.
+ * See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
  */
 const getDevices = async (
-  kind: string = null,
+  kind: MediaDeviceKind | undefined = null,
   fullList: boolean = false
 ): Promise<MediaDeviceInfo[]> => {
   let devices = await WebRTC.enumerateDevices().catch((error) => []);
