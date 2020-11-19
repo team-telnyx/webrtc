@@ -3,10 +3,7 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 import PropTypes from 'prop-types';
 import DialPad from './DialPad';
 
-
-import {
-  Container, NumberInput,
-} from './styles';
+import { Container, NumberInput } from './styles';
 
 const WebDialer = ({
   environment,
@@ -15,6 +12,7 @@ const WebDialer = ({
   defaultDestination,
   callerName,
   callerNumber,
+  disableMicrophone,
 }) => {
   const clientRef = useRef();
   const mediaRef = useRef();
@@ -27,7 +25,6 @@ const WebDialer = ({
   const [isHold, setIsHold] = useState(false);
   const [statusCall, setStatusCall] = useState('');
 
-
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
       clientRef.current.disconnect();
@@ -39,19 +36,38 @@ const WebDialer = ({
     setCall(null);
   };
 
-  useEffect(() => resetFromStorybookUpdate, [environment, username, password, callerName, callerNumber]);
+  useEffect(() => resetFromStorybookUpdate, [
+    environment,
+    username,
+    password,
+    callerName,
+    callerNumber,
+  ]);
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
       callerName,
       callerNumber,
       destinationNumber: destination,
-      audio: true,
-      video: false,
+      // audio: true,
+      // NOTE Either audio or video must be true or the call
+      // will be stuck on "new". Enabling video for now so that
+      // we can test disabling the audio with Storybook Knobs
+      video: true,
     });
 
     setCall(newCall);
   };
+
+  useEffect(() => {
+    if (!registered || !clientRef.current) return;
+
+    if (disableMicrophone) {
+      clientRef.current.disableMicrophone();
+    } else {
+      clientRef.current.enableMicrophone();
+    }
+  }, [registered, disableMicrophone]);
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
@@ -93,10 +109,10 @@ const WebDialer = ({
 
       switch (notification.type) {
         case 'callUpdate':
-          setStatusCall(notification.call.state)
+          setStatusCall(notification.call.state);
           if (
-            notification.call.state === 'hangup'
-            || notification.call.state === 'destroy'
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
           ) {
             setIsInboundCall(false);
             return setCall(null);
@@ -132,7 +148,8 @@ const WebDialer = ({
     call.hangup();
   };
 
-  const handleDigit = (x) => (call ? call.dtmf(x) : setDestination(`${destination}${x}`));
+  const handleDigit = (x) =>
+    call ? call.dtmf(x) : setDestination(`${destination}${x}`);
 
   const toggleMute = () => {
     if (call) {
@@ -187,7 +204,8 @@ const WebDialer = ({
       {registering && !registered && <div>registering...</div>}
 
       {statusCall}
-    </Container>);
+    </Container>
+  );
 };
 
 WebDialer.propTypes = {
@@ -197,6 +215,6 @@ WebDialer.propTypes = {
   defaultDestination: PropTypes.string.isRequired,
   callerName: PropTypes.string.isRequired,
   callerNumber: PropTypes.string.isRequired,
-}
+};
 
 export default WebDialer;

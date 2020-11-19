@@ -339,10 +339,52 @@ export default abstract class BrowserSession extends BaseSession {
     return this._audioConstraints;
   }
 
+  /**
+   * Disables use of the microphone in subsequent calls.
+   *
+   * Note: This setting will be ignored if `audio: true` is
+   * specified when creating a new call.
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.disableMicrophone();
+   * ```
+   *
+   * Keep in mind that new calls will fail if both the
+   * microphone and webcam is disabled. Make sure that the
+   * webcam is manually enabled, or `video: true` is
+   * specified before disabling the microphone.
+   *
+   * ```js
+   * const client = new TelnyxRTC({
+   *   ...options,
+   *   video: true
+   * });
+   *
+   * client.disableMicrophone();
+   * ```
+   */
   disableMicrophone() {
     this._audioConstraints = false;
   }
 
+  /**
+   * Enables use of the microphone in subsequent calls.
+   *
+   * Note: This setting will be ignored if `audio: false` is
+   * specified when creating a new call.
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.enableMicrophone();
+   * ```
+   */
   enableMicrophone() {
     this._audioConstraints = true;
   }

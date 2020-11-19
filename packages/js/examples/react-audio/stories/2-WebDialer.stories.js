@@ -1,8 +1,6 @@
 import React from 'react';
 
-import {
-  withKnobs, text, boolean,
-} from '@storybook/addon-knobs/react';
+import { withKnobs, text, boolean } from '@storybook/addon-knobs/react';
 
 import WebDialer from './components/WebDialer';
 
@@ -17,6 +15,7 @@ export const Example = () => {
   const password = text('Connection Password', 'password');
   const callerName = text('Caller Name', 'Caller ID Name');
   const callerNumber = text('Caller Number', 'Caller ID Number');
+  const disableMicrophone = boolean('Disable Microphone', false);
 
   return (
     <WebDialer
@@ -26,6 +25,7 @@ export const Example = () => {
       defaultDestination='18004377950'
       callerName={callerName}
       callerNumber={callerNumber}
+      disableMicrophone={disableMicrophone}
     />
   );
 };
