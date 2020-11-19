@@ -27,19 +27,23 @@ function App() {
         telnyxRTCRef.current.disconnect();
       }
     };
-  }, [enabledVideo]);
+  }, []);
+
+  React.useEffect(() => {
+    if (!state.connected || !telnyxRTCRef.current) return;
+
+    if (enabledVideo) {
+      telnyxRTCRef.current.enableWebcam();
+    } else {
+      telnyxRTCRef.current.disableWebcam();
+    }
+  }, [state.connected, enabledVideo]);
 
   function connect(params) {
     setLoginParams(params);
 
     const session = new TelnyxRTC({ ...params });
     session.enableMicrophone();
-
-    if (enabledVideo) {
-      session.enableWebcam();
-    } else {
-      session.disableWebcam();
-    }
 
     session.on('telnyx.ready', (session) => {
       setState({ connected: true });
@@ -96,7 +100,6 @@ function App() {
       const newCall = telnyxRTCRef.current.newCall({
         destinationNumber: extension,
         audio: true,
-        video: true,
       });
       setState({ call: newCall, connected: state.connected });
     }
