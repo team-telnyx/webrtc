@@ -72,11 +72,11 @@
   },
   "release-it": {
     "git": {
-      "tagName": "webrtc/v${version}",
-      "releaseName": "webrtc@${version}"
+      "tagName": "webrtc/v${version}"
     },
     "github": {
-      "release": true
+      "release": true,
+      "releaseName": "webrtc@${version}"
     },
     "plugins": {
       "@release-it/conventional-changelog": {

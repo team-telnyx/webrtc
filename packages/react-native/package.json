@@ -35,11 +35,11 @@
   },
   "release-it": {
     "git": {
-      "tagName": "react-native/v${version}",
-      "releaseName": "react-native@${version}"
+      "tagName": "react-native/v${version}"
     },
     "github": {
-      "release": true
+      "release": true,
+      "releaseName": "react-native@${version}"
     },
     "plugins": {
       "@release-it/conventional-changelog": {
