@@ -1,20 +1,12 @@
 # Telnyx WebRTC SDK
 
-## Version v1
-
-To access v1 click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
-
-## Version v2
-
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) <!-- GEN:chromium-version-badge-if-release -->[![Chromium version](https://img.shields.io/badge/chromium-82.0.4057.0-blue.svg?logo=google-chrome)](https://www.chromium.org/Home)<!-- GEN:stop --> <!-- GEN:firefox-version-badge-if-release -->[![Firefox version](https://img.shields.io/badge/firefox-72-blue.svg?logo=mozilla-firefox)](https://www.mozilla.org/en-US/firefox/new/)<!-- GEN:stop --> [![WebKit version](https://img.shields.io/badge/webkit-13.0.4-blue.svg?logo=safari)](https://webkit.org/) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
 
 The Telnyx WebRTC SDK provides all the functionality you need to start making voice calls from a browser to phone numbers or other browsers.
 
-## Requirements
+[v2 CHANGELOG](CHANGELOG.md)
 
-You'll need node v11.15.0 or later.
-
-You'll also need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
+To access v1, click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
 
 ---
 
@@ -22,6 +14,12 @@ You'll also need a Telnyx account in order to authenticate your application. Fol
 
 - `@telnyx/webrtc`
 - `@telnyx/react-native` - [React Native](https://www.npmjs.com/package/@telnyx/react-native)
+
+## Requirements
+
+You'll need node v11.15.0 or later.
+
+You'll also need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
 
 ## Installation
 
