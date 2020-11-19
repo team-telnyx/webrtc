@@ -5,6 +5,10 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
+      package:
+        description: 'Package to publish'
+        required: true
+        default: 'webrtc'
       reason:
         description: 'Manual trigger reason'
         required: false
@@ -12,7 +16,7 @@ on:
 
 jobs:
   publish-js:
-    if: startsWith(github.ref, 'refs/tags/webrtc')
+    if: github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')
 
     name: '@telnyx/webrtc Publish release'
 
