@@ -8,12 +8,17 @@ import './App.css';
 
 function App() {
   const [state, setState] = React.useState({ connected: false, call: null });
+  const [enabledVideo, setEnableVideo] = React.useState(true);
+
   const telnyxRTCRef = React.useRef(null);
 
   React.useEffect(() => {
     const tmp = getLoginParams();
     const { login, password } = tmp;
     if (login && password) {
+      if (telnyxRTCRef.current) {
+        telnyxRTCRef.current.disconnect();
+      }
       connect(tmp);
     }
 
@@ -22,14 +27,19 @@ function App() {
         telnyxRTCRef.current.disconnect();
       }
     };
-  }, []);
+  }, [enabledVideo]);
 
   function connect(params) {
     setLoginParams(params);
 
-    const session = new TelnyxRTC({ ...params, env: 'development' });
+    const session = new TelnyxRTC({ ...params });
     session.enableMicrophone();
-    session.enableWebcam();
+
+    if (enabledVideo) {
+      session.enableWebcam();
+    } else {
+      session.disableWebcam();
+    }
 
     session.on('telnyx.ready', (session) => {
       setState({ connected: true });
@@ -92,6 +102,10 @@ function App() {
     }
   }
 
+  function handleEnableVideo(event) {
+    setEnableVideo(event.target.checked);
+  }
+
   const { connected, call } = state;
 
   const Main = () => {
@@ -111,9 +125,19 @@ function App() {
       </header>
       <main className='flex flex-center'>
         <Main />
+        <div>
+          <input
+            id='enabledVideo'
+            name='enabledVideo'
+            type='checkbox'
+            checked={enabledVideo}
+            onChange={(event) => handleEnableVideo(event)}
+          ></input>
+          <label htmlFor='enabledVideo'>Enable video</label>
+        </div>
       </main>
       <footer>
-        <h2>Telnyx - 2020</h2>
+        <h2>{`Telnyx - ${new Date().getFullYear()}`}</h2>
       </footer>
     </div>
   );
