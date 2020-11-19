@@ -20,7 +20,7 @@
   "scripts": {
     "build": "rollup -c",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run test",
+    "prepublishOnly": "if [[ -z \"${CI}\" ]]; then npm run test; else echo \"Skipping tests in CI\"; fi",
     "test": "jest",
     "docs": "typedoc src",
     "release": "release-it",
