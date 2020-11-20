@@ -11,7 +11,7 @@ on:
         default: 'webrtc'
 
 jobs:
-  publish-js:
+  publish-webrtc:
     if: github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')
 
     name: '@telnyx/webrtc Publish release'
@@ -32,6 +32,31 @@ jobs:
       run: npm ci --ignore-scripts
     - name: Publish package
       working-directory: packages/js
+      run: npm publish --access public
+      env:
+        CI: true
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+  publish-react-client:
+    if: github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')
+
+    name: '@telnyx/react-client Publish release'
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+        registry-url: https://registry.npmjs.org/
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/react-client
+      run: npm ci --ignore-scripts
+    - name: Publish package
+      working-directory: packages/react-client
       run: npm publish --access public
       env:
         CI: true
