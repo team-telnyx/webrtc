@@ -25,7 +25,8 @@
     "test:lint": "eslint .",
     "test:unit": "cross-env CI=1 react-scripts test --env=jsdom",
     "test:watch": "react-scripts test --env=jsdom",
-    "format": "prettier --write 'src/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts'",
+    "release": "release-it"
   },
   "engines": {
     "node": ">=11"
@@ -42,6 +43,7 @@
     "react": "^16.0.0"
   },
   "devDependencies": {
+    "@release-it/conventional-changelog": "^2.0.0",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.5.0",
     "@testing-library/user-event": "^7.2.1",
@@ -70,6 +72,7 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-scripts": "^3.4.1",
+    "release-it": "^14.2.1",
     "typescript": "^3.7.5"
   },
   "files": [
@@ -78,5 +81,22 @@
   "publishConfig": {
     "access": "public",
     "@telnyx:registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "git": {
+      "tagName": "react-client/v${version}"
+    },
+    "github": {
+      "release": true,
+      "releaseName": "react-client@${version}"
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "angular",
+        "infile": "CHANGELOG.md",
+        "tagPrefix": "react-client/v",
+        "path": "./src"
+      }
+    }
   }
 }
