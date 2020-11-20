@@ -27,11 +27,11 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/react-client
       run: npm ci --ignore-scripts
-    - name: Test
-      working-directory: packages/react-client
-      run: npm test
-      env:
-        CI: true
+    # - name: Test
+    #   working-directory: packages/react-client
+    #   run: npm test
+    #   env:
+    #     CI: true
     - name: Build
       working-directory: packages/react-client
       run: npm run build
