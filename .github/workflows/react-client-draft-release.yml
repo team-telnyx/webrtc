@@ -34,15 +34,15 @@ jobs:
       run: npm ci
     - name: Install package dependencies
       working-directory: packages/react-client
-      run: npm ci --ignore-scripts && npm run install-peers
+      run: npm ci
     # - name: Test
     #   working-directory: packages/react-client
     #   run: npm test
     #   env:
     #     CI: true
-    - name: Build
-      working-directory: packages/react-client
-      run: npm run build
+    # - name: Build
+    #   working-directory: packages/react-client
+    #   run: npm run build
     - name: Create draft release
       working-directory: packages/react-client
       run: npm run release -- --ci --github.draft --no-npm.publish
