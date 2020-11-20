@@ -34,7 +34,7 @@ jobs:
       run: npm ci
     - name: Install package dependencies
       working-directory: packages/react-client
-      run: npm ci --ignore-scripts
+      run: npm ci --ignore-scripts && npm run install-peers
     # - name: Test
     #   working-directory: packages/react-client
     #   run: npm test
