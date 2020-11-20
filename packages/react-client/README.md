@@ -198,6 +198,30 @@ npm start
 cd example && npm start
 ```
 
+---
+
+## Contributing
+
+See [Contribution Guide](../../docs/Contributing.md)
+
+### Releasing
+
+Versioning and CHANGELOG updates are automatically handled by the [release-it](https://github.com/release-it/release-it) + [conventional-changelog](https://github.com/conventional-changelog) packages.
+
+To preview the version bump based on your changes:
+
+```shell
+$ npm run release -- --dry-run
+```
+
+To release:
+
+```shell
+$ npm run release
+```
+
+This will create a new GitHub Release and publish the package to the npm registry.
+
 ## License
 
 MIT © [Telnyx](https://github.com/team-telnyx)
