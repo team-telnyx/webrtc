@@ -7,7 +7,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    *
    * @param options An object with options.
    * @param options.login_token The JSON Web Token (JWT) to authenticate with your SIP Connection. This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
-   * @param options.login The `username` to authenticate with your SIP Connection.
+   * @param options.login The `username` to authenticate with your SIP Connection. `login` and `password` will take precedence over `login_token` for authentication.
    * @param options.password The `password` to authenticate with your SIP Connection.
    * @param options.ringtoneFile A URL to a wav/mp3 ringtone file.
    * @param options.ringbackFile A URL to a wav/mp3 ringback file that will be used when you disable "Generate Ringback Tone" in you SIP Connection.
