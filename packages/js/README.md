@@ -215,7 +215,7 @@ open index.html
 ```
 
 Screenshot:
-![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/vanilla/vanilla-screeshot.png)
+![Video call](./examples/vanilla/vanilla-screeshot.png)
 
 ---
 
@@ -235,7 +235,7 @@ npm run storybook
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
 
 Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/react-audio/storybook-screenshot.png)
+![Web Dialer](./examples/react-audio/storybook-screenshot.png)
 
 #### Video call
 
@@ -247,7 +247,7 @@ npm start
 ```
 
 Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/js/examples/react-video/react-video-screenshot.png)
+![Web Dialer](./examples/react-video/react-video-screenshot.png)
 
 ---
 

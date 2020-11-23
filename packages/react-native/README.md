@@ -19,7 +19,7 @@ npm install @telnyx/react-native --save
 ```
 
 ```js
-import { TelnyxRTC } from "@telnyx/react-native";
+import { TelnyxRTC } from '@telnyx/react-native';
 ```
 
 ## Usage
@@ -39,44 +39,44 @@ let activeCall;
 
 // Attach event listeners
 client
-  .on("telnyx.socket.open", () => console.log("socket open"))
-  .on("telnyx.socket.close", () => {
-    console.log("socket closed");
+  .on('telnyx.socket.open', () => console.log('socket open'))
+  .on('telnyx.socket.close', () => {
+    console.log('socket closed');
     client.disconnect();
   })
-  .on("telnyx.socket.error", (error) => {
-    console.log("telnyx.socket.error", error);
+  .on('telnyx.socket.error', (error) => {
+    console.log('telnyx.socket.error', error);
     client.disconnect();
   })
-  .on("telnyx.ready", () => console.log("ready to call"))
-  .on("telnyx.error", () => console.log("error"))
+  .on('telnyx.ready', () => console.log('ready to call'))
+  .on('telnyx.error', () => console.log('error'))
   // Event fired on call updates, e.g. when there's an incoming call
-  .on("telnyx.notification", (notification) => {
+  .on('telnyx.notification', (notification) => {
     activeCall = notification.call;
 
     switch (notification.type) {
-      case "callUpdate":
+      case 'callUpdate':
         // Call is over and can be removed
         if (
-          notification.call.state === "hangup" ||
-          notification.call.state === "destroy"
+          notification.call.state === 'hangup' ||
+          notification.call.state === 'destroy'
         ) {
           activeCall = null;
         }
         // An established and active call
-        if (notification.call.state === "active") {
+        if (notification.call.state === 'active') {
           return;
         }
         // New calls that haven't started connecting yet
-        if (notification.call.state === "new") {
+        if (notification.call.state === 'new') {
           return;
         }
         // Receiving an inbound call
-        if (notification.call.state === "ringing") {
+        if (notification.call.state === 'ringing') {
           return;
         }
         // Call is active but on hold
-        if (notification.call.state === "held") {
+        if (notification.call.state === 'held') {
           return;
         }
         break;
@@ -145,7 +145,7 @@ You can access the documentation [here](https://www.npmjs.com/package/@telnyx/re
 ```
 
 Screenshot:
-![Video call app](https://raw.githubusercontent.com/team-telnyx/webrtc/main/packages/react-native/examples/calling-video-app/app-screenshot.png)
+![Video call app](./examples/calling-video-app/app-screenshot.png)
 
 ---
 
