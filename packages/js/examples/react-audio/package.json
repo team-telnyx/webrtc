@@ -19,7 +19,7 @@
     "@storybook/addon-knobs": "^5.2.1",
     "@storybook/addon-links": "^5.2.1",
     "@storybook/addons": "^5.2.1",
-    "@storybook/react": "^5.2.1",
+    "@storybook/react": "^6.1.3",
     "@telnyx/webrtc": "^2.2.0",
     "prop-types": "^15.7.2",
     "styled-components": "^4.4.0"
