@@ -351,6 +351,28 @@ export default abstract class BrowserSession extends BaseSession {
 
   /**
    * Return supported resolution for the given webcam.
+   *
+   * @param deviceId this is the deviceId from your webcam.
+   *
+   * ## Examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getDeviceResolutions(deviceId);
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getDeviceResolutions(deviceId).then((result) => {
+   *   console.log(result);
+   * });
+   * ```
    */
   async getDeviceResolutions(deviceId: string) {
     try {
