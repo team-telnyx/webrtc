@@ -200,7 +200,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Returns a list of devices supported by the browser
    *
    * ## Examples
    *
