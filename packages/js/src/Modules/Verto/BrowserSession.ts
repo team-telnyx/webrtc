@@ -209,9 +209,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ```js
    * async function() {
    *   const client = new TelnyxRTC(options);
-   *
    *   let result = await client.getDevices();
-   *
    *   console.log(result);
    * }
    * ```
