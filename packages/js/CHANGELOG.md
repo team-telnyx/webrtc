@@ -1,3 +1,15 @@
+## [2.3.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.2...webrtc/v2.3.0) (2020-11-25)
+
+
+### Features
+
+* **WEBRTC-227:** add typedoc on getDevices method and create  a utility method to test ([#70](https://github.com/team-telnyx/webrtc/issues/70)) ([2159cf6](https://github.com/team-telnyx/webrtc/commit/2159cf6d8697e29f567894936ebe2a8fda5b5756))
+
+
+### Bug Fixes
+
+* **WEBRTC-281:** vulnerability dependencies ([#69](https://github.com/team-telnyx/webrtc/issues/69)) ([6596525](https://github.com/team-telnyx/webrtc/commit/6596525392e294641673f5c149b98e26c5d4e867))
+
 ## [2.2.2](https://github.com/team-telnyx/webrtc/compare/v2.2.1-50-g0d4d2364801153f2d24afdee90fc15c856b000df...webrtc/v2.2.2) (2020-11-19)
 
 ### Bug Fixes
