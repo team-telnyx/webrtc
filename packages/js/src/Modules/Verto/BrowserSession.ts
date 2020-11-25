@@ -200,7 +200,27 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Returns a list of devices supported by the browser
+   *
+   * ## Examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getDevices();
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
    */
   getDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices().catch((error) => {

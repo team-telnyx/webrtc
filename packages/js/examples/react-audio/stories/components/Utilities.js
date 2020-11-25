@@ -4,7 +4,15 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 function Utilities({ environment, username, password }) {
   const clientRef = useRef();
   const [isConnected, setIsConnected] = useState(false);
-  const [message, setMessage] = useState('');
+  const [log, setLog] = useState({ title: '', message: '' });
+
+  function getListFormat(label) {
+    return (
+      <ul>
+        <li>{label}</li>
+      </ul>
+    );
+  }
 
   const initClient = () => {
     clientRef.current = new TelnyxRTC({
@@ -15,10 +23,10 @@ function Utilities({ environment, username, password }) {
   };
 
   const connect = async () => {
-    if (environment && username && password) {
+    if (environment && username && password && clientRef.current) {
       if (isConnected) {
         setIsConnected(false);
-        setMessage('Reconnecting...');
+        setLog({ message: 'Reconnecting...' });
 
         await clientRef.current.disconnect();
       }
@@ -27,37 +35,52 @@ function Utilities({ environment, username, password }) {
 
       clientRef.current.on('telnyx.ready', () => {
         setIsConnected(true);
-        setMessage('Connected');
+        setLog({ message: 'Connected' });
       });
 
       clientRef.current.on('telnyx.error', () => {
-        setMessage('Received error attempting to connect');
+        setLog({ message: 'Received error attempting to connect' });
       });
 
       clientRef.current.connect();
     } else {
-      setMessage('Username and Password are required');
+      setLog({ message: 'Username and Password are required' });
     }
   };
 
   const getAudioInDevices = async () => {
     const results = await clientRef.current.getAudioInDevices();
 
-    setMessage(
-      `Audio input devices: ${
+    setLog({
+      title: 'Audio input devices:',
+      message: `${
         results.length ? results.map(({ label }) => label).join(', ') : 'None'
-      }`
-    );
+      }`,
+    });
   };
 
   const getAudioOutDevices = async () => {
     const results = await clientRef.current.getAudioOutDevices();
 
-    setMessage(
-      `Audio output devices: ${
+    setLog({
+      title: 'Audio output devices:',
+      message: `${
         results.length ? results.map(({ label }) => label).join(', ') : 'None'
-      }`
-    );
+      }`,
+    });
+  };
+
+  const getDevices = async () => {
+    const results = await clientRef.current.getDevices();
+
+    const devicelist = results.length
+      ? results.map(({ label }) => getListFormat(label))
+      : 'None';
+
+    setLog({
+      title: 'Return the device list supported by the browser',
+      message: devicelist,
+    });
   };
 
   if (!clientRef.current && environment && username && password) {
@@ -67,7 +90,9 @@ function Utilities({ environment, username, password }) {
   return (
     <div>
       <section>
-        <p>Log: {message}</p>
+        <p>
+          Log: {log.title} {log.message}
+        </p>
       </section>
 
       {clientRef.current && (
@@ -81,6 +106,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => getAudioOutDevices()}>
               Get Audio Output Devices
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => getDevices()}>
+              Get Device List
             </button>
           </div>
 
