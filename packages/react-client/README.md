@@ -198,6 +198,12 @@ npm start
 cd example && npm start
 ```
 
+---
+
+## Contributing
+
+See [Contribution Guide](../../docs/Contributing.md)
+
 ## License
 
 MIT © [Telnyx](https://github.com/team-telnyx)

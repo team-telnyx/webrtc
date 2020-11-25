@@ -253,6 +253,8 @@ Screenshot:
 
 ## Contributing
 
+See [Contribution Guide](../../docs/Contributing.md)
+
 ### Development
 
 This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
@@ -276,19 +278,3 @@ To generate TypeScript documentation:
 ```
 npm run docs
 ```
-
-### Releasing
-
-Releases are handled by the [release-it](https://github.com/release-it/release-it) package. This is available as an npm script:
-
-```
-# start a release with prompts
-npm run release
-
-# pass in specific arguments
-npm run release -- <type|version>
-npm run release -- minor
-npm run release -- major
-```
-
-<!-- Open a new pull request with your changes to propose a new release. -->
