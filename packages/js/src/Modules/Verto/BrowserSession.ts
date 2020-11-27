@@ -350,7 +350,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return supported resolution for the given webcam.
+   * Returns supported resolution for the given webcam.
    *
    * @param deviceId this is the `deviceId` from your webcam.
    *
