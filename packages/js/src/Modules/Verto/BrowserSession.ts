@@ -361,8 +361,8 @@ export default abstract class BrowserSession extends BaseSession {
    * 1. if `deviceId` is `null` and you don't have a webcam connected to your computer,
    * it will throw an error with the message `"Requested device not found"`.
    *
-   * 2. if `deviceId` is `null` and you have one or more webcam connect to your computer,
-   * it will return a list of resolutions from the default one set up in your system.
+   * 2. if `deviceId` is `null` and you have one or more webcam connected to your computer,
+   * it will return a list of resolutions from the default device set up in your operating system.
    *
    * Using async/await:
    *
