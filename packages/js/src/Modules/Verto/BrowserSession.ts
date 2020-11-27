@@ -358,7 +358,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * If `deviceId` is `null`
    *
-   * 1. if `deviceId` is `null` and you do not have a webcam connect to your computer,
+   * 1. if `deviceId` is `null` and you don't have a webcam connected to your computer,
    * it will throw an error **Requested device not found**.
    *
    * 2. if `deviceId` is `null` and you have one or more webcam connect to your computer,
