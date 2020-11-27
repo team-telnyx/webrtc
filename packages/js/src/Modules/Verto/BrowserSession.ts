@@ -382,7 +382,7 @@ export default abstract class BrowserSession extends BaseSession {
    * });
    * ```
    *
-   * Case `deviceId` is **not** `null`
+   * If `deviceId` is **not** `null`
    *
    * it will return a list of resolutions from the `deviceId` sent.
    *
