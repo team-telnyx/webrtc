@@ -213,7 +213,7 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Remove an event handler that were attached with .on().
+   * Removes an event handler that were attached with .on().
    * If no handler parameter is passed, all listeners for that event will be removed.
    *
    * @param eventName Event name.
