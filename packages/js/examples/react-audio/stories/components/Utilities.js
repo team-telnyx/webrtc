@@ -6,9 +6,9 @@ function Utilities({ environment, username, password }) {
   const [isConnected, setIsConnected] = useState(false);
   const [log, setLog] = useState({ title: '', message: '' });
 
-  function getListFormat(label) {
+  function getListFormat({ key, label }) {
     return (
-      <ul>
+      <ul key={key}>
         <li>{label}</li>
       </ul>
     );
@@ -74,11 +74,36 @@ function Utilities({ environment, username, password }) {
     const results = await clientRef.current.getDevices();
 
     const devicelist = results.length
-      ? results.map(({ label }) => getListFormat(label))
+      ? results.map(({ label }, index) => getListFormat({ key: index, label }))
       : 'None';
 
     setLog({
       title: 'Return the device list supported by the browser',
+      message: devicelist,
+    });
+  };
+
+  const getDeviceResolutions = async () => {
+    const webcamList = await clientRef.current.getVideoDevices();
+    const deviceId = webcamList[0] ? webcamList[0].deviceId : '';
+    const label = webcamList[0] ? webcamList[0].label : '';
+
+    const results = await clientRef.current
+      .getDeviceResolutions(deviceId)
+      .catch((error) => console.log(error));
+
+    const devicelist =
+      results && results.length
+        ? results.map(({ resolution, width, height }, index) =>
+            getListFormat({
+              key: index,
+              label: `${resolution} - ${width}x${height}`,
+            })
+          )
+        : 'None';
+
+    setLog({
+      title: `Return the device resolutions of webcam ${label}`,
       message: devicelist,
     });
   };
@@ -90,9 +115,9 @@ function Utilities({ environment, username, password }) {
   return (
     <div>
       <section>
-        <p>
+        <div style={{ margin: '10px 0px' }}>
           Log: {log.title} {log.message}
-        </p>
+        </div>
       </section>
 
       {clientRef.current && (
@@ -112,6 +137,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => getDevices()}>
               Get Device List
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => getDeviceResolutions()}>
+              Get Device Resolutions
             </button>
           </div>
 

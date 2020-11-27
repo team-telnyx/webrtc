@@ -350,7 +350,58 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return supported resolution for the given webcam.
+   * Returns supported resolution for the given webcam.
+   *
+   * @param deviceId the `deviceId` from your webcam.
+   *
+   * ## Examples
+   *
+   * If `deviceId` is `null`
+   *
+   * 1. if `deviceId` is `null` and you don't have a webcam connected to your computer,
+   * it will throw an error with the message `"Requested device not found"`.
+   *
+   * 2. if `deviceId` is `null` and you have one or more webcam connected to your computer,
+   * it will return a list of resolutions from the default device set up in your operating system.
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getDeviceResolutions();
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getDeviceResolutions().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
+   *
+   * If `deviceId` is **not** `null`
+   *
+   * it will return a list of resolutions from the `deviceId` sent.
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getDeviceResolutions(deviceId);
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getDeviceResolutions(deviceId).then((result) => {
+   *   console.log(result);
+   * });
    */
   async getDeviceResolutions(deviceId: string) {
     try {
