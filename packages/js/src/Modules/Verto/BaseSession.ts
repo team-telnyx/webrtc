@@ -216,8 +216,8 @@ export default abstract class BaseSession {
    * Remove an event handler that were attached with .on().
    * If no handler parameter is passed, all listeners for that event will be removed.
    *
-   * @param eventName `REQUIRED` Event name.
-   * @param callback `REQUIRED` Function to call when the event comes.
+   * @param eventName Event name.
+   * @param callback Function handler to be removed.
    *
    * @return The client object itself.
    *
