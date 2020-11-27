@@ -221,7 +221,7 @@ export default abstract class BaseSession {
    *
    * @return The client object itself.
    *
-   * Note: handler will be removed from the stack by reference
+   * Note: a handler will be removed from the stack by reference
    * so make sure to use the same reference in both `.on()` and `.off()` methods.
    *
    * ## Examples
