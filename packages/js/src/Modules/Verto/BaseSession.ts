@@ -186,10 +186,10 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Attach an event handler for a specific type of event.
+   * Attaches an event handler for a specific type of event.
    *
-   * @param eventName `REQUIRED` Event name.
-   * @param callback `REQUIRED` Function to call when the event comes.
+   * @param eventName Event name.
+   * @param callback Function to call when the event comes.
    *
    * @return The client object itself.
    *
