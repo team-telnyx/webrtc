@@ -448,9 +448,9 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * setAudioSettings
    *
-   * You can set the default audio constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
+   * You can set the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
    *
-   * Notes: Note: It's a common behaviour, in WebRTC applications,
+   * Note: It's a common behaviour, in WebRTC applications,
    * to persist devices user's selection to then reuse them across visits.
    * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
    * To avoid this issue you can specify two additional properties
@@ -458,13 +458,13 @@ export default abstract class BrowserSession extends BaseSession {
    * The client will use these values to assure the microphone you want to use is available
    * by matching both id and label with the device list retrieved from the browser.
    *
-   * @param settings - [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`.
+   * @param settings [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`.
    *
-   * @return `Promise<MediaTrackConstraints>` - Audio constraints applied to the client.
+   * @return `Promise<MediaTrackConstraints>` Audio constraints applied to the client.
    *
    * ## Examples
    *
-   * Set microphone by `id` and `label` with the `echoCancellation` flag turned off.:
+   * Set microphone by `id` and `label` with the `echoCancellation` flag turned off.
    *
    * ```js
    * // within an async function
@@ -539,6 +539,37 @@ export default abstract class BrowserSession extends BaseSession {
     this._audioConstraints = true;
   }
 
+  /**
+   * setVideoSettings
+   *
+   * You can set the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
+   *
+   * Note: It's a common behaviour, in WebRTC applications,
+   * to persist devices user's selection to then reuse them across visits.
+   * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+   * To avoid this issue you can specify two additional properties
+   * `camId` and `camLabel` in the constraints input parameter.
+   * The client will use these values to assure the webcam you want to use is available
+   * by matching both `id` and `label` with the device list retrieved from the browser.
+   *
+   * @param settings [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`.
+   *
+   * @return `Promise<MediaTrackConstraints>` Video constraints applied to the client.
+   *
+   * ## Examples
+   *
+   * Set webcam by `id` and `label` with 720p resolution.
+   *
+   * ```js
+   * // within an async function
+   * const constraints = await client.setVideoSettings({
+   *  camId: '882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+   *  camLabel: 'Default WebCam (Built-in)',
+   *  width: 1080,
+   *  height: 720
+   * })
+   * ```
+   */
   async setVideoSettings(settings: IVideoSettings) {
     const { camId, camLabel, ...constraints } = settings;
     removeUnsupportedConstraints(constraints);
