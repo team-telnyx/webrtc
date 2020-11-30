@@ -445,6 +445,36 @@ export default abstract class BrowserSession extends BaseSession {
     return { audio: this._audioConstraints, video: this._videoConstraints };
   }
 
+  /**
+   * setAudioSettings
+   *
+   * You can set the default audio constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
+   *
+   * Notes: Note: It's a common behaviour, in WebRTC applications,
+   * to persist devices user's selection to then reuse them across visits.
+   * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+   * To avoid this issue you can specify two additional properties
+   * `micId` and `micLabel` in the constraints input parameter.
+   * The client will use these values to assure the microphone you want to use is available
+   * by matching both id and label with the device list retrieved from the browser.
+   *
+   * @param settings - [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`.
+   *
+   * @return `Promise<MediaTrackConstraints>` - Audio constraints applied to the client.
+   *
+   * ## Examples
+   *
+   * Set microphone by `id` and `label` with the `echoCancellation` flag turned off.:
+   *
+   * ```js
+   * // within an async function
+   * const constraints = await client.setAudioSettings({
+   *  micId: '772e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+   *  micLabel: 'Internal Microphone (Built-in)',
+   *  echoCancellation: false
+   * })
+   * ```
+   */
   async setAudioSettings(settings: IAudioSettings) {
     const { micId, micLabel, ...constraints } = settings;
     removeUnsupportedConstraints(constraints);
