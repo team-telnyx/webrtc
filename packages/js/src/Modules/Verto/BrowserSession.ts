@@ -476,7 +476,12 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async setAudioSettings(settings: IAudioSettings) {
+    if (!settings) {
+      throw new Error('You need to provide the settings object');
+    }
+
     const { micId, micLabel, ...constraints } = settings;
+
     removeUnsupportedConstraints(constraints);
     this._audioConstraints = await checkDeviceIdConstraints(
       micId,
@@ -571,7 +576,12 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async setVideoSettings(settings: IVideoSettings) {
+    if (!settings) {
+      throw new Error('You need to provide the settings object');
+    }
+
     const { camId, camLabel, ...constraints } = settings;
+
     removeUnsupportedConstraints(constraints);
     this._videoConstraints = await checkDeviceIdConstraints(
       camId,
