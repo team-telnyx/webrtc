@@ -27,7 +27,6 @@ export default abstract class BaseSession {
   public subscriptions: { [channel: string]: any } = {};
   public nodeid: string;
   public master_nodeid: string;
-  public expiresAt: number = 0;
   public signature: string = null;
   public relayProtocol: string = null;
   public contexts: string[] = [];
@@ -76,10 +75,6 @@ export default abstract class BaseSession {
    */
   get connected(): boolean | null {
     return this.connection && this.connection.connected;
-  }
-
-  get expired() {
-    return this.expiresAt && this.expiresAt <= Date.now() / 1000;
   }
 
   get reconnectDelay() {
@@ -298,11 +293,7 @@ export default abstract class BaseSession {
     }
     this.subscriptions = {};
     this.contexts = [];
-    if (this.expired) {
-      this._idle = true;
-      this._autoReconnect = false;
-      this.expiresAt = 0;
-    }
+
     if (this._autoReconnect) {
       this._reconnectTimeout = setTimeout(
         () => this.connect(),
