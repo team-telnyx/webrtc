@@ -446,9 +446,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * setAudioSettings
-   *
-   * You can set the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
+   * Sets the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
    *
    * Note: It's a common behaviour, in WebRTC applications,
    * to persist devices user's selection to then reuse them across visits.
