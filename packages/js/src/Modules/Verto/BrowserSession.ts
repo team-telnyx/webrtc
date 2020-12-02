@@ -651,7 +651,21 @@ export default abstract class BrowserSession extends BaseSession {
     this._speaker = deviceId;
   }
 
-  get speaker() {
+  /**
+   * Audio output device currently used by the client
+   *
+   * ## Example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * console.log(client.speaker);
+   * // => "device ID"
+   * ```
+   *
+   * @type {(string | null)}
+   */
+  get speaker(): string | null {
     return this._speaker;
   }
 
