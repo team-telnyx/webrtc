@@ -354,6 +354,8 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @param deviceId the `deviceId` from your webcam.
    *
+   * @examples
+   *
    * ## Examples
    *
    * If `deviceId` is `null`

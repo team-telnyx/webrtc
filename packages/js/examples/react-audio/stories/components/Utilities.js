@@ -4,6 +4,7 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 function Utilities({ environment, username, password }) {
   const clientRef = useRef();
   const [isConnected, setIsConnected] = useState(false);
+  const [call, setCall] = useState(null);
   const [log, setLog] = useState({ title: '', message: '' });
 
   function getListFormat({ key, label }) {
@@ -108,6 +109,45 @@ function Utilities({ environment, username, password }) {
     });
   };
 
+  const newCall = async () => {
+    function onNotification(notification) {
+      switch (notification.type) {
+        case 'callUpdate':
+          console.log('notification.call', notification.call);
+          setLog({ message: notification.call.state });
+
+          if (
+            notification.call.state === 'hangup' ||
+            notification.call.state === 'destroy'
+          ) {
+            return setCall(null);
+          }
+          if (notification.call.state === 'active') {
+            return setCall(notification.call);
+          }
+          if (notification.call.state === 'ringing') {
+            return setCall(notification.call);
+          }
+          break;
+        default:
+      }
+    }
+
+    const options = {
+      destinationNumber: '+18564440362',
+      callerName: 'Telnyx Caller',
+      onNotification,
+    };
+
+    clientRef.current.newCall(options);
+  };
+
+  const hangUp = () => {
+    if (call) {
+      call.hangup();
+    }
+  };
+
   if (!clientRef.current && environment && username && password) {
     initClient();
   }
@@ -144,6 +184,18 @@ function Utilities({ environment, username, password }) {
             <button type='button' onClick={() => getDeviceResolutions()}>
               Get Device Resolutions
             </button>
+          </div>
+
+          <div>
+            {call ? (
+              <button type='button' onClick={() => hangUp()}>
+                End a call
+              </button>
+            ) : (
+              <button type='button' onClick={() => newCall()}>
+                Make a call
+              </button>
+            )}
           </div>
 
           <div>

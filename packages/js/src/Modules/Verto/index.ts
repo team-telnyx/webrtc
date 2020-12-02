@@ -27,6 +27,7 @@ export default class Verto extends BrowserSession {
    *
    * @param destinationNumber Extension to dial.
    * @param callerNumber Number to use as the caller ID when dialling out to a phone number.
+   * @param callerName Name to use as the caller ID name when dialling out to a phone number.
    * @param id The identifier of the Call.
    * @param localStream If sets, the Call will use this stream instead of retrieving a new one.
    * @param localElement Overrides client's default `localElement`.
@@ -40,11 +41,35 @@ export default class Verto extends BrowserSession {
    * @param speakerId deviceId to use as speaker. Overrides the client's default one.
    * @param onNotification Overrides client's default `telnyx.notification` handler for this Call.
    *
-   * @return `Promise<Call>` A promise fulfilled with the new outbound Call object or rejected with the error.
+   * @return `Promise<Call>` A promise fulfilled with the new outbound Call object
+   * or rejected with the error.
    *
-   * ## Examples
+   * @examples
+   *
    *
    * Making an outbound call to `+1 856-444-0362` using default values from the Client:
+   *
+   * if `options` is `null`.
+   * it will return the message error `You need to provide the options<CallOptions> object.`
+   *
+   * * Using async/await:
+   *
+   * ```js
+   * const call = await client.newCall().catch(console.error)
+   * ```
+   *
+   * if `destinationNumber` is `null`.
+   * it will return the message error `destinationNumber is required.`
+   *
+   * * Using async/await:
+   *
+   * ```js
+   * const options = {}
+   * const call = await client.newCall(options).catch(console.error)
+   * ```
+   *
+   * if `destinationNumber` is **not** `null`.
+   * it will make a call.
    *
    * Using async/await:
    *
@@ -54,6 +79,9 @@ export default class Verto extends BrowserSession {
    * ```
    */
   newCall(options: CallOptions) {
+    if (!options) {
+      throw new Error('You need to provide the options<CallOptions> object');
+    }
     const { destinationNumber = null } = options;
     if (!destinationNumber) {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
