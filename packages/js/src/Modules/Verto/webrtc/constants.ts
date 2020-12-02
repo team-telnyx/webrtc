@@ -36,7 +36,6 @@ export const NOTIFICATION_TYPE = {
   callUpdate: 'callUpdate',
   vertoClientReady: 'vertoClientReady',
   userMediaError: 'userMediaError',
-  refreshToken: 'refreshToken',
 };
 
 export const DEFAULT_CALL_OPTIONS: CallOptions = {
