@@ -95,12 +95,6 @@ export interface BroadcastParams {
   nodeId?: string;
 }
 
-export interface ICacheDevices {
-  videoinput?: { [deviceId: string]: MediaDeviceInfo };
-  audioinput?: { [deviceId: string]: MediaDeviceInfo };
-  audiooutput?: { [deviceId: string]: MediaDeviceInfo };
-}
-
 export interface IAudioSettings extends MediaTrackConstraints {
   micId?: string;
   micLabel?: string;
