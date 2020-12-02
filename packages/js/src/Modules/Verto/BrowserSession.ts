@@ -402,6 +402,7 @@ export default abstract class BrowserSession extends BaseSession {
    * client.getDeviceResolutions(deviceId).then((result) => {
    *   console.log(result);
    * });
+   * ```
    */
   async getDeviceResolutions(deviceId: string) {
     try {
