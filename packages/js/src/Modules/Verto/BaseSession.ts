@@ -67,8 +67,21 @@ export default abstract class BaseSession {
     return logger;
   }
 
-  get connected() {
-    return this.connection && this.connection.connected;
+  /**
+   * `true` if the client is connected to the Telnyx RTC server
+   *
+   * ## Example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   * console.log(client.connected); // => false
+   * ```
+   *
+   * @readonly
+   * @type {boolean}
+   */
+  get connected(): boolean {
+    return !!this.connection && this.connection.connected;
   }
 
   get expired() {
