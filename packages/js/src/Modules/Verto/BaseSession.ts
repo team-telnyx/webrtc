@@ -78,10 +78,10 @@ export default abstract class BaseSession {
    * ```
    *
    * @readonly
-   * @type {boolean}
+   * @type {boolean | undefined}
    */
-  get connected(): boolean {
-    return !!this.connection && this.connection.connected;
+  get connected(): boolean | undefined {
+    return this.connection?.connected;
   }
 
   get expired() {
