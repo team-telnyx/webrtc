@@ -108,6 +108,13 @@ function Utilities({ environment, username, password }) {
     });
   };
 
+  const getMediaConstraints = () => {
+    setLog({
+      title: 'Current media constraints',
+      message: JSON.stringify(clientRef.current.mediaConstraints),
+    });
+  };
+
   if (!clientRef.current && environment && username && password) {
     initClient();
   }
@@ -143,6 +150,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => getDeviceResolutions()}>
               Get Device Resolutions
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => getMediaConstraints()}>
+              Get Media Constraints
             </button>
           </div>
 
