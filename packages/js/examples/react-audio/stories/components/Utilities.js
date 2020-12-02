@@ -20,6 +20,21 @@ function Utilities({ environment, username, password }) {
       login: username,
       password,
     });
+
+    clientRef.current.on('telnyx.ready', (client) => {
+      setIsConnected(client.connected);
+
+      if (client.connected) {
+        setLog({ message: 'Connected' });
+      } else {
+        setLog({ message: 'Not connected' });
+      }
+    });
+
+    clientRef.current.on('telnyx.error', (error) => {
+      console.log('error:', error);
+      setLog({ message: 'Received error attempting to connect' });
+    });
   };
 
   const connect = async () => {
@@ -29,18 +44,9 @@ function Utilities({ environment, username, password }) {
         setLog({ message: 'Reconnecting...' });
 
         await clientRef.current.disconnect();
+
+        initClient();
       }
-
-      initClient();
-
-      clientRef.current.on('telnyx.ready', () => {
-        setIsConnected(true);
-        setLog({ message: 'Connected' });
-      });
-
-      clientRef.current.on('telnyx.error', () => {
-        setLog({ message: 'Received error attempting to connect' });
-      });
 
       clientRef.current.connect();
     } else {
