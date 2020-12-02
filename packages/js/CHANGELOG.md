@@ -1,3 +1,11 @@
+## [2.4.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.3.0...webrtc/v2.4.0) (2020-12-02)
+
+
+### Features
+
+* **WEBRTC-226:** add typedoc on getDeviceResolutions method and create a utility method to test ([#71](https://github.com/team-telnyx/webrtc/issues/71)) ([f8bdb8c](https://github.com/team-telnyx/webrtc/commit/f8bdb8cfe07a089a2b6e33b547b88362a0956b27))
+* **WEBRTC-228-229:** add typedoc on and off methods ([#72](https://github.com/team-telnyx/webrtc/issues/72)) ([0f93d8c](https://github.com/team-telnyx/webrtc/commit/0f93d8c2f5e7deacb2d6f233a70ffdcb96af6386))
+
 ## [2.3.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.2...webrtc/v2.3.0) (2020-11-25)
 
 
