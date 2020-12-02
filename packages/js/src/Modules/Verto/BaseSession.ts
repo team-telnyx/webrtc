@@ -186,8 +186,26 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Attach a listener to the global session level
-   * @return void
+   * Attaches an event handler for a specific type of event.
+   *
+   * @param eventName Event name.
+   * @param callback Function to call when the event comes.
+   *
+   * @return The client object itself.
+   *
+   * ## Examples
+   *
+   * Subscribe to the `telnyx.ready` and `telnyx.error` events.
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.on('telnyx.ready', (client) => {
+   *   // Your client is ready!
+   * }).on('telnyx.error', (error) => {
+   *   // Got an error...
+   * })
+   * ```
    */
   on(eventName: string, callback: Function) {
     register(eventName, callback, this.uuid);
@@ -195,8 +213,33 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Detach a listener from the global session level
-   * @return void
+   * Removes an event handler that were attached with .on().
+   * If no handler parameter is passed, all listeners for that event will be removed.
+   *
+   * @param eventName Event name.
+   * @param callback Function handler to be removed.
+   *
+   * @return The client object itself.
+   *
+   * Note: a handler will be removed from the stack by reference
+   * so make sure to use the same reference in both `.on()` and `.off()` methods.
+   *
+   * ## Examples
+   *
+   * Subscribe to the `telnyx.error` and then, remove the event handler.
+   *
+   * ```js
+   * const errorHandler = (error) => {
+   *  // Log the error..
+   * }
+   *
+   * const client = new TelnyxRTC(options);
+   *
+   * client.on('telnyx.error', errorHandler)
+   *
+   *  // .. later
+   * client.off('telnyx.error', errorHandler)
+   * ```
    */
   off(eventName: string, callback?: Function) {
     deRegister(eventName, callback, this.uuid);
