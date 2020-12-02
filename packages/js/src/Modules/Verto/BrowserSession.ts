@@ -441,7 +441,28 @@ export default abstract class BrowserSession extends BaseSession {
     return this._devices.audiooutput || {};
   }
 
-  get mediaConstraints() {
+  /**
+   * Audio and video constraints currently used by the client.
+   *
+   * ## Examples
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * console.log(client.mediaConstraints);
+   * // => { audio: true, video: false }
+   * ```
+   *
+   * @readonly
+   * @type {({
+   *     audio: boolean | MediaTrackConstraints;
+   *     video: boolean | MediaTrackConstraints;
+   *   })}
+   */
+  get mediaConstraints(): {
+    audio: boolean | MediaTrackConstraints;
+    video: boolean | MediaTrackConstraints;
+  } {
     return { audio: this._audioConstraints, video: this._videoConstraints };
   }
 
