@@ -41,9 +41,9 @@ export default class Verto extends BrowserSession {
    * @param options.micId `deviceId` to use as microphone. Overrides the client's default one.
    * @param options.camId `deviceId` to use as webcam. Overrides the client's default one.
    * @param options.speakerId `deviceId` to use as speaker. Overrides the client's default one.
-   * @param options.onNotification Overrides client's default `telnyx.notification` handler for this Call.
+   * @param options.onNotification Overrides client's default `telnyx.notification` handler for this call.
    *
-   * @return `Promise<Call>` A promise fulfilled with the new outbound Call object
+   * @return `Promise<Call>` A promise fulfilled with the new outbound `Call` object
    * or rejected with the error.
    *
    * @examples
