@@ -83,7 +83,8 @@
         "preset": "conventionalcommits",
         "infile": "CHANGELOG.md",
         "tagPrefix": "webrtc/v",
-        "path": "./src"
+        "path": "./src",
+        "releaseCount": 0
       }
     }
   },
