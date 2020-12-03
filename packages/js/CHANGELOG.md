@@ -1,36 +1,3 @@
-### [2.5.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.2...webrtc/v2.5.3) (2020-12-03)
-
-### [2.5.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.1...webrtc/v2.5.2) (2020-12-03)
-
-### [2.5.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.0...webrtc/v2.5.1) (2020-12-03)
-
-## [2.5.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.4.0...webrtc/v2.5.0) (2020-12-03)
-
-
-### Features
-
-* **WEBRTC-232:** remove refreshToken and blade methods [#75](https://github.com/team-telnyx/webrtc/issues/75) ([a2ce717](https://github.com/team-telnyx/webrtc/commit/a2ce717b991d57ca671b1a5d305e00d2c4a1b45c))
-
-## [2.4.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.3.0...webrtc/v2.4.0) (2020-12-02)
-
-
-### Features
-
-* **WEBRTC-226:** add typedoc on getDeviceResolutions method and create a utility method to test ([#71](https://github.com/team-telnyx/webrtc/issues/71)) ([f8bdb8c](https://github.com/team-telnyx/webrtc/commit/f8bdb8cfe07a089a2b6e33b547b88362a0956b27))
-* **WEBRTC-228-229:** add typedoc on and off methods ([#72](https://github.com/team-telnyx/webrtc/issues/72)) ([0f93d8c](https://github.com/team-telnyx/webrtc/commit/0f93d8c2f5e7deacb2d6f233a70ffdcb96af6386))
-
-## [2.3.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.2...webrtc/v2.3.0) (2020-11-25)
-
-
-### Features
-
-* **WEBRTC-227:** add typedoc on getDevices method and create  a utility method to test ([#70](https://github.com/team-telnyx/webrtc/issues/70)) ([2159cf6](https://github.com/team-telnyx/webrtc/commit/2159cf6d8697e29f567894936ebe2a8fda5b5756))
-
-
-### Bug Fixes
-
-* **WEBRTC-281:** vulnerability dependencies ([#69](https://github.com/team-telnyx/webrtc/issues/69)) ([6596525](https://github.com/team-telnyx/webrtc/commit/6596525392e294641673f5c149b98e26c5d4e867))
-
 ## [2.2.2](https://github.com/team-telnyx/webrtc/compare/v2.2.1-50-g0d4d2364801153f2d24afdee90fc15c856b000df...webrtc/v2.2.2) (2020-11-19)
 
 ### Bug Fixes
