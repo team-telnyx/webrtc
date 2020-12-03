@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingCollect](icallingcollect.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingCollect](icallingcollect.md)
 
 # Interface: ICallingCollect
 
@@ -41,7 +41,7 @@
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[digits](irelaycallingcollect.md#optional-digits)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:283](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L283)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:283](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L283)*
 
 #### Type declaration:
 
@@ -51,7 +51,7 @@ ___
 
 • **digits_max**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:299](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L299)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:299](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L299)*
 
 ___
 
@@ -59,7 +59,7 @@ ___
 
 • **digits_terminators**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:300](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L300)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:300](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L300)*
 
 ___
 
@@ -67,7 +67,7 @@ ___
 
 • **digits_timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:301](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L301)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L301)*
 
 ___
 
@@ -75,7 +75,7 @@ ___
 
 • **end_silence_timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:302](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L302)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:302](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L302)*
 
 ___
 
@@ -85,7 +85,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[initial_timeout](irelaycallingcollect.md#optional-initial_timeout)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
 
 ___
 
@@ -93,7 +93,7 @@ ___
 
 • **media**? : *([ICallingPlay](icallingplay.md) | [IRelayCallingPlay](irelaycallingplay.md))[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:307](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L307)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:307](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L307)*
 
 ___
 
@@ -103,7 +103,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[partial_results](irelaycallingcollect.md#optional-partial_results)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
 
 ___
 
@@ -113,7 +113,7 @@ ___
 
 *Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[speech](irelaycallingcollect.md#optional-speech)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
 
 #### Type declaration:
 
@@ -123,7 +123,7 @@ ___
 
 • **speech_hints**? : *string[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:305](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L305)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:305](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L305)*
 
 ___
 
@@ -131,7 +131,7 @@ ___
 
 • **speech_language**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:304](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L304)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:304](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L304)*
 
 ___
 
@@ -139,7 +139,7 @@ ___
 
 • **speech_timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:303](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L303)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:303](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L303)*
 
 ___
 
@@ -147,7 +147,7 @@ ___
 
 • **type**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:298](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L298)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:298](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L298)*
 
 ___
 
@@ -155,4 +155,4 @@ ___
 
 • **volume**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:306](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L306)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:306](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L306)*

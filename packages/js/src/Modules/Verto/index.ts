@@ -8,6 +8,7 @@ import { trigger } from './services/Handler';
 import { sessionStorage } from './util/storage';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
+import logger from './util/logger';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -126,6 +127,7 @@ export default class Verto extends BrowserSession {
       this.sessionid = response.sessid;
       sessionStorage.setItem(SESSION_ID, this.sessionid);
       trigger(SwEvent.Ready, this, this.uuid);
+      logger.info('Session Ready!');
     }
   }
 

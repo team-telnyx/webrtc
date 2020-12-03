@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IMakeCallParams](imakecallparams.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [IMakeCallParams](imakecallparams.md)
 
 # Interface: IMakeCallParams
 
@@ -21,7 +21,7 @@
 
 • **from**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:207](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L207)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:207](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L207)*
 
 ___
 
@@ -29,7 +29,7 @@ ___
 
 • **timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:209](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L209)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:209](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L209)*
 
 ___
 
@@ -37,7 +37,7 @@ ___
 
 • **to**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:208](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L208)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:208](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L208)*
 
 ___
 
@@ -45,4 +45,4 @@ ___
 
 • **type**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:206](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L206)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:206](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L206)*

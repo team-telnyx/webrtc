@@ -2,7 +2,6 @@ import * as log from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './util/logger';
 import Connection from './services/Connection';
-import Setup from './services/Setup';
 import BaseMessage from './messages/BaseMessage';
 import {
   deRegister,
@@ -10,19 +9,15 @@ import {
   trigger,
   deRegisterAll,
 } from './services/Handler';
-import BroadcastHandler from './services/BroadcastHandler';
-import { ADD, REMOVE, SwEvent, BladeMethod } from './util/constants';
-import { NOTIFICATION_TYPE } from './webrtc/constants';
+import { ADD, REMOVE, SwEvent } from './util/constants';
 import {
   BroadcastParams,
   ITelnyxRTCOptions,
   SubscribeParams,
-  IBladeConnectResult,
 } from './util/interfaces';
-import { Subscription, Connect, Reauthenticate, Ping } from './messages/Blade';
-import { isFunction, randomInt } from './util/helpers';
+import { Subscription, Ping } from './messages/Blade';
+import { isFunction, randomInt, isValidOptions } from './util/helpers';
 import { sessionStorage } from './util/storage';
-import { isValidOptions } from './util/helpers';
 
 const KEEPALIVE_INTERVAL = 10 * 1000;
 
@@ -57,7 +52,6 @@ export default abstract class BaseSession {
     this._onSocketCloseOrError = this._onSocketCloseOrError.bind(this);
     this._onSocketMessage = this._onSocketMessage.bind(this);
     this._handleLoginError = this._handleLoginError.bind(this);
-    this._checkTokenExpiration = this._checkTokenExpiration.bind(this);
 
     this._attachListeners();
     this.connection = new Connection(this);
@@ -67,7 +61,20 @@ export default abstract class BaseSession {
     return logger;
   }
 
-  get connected() {
+  /**
+   * `true` if the client is connected to the Telnyx RTC server
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   * console.log(client.connected); // => false
+   * ```
+   *
+   * @readonly
+   * @type {boolean | null}
+   */
+  get connected(): boolean | null {
     return this.connection && this.connection.connected;
   }
 
@@ -186,8 +193,26 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Attach a listener to the global session level
-   * @return void
+   * Attaches an event handler for a specific type of event.
+   *
+   * @param eventName Event name.
+   * @param callback Function to call when the event comes.
+   *
+   * @return The client object itself.
+   *
+   * ## Examples
+   *
+   * Subscribe to the `telnyx.ready` and `telnyx.error` events.
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.on('telnyx.ready', (client) => {
+   *   // Your client is ready!
+   * }).on('telnyx.error', (error) => {
+   *   // Got an error...
+   * })
+   * ```
    */
   on(eventName: string, callback: Function) {
     register(eventName, callback, this.uuid);
@@ -195,37 +220,37 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Detach a listener from the global session level
-   * @return void
+   * Removes an event handler that were attached with .on().
+   * If no handler parameter is passed, all listeners for that event will be removed.
+   *
+   * @param eventName Event name.
+   * @param callback Function handler to be removed.
+   *
+   * @return The client object itself.
+   *
+   * Note: a handler will be removed from the stack by reference
+   * so make sure to use the same reference in both `.on()` and `.off()` methods.
+   *
+   * ## Examples
+   *
+   * Subscribe to the `telnyx.error` and then, remove the event handler.
+   *
+   * ```js
+   * const errorHandler = (error) => {
+   *  // Log the error..
+   * }
+   *
+   * const client = new TelnyxRTC(options);
+   *
+   * client.on('telnyx.error', errorHandler)
+   *
+   *  // .. later
+   * client.off('telnyx.error', errorHandler)
+   * ```
    */
   off(eventName: string, callback?: Function) {
     deRegister(eventName, callback, this.uuid);
     return this;
-  }
-
-  /**
-   * Refresh the
-   * @return void
-   */
-  async refreshToken(token: string) {
-    this.options.token = token;
-    try {
-      if (this.expired) {
-        await this.connect();
-      } else {
-        const br = new Reauthenticate(
-          this.options.project,
-          token,
-          this.sessionid
-        );
-        const response = await this.execute(br);
-        const { authorization: { expires_at = null } = {} } = response;
-        this.expiresAt = +expires_at || 0;
-      }
-    } catch (error) {
-      logger.error('refreshToken error:', error);
-      trigger(SwEvent.Error, error, this.uuid, false);
-    }
   }
 
   /**
@@ -257,36 +282,7 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {
-    this._idle = false;
-    const tokenKey = this._jwtAuth ? 'jwt_token' : 'token';
-    const { project, token } = this.options;
-    const bc = new Connect({ project, [tokenKey]: token }, this.sessionid);
-    const response: IBladeConnectResult = await this.execute(bc).catch(
-      this._handleLoginError
-    );
-    if (response) {
-      this._autoReconnect = true;
-      const {
-        sessionid,
-        nodeid,
-        master_nodeid,
-        authorization: { expires_at = null, signature = null } = {},
-      } = response;
-      this.expiresAt = +expires_at || 0;
-      this.signature = signature;
-      this.relayProtocol = await Setup(this);
-      this._checkTokenExpiration();
-      this.sessionid = sessionid;
-      this.nodeid = nodeid;
-      this.master_nodeid = master_nodeid;
-      this._emptyExecuteQueues();
-      this._pong = null;
-      this._keepAlive();
-      trigger(SwEvent.Ready, this, this.uuid);
-      logger.info('Session Ready!');
-    }
-  }
+  protected async _onSocketOpen() {}
 
   /**
    * Callback when the ws connection is going to close or get an error
@@ -319,17 +315,7 @@ export default abstract class BaseSession {
    * Callback to handle inbound messages from the ws
    * @return void
    */
-  protected _onSocketMessage(response: any) {
-    const { method, params } = response;
-    switch (method) {
-      case BladeMethod.Broadcast:
-        BroadcastHandler(this, params);
-        break;
-      case BladeMethod.Disconnect:
-        this._idle = true;
-        break;
-    }
-  }
+  protected _onSocketMessage(response: any) {}
 
   /**
    * Remove subscription by key and deregister the related callback
@@ -431,31 +417,6 @@ export default abstract class BaseSession {
     clearTimeout(this._keepAliveTimeout);
     if (this.connection) {
       this.connection.close();
-    }
-  }
-
-  /**
-   * Set a timer to dispatch a notification when the JWT is going to expire.
-   * @return void
-   */
-  private _checkTokenExpiration() {
-    if (!this.expiresAt) {
-      return;
-    }
-    const diff = this.expiresAt - Date.now() / 1000;
-    if (diff <= 60) {
-      logger.warn(
-        'Your JWT is going to expire. You should refresh it to keep the session live.'
-      );
-      trigger(
-        SwEvent.Notification,
-        { type: NOTIFICATION_TYPE.refreshToken, session: this },
-        this.uuid,
-        false
-      );
-    }
-    if (!this.expired) {
-      setTimeout(this._checkTokenExpiration, 30 * 1000);
     }
   }
 

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [CallState](callstate.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [CallState](callstate.md)
 
 # Enumeration: CallState
 
@@ -19,7 +19,7 @@
 
 • **Answered**: = "answered"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:5](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L5)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L5)*
 
 ___
 
@@ -27,7 +27,7 @@ ___
 
 • **Created**: = "created"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:3](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L3)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L3)*
 
 ___
 
@@ -35,7 +35,7 @@ ___
 
 • **Ended**: = "ended"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:7](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L7)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L7)*
 
 ___
 
@@ -43,7 +43,7 @@ ___
 
 • **Ending**: = "ending"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:6](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L6)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L6)*
 
 ___
 
@@ -51,7 +51,7 @@ ___
 
 • **None**: = "none"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:2](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L2)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L2)*
 
 ___
 
@@ -59,4 +59,4 @@ ___
 
 • **Ringing**: = "ringing"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:4](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L4)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L4)*

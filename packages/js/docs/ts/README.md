@@ -1,6 +1,6 @@
-[@telnyx/webrtc - v2.2.1](README.md)
+[@telnyx/webrtc - v2.5.2](README.md)
 
-# @telnyx/webrtc - v2.2.1
+# @telnyx/webrtc - v2.5.2
 
 ## Index
 
@@ -145,7 +145,7 @@
 
 Ƭ **Env**: *"production" | "development"*
 
-*Defined in [src/utils/types.ts:8](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/utils/types.ts#L8)*
+*Defined in [src/utils/types.ts:8](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/types.ts#L8)*
 
 ___
 
@@ -153,7 +153,7 @@ ___
 
 Ƭ **Module**: *"verto" | "telnyx_rtc"*
 
-*Defined in [src/utils/types.ts:9](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/utils/types.ts#L9)*
+*Defined in [src/utils/types.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/types.ts#L9)*
 
 ___
 
@@ -161,7 +161,7 @@ ___
 
 Ƭ **RTCElement**: *HTMLMediaElement | string | Function*
 
-*Defined in [src/utils/types.ts:10](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/utils/types.ts#L10)*
+*Defined in [src/utils/types.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/types.ts#L10)*
 
 ## Variables
 
@@ -169,7 +169,7 @@ ___
 
 • **CALL_STATES**: *string[]* =  Object.values(CallState)
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:10](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L10)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L10)*
 
 ___
 
@@ -177,7 +177,7 @@ ___
 
 • **DEFAULT_CALL_TIMEOUT**: *30* = 30
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:12](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L12)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L12)*
 
 ___
 
@@ -185,7 +185,7 @@ ___
 
 • **connected**: *Mock‹any, any›* =  jest.fn().mockReturnValue(true)
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:25](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L25)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L25)*
 
 ___
 
@@ -193,7 +193,7 @@ ___
 
 • **isAlive**: *Mock‹any, any›* =  jest.fn().mockReturnValue(true)
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:26](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L26)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L26)*
 
 ___
 
@@ -201,7 +201,7 @@ ___
 
 • **mockClose**: *Mock‹any, any›* =  jest.fn()
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:22](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L22)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:22](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L22)*
 
 ___
 
@@ -209,7 +209,7 @@ ___
 
 • **mockConnect**: *Mock‹any, any›* =  jest.fn()
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:23](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L23)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:23](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L23)*
 
 ___
 
@@ -219,7 +219,7 @@ ___
   result: { message: 'fake' },
 }))
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:3](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L3)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L3)*
 
 ___
 
@@ -238,7 +238,7 @@ ___
   });
 })
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:9](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L9)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L9)*
 
 ___
 
@@ -246,7 +246,7 @@ ___
 
 • **mockSendRawText**: *Mock‹void, [string]›* =  jest.fn((str: string) => {})
 
-*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:7](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L7)*
+*Defined in [src/Modules/Verto/services/__mocks__/Connection.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/__mocks__/Connection.ts#L7)*
 
 ## Functions
 
@@ -254,7 +254,7 @@ ___
 
 ▸ **checkWebSocketHost**(`host`: string): *string*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:71](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L71)*
+*Defined in [src/Modules/Verto/util/helpers.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L71)*
 
 **Parameters:**
 
@@ -270,7 +270,7 @@ ___
 
 ▸ **deepCopy**(`obj`: Object): *any*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:6](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L6)*
+*Defined in [src/Modules/Verto/util/helpers.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L6)*
 
 **Parameters:**
 
@@ -286,7 +286,7 @@ ___
 
 ▸ **destructResponse**(`response`: any, `nodeId`: string): *object*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:84](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L84)*
+*Defined in [src/Modules/Verto/util/helpers.ts:84](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L84)*
 
 From the socket we can get:
 - JSON-RPC msg with 1 level of 'result' or 'error'
@@ -312,7 +312,7 @@ ___
 
 ▸ **findElementByType**(`tag`: HTMLMediaElement | string | Function): *HTMLMediaElement*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:54](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L54)*
+*Defined in [src/Modules/Verto/util/helpers.ts:54](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L54)*
 
 **Parameters:**
 
@@ -328,7 +328,7 @@ ___
 
 ▸ **isDefined**(`variable`: any): *boolean*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:48](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L48)*
+*Defined in [src/Modules/Verto/util/helpers.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L48)*
 
 **Parameters:**
 
@@ -344,7 +344,7 @@ ___
 
 ▸ **isFunction**(`variable`: any): *boolean*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:51](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L51)*
+*Defined in [src/Modules/Verto/util/helpers.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L51)*
 
 **Parameters:**
 
@@ -360,7 +360,7 @@ ___
 
 ▸ **isValidOptions**(`__namedParameters`: object): *boolean*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:123](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L123)*
+*Defined in [src/Modules/Verto/util/helpers.ts:123](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L123)*
 
 Validates the options passed in.
 TelnyxRTC requires (login and password) OR (login_token)
@@ -382,7 +382,7 @@ ___
 
 ▸ **mutateLiveArrayData**(`data`: any): *object*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:12](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L12)*
+*Defined in [src/Modules/Verto/util/helpers.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L12)*
 
 **Parameters:**
 
@@ -398,7 +398,7 @@ ___
 
 ▸ **mutateStorageKey**(`key`: string): *string*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:10](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L10)*
+*Defined in [src/Modules/Verto/util/helpers.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L10)*
 
 **Parameters:**
 
@@ -414,7 +414,7 @@ ___
 
 ▸ **objEmpty**(`obj`: Object): *boolean*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:8](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L8)*
+*Defined in [src/Modules/Verto/util/helpers.ts:8](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L8)*
 
 **Parameters:**
 
@@ -430,7 +430,7 @@ ___
 
 ▸ **randomInt**(`min`: number, `max`: number): *number*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:113](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L113)*
+*Defined in [src/Modules/Verto/util/helpers.ts:113](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L113)*
 
 **Parameters:**
 
@@ -447,7 +447,7 @@ ___
 
 ▸ **safeParseJson**(`value`: string): *string | Object*
 
-*Defined in [src/Modules/Verto/util/helpers.ts:37](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/helpers.ts#L37)*
+*Defined in [src/Modules/Verto/util/helpers.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/helpers.ts#L37)*
 
 **Parameters:**
 
@@ -463,7 +463,7 @@ ___
 
 ▸ **setWebSocket**(`websocket`: any): *void*
 
-*Defined in [src/Modules/Verto/services/Connection.ts:13](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/services/Connection.ts#L13)*
+*Defined in [src/Modules/Verto/services/Connection.ts:13](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L13)*
 
 **Parameters:**
 
@@ -479,67 +479,67 @@ Name | Type |
 
 ### ▪ **DEFAULT_CALL_OPTIONS**: *object*
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:42](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L42)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L41)*
 
 ###  attach
 
 • **attach**: *false* = false
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:51](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L51)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L50)*
 
 ###  audio
 
 • **audio**: *true* = true
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:48](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L48)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L47)*
 
 ###  callerName
 
 • **callerName**: *string* = ""
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:46](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L46)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L45)*
 
 ###  callerNumber
 
 • **callerNumber**: *string* = ""
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:47](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L47)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L46)*
 
 ###  destinationNumber
 
 • **destinationNumber**: *string* = ""
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:43](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L43)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:42](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L42)*
 
 ###  remoteCallerName
 
 • **remoteCallerName**: *string* = "Outbound Call"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:44](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L44)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L43)*
 
 ###  remoteCallerNumber
 
 • **remoteCallerNumber**: *string* = ""
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:45](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L45)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L44)*
 
 ###  screenShare
 
 • **screenShare**: *false* = false
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:52](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L52)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L51)*
 
 ###  useStereo
 
 • **useStereo**: *false* = false
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:50](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L50)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L49)*
 
 ###  userVariables
 
 • **userVariables**: *object*
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:53](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L53)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L52)*
 
 #### Type declaration:
 
@@ -547,7 +547,7 @@ Name | Type |
 
 • **video**: *false* = false
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:49](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L49)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L48)*
 
 ___
 
@@ -555,51 +555,45 @@ ___
 
 ### ▪ **NOTIFICATION_TYPE**: *object*
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:31](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L31)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L31)*
 
 ###  __computed
 
 • **__computed**: *string* = "participantData"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:33](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L33)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L33)*
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:34](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L34)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L34)*
 
 ###  callUpdate
 
 • **callUpdate**: *string* = "callUpdate"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:36](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L36)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:36](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L36)*
 
 ###  conferenceUpdate
 
 • **conferenceUpdate**: *string* = "conferenceUpdate"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:35](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L35)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L35)*
 
 ###  generic
 
 • **generic**: *string* = "event"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:32](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L32)*
-
-###  refreshToken
-
-• **refreshToken**: *string* = "refreshToken"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:39](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L39)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L32)*
 
 ###  userMediaError
 
 • **userMediaError**: *string* = "userMediaError"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:38](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L38)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L38)*
 
 ###  vertoClientReady
 
 • **vertoClientReady**: *string* = "vertoClientReady"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:37](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L37)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L37)*
 
 ___
 
@@ -607,25 +601,25 @@ ___
 
 ### ▪ **localStorage**: *object*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
 
 ###  getItem
 
 • **getItem**: *getItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
 
 ###  removeItem
 
 • **removeItem**: *removeItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
 
 ###  setItem
 
 • **setItem**: *setItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L24)*
 
 ___
 
@@ -633,22 +627,22 @@ ___
 
 ### ▪ **sessionStorage**: *object*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
 
 ###  getItem
 
 • **getItem**: *getItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
 
 ###  removeItem
 
 • **removeItem**: *removeItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
 
 ###  setItem
 
 • **setItem**: *setItem*
 
-*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
+*Defined in [src/Modules/Verto/util/storage/index.native.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/storage/index.native.ts#L25)*
