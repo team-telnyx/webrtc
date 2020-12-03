@@ -35,7 +35,7 @@ export default class Verto extends BrowserSession {
    * @param options.localElement Overrides client's default `localElement`.
    * @param options.remoteElement Overrides client's default `remoteElement`.
    * @param options.iceServers Overrides client's default `iceServers`.
-   * @param options.audio Overrides client's default audio constraints.
+   * @param options.audio Overrides client's default audio constraints. Defaults to `true`
    * @param options.video Overrides client's default video constraints. Defaults to `false`
    * @param options.useStereo Uses stereo audio instead of mono.
    * @param options.micId `deviceId` to use as microphone. Overrides the client's default one.
