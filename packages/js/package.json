@@ -22,7 +22,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "if [[ -z \"${CI}\" ]]; then npm run test; else echo \"Skipping tests in CI\"; fi",
     "test": "jest",
-    "docs": "typedoc src --gitRevision main",
+    "docs": "typedoc src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
     "format": "prettier --write 'src/**/*.ts'"
