@@ -27,7 +27,7 @@ export default class Verto extends BrowserSession {
    * This method receives an object `options` with the following properties:
    *
    * @param options Options object for a new call.
-   * @param options.destinationNumber Extension to dial.
+   * @param options.destinationNumber Phone number or SIP URI to dial.
    * @param options.callerNumber Number to use as the caller ID when dialing out to a destination.
    * @param options.callerName Name to use as the caller ID name when dialing out to a destination.
    * @param options.id The identifier of the call.
