@@ -356,8 +356,6 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @examples
    *
-   * ## Examples
-   *
    * If `deviceId` is `null`
    *
    * 1. if `deviceId` is `null` and you don't have a webcam connected to your computer,

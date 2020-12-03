@@ -28,8 +28,8 @@ export default class Verto extends BrowserSession {
    *
    * @param options Options object for a new call.
    * @param options.destinationNumber Extension to dial.
-   * @param options.callerNumber Number to use as the caller ID when dialling out to a phone number.
-   * @param options.callerName Name to use as the caller ID name when dialling out to a phone number.
+   * @param options.callerNumber Number to use as the caller ID when dialing out to a destination.
+   * @param options.callerName Name to use as the caller ID name when dialing out to a destination.
    * @param options.id The identifier of the Call.
    * @param options.localStream If sets, the Call will use this stream instead of retrieving a new one.
    * @param options.localElement Overrides client's default `localElement`.
@@ -47,7 +47,6 @@ export default class Verto extends BrowserSession {
    * or rejected with the error.
    *
    * @examples
-   *
    *
    * Making an outbound call to `+1 856-444-0362` using default values from the Client:
    *
