@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [DisconnectSource](disconnectsource.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [DisconnectSource](disconnectsource.md)
 
 # Enumeration: DisconnectSource
 

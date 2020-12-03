@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallingCollect](icallingcollect.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingCollect](icallingcollect.md)
 
 # Interface: ICallingCollect
 

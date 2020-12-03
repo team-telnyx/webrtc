@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallingConnectParams](icallingconnectparams.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingConnectParams](icallingconnectparams.md)
 
 # Interface: ICallingConnectParams
 

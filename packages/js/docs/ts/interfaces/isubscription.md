@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ISubscription](isubscription.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ISubscription](isubscription.md)
 
 # Interface: ISubscription
 

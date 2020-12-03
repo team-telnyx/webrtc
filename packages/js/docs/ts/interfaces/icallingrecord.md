@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallingRecord](icallingrecord.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingRecord](icallingrecord.md)
 
 # Interface: ICallingRecord
 

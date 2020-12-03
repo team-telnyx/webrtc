@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICredentials](icredentials.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICredentials](icredentials.md)
 
 # Interface: ICredentials
 

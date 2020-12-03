@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [DeviceType](devicetype.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [DeviceType](devicetype.md)
 
 # Enumeration: DeviceType
 

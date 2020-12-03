@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ITelnyxRTCOptions](itelnyxrtcoptions.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ITelnyxRTCOptions](itelnyxrtcoptions.md)
 
 # Interface: ITelnyxRTCOptions
 

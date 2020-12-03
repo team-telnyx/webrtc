@@ -1,6 +1,6 @@
-[@telnyx/webrtc - v2.5.1](README.md)
+[@telnyx/webrtc - v2.5.2](README.md)
 
-# @telnyx/webrtc - v2.5.1
+# @telnyx/webrtc - v2.5.2
 
 ## Index
 

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [IRelayCallingTapTap](irelaycallingtaptap.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [IRelayCallingTapTap](irelaycallingtaptap.md)
 
 # Interface: IRelayCallingTapTap
 

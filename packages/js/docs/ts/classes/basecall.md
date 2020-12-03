@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [BaseCall](basecall.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [BaseCall](basecall.md)
 
 # Class: BaseCall
 

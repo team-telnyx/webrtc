@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallPeer](icallpeer.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallPeer](icallpeer.md)
 
 # Interface: ICallPeer
 

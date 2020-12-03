@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallingDetect](icallingdetect.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingDetect](icallingdetect.md)
 
 # Interface: ICallingDetect
 

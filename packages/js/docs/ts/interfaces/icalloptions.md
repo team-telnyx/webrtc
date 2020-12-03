@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [ICallOptions](icalloptions.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [ICallOptions](icalloptions.md)
 
 # Interface: ICallOptions
 

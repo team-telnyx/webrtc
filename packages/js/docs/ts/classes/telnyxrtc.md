@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [TelnyxRTC](telnyxrtc.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [TelnyxRTC](telnyxrtc.md)
 
 # Class: TelnyxRTC
 
@@ -415,7 +415,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[iceServers](browsersession.md#iceservers)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:612](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L612)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:646](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L646)*
 
 **Returns:** *false | true | RTCIceServer[]*
 
@@ -423,7 +423,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[iceServers](browsersession.md#iceservers)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:602](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L602)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:636](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L636)*
 
 **Parameters:**
 
@@ -441,7 +441,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[localElement](browsersession.md#localelement)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:628](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L628)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:662](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L662)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
@@ -449,7 +449,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[localElement](browsersession.md#localelement)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:624](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L624)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:658](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L658)*
 
 **Parameters:**
 
@@ -493,7 +493,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[remoteElement](browsersession.md#remoteelement)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:636](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L636)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:670](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L670)*
 
 **Returns:** *string | Function | HTMLMediaElement*
 
@@ -501,7 +501,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[remoteElement](browsersession.md#remoteelement)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:632](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L632)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:666](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L666)*
 
 **Parameters:**
 
@@ -519,7 +519,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[speaker](browsersession.md#speaker)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:620](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L620)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:654](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L654)*
 
 **Returns:** *string*
 
@@ -527,7 +527,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[speaker](browsersession.md#speaker)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:616](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L616)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:650](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L650)*
 
 **Parameters:**
 
@@ -688,7 +688,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[disableWebcam](browsersession.md#disablewebcam)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:580](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L580)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:614](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L614)*
 
 Disables use of the webcam in subsequent calls.
 
@@ -770,7 +770,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[enableWebcam](browsersession.md#enablewebcam)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:598](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L598)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:632](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L632)*
 
 Enables use of the webcam in subsequent calls.
 
@@ -1158,15 +1158,41 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[setVideoSettings](browsersession.md#setvideosettings)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:544](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L544)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:573](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L573)*
+
+Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
+
+Note: It's a common behaviour, in WebRTC applications,
+to persist devices user's selection to then reuse them across visits.
+Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+To avoid this issue you can specify two additional properties
+`camId` and `camLabel` in the constraints input parameter.
+The client will use these values to assure the webcam you want to use is available
+by matching both `id` and `label` with the device list retrieved from the browser.
+
+**`examples`** 
+
+Set webcam by `id` and `label` with 720p resolution.
+
+```js
+// within an async function
+const constraints = await client.setVideoSettings({
+ camId: '882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+ camLabel: 'Default WebCam (Built-in)',
+ width: 1080,
+ height: 720
+})
+```
 
 **Parameters:**
 
-Name | Type |
------- | ------ |
-`settings` | [IVideoSettings](../interfaces/ivideosettings.md) |
+Name | Type | Description |
+------ | ------ | ------ |
+`settings` | [IVideoSettings](../interfaces/ivideosettings.md) | (https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`.  |
 
 **Returns:** *Promise‹MediaTrackConstraints›*
+
+`Promise<MediaTrackConstraints>` Video constraints applied to the client.
 
 ___
 
@@ -1268,7 +1294,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[vertoBroadcast](browsersession.md#vertobroadcast)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:640](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L640)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:674](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L674)*
 
 **Parameters:**
 
@@ -1286,7 +1312,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[vertoSubscribe](browsersession.md#vertosubscribe)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:655](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L655)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:689](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L689)*
 
 **Parameters:**
 
@@ -1304,7 +1330,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[vertoUnsubscribe](browsersession.md#vertounsubscribe)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:686](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L686)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:720](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L720)*
 
 **Parameters:**
 
@@ -1359,7 +1385,7 @@ ___
 
 *Inherited from [BrowserSession](browsersession.md).[telnyxStateCall](browsersession.md#static-telnyxstatecall)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:714](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L714)*
+*Defined in [src/Modules/Verto/BrowserSession.ts:748](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L748)*
 
 **Parameters:**
 

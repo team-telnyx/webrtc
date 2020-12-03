@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.1](../README.md) › [VertoMethod](vertomethod.md)
+[@telnyx/webrtc - v2.5.2](../README.md) › [VertoMethod](vertomethod.md)
 
 # Enumeration: VertoMethod
 
