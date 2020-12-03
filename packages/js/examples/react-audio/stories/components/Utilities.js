@@ -114,6 +114,35 @@ function Utilities({ environment, username, password }) {
     });
   };
 
+  const setAudioSettings = async () => {
+    const audioInList = await clientRef.current.getAudioInDevices();
+    const deviceId = audioInList[0] ? audioInList[0].deviceId : '';
+    const label = audioInList[0] ? audioInList[0].label : '';
+
+    const settings = {
+      micId: deviceId,
+      micLabel: label,
+      echoCancellation: true,
+    };
+
+    const results = await clientRef.current
+      .setAudioSettings(settings)
+      .catch((error) => console.log(error));
+
+    setLog({
+      title: (
+        <span>
+          Returns the audio settings applied for <b>{label}</b>
+        </span>
+      ),
+      message: (
+        <pre style={{ display: 'block', backgroundColor: '#ccc' }}>
+          {JSON.stringify(results, undefined, 2)}
+        </pre>
+      ),
+    });
+  };
+
   if (!clientRef.current && environment && username && password) {
     initClient();
   }
@@ -149,6 +178,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => getDeviceResolutions()}>
               Get Device Resolutions
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => setAudioSettings()}>
+              Set Audio Settings
             </button>
           </div>
 
