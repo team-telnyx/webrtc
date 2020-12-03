@@ -62,7 +62,7 @@ export default class Verto extends BrowserSession {
    * if `destinationNumber` is `null`.
    * it will return the message error `destinationNumber is required.`
    *
-   * * Using async/await:
+   * Using async/await:
    *
    * ```js
    * const options = {}
