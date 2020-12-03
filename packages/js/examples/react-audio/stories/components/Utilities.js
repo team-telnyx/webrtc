@@ -143,6 +143,36 @@ function Utilities({ environment, username, password }) {
     });
   };
 
+  const setVideoSettings = async () => {
+    const videoInList = await clientRef.current.getVideoDevices();
+    const deviceId = videoInList[0] ? videoInList[0].deviceId : '';
+    const label = videoInList[0] ? videoInList[0].label : '';
+
+    const settings = {
+      camId: deviceId,
+      camLabel: label,
+      width: 1080,
+      height: 720,
+    };
+
+    const results = await clientRef.current
+      .setVideoSettings(settings)
+      .catch((error) => console.log(error));
+
+    setLog({
+      title: (
+        <span>
+          Returns the video settings applied for <b>{label}</b>
+        </span>
+      ),
+      message: (
+        <pre style={{ display: 'block', backgroundColor: '#ccc' }}>
+          {JSON.stringify(results, undefined, 2)}
+        </pre>
+      ),
+    });
+  };
+
   if (!clientRef.current && environment && username && password) {
     initClient();
   }
@@ -184,6 +214,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => setAudioSettings()}>
               Set Audio Settings
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => setVideoSettings()}>
+              Set Video Settings
             </button>
           </div>
 
