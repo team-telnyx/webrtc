@@ -30,8 +30,8 @@ export default class Verto extends BrowserSession {
    * @param options.destinationNumber Extension to dial.
    * @param options.callerNumber Number to use as the caller ID when dialing out to a destination.
    * @param options.callerName Name to use as the caller ID name when dialing out to a destination.
-   * @param options.id The identifier of the Call.
-   * @param options.localStream If sets, the Call will use this stream instead of retrieving a new one.
+   * @param options.id The identifier of the call.
+   * @param options.localStream If set, the call will use this stream instead of retrieving a new one.
    * @param options.localElement Overrides client's default `localElement`.
    * @param options.remoteElement Overrides client's default `remoteElement`.
    * @param options.iceServers Overrides client's default `iceServers`.
