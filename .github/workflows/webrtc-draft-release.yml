@@ -43,6 +43,15 @@ jobs:
     - name: Build
       working-directory: packages/js
       run: npm run build
+    - name: Generate docs
+      working-directory: packages/js
+      run: npm run docs
+    - name: Commit docs
+      working-directory: packages/js
+      run: |
+        # Stage the file, commit and push
+        git add docs
+        git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
     - name: Create draft release
       working-directory: packages/js
       run: npm run release -- --ci --github.draft --no-npm.publish
