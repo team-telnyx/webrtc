@@ -1,3 +1,5 @@
+### [2.5.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.2...webrtc/v2.5.3) (2020-12-03)
+
 ### [2.5.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.1...webrtc/v2.5.2) (2020-12-03)
 
 ### [2.5.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.5.0...webrtc/v2.5.1) (2020-12-03)
