@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [State](state.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [State](state.md)
 
 # Enumeration: State
 
@@ -25,7 +25,7 @@
 
 • **Active**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:64](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L64)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L63)*
 
 ___
 
@@ -33,7 +33,7 @@ ___
 
 • **Answering**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:62](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L62)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L61)*
 
 ___
 
@@ -41,7 +41,7 @@ ___
 
 • **Destroy**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:67](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L67)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:66](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L66)*
 
 ___
 
@@ -49,7 +49,7 @@ ___
 
 • **Early**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:63](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L63)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:62](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L62)*
 
 ___
 
@@ -57,7 +57,7 @@ ___
 
 • **Hangup**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:66](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L66)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L65)*
 
 ___
 
@@ -65,7 +65,7 @@ ___
 
 • **Held**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:65](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L65)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:64](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L64)*
 
 ___
 
@@ -73,7 +73,7 @@ ___
 
 • **New**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:57](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L57)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:56](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L56)*
 
 ___
 
@@ -81,7 +81,7 @@ ___
 
 • **Purge**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:68](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L68)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:67](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L67)*
 
 ___
 
@@ -89,7 +89,7 @@ ___
 
 • **Recovering**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:60](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L60)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L59)*
 
 ___
 
@@ -97,7 +97,7 @@ ___
 
 • **Requesting**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:58](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L58)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L57)*
 
 ___
 
@@ -105,7 +105,7 @@ ___
 
 • **Ringing**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:61](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L61)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L60)*
 
 ___
 
@@ -113,4 +113,4 @@ ___
 
 • **Trying**:
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:59](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L59)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L58)*

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IVideoSettings](ivideosettings.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [IVideoSettings](ivideosettings.md)
 
 # Interface: IVideoSettings
 
@@ -74,7 +74,7 @@ ___
 
 • **camId**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:110](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L110)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:110](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L110)*
 
 ___
 
@@ -82,7 +82,7 @@ ___
 
 • **camLabel**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:111](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L111)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:111](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L111)*
 
 ___
 

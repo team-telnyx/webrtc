@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [StringTMap](stringtmap.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [StringTMap](stringtmap.md)
 
 # Interface: StringTMap ‹**T**›
 

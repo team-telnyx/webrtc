@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [BaseRequest](baserequest.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [BaseRequest](baserequest.md)
 
 # Class: BaseRequest
 
@@ -30,7 +30,7 @@
 
 \+ **new BaseRequest**(`params`: any): *[BaseRequest](baserequest.md)*
 
-*Defined in [src/Modules/Verto/messages/verto/BaseRequest.ts:12](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/messages/verto/BaseRequest.ts#L12)*
+*Defined in [src/Modules/Verto/messages/verto/BaseRequest.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/verto/BaseRequest.ts#L12)*
 
 **Parameters:**
 
@@ -48,7 +48,7 @@ Name | Type | Default |
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:5](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L5)*
+*Defined in [src/Modules/Verto/messages/BaseMessage.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L5)*
 
 ___
 
@@ -58,7 +58,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:6](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L6)*
+*Defined in [src/Modules/Verto/messages/BaseMessage.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L6)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:7](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L7)*
+*Defined in [src/Modules/Verto/messages/BaseMessage.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L7)*
 
 ## Methods
 
@@ -78,7 +78,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:9](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L9)*
+*Defined in [src/Modules/Verto/messages/BaseMessage.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L9)*
 
 **Parameters:**
 

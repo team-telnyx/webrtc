@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [BaseSession](basesession.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [BaseSession](basesession.md)
 
 # Class: BaseSession
 
@@ -45,7 +45,6 @@
 * [executeRaw](basesession.md#executeraw)
 * [off](basesession.md#off)
 * [on](basesession.md#on)
-* [refreshToken](basesession.md#refreshtoken)
 * [subscribe](basesession.md#subscribe)
 * [unsubscribe](basesession.md#unsubscribe)
 * [validateOptions](basesession.md#validateoptions)
@@ -59,7 +58,7 @@
 
 \+ **new BaseSession**(`options`: [ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)): *[BaseSession](basesession.md)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:50](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L50)*
+*Defined in [src/Modules/Verto/BaseSession.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L45)*
 
 **Parameters:**
 
@@ -75,7 +74,7 @@ Name | Type |
 
 • **contexts**: *string[]* =  []
 
-*Defined in [src/Modules/Verto/BaseSession.ts:38](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L38)*
+*Defined in [src/Modules/Verto/BaseSession.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L33)*
 
 ___
 
@@ -83,7 +82,7 @@ ___
 
 • **expiresAt**: *number* = 0
 
-*Defined in [src/Modules/Verto/BaseSession.ts:35](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L35)*
+*Defined in [src/Modules/Verto/BaseSession.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L30)*
 
 ___
 
@@ -91,7 +90,7 @@ ___
 
 • **master_nodeid**: *string*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:34](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L34)*
+*Defined in [src/Modules/Verto/BaseSession.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L29)*
 
 ___
 
@@ -99,7 +98,7 @@ ___
 
 • **nodeid**: *string*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:33](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L33)*
+*Defined in [src/Modules/Verto/BaseSession.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L28)*
 
 ___
 
@@ -107,7 +106,7 @@ ___
 
 • **options**: *[ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:52](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L52)*
+*Defined in [src/Modules/Verto/BaseSession.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L47)*
 
 ___
 
@@ -115,7 +114,7 @@ ___
 
 • **relayProtocol**: *string* =  null
 
-*Defined in [src/Modules/Verto/BaseSession.ts:37](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L37)*
+*Defined in [src/Modules/Verto/BaseSession.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L32)*
 
 ___
 
@@ -123,7 +122,7 @@ ___
 
 • **sessionid**: *string* = ""
 
-*Defined in [src/Modules/Verto/BaseSession.ts:31](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L31)*
+*Defined in [src/Modules/Verto/BaseSession.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L26)*
 
 ___
 
@@ -131,7 +130,7 @@ ___
 
 • **signature**: *string* =  null
 
-*Defined in [src/Modules/Verto/BaseSession.ts:36](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L36)*
+*Defined in [src/Modules/Verto/BaseSession.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L31)*
 
 ___
 
@@ -139,7 +138,7 @@ ___
 
 • **subscriptions**: *object*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:32](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L32)*
+*Defined in [src/Modules/Verto/BaseSession.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L27)*
 
 #### Type declaration:
 
@@ -151,7 +150,7 @@ ___
 
 • **timeoutErrorCode**: *number* =  -32000
 
-*Defined in [src/Modules/Verto/BaseSession.ts:39](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L39)*
+*Defined in [src/Modules/Verto/BaseSession.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L34)*
 
 ___
 
@@ -159,7 +158,7 @@ ___
 
 • **uuid**: *string* =  uuidv4()
 
-*Defined in [src/Modules/Verto/BaseSession.ts:30](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L30)*
+*Defined in [src/Modules/Verto/BaseSession.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L25)*
 
 ## Accessors
 
@@ -167,7 +166,7 @@ ___
 
 • **get __logger**(): *Logger*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:66](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L66)*
+*Defined in [src/Modules/Verto/BaseSession.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L60)*
 
 **Returns:** *Logger*
 
@@ -175,11 +174,24 @@ ___
 
 ###  connected
 
-• **get connected**(): *boolean*
+• **get connected**(): *boolean | null*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:70](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L70)*
+*Defined in [src/Modules/Verto/BaseSession.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L77)*
 
-**Returns:** *boolean*
+`true` if the client is connected to the Telnyx RTC server
+
+**`example`** 
+
+```js
+const client = new TelnyxRTC(options);
+console.log(client.connected); // => false
+```
+
+**`readonly`** 
+
+**`type`** {boolean | null}
+
+**Returns:** *boolean | null*
 
 ___
 
@@ -187,7 +199,7 @@ ___
 
 • **get expired**(): *boolean*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:74](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L74)*
+*Defined in [src/Modules/Verto/BaseSession.ts:81](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L81)*
 
 **Returns:** *boolean*
 
@@ -197,7 +209,7 @@ ___
 
 • **get reconnectDelay**(): *number*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:78](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L78)*
+*Defined in [src/Modules/Verto/BaseSession.ts:85](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L85)*
 
 **Returns:** *number*
 
@@ -207,7 +219,7 @@ ___
 
 ▸ **_existsSubscription**(`protocol`: string, `channel?`: string): *boolean*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:376](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L376)*
+*Defined in [src/Modules/Verto/BaseSession.ts:362](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L362)*
 
 Check if a subscription for this protocol-channel already exists
 
@@ -228,7 +240,7 @@ ___
 
 ▸ **broadcast**(`params`: [BroadcastParams](../interfaces/broadcastparams.md)): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:133](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L133)*
+*Defined in [src/Modules/Verto/BaseSession.ts:140](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L140)*
 
 Broadcast a message in a protocol - channel
 
@@ -250,7 +262,7 @@ ___
 
 ▸ **connect**(): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:237](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L237)*
+*Defined in [src/Modules/Verto/BaseSession.ts:262](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L262)*
 
 Define the method to connect the session
 
@@ -268,7 +280,7 @@ ___
 
 ▸ **disconnect**(): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:177](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L177)*
+*Defined in [src/Modules/Verto/BaseSession.ts:184](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L184)*
 
 Remove subscriptions and calls, close WS connection and remove all session listeners.
 
@@ -282,7 +294,7 @@ ___
 
 ▸ **execute**(`msg`: BaseMessage): *any*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:86](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L86)*
+*Defined in [src/Modules/Verto/BaseSession.ts:93](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L93)*
 
 Send a JSON object to the server.
 
@@ -302,7 +314,7 @@ ___
 
 ▸ **executeRaw**(`text`: string): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:110](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L110)*
+*Defined in [src/Modules/Verto/BaseSession.ts:117](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L117)*
 
 Send raw text to the server.
 
@@ -322,20 +334,41 @@ ___
 
 ▸ **off**(`eventName`: string, `callback?`: Function): *this*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:201](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L201)*
+*Defined in [src/Modules/Verto/BaseSession.ts:251](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L251)*
 
-Detach a listener from the global session level
+Removes an event handler that were attached with .on().
+If no handler parameter is passed, all listeners for that event will be removed.
 
 **Parameters:**
 
-Name | Type |
------- | ------ |
-`eventName` | string |
-`callback?` | Function |
+Name | Type | Description |
+------ | ------ | ------ |
+`eventName` | string | Event name. |
+`callback?` | Function | Function handler to be removed.  |
 
 **Returns:** *this*
 
-void
+The client object itself.
+
+Note: a handler will be removed from the stack by reference
+so make sure to use the same reference in both `.on()` and `.off()` methods.
+
+## Examples
+
+Subscribe to the `telnyx.error` and then, remove the event handler.
+
+```js
+const errorHandler = (error) => {
+ // Log the error..
+}
+
+const client = new TelnyxRTC(options);
+
+client.on('telnyx.error', errorHandler)
+
+ // .. later
+client.off('telnyx.error', errorHandler)
+```
 
 ___
 
@@ -343,40 +376,34 @@ ___
 
 ▸ **on**(`eventName`: string, `callback`: Function): *this*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:192](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L192)*
+*Defined in [src/Modules/Verto/BaseSession.ts:217](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L217)*
 
-Attach a listener to the global session level
+Attaches an event handler for a specific type of event.
 
 **Parameters:**
 
-Name | Type |
------- | ------ |
-`eventName` | string |
-`callback` | Function |
+Name | Type | Description |
+------ | ------ | ------ |
+`eventName` | string | Event name. |
+`callback` | Function | Function to call when the event comes.  |
 
 **Returns:** *this*
 
-void
+The client object itself.
 
-___
+## Examples
 
-###  refreshToken
+Subscribe to the `telnyx.ready` and `telnyx.error` events.
 
-▸ **refreshToken**(`token`: string): *Promise‹void›*
+```js
+const client = new TelnyxRTC(options);
 
-*Defined in [src/Modules/Verto/BaseSession.ts:210](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L210)*
-
-Refresh the
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`token` | string |
-
-**Returns:** *Promise‹void›*
-
-void
+client.on('telnyx.ready', (client) => {
+  // Your client is ready!
+}).on('telnyx.error', (error) => {
+  // Got an error...
+})
+```
 
 ___
 
@@ -384,7 +411,7 @@ ___
 
 ▸ **subscribe**(`__namedParameters`: object): *Promise‹any›*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:140](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L140)*
+*Defined in [src/Modules/Verto/BaseSession.ts:147](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L147)*
 
 Subscribe to Blade protocol channels
 
@@ -406,7 +433,7 @@ ___
 
 ▸ **unsubscribe**(`__namedParameters`: object): *Promise‹any›*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:164](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L164)*
+*Defined in [src/Modules/Verto/BaseSession.ts:171](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L171)*
 
 Unsubscribe from Blade protocol channels
 
@@ -428,7 +455,7 @@ ___
 
 ▸ **validateOptions**(): *boolean*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:124](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L124)*
+*Defined in [src/Modules/Verto/BaseSession.ts:131](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L131)*
 
 Validates the options passed in.
 TelnyxRTC requires (login and password) OR login_token
@@ -444,7 +471,7 @@ ___
 
 ▸ **off**(`eventName`: string): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:483](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L483)*
+*Defined in [src/Modules/Verto/BaseSession.ts:444](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L444)*
 
 **Parameters:**
 
@@ -460,7 +487,7 @@ ___
 
 ▸ **on**(`eventName`: string, `callback`: any): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:479](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L479)*
+*Defined in [src/Modules/Verto/BaseSession.ts:440](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L440)*
 
 **Parameters:**
 
@@ -477,6 +504,6 @@ ___
 
 ▸ **uuid**(): *string*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:487](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/BaseSession.ts#L487)*
+*Defined in [src/Modules/Verto/BaseSession.ts:448](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L448)*
 
 **Returns:** *string*

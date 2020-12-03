@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallDevice](icalldevice.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [ICallDevice](icalldevice.md)
 
 # Interface: ICallDevice
 
@@ -19,7 +19,7 @@
 
 • **params**: *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:183](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L183)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:183](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L183)*
 
 #### Type declaration:
 
@@ -29,4 +29,4 @@ ___
 
 • **type**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:182](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L182)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:182](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L182)*

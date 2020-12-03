@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IRelayCallingDetect](irelaycallingdetect.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [IRelayCallingDetect](irelaycallingdetect.md)
 
 # Interface: IRelayCallingDetect
 
@@ -19,7 +19,7 @@
 
 • **params**: *IRelayCallingDetectParams*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:336](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L336)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:336](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L336)*
 
 ___
 
@@ -27,4 +27,4 @@ ___
 
 • **type**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:335](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L335)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:335](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L335)*

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [CallConnectState](callconnectstate.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [CallConnectState](callconnectstate.md)
 
 # Enumeration: CallConnectState
 
@@ -17,7 +17,7 @@
 
 • **Connected**: = "connected"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:39](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L39)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L39)*
 
 ___
 
@@ -25,7 +25,7 @@ ___
 
 • **Connecting**: = "connecting"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:38](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L38)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L38)*
 
 ___
 
@@ -33,7 +33,7 @@ ___
 
 • **Disconnected**: = "disconnected"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:37](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L37)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L37)*
 
 ___
 
@@ -41,4 +41,4 @@ ___
 
 • **Failed**: = "failed"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:40](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L40)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L40)*

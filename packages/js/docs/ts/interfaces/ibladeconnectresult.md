@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IBladeConnectResult](ibladeconnectresult.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [IBladeConnectResult](ibladeconnectresult.md)
 
 # Interface: IBladeConnectResult
 
@@ -26,7 +26,7 @@
 
 • **authorization**: *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L33)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L33)*
 
 #### Type declaration:
 
@@ -38,7 +38,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
 
 ___
 
@@ -48,7 +48,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
 
 ___
 
@@ -56,7 +56,7 @@ ___
 
 • **master_nodeid**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L31)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L31)*
 
 ___
 
@@ -64,7 +64,7 @@ ___
 
 • **nodeid**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L30)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L30)*
 
 ___
 
@@ -72,7 +72,7 @@ ___
 
 • **protocols_uncertified**: *string[]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L32)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L32)*
 
 ___
 
@@ -80,4 +80,4 @@ ___
 
 • **sessionid**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L29)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L29)*

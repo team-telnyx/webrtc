@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingTapDevice](icallingtapdevice.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [ICallingTapDevice](icallingtapdevice.md)
 
 # Interface: ICallingTapDevice
 
@@ -28,7 +28,7 @@
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:359](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L359)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:359](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L359)*
 
 ___
 
@@ -38,7 +38,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:361](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L361)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:361](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L361)*
 
 ___
 
@@ -48,7 +48,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:360](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L360)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:360](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L360)*
 
 ___
 
@@ -58,7 +58,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:362](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L362)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:362](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L362)*
 
 ___
 
@@ -68,7 +68,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:364](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L364)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:364](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L364)*
 
 ___
 
@@ -76,7 +76,7 @@ ___
 
 • **type**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
 
 ___
 
@@ -86,4 +86,4 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:363](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L363)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L363)*

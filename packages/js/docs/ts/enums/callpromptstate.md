@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [CallPromptState](callpromptstate.md)
+[@telnyx/webrtc - v2.5.1](../README.md) › [CallPromptState](callpromptstate.md)
 
 # Enumeration: CallPromptState
 
@@ -18,7 +18,7 @@
 
 • **Digit**: = "digit"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:104](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L104)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:104](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L104)*
 
 ___
 
@@ -26,7 +26,7 @@ ___
 
 • **Error**: = "error"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:101](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L101)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:101](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L101)*
 
 ___
 
@@ -34,7 +34,7 @@ ___
 
 • **NoInput**: = "no_input"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:102](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L102)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:102](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L102)*
 
 ___
 
@@ -42,7 +42,7 @@ ___
 
 • **NoMatch**: = "no_match"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:103](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L103)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:103](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L103)*
 
 ___
 
@@ -50,4 +50,4 @@ ___
 
 • **Speech**: = "speech"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:105](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L105)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L105)*
