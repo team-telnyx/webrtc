@@ -25,21 +25,22 @@ export default class Verto extends BrowserSession {
    *
    * This method receives an object `options` with the following properties:
    *
-   * @param destinationNumber Extension to dial.
-   * @param callerNumber Number to use as the caller ID when dialling out to a phone number.
-   * @param callerName Name to use as the caller ID name when dialling out to a phone number.
-   * @param id The identifier of the Call.
-   * @param localStream If sets, the Call will use this stream instead of retrieving a new one.
-   * @param localElement Overrides client's default `localElement`.
-   * @param remoteElement Overrides client's default `remoteElement`.
-   * @param iceServers Overrides client's default `iceServers`.
-   * @param audio Overrides client's default audio constraints.
-   * @param video Overrides client's default video constraints.
-   * @param useStereo Uses stereo audio instead of mono.
-   * @param micId `deviceId` to use as microphone. Overrides the client's default one.
-   * @param camId `deviceId` to use as webcam. Overrides the client's default one.
-   * @param speakerId deviceId to use as speaker. Overrides the client's default one.
-   * @param onNotification Overrides client's default `telnyx.notification` handler for this Call.
+   * @param options Options object for a new call.
+   * @param options.destinationNumber Extension to dial.
+   * @param options.callerNumber Number to use as the caller ID when dialling out to a phone number.
+   * @param options.callerName Name to use as the caller ID name when dialling out to a phone number.
+   * @param options.id The identifier of the Call.
+   * @param options.localStream If sets, the Call will use this stream instead of retrieving a new one.
+   * @param options.localElement Overrides client's default `localElement`.
+   * @param options.remoteElement Overrides client's default `remoteElement`.
+   * @param options.iceServers Overrides client's default `iceServers`.
+   * @param options.audio Overrides client's default audio constraints.
+   * @param options.video Overrides client's default video constraints.
+   * @param options.useStereo Uses stereo audio instead of mono.
+   * @param options.micId `deviceId` to use as microphone. Overrides the client's default one.
+   * @param options.camId `deviceId` to use as webcam. Overrides the client's default one.
+   * @param options.speakerId `deviceId` to use as speaker. Overrides the client's default one.
+   * @param options.onNotification Overrides client's default `telnyx.notification` handler for this Call.
    *
    * @return `Promise<Call>` A promise fulfilled with the new outbound Call object
    * or rejected with the error.
