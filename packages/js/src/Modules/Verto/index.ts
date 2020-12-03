@@ -53,7 +53,7 @@ export default class Verto extends BrowserSession {
    * if `options` is `null`.
    * it will return the message error `You need to provide the options<CallOptions> object.`
    *
-   * * Using async/await:
+   * Using async/await:
    *
    * ```js
    * const call = await client.newCall().catch(console.error)
