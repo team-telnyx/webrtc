@@ -20,6 +20,21 @@ function Utilities({ environment, username, password }) {
       login: username,
       password,
     });
+
+    clientRef.current.on('telnyx.ready', (client) => {
+      setIsConnected(client.connected);
+
+      if (client.connected) {
+        setLog({ message: 'Connected' });
+      } else {
+        setLog({ message: 'Not connected' });
+      }
+    });
+
+    clientRef.current.on('telnyx.error', (error) => {
+      console.log('error:', error);
+      setLog({ message: 'Received error attempting to connect' });
+    });
   };
 
   const connect = async () => {
@@ -29,18 +44,9 @@ function Utilities({ environment, username, password }) {
         setLog({ message: 'Reconnecting...' });
 
         await clientRef.current.disconnect();
+
+        initClient();
       }
-
-      initClient();
-
-      clientRef.current.on('telnyx.ready', () => {
-        setIsConnected(true);
-        setLog({ message: 'Connected' });
-      });
-
-      clientRef.current.on('telnyx.error', () => {
-        setLog({ message: 'Received error attempting to connect' });
-      });
 
       clientRef.current.connect();
     } else {
@@ -105,6 +111,35 @@ function Utilities({ environment, username, password }) {
     setLog({
       title: `Return the device resolutions of webcam ${label}`,
       message: devicelist,
+    });
+  };
+
+  const setAudioSettings = async () => {
+    const audioInList = await clientRef.current.getAudioInDevices();
+    const deviceId = audioInList[0] ? audioInList[0].deviceId : '';
+    const label = audioInList[0] ? audioInList[0].label : '';
+
+    const settings = {
+      micId: deviceId,
+      micLabel: label,
+      echoCancellation: true,
+    };
+
+    const results = await clientRef.current
+      .setAudioSettings(settings)
+      .catch((error) => console.log(error));
+
+    setLog({
+      title: (
+        <span>
+          Returns the audio settings applied for <b>{label}</b>
+        </span>
+      ),
+      message: (
+        <pre style={{ display: 'block', backgroundColor: '#ccc' }}>
+          {JSON.stringify(results, undefined, 2)}
+        </pre>
+      ),
     });
   };
 
@@ -173,6 +208,12 @@ function Utilities({ environment, username, password }) {
           <div>
             <button type='button' onClick={() => getDeviceResolutions()}>
               Get Device Resolutions
+            </button>
+          </div>
+
+          <div>
+            <button type='button' onClick={() => setAudioSettings()}>
+              Set Audio Settings
             </button>
           </div>
 
