@@ -52,13 +52,11 @@ jobs:
     - name: Create draft release
       working-directory: packages/js
       run: |
-        npm show @telnyx/webrtc version | read publishedVersion && \
         npm run release -- \
         --ci \
         --github.draft \
         --no-npm.publish \
-        --dry-run \
-        --plugins.@release-it/conventional-changelog.context.previousTag=webrtc/v${publishedVersion}
+        --plugins.@release-it/conventional-changelog.context.previousTag="webrtc/v$(npm show @telnyx/webrtc version)"
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
