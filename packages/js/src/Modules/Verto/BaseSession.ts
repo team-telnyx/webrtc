@@ -70,7 +70,7 @@ export default abstract class BaseSession {
   /**
    * `true` if the client is connected to the Telnyx RTC server
    *
-   * ## Example
+   * @example
    *
    * ```js
    * const client = new TelnyxRTC(options);
