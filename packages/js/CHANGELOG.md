@@ -1,3 +1,10 @@
+## [2.5.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.4.0...webrtc/v2.5.0) (2020-12-03)
+
+
+### Features
+
+* **WEBRTC-232:** remove refreshToken and blade methods [#75](https://github.com/team-telnyx/webrtc/issues/75) ([a2ce717](https://github.com/team-telnyx/webrtc/commit/a2ce717b991d57ca671b1a5d305e00d2c4a1b45c))
+
 ## [2.4.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.3.0...webrtc/v2.4.0) (2020-12-02)
 
 
