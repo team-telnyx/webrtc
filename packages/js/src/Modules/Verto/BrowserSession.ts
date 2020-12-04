@@ -650,7 +650,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Sets the default audio output device for subsequent calls.
    *
-   * ## Example
+   * @example
    *
    * ```js
    * let result = await client.getAudioOutDevices();
@@ -669,7 +669,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Default audio output device, if set by client.
    *
-   * ## Example
+   * @example
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -677,8 +677,6 @@ export default abstract class BrowserSession extends BaseSession {
    * console.log(client.speaker);
    * // => "abc123xyz"
    * ```
-   *
-   * @type {(string | null)}
    */
   get speaker(): string | null {
     return this._speaker;
