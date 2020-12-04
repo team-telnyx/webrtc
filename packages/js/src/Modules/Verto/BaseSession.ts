@@ -190,12 +190,22 @@ export default abstract class BaseSession {
   /**
    * Attaches an event handler for a specific type of event.
    *
+   * ## Events
+   * |   |   |
+   * |---|---|
+   * | `telnyx.ready` | The client is authenticated and available to use |
+   * | `telnyx.error` | An error occurred at the session level |
+   * | `telnyx.notification` | An update to the call or session |
+   * | `telnyx.socket.open` | The WebSocket connection has been made |
+   * | `telnyx.socket.close` | The WebSocket connection is set to close |
+   * | `telnyx.socket.error` | An error occurred at the WebSocket level |
+   * | `telnyx.socket.message` | The client has received a message through WebSockets |
+   *
    * @param eventName Event name.
    * @param callback Function to call when the event comes.
-   *
    * @return The client object itself.
    *
-   * ## Examples
+   * @examples
    *
    * Subscribe to the `telnyx.ready` and `telnyx.error` events.
    *
