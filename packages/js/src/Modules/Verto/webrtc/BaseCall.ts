@@ -331,7 +331,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```js
    * await call.toggleHold()
    * console.log(call.state) // => 'held'
-   
+   *
    * await call.toggleHold()
    * console.log(call.state) // => 'active'
    * ```
