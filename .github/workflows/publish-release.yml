@@ -47,7 +47,9 @@ jobs:
         --ci \
         --no-git.tag \
         --no-github \
-        --no-npm.publish
+        --no-npm.publish \
+        --plugins.@release-it/bumper.out=VERSION \
+        --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
