@@ -218,8 +218,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   hangup(hangupParams, hangupExecute): void;
   /**
    * @internal
-   * @param params _For internal use_ Specify custom hangup cause and call ID
-   * @param execute _For internal use_ Allow or prevent execution of `Bye`
+   * @param hangupParams _For internal use_ Specify custom hangup cause and call ID
+   * @param hangupExecute _For internal use_ Allow or prevent execution of `Bye`
    */
   hangup(hangupParams?: any, hangupExecute?: boolean): void {
     let params = hangupParams || {};
