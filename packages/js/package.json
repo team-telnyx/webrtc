@@ -81,8 +81,7 @@
     },
     "plugins": {
       "@release-it/bumper": {
-        "in": "VERSION",
-        "out": "VERSION"
+        "in": "VERSION"
       },
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
