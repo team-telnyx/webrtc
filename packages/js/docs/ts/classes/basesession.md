@@ -199,7 +199,7 @@ ___
 
 ▸ **_existsSubscription**(`protocol`: string, `channel?`: string): *boolean*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:353](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L353)*
+*Defined in [src/Modules/Verto/BaseSession.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L363)*
 
 Check if a subscription for this protocol-channel already exists
 
@@ -242,7 +242,7 @@ ___
 
 ▸ **connect**(): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:257](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L257)*
+*Defined in [src/Modules/Verto/BaseSession.ts:267](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L267)*
 
 Define the method to connect the session
 
@@ -314,7 +314,7 @@ ___
 
 ▸ **off**(`eventName`: string, `callback?`: Function): *this*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:246](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L246)*
+*Defined in [src/Modules/Verto/BaseSession.ts:256](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L256)*
 
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
@@ -356,22 +356,22 @@ ___
 
 ▸ **on**(`eventName`: string, `callback`: Function): *this*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:212](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L212)*
+*Defined in [src/Modules/Verto/BaseSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L222)*
 
 Attaches an event handler for a specific type of event.
 
-**Parameters:**
+## Events
+|   |   |
+|---|---|
+| `telnyx.ready` | The client is authenticated and available to use |
+| `telnyx.error` | An error occurred at the session level |
+| `telnyx.notification` | An update to the call or session |
+| `telnyx.socket.open` | The WebSocket connection has been made |
+| `telnyx.socket.close` | The WebSocket connection is set to close |
+| `telnyx.socket.error` | An error occurred at the WebSocket level |
+| `telnyx.socket.message` | The client has received a message through WebSockets |
 
-Name | Type | Description |
------- | ------ | ------ |
-`eventName` | string | Event name. |
-`callback` | Function | Function to call when the event comes.  |
-
-**Returns:** *this*
-
-The client object itself.
-
-## Examples
+**`examples`** 
 
 Subscribe to the `telnyx.ready` and `telnyx.error` events.
 
@@ -384,6 +384,17 @@ client.on('telnyx.ready', (client) => {
   // Got an error...
 })
 ```
+
+**Parameters:**
+
+Name | Type | Description |
+------ | ------ | ------ |
+`eventName` | string | Event name. |
+`callback` | Function | Function to call when the event comes. |
+
+**Returns:** *this*
+
+The client object itself.
 
 ___
 
@@ -451,7 +462,7 @@ ___
 
 ▸ **off**(`eventName`: string): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:435](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L435)*
+*Defined in [src/Modules/Verto/BaseSession.ts:445](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L445)*
 
 **Parameters:**
 
@@ -467,7 +478,7 @@ ___
 
 ▸ **on**(`eventName`: string, `callback`: any): *void*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:431](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L431)*
+*Defined in [src/Modules/Verto/BaseSession.ts:441](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L441)*
 
 **Parameters:**
 
@@ -484,6 +495,6 @@ ___
 
 ▸ **uuid**(): *string*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:439](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L439)*
+*Defined in [src/Modules/Verto/BaseSession.ts:449](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L449)*
 
 **Returns:** *string*
