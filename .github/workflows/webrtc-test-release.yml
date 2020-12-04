@@ -43,6 +43,7 @@ jobs:
         --ci \
         --preRelease=rc \
         --github.draft \
+        --no-github.releaseNotes \
         --no-npm.publish
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}

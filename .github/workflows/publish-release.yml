@@ -36,7 +36,7 @@ jobs:
         npm run release -- \
         --ci \
         --no-github \
-        --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md"
+        --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md
       env:
         CI: true
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
