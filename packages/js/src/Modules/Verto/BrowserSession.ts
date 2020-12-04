@@ -318,7 +318,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @param deviceId the `deviceId` from your webcam.
    *
-   * ## Examples
+   * @examples
    *
    * If `deviceId` is `null`
    *
@@ -366,6 +366,7 @@ export default abstract class BrowserSession extends BaseSession {
    * client.getDeviceResolutions(deviceId).then((result) => {
    *   console.log(result);
    * });
+   * ```
    */
   async getDeviceResolutions(deviceId: string) {
     try {
