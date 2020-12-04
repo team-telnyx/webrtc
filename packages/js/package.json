@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
+    "@release-it/bumper": "^2.0.0",
     "@release-it/conventional-changelog": "^2.0.0",
     "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
@@ -79,6 +80,10 @@
       "releaseName": "webrtc@${version}"
     },
     "plugins": {
+      "@release-it/bumper": {
+        "in": "VERSION",
+        "out": "VERSION"
+      },
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
         "tagPrefix": "webrtc/v",
