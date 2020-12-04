@@ -454,10 +454,6 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    *
    * @readonly
-   * @type {({
-   *     audio: boolean | MediaTrackConstraints;
-   *     video: boolean | MediaTrackConstraints;
-   *   })}
    */
   get mediaConstraints(): {
     audio: boolean | MediaTrackConstraints;
