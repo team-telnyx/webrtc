@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [CallPlayState](callplaystate.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [CallPlayState](callplaystate.md)
 
 # Enumeration: CallPlayState
 

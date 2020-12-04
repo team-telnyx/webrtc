@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [Peer](peer.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [Peer](peer.md)
 
 # Class: Peer
 

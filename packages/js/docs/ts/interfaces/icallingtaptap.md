@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingTapTap](icallingtaptap.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [ICallingTapTap](icallingtaptap.md)
 
 # Interface: ICallingTapTap
 
@@ -23,7 +23,7 @@
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:346](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L346)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:340](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L340)*
 
 ___
 
@@ -31,4 +31,4 @@ ___
 
 • **type**: *IRelayCallingTapTap["type"]*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:355](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L355)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:349](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L349)*

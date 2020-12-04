@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [IBladeConnectRequest](ibladeconnectrequest.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [IBladeConnectRequest](ibladeconnectrequest.md)
 
 # Interface: IBladeConnectRequest
 

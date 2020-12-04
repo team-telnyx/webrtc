@@ -1,6 +1,6 @@
-[@telnyx/webrtc - v2.5.2](README.md)
+[@telnyx/webrtc - v2.2.2](README.md)
 
-# @telnyx/webrtc - v2.5.2
+# @telnyx/webrtc - v2.2.2
 
 ## Index
 
@@ -55,7 +55,6 @@
 * [IBladeExecuteResult](interfaces/ibladeexecuteresult.md)
 * [IBladeResultError](interfaces/ibladeresulterror.md)
 * [IBladeSubscriptionRequest](interfaces/ibladesubscriptionrequest.md)
-* [ICacheDevices](interfaces/icachedevices.md)
 * [ICall](interfaces/icall.md)
 * [ICallDevice](interfaces/icalldevice.md)
 * [ICallOptions](interfaces/icalloptions.md)

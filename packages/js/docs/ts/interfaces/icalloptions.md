@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [ICallOptions](icalloptions.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [ICallOptions](icalloptions.md)
 
 # Interface: ICallOptions
 
@@ -56,7 +56,7 @@ ___
 
 • **call_id**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:200](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L200)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:194](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L194)*
 
 ___
 
@@ -64,7 +64,7 @@ ___
 
 • **call_state**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:201](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L201)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:195](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L195)*
 
 ___
 
@@ -88,7 +88,7 @@ ___
 
 • **context**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:202](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L202)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:196](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L196)*
 
 ___
 
@@ -104,7 +104,7 @@ ___
 
 • **device**? : *[ICallDevice](icalldevice.md)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:197](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L197)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:191](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L191)*
 
 ___
 
@@ -136,7 +136,7 @@ ___
 
 • **node_id**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:199](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L199)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:193](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L193)*
 
 ___
 
@@ -144,7 +144,7 @@ ___
 
 • **peer**? : *[ICallPeer](icallpeer.md)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:198](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L198)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:192](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L192)*
 
 ___
 

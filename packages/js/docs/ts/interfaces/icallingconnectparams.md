@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.5.2](../README.md) › [ICallingConnectParams](icallingconnectparams.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [ICallingConnectParams](icallingconnectparams.md)
 
 # Interface: ICallingConnectParams
 
@@ -19,7 +19,7 @@
 
 • **devices**: *[DeepArray](deeparray.md)‹[IMakeCallParams](imakecallparams.md)›*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:241](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L241)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:235](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L235)*
 
 ___
 
@@ -27,4 +27,4 @@ ___
 
 • **ringback**? : *[ICallingPlay](icallingplay.md)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:242](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L242)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:236](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L236)*
