@@ -28,7 +28,7 @@ export default class Verto extends BrowserSession {
    *
    * @param options Options object for a new call.
    * @param options.destinationNumber Phone number or SIP URI to dial.
-   * @param options.callerNumber Number to use as the caller ID when dialing out to a destination.
+   * @param options.callerNumber Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.
    * @param options.callerName Name to use as the caller ID name when dialing out to a destination.
    * @param options.id The identifier of the call.
    * @param options.localStream If set, the call will use this stream instead of retrieving a new one.
