@@ -23,6 +23,8 @@ const WebDialer = ({
   const [isInboundCall, setIsInboundCall] = useState(false);
   const [isMute, setIsMute] = useState(false);
   const [isHold, setIsHold] = useState(false);
+  const [isToggle, setIsToggle] = useState(false);
+
   const [statusCall, setStatusCall] = useState('');
 
   const resetFromStorybookUpdate = () => {
@@ -165,6 +167,13 @@ const WebDialer = ({
     }
   };
 
+  const toggleDeaf = () => {
+    if (call) {
+      setIsToggle(!isToggle);
+      call.toggleDeaf();
+    }
+  };
+
   if (mediaRef.current && call && call.remoteStream) {
     mediaRef.current.srcObject = call.remoteStream;
   }
@@ -193,10 +202,12 @@ const WebDialer = ({
           onStartCall={connect}
           onDigit={handleDigit}
           onBackspace={() => setDestination(destination.slice(0, -1))}
+          toggleDeaf={toggleDeaf}
           toggleMute={toggleMute}
           toggleHold={toggleHold}
           isMute={isMute}
           isHold={isHold}
+          isToggle={isToggle}
           disabled={registering || destination.length === 0}
         />
       </div>

@@ -1,8 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import {
-  DialPadContainer, ButtonAnswer, ButtonEnd,
-} from './styles';
+import { DialPadContainer, ButtonAnswer, ButtonEnd } from './styles';
 
 const DialPad = ({
   call,
@@ -12,8 +10,10 @@ const DialPad = ({
   onEndCall,
   toggleHold,
   toggleMute,
+  toggleDeaf,
   isHold,
   isMute,
+  isToggle,
   disabled,
   isIncomingCall,
 }) => {
@@ -86,12 +86,15 @@ const DialPad = ({
               onClick={toggleMute}
               className={isMute ? 'active' : ''}
             >
-              {isMute ? <span role='img' aria-label={'Mute'}>
-                🔇
-              </span> : <span role='img' aria-label={'Unmute'}>
-                🔈
-              </span> }
-
+              {isMute ? (
+                <span role='img' aria-label={'Mute'}>
+                  🔇
+                </span>
+              ) : (
+                <span role='img' aria-label={'Unmute'}>
+                  🔈
+                </span>
+              )}
             </button>
           ) : (
             <div />
@@ -118,16 +121,40 @@ const DialPad = ({
               onClick={toggleHold}
               className={isHold ? 'active' : ''}
             >
-              {isHold ? <span role='img' aria-label={'Hold'}>
-                ⏸
-              </span> : <span role='img' aria-label={'Unhold'}>
-                ▶️
-              </span>}
-
+              {isHold ? (
+                <span role='img' aria-label={'Hold'}>
+                  ⏸
+                </span>
+              ) : (
+                <span role='img' aria-label={'Unhold'}>
+                  ▶️
+                </span>
+              )}
             </button>
           ) : (
             <button type='button' onClick={onBackspace}>
               ⌫
+            </button>
+          )}
+          {call && (
+            <button
+              type='button'
+              onClick={toggleDeaf}
+              className={isToggle ? 'active' : ''}
+            >
+              {isToggle ? (
+                <img
+                  src='./images/hearing_disabled-24px.svg'
+                  role='img'
+                  aria-label={'Deaf'}
+                ></img>
+              ) : (
+                <img
+                  src='./images/hearing-24px.svg'
+                  role='img'
+                  aria-label={'UnDeaf'}
+                ></img>
+              )}
             </button>
           )}
         </React.Fragment>
@@ -138,17 +165,18 @@ const DialPad = ({
 
 DialPad.propTypes = {
   call: PropTypes.object,
-  onDigit:PropTypes.func.isRequired,
+  onDigit: PropTypes.func.isRequired,
   onBackspace: PropTypes.func.isRequired,
   onStartCall: PropTypes.func.isRequired,
   onEndCall: PropTypes.func.isRequired,
   toggleHold: PropTypes.func.isRequired,
   toggleMute: PropTypes.func.isRequired,
+  toggleDeaf: PropTypes.func.isRequired,
   isHold: PropTypes.bool.isRequired,
-  isMute:PropTypes.bool.isRequired,
+  isMute: PropTypes.bool.isRequired,
+  isToggle: PropTypes.bool.isRequired,
   disabled: PropTypes.bool.isRequired,
   isIncomingCall: PropTypes.bool.isRequired,
-}
-
+};
 
 export default DialPad;
