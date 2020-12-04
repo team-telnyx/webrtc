@@ -273,6 +273,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(this._handleChangeHoldStateError.bind(this));
   }
 
+  /**
+   * Removes hold from the call.
+   *
+   * @examples
+   *
+   * ```js
+   * call.unhold()
+   * ```
+   */
   unhold() {
     const msg = new Modify({
       sessid: this.session.sessionid,
