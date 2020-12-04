@@ -24,8 +24,8 @@ import {
   getUserMedia,
   assureDeviceId,
 } from './webrtc/helpers';
-import { findElementByType } from './util/helpers';
-import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
+import { findElementByType, objEmpty } from './util/helpers';
+import { Unsubscribe, Subscribe, Broadcast, Result } from './messages/Verto';
 import { sessionStorage } from './util/storage';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
@@ -598,11 +598,38 @@ export default abstract class BrowserSession extends BaseSession {
     return this._iceServers;
   }
 
+  /**
+   * Sets the default audio output device for subsequent calls.
+   *
+   * @example
+   *
+   * ```js
+   * let result = await client.getAudioOutDevices();
+   *
+   * if (result.length) {
+   *   client.speaker = result[1].deviceId;
+   * }
+   * ```
+   *
+   * @type {(string | null)}
+   */
   set speaker(deviceId: string) {
     this._speaker = deviceId;
   }
 
-  get speaker() {
+  /**
+   * Default audio output device, if set by client.
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * console.log(client.speaker);
+   * // => "abc123xyz"
+   * ```
+   */
+  get speaker(): string | null {
     return this._speaker;
   }
 

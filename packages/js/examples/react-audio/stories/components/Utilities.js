@@ -1,10 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
 function Utilities({ environment, username, password }) {
   const clientRef = useRef();
   const [isConnected, setIsConnected] = useState(false);
   const [log, setLog] = useState({ title: '', message: '' });
+  const [speakers, setSpeakers] = useState([]);
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState('');
 
   function getListFormat({ key, label }) {
     return (
@@ -68,11 +70,32 @@ function Utilities({ environment, username, password }) {
   const getAudioOutDevices = async () => {
     const results = await clientRef.current.getAudioOutDevices();
 
+    setSpeakers(results);
+
     setLog({
       title: 'Audio output devices:',
       message: `${
         results.length ? results.map(({ label }) => label).join(', ') : 'None'
       }`,
+    });
+  };
+
+  const setSpeaker = (speakerId) => {
+    clientRef.current.speaker = speakerId;
+
+    setLog({
+      message: 'Updated speaker',
+    });
+  };
+
+  const getSpeaker = () => {
+    const speakerDevice =
+      clientRef.current.speaker &&
+      speakers.find(({ deviceId }) => deviceId === clientRef.current.speaker);
+
+    setLog({
+      title: 'Speaker:',
+      message: speakerDevice ? speakerDevice.label : 'None',
     });
   };
 
@@ -184,6 +207,16 @@ function Utilities({ environment, username, password }) {
     initClient();
   }
 
+  useEffect(() => {
+    const getDeviceLists = async () => {
+      const results = await clientRef.current.getAudioOutDevices();
+
+      setSpeakers(results);
+    };
+
+    getDeviceLists();
+  }, []);
+
   return (
     <div>
       <section>
@@ -201,8 +234,29 @@ function Utilities({ environment, username, password }) {
           </div>
 
           <div>
+            <label htmlFor='audioOutDevices'>Choose speaker:</label>{' '}
+            <select
+              id='audioOutDevices'
+              onChange={(e) => setSelectedSpeakerId(e.target.value)}
+            >
+              {speakers.map((device) => (
+                <option key={device.deviceId} value={device.deviceId}>
+                  {device.label}
+                </option>
+              ))}
+            </select>{' '}
+            <button type='button' onClick={() => setSpeaker(selectedSpeakerId)}>
+              Update
+            </button>
+          </div>
+
+          <div>
             <button type='button' onClick={() => getAudioOutDevices()}>
               Get Audio Output Devices
+            </button>
+
+            <button type='button' onClick={() => getSpeaker()}>
+              Get Speaker
             </button>
           </div>
 
