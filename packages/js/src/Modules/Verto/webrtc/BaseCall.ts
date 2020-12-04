@@ -280,7 +280,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Sends dual-tone multi-frequency (DTMF) signal
    *
-   * @param {string} dtmf Single DTMF key
+   * @param dtmf Single DTMF key
    *
    * @examples
    *
