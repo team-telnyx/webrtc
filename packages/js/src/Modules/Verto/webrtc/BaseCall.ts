@@ -253,7 +253,16 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._execute(msg);
   }
 
-  hold() {
+  /**
+   * Holds the call.
+   *
+   * @examples
+   *
+   * ```js
+   * call.hold()
+   * ```
+   */
+  hold(): void {
     const msg = new Modify({
       sessid: this.session.sessionid,
       action: 'hold',
