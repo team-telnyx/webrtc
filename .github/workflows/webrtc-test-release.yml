@@ -43,8 +43,7 @@ jobs:
         --ci \
         --no-git.tag \
         --github.draft \
-        --no-npm \
-        --plugins.@release-it/conventional-changelog.gitRawCommitOps.from=webrtc/v$(npm show @telnyx/webrtc version)
+        --no-npm
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
