@@ -1,9 +1,8 @@
-### [2.2.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.3...webrtc/v2.2.3) (2020-12-04)
+### [2.2.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.2...webrtc/v2.2.3) (2020-12-04)
 
+### Changed
 
-### Reverts
-
-* Revert "Release 2.2.3" ([c329124](https://github.com/team-telnyx/webrtc/commit/c329124e407984770172b7f1611b54a5d2d2d93c))
+- Updates to `docs`
 
 ## [2.2.2](https://github.com/team-telnyx/webrtc/compare/v2.2.1-50-g0d4d2364801153f2d24afdee90fc15c856b000df...webrtc/v2.2.2) (2020-11-19)
 
