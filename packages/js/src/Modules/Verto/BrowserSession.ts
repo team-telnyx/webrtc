@@ -1,7 +1,6 @@
 import logger from './util/logger';
 import BaseSession from './BaseSession';
 import {
-  ICacheDevices,
   IAudioSettings,
   IVideoSettings,
   BroadcastParams,
@@ -56,8 +55,6 @@ export default abstract class BrowserSession extends BaseSession {
   private _remoteElement: HTMLMediaElement = null;
 
   protected _jwtAuth: boolean = true;
-
-  protected _devices: ICacheDevices = {};
 
   protected _audioConstraints: boolean | MediaTrackConstraints = true;
 
@@ -317,39 +314,6 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Refresh the device list doing an enumerateDevices
-   * @deprecated
-   */
-  async refreshDevices() {
-    logger.warn('This method has been deprecated. Use getDevices() instead.');
-    const cache = {};
-    ['videoinput', 'audioinput', 'audiooutput'].map((kind: string) => {
-      cache[kind] = {};
-      Object.defineProperty(cache[kind], 'toArray', {
-        value() {
-          return Object.keys(this).map((k) => this[k]);
-        },
-      });
-    });
-    const devices = await this.getDevices();
-    devices.forEach((t: MediaDeviceInfo) => {
-      if (cache.hasOwnProperty(t.kind)) {
-        cache[t.kind][t.deviceId] = t;
-      }
-    });
-
-    this._devices = cache;
-    return this.devices;
-  }
-
-  /**
-   * @deprecated
-   */
-  get devices() {
-    return this._devices || {};
-  }
-
-  /**
    * Returns supported resolution for the given webcam.
    *
    * @param deviceId the `deviceId` from your webcam.
@@ -412,36 +376,6 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * @deprecated
-   */
-  get videoDevices() {
-    logger.warn(
-      'This property has been deprecated. Use getVideoDevices() instead.'
-    );
-    return this._devices.videoinput || {};
-  }
-
-  /**
-   * @deprecated
-   */
-  get audioInDevices() {
-    logger.warn(
-      'This property has been deprecated. Use getAudioInDevices() instead.'
-    );
-    return this._devices.audioinput || {};
-  }
-
-  /**
-   * @deprecated
-   */
-  get audioOutDevices() {
-    logger.warn(
-      'This property has been deprecated. Use getAudioOutDevices() instead.'
-    );
-    return this._devices.audiooutput || {};
-  }
-
-  /**
    * Audio and video constraints currently used by the client.
    *
    * @examples
@@ -462,8 +396,40 @@ export default abstract class BrowserSession extends BaseSession {
     return { audio: this._audioConstraints, video: this._videoConstraints };
   }
 
+  /**
+   * Sets the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
+   *
+   * Note: It's a common behaviour, in WebRTC applications,
+   * to persist devices user's selection to then reuse them across visits.
+   * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+   * To avoid this issue you can specify two additional properties
+   * `micId` and `micLabel` in the constraints input parameter.
+   * The client will use these values to assure the microphone you want to use is available
+   * by matching both id and label with the device list retrieved from the browser.
+   *
+   * @param settings [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`.
+   *
+   * @return `Promise<MediaTrackConstraints>` Audio constraints applied to the client.
+   *
+   * @examples
+   *
+   * Set microphone by `id` and `label` with the `echoCancellation` flag turned off:
+   *
+   * ```js
+   * // within an async function
+   * const constraints = await client.setAudioSettings({
+   *  micId: '772e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+   *  micLabel: 'Internal Microphone (Built-in)',
+   *  echoCancellation: false
+   * })
+   * ```
+   */
   async setAudioSettings(settings: IAudioSettings) {
+    if (!settings) {
+      throw new Error('You need to provide the settings object');
+    }
     const { micId, micLabel, ...constraints } = settings;
+
     removeUnsupportedConstraints(constraints);
     this._audioConstraints = await checkDeviceIdConstraints(
       micId,
@@ -526,8 +492,42 @@ export default abstract class BrowserSession extends BaseSession {
     this._audioConstraints = true;
   }
 
+  /**
+   * Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
+   *
+   * Note: It's a common behaviour, in WebRTC applications,
+   * to persist devices user's selection to then reuse them across visits.
+   * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+   * To avoid this issue you can specify two additional properties
+   * `camId` and `camLabel` in the constraints input parameter.
+   * The client will use these values to assure the webcam you want to use is available
+   * by matching both `id` and `label` with the device list retrieved from the browser.
+   *
+   * @param settings [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`.
+   *
+   * @return `Promise<MediaTrackConstraints>` Video constraints applied to the client.
+   *
+   * @examples
+   *
+   * Set webcam by `id` and `label` with 720p resolution.
+   *
+   * ```js
+   * // within an async function
+   * const constraints = await client.setVideoSettings({
+   *  camId: '882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+   *  camLabel: 'Default WebCam (Built-in)',
+   *  width: 1080,
+   *  height: 720
+   * })
+   * ```
+   */
   async setVideoSettings(settings: IVideoSettings) {
+    if (!settings) {
+      throw new Error('You need to provide the settings object');
+    }
+
     const { camId, camLabel, ...constraints } = settings;
+
     removeUnsupportedConstraints(constraints);
     this._videoConstraints = await checkDeviceIdConstraints(
       camId,

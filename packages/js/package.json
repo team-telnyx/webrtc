@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "2.4.0",
+  "version": "2.2.2",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",
@@ -81,7 +81,6 @@
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
-        "infile": "CHANGELOG.md",
         "tagPrefix": "webrtc/v",
         "path": "./src"
       }

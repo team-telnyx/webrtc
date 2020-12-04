@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [CallNotification](callnotification.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [CallNotification](callnotification.md)
 
 # Enumeration: CallNotification
 
@@ -23,7 +23,7 @@
 
 • **Collect**: = "calling.call.collect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:49](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L49)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L49)*
 
 ___
 
@@ -31,7 +31,7 @@ ___
 
 • **Connect**: = "calling.call.connect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:46](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L46)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L46)*
 
 ___
 
@@ -39,7 +39,7 @@ ___
 
 • **Detect**: = "calling.call.detect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:51](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L51)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L51)*
 
 ___
 
@@ -47,7 +47,7 @@ ___
 
 • **Fax**: = "calling.call.fax"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:50](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L50)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L50)*
 
 ___
 
@@ -55,7 +55,7 @@ ___
 
 • **Play**: = "calling.call.play"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:48](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L48)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L48)*
 
 ___
 
@@ -63,7 +63,7 @@ ___
 
 • **Receive**: = "calling.call.receive"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:45](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L45)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L45)*
 
 ___
 
@@ -71,7 +71,7 @@ ___
 
 • **Record**: = "calling.call.record"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:47](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L47)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L47)*
 
 ___
 
@@ -79,7 +79,7 @@ ___
 
 • **SendDigits**: = "calling.call.send_digits"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:53](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L53)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L53)*
 
 ___
 
@@ -87,7 +87,7 @@ ___
 
 • **State**: = "calling.call.state"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:44](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L44)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L44)*
 
 ___
 
@@ -95,4 +95,4 @@ ___
 
 • **Tap**: = "calling.call.tap"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:52](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/constants/relay.ts#L52)*
+*Defined in [src/Modules/Verto/util/constants/relay.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L52)*

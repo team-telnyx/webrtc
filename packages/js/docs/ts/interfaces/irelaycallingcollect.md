@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IRelayCallingCollect](irelaycallingcollect.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [IRelayCallingCollect](irelaycallingcollect.md)
 
 # Interface: IRelayCallingCollect
 
@@ -23,7 +23,7 @@
 
 • **digits**? : *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:283](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L283)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
 
 #### Type declaration:
 
@@ -33,7 +33,7 @@ ___
 
 • **initial_timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:276](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L276)*
 
 ___
 
@@ -41,7 +41,7 @@ ___
 
 • **partial_results**? : *boolean*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
 
 ___
 
@@ -49,6 +49,6 @@ ___
 
 • **speech**? : *object*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
 
 #### Type declaration:

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IChromeRTCConfiguration](ichromertcconfiguration.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [IChromeRTCConfiguration](ichromertcconfiguration.md)
 
 # Interface: IChromeRTCConfiguration
 
@@ -111,4 +111,4 @@ ___
 
 • **sdpSemantics**? : *"plan-b" | "unified-plan"*
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:105](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L105)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L105)*

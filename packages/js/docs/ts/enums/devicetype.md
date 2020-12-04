@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [DeviceType](devicetype.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [DeviceType](devicetype.md)
 
 # Enumeration: DeviceType
 
@@ -16,7 +16,7 @@
 
 • **AudioIn**: = "audioinput"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:94](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L94)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:93](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L93)*
 
 ___
 
@@ -24,7 +24,7 @@ ___
 
 • **AudioOut**: = "audiooutput"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:95](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L95)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:94](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L94)*
 
 ___
 
@@ -32,4 +32,4 @@ ___
 
 • **Video**: = "videoinput"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:93](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/constants.ts#L93)*
+*Defined in [src/Modules/Verto/webrtc/constants.ts:92](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L92)*

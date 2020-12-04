@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [DeepArray](deeparray.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [DeepArray](deeparray.md)
 
 # Interface: DeepArray ‹**T**›
 

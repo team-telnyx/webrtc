@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingDetect](icallingdetect.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [ICallingDetect](icallingdetect.md)
 
 # Interface: ICallingDetect
 
@@ -30,7 +30,7 @@
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:331](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L331)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:325](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L325)*
 
 ___
 
@@ -40,7 +40,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:327](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L327)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:321](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L321)*
 
 ___
 
@@ -50,7 +50,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:326](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L326)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:320](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L320)*
 
 ___
 
@@ -60,7 +60,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:328](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L328)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:322](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L322)*
 
 ___
 
@@ -70,7 +70,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:329](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L329)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:323](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L323)*
 
 ___
 
@@ -78,7 +78,7 @@ ___
 
 • **timeout**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:341](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L341)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:335](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L335)*
 
 ___
 
@@ -88,7 +88,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:330](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L330)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:324](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L324)*
 
 ___
 
@@ -96,7 +96,7 @@ ___
 
 • **type**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:340](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L340)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:334](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L334)*
 
 ___
 
@@ -104,4 +104,4 @@ ___
 
 • **wait_for_beep**? : *boolean*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:342](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L342)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:336](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L336)*

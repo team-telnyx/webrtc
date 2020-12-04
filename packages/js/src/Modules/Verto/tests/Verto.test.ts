@@ -153,12 +153,6 @@ describe('Verto', () => {
       });
     });
 
-    it('should set the devices object', () => {
-      expect(instance.videoDevices).toBeDefined();
-      expect(instance.audioInDevices).toBeDefined();
-      expect(instance.audioOutDevices).toBeDefined();
-    });
-
     describe('with an already established connection', () => {
       it('should do nothing', async (done) => {
         await instance.connect();

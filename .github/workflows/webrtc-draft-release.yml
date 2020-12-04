@@ -43,9 +43,20 @@ jobs:
     - name: Build
       working-directory: packages/js
       run: npm run build
+    - name: Generate docs
+      working-directory: packages/js
+      run: |
+        npm run docs -- --gitRevision main # IDEA Set git revision to release-it tag
+        git add docs
+        git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
     - name: Create draft release
       working-directory: packages/js
-      run: npm run release -- --ci --github.draft --no-npm.publish
+      run: |
+        npm run release -- \
+        --ci \
+        --no-git.tag \
+        --github.draft \
+        --no-npm 
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

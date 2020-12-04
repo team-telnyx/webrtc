@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [Peer](peer.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [Peer](peer.md)
 
 # Class: Peer
 
@@ -28,7 +28,7 @@
 
 \+ **new Peer**(`type`: [PeerType](../enums/peertype.md), `options`: [CallOptions](../interfaces/calloptions.md)): *[Peer](peer.md)*
 
-*Defined in [src/Modules/Verto/webrtc/Peer.ts:28](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/Peer.ts#L28)*
+*Defined in [src/Modules/Verto/webrtc/Peer.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/Peer.ts#L28)*
 
 **Parameters:**
 
@@ -45,7 +45,7 @@ Name | Type |
 
 • **instance**: *RTCPeerConnection*
 
-*Defined in [src/Modules/Verto/webrtc/Peer.ts:22](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/Peer.ts#L22)*
+*Defined in [src/Modules/Verto/webrtc/Peer.ts:22](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/Peer.ts#L22)*
 
 ___
 
@@ -53,7 +53,7 @@ ___
 
 • **onSdpReadyTwice**: *Function* =  null
 
-*Defined in [src/Modules/Verto/webrtc/Peer.ts:23](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/Peer.ts#L23)*
+*Defined in [src/Modules/Verto/webrtc/Peer.ts:23](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/Peer.ts#L23)*
 
 ___
 
@@ -61,7 +61,7 @@ ___
 
 • **type**: *[PeerType](../enums/peertype.md)*
 
-*Defined in [src/Modules/Verto/webrtc/Peer.ts:30](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/Peer.ts#L30)*
+*Defined in [src/Modules/Verto/webrtc/Peer.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/Peer.ts#L30)*
 
 ## Methods
 
@@ -69,6 +69,6 @@ ___
 
 ▸ **startNegotiation**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/Peer.ts:41](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/webrtc/Peer.ts#L41)*
+*Defined in [src/Modules/Verto/webrtc/Peer.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/Peer.ts#L41)*
 
 **Returns:** *void*

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [IAudioSettings](iaudiosettings.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [IAudioSettings](iaudiosettings.md)
 
 # Interface: IAudioSettings
 
@@ -170,7 +170,7 @@ ___
 
 • **micId**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:105](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L105)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:99](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L99)*
 
 ___
 
@@ -178,7 +178,7 @@ ___
 
 • **micLabel**? : *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:106](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L106)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:100](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L100)*
 
 ___
 

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.1](../README.md) › [ICallingPlayRingtone](icallingplayringtone.md)
+[@telnyx/webrtc - v2.2.2](../README.md) › [ICallingPlayRingtone](icallingplayringtone.md)
 
 # Interface: ICallingPlayRingtone
 
@@ -20,7 +20,7 @@
 
 • **duration**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:270](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L270)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:264](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L264)*
 
 ___
 
@@ -28,7 +28,7 @@ ___
 
 • **name**: *string*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:269](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L269)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:263](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L263)*
 
 ___
 
@@ -36,4 +36,4 @@ ___
 
 • **volume**? : *number*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:271](https://github.com/team-telnyx/webrtc/blob/1cfde20/packages/js/src/Modules/Verto/util/interfaces.ts#L271)*
+*Defined in [src/Modules/Verto/util/interfaces.ts:265](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L265)*
