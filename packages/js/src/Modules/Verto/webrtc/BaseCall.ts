@@ -161,7 +161,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @examples
    *
    * ```js
-   *  call.answer()
+   * call.answer()
    * ```
    */
   answer() {
