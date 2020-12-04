@@ -50,45 +50,27 @@ export default class Verto extends BrowserSession {
    *
    * Making an outbound call to `+1 856-444-0362` using default values from the client:
    *
-   * if `options` is `null`.
-   * it will return the message error `You need to provide the options<CallOptions> object.`
-   *
    * Using async/await:
-   *
-   * ```js
-   * const call = await client.newCall().catch(console.error)
-   * ```
-   *
-   * if `destinationNumber` is `null`.
-   * it will return the message error `destinationNumber is required.`
-   *
-   * Using async/await:
-   *
-   * ```js
-   * const options = {}
-   * const call = await client.newCall(options).catch(console.error)
-   * ```
-   *
-   * if `destinationNumber` is **not** `null`.
-   * it will make a call.
-   *
-   * Using async/await:
-   *
-   * ```js
-   * const options = { destinationNumber: '+18564440362' }
-   * const call = await client.newCall(options).catch(console.error)
-   * ```
-   *
-   *  To call a PSTN phone number:
    *
    * ```js
    * const call = await client.newCall({
-   *  destinationNumber: '+18564440362',
-   *  callerNumber: '+15551231234' // Caller number is required when calling a phone number
+   *   destinationNumber: '+18564440362',
+   *   callerNumber: '+15551231234'
    * });
    * ```
    *
-   * To call a SIP address:
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.newCall({
+   *   destinationNumber: '+18564440362',
+   *   callerNumber: '+15551231234'
+   * }).then((call) => {
+   *   // do something with the call
+   * });
+   * ```
+   *
+   * You can omit `callerNumber` when dialing a SIP address:
    *
    * ```js
    * const call = await client.newCall({
@@ -102,6 +84,17 @@ export default class Verto extends BrowserSession {
    * const call = await client.newCall({
    *  destinationNumber: 'telnyx-sip-username' // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
    * });
+   * ```
+   *
+   * ### Error handling
+   *
+   * If `options` or `destinationNumber` is not specified, it throw an error.
+   *
+   * ```js
+   * client.newCall().catch(console.error);
+   * // => `You need to provide the options<CallOptions> object.`
+   * client.newCall({}).catch(console.error);
+   * // => `destinationNumber is required.`
    * ```
    */
   newCall(options: CallOptions) {
