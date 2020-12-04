@@ -1,11 +1,11 @@
 export interface CallOptions {
   // Required
   destinationNumber: string;
-  remoteCallerName: string;
-  remoteCallerNumber: string;
-  callerName: string;
-  callerNumber: string;
   // Optional
+  remoteCallerName?: string;
+  remoteCallerNumber?: string;
+  callerName?: string;
+  callerNumber?: string;
   id?: string;
   remoteSdp?: string;
   localStream?: MediaStream;
