@@ -40,14 +40,14 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
-    - name: Update changelog
+    - name: Update version
       working-directory: packages/js
       run: |
         npm run release -- \
         --ci \
+        --no-git.tag \
         --no-github \
-        --no-npm.publish \
-        --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md
+        --no-npm.publish
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

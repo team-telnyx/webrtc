@@ -54,10 +54,10 @@ jobs:
       run: |
         npm run release -- \
         --ci \
-        --preRelease=rc \
+        --no-git.tag \
         --github.draft \
-        --no-github.releaseNotes \
-        --no-npm.publish
+        --no-npm \
+        --plugins.@release-it/conventional-changelog.gitRawCommitOps.from=webrtc/v$(npm show @telnyx/webrtc version)
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
