@@ -71,25 +71,6 @@
     "access": "public",
     "@telnyx:registry": "https://registry.npmjs.org"
   },
-  "release-it": {
-    "git": {
-      "tagName": "webrtc/v${version}"
-    },
-    "github": {
-      "release": true,
-      "releaseName": "webrtc@${version}"
-    },
-    "plugins": {
-      "@release-it/bumper": {
-        "in": "VERSION"
-      },
-      "@release-it/conventional-changelog": {
-        "preset": "conventionalcommits",
-        "tagPrefix": "webrtc/v",
-        "path": "./src"
-      }
-    }
-  },
   "lint-staged": {
     "*.js, *.jsx, *.ts, *.tsx": [
       "eslint --fix"
