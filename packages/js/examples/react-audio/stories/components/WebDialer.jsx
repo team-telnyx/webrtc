@@ -158,10 +158,17 @@ const WebDialer = ({
     }
   };
 
-  const toggleHold = () => {
+  const toggleHold = async () => {
     if (call) {
-      setIsHold(!isHold);
-      call.toggleHold();
+      if (isHold) {
+        await call.unhold();
+      } else {
+        await call.hold();
+      }
+      // Alternatively, use `toggleHold`:
+      // await call.toggleHold();
+
+      setIsHold(call.state === 'held');
     }
   };
 
