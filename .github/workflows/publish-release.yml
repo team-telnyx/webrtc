@@ -18,6 +18,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      CI: true
+      NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+
     steps:
     - uses: actions/checkout@v2
     - name: Use Node.js 11.x
@@ -30,13 +34,13 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
+    - name: Generate .npmrc
+      run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
     - name: Publish package
       working-directory: packages/js
       run: |
         npm run release -- \
         --ci \
         --no-github \
+        --npm.skipChecks \
         --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md
-      env:
-        CI: true
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
