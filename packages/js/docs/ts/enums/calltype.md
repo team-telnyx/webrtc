@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [CallType](calltype.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [CallType](calltype.md)
 
 # Enumeration: CallType
 

@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [CallOptions](calloptions.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [CallOptions](calloptions.md)
 
 # Interface: CallOptions
 
@@ -12,8 +12,8 @@
 
 * [attach](calloptions.md#optional-attach)
 * [audio](calloptions.md#optional-audio)
-* [callerName](calloptions.md#callername)
-* [callerNumber](calloptions.md#callernumber)
+* [callerName](calloptions.md#optional-callername)
+* [callerNumber](calloptions.md#optional-callernumber)
 * [camId](calloptions.md#optional-camid)
 * [camLabel](calloptions.md#optional-camlabel)
 * [destinationNumber](calloptions.md#destinationnumber)
@@ -27,8 +27,8 @@
 * [micId](calloptions.md#optional-micid)
 * [micLabel](calloptions.md#optional-miclabel)
 * [onNotification](calloptions.md#optional-onnotification)
-* [remoteCallerName](calloptions.md#remotecallername)
-* [remoteCallerNumber](calloptions.md#remotecallernumber)
+* [remoteCallerName](calloptions.md#optional-remotecallername)
+* [remoteCallerNumber](calloptions.md#optional-remotecallernumber)
 * [remoteElement](calloptions.md#optional-remoteelement)
 * [remoteSdp](calloptions.md#optional-remotesdp)
 * [remoteStream](calloptions.md#optional-remotestream)
@@ -61,19 +61,19 @@ ___
 
 ___
 
-###  callerName
+### `Optional` callerName
 
-• **callerName**: *string*
+• **callerName**? : *string*
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L6)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L7)*
 
 ___
 
-###  callerNumber
+### `Optional` callerNumber
 
-• **callerNumber**: *string*
+• **callerNumber**? : *string*
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L7)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:8](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L8)*
 
 ___
 
@@ -181,19 +181,19 @@ ___
 
 ___
 
-###  remoteCallerName
+### `Optional` remoteCallerName
 
-• **remoteCallerName**: *string*
+• **remoteCallerName**? : *string*
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L4)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L5)*
 
 ___
 
-###  remoteCallerNumber
+### `Optional` remoteCallerNumber
 
-• **remoteCallerNumber**: *string*
+• **remoteCallerNumber**? : *string*
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L5)*
+*Defined in [src/Modules/Verto/webrtc/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L6)*
 
 ___
 

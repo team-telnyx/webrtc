@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [DisconnectReason](disconnectreason.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [DisconnectReason](disconnectreason.md)
 
 # Enumeration: DisconnectReason
 

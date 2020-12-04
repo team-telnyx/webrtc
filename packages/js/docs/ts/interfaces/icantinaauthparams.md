@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [ICantinaAuthParams](icantinaauthparams.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [ICantinaAuthParams](icantinaauthparams.md)
 
 # Interface: ICantinaAuthParams
 

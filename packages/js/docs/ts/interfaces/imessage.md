@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [IMessage](imessage.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [IMessage](imessage.md)
 
 # Interface: IMessage
 

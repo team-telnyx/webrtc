@@ -1,4 +1,4 @@
-[@telnyx/webrtc - v2.2.2](../README.md) › [Role](role.md)
+[@telnyx/webrtc - v2.2.3](../README.md) › [Role](role.md)
 
 # Enumeration: Role
 
