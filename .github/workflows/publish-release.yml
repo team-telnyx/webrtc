@@ -35,7 +35,6 @@ jobs:
       run: |
         npm run release -- \
         --ci \
-        --no-git.tag \
         --no-github \
         --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md"
       env:

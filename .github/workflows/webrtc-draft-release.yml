@@ -54,8 +54,9 @@ jobs:
       run: |
         npm run release -- \
         --ci \
+        --preRelease=rc \
         --github.draft \
-        --no-npm 
+        --no-npm.publish
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
