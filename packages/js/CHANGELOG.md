@@ -1,5 +1,3 @@
-### [2.2.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.3-rc.0...webrtc/v2.2.3) (2020-12-04)
-
 ## [2.2.2](https://github.com/team-telnyx/webrtc/compare/v2.2.1-50-g0d4d2364801153f2d24afdee90fc15c856b000df...webrtc/v2.2.2) (2020-11-19)
 
 ### Bug Fixes
