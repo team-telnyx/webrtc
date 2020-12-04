@@ -34,6 +34,7 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '11.x'
+        registry-url: https://registry.npmjs.org/
     - name: Install shared dependencies
       run: npm ci
     - name: Install package dependencies
@@ -54,4 +55,5 @@ jobs:
       working-directory: packages/js
       run: npm publish --access public
       env:
+        CI: true
         NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
