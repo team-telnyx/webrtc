@@ -153,6 +153,17 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._registerPeerEvents();
   }
 
+  /**
+   * Starts the process to answer the incoming call.
+   *
+   * @return void
+   *
+   * @examples
+   *
+   * ```js
+   *  call.answer()
+   * ```
+   */
   answer() {
     this.stopRingtone();
 
