@@ -277,6 +277,20 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(this._handleChangeHoldStateError.bind(this));
   }
 
+  /**
+   * Sends dual-tone multi-frequency (DTMF) signal
+   *
+   * @param {string} dtmf Single DTMF key
+   *
+   * @examples
+   *
+   * ```js
+   * call.dtmf('0');
+   * call.dtmf('1');
+   * call.dtmf('*');
+   * call.dtmf('#');
+   * ```
+   */
   dtmf(dtmf: string) {
     const msg = new Info({
       sessid: this.session.sessionid,
