@@ -444,7 +444,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Audio and video constraints currently used by the client.
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
