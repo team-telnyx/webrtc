@@ -78,6 +78,31 @@ export default class Verto extends BrowserSession {
    * const options = { destinationNumber: '+18564440362' }
    * const call = await client.newCall(options).catch(console.error)
    * ```
+   *
+   *  To call a PSTN phone number:
+   *
+   * ```js
+   * const call = await client.newCall({
+   *  destinationNumber: '+18564440362',
+   *  callerNumber: '+15551231234' // Caller number is required when calling a phone number
+   * });
+   * ```
+   *
+   * To call a SIP address:
+   *
+   * ```js
+   * const call = await client.newCall({
+   *  destinationNumber: 'sip:example-sip-username@voip-provider.example.net'
+   * });
+   * ```
+   *
+   * If you are making calls from one Telnyx connection to another, you may specify just the SIP username:
+   *
+   * ```js
+   * const call = await client.newCall({
+   *  destinationNumber: 'telnyx-sip-username' // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
+   * });
+   * ```
    */
   newCall(options: CallOptions) {
     if (!options) {
