@@ -190,20 +190,6 @@ export default abstract class BaseSession {
   /**
    * Attaches an event handler for a specific type of event.
    *
-   * ## Examples
-   *
-   * Subscribe to the `telnyx.ready` and `telnyx.error` events.
-   *
-   * ```js
-   * const client = new TelnyxRTC(options);
-   *
-   * client.on('telnyx.ready', (client) => {
-   *   // Your client is ready!
-   * }).on('telnyx.error', (error) => {
-   *   // Got an error...
-   * })
-   * ```
-   *
    * ## Events
    * |   |   |
    * |---|---|
@@ -217,8 +203,21 @@ export default abstract class BaseSession {
    *
    * @param eventName Event name.
    * @param callback Function to call when the event comes.
-   *
    * @return The client object itself.
+   *
+   * @examples
+   *
+   * Subscribe to the `telnyx.ready` and `telnyx.error` events.
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * client.on('telnyx.ready', (client) => {
+   *   // Your client is ready!
+   * }).on('telnyx.error', (error) => {
+   *   // Got an error...
+   * })
+   * ```
    */
   on(eventName: string, callback: Function) {
     register(eventName, callback, this.uuid);
