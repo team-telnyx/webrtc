@@ -205,6 +205,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Hangs up the call.
    *
+   * @param params _For internal use_ Specify custom hangup cause and call ID
+   * @param execute _For internal use_ Allow or prevent execution of `Bye`
+   *
    * @examples
    *
    * ```js
