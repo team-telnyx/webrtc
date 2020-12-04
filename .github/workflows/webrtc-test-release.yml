@@ -41,7 +41,6 @@ jobs:
         npm run release -- \
         --dry-run \
         --ci \
-        --no-git.tag \
         --github.draft \
         --no-npm 
       env:

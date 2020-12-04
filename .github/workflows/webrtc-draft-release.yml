@@ -54,7 +54,6 @@ jobs:
       run: |
         npm run release -- \
         --ci \
-        --no-git.tag \
         --github.draft \
         --no-npm 
       env:
