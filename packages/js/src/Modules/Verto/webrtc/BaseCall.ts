@@ -445,14 +445,41 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  /**
+   * Turns off the remote stream audio.
+   *
+   * @examples
+   *
+   * ```js
+   * call.deaf()
+   * ```
+   */
   deaf() {
     disableAudioTracks(this.options.remoteStream);
   }
 
+  /**
+   * Turns on the remote stream audio.
+   *
+   * @examples
+   *
+   * ```js
+   * call.undeaf()
+   * ```
+   */
   undeaf() {
     enableAudioTracks(this.options.remoteStream);
   }
 
+  /**
+   * Toggles the remote stream audio.
+   *
+   * @examples
+   *
+   * ```js
+   * call.toggleDeaf()
+   * ```
+   */
   toggleDeaf() {
     toggleAudioTracks(this.options.remoteStream);
   }
