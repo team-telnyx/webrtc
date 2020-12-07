@@ -13,7 +13,7 @@ const DialPad = ({
   toggleDeaf,
   isHold,
   isMute,
-  isToggle,
+  isDeaf,
   disabled,
   isIncomingCall,
 }) => {
@@ -140,9 +140,9 @@ const DialPad = ({
             <button
               type='button'
               onClick={toggleDeaf}
-              className={isToggle ? 'active' : ''}
+              className={isDeaf ? 'active' : ''}
             >
-              {isToggle ? (
+              {isDeaf ? (
                 <img
                   src='./images/hearing_disabled-24px.svg'
                   role='img'
@@ -174,7 +174,7 @@ DialPad.propTypes = {
   toggleDeaf: PropTypes.func.isRequired,
   isHold: PropTypes.bool.isRequired,
   isMute: PropTypes.bool.isRequired,
-  isToggle: PropTypes.bool.isRequired,
+  isDeaf: PropTypes.bool.isRequired,
   disabled: PropTypes.bool.isRequired,
   isIncomingCall: PropTypes.bool.isRequired,
 };

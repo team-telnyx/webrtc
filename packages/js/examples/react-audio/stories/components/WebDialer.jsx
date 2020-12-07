@@ -23,7 +23,7 @@ const WebDialer = ({
   const [isInboundCall, setIsInboundCall] = useState(false);
   const [isMute, setIsMute] = useState(false);
   const [isHold, setIsHold] = useState(false);
-  const [isToggle, setIsToggle] = useState(false);
+  const [isDeaf, setIsDeaf] = useState(false);
 
   const [statusCall, setStatusCall] = useState('');
 
@@ -169,7 +169,7 @@ const WebDialer = ({
 
   const toggleDeaf = () => {
     if (call) {
-      setIsToggle(!isToggle);
+      setIsDeaf(!isDeaf);
       call.toggleDeaf();
     }
   };
@@ -207,7 +207,7 @@ const WebDialer = ({
           toggleHold={toggleHold}
           isMute={isMute}
           isHold={isHold}
-          isToggle={isToggle}
+          isDeaf={isDeaf}
           disabled={registering || destination.length === 0}
         />
       </div>
