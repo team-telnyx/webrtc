@@ -362,9 +362,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Turns off the audio input track.
-   *
-   * This method will turn of the remote stream audio.
+   * Turns off the remote stream audio.
    *
    * @examples
    *
