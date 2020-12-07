@@ -253,7 +253,29 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._execute(msg);
   }
 
-  hold() {
+  /**
+   * Holds the call.
+   *
+   * @returns Promise that resolves or rejects based on server response
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.hold()
+   * console.log(call.state) // => 'held'
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * call.hold().then(() => {
+   *   console.log(call.state) // => 'held'
+   * });
+   * ```
+   */
+  hold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
       action: 'hold',
@@ -264,7 +286,29 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(this._handleChangeHoldStateError.bind(this));
   }
 
-  unhold() {
+  /**
+   * Removes hold from the call.
+   *
+   * @returns Promise that resolves or rejects based on server response
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.unhold()
+   * console.log(call.state) // => 'active'
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * call.unhold().then(() => {
+   *   console.log(call.state) // => 'active'
+   * });
+   * ```
+   */
+  unhold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
       action: 'unhold',
@@ -275,7 +319,24 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(this._handleChangeHoldStateError.bind(this));
   }
 
-  toggleHold() {
+  /**
+   * Toggles hold state of the call.
+   *
+   * @returns Promise that resolves or rejects based on server response
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.toggleHold()
+   * console.log(call.state) // => 'held'
+   *
+   * await call.toggleHold()
+   * console.log(call.state) // => 'active'
+   * ```
+   */
+  toggleHold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
       action: 'toggleHold',
