@@ -402,11 +402,29 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._execute(info);
   }
 
-  muteAudio() {
+  /**
+   * Turns off the local audio stream.
+   *
+   * @examples
+   *
+   * ```js
+   * call.muteAudio();
+   * ```
+   */
+  muteAudio(): void {
     disableAudioTracks(this.options.localStream);
   }
 
-  unmuteAudio() {
+  /**
+   * Turns the local audio stream back on.
+   *
+   * @examples
+   *
+   * ```js
+   * call.unmuteAudio();
+   * ```
+   */
+  unmuteAudio(): void {
     enableAudioTracks(this.options.localStream);
   }
 
