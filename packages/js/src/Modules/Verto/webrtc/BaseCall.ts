@@ -428,6 +428,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     enableAudioTracks(this.options.localStream);
   }
 
+  /**
+   * Toggles the local audio stream on/off.
+   *
+   * @examples
+   *
+   * ```js
+   * call.toggleAudioMute();
+   * ```
+   */
   toggleAudioMute() {
     toggleAudioTracks(this.options.localStream);
   }
