@@ -434,14 +434,41 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  /**
+   * Turns off the local video stream.
+   *
+   * @examples
+   *
+   * ```js
+   * call.muteVideo();
+   * ```
+   */
   muteVideo() {
     disableVideoTracks(this.options.localStream);
   }
 
+  /**
+   * Turns the local video stream back on.
+   *
+   * @examples
+   *
+   * ```js
+   * call.unmuteVideo();
+   * ```
+   */
   unmuteVideo() {
     enableVideoTracks(this.options.localStream);
   }
 
+  /**
+   * Toggles the local video stream on/off.
+   *
+   * @examples
+   *
+   * ```js
+   * call.toggleVideoMute();
+   * ```
+   */
   toggleVideoMute() {
     toggleVideoTracks(this.options.localStream);
   }
