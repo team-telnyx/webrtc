@@ -441,6 +441,28 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.localStream);
   }
 
+  /**
+   * Changes the audio input device (i.e. microphone) used for the call.
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.setAudioInDevice('abc123')
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * call.setAudioInDevice('abc123').then(() => {
+   *   // Do something using new audio input device
+   * });
+   * ```
+   *
+   * @param deviceId The target audio input device ID
+   * @returns Promise that resolves if the audio input device has been updated
+   */
   async setAudioInDevice(deviceId: string): Promise<void> {
     const { instance } = this.peer;
     const sender = instance
