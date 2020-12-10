@@ -156,12 +156,12 @@ const WebDialer = ({
   const toggleMute = () => {
     if (call) {
       if (isMute) {
-        await call.unmuteAudio();
+        call.unmuteAudio();
       } else {
-        await call.muteAudio();
+        call.muteAudio();
       }
       // Alternatively, use `toggleAudioMute`:
-      // await call.toggleAudioMute();
+      // call.toggleAudioMute();
 
       setIsMute(!isMute);
     }
