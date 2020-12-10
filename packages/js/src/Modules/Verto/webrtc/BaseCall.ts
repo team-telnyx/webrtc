@@ -435,7 +435,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Turns off the local video stream.
+   * Turns off the video output, i.e. hides
+   * video from other call participants.
    *
    * @examples
    *
@@ -448,7 +449,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Turns the local video stream back on.
+   * Turns on the video output, i.e. makes
+   * video visible to other call participants.
    *
    * @examples
    *
@@ -461,7 +463,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Toggles the local video stream on/off.
+   * Toggles the video output on/off.
    *
    * @examples
    *
