@@ -403,7 +403,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Turns off the local audio stream.
+   * Turns off audio output, i.e. makes it so other
+   * call participants cannot hear your audio.
    *
    * @examples
    *
@@ -416,7 +417,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Turns the local audio stream back on.
+   * Turns on audio output, i.e. makes it so other
+   * call participants can hear your audio.
    *
    * @examples
    *
@@ -429,7 +431,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Toggles the local audio stream on/off.
+   * Toggles the audio output on/off.
    *
    * @examples
    *
