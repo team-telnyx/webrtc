@@ -460,6 +460,16 @@ export default abstract class BaseCall implements IWebRTCCall {
    * });
    * ```
    *
+   * Usage with {@link BrowserSession.getAudioInDevices}:
+   *
+   * ```js
+   * let result = await client.getAudioInDevices();
+   *
+   * if (result.length) {
+   *   call.setAudioInDevice(result[1].deviceId);
+   * }
+   * ```
+   *
    * @param deviceId The target audio input device ID
    * @returns Promise that resolves if the audio input device has been updated
    */
