@@ -60,7 +60,7 @@ class DialogActions extends Component {
         {dialog.state === 'held' && (
           <button onClick={dialog.toggleHold.bind(dialog)}>UnHold</button>
         )}
-        <button onClick={this.toggleVideoMute}>
+        <button onClick={() => this.toggleVideoMute()}>
           {isVideoMute ? 'Unmute video' : 'Mute video'}
         </button>
       </div>
