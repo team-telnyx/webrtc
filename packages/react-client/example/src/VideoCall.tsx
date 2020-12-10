@@ -88,8 +88,6 @@ function VideoCall() {
               boxShadow: 'inset 0 0 0 2px blue',
             }}
             stream={call?.remoteStream}
-            // Prevent echo from your own video:
-            muted
           />
         </section>
 
@@ -101,6 +99,8 @@ function VideoCall() {
               boxShadow: 'inset 0 0 0 2px yellow',
             }}
             stream={call?.localStream}
+            // Prevent echo from your own video:
+            muted
           />
         </section>
       </div>
