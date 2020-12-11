@@ -72,27 +72,25 @@ export default class Verto extends BrowserSession {
    * });
    * ```
    *
-   * ### Error handling
-   *
-   * You'll receive a new error if `options` or `destinationNumber` is not specified.
+   * If `options` or `destinationNumber` is not specified, a call object will not be created.
    *
    * ```js
    * const call = client.newCall();
+   * // => `destinationNumber is required`
    *
-   * if (call instanceof Error) {
-   *   console.log(call);
-   *   // => `destinationNumber is required`
+   * if (call) {
+   *   // Do something with the call
    * }
    * ```
    */
-  newCall(options: CallOptions): Call | Error {
+  newCall(options: CallOptions) {
     if (!options || !options.destinationNumber) {
       const errorMessage =
         'Verto.newCall() error: destinationNumber is required';
 
       logger.error(errorMessage);
 
-      return new Error(errorMessage);
+      return false;
     }
 
     const call = new Call(this, options);
