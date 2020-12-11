@@ -8,15 +8,17 @@ function Phone() {
   const handleSubmit = (e: any) => {
     e.preventDefault();
 
-    client?.newCall({
-      destinationNumber: destination,
-      callerName: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
-      callerNumber: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
-      remoteCallerName: '',
-      remoteCallerNumber: '',
-      audio: true,
-      video: false,
-    });
+    client
+      ?.newCall({
+        destinationNumber: destination,
+        callerName: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
+        callerNumber: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
+        remoteCallerName: '',
+        remoteCallerNumber: '',
+        audio: true,
+        video: false,
+      })
+      .catch(console.error);
   };
 
   const call = notification?.call;

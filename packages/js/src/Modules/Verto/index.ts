@@ -43,37 +43,23 @@ export default class Verto extends BrowserSession {
    * @param options.speakerId `deviceId` to use as speaker. Overrides the client's default one.
    * @param options.onNotification Overrides client's default `telnyx.notification` handler for this call.
    *
-   * @return `Promise<Call>` A promise fulfilled with the new outbound `Call` object
-   * or rejected with the error.
+   * @return The new outbound `Call` object.
    *
    * @examples
    *
    * Making an outbound call to `+1 856-444-0362` using default values from the client:
    *
-   * Using async/await:
-   *
    * ```js
-   * const call = await client.newCall({
+   * const call = client.newCall({
    *   destinationNumber: '+18564440362',
    *   callerNumber: '+15551231234'
-   * });
-   * ```
-   *
-   * Using ES6 `Promises`:
-   *
-   * ```js
-   * client.newCall({
-   *   destinationNumber: '+18564440362',
-   *   callerNumber: '+15551231234'
-   * }).then((call) => {
-   *   // do something with the call
    * });
    * ```
    *
    * You can omit `callerNumber` when dialing a SIP address:
    *
    * ```js
-   * const call = await client.newCall({
+   * const call = client.newCall({
    *  destinationNumber: 'sip:example-sip-username@voip-provider.example.net'
    * });
    * ```
@@ -81,30 +67,24 @@ export default class Verto extends BrowserSession {
    * If you are making calls from one Telnyx connection to another, you may specify just the SIP username:
    *
    * ```js
-   * const call = await client.newCall({
+   * const call = client.newCall({
    *  destinationNumber: 'telnyx-sip-username' // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
    * });
    * ```
    *
    * ### Error handling
    *
-   * If `options` or `destinationNumber` is not specified, it throw an error.
+   * An error will be thrown if `destinationNumber` is not specified.
    *
    * ```js
-   * client.newCall().catch(console.error);
-   * // => `You need to provide the options<CallOptions> object.`
-   * client.newCall({}).catch(console.error);
-   * // => `destinationNumber is required.`
-   * ```
+   * const call = client.newCall().catch(console.error);
+   * // => `destinationNumber is required`
    */
   newCall(options: CallOptions) {
-    if (!options) {
-      throw new Error('You need to provide the options<CallOptions> object');
-    }
-    const { destinationNumber = null } = options;
-    if (!destinationNumber) {
+    if (!options || !options.destinationNumber) {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
     }
+
     const call = new Call(this, options);
     call.invite();
     return call;
