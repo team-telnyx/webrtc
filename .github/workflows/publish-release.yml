@@ -59,3 +59,52 @@ jobs:
       env:
         CI: true
         NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+
+  publish-react-client:
+    if: github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')
+
+    name: '@telnyx/react-client Publish release'
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
+    - name: Setup Git user
+      # https://github.com/actions/checkout/issues/13
+      run: |
+        git config user.name github-actions[bot]
+        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+        registry-url: https://registry.npmjs.org/
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/react-client
+      run: npm ci
+    - name: Update version
+      working-directory: packages/react-client
+      run: |
+        npm run release -- \
+        --ci \
+        --no-git.tag \
+        --no-github \
+        --no-npm.publish \
+        --plugins.@release-it/bumper.out=VERSION \
+        --plugins.@release-it/conventional-changelog.infile=CHANGELOG.md
+      env:
+        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Publish package
+      working-directory: packages/react-client
+      run: npm publish --access public
+      env:
+        CI: true
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
