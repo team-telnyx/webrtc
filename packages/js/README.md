@@ -1,25 +1,14 @@
-# Telnyx WebRTC SDK
+# @telnyx/webrtc
 
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) <!-- GEN:chromium-version-badge-if-release -->[![Chromium version](https://img.shields.io/badge/chromium-82.0.4057.0-blue.svg?logo=google-chrome)](https://www.chromium.org/Home)<!-- GEN:stop --> <!-- GEN:firefox-version-badge-if-release -->[![Firefox version](https://img.shields.io/badge/firefox-72-blue.svg?logo=mozilla-firefox)](https://www.mozilla.org/en-US/firefox/new/)<!-- GEN:stop --> [![WebKit version](https://img.shields.io/badge/webkit-13.0.4-blue.svg?logo=safari)](https://webkit.org/) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
 
-The Telnyx WebRTC SDK provides all the functionality you need to start making voice calls from a browser to phone numbers or other browsers.
-
-[v2 CHANGELOG](CHANGELOG.md)
-
-To access v1, click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
+The Telnyx WebRTC Client provides all the functionality you need to start making voice & video calls from a browser.
 
 ---
 
-## Our packages
-
-- `@telnyx/webrtc`
-- `@telnyx/react-native` - [React Native](https://www.npmjs.com/package/@telnyx/react-native)
-
 ## Requirements
 
-You'll need node v11.15.0 or later.
-
-You'll also need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
+You'll need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
 
 ## Installation
 
@@ -207,7 +196,7 @@ call.hangup();
 
 ### Vanilla Javascript
 
-We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
+We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
 
 ```
 cd examples/vanilla
@@ -222,6 +211,11 @@ Screenshot:
 ### ReactJS
 
 We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+
+> _Looking for an easier way to get started with React or React Native? Check out our other packages:_
+>
+> - [@telnyx/react-client](../react-client)
+> - [@telnyx/react-native](../react-client)
 
 #### Audio call
 
@@ -249,7 +243,9 @@ npm start
 Screenshot:
 ![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
 
-### Development
+---
+
+## Development
 
 This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
 
@@ -272,6 +268,10 @@ To generate TypeScript documentation:
 ```
 npm run docs
 ```
+
+### Requirements
+
+You'll need node v11.15.0 or later.
 
 ---
 
