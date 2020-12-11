@@ -202,7 +202,12 @@ The React Native SDK is a package inside the [@telnyx/webrtc](https://github.com
 
 TelnyxRTC SDK for React Native follows Semantic Versioning 2.0 as defined at <http://semver.org>.
 
+---
+
+## Contributing
+
+See [Contribution Guide](../../docs/Contributing.md)
+
 ## License
 
-The TelnyxRTC SDK for React Native is copyright © 2020
-[Telnyx](http://telnyx.com). It is free software, and may be redistributed under the terms specified in the [MIT-LICENSE](https://github.com/team-telnyx/webrtc/blob/main/LICENSE) file.
+[MIT](../../LICENSE) © [Telnyx](https://github.com/team-telnyx)
