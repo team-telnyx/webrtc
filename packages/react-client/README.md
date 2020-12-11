@@ -7,7 +7,7 @@
 ## Install
 
 ```bash
-npm install --save @telnyx/react-client
+npm install --save @telnyx/react-client @telnyx/webrtc
 ```
 
 ## Usage
@@ -173,7 +173,7 @@ import { Video } from '@telnyx/react-client';
 function VideoConference({ activeCall }) {
   return (
     <div>
-      <Video stream={activeCall.localStream} />
+      <Video stream={activeCall.localStream} muted />
       <Video stream={activeCall.remoteStream} />
     </div>
   );

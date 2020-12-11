@@ -15,23 +15,25 @@ const App = () => {
   };
 
   return (
-    <TelnyxRTCProvider credential={credential}>
-      <ClientStatus />
-      <CallLog />
+    <div style={{ padding: 20 }}>
+      <TelnyxRTCProvider credential={credential}>
+        <ClientStatus />
+        <CallLog />
 
-      <div>
-        <label>
-          <input
-            type='checkbox'
-            checked={isAudioOnly}
-            onChange={(e) => setIsAudioOnly(e.target.checked)}
-          />
-          Audio-only call
-        </label>
+        <div>
+          <label>
+            <input
+              type='checkbox'
+              checked={isAudioOnly}
+              onChange={(e) => setIsAudioOnly(e.target.checked)}
+            />
+            Audio-only call
+          </label>
 
-        {isAudioOnly ? <Phone /> : <VideoCall />}
-      </div>
-    </TelnyxRTCProvider>
+          {isAudioOnly ? <Phone /> : <VideoCall />}
+        </div>
+      </TelnyxRTCProvider>
+    </div>
   );
 };
 
