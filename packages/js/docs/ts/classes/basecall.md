@@ -284,7 +284,7 @@ ___
 
 ▸ **_addChannel**(`channel`: string): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:775](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L775)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:804](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L804)*
 
 **Parameters:**
 
@@ -318,7 +318,7 @@ ___
 
 ▸ **deaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:540](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L540)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:569](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L569)*
 
 Turns off the remote stream audio.
 
@@ -363,7 +363,7 @@ ___
 
 ▸ **handleConferenceUpdate**(`packet`: any, `initialPvtData`: any): *Promise‹string›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:680](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L680)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:709](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L709)*
 
 **Parameters:**
 
@@ -380,7 +380,7 @@ ___
 
 ▸ **handleMessage**(`msg`: any): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:604](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L604)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:633](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L633)*
 
 **Parameters:**
 
@@ -506,7 +506,16 @@ ___
 
 ▸ **muteVideo**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:498](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L498)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:508](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L508)*
+
+Turns off the video output, i.e. hides
+video from other call participants.
+
+**`examples`** 
+
+```js
+call.muteVideo();
+```
 
 **Returns:** *void*
 
@@ -598,7 +607,7 @@ ___
 
 ▸ **setState**(`state`: [State](../enums/state.md)): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:570](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L570)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:599](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L599)*
 
 **Parameters:**
 
@@ -614,7 +623,7 @@ ___
 
 ▸ **setVideoDevice**(`deviceId`: string): *Promise‹void›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:510](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L510)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:539](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L539)*
 
 **Parameters:**
 
@@ -668,7 +677,7 @@ ___
 
 ▸ **toggleDeaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:566](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L566)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:595](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L595)*
 
 Toggles the remote stream audio.
 
@@ -712,7 +721,15 @@ ___
 
 ▸ **toggleVideoMute**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:506](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L506)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:535](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L535)*
+
+Toggles the video output on/off.
+
+**`examples`** 
+
+```js
+call.toggleVideoMute();
+```
 
 **Returns:** *void*
 
@@ -738,7 +755,7 @@ ___
 
 ▸ **undeaf**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:553](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L553)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:582](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L582)*
 
 Turns on the remote stream audio.
 
@@ -806,7 +823,16 @@ ___
 
 ▸ **unmuteVideo**(): *void*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:502](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L502)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:522](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L522)*
+
+Turns on the video output, i.e. makes
+video visible to other call participants.
+
+**`examples`** 
+
+```js
+call.unmuteVideo();
+```
 
 **Returns:** *void*
 
@@ -816,7 +842,7 @@ ___
 
 ▸ **setStateTelnyx**(`call`: [Call](call.md)): *[Call](call.md)‹›*
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:1279](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L1279)*
+*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:1308](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L1308)*
 
 **Parameters:**
 
