@@ -249,12 +249,6 @@ npm start
 Screenshot:
 ![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
 
----
-
-## Contributing
-
-See [Contribution Guide](../../docs/Contributing.md)
-
 ### Development
 
 This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
@@ -278,3 +272,13 @@ To generate TypeScript documentation:
 ```
 npm run docs
 ```
+
+---
+
+## Contributing
+
+See [Contribution Guide](../../docs/Contributing.md)
+
+## License
+
+[MIT](../../LICENSE) © [Telnyx](https://github.com/team-telnyx)
