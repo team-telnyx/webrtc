@@ -30,8 +30,25 @@ class DialogVideo extends Component {
 }
 
 class DialogActions extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      isVideoMute: false,
+    };
+  }
+
+  toggleVideoMute() {
+    this.setState({
+      isVideoMute: !this.state.isVideoMute,
+    });
+
+    this.props.dialog.toggleVideoMute.bind(this.props.dialog)();
+  }
+
   render() {
     const { dialog } = this.props;
+    const { isVideoMute } = this.state;
+
     return (
       <div className='dialog-actions'>
         {dialog.state === 'active' && (
@@ -43,6 +60,9 @@ class DialogActions extends Component {
         {dialog.state === 'held' && (
           <button onClick={dialog.toggleHold.bind(dialog)}>UnHold</button>
         )}
+        <button onClick={() => this.toggleVideoMute()}>
+          {isVideoMute ? 'Unmute video' : 'Mute video'}
+        </button>
       </div>
     );
   }

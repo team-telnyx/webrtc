@@ -495,14 +495,43 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  /**
+   * Turns off the video output, i.e. hides
+   * video from other call participants.
+   *
+   * @examples
+   *
+   * ```js
+   * call.muteVideo();
+   * ```
+   */
   muteVideo() {
     disableVideoTracks(this.options.localStream);
   }
 
+  /**
+   * Turns on the video output, i.e. makes
+   * video visible to other call participants.
+   *
+   * @examples
+   *
+   * ```js
+   * call.unmuteVideo();
+   * ```
+   */
   unmuteVideo() {
     enableVideoTracks(this.options.localStream);
   }
 
+  /**
+   * Toggles the video output on/off.
+   *
+   * @examples
+   *
+   * ```js
+   * call.toggleVideoMute();
+   * ```
+   */
   toggleVideoMute() {
     toggleVideoTracks(this.options.localStream);
   }
