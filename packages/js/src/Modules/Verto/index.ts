@@ -78,7 +78,7 @@ export default class Verto extends BrowserSession {
    *
    * ```js
    * const call = client.newCall().catch(console.error);
-   // => `destinationNumber is required`
+   * // => `destinationNumber is required`
    */
   newCall(options: CallOptions) {
     if (!options || !options.destinationNumber) {
