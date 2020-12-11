@@ -10,7 +10,7 @@
 npm install --save @telnyx/react-client @telnyx/webrtc
 ```
 
-## Usage
+## Usage example
 
 ```jsx
 // App.jsx
@@ -49,9 +49,9 @@ function Phone() {
 }
 ```
 
-### Hooks
+## Hooks
 
-#### `useCallbacks`
+### `useCallbacks`
 
 ```jsx
 import { useCallbacks } from '@telnyx/react-client';
@@ -69,7 +69,7 @@ function Phone() {
 }
 ```
 
-#### `useTelnyxRTC`
+### `useTelnyxRTC`
 
 If you need more fine-tuned control over TelnyxRTC, you also have access to `useTelnyxRTC` directly.
 
@@ -89,7 +89,7 @@ function Phone() {
 
 Take care to use this hook only once in your application. For most cases, we recommend you use [TelnyxRTCContext/TelnyxRTCProvider](#TelnyxRTCContextProvider) instead of this hook directly. This ensures that you only have one Telnyx client instance running at a time.
 
-#### `useContext` with `TelnyxRTCContext`
+### `useContext` with `TelnyxRTCContext`
 
 You can retrieve the current TelnyxRTC context value by using React's [`useContext` hook](https://reactjs.org/docs/hooks-reference.html#usecontext), as an alternative to [TelnyxRTCContext.Consumer](#TelnyxRTCContextConsumer).
 
@@ -108,9 +108,9 @@ function Phone() {
 }
 ```
 
-### Components
+## Components
 
-#### `TelnyxRTCContextProvider`
+### `TelnyxRTCContextProvider`
 
 ```jsx
 import { TelnyxRTCProvider } from '@telnyx/react-client';
@@ -137,7 +137,7 @@ function App() {
 }
 ```
 
-#### `TelnyxRTCContext.Consumer`
+### `TelnyxRTCContext.Consumer`
 
 ```jsx
 import { TelnyxRTCContext } from '@telnyx/react-client';
@@ -151,7 +151,7 @@ function PhoneWrapper() {
 }
 ```
 
-#### `Audio`
+### `Audio`
 
 ```jsx
 import { Audio } from '@telnyx/react-client';
@@ -165,7 +165,7 @@ function Phone({ activeCall }) {
 }
 ```
 
-#### `Video`
+### `Video`
 
 ```jsx
 import { Video } from '@telnyx/react-client';
@@ -206,4 +206,4 @@ See [Contribution Guide](../../docs/Contributing.md)
 
 ## License
 
-MIT © [Telnyx](https://github.com/team-telnyx)
+[MIT](../../LICENSE) © [Telnyx](https://github.com/team-telnyx)

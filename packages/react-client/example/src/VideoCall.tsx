@@ -40,15 +40,21 @@ function VideoCall() {
   const handleSubmit = (e: any) => {
     e.preventDefault();
 
-    client?.newCall({
-      destinationNumber: destination,
-      callerName: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
-      callerNumber: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
-      remoteCallerName: '',
-      remoteCallerNumber: '',
-      audio: true,
-      video: true,
-    });
+    try {
+      const call = client?.newCall({
+        destinationNumber: destination,
+        callerName: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
+        callerNumber: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
+        remoteCallerName: '',
+        remoteCallerNumber: '',
+        audio: true,
+        video: true,
+      });
+
+      console.log('newCall: ', call);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const call = notification?.call;
