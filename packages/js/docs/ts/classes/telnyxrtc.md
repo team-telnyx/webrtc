@@ -533,7 +533,7 @@ ___
 
 *Overrides [BaseSession](basesession.md).[broadcast](basesession.md#broadcast)*
 
-*Defined in [src/Modules/Verto/index.ts:113](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L113)*
+*Defined in [src/Modules/Verto/index.ts:93](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L93)*
 
 **Parameters:**
 
@@ -997,7 +997,7 @@ ___
 
 *Inherited from void*
 
-*Defined in [src/Modules/Verto/index.ts:100](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L100)*
+*Defined in [src/Modules/Verto/index.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L83)*
 
 Makes a new outbound call.
 
@@ -1007,30 +1007,17 @@ This method receives an object `options` with the following properties:
 
 Making an outbound call to `+1 856-444-0362` using default values from the client:
 
-Using async/await:
-
 ```js
-const call = await client.newCall({
+const call = client.newCall({
   destinationNumber: '+18564440362',
   callerNumber: '+15551231234'
-});
-```
-
-Using ES6 `Promises`:
-
-```js
-client.newCall({
-  destinationNumber: '+18564440362',
-  callerNumber: '+15551231234'
-}).then((call) => {
-  // do something with the call
 });
 ```
 
 You can omit `callerNumber` when dialing a SIP address:
 
 ```js
-const call = await client.newCall({
+const call = client.newCall({
  destinationNumber: 'sip:example-sip-username@voip-provider.example.net'
 });
 ```
@@ -1038,21 +1025,18 @@ const call = await client.newCall({
 If you are making calls from one Telnyx connection to another, you may specify just the SIP username:
 
 ```js
-const call = await client.newCall({
+const call = client.newCall({
  destinationNumber: 'telnyx-sip-username' // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
 });
 ```
 
 ### Error handling
 
-If `options` or `destinationNumber` is not specified, it throw an error.
+An error will be thrown if `destinationNumber` is not specified.
 
 ```js
-client.newCall().catch(console.error);
-// => `You need to provide the options<CallOptions> object.`
-client.newCall({}).catch(console.error);
-// => `destinationNumber is required.`
-```
+const call = client.newCall().catch(console.error);
+// => `destinationNumber is required`
 
 **Parameters:**
 
@@ -1062,8 +1046,7 @@ Name | Type | Description |
 
 **Returns:** *[Call](call.md)‹›*
 
-`Promise<Call>` A promise fulfilled with the new outbound `Call` object
-or rejected with the error.
+The new outbound `Call` object.
 
 ___
 
@@ -1272,7 +1255,7 @@ ___
 
 *Overrides [BaseSession](basesession.md).[subscribe](basesession.md#subscribe)*
 
-*Defined in [src/Modules/Verto/index.ts:117](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L117)*
+*Defined in [src/Modules/Verto/index.ts:97](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L97)*
 
 **Parameters:**
 
@@ -1292,7 +1275,7 @@ ___
 
 *Overrides [BaseSession](basesession.md).[unsubscribe](basesession.md#unsubscribe)*
 
-*Defined in [src/Modules/Verto/index.ts:121](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L121)*
+*Defined in [src/Modules/Verto/index.ts:101](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L101)*
 
 **Parameters:**
 
