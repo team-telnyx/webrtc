@@ -6,34 +6,34 @@
 
 ## Hierarchy
 
-- BaseCall
+* BaseCall
 
   ↳ **Call**
 
 ## Implements
 
-- IWebRTCCall
+* IWebRTCCall
 
 ## Index
 
 ### Methods
 
-- [answer](call.md#answer)
-- [deaf](call.md#deaf)
-- [dtmf](call.md#dtmf)
-- [hangup](call.md#hangup)
-- [hold](call.md#hold)
-- [muteAudio](call.md#muteaudio)
-- [muteVideo](call.md#mutevideo)
-- [setAudioInDevice](call.md#setaudioindevice)
-- [toggleAudioMute](call.md#toggleaudiomute)
-- [toggleDeaf](call.md#toggledeaf)
-- [toggleHold](call.md#togglehold)
-- [toggleVideoMute](call.md#togglevideomute)
-- [undeaf](call.md#undeaf)
-- [unhold](call.md#unhold)
-- [unmuteAudio](call.md#unmuteaudio)
-- [unmuteVideo](call.md#unmutevideo)
+* [answer](call.md#answer)
+* [deaf](call.md#deaf)
+* [dtmf](call.md#dtmf)
+* [hangup](call.md#hangup)
+* [hold](call.md#hold)
+* [muteAudio](call.md#muteaudio)
+* [muteVideo](call.md#mutevideo)
+* [setAudioInDevice](call.md#setaudioindevice)
+* [toggleAudioMute](call.md#toggleaudiomute)
+* [toggleDeaf](call.md#toggledeaf)
+* [toggleHold](call.md#togglehold)
+* [toggleVideoMute](call.md#togglevideomute)
+* [undeaf](call.md#undeaf)
+* [unhold](call.md#unhold)
+* [unmuteAudio](call.md#unmuteaudio)
+* [unmuteVideo](call.md#unmutevideo)
 
 ## Methods
 
@@ -41,47 +41,47 @@
 
 ▸ **answer**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Starts the process to answer the incoming call.
 
-**`examples`**
+**`examples`** 
 
 ```js
-call.answer();
+call.answer()
 ```
 
 **Returns:** void
 
----
+___
 
 ### deaf
 
 ▸ **deaf**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns off the remote stream audio.
 
-**`examples`**
+**`examples`** 
 
 ```js
-call.deaf();
+call.deaf()
 ```
 
 **Returns:** void
 
----
+___
 
 ### dtmf
 
 ▸ **dtmf**(`dtmf`: string): void
 
-_Inherited from void_
+*Inherited from void*
 
 Sends dual-tone multi-frequency (DTMF) signal
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.dtmf('0');
@@ -92,69 +92,69 @@ call.dtmf('#');
 
 #### Parameters:
 
-| Name   | Type   | Description     |
-| ------ | ------ | --------------- |
-| `dtmf` | string | Single DTMF key |
+Name | Type | Description |
+------ | ------ | ------ |
+`dtmf` | string | Single DTMF key  |
 
 **Returns:** void
 
----
+___
 
 ### hangup
 
 ▸ **hangup**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Hangs up the call.
 
-**`examples`**
+**`examples`** 
 
 ```js
-call.hangup();
+call.hangup()
 ```
 
 **Returns:** void
 
 ▸ **hangup**(`hangupParams`: any, `hangupExecute`: any): void
 
-_Inherited from void_
+*Inherited from void*
 
-**`internal`**
+**`internal`** 
 
 #### Parameters:
 
-| Name            | Type | Description                                                |
-| --------------- | ---- | ---------------------------------------------------------- |
-| `hangupParams`  | any  | _For internal use_ Specify custom hangup cause and call ID |
-| `hangupExecute` | any  | _For internal use_ Allow or prevent execution of `Bye`     |
+Name | Type | Description |
+------ | ------ | ------ |
+`hangupParams` | any | _For internal use_ Specify custom hangup cause and call ID |
+`hangupExecute` | any | _For internal use_ Allow or prevent execution of `Bye`  |
 
 **Returns:** void
 
----
+___
 
 ### hold
 
 ▸ **hold**(): Promise<any\>
 
-_Inherited from void_
+*Inherited from void*
 
 Holds the call.
 
-**`examples`**
+**`examples`** 
 
 Using async/await:
 
 ```js
-await call.hold();
-console.log(call.state); // => 'held'
+await call.hold()
+console.log(call.state) // => 'held'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.hold().then(() => {
-  console.log(call.state); // => 'held'
+  console.log(call.state) // => 'held'
 });
 ```
 
@@ -162,18 +162,18 @@ call.hold().then(() => {
 
 Promise that resolves or rejects based on server response
 
----
+___
 
 ### muteAudio
 
 ▸ **muteAudio**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns off audio output, i.e. makes it so other
 call participants cannot hear your audio.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.muteAudio();
@@ -181,18 +181,18 @@ call.muteAudio();
 
 **Returns:** void
 
----
+___
 
 ### muteVideo
 
 ▸ **muteVideo**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns off the video output, i.e. hides
 video from other call participants.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.muteVideo();
@@ -200,22 +200,22 @@ call.muteVideo();
 
 **Returns:** void
 
----
+___
 
 ### setAudioInDevice
 
 ▸ **setAudioInDevice**(`deviceId`: string): Promise<void\>
 
-_Inherited from void_
+*Inherited from void*
 
 Changes the audio input device (i.e. microphone) used for the call.
 
-**`examples`**
+**`examples`** 
 
 Using async/await:
 
 ```js
-await call.setAudioInDevice('abc123');
+await call.setAudioInDevice('abc123')
 ```
 
 Using ES6 `Promises`:
@@ -238,25 +238,25 @@ if (result.length) {
 
 #### Parameters:
 
-| Name       | Type   | Description                      |
-| ---------- | ------ | -------------------------------- |
-| `deviceId` | string | The target audio input device ID |
+Name | Type | Description |
+------ | ------ | ------ |
+`deviceId` | string | The target audio input device ID |
 
 **Returns:** Promise<void\>
 
 Promise that resolves if the audio input device has been updated
 
----
+___
 
 ### toggleAudioMute
 
 ▸ **toggleAudioMute**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Toggles the audio output on/off.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.toggleAudioMute();
@@ -264,61 +264,61 @@ call.toggleAudioMute();
 
 **Returns:** void
 
----
+___
 
 ### toggleDeaf
 
 ▸ **toggleDeaf**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Toggles the remote stream audio.
 
-**`examples`**
+**`examples`** 
 
 ```js
-call.toggleDeaf();
+call.toggleDeaf()
 ```
 
 **Returns:** void
 
----
+___
 
 ### toggleHold
 
 ▸ **toggleHold**(): Promise<any\>
 
-_Inherited from void_
+*Inherited from void*
 
 Toggles hold state of the call.
 
-**`examples`**
+**`examples`** 
 
 Using async/await:
 
 ```js
-await call.toggleHold();
-console.log(call.state); // => 'held'
+await call.toggleHold()
+console.log(call.state) // => 'held'
 
-await call.toggleHold();
-console.log(call.state); // => 'active'
+await call.toggleHold()
+console.log(call.state) // => 'active'
 ```
 
 **Returns:** Promise<any\>
 
 Promise that resolves or rejects based on server response
 
----
+___
 
 ### toggleVideoMute
 
 ▸ **toggleVideoMute**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Toggles the video output on/off.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.toggleVideoMute();
@@ -326,48 +326,48 @@ call.toggleVideoMute();
 
 **Returns:** void
 
----
+___
 
 ### undeaf
 
 ▸ **undeaf**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns on the remote stream audio.
 
-**`examples`**
+**`examples`** 
 
 ```js
-call.undeaf();
+call.undeaf()
 ```
 
 **Returns:** void
 
----
+___
 
 ### unhold
 
 ▸ **unhold**(): Promise<any\>
 
-_Inherited from void_
+*Inherited from void*
 
 Removes hold from the call.
 
-**`examples`**
+**`examples`** 
 
 Using async/await:
 
 ```js
-await call.unhold();
-console.log(call.state); // => 'active'
+await call.unhold()
+console.log(call.state) // => 'active'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.unhold().then(() => {
-  console.log(call.state); // => 'active'
+  console.log(call.state) // => 'active'
 });
 ```
 
@@ -375,18 +375,18 @@ call.unhold().then(() => {
 
 Promise that resolves or rejects based on server response
 
----
+___
 
 ### unmuteAudio
 
 ▸ **unmuteAudio**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns on audio output, i.e. makes it so other
 call participants can hear your audio.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.unmuteAudio();
@@ -394,18 +394,18 @@ call.unmuteAudio();
 
 **Returns:** void
 
----
+___
 
 ### unmuteVideo
 
 ▸ **unmuteVideo**(): void
 
-_Inherited from void_
+*Inherited from void*
 
 Turns on the video output, i.e. makes
 video visible to other call participants.
 
-**`examples`**
+**`examples`** 
 
 ```js
 call.unmuteVideo();
