@@ -139,17 +139,17 @@ call.muteAudio();
 
 We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
 
-```
-cd examples/vanilla
-open index.html
+```sh
+$ cd examples/vanilla
+$ open index.html
 ```
 
 Screenshot:
 ![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/vanilla/vanilla-screeshot.png)
 
----
-
 ### ReactJS
+
+_**Requirement** Node v11.15.0 or later_
 
 We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
@@ -160,11 +160,11 @@ We've included a few [examples in React](https://github.com/team-telnyx/webrtc/t
 
 #### Audio call
 
-```
-cd examples/react-audio
-npm run setup
-npm install
-npm run storybook
+```sh
+$ cd examples/react-audio
+$ npm run setup
+$ npm install
+$ npm run storybook
 ```
 
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
@@ -174,11 +174,11 @@ Screenshot:
 
 #### Video call
 
-```
-cd examples/react-video
-npm run setup
-npm install
-npm start
+```sh
+$ cd examples/react-video
+$ npm run setup
+$ npm install
+$ npm start
 ```
 
 Screenshot:
@@ -187,6 +187,8 @@ Screenshot:
 ---
 
 ## Development
+
+_**Requirement** Node v11.15.0 or later_
 
 This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
 
@@ -205,10 +207,6 @@ npm test
 ```
 
 TypeScript documentation is automatically generated from TSDoc-style comments on merge to `main`.
-
-### Requirements
-
-You'll need node v11.15.0 or later.
 
 ---
 
