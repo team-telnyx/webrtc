@@ -1283,7 +1283,7 @@ ___
 
 ### telnyxStateCall
 
-▸ `Static`**telnyxStateCall**(`call`: Call): Call
+▸ `Static`**telnyxStateCall**(`call`: [Call](call.md)): [Call](call.md)
 
 *Defined in [src/Modules/Verto/BrowserSession.ts:727](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L727)*
 
@@ -1291,9 +1291,9 @@ ___
 
 Name | Type |
 ------ | ------ |
-`call` | Call |
+`call` | [Call](call.md) |
 
-**Returns:** Call
+**Returns:** [Call](call.md)
 
 ___
 

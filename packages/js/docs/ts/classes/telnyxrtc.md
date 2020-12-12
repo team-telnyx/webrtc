@@ -988,7 +988,7 @@ ___
 
 ### newCall
 
-▸ **newCall**(`options`: CallOptions): Call
+▸ **newCall**(`options`: CallOptions): [Call](call.md)
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[newCall](telnyxrtc.md#newcall)*
 
@@ -1039,7 +1039,7 @@ Name | Type | Description |
 ------ | ------ | ------ |
 `options` | CallOptions | Options object for a new call. |
 
-**Returns:** Call
+**Returns:** [Call](call.md)
 
 The new outbound `Call` object.
 
@@ -1409,7 +1409,7 @@ ___
 
 ### telnyxStateCall
 
-▸ `Static`**telnyxStateCall**(`call`: Call): Call
+▸ `Static`**telnyxStateCall**(`call`: [Call](call.md)): [Call](call.md)
 
 *Inherited from [BrowserSession](browsersession.md).[telnyxStateCall](browsersession.md#telnyxstatecall)*
 
@@ -1419,9 +1419,9 @@ ___
 
 Name | Type |
 ------ | ------ |
-`call` | Call |
+`call` | [Call](call.md) |
 
-**Returns:** Call
+**Returns:** [Call](call.md)
 
 ___
 

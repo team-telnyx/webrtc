@@ -11,6 +11,7 @@
 * [BaseClient](classes/baseclient.md)
 * [BaseSession](classes/basesession.md)
 * [BrowserSession](classes/browsersession.md)
+* [Call](classes/call.md)
 * [TelnyxRTC](classes/telnyxrtc.md)
 
 ### Interfaces

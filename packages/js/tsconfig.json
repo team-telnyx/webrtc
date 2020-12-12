@@ -15,7 +15,7 @@
       "src/Modules/Verto/services/**/*",
       "src/Modules/Verto/tests/**/*",
       "src/Modules/Verto/util/**/*",
-      "src/Modules/Verto/webrtc/**/*"
+      "src/Modules/Verto/webrtc/**/!(Call.ts)"
     ],
     "plugin": ["typedoc-plugin-markdown"],
     "excludeExternals": true,
