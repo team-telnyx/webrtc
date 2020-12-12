@@ -4,11 +4,14 @@
 
 The Telnyx WebRTC Client provides all the functionality you need to start making voice & video calls from a browser.
 
+- [Installation](#Installation)
+- [Usage](#Usage)
+- [Examples](#Examples)
+  - [Vanilla JavaScript](#vanilla-javascript)
+  - [React.js](#reactjs)
+- [Development](#Development)
+
 ---
-
-## Requirements
-
-You'll need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
 
 ## Installation
 
