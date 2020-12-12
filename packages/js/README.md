@@ -31,6 +31,8 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 
 To initialize the WebRTC client, you'll need to authenticate using a Telnyx SIP Connection. Follow our [quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to create **JWTs** (JSON Web Tokens) to authenticate. You can also authenticate directly with the SIP Connection `username` and `password`.
 
+### Client
+
 ```js
 // Initialize the client
 const client = new TelnyxRTC({
