@@ -3,6 +3,9 @@ import BaseCall from './BaseCall';
 import { CallOptions } from './interfaces';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 
+/**
+ * @apidoc Include in API docs
+ */
 export default class Call extends BaseCall {
   public screenShare: Call;
 

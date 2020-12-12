@@ -9,12 +9,20 @@
   "typedocOptions": {
     "mode": "file",
     "out": "./docs/ts",
-    "exclude": ["**/*+(test|index).ts", "src/**/!(Call|TelnyxRTC).ts"],
+    "exclude": [
+      "**/*+(test|index).ts",
+      "src/Modules/Verto/messages/**/*",
+      "src/Modules/Verto/services/**/*",
+      "src/Modules/Verto/tests/**/*",
+      "src/Modules/Verto/util/**/*"
+    ],
     "plugin": ["typedoc-plugin-markdown"],
     "excludeExternals": true,
     "excludeNotExported": true,
     "excludePrivate": true,
     "excludeProtected": true,
+    "excludeNotDocumented": true,
+    "excludeTags": ["apidoc"],
     "hideGenerator": true,
     "readme": "none",
     "gitRevision": "main"

@@ -1,6 +1,9 @@
 import TelnyxRTCClient from './Modules/Verto';
 import { ITelnyxRTCOptions } from './Modules/Verto/util/interfaces';
 
+/**
+ * @apidoc Include in API docs
+ */
 export default class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Creates a new `TelnyxRTC` instance with the provided options.

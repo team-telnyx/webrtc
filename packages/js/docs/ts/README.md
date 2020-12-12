@@ -8,5 +8,5 @@
 
 ### Classes
 
-* [Call](classes/call.md)
-* [TelnyxRTC](classes/telnyxrtc.md)
+- [Call](classes/call.md)
+- [TelnyxRTC](classes/telnyxrtc.md)
