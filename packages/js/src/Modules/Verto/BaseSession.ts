@@ -69,11 +69,8 @@ export default abstract class BaseSession {
    * const client = new TelnyxRTC(options);
    * console.log(client.connected); // => false
    * ```
-   *
-   * @readonly
-   * @type {boolean | null}
    */
-  get connected(): boolean | null {
+  get connected() {
     return this.connection && this.connection.connected;
   }
 
@@ -84,6 +81,7 @@ export default abstract class BaseSession {
   /**
    * Send a JSON object to the server.
    * @return Promise that will resolve/reject depending on the server response
+   * @ignore
    */
   execute(msg: BaseMessage): any {
     if (this._idle) {
@@ -108,6 +106,7 @@ export default abstract class BaseSession {
   /**
    * Send raw text to the server.
    * @return void
+   * @ignore
    */
   executeRaw(text: string): void {
     if (this._idle) {
@@ -122,6 +121,7 @@ export default abstract class BaseSession {
    * TelnyxRTC requires (login and password) OR login_token
    * Verto requires host, login, passwd OR password
    * @return boolean
+   * @ignore
    */
   validateOptions() {
     return isValidOptions(this.options);
@@ -131,6 +131,7 @@ export default abstract class BaseSession {
    * Broadcast a message in a protocol - channel
    * @todo Implement it
    * @return void
+   * @ignore
    */
   broadcast(params: BroadcastParams) {} // TODO: to be implemented
 
@@ -138,6 +139,7 @@ export default abstract class BaseSession {
    * Subscribe to Blade protocol channels
    * @async
    * @return Result of the ADD subscription
+   * @ignore
    */
   async subscribe({
     protocol,
@@ -162,6 +164,7 @@ export default abstract class BaseSession {
    * Unsubscribe from Blade protocol channels
    * @async
    * @return Result of the REMOVE subscription
+   * @ignore
    */
   async unsubscribe({
     protocol,
@@ -359,6 +362,7 @@ export default abstract class BaseSession {
   /**
    * Check if a subscription for this protocol-channel already exists
    * @return boolean
+   * @ignore
    */
   public _existsSubscription(protocol: string, channel?: string) {
     if (this.subscriptions.hasOwnProperty(protocol)) {

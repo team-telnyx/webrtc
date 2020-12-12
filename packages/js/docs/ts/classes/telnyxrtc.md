@@ -24,8 +24,6 @@
 
 ### Methods
 
-* [\_existsSubscription](telnyxrtc.md#_existssubscription)
-* [broadcast](telnyxrtc.md#broadcast)
 * [checkPermissions](telnyxrtc.md#checkpermissions)
 * [connect](telnyxrtc.md#connect)
 * [disableMicrophone](telnyxrtc.md#disablemicrophone)
@@ -33,8 +31,6 @@
 * [disconnect](telnyxrtc.md#disconnect)
 * [enableMicrophone](telnyxrtc.md#enablemicrophone)
 * [enableWebcam](telnyxrtc.md#enablewebcam)
-* [execute](telnyxrtc.md#execute)
-* [executeRaw](telnyxrtc.md#executeraw)
 * [getAudioInDevices](telnyxrtc.md#getaudioindevices)
 * [getAudioOutDevices](telnyxrtc.md#getaudiooutdevices)
 * [getDeviceResolutions](telnyxrtc.md#getdeviceresolutions)
@@ -46,9 +42,6 @@
 * [on](telnyxrtc.md#on)
 * [setAudioSettings](telnyxrtc.md#setaudiosettings)
 * [setVideoSettings](telnyxrtc.md#setvideosettings)
-* [subscribe](telnyxrtc.md#subscribe)
-* [unsubscribe](telnyxrtc.md#unsubscribe)
-* [validateOptions](telnyxrtc.md#validateoptions)
 
 ## Constructors
 
@@ -101,11 +94,11 @@ Name | Type | Description |
 
 ### connected
 
-• get **connected**(): boolean \| null
+• get **connected**(): boolean
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[connected](telnyxrtc.md#connected)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L76)*
+*Defined in [src/Modules/Verto/BaseSession.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L73)*
 
 `true` if the client is connected to the Telnyx RTC server
 
@@ -116,9 +109,7 @@ const client = new TelnyxRTC(options);
 console.log(client.connected); // => false
 ```
 
-**`readonly`** 
-
-**Returns:** boolean \| null
+**Returns:** boolean
 
 ___
 
@@ -200,53 +191,6 @@ Name | Type |
 **Returns:** void
 
 ## Methods
-
-### \_existsSubscription
-
-▸ **_existsSubscription**(`protocol`: string, `channel?`: string): boolean
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[_existsSubscription](telnyxrtc.md#_existssubscription)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L363)*
-
-Check if a subscription for this protocol-channel already exists
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`protocol` | string |
-`channel?` | string |
-
-**Returns:** boolean
-
-boolean
-
-___
-
-### broadcast
-
-▸ **broadcast**(`params`: BroadcastParams): void
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[broadcast](telnyxrtc.md#broadcast)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:135](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L135)*
-
-Broadcast a message in a protocol - channel
-
-**`todo`** Implement it
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`params` | BroadcastParams |
-
-**Returns:** void
-
-void
-
-___
 
 ### checkPermissions
 
@@ -462,50 +406,6 @@ client.enableWebcam();
 ```
 
 **Returns:** void
-
-___
-
-### execute
-
-▸ **execute**(`msg`: BaseMessage): any
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[execute](telnyxrtc.md#execute)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:88](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L88)*
-
-Send a JSON object to the server.
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`msg` | BaseMessage |
-
-**Returns:** any
-
-Promise that will resolve/reject depending on the server response
-
-___
-
-### executeRaw
-
-▸ **executeRaw**(`text`: string): void
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[executeRaw](telnyxrtc.md#executeraw)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:112](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L112)*
-
-Send raw text to the server.
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`text` | string |
-
-**Returns:** void
-
-void
 
 ___
 
@@ -785,7 +685,7 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[off](telnyxrtc.md#off)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:256](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L256)*
+*Defined in [src/Modules/Verto/BaseSession.ts:259](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L259)*
 
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
@@ -829,7 +729,7 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[on](telnyxrtc.md#on)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L222)*
+*Defined in [src/Modules/Verto/BaseSession.ts:225](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L225)*
 
 Attaches an event handler for a specific type of event.
 
@@ -955,69 +855,3 @@ Name | Type | Description |
 **Returns:** Promise<MediaTrackConstraints\>
 
 `Promise<MediaTrackConstraints>` Video constraints applied to the client.
-
-___
-
-### subscribe
-
-▸ **subscribe**(`__namedParameters`: { channels: string[] ; handler: Function ; protocol: string  }): Promise<any\>
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[subscribe](telnyxrtc.md#subscribe)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:142](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L142)*
-
-Subscribe to Blade protocol channels
-
-**`async`** 
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`__namedParameters` | { channels: string[] ; handler: Function ; protocol: string  } |
-
-**Returns:** Promise<any\>
-
-Result of the ADD subscription
-
-___
-
-### unsubscribe
-
-▸ **unsubscribe**(`__namedParameters`: { channels: string[] ; handler: Function ; protocol: string  }): Promise<any\>
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[unsubscribe](telnyxrtc.md#unsubscribe)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:166](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L166)*
-
-Unsubscribe from Blade protocol channels
-
-**`async`** 
-
-#### Parameters:
-
-Name | Type |
------- | ------ |
-`__namedParameters` | { channels: string[] ; handler: Function ; protocol: string  } |
-
-**Returns:** Promise<any\>
-
-Result of the REMOVE subscription
-
-___
-
-### validateOptions
-
-▸ **validateOptions**(): boolean
-
-*Inherited from [TelnyxRTC](telnyxrtc.md).[validateOptions](telnyxrtc.md#validateoptions)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:126](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L126)*
-
-Validates the options passed in.
-TelnyxRTC requires (login and password) OR login_token
-Verto requires host, login, passwd OR password
-
-**Returns:** boolean
-
-boolean
