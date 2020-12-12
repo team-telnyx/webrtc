@@ -55,7 +55,7 @@ Name |
 
 ▸ **addListener**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L31)*
+*Defined in [src/TypedEmitter.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L31)*
 
 #### Type parameters:
 
@@ -78,7 +78,7 @@ ___
 
 ▸ **emit**<E\>(`event`: E, ...`args`: [Arguments](../README.md#arguments)<Events[E]\>): boolean
 
-*Defined in [packages/js/src/TypedEmitter.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L43)*
+*Defined in [src/TypedEmitter.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L43)*
 
 #### Type parameters:
 
@@ -101,7 +101,7 @@ ___
 
 ▸ **eventNames**(): keyof Events[]
 
-*Defined in [packages/js/src/TypedEmitter.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L47)*
+*Defined in [src/TypedEmitter.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L47)*
 
 **Returns:** keyof Events[]
 
@@ -111,7 +111,7 @@ ___
 
 ▸ **getMaxListeners**(): number
 
-*Defined in [packages/js/src/TypedEmitter.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L51)*
+*Defined in [src/TypedEmitter.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L51)*
 
 **Returns:** number
 
@@ -121,7 +121,7 @@ ___
 
 ▸ **listenerCount**<E\>(`event`: E): number
 
-*Defined in [packages/js/src/TypedEmitter.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L49)*
+*Defined in [src/TypedEmitter.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L49)*
 
 #### Type parameters:
 
@@ -143,7 +143,7 @@ ___
 
 ▸ **listeners**<E\>(`event`: E): Function[]
 
-*Defined in [packages/js/src/TypedEmitter.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L48)*
+*Defined in [src/TypedEmitter.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L48)*
 
 #### Type parameters:
 
@@ -165,7 +165,7 @@ ___
 
 ▸ **on**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L32)*
+*Defined in [src/TypedEmitter.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L32)*
 
 #### Type parameters:
 
@@ -188,7 +188,7 @@ ___
 
 ▸ **once**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L33)*
+*Defined in [src/TypedEmitter.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L33)*
 
 #### Type parameters:
 
@@ -211,7 +211,7 @@ ___
 
 ▸ **prependListener**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L34)*
+*Defined in [src/TypedEmitter.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L34)*
 
 #### Type parameters:
 
@@ -234,7 +234,7 @@ ___
 
 ▸ **prependOnceListener**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L35)*
+*Defined in [src/TypedEmitter.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L35)*
 
 #### Type parameters:
 
@@ -257,7 +257,7 @@ ___
 
 ▸ **removeAllListeners**<E\>(`event?`: E): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L40)*
+*Defined in [src/TypedEmitter.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L40)*
 
 #### Type parameters:
 
@@ -279,7 +279,7 @@ ___
 
 ▸ **removeListener**<E\>(`event`: E, `listener`: Events[E]): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L41)*
+*Defined in [src/TypedEmitter.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L41)*
 
 #### Type parameters:
 
@@ -302,7 +302,7 @@ ___
 
 ▸ **setMaxListeners**(`maxListeners`: number): this
 
-*Defined in [packages/js/src/TypedEmitter.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L52)*
+*Defined in [src/TypedEmitter.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TypedEmitter.ts#L52)*
 
 #### Parameters:
 

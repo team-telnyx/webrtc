@@ -22,7 +22,7 @@
 
 • `Optional` **password**: string
 
-*Defined in [packages/js/src/utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L5)*
+*Defined in [src/utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L5)*
 
 ___
 
@@ -30,7 +30,7 @@ ___
 
 • `Optional` **token**: string
 
-*Defined in [packages/js/src/utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L6)*
+*Defined in [src/utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L6)*
 
 ___
 
@@ -38,4 +38,4 @@ ___
 
 • `Optional` **username**: string
 
-*Defined in [packages/js/src/utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L4)*
+*Defined in [src/utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L4)*

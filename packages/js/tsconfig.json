@@ -9,7 +9,14 @@
   "typedocOptions": {
     "mode": "file",
     "out": "./docs/ts",
-    "exclude": "**/*+(test|index).ts",
+    "exclude": [
+      "**/*+(test|index).ts",
+      "src/Modules/Verto/messages/**/*",
+      "src/Modules/Verto/services/**/*",
+      "src/Modules/Verto/tests/**/*",
+      "src/Modules/Verto/util/**/*",
+      "src/Modules/Verto/webrtc/**/*"
+    ],
     "plugin": ["typedoc-plugin-markdown"],
     "excludeExternals": true,
     "excludeNotExported": true,

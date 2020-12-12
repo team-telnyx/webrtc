@@ -27,7 +27,7 @@
 
 •  **callUpdate**: (call: [ICall](icall.md)) => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L73)*
+*Defined in [src/utils/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L73)*
 
 ___
 
@@ -35,7 +35,7 @@ ___
 
 •  **error**: () => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L72)*
+*Defined in [src/utils/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L72)*
 
 ___
 
@@ -43,7 +43,7 @@ ___
 
 •  **ready**: () => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L69)*
+*Defined in [src/utils/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L69)*
 
 ___
 
@@ -51,7 +51,7 @@ ___
 
 •  **registered**: () => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L70)*
+*Defined in [src/utils/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L70)*
 
 ___
 
@@ -59,7 +59,7 @@ ___
 
 •  **socket.close**: (error?: Error) => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L76)*
+*Defined in [src/utils/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L76)*
 
 ___
 
@@ -67,7 +67,7 @@ ___
 
 •  **socket.connect**: () => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L75)*
+*Defined in [src/utils/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L75)*
 
 ___
 
@@ -75,7 +75,7 @@ ___
 
 •  **socket.error**: (error: Error) => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:74](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L74)*
+*Defined in [src/utils/interfaces.ts:74](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L74)*
 
 ___
 
@@ -83,4 +83,4 @@ ___
 
 •  **unregistered**: () => void
 
-*Defined in [packages/js/src/utils/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L71)*
+*Defined in [src/utils/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L71)*
