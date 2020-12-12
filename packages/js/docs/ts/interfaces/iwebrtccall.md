@@ -10,7 +10,6 @@
 
 ## Implemented by
 
-* [BaseCall](../classes/basecall.md)
 * [Call](../classes/call.md)
 * [Call](../classes/call.md)
 

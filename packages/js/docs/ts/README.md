@@ -37,7 +37,6 @@
 
 * [Answer](classes/answer.md)
 * [Attach](classes/attach.md)
-* [BaseCall](classes/basecall.md)
 * [BaseClient](classes/baseclient.md)
 * [BaseMessage](classes/basemessage.md)
 * [BaseRequest](classes/baserequest.md)
@@ -46,7 +45,6 @@
 * [BrowserSession](classes/browsersession.md)
 * [Bye](classes/bye.md)
 * [Call](classes/call.md)
-* [CantinaAuth](classes/cantinaauth.md)
 * [Connect](classes/connect.md)
 * [Connection](classes/connection.md)
 * [Execute](classes/execute.md)
@@ -56,7 +54,6 @@
 * [MediaStreamMock](classes/mediastreammock.md)
 * [MediaStreamTrackMock](classes/mediastreamtrackmock.md)
 * [Modify](classes/modify.md)
-* [Peer](classes/peer.md)
 * [Ping](classes/ping.md)
 * [RTCPeerConnectionMock](classes/rtcpeerconnectionmock.md)
 * [RTCRtpSenderMock](classes/rtcrtpsendermock.md)
@@ -66,7 +63,6 @@
 * [Subscription](classes/subscription.md)
 * [TelnyxRTC](classes/telnyxrtc.md)
 * [Unsubscribe](classes/unsubscribe.md)
-* [VertoHandler](classes/vertohandler.md)
 
 ### Interfaces
 

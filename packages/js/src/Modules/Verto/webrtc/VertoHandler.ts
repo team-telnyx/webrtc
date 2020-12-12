@@ -10,6 +10,9 @@ import { State, ConferenceAction } from './constants';
 import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, CallOptions } from './interfaces';
 
+/**
+ * @ignore Hide in docs output
+ */
 class VertoHandler {
   public nodeId: string;
 

@@ -18,6 +18,9 @@ import { isFunction } from '../util/helpers';
 import { CallOptions, IChromeRTCConfiguration } from './interfaces';
 import { trigger } from '../services/Handler';
 
+/**
+ * @ignore Hide in docs output
+ */
 export default class Peer {
   public instance: RTCPeerConnection;
   public onSdpReadyTwice: Function = null;
