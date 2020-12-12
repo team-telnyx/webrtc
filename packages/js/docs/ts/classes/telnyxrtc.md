@@ -49,8 +49,6 @@
 
 \+ **new TelnyxRTC**(`options`: ITelnyxRTCOptions): [TelnyxRTC](telnyxrtc.md)
 
-*Defined in [src/TelnyxRTC.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/TelnyxRTC.ts#L7)*
-
 Creates a new `TelnyxRTC` instance with the provided options.
 
 **`examples`** 
@@ -98,8 +96,6 @@ Name | Type | Description |
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[connected](telnyxrtc.md#connected)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L73)*
-
 `true` if the client is connected to the Telnyx RTC server
 
 **`example`** 
@@ -118,8 +114,6 @@ ___
 • get **mediaConstraints**(): object
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[mediaConstraints](telnyxrtc.md#mediaconstraints)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:393](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L393)*
 
 Audio and video constraints currently used by the client.
 
@@ -149,8 +143,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[speaker](telnyxrtc.md#speaker)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:633](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L633)*
-
 Default audio output device, if set by client.
 
 **`example`** 
@@ -167,8 +159,6 @@ console.log(client.speaker);
 • set **speaker**(`deviceId`: string): void
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[speaker](telnyxrtc.md#speaker)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:617](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L617)*
 
 Sets the default audio output device for subsequent calls.
 
@@ -197,8 +187,6 @@ Name | Type |
 ▸ **checkPermissions**(`audio?`: boolean, `video?`: boolean): Promise<boolean\>
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[checkPermissions](telnyxrtc.md#checkpermissions)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:124](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L124)*
 
 Checks if the browser has the permission to access mic and/or webcam
 
@@ -247,8 +235,6 @@ ___
 
 *Overrides void*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:87](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L87)*
-
 Creates a new connection for exchanging data with the WebRTC server
 
 **`examples`** 
@@ -268,8 +254,6 @@ ___
 ▸ **disableMicrophone**(): void
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[disableMicrophone](telnyxrtc.md#disablemicrophone)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:474](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L474)*
 
 Disables use of the microphone in subsequent calls.
 
@@ -308,8 +292,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[disableWebcam](telnyxrtc.md#disablewebcam)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:566](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L566)*
-
 Disables use of the webcam in subsequent calls.
 
 Note: This method will disable the video even if `video: true` is specified.
@@ -343,8 +325,6 @@ ___
 
 *Overrides void*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:156](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L156)*
-
 Disconnect all active calls
 
 **`examples`** 
@@ -364,8 +344,6 @@ ___
 ▸ **enableMicrophone**(): void
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[enableMicrophone](telnyxrtc.md#enablemicrophone)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:492](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L492)*
 
 Enables use of the microphone in subsequent calls.
 
@@ -390,8 +368,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[enableWebcam](telnyxrtc.md#enablewebcam)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:584](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L584)*
-
 Enables use of the webcam in subsequent calls.
 
 Note: This setting will be ignored if `video: false` is
@@ -414,8 +390,6 @@ ___
 ▸ **getAudioInDevices**(): Promise<MediaDeviceInfo[]\>
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getAudioInDevices](telnyxrtc.md#getaudioindevices)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:264](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L264)*
 
 Return the audio output devices supported by the browser.
 
@@ -450,8 +424,6 @@ ___
 ▸ **getAudioOutDevices**(): Promise<MediaDeviceInfo[]\>
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getAudioOutDevices](telnyxrtc.md#getaudiooutdevices)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L301)*
 
 Returns the audio output devices supported by the browser.
 
@@ -491,8 +463,6 @@ ___
 ▸ **getDeviceResolutions**(`deviceId`: string): Promise<any[]\>
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getDeviceResolutions](telnyxrtc.md#getdeviceresolutions)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:371](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L371)*
 
 Returns supported resolution for the given webcam.
 
@@ -562,8 +532,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getDevices](telnyxrtc.md#getdevices)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L222)*
-
 Returns a list of devices supported by the browser
 
 **`examples`** 
@@ -596,8 +564,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getVideoDevices](telnyxrtc.md#getvideodevices)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:232](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L232)*
-
 Return the device list supported by the browser
 
 **Returns:** Promise<MediaDeviceInfo[]\>
@@ -609,8 +575,6 @@ ___
 ▸ **logout**(): void
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[logout](telnyxrtc.md#logout)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:141](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L141)*
 
 Alias for .disconnect()
 
@@ -625,8 +589,6 @@ ___
 ▸ **newCall**(`options`: CallOptions): [Call](call.md)
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[newCall](telnyxrtc.md#newcall)*
-
-*Defined in [src/Modules/Verto/index.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/index.ts#L83)*
 
 Makes a new outbound call.
 
@@ -685,8 +647,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[off](telnyxrtc.md#off)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:259](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L259)*
-
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
 
@@ -728,8 +688,6 @@ ___
 ▸ **on**(`eventName`: string, `callback`: Function): this
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[on](telnyxrtc.md#on)*
-
-*Defined in [src/Modules/Verto/BaseSession.ts:225](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L225)*
 
 Attaches an event handler for a specific type of event.
 
@@ -777,8 +735,6 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[setAudioSettings](telnyxrtc.md#setaudiosettings)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:428](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L428)*
-
 Sets the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
 
 Note: It's a common behaviour, in WebRTC applications,
@@ -819,8 +775,6 @@ ___
 ▸ **setVideoSettings**(`settings`: IVideoSettings): Promise<MediaTrackConstraints\>
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[setVideoSettings](telnyxrtc.md#setvideosettings)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:525](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L525)*
 
 Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
 

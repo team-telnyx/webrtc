@@ -6,34 +6,34 @@
 
 ## Hierarchy
 
-* BaseCall
+- BaseCall
 
   ↳ **Call**
 
 ## Implements
 
-* IWebRTCCall
+- IWebRTCCall
 
 ## Index
 
 ### Methods
 
-* [answer](call.md#answer)
-* [deaf](call.md#deaf)
-* [dtmf](call.md#dtmf)
-* [hangup](call.md#hangup)
-* [hold](call.md#hold)
-* [muteAudio](call.md#muteaudio)
-* [muteVideo](call.md#mutevideo)
-* [setAudioInDevice](call.md#setaudioindevice)
-* [toggleAudioMute](call.md#toggleaudiomute)
-* [toggleDeaf](call.md#toggledeaf)
-* [toggleHold](call.md#togglehold)
-* [toggleVideoMute](call.md#togglevideomute)
-* [undeaf](call.md#undeaf)
-* [unhold](call.md#unhold)
-* [unmuteAudio](call.md#unmuteaudio)
-* [unmuteVideo](call.md#unmutevideo)
+- [answer](call.md#answer)
+- [deaf](call.md#deaf)
+- [dtmf](call.md#dtmf)
+- [hangup](call.md#hangup)
+- [hold](call.md#hold)
+- [muteAudio](call.md#muteaudio)
+- [muteVideo](call.md#mutevideo)
+- [setAudioInDevice](call.md#setaudioindevice)
+- [toggleAudioMute](call.md#toggleaudiomute)
+- [toggleDeaf](call.md#toggledeaf)
+- [toggleHold](call.md#togglehold)
+- [toggleVideoMute](call.md#togglevideomute)
+- [undeaf](call.md#undeaf)
+- [unhold](call.md#unhold)
+- [unmuteAudio](call.md#unmuteaudio)
+- [unmuteVideo](call.md#unmutevideo)
 
 ## Methods
 
@@ -41,53 +41,47 @@
 
 ▸ **answer**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:168](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L168)*
+_Inherited from void_
 
 Starts the process to answer the incoming call.
 
-**`examples`** 
+**`examples`**
 
 ```js
-call.answer()
+call.answer();
 ```
 
 **Returns:** void
 
-___
+---
 
 ### deaf
 
 ▸ **deaf**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:572](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L572)*
+_Inherited from void_
 
 Turns off the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
-call.deaf()
+call.deaf();
 ```
 
 **Returns:** void
 
-___
+---
 
 ### dtmf
 
 ▸ **dtmf**(`dtmf`: string): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:389](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L389)*
+_Inherited from void_
 
 Sends dual-tone multi-frequency (DTMF) signal
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.dtmf('0');
@@ -98,75 +92,69 @@ call.dtmf('#');
 
 #### Parameters:
 
-Name | Type | Description |
------- | ------ | ------ |
-`dtmf` | string | Single DTMF key  |
+| Name   | Type   | Description     |
+| ------ | ------ | --------------- |
+| `dtmf` | string | Single DTMF key |
 
 **Returns:** void
 
-___
+---
 
 ### hangup
 
 ▸ **hangup**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:217](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L217)*
+_Inherited from void_
 
 Hangs up the call.
 
-**`examples`** 
+**`examples`**
 
 ```js
-call.hangup()
+call.hangup();
 ```
 
 **Returns:** void
 
 ▸ **hangup**(`hangupParams`: any, `hangupExecute`: any): void
 
-*Inherited from void*
+_Inherited from void_
 
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:221](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L221)*
-
-**`internal`** 
+**`internal`**
 
 #### Parameters:
 
-Name | Type | Description |
------- | ------ | ------ |
-`hangupParams` | any | _For internal use_ Specify custom hangup cause and call ID |
-`hangupExecute` | any | _For internal use_ Allow or prevent execution of `Bye`  |
+| Name            | Type | Description                                                |
+| --------------- | ---- | ---------------------------------------------------------- |
+| `hangupParams`  | any  | _For internal use_ Specify custom hangup cause and call ID |
+| `hangupExecute` | any  | _For internal use_ Allow or prevent execution of `Bye`     |
 
 **Returns:** void
 
-___
+---
 
 ### hold
 
 ▸ **hold**(): Promise<any\>
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:303](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L303)*
+_Inherited from void_
 
 Holds the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
 ```js
-await call.hold()
-console.log(call.state) // => 'held'
+await call.hold();
+console.log(call.state); // => 'held'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.hold().then(() => {
-  console.log(call.state) // => 'held'
+  console.log(call.state); // => 'held'
 });
 ```
 
@@ -174,20 +162,18 @@ call.hold().then(() => {
 
 Promise that resolves or rejects based on server response
 
-___
+---
 
 ### muteAudio
 
 ▸ **muteAudio**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:418](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L418)*
+_Inherited from void_
 
 Turns off audio output, i.e. makes it so other
 call participants cannot hear your audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.muteAudio();
@@ -195,20 +181,18 @@ call.muteAudio();
 
 **Returns:** void
 
-___
+---
 
 ### muteVideo
 
 ▸ **muteVideo**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:511](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L511)*
+_Inherited from void_
 
 Turns off the video output, i.e. hides
 video from other call participants.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.muteVideo();
@@ -216,24 +200,22 @@ call.muteVideo();
 
 **Returns:** void
 
-___
+---
 
 ### setAudioInDevice
 
 ▸ **setAudioInDevice**(`deviceId`: string): Promise<void\>
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:481](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L481)*
+_Inherited from void_
 
 Changes the audio input device (i.e. microphone) used for the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
 ```js
-await call.setAudioInDevice('abc123')
+await call.setAudioInDevice('abc123');
 ```
 
 Using ES6 `Promises`:
@@ -256,27 +238,25 @@ if (result.length) {
 
 #### Parameters:
 
-Name | Type | Description |
------- | ------ | ------ |
-`deviceId` | string | The target audio input device ID |
+| Name       | Type   | Description                      |
+| ---------- | ------ | -------------------------------- |
+| `deviceId` | string | The target audio input device ID |
 
 **Returns:** Promise<void\>
 
 Promise that resolves if the audio input device has been updated
 
-___
+---
 
 ### toggleAudioMute
 
 ▸ **toggleAudioMute**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:445](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L445)*
+_Inherited from void_
 
 Toggles the audio output on/off.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.toggleAudioMute();
@@ -284,67 +264,61 @@ call.toggleAudioMute();
 
 **Returns:** void
 
-___
+---
 
 ### toggleDeaf
 
 ▸ **toggleDeaf**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:598](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L598)*
+_Inherited from void_
 
 Toggles the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
-call.toggleDeaf()
+call.toggleDeaf();
 ```
 
 **Returns:** void
 
-___
+---
 
 ### toggleHold
 
 ▸ **toggleHold**(): Promise<any\>
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:364](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L364)*
+_Inherited from void_
 
 Toggles hold state of the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
 ```js
-await call.toggleHold()
-console.log(call.state) // => 'held'
+await call.toggleHold();
+console.log(call.state); // => 'held'
 
-await call.toggleHold()
-console.log(call.state) // => 'active'
+await call.toggleHold();
+console.log(call.state); // => 'active'
 ```
 
 **Returns:** Promise<any\>
 
 Promise that resolves or rejects based on server response
 
-___
+---
 
 ### toggleVideoMute
 
 ▸ **toggleVideoMute**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:538](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L538)*
+_Inherited from void_
 
 Toggles the video output on/off.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.toggleVideoMute();
@@ -352,52 +326,48 @@ call.toggleVideoMute();
 
 **Returns:** void
 
-___
+---
 
 ### undeaf
 
 ▸ **undeaf**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:585](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L585)*
+_Inherited from void_
 
 Turns on the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
-call.undeaf()
+call.undeaf();
 ```
 
 **Returns:** void
 
-___
+---
 
 ### unhold
 
 ▸ **unhold**(): Promise<any\>
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:336](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L336)*
+_Inherited from void_
 
 Removes hold from the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
 ```js
-await call.unhold()
-console.log(call.state) // => 'active'
+await call.unhold();
+console.log(call.state); // => 'active'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.unhold().then(() => {
-  console.log(call.state) // => 'active'
+  console.log(call.state); // => 'active'
 });
 ```
 
@@ -405,20 +375,18 @@ call.unhold().then(() => {
 
 Promise that resolves or rejects based on server response
 
-___
+---
 
 ### unmuteAudio
 
 ▸ **unmuteAudio**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:432](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L432)*
+_Inherited from void_
 
 Turns on audio output, i.e. makes it so other
 call participants can hear your audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.unmuteAudio();
@@ -426,20 +394,18 @@ call.unmuteAudio();
 
 **Returns:** void
 
-___
+---
 
 ### unmuteVideo
 
 ▸ **unmuteVideo**(): void
 
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/webrtc/BaseCall.ts:525](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/BaseCall.ts#L525)*
+_Inherited from void_
 
 Turns on the video output, i.e. makes
 video visible to other call participants.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.unmuteVideo();

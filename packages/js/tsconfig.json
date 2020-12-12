@@ -25,7 +25,8 @@
     "excludeTags": ["apidoc"],
     "hideGenerator": true,
     "readme": "none",
-    "gitRevision": "main"
+    "gitRevision": "main",
+    "disableSources": true
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "**/tests", "**/__mocks__"]
