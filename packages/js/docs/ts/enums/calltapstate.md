@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallTapState](calltapstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallTapState
 
 # Enumeration: CallTapState
 
@@ -11,16 +13,16 @@
 
 ## Enumeration members
 
-###  Finished
+### Finished
 
-• **Finished**: = "finished"
+•  **Finished**:  = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:91](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L91)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:91](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L91)*
 
 ___
 
-###  Tapping
+### Tapping
 
-• **Tapping**: = "tapping"
+•  **Tapping**:  = "tapping"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:90](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L90)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:90](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L90)*

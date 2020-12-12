@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingRecord](icallingrecord.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingRecord
 
 # Interface: ICallingRecord
 
 ## Hierarchy
 
-* IRelayCallingRecordAudio
+* [IRelayCallingRecordAudio](irelaycallingrecordaudio.md)
 
   ↳ **ICallingRecord**
 
@@ -12,98 +14,98 @@
 
 ### Properties
 
-* [audio](icallingrecord.md#optional-audio)
-* [beep](icallingrecord.md#optional-beep)
-* [direction](icallingrecord.md#optional-direction)
-* [end_silence_timeout](icallingrecord.md#optional-end_silence_timeout)
-* [format](icallingrecord.md#optional-format)
-* [initial_timeout](icallingrecord.md#optional-initial_timeout)
-* [stereo](icallingrecord.md#optional-stereo)
-* [terminators](icallingrecord.md#optional-terminators)
-* [type](icallingrecord.md#optional-type)
+* [audio](icallingrecord.md#audio)
+* [beep](icallingrecord.md#beep)
+* [direction](icallingrecord.md#direction)
+* [end\_silence\_timeout](icallingrecord.md#end_silence_timeout)
+* [format](icallingrecord.md#format)
+* [initial\_timeout](icallingrecord.md#initial_timeout)
+* [stereo](icallingrecord.md#stereo)
+* [terminators](icallingrecord.md#terminators)
+* [type](icallingrecord.md#type)
 
 ## Properties
 
-### `Optional` audio
+### audio
 
-• **audio**? : *IRelayCallingRecordAudio*
+• `Optional` **audio**: [IRelayCallingRecordAudio](irelaycallingrecordaudio.md)
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:230](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L230)*
-
-___
-
-### `Optional` beep
-
-• **beep**? : *boolean*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:216](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L216)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:230](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L230)*
 
 ___
 
-### `Optional` direction
+### beep
 
-• **direction**? : *string*
+• `Optional` **beep**: boolean
 
-*Inherited from void*
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[beep](irelaycallingrecordaudio.md#beep)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:219](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L219)*
-
-___
-
-### `Optional` end_silence_timeout
-
-• **end_silence_timeout**? : *number*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:221](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L221)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:216](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L216)*
 
 ___
 
-### `Optional` format
+### direction
 
-• **format**? : *string*
+• `Optional` **direction**: string
 
-*Inherited from void*
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[direction](irelaycallingrecordaudio.md#direction)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:217](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L217)*
-
-___
-
-### `Optional` initial_timeout
-
-• **initial_timeout**? : *number*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:220](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L220)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:219](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L219)*
 
 ___
 
-### `Optional` stereo
+### end\_silence\_timeout
 
-• **stereo**? : *boolean*
+• `Optional` **end\_silence\_timeout**: number
 
-*Inherited from void*
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[end_silence_timeout](irelaycallingrecordaudio.md#end_silence_timeout)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:218](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L218)*
-
-___
-
-### `Optional` terminators
-
-• **terminators**? : *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L222)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:221](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L221)*
 
 ___
 
-### `Optional` type
+### format
 
-• **type**? : *"audio"*
+• `Optional` **format**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:231](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L231)*
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[format](irelaycallingrecordaudio.md#format)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:217](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L217)*
+
+___
+
+### initial\_timeout
+
+• `Optional` **initial\_timeout**: number
+
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[initial_timeout](irelaycallingrecordaudio.md#initial_timeout)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:220](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L220)*
+
+___
+
+### stereo
+
+• `Optional` **stereo**: boolean
+
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[stereo](irelaycallingrecordaudio.md#stereo)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:218](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L218)*
+
+___
+
+### terminators
+
+• `Optional` **terminators**: string
+
+*Inherited from [IRelayCallingRecordAudio](irelaycallingrecordaudio.md).[terminators](irelaycallingrecordaudio.md#terminators)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L222)*
+
+___
+
+### type
+
+• `Optional` **type**: \"audio\"
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:231](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L231)*

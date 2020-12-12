@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IBladeSubscriptionRequest](ibladesubscriptionrequest.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IBladeSubscriptionRequest
 
 # Interface: IBladeSubscriptionRequest
 
 ## Hierarchy
 
-* IMessageBase
+* [IMessageBase](imessagebase.md)
 
   ↳ **IBladeSubscriptionRequest**
 
@@ -19,38 +21,46 @@
 
 ## Properties
 
-###  id
+### id
 
-• **id**: *string*
+•  **id**: string
 
-*Inherited from void*
+*Inherited from [IMessageBase](imessagebase.md).[id](imessagebase.md#id)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
-
-___
-
-###  jsonrpc
-
-• **jsonrpc**: *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
 
 ___
 
-###  method
+### jsonrpc
 
-• **method**: *string*
+•  **jsonrpc**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L58)*
+*Inherited from [IMessageBase](imessagebase.md).[jsonrpc](imessagebase.md#jsonrpc)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
 
 ___
 
-###  params
+### method
 
-• **params**: *object*
+•  **method**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L59)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L58)*
+
+___
+
+### params
+
+•  **params**: { auto_create?: boolean ; channels: string[] ; command: string ; downstream?: boolean ; protocol: string  }
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L59)*
 
 #### Type declaration:
+
+Name | Type |
+------ | ------ |
+`auto_create?` | boolean |
+`channels` | string[] |
+`command` | string |
+`downstream?` | boolean |
+`protocol` | string |

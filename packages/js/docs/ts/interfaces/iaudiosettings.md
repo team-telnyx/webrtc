@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IAudioSettings](iaudiosettings.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IAudioSettings
 
 # Interface: IAudioSettings
 
@@ -12,242 +14,229 @@
 
 ### Properties
 
-* [advanced](iaudiosettings.md#optional-advanced)
-* [aspectRatio](iaudiosettings.md#optional-aspectratio)
-* [autoGainControl](iaudiosettings.md#optional-autogaincontrol)
-* [channelCount](iaudiosettings.md#optional-channelcount)
-* [deviceId](iaudiosettings.md#optional-deviceid)
-* [echoCancellation](iaudiosettings.md#optional-echocancellation)
-* [facingMode](iaudiosettings.md#optional-facingmode)
-* [frameRate](iaudiosettings.md#optional-framerate)
-* [groupId](iaudiosettings.md#optional-groupid)
-* [height](iaudiosettings.md#optional-height)
-* [latency](iaudiosettings.md#optional-latency)
-* [micId](iaudiosettings.md#optional-micid)
-* [micLabel](iaudiosettings.md#optional-miclabel)
-* [noiseSuppression](iaudiosettings.md#optional-noisesuppression)
-* [resizeMode](iaudiosettings.md#optional-resizemode)
-* [sampleRate](iaudiosettings.md#optional-samplerate)
-* [sampleSize](iaudiosettings.md#optional-samplesize)
-* [volume](iaudiosettings.md#optional-volume)
-* [width](iaudiosettings.md#optional-width)
+* [advanced](iaudiosettings.md#advanced)
+* [aspectRatio](iaudiosettings.md#aspectratio)
+* [autoGainControl](iaudiosettings.md#autogaincontrol)
+* [channelCount](iaudiosettings.md#channelcount)
+* [deviceId](iaudiosettings.md#deviceid)
+* [echoCancellation](iaudiosettings.md#echocancellation)
+* [facingMode](iaudiosettings.md#facingmode)
+* [frameRate](iaudiosettings.md#framerate)
+* [groupId](iaudiosettings.md#groupid)
+* [height](iaudiosettings.md#height)
+* [latency](iaudiosettings.md#latency)
+* [micId](iaudiosettings.md#micid)
+* [micLabel](iaudiosettings.md#miclabel)
+* [noiseSuppression](iaudiosettings.md#noisesuppression)
+* [resizeMode](iaudiosettings.md#resizemode)
+* [sampleRate](iaudiosettings.md#samplerate)
+* [sampleSize](iaudiosettings.md#samplesize)
+* [width](iaudiosettings.md#width)
 
 ## Properties
 
-### `Optional` advanced
+### advanced
 
-• **advanced**? : *MediaTrackConstraintSet[]*
+• `Optional` **advanced**: MediaTrackConstraintSet[]
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[advanced](iaudiosettings.md#advanced)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[advanced](iaudiosettings.md#advanced)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:780
-
-___
-
-### `Optional` aspectRatio
-
-• **aspectRatio**? : *ConstrainDouble*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:762
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:789*
 
 ___
 
-### `Optional` autoGainControl
+### aspectRatio
 
-• **autoGainControl**? : *ConstrainBoolean*
+• `Optional` **aspectRatio**: ConstrainDouble
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[aspectRatio](iaudiosettings.md#aspectratio)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[aspectRatio](iaudiosettings.md#aspectratio)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:763
-
-___
-
-### `Optional` channelCount
-
-• **channelCount**? : *ConstrainULong*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:764
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:771*
 
 ___
 
-### `Optional` deviceId
+### autoGainControl
 
-• **deviceId**? : *ConstrainDOMString*
+• `Optional` **autoGainControl**: ConstrainBoolean
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[autoGainControl](iaudiosettings.md#autogaincontrol)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[autoGainControl](iaudiosettings.md#autogaincontrol)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:765
-
-___
-
-### `Optional` echoCancellation
-
-• **echoCancellation**? : *ConstrainBoolean*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:766
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:772*
 
 ___
 
-### `Optional` facingMode
+### channelCount
 
-• **facingMode**? : *ConstrainDOMString*
+• `Optional` **channelCount**: ConstrainULong
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[channelCount](iaudiosettings.md#channelcount)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[channelCount](iaudiosettings.md#channelcount)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:767
-
-___
-
-### `Optional` frameRate
-
-• **frameRate**? : *ConstrainDouble*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:768
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:773*
 
 ___
 
-### `Optional` groupId
+### deviceId
 
-• **groupId**? : *ConstrainDOMString*
+• `Optional` **deviceId**: ConstrainDOMString
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[deviceId](iaudiosettings.md#deviceid)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[deviceId](iaudiosettings.md#deviceid)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:769
-
-___
-
-### `Optional` height
-
-• **height**? : *ConstrainULong*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:770
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:774*
 
 ___
 
-### `Optional` latency
+### echoCancellation
 
-• **latency**? : *ConstrainDouble*
+• `Optional` **echoCancellation**: ConstrainBoolean
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[echoCancellation](iaudiosettings.md#echocancellation)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[echoCancellation](iaudiosettings.md#echocancellation)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:771
-
-___
-
-### `Optional` micId
-
-• **micId**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:99](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L99)*
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:775*
 
 ___
 
-### `Optional` micLabel
+### facingMode
 
-• **micLabel**? : *string*
+• `Optional` **facingMode**: ConstrainDOMString
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:100](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L100)*
+*Inherited from [IAudioSettings](iaudiosettings.md).[facingMode](iaudiosettings.md#facingmode)*
 
-___
+*Overrides [IAudioSettings](iaudiosettings.md).[facingMode](iaudiosettings.md#facingmode)*
 
-### `Optional` noiseSuppression
-
-• **noiseSuppression**? : *ConstrainBoolean*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:772
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:776*
 
 ___
 
-### `Optional` resizeMode
+### frameRate
 
-• **resizeMode**? : *ConstrainDOMString*
+• `Optional` **frameRate**: ConstrainDouble
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[frameRate](iaudiosettings.md#framerate)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[frameRate](iaudiosettings.md#framerate)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:773
-
-___
-
-### `Optional` sampleRate
-
-• **sampleRate**? : *ConstrainULong*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:774
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:777*
 
 ___
 
-### `Optional` sampleSize
+### groupId
 
-• **sampleSize**? : *ConstrainULong*
+• `Optional` **groupId**: ConstrainDOMString
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[groupId](iaudiosettings.md#groupid)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[groupId](iaudiosettings.md#groupid)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:775
-
-___
-
-### `Optional` volume
-
-• **volume**? : *W3C.ConstrainDouble*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/@types/webrtc/MediaStream.d.ts:54
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:778*
 
 ___
 
-### `Optional` width
+### height
 
-• **width**? : *ConstrainULong*
+• `Optional` **height**: ConstrainULong
 
-*Inherited from void*
+*Inherited from [IAudioSettings](iaudiosettings.md).[height](iaudiosettings.md#height)*
 
-*Overrides void*
+*Overrides [IAudioSettings](iaudiosettings.md).[height](iaudiosettings.md#height)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:776
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:779*
+
+___
+
+### latency
+
+• `Optional` **latency**: ConstrainDouble
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[latency](iaudiosettings.md#latency)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[latency](iaudiosettings.md#latency)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:780*
+
+___
+
+### micId
+
+• `Optional` **micId**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:99](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L99)*
+
+___
+
+### micLabel
+
+• `Optional` **micLabel**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:100](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L100)*
+
+___
+
+### noiseSuppression
+
+• `Optional` **noiseSuppression**: ConstrainBoolean
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[noiseSuppression](iaudiosettings.md#noisesuppression)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[noiseSuppression](iaudiosettings.md#noisesuppression)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:781*
+
+___
+
+### resizeMode
+
+• `Optional` **resizeMode**: ConstrainDOMString
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[resizeMode](iaudiosettings.md#resizemode)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[resizeMode](iaudiosettings.md#resizemode)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:782*
+
+___
+
+### sampleRate
+
+• `Optional` **sampleRate**: ConstrainULong
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[sampleRate](iaudiosettings.md#samplerate)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[sampleRate](iaudiosettings.md#samplerate)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:783*
+
+___
+
+### sampleSize
+
+• `Optional` **sampleSize**: ConstrainULong
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[sampleSize](iaudiosettings.md#samplesize)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[sampleSize](iaudiosettings.md#samplesize)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:784*
+
+___
+
+### width
+
+• `Optional` **width**: ConstrainULong
+
+*Inherited from [IAudioSettings](iaudiosettings.md).[width](iaudiosettings.md#width)*
+
+*Overrides [IAudioSettings](iaudiosettings.md).[width](iaudiosettings.md#width)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:785*

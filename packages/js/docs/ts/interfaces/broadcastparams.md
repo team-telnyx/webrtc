@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [BroadcastParams](broadcastparams.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / BroadcastParams
 
 # Interface: BroadcastParams
 
@@ -10,39 +12,39 @@
 
 ### Properties
 
-* [channel](broadcastparams.md#optional-channel)
-* [data](broadcastparams.md#optional-data)
-* [nodeId](broadcastparams.md#optional-nodeid)
-* [protocol](broadcastparams.md#optional-protocol)
+* [channel](broadcastparams.md#channel)
+* [data](broadcastparams.md#data)
+* [nodeId](broadcastparams.md#nodeid)
+* [protocol](broadcastparams.md#protocol)
 
 ## Properties
 
-### `Optional` channel
+### channel
 
-• **channel**? : *string*
+• `Optional` **channel**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L92)*
-
-___
-
-### `Optional` data
-
-• **data**? : *object*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:94](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L94)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:92](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L92)*
 
 ___
 
-### `Optional` nodeId
+### data
 
-• **nodeId**? : *string*
+• `Optional` **data**: object
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L95)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:94](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L94)*
 
 ___
 
-### `Optional` protocol
+### nodeId
 
-• **protocol**? : *string*
+• `Optional` **nodeId**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:93](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L93)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L95)*
+
+___
+
+### protocol
+
+• `Optional` **protocol**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:93](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L93)*

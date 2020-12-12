@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallPromptState](callpromptstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallPromptState
 
 # Enumeration: CallPromptState
 
@@ -14,40 +16,40 @@
 
 ## Enumeration members
 
-###  Digit
+### Digit
 
-• **Digit**: = "digit"
+•  **Digit**:  = "digit"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:104](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L104)*
-
-___
-
-###  Error
-
-• **Error**: = "error"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:101](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L101)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:104](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L104)*
 
 ___
 
-###  NoInput
+### Error
 
-• **NoInput**: = "no_input"
+•  **Error**:  = "error"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:102](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L102)*
-
-___
-
-###  NoMatch
-
-• **NoMatch**: = "no_match"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:103](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L103)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:101](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L101)*
 
 ___
 
-###  Speech
+### NoInput
 
-• **Speech**: = "speech"
+•  **NoInput**:  = "no\_input"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L105)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:102](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L102)*
+
+___
+
+### NoMatch
+
+•  **NoMatch**:  = "no\_match"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:103](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L103)*
+
+___
+
+### Speech
+
+•  **Speech**:  = "speech"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L105)*

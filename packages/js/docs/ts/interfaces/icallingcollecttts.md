@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingCollectTTS](icallingcollecttts.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingCollectTTS
 
 # Interface: ICallingCollectTTS
 
 ## Hierarchy
 
-  ↳ [ICallingCollect](icallingcollect.md)
+* [ICallingCollect](icallingcollect.md)
 
   ↳ **ICallingCollectTTS**
 
@@ -12,188 +14,201 @@
 
 ### Properties
 
-* [digits](icallingcollecttts.md#optional-digits)
-* [digits_max](icallingcollecttts.md#optional-digits_max)
-* [digits_terminators](icallingcollecttts.md#optional-digits_terminators)
-* [digits_timeout](icallingcollecttts.md#optional-digits_timeout)
-* [end_silence_timeout](icallingcollecttts.md#optional-end_silence_timeout)
-* [gender](icallingcollecttts.md#optional-gender)
-* [initial_timeout](icallingcollecttts.md#optional-initial_timeout)
-* [language](icallingcollecttts.md#optional-language)
-* [media](icallingcollecttts.md#optional-media)
-* [partial_results](icallingcollecttts.md#optional-partial_results)
-* [speech](icallingcollecttts.md#optional-speech)
-* [speech_hints](icallingcollecttts.md#optional-speech_hints)
-* [speech_language](icallingcollecttts.md#optional-speech_language)
-* [speech_timeout](icallingcollecttts.md#optional-speech_timeout)
-* [text](icallingcollecttts.md#optional-text)
-* [type](icallingcollecttts.md#optional-type)
-* [volume](icallingcollecttts.md#optional-volume)
+* [digits](icallingcollecttts.md#digits)
+* [digits\_max](icallingcollecttts.md#digits_max)
+* [digits\_terminators](icallingcollecttts.md#digits_terminators)
+* [digits\_timeout](icallingcollecttts.md#digits_timeout)
+* [end\_silence\_timeout](icallingcollecttts.md#end_silence_timeout)
+* [gender](icallingcollecttts.md#gender)
+* [initial\_timeout](icallingcollecttts.md#initial_timeout)
+* [language](icallingcollecttts.md#language)
+* [media](icallingcollecttts.md#media)
+* [partial\_results](icallingcollecttts.md#partial_results)
+* [speech](icallingcollecttts.md#speech)
+* [speech\_hints](icallingcollecttts.md#speech_hints)
+* [speech\_language](icallingcollecttts.md#speech_language)
+* [speech\_timeout](icallingcollecttts.md#speech_timeout)
+* [text](icallingcollecttts.md#text)
+* [type](icallingcollecttts.md#type)
+* [volume](icallingcollecttts.md#volume)
 
 ## Properties
 
-### `Optional` digits
+### digits
 
-• **digits**? : *object*
+• `Optional` **digits**: { digit_timeout?: number ; max: number ; terminators?: string  }
 
-*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[digits](irelaycallingcollect.md#optional-digits)*
+*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[digits](irelaycallingcollect.md#digits)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
-
-#### Type declaration:
-
-___
-
-### `Optional` digits_max
-
-• **digits_max**? : *number*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[digits_max](icallingcollect.md#optional-digits_max)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:293](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L293)*
-
-___
-
-### `Optional` digits_terminators
-
-• **digits_terminators**? : *string*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[digits_terminators](icallingcollect.md#optional-digits_terminators)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
-
-___
-
-### `Optional` digits_timeout
-
-• **digits_timeout**? : *number*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[digits_timeout](icallingcollect.md#optional-digits_timeout)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:295](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L295)*
-
-___
-
-### `Optional` end_silence_timeout
-
-• **end_silence_timeout**? : *number*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[end_silence_timeout](icallingcollect.md#optional-end_silence_timeout)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:296](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L296)*
-
-___
-
-### `Optional` gender
-
-• **gender**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:311](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L311)*
-
-___
-
-### `Optional` initial_timeout
-
-• **initial_timeout**? : *number*
-
-*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[initial_timeout](irelaycallingcollect.md#optional-initial_timeout)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:276](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L276)*
-
-___
-
-### `Optional` language
-
-• **language**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:310](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L310)*
-
-___
-
-### `Optional` media
-
-• **media**? : *([ICallingPlay](icallingplay.md) | [IRelayCallingPlay](irelaycallingplay.md))[]*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[media](icallingcollect.md#optional-media)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L301)*
-
-___
-
-### `Optional` partial_results
-
-• **partial_results**? : *boolean*
-
-*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[partial_results](irelaycallingcollect.md#optional-partial_results)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
-
-___
-
-### `Optional` speech
-
-• **speech**? : *object*
-
-*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[speech](irelaycallingcollect.md#optional-speech)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
 
 #### Type declaration:
 
-___
-
-### `Optional` speech_hints
-
-• **speech_hints**? : *string[]*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[speech_hints](icallingcollect.md#optional-speech_hints)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:299](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L299)*
+Name | Type |
+------ | ------ |
+`digit_timeout?` | number |
+`max` | number |
+`terminators?` | string |
 
 ___
 
-### `Optional` speech_language
+### digits\_max
 
-• **speech_language**? : *string*
+• `Optional` **digits\_max**: number
 
-*Inherited from [ICallingCollect](icallingcollect.md).[speech_language](icallingcollect.md#optional-speech_language)*
+*Inherited from [ICallingCollect](icallingcollect.md).[digits_max](icallingcollect.md#digits_max)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:298](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L298)*
-
-___
-
-### `Optional` speech_timeout
-
-• **speech_timeout**? : *number*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[speech_timeout](icallingcollect.md#optional-speech_timeout)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:297](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L297)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:293](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L293)*
 
 ___
 
-### `Optional` text
+### digits\_terminators
 
-• **text**? : *string*
+• `Optional` **digits\_terminators**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:309](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L309)*
+*Inherited from [ICallingCollect](icallingcollect.md).[digits_terminators](icallingcollect.md#digits_terminators)*
 
-___
-
-### `Optional` type
-
-• **type**? : *string*
-
-*Inherited from [ICallingCollect](icallingcollect.md).[type](icallingcollect.md#optional-type)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:292](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L292)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:294](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L294)*
 
 ___
 
-### `Optional` volume
+### digits\_timeout
 
-• **volume**? : *number*
+• `Optional` **digits\_timeout**: number
 
-*Inherited from [ICallingCollect](icallingcollect.md).[volume](icallingcollect.md#optional-volume)*
+*Inherited from [ICallingCollect](icallingcollect.md).[digits_timeout](icallingcollect.md#digits_timeout)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:300](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L300)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:295](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L295)*
+
+___
+
+### end\_silence\_timeout
+
+• `Optional` **end\_silence\_timeout**: number
+
+*Inherited from [ICallingCollect](icallingcollect.md).[end_silence_timeout](icallingcollect.md#end_silence_timeout)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:296](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L296)*
+
+___
+
+### gender
+
+• `Optional` **gender**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:311](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L311)*
+
+___
+
+### initial\_timeout
+
+• `Optional` **initial\_timeout**: number
+
+*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[initial_timeout](irelaycallingcollect.md#initial_timeout)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:276](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L276)*
+
+___
+
+### language
+
+• `Optional` **language**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:310](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L310)*
+
+___
+
+### media
+
+• `Optional` **media**: ([IRelayCallingPlay](irelaycallingplay.md) \| [ICallingPlay](icallingplay.md))[]
+
+*Inherited from [ICallingCollect](icallingcollect.md).[media](icallingcollect.md#media)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L301)*
+
+___
+
+### partial\_results
+
+• `Optional` **partial\_results**: boolean
+
+*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[partial_results](irelaycallingcollect.md#partial_results)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
+
+___
+
+### speech
+
+• `Optional` **speech**: { end_silence_timeout?: number ; hints?: string[] ; language?: string ; speech_timeout?: number  }
+
+*Inherited from [IRelayCallingCollect](irelaycallingcollect.md).[speech](irelaycallingcollect.md#speech)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
+
+#### Type declaration:
+
+Name | Type |
+------ | ------ |
+`end_silence_timeout?` | number |
+`hints?` | string[] |
+`language?` | string |
+`speech_timeout?` | number |
+
+___
+
+### speech\_hints
+
+• `Optional` **speech\_hints**: string[]
+
+*Inherited from [ICallingCollect](icallingcollect.md).[speech_hints](icallingcollect.md#speech_hints)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:299](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L299)*
+
+___
+
+### speech\_language
+
+• `Optional` **speech\_language**: string
+
+*Inherited from [ICallingCollect](icallingcollect.md).[speech_language](icallingcollect.md#speech_language)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:298](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L298)*
+
+___
+
+### speech\_timeout
+
+• `Optional` **speech\_timeout**: number
+
+*Inherited from [ICallingCollect](icallingcollect.md).[speech_timeout](icallingcollect.md#speech_timeout)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:297](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L297)*
+
+___
+
+### text
+
+• `Optional` **text**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:309](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L309)*
+
+___
+
+### type
+
+• `Optional` **type**: string
+
+*Inherited from [ICallingCollect](icallingcollect.md).[type](icallingcollect.md#type)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:292](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L292)*
+
+___
+
+### volume
+
+• `Optional` **volume**: number
+
+*Inherited from [ICallingCollect](icallingcollect.md).[volume](icallingcollect.md#volume)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:300](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L300)*

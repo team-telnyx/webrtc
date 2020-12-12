@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [SendDigitsState](senddigitsstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / SendDigitsState
 
 # Enumeration: SendDigitsState
 
@@ -10,8 +12,8 @@
 
 ## Enumeration members
 
-###  Finished
+### Finished
 
-• **Finished**: = "finished"
+•  **Finished**:  = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L73)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L73)*

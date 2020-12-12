@@ -1,13 +1,15 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [StringStringMap](stringstringmap.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / StringStringMap
 
 # Interface: StringStringMap
 
 ## Hierarchy
 
-* [StringTMap](stringtmap.md)‹string›
+* [StringTMap](stringtmap.md)<string\>
 
   ↳ **StringStringMap**
 
 ## Indexable
 
-* \[ **key**: *string*\]: string
+▪ [key: string]: string

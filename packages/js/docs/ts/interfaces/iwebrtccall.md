@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IWebRTCCall](iwebrtccall.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IWebRTCCall
 
 # Interface: IWebRTCCall
 
@@ -16,7 +18,7 @@
 
 ### Properties
 
-* [_addChannel](iwebrtccall.md#_addchannel)
+* [\_addChannel](iwebrtccall.md#_addchannel)
 * [answer](iwebrtccall.md#answer)
 * [cause](iwebrtccall.md#cause)
 * [causeCode](iwebrtccall.md#causecode)
@@ -41,14 +43,14 @@
 * [replace](iwebrtccall.md#replace)
 * [role](iwebrtccall.md#role)
 * [setAudioInDevice](iwebrtccall.md#setaudioindevice)
-* [setAudioOutDevice](iwebrtccall.md#optional-setaudiooutdevice)
-* [setSpeakerPhone](iwebrtccall.md#optional-setspeakerphone)
+* [setAudioOutDevice](iwebrtccall.md#setaudiooutdevice)
+* [setSpeakerPhone](iwebrtccall.md#setspeakerphone)
 * [setState](iwebrtccall.md#setstate)
 * [setVideoDevice](iwebrtccall.md#setvideodevice)
-* [startScreenShare](iwebrtccall.md#optional-startscreenshare)
+* [startScreenShare](iwebrtccall.md#startscreenshare)
 * [state](iwebrtccall.md#state)
-* [stopScreenShare](iwebrtccall.md#optional-stopscreenshare)
-* [switchCamera](iwebrtccall.md#optional-switchcamera)
+* [stopScreenShare](iwebrtccall.md#stopscreenshare)
+* [switchCamera](iwebrtccall.md#switchcamera)
 * [toggleAudioMute](iwebrtccall.md#toggleaudiomute)
 * [toggleDeaf](iwebrtccall.md#toggledeaf)
 * [toggleHold](iwebrtccall.md#togglehold)
@@ -61,543 +63,336 @@
 
 ## Properties
 
-###  _addChannel
+### \_addChannel
 
-• **_addChannel**: *function*
+•  **\_addChannel**: (laChannel: any) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L76)*
-
-#### Type declaration:
-
-▸ (`laChannel`: any): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`laChannel` | any |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L76)*
 
 ___
 
-###  answer
+### answer
 
-• **answer**: *function*
+•  **answer**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L53)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L53)*
 
 ___
 
-###  cause
+### cause
 
-• **cause**: *string*
+•  **cause**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L45)*
-
-___
-
-###  causeCode
-
-• **causeCode**: *number*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L46)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L45)*
 
 ___
 
-###  channels
+### causeCode
 
-• **channels**: *string[]*
+•  **causeCode**: number
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L47)*
-
-___
-
-###  deaf
-
-• **deaf**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L70)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L46)*
 
 ___
 
-###  direction
+### channels
 
-• **direction**: *string*
+•  **channels**: string[]
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L43)*
-
-___
-
-###  dtmf
-
-• **dtmf**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L60)*
-
-#### Type declaration:
-
-▸ (`dtmf`: string): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`dtmf` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L47)*
 
 ___
 
-###  extension
+### deaf
 
-• **extension**: *string*
+•  **deaf**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L49)*
-
-___
-
-###  handleConferenceUpdate
-
-• **handleConferenceUpdate**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L77)*
-
-#### Type declaration:
-
-▸ (`packet`: any, `pvtData`: any): *Promise‹string›*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`packet` | any |
-`pvtData` | any |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L70)*
 
 ___
 
-###  handleMessage
+### direction
 
-• **handleMessage**: *function*
+•  **direction**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L75)*
-
-#### Type declaration:
-
-▸ (`msg`: any): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`msg` | any |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L43)*
 
 ___
 
-###  hangup
+### dtmf
 
-• **hangup**: *function*
+•  **dtmf**: (dtmf: string) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L54)*
-
-#### Type declaration:
-
-▸ (`params`: any, `execute`: boolean): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`params` | any |
-`execute` | boolean |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L60)*
 
 ___
 
-###  hold
+### extension
 
-• **hold**: *function*
+•  **extension**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L57)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L49)*
 
 ___
 
-###  id
+### handleConferenceUpdate
 
-• **id**: *string*
+•  **handleConferenceUpdate**: (packet: any, pvtData: any) => Promise<string\>
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L40)*
-
-___
-
-###  invite
-
-• **invite**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L52)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L77)*
 
 ___
 
-###  localStream
+### handleMessage
 
-• **localStream**: *MediaStream*
+•  **handleMessage**: (msg: any) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L50)*
-
-___
-
-###  message
-
-• **message**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L61)*
-
-#### Type declaration:
-
-▸ (`to`: string, `body`: string): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`to` | string |
-`body` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L75)*
 
 ___
 
-###  muteAudio
+### hangup
 
-• **muteAudio**: *function*
+•  **hangup**: (params: any, execute: boolean) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L62)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L54)*
 
 ___
 
-###  muteVideo
+### hold
 
-• **muteVideo**: *function*
+•  **hold**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:66](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L66)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L57)*
 
 ___
 
-###  options
+### id
 
-• **options**: *[CallOptions](calloptions.md)*
+•  **id**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L44)*
-
-___
-
-###  prevState
-
-• **prevState**: *string*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:42](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L42)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L40)*
 
 ___
 
-###  remoteStream
+### invite
 
-• **remoteStream**: *MediaStream*
+•  **invite**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L51)*
-
-___
-
-###  replace
-
-• **replace**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L56)*
-
-#### Type declaration:
-
-▸ (`replaceCallID`: string): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`replaceCallID` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L52)*
 
 ___
 
-###  role
+### localStream
 
-• **role**: *string*
+•  **localStream**: MediaStream
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L48)*
-
-___
-
-###  setAudioInDevice
-
-• **setAudioInDevice**: *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L65)*
-
-#### Type declaration:
-
-▸ (`deviceId`: string): *Promise‹void›*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`deviceId` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L50)*
 
 ___
 
-### `Optional` setAudioOutDevice
+### message
 
-• **setAudioOutDevice**? : *function*
+•  **message**: (to: string, body: string) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:81](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L81)*
-
-#### Type declaration:
-
-▸ (`deviceId`: string): *Promise‹boolean›*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`deviceId` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L61)*
 
 ___
 
-### `Optional` setSpeakerPhone
+### muteAudio
 
-• **setSpeakerPhone**? : *function*
+•  **muteAudio**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:84](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L84)*
-
-#### Type declaration:
-
-▸ (`flag`: boolean): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`flag` | boolean |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L62)*
 
 ___
 
-###  setState
+### muteVideo
 
-• **setState**: *function*
+•  **muteVideo**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L73)*
-
-#### Type declaration:
-
-▸ (`state`: any): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`state` | any |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:66](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L66)*
 
 ___
 
-###  setVideoDevice
+### options
 
-• **setVideoDevice**: *function*
+•  **options**: [CallOptions](calloptions.md)
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L69)*
-
-#### Type declaration:
-
-▸ (`deviceId`: string): *Promise‹void›*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`deviceId` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L44)*
 
 ___
 
-### `Optional` startScreenShare
+### prevState
 
-• **startScreenShare**? : *function*
+•  **prevState**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L79)*
-
-#### Type declaration:
-
-▸ (`opts?`: object): *Promise‹[IWebRTCCall](iwebrtccall.md)›*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`opts?` | object |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:42](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L42)*
 
 ___
 
-###  state
+### remoteStream
 
-• **state**: *string*
+•  **remoteStream**: MediaStream
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L41)*
-
-___
-
-### `Optional` stopScreenShare
-
-• **stopScreenShare**? : *function*
-
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:80](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L80)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L51)*
 
 ___
 
-### `Optional` switchCamera
+### replace
 
-• **switchCamera**? : *function*
+•  **replace**: (replaceCallID: string) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L83)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L56)*
 
 ___
 
-###  toggleAudioMute
+### role
 
-• **toggleAudioMute**: *function*
+•  **role**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:64](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L64)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L48)*
 
 ___
 
-###  toggleDeaf
+### setAudioInDevice
 
-• **toggleDeaf**: *function*
+•  **setAudioInDevice**: (deviceId: string) => Promise<void\>
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L72)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L65)*
 
 ___
 
-###  toggleHold
+### setAudioOutDevice
 
-• **toggleHold**: *function*
+• `Optional` **setAudioOutDevice**: (deviceId: string) => Promise<boolean\>
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L59)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:81](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L81)*
 
 ___
 
-###  toggleVideoMute
+### setSpeakerPhone
 
-• **toggleVideoMute**: *function*
+• `Optional` **setSpeakerPhone**: (flag: boolean) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:68](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L68)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:84](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L84)*
 
 ___
 
-###  transfer
+### setState
 
-• **transfer**: *function*
+•  **setState**: (state: any) => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L55)*
-
-#### Type declaration:
-
-▸ (`destination`: string): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`destination` | string |
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L73)*
 
 ___
 
-###  undeaf
+### setVideoDevice
 
-• **undeaf**: *function*
+•  **setVideoDevice**: (deviceId: string) => Promise<void\>
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L71)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L69)*
 
 ___
 
-###  unhold
+### startScreenShare
 
-• **unhold**: *function*
+• `Optional` **startScreenShare**: (opts?: object) => Promise<[IWebRTCCall](iwebrtccall.md)\>
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L58)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:79](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L79)*
 
 ___
 
-###  unmuteAudio
+### state
 
-• **unmuteAudio**: *function*
+•  **state**: string
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L63)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L41)*
 
 ___
 
-###  unmuteVideo
+### stopScreenShare
 
-• **unmuteVideo**: *function*
+• `Optional` **stopScreenShare**: () => void
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:67](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L67)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:80](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L80)*
 
-#### Type declaration:
+___
 
-▸ (): *void*
+### switchCamera
+
+• `Optional` **switchCamera**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L83)*
+
+___
+
+### toggleAudioMute
+
+•  **toggleAudioMute**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:64](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L64)*
+
+___
+
+### toggleDeaf
+
+•  **toggleDeaf**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L72)*
+
+___
+
+### toggleHold
+
+•  **toggleHold**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L59)*
+
+___
+
+### toggleVideoMute
+
+•  **toggleVideoMute**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:68](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L68)*
+
+___
+
+### transfer
+
+•  **transfer**: (destination: string) => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L55)*
+
+___
+
+### undeaf
+
+•  **undeaf**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L71)*
+
+___
+
+### unhold
+
+•  **unhold**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L58)*
+
+___
+
+### unmuteAudio
+
+•  **unmuteAudio**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L63)*
+
+___
+
+### unmuteVideo
+
+•  **unmuteVideo**: () => void
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:67](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L67)*

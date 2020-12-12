@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IBladeConnectRequest](ibladeconnectrequest.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IBladeConnectRequest
 
 # Interface: IBladeConnectRequest
 
 ## Hierarchy
 
-* IMessageBase
+* [IMessageBase](imessagebase.md)
 
   ↳ **IBladeConnectRequest**
 
@@ -19,38 +21,45 @@
 
 ## Properties
 
-###  id
+### id
 
-• **id**: *string*
+•  **id**: string
 
-*Inherited from void*
+*Inherited from [IMessageBase](imessagebase.md).[id](imessagebase.md#id)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
-
-___
-
-###  jsonrpc
-
-• **jsonrpc**: *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
 
 ___
 
-###  method
+### jsonrpc
 
-• **method**: *string*
+•  **jsonrpc**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L19)*
+*Inherited from [IMessageBase](imessagebase.md).[jsonrpc](imessagebase.md#jsonrpc)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
 
 ___
 
-###  params
+### method
 
-• **params**: *object*
+•  **method**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L20)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L19)*
+
+___
+
+### params
+
+•  **params**: { agent?: string ; authentication: { jwt_token?: string ; project: string ; token?: string  } ; sessionid?: string ; version: [TBladeVersion](../README.md#tbladeversion)  }
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L20)*
 
 #### Type declaration:
+
+Name | Type |
+------ | ------ |
+`agent?` | string |
+`authentication` | { jwt_token?: string ; project: string ; token?: string  } |
+`sessionid?` | string |
+`version` | [TBladeVersion](../README.md#tbladeversion) |

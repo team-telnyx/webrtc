@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingTapFlat](icallingtapflat.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingTapFlat
 
 # Interface: ICallingTapFlat
 
@@ -10,75 +12,75 @@
 
 ### Properties
 
-* [audio_direction](icallingtapflat.md#optional-audio_direction)
-* [codec](icallingtapflat.md#optional-codec)
-* [rate](icallingtapflat.md#optional-rate)
-* [target_addr](icallingtapflat.md#optional-target_addr)
-* [target_port](icallingtapflat.md#optional-target_port)
-* [target_ptime](icallingtapflat.md#optional-target_ptime)
-* [target_type](icallingtapflat.md#target_type)
-* [target_uri](icallingtapflat.md#optional-target_uri)
+* [audio\_direction](icallingtapflat.md#audio_direction)
+* [codec](icallingtapflat.md#codec)
+* [rate](icallingtapflat.md#rate)
+* [target\_addr](icallingtapflat.md#target_addr)
+* [target\_port](icallingtapflat.md#target_port)
+* [target\_ptime](icallingtapflat.md#target_ptime)
+* [target\_type](icallingtapflat.md#target_type)
+* [target\_uri](icallingtapflat.md#target_uri)
 
 ## Properties
 
-### `Optional` audio_direction
+### audio\_direction
 
-• **audio_direction**? : *string*
+• `Optional` **audio\_direction**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:371](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L371)*
-
-___
-
-### `Optional` codec
-
-• **codec**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:378](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L378)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:371](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L371)*
 
 ___
 
-### `Optional` rate
+### codec
 
-• **rate**? : *number*
+• `Optional` **codec**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:377](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L377)*
-
-___
-
-### `Optional` target_addr
-
-• **target_addr**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:378](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L378)*
 
 ___
 
-### `Optional` target_port
+### rate
 
-• **target_port**? : *number*
+• `Optional` **rate**: number
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:374](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L374)*
-
-___
-
-### `Optional` target_ptime
-
-• **target_ptime**? : *number*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:375](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L375)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:377](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L377)*
 
 ___
 
-###  target_type
+### target\_addr
 
-• **target_type**: *string*
+• `Optional` **target\_addr**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:372](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L372)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:373](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L373)*
 
 ___
 
-### `Optional` target_uri
+### target\_port
 
-• **target_uri**? : *string*
+• `Optional` **target\_port**: number
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:376](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L376)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:374](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L374)*
+
+___
+
+### target\_ptime
+
+• `Optional` **target\_ptime**: number
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:375](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L375)*
+
+___
+
+### target\_type
+
+•  **target\_type**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:372](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L372)*
+
+___
+
+### target\_uri
+
+• `Optional` **target\_uri**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:376](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L376)*

@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IMakeCallParams](imakecallparams.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IMakeCallParams
 
 # Interface: IMakeCallParams
 
@@ -10,39 +12,39 @@
 
 ### Properties
 
-* [from](imakecallparams.md#optional-from)
-* [timeout](imakecallparams.md#optional-timeout)
+* [from](imakecallparams.md#from)
+* [timeout](imakecallparams.md#timeout)
 * [to](imakecallparams.md#to)
 * [type](imakecallparams.md#type)
 
 ## Properties
 
-### `Optional` from
+### from
 
-• **from**? : *string*
+• `Optional` **from**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:201](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L201)*
-
-___
-
-### `Optional` timeout
-
-• **timeout**? : *number*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:203](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L203)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:201](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L201)*
 
 ___
 
-###  to
+### timeout
 
-• **to**: *string*
+• `Optional` **timeout**: number
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:202](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L202)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:203](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L203)*
 
 ___
 
-###  type
+### to
 
-• **type**: *string*
+•  **to**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:200](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L200)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:202](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L202)*
+
+___
+
+### type
+
+•  **type**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:200](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L200)*

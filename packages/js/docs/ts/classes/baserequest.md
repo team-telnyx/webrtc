@@ -1,12 +1,36 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [BaseRequest](baserequest.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / BaseRequest
 
 # Class: BaseRequest
 
 ## Hierarchy
 
-* BaseMessage
+* [BaseMessage](basemessage.md)
 
   ↳ **BaseRequest**
+
+  ↳↳ [Login](login.md)
+
+  ↳↳ [Result](result.md)
+
+  ↳↳ [Invite](invite.md)
+
+  ↳↳ [Answer](answer.md)
+
+  ↳↳ [Attach](attach.md)
+
+  ↳↳ [Bye](bye.md)
+
+  ↳↳ [Modify](modify.md)
+
+  ↳↳ [Info](info.md)
+
+  ↳↳ [Broadcast](broadcast.md)
+
+  ↳↳ [Subscribe](subscribe.md)
+
+  ↳↳ [Unsubscribe](unsubscribe.md)
 
 ## Index
 
@@ -26,64 +50,64 @@
 
 ## Constructors
 
-###  constructor
+### constructor
 
-\+ **new BaseRequest**(`params`: any): *[BaseRequest](baserequest.md)*
+\+ **new BaseRequest**(`params?`: any): [BaseRequest](baserequest.md)
 
-*Defined in [src/Modules/Verto/messages/verto/BaseRequest.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/verto/BaseRequest.ts#L12)*
+*Defined in [packages/js/src/Modules/Verto/messages/verto/BaseRequest.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/verto/BaseRequest.ts#L12)*
 
-**Parameters:**
+#### Parameters:
 
-Name | Type | Default |
+Name | Type | Default value |
 ------ | ------ | ------ |
-`params` | any |  {} |
+`params` | any | {} |
 
-**Returns:** *[BaseRequest](baserequest.md)*
+**Returns:** [BaseRequest](baserequest.md)
 
 ## Properties
 
-###  request
+### request
 
-• **request**: *any*
+•  **request**: any
 
-*Inherited from void*
+*Inherited from [BaseMessage](basemessage.md).[request](basemessage.md#request)*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L5)*
-
-___
-
-###  response
-
-• **response**: *any*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L6)*
+*Defined in [packages/js/src/Modules/Verto/messages/BaseMessage.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L5)*
 
 ___
 
-###  targetNodeId
+### response
 
-• **targetNodeId**: *string*
+•  **response**: any
 
-*Inherited from void*
+*Inherited from [BaseMessage](basemessage.md).[response](basemessage.md#response)*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L7)*
+*Defined in [packages/js/src/Modules/Verto/messages/BaseMessage.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L6)*
+
+___
+
+### targetNodeId
+
+•  **targetNodeId**: string
+
+*Inherited from [BaseMessage](basemessage.md).[targetNodeId](basemessage.md#targetnodeid)*
+
+*Defined in [packages/js/src/Modules/Verto/messages/BaseMessage.ts:7](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L7)*
 
 ## Methods
 
-###  buildRequest
+### buildRequest
 
-▸ **buildRequest**(`params`: any): *void*
+▸ **buildRequest**(`params`: any): void
 
-*Inherited from void*
+*Inherited from [BaseMessage](basemessage.md).[buildRequest](basemessage.md#buildrequest)*
 
-*Defined in [src/Modules/Verto/messages/BaseMessage.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L9)*
+*Defined in [packages/js/src/Modules/Verto/messages/BaseMessage.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/BaseMessage.ts#L9)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `params` | any |
 
-**Returns:** *void*
+**Returns:** void

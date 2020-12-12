@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallNotification](callnotification.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallNotification
 
 # Enumeration: CallNotification
 
@@ -19,80 +21,80 @@
 
 ## Enumeration members
 
-###  Collect
+### Collect
 
-• **Collect**: = "calling.call.collect"
+•  **Collect**:  = "calling.call.collect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L49)*
-
-___
-
-###  Connect
-
-• **Connect**: = "calling.call.connect"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L46)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L49)*
 
 ___
 
-###  Detect
+### Connect
 
-• **Detect**: = "calling.call.detect"
+•  **Connect**:  = "calling.call.connect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L51)*
-
-___
-
-###  Fax
-
-• **Fax**: = "calling.call.fax"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L50)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L46)*
 
 ___
 
-###  Play
+### Detect
 
-• **Play**: = "calling.call.play"
+•  **Detect**:  = "calling.call.detect"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L48)*
-
-___
-
-###  Receive
-
-• **Receive**: = "calling.call.receive"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L45)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:51](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L51)*
 
 ___
 
-###  Record
+### Fax
 
-• **Record**: = "calling.call.record"
+•  **Fax**:  = "calling.call.fax"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L47)*
-
-___
-
-###  SendDigits
-
-• **SendDigits**: = "calling.call.send_digits"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L53)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:50](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L50)*
 
 ___
 
-###  State
+### Play
 
-• **State**: = "calling.call.state"
+•  **Play**:  = "calling.call.play"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L44)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:48](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L48)*
 
 ___
 
-###  Tap
+### Receive
 
-• **Tap**: = "calling.call.tap"
+•  **Receive**:  = "calling.call.receive"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L52)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L45)*
+
+___
+
+### Record
+
+•  **Record**:  = "calling.call.record"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L47)*
+
+___
+
+### SendDigits
+
+•  **SendDigits**:  = "calling.call.send\_digits"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L53)*
+
+___
+
+### State
+
+•  **State**:  = "calling.call.state"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:44](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L44)*
+
+___
+
+### Tap
+
+•  **Tap**:  = "calling.call.tap"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L52)*

@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ISubscription](isubscription.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ISubscription
 
 # Interface: ISubscription
 
@@ -16,24 +18,24 @@
 
 ## Properties
 
-###  channel
+### channel
 
-• **channel**: *string*
+•  **channel**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L9)*
-
-___
-
-###  protocol
-
-• **protocol**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L10)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:9](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L9)*
 
 ___
 
-###  subscribers
+### protocol
 
-• **subscribers**: *string[]*
+•  **protocol**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:11](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L11)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L10)*
+
+___
+
+### subscribers
+
+•  **subscribers**: string[]
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:11](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L11)*

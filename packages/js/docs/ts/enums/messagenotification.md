@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [MessageNotification](messagenotification.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / MessageNotification
 
 # Enumeration: MessageNotification
 
@@ -11,16 +13,16 @@
 
 ## Enumeration members
 
-###  Receive
+### Receive
 
-• **Receive**: = "messaging.receive"
+•  **Receive**:  = "messaging.receive"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:134](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L134)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:134](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L134)*
 
 ___
 
-###  State
+### State
 
-• **State**: = "messaging.state"
+•  **State**:  = "messaging.state"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:133](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L133)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:133](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L133)*

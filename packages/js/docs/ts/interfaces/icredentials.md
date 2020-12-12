@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICredentials](icredentials.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICredentials
 
 # Interface: ICredentials
 
@@ -10,30 +12,30 @@
 
 ### Properties
 
-* [password](icredentials.md#optional-password)
-* [token](icredentials.md#optional-token)
-* [username](icredentials.md#optional-username)
+* [password](icredentials.md#password)
+* [token](icredentials.md#token)
+* [username](icredentials.md#username)
 
 ## Properties
 
-### `Optional` password
+### password
 
-• **password**? : *string*
+• `Optional` **password**: string
 
-*Defined in [src/utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L5)*
-
-___
-
-### `Optional` token
-
-• **token**? : *string*
-
-*Defined in [src/utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L6)*
+*Defined in [packages/js/src/utils/interfaces.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L5)*
 
 ___
 
-### `Optional` username
+### token
 
-• **username**? : *string*
+• `Optional` **token**: string
 
-*Defined in [src/utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L4)*
+*Defined in [packages/js/src/utils/interfaces.ts:6](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L6)*
+
+___
+
+### username
+
+• `Optional` **username**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L4)*

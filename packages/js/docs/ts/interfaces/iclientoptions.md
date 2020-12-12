@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IClientOptions](iclientoptions.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IClientOptions
 
 # Interface: IClientOptions
 
@@ -11,110 +13,110 @@
 ### Properties
 
 * [credentials](iclientoptions.md#credentials)
-* [displayName](iclientoptions.md#optional-displayname)
-* [env](iclientoptions.md#optional-env)
-* [host](iclientoptions.md#optional-host)
-* [localElement](iclientoptions.md#optional-localelement)
-* [port](iclientoptions.md#optional-port)
-* [project](iclientoptions.md#optional-project)
-* [remoteElement](iclientoptions.md#optional-remoteelement)
-* [ringFile](iclientoptions.md#optional-ringfile)
-* [useCamera](iclientoptions.md#optional-usecamera)
-* [useMic](iclientoptions.md#optional-usemic)
-* [useSpeaker](iclientoptions.md#optional-usespeaker)
+* [displayName](iclientoptions.md#displayname)
+* [env](iclientoptions.md#env)
+* [host](iclientoptions.md#host)
+* [localElement](iclientoptions.md#localelement)
+* [port](iclientoptions.md#port)
+* [project](iclientoptions.md#project)
+* [remoteElement](iclientoptions.md#remoteelement)
+* [ringFile](iclientoptions.md#ringfile)
+* [useCamera](iclientoptions.md#usecamera)
+* [useMic](iclientoptions.md#usemic)
+* [useSpeaker](iclientoptions.md#usespeaker)
 
 ## Properties
 
-###  credentials
+### credentials
 
-• **credentials**: *[ICredentials](icredentials.md)*
+•  **credentials**: [ICredentials](icredentials.md)
 
-*Defined in [src/utils/interfaces.ts:14](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L14)*
-
-___
-
-### `Optional` displayName
-
-• **displayName**? : *string*
-
-*Defined in [src/utils/interfaces.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L20)*
+*Defined in [packages/js/src/utils/interfaces.ts:14](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L14)*
 
 ___
 
-### `Optional` env
+### displayName
 
-• **env**? : *[Env](../README.md#env)*
+• `Optional` **displayName**: string
 
-*Defined in [src/utils/interfaces.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L12)*
-
-___
-
-### `Optional` host
-
-• **host**? : *string*
-
-*Defined in [src/utils/interfaces.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L10)*
+*Defined in [packages/js/src/utils/interfaces.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L20)*
 
 ___
 
-### `Optional` localElement
+### env
 
-• **localElement**? : *[RTCElement](../README.md#rtcelement)*
+• `Optional` **env**: [Env](../README.md#env)
 
-*Defined in [src/utils/interfaces.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L15)*
-
-___
-
-### `Optional` port
-
-• **port**? : *number*
-
-*Defined in [src/utils/interfaces.ts:11](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L11)*
+*Defined in [packages/js/src/utils/interfaces.ts:12](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L12)*
 
 ___
 
-### `Optional` project
+### host
 
-• **project**? : *string*
+• `Optional` **host**: string
 
-*Defined in [src/utils/interfaces.ts:13](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L13)*
-
-___
-
-### `Optional` remoteElement
-
-• **remoteElement**? : *[RTCElement](../README.md#rtcelement)*
-
-*Defined in [src/utils/interfaces.ts:16](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L16)*
+*Defined in [packages/js/src/utils/interfaces.ts:10](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L10)*
 
 ___
 
-### `Optional` ringFile
+### localElement
 
-• **ringFile**? : *string*
+• `Optional` **localElement**: [RTCElement](../README.md#rtcelement)
 
-*Defined in [src/utils/interfaces.ts:21](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L21)*
-
-___
-
-### `Optional` useCamera
-
-• **useCamera**? : *string | boolean*
-
-*Defined in [src/utils/interfaces.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L19)*
+*Defined in [packages/js/src/utils/interfaces.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L15)*
 
 ___
 
-### `Optional` useMic
+### port
 
-• **useMic**? : *string | boolean*
+• `Optional` **port**: number
 
-*Defined in [src/utils/interfaces.ts:17](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L17)*
+*Defined in [packages/js/src/utils/interfaces.ts:11](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L11)*
 
 ___
 
-### `Optional` useSpeaker
+### project
 
-• **useSpeaker**? : *string | boolean*
+• `Optional` **project**: string
 
-*Defined in [src/utils/interfaces.ts:18](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L18)*
+*Defined in [packages/js/src/utils/interfaces.ts:13](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L13)*
+
+___
+
+### remoteElement
+
+• `Optional` **remoteElement**: [RTCElement](../README.md#rtcelement)
+
+*Defined in [packages/js/src/utils/interfaces.ts:16](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L16)*
+
+___
+
+### ringFile
+
+• `Optional` **ringFile**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:21](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L21)*
+
+___
+
+### useCamera
+
+• `Optional` **useCamera**: string \| boolean
+
+*Defined in [packages/js/src/utils/interfaces.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L19)*
+
+___
+
+### useMic
+
+• `Optional` **useMic**: string \| boolean
+
+*Defined in [packages/js/src/utils/interfaces.ts:17](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L17)*
+
+___
+
+### useSpeaker
+
+• `Optional` **useSpeaker**: string \| boolean
+
+*Defined in [packages/js/src/utils/interfaces.ts:18](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L18)*

@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallPlayState](callplaystate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallPlayState
 
 # Enumeration: CallPlayState
 
@@ -12,24 +14,24 @@
 
 ## Enumeration members
 
-###  Error
+### Error
 
-• **Error**: = "error"
+•  **Error**:  = "error"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:78](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L78)*
-
-___
-
-###  Finished
-
-• **Finished**: = "finished"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:79](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L79)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:78](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L78)*
 
 ___
 
-###  Playing
+### Finished
 
-• **Playing**: = "playing"
+•  **Finished**:  = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L77)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:79](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L79)*
+
+___
+
+### Playing
+
+•  **Playing**:  = "playing"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L77)*

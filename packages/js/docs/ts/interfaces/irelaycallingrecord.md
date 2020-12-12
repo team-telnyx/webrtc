@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IRelayCallingRecord](irelaycallingrecord.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IRelayCallingRecord
 
 # Interface: IRelayCallingRecord
 
@@ -14,8 +16,8 @@
 
 ## Properties
 
-###  audio
+### audio
 
-• **audio**: *IRelayCallingRecordAudio*
+•  **audio**: [IRelayCallingRecordAudio](irelaycallingrecordaudio.md)
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:226](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L226)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:226](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L226)*

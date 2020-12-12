@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [MessageEvents](messageevents.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / MessageEvents
 
 # Interface: MessageEvents
 
@@ -21,114 +23,64 @@
 
 ## Properties
 
-###  callUpdate
+### callUpdate
 
-• **callUpdate**: *function*
+•  **callUpdate**: (call: [ICall](icall.md)) => void
 
-*Defined in [src/utils/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L73)*
-
-#### Type declaration:
-
-▸ (`call`: [ICall](icall.md)): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`call` | [ICall](icall.md) |
+*Defined in [packages/js/src/utils/interfaces.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L73)*
 
 ___
 
-###  error
+### error
 
-• **error**: *function*
+•  **error**: () => void
 
-*Defined in [src/utils/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L72)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/utils/interfaces.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L72)*
 
 ___
 
-###  ready
+### ready
 
-• **ready**: *function*
+•  **ready**: () => void
 
-*Defined in [src/utils/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L69)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/utils/interfaces.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L69)*
 
 ___
 
-###  registered
+### registered
 
-• **registered**: *function*
+•  **registered**: () => void
 
-*Defined in [src/utils/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L70)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/utils/interfaces.ts:70](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L70)*
 
 ___
 
-###  socket.close
+### socket.close
 
-• **socket.close**: *function*
+•  **socket.close**: (error?: Error) => void
 
-*Defined in [src/utils/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L76)*
-
-#### Type declaration:
-
-▸ (`error?`: Error): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`error?` | Error |
+*Defined in [packages/js/src/utils/interfaces.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L76)*
 
 ___
 
-###  socket.connect
+### socket.connect
 
-• **socket.connect**: *function*
+•  **socket.connect**: () => void
 
-*Defined in [src/utils/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L75)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/utils/interfaces.ts:75](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L75)*
 
 ___
 
-###  socket.error
+### socket.error
 
-• **socket.error**: *function*
+•  **socket.error**: (error: Error) => void
 
-*Defined in [src/utils/interfaces.ts:74](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L74)*
-
-#### Type declaration:
-
-▸ (`error`: Error): *void*
-
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`error` | Error |
+*Defined in [packages/js/src/utils/interfaces.ts:74](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L74)*
 
 ___
 
-###  unregistered
+### unregistered
 
-• **unregistered**: *function*
+•  **unregistered**: () => void
 
-*Defined in [src/utils/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L71)*
-
-#### Type declaration:
-
-▸ (): *void*
+*Defined in [packages/js/src/utils/interfaces.ts:71](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L71)*

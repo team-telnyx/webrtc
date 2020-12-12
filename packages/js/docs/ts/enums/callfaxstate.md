@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallFaxState](callfaxstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallFaxState
 
 # Enumeration: CallFaxState
 
@@ -12,24 +14,24 @@
 
 ## Enumeration members
 
-###  Error
+### Error
 
-• **Error**: = "error"
+•  **Error**:  = "error"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:96](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L96)*
-
-___
-
-###  Finished
-
-• **Finished**: = "finished"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:97](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L97)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:96](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L96)*
 
 ___
 
-###  Page
+### Finished
 
-• **Page**: = "page"
+•  **Finished**:  = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L95)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:97](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L97)*
+
+___
+
+### Page
+
+•  **Page**:  = "page"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L95)*

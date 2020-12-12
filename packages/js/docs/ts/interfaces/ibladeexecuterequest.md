@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IBladeExecuteRequest](ibladeexecuterequest.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IBladeExecuteRequest
 
 # Interface: IBladeExecuteRequest
 
 ## Hierarchy
 
-* IMessageBase
+* [IMessageBase](imessagebase.md)
 
   ↳ **IBladeExecuteRequest**
 
@@ -19,38 +21,44 @@
 
 ## Properties
 
-###  id
+### id
 
-• **id**: *string*
+•  **id**: string
 
-*Inherited from void*
+*Inherited from [IMessageBase](imessagebase.md).[id](imessagebase.md#id)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
-
-___
-
-###  jsonrpc
-
-• **jsonrpc**: *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
 
 ___
 
-###  method
+### jsonrpc
 
-• **method**: *string*
+•  **jsonrpc**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L40)*
+*Inherited from [IMessageBase](imessagebase.md).[jsonrpc](imessagebase.md#jsonrpc)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
 
 ___
 
-###  params
+### method
 
-• **params**: *object*
+•  **method**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L41)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L40)*
+
+___
+
+### params
+
+•  **params**: { method: string ; params: any ; protocol: string  }
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L41)*
 
 #### Type declaration:
+
+Name | Type |
+------ | ------ |
+`method` | string |
+`params` | any |
+`protocol` | string |

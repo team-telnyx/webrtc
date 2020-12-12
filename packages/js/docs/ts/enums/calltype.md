@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallType](calltype.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallType
 
 # Enumeration: CallType
 
@@ -12,24 +14,24 @@
 
 ## Enumeration members
 
-###  Phone
+### Phone
 
-• **Phone**: = "phone"
+•  **Phone**:  = "phone"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L31)*
-
-___
-
-###  Sip
-
-• **Sip**: = "sip"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L32)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L31)*
 
 ___
 
-###  WebRTC
+### Sip
 
-• **WebRTC**: = "webrtc"
+•  **Sip**:  = "sip"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L33)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L32)*
+
+___
+
+### WebRTC
+
+•  **WebRTC**:  = "webrtc"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L33)*

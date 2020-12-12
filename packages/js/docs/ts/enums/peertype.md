@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [PeerType](peertype.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / PeerType
 
 # Enumeration: PeerType
 
@@ -11,16 +13,16 @@
 
 ## Enumeration members
 
-###  Answer
+### Answer
 
-• **Answer**: = "answer"
+•  **Answer**:  = "answer"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L5)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:5](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L5)*
 
 ___
 
-###  Offer
+### Offer
 
-• **Offer**: = "offer"
+•  **Offer**:  = "offer"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L4)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:4](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L4)*

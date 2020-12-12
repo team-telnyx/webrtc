@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingPlayTTS](icallingplaytts.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingPlayTTS
 
 # Interface: ICallingPlayTTS
 
@@ -10,39 +12,39 @@
 
 ### Properties
 
-* [gender](icallingplaytts.md#optional-gender)
-* [language](icallingplaytts.md#optional-language)
+* [gender](icallingplaytts.md#gender)
+* [language](icallingplaytts.md#language)
 * [text](icallingplaytts.md#text)
-* [volume](icallingplaytts.md#optional-volume)
+* [volume](icallingplaytts.md#volume)
 
 ## Properties
 
-### `Optional` gender
+### gender
 
-• **gender**? : *string*
+• `Optional` **gender**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:271](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L271)*
-
-___
-
-### `Optional` language
-
-• **language**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:270](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L270)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:271](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L271)*
 
 ___
 
-###  text
+### language
 
-• **text**: *string*
+• `Optional` **language**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:269](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L269)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:270](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L270)*
 
 ___
 
-### `Optional` volume
+### text
 
-• **volume**? : *number*
+•  **text**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:272](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L272)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:269](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L269)*
+
+___
+
+### volume
+
+• `Optional` **volume**: number
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:272](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L272)*

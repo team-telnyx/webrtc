@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IMessageOptions](imessageoptions.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IMessageOptions
 
 # Interface: IMessageOptions
 
@@ -13,99 +15,99 @@
 * [body](imessageoptions.md#body)
 * [context](imessageoptions.md#context)
 * [direction](imessageoptions.md#direction)
-* [from_number](imessageoptions.md#from_number)
+* [from\_number](imessageoptions.md#from_number)
 * [media](imessageoptions.md#media)
-* [message_id](imessageoptions.md#message_id)
-* [message_state](imessageoptions.md#message_state)
-* [reason](imessageoptions.md#optional-reason)
+* [message\_id](imessageoptions.md#message_id)
+* [message\_state](imessageoptions.md#message_state)
+* [reason](imessageoptions.md#reason)
 * [segments](imessageoptions.md#segments)
 * [tags](imessageoptions.md#tags)
-* [to_number](imessageoptions.md#to_number)
+* [to\_number](imessageoptions.md#to_number)
 
 ## Properties
 
-###  body
+### body
 
-• **body**: *string*
+•  **body**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:418](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L418)*
-
-___
-
-###  context
-
-• **context**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:413](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L413)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:418](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L418)*
 
 ___
 
-###  direction
+### context
 
-• **direction**: *string*
+•  **context**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:416](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L416)*
-
-___
-
-###  from_number
-
-• **from_number**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:414](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L414)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:413](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L413)*
 
 ___
 
-###  media
+### direction
 
-• **media**: *string[]*
+•  **direction**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:419](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L419)*
-
-___
-
-###  message_id
-
-• **message_id**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:411](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L411)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:416](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L416)*
 
 ___
 
-###  message_state
+### from\_number
 
-• **message_state**: *string*
+•  **from\_number**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:412](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L412)*
-
-___
-
-### `Optional` reason
-
-• **reason**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:421](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L421)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:414](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L414)*
 
 ___
 
-###  segments
+### media
 
-• **segments**: *number*
+•  **media**: string[]
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:420](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L420)*
-
-___
-
-###  tags
-
-• **tags**: *string[]*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:417](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L417)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:419](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L419)*
 
 ___
 
-###  to_number
+### message\_id
 
-• **to_number**: *string*
+•  **message\_id**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:415](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L415)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:411](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L411)*
+
+___
+
+### message\_state
+
+•  **message\_state**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:412](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L412)*
+
+___
+
+### reason
+
+• `Optional` **reason**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:421](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L421)*
+
+___
+
+### segments
+
+•  **segments**: number
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:420](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L420)*
+
+___
+
+### tags
+
+•  **tags**: string[]
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:417](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L417)*
+
+___
+
+### to\_number
+
+•  **to\_number**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:415](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L415)*

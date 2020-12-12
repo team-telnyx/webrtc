@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallDevice](icalldevice.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallDevice
 
 # Interface: ICallDevice
 
@@ -15,18 +17,24 @@
 
 ## Properties
 
-###  params
+### params
 
-• **params**: *object*
+•  **params**: { from_number: string ; timeout: number ; to_number: string  }
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:177](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L177)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:177](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L177)*
 
 #### Type declaration:
 
+Name | Type |
+------ | ------ |
+`from_number` | string |
+`timeout` | number |
+`to_number` | string |
+
 ___
 
-###  type
+### type
 
-• **type**: *string*
+•  **type**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:176](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L176)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:176](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L176)*

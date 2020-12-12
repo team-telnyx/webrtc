@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IBladeResultError](ibladeresulterror.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IBladeResultError
 
 # Interface: IBladeResultError
 
 ## Hierarchy
 
-* IMessageBase
+* [IMessageBase](imessagebase.md)
 
   ↳ **IBladeResultError**
 
@@ -18,30 +20,35 @@
 
 ## Properties
 
-###  error
+### error
 
-• **error**: *object*
+•  **error**: { code: number ; message: string  }
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L15)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L15)*
 
 #### Type declaration:
 
-___
-
-###  id
-
-• **id**: *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
+Name | Type |
+------ | ------ |
+`code` | number |
+`message` | string |
 
 ___
 
-###  jsonrpc
+### id
 
-• **jsonrpc**: *string*
+•  **id**: string
 
-*Inherited from void*
+*Inherited from [IMessageBase](imessagebase.md).[id](imessagebase.md#id)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
+
+___
+
+### jsonrpc
+
+•  **jsonrpc**: string
+
+*Inherited from [IMessageBase](imessagebase.md).[jsonrpc](imessagebase.md#jsonrpc)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*

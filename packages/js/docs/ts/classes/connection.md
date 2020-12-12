@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [Connection](connection.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / Connection
 
 # Class: Connection
 
@@ -36,152 +38,152 @@
 
 ## Constructors
 
-###  constructor
+### constructor
 
-\+ **new Connection**(`session`: [BaseSession](basesession.md)): *[Connection](connection.md)*
+\+ **new Connection**(`session`: [BaseSession](basesession.md)): [Connection](connection.md)
 
-*Defined in [src/Modules/Verto/services/Connection.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L31)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L31)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `session` | [BaseSession](basesession.md) |
 
-**Returns:** *[Connection](connection.md)*
+**Returns:** [Connection](connection.md)
 
 ## Properties
 
-###  downDur
+### downDur
 
-• **downDur**: *number* =  null
+•  **downDur**: number = null
 
-*Defined in [src/Modules/Verto/services/Connection.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L31)*
-
-___
-
-###  session
-
-• **session**: *[BaseSession](basesession.md)*
-
-*Defined in [src/Modules/Verto/services/Connection.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L33)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L31)*
 
 ___
 
-###  upDur
+### session
 
-• **upDur**: *number* =  null
+•  **session**: [BaseSession](basesession.md)
 
-*Defined in [src/Modules/Verto/services/Connection.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L30)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L33)*
+
+___
+
+### upDur
+
+•  **upDur**: number = null
+
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L30)*
 
 ## Accessors
 
-###  closed
+### closed
 
-• **get closed**(): *boolean*
+• get **closed**(): boolean
 
-*Defined in [src/Modules/Verto/services/Connection.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L57)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L57)*
 
-**Returns:** *boolean*
-
-___
-
-###  closing
-
-• **get closing**(): *boolean*
-
-*Defined in [src/Modules/Verto/services/Connection.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L53)*
-
-**Returns:** *boolean*
+**Returns:** boolean
 
 ___
 
-###  connected
+### closing
 
-• **get connected**(): *boolean*
+• get **closing**(): boolean
 
-*Defined in [src/Modules/Verto/services/Connection.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L45)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L53)*
 
-**Returns:** *boolean*
-
-___
-
-###  connecting
-
-• **get connecting**(): *boolean*
-
-*Defined in [src/Modules/Verto/services/Connection.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L49)*
-
-**Returns:** *boolean*
+**Returns:** boolean
 
 ___
 
-###  isAlive
+### connected
 
-• **get isAlive**(): *boolean*
+• get **connected**(): boolean
 
-*Defined in [src/Modules/Verto/services/Connection.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L61)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L45)*
 
-**Returns:** *boolean*
+**Returns:** boolean
 
 ___
 
-###  isDead
+### connecting
 
-• **get isDead**(): *boolean*
+• get **connecting**(): boolean
 
-*Defined in [src/Modules/Verto/services/Connection.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L65)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L49)*
 
-**Returns:** *boolean*
+**Returns:** boolean
+
+___
+
+### isAlive
+
+• get **isAlive**(): boolean
+
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L61)*
+
+**Returns:** boolean
+
+___
+
+### isDead
+
+• get **isDead**(): boolean
+
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L65)*
+
+**Returns:** boolean
 
 ## Methods
 
-###  close
+### close
 
-▸ **close**(): *void*
+▸ **close**(): void
 
-*Defined in [src/Modules/Verto/services/Connection.ts:114](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L114)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:114](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L114)*
 
-**Returns:** *void*
-
-___
-
-###  connect
-
-▸ **connect**(): *void*
-
-*Defined in [src/Modules/Verto/services/Connection.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L69)*
-
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  send
+### connect
 
-▸ **send**(`bladeObj`: any): *Promise‹any›*
+▸ **connect**(): void
 
-*Defined in [src/Modules/Verto/services/Connection.ts:96](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L96)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L69)*
 
-**Parameters:**
+**Returns:** void
+
+___
+
+### send
+
+▸ **send**(`bladeObj`: any): Promise<any\>
+
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:96](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L96)*
+
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `bladeObj` | any |
 
-**Returns:** *Promise‹any›*
+**Returns:** Promise<any\>
 
 ___
 
-###  sendRawText
+### sendRawText
 
-▸ **sendRawText**(`request`: string): *void*
+▸ **sendRawText**(`request`: string): void
 
-*Defined in [src/Modules/Verto/services/Connection.ts:92](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L92)*
+*Defined in [packages/js/src/Modules/Verto/services/Connection.ts:92](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/services/Connection.ts#L92)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `request` | string |
 
-**Returns:** *void*
+**Returns:** void

@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IRelayCallingTapTap](irelaycallingtaptap.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IRelayCallingTapTap
 
 # Interface: IRelayCallingTapTap
 
@@ -15,16 +17,16 @@
 
 ## Properties
 
-###  params
+### params
 
-• **params**: *IRelayCallingTapTapParams*
+•  **params**: [IRelayCallingTapTapParams](irelaycallingtaptapparams.md)
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:345](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L345)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:345](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L345)*
 
 ___
 
-###  type
+### type
 
-• **type**: *"audio"*
+•  **type**: \"audio\"
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:344](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L344)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:344](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L344)*

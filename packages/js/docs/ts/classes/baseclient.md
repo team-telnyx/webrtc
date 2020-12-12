@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [BaseClient](baseclient.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / BaseClient
 
 # Class: BaseClient
 
@@ -20,8 +22,8 @@
 * [host](baseclient.md#host)
 * [module](baseclient.md#module)
 * [port](baseclient.md#port)
-* [project](baseclient.md#optional-project)
-* [ringFile](baseclient.md#optional-ringfile)
+* [project](baseclient.md#project)
+* [ringFile](baseclient.md#ringfile)
 * [useCamera](baseclient.md#usecamera)
 * [useMic](baseclient.md#usemic)
 * [useSpeaker](baseclient.md#usespeaker)
@@ -33,212 +35,214 @@
 
 ### Methods
 
-* [connect](baseclient.md#abstract-connect)
-* [disconnect](baseclient.md#abstract-disconnect)
-* [newCall](baseclient.md#abstract-newcall)
+* [connect](baseclient.md#connect)
+* [disconnect](baseclient.md#disconnect)
+* [newCall](baseclient.md#newcall)
 * [on](baseclient.md#on)
 
 ## Constructors
 
-###  constructor
+### constructor
 
-\+ **new BaseClient**(`o?`: [IClientOptions](../interfaces/iclientoptions.md)): *[BaseClient](baseclient.md)*
+\+ **new BaseClient**(`o?`: [IClientOptions](../interfaces/iclientoptions.md)): [BaseClient](baseclient.md)
 
-*Defined in [src/BaseClient.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L49)*
+*Defined in [packages/js/src/BaseClient.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L49)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `o?` | [IClientOptions](../interfaces/iclientoptions.md) |
 
-**Returns:** *[BaseClient](baseclient.md)*
+**Returns:** [BaseClient](baseclient.md)
 
 ## Properties
 
-###  credentials
+### credentials
 
-• **credentials**: *[ICredentials](../interfaces/icredentials.md)*
+•  **credentials**: [ICredentials](../interfaces/icredentials.md)
 
-*Defined in [src/BaseClient.ts:36](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L36)*
-
-___
-
-###  displayName
-
-• **displayName**: *string*
-
-*Defined in [src/BaseClient.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L40)*
+*Defined in [packages/js/src/BaseClient.ts:36](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L36)*
 
 ___
 
-###  env
+### displayName
 
-• **env**: *[Env](../README.md#env)*
+•  **displayName**: string
 
-*Defined in [src/BaseClient.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L33)*
-
-___
-
-###  host
-
-• **host**: *string*
-
-*Defined in [src/BaseClient.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L31)*
+*Defined in [packages/js/src/BaseClient.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L40)*
 
 ___
 
-###  module
+### env
 
-• **module**: *[Module](../README.md#module)*
+•  **env**: [Env](../README.md#env)
 
-*Defined in [src/BaseClient.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L34)*
-
-___
-
-###  port
-
-• **port**: *number*
-
-*Defined in [src/BaseClient.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L32)*
+*Defined in [packages/js/src/BaseClient.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L33)*
 
 ___
 
-### `Optional` project
+### host
 
-• **project**? : *string*
+•  **host**: string
 
-*Defined in [src/BaseClient.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L35)*
-
-___
-
-### `Optional` ringFile
-
-• **ringFile**? : *string*
-
-*Defined in [src/BaseClient.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L41)*
+*Defined in [packages/js/src/BaseClient.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L31)*
 
 ___
 
-###  useCamera
+### module
 
-• **useCamera**: *string | boolean*
+•  **module**: [Module](../README.md#module)
 
-*Defined in [src/BaseClient.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L39)*
-
-___
-
-###  useMic
-
-• **useMic**: *string | boolean*
-
-*Defined in [src/BaseClient.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L37)*
+*Defined in [packages/js/src/BaseClient.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L34)*
 
 ___
 
-###  useSpeaker
+### port
 
-• **useSpeaker**: *string | boolean*
+•  **port**: number
 
-*Defined in [src/BaseClient.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L38)*
+*Defined in [packages/js/src/BaseClient.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L32)*
+
+___
+
+### project
+
+• `Optional` **project**: string
+
+*Defined in [packages/js/src/BaseClient.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L35)*
+
+___
+
+### ringFile
+
+• `Optional` **ringFile**: string
+
+*Defined in [packages/js/src/BaseClient.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L41)*
+
+___
+
+### useCamera
+
+•  **useCamera**: string \| boolean
+
+*Defined in [packages/js/src/BaseClient.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L39)*
+
+___
+
+### useMic
+
+•  **useMic**: string \| boolean
+
+*Defined in [packages/js/src/BaseClient.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L37)*
+
+___
+
+### useSpeaker
+
+•  **useSpeaker**: string \| boolean
+
+*Defined in [packages/js/src/BaseClient.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L38)*
 
 ## Accessors
 
-###  localElement
+### localElement
 
-• **get localElement**(): *string | Function | HTMLMediaElement*
+• get **localElement**(): [RTCElement](../README.md#rtcelement)
 
-*Defined in [src/BaseClient.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L65)*
+*Defined in [packages/js/src/BaseClient.ts:65](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L65)*
 
-**Returns:** *string | Function | HTMLMediaElement*
+**Returns:** [RTCElement](../README.md#rtcelement)
 
-• **set localElement**(`el`: [RTCElement](../README.md#rtcelement)): *void*
+• set **localElement**(`el`: [RTCElement](../README.md#rtcelement)): void
 
-*Defined in [src/BaseClient.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L61)*
+*Defined in [packages/js/src/BaseClient.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L61)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `el` | [RTCElement](../README.md#rtcelement) |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  remoteElement
+### remoteElement
 
-• **get remoteElement**(): *string | Function | HTMLMediaElement*
+• get **remoteElement**(): [RTCElement](../README.md#rtcelement)
 
-*Defined in [src/BaseClient.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L73)*
+*Defined in [packages/js/src/BaseClient.ts:73](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L73)*
 
-**Returns:** *string | Function | HTMLMediaElement*
+**Returns:** [RTCElement](../README.md#rtcelement)
 
-• **set remoteElement**(`el`: [RTCElement](../README.md#rtcelement)): *void*
+• set **remoteElement**(`el`: [RTCElement](../README.md#rtcelement)): void
 
-*Defined in [src/BaseClient.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L69)*
+*Defined in [packages/js/src/BaseClient.ts:69](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L69)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `el` | [RTCElement](../README.md#rtcelement) |
 
-**Returns:** *void*
+**Returns:** void
 
 ## Methods
 
-### `Abstract` connect
+### connect
 
-▸ **connect**(): *void*
+▸ `Abstract`**connect**(): void
 
-*Defined in [src/BaseClient.ts:85](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L85)*
+*Defined in [packages/js/src/BaseClient.ts:85](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L85)*
 
-**Returns:** *void*
-
-___
-
-### `Abstract` disconnect
-
-▸ **disconnect**(): *void*
-
-*Defined in [src/BaseClient.ts:86](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L86)*
-
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-### `Abstract` newCall
+### disconnect
 
-▸ **newCall**(`options`: [ICallOptions](../interfaces/icalloptions.md)): *[ICall](../interfaces/icall.md)*
+▸ `Abstract`**disconnect**(): void
 
-*Defined in [src/BaseClient.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L95)*
+*Defined in [packages/js/src/BaseClient.ts:86](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L86)*
 
-**Parameters:**
+**Returns:** void
+
+___
+
+### newCall
+
+▸ `Abstract`**newCall**(`options`: [ICallOptions](../interfaces/icalloptions.md)): [ICall](../interfaces/icall.md)
+
+*Defined in [packages/js/src/BaseClient.ts:95](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L95)*
+
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `options` | [ICallOptions](../interfaces/icalloptions.md) |
 
-**Returns:** *[ICall](../interfaces/icall.md)*
+**Returns:** [ICall](../interfaces/icall.md)
 
 ___
 
-###  on
+### on
 
-▸ **on**‹**E**›(`message`: E, `cb`: MessageEvents[E]): *[BaseClient](baseclient.md)*
+▸ **on**<E\>(`message`: E, `cb`: MessageEvents[E]): [BaseClient](baseclient.md)
 
-*Defined in [src/BaseClient.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L77)*
+*Defined in [packages/js/src/BaseClient.ts:77](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/BaseClient.ts#L77)*
 
-**Type parameters:**
+#### Type parameters:
 
-▪ **E**: *keyof MessageEvents*
+Name | Type |
+------ | ------ |
+`E` | keyof [MessageEvents](../interfaces/messageevents.md) |
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `message` | E |
 `cb` | MessageEvents[E] |
 
-**Returns:** *[BaseClient](baseclient.md)*
+**Returns:** [BaseClient](baseclient.md)

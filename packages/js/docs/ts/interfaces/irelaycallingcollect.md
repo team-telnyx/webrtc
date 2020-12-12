@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IRelayCallingCollect](irelaycallingcollect.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IRelayCallingCollect
 
 # Interface: IRelayCallingCollect
 
@@ -12,43 +14,56 @@
 
 ### Properties
 
-* [digits](irelaycallingcollect.md#optional-digits)
-* [initial_timeout](irelaycallingcollect.md#optional-initial_timeout)
-* [partial_results](irelaycallingcollect.md#optional-partial_results)
-* [speech](irelaycallingcollect.md#optional-speech)
+* [digits](irelaycallingcollect.md#digits)
+* [initial\_timeout](irelaycallingcollect.md#initial_timeout)
+* [partial\_results](irelaycallingcollect.md#partial_results)
+* [speech](irelaycallingcollect.md#speech)
 
 ## Properties
 
-### `Optional` digits
+### digits
 
-• **digits**? : *object*
+• `Optional` **digits**: { digit_timeout?: number ; max: number ; terminators?: string  }
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:277](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L277)*
+
+#### Type declaration:
+
+Name | Type |
+------ | ------ |
+`digit_timeout?` | number |
+`max` | number |
+`terminators?` | string |
+
+___
+
+### initial\_timeout
+
+• `Optional` **initial\_timeout**: number
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:276](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L276)*
+
+___
+
+### partial\_results
+
+• `Optional` **partial\_results**: boolean
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
+
+___
+
+### speech
+
+• `Optional` **speech**: { end_silence_timeout?: number ; hints?: string[] ; language?: string ; speech_timeout?: number  }
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
 
 #### Type declaration:
 
-___
-
-### `Optional` initial_timeout
-
-• **initial_timeout**? : *number*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:276](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L276)*
-
-___
-
-### `Optional` partial_results
-
-• **partial_results**? : *boolean*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:288](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L288)*
-
-___
-
-### `Optional` speech
-
-• **speech**? : *object*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:282](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L282)*
-
-#### Type declaration:
+Name | Type |
+------ | ------ |
+`end_silence_timeout?` | number |
+`hints?` | string[] |
+`language?` | string |
+`speech_timeout?` | number |

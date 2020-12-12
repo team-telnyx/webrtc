@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingTapTap](icallingtaptap.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingTapTap
 
 # Interface: ICallingTapTap
 
 ## Hierarchy
 
-* IRelayCallingTapTapParams
+* [IRelayCallingTapTapParams](irelaycallingtaptapparams.md)
 
   ↳ **ICallingTapTap**
 
@@ -12,23 +14,23 @@
 
 ### Properties
 
-* [direction](icallingtaptap.md#optional-direction)
+* [direction](icallingtaptap.md#direction)
 * [type](icallingtaptap.md#type)
 
 ## Properties
 
-### `Optional` direction
+### direction
 
-• **direction**? : *string*
+• `Optional` **direction**: string
 
-*Inherited from void*
+*Inherited from [IRelayCallingTapTapParams](irelaycallingtaptapparams.md).[direction](irelaycallingtaptapparams.md#direction)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:340](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L340)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:340](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L340)*
 
 ___
 
-###  type
+### type
 
-• **type**: *IRelayCallingTapTap["type"]*
+•  **type**: IRelayCallingTapTap[\"type\"]
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:349](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L349)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:349](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L349)*

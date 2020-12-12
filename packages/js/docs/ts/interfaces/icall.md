@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICall](icall.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICall
 
 # Interface: ICall
 
@@ -24,10 +26,10 @@
 * [detectDigitAsync](icall.md#detectdigitasync)
 * [detectFax](icall.md#detectfax)
 * [detectFaxAsync](icall.md#detectfaxasync)
-* [detectHuman](icall.md#optional-detecthuman)
-* [detectHumanAsync](icall.md#optional-detecthumanasync)
-* [detectMachine](icall.md#optional-detectmachine)
-* [detectMachineAsync](icall.md#optional-detectmachineasync)
+* [detectHuman](icall.md#detecthuman)
+* [detectHumanAsync](icall.md#detecthumanasync)
+* [detectMachine](icall.md#detectmachine)
+* [detectMachineAsync](icall.md#detectmachineasync)
 * [dial](icall.md#dial)
 * [ended](icall.md#ended)
 * [failed](icall.md#failed)
@@ -37,8 +39,8 @@
 * [faxSendAsync](icall.md#faxsendasync)
 * [from](icall.md#from)
 * [id](icall.md#id)
-* [isHeld](icall.md#optional-isheld)
-* [isMuted](icall.md#optional-ismuted)
+* [isHeld](icall.md#isheld)
+* [isMuted](icall.md#ismuted)
 * [nodeId](icall.md#nodeid)
 * [off](icall.md#off)
 * [on](icall.md#on)
@@ -62,7 +64,7 @@
 * [sendDigits](icall.md#senddigits)
 * [sendDigitsAsync](icall.md#senddigitsasync)
 * [state](icall.md#state)
-* [tag](icall.md#optional-tag)
+* [tag](icall.md#tag)
 * [tap](icall.md#tap)
 * [tapAsync](icall.md#tapasync)
 * [timeout](icall.md#timeout)
@@ -88,615 +90,615 @@
 
 ## Properties
 
-###  active
+### active
 
-• **active**: *boolean*
+•  **active**: boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:120](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L120)*
-
-___
-
-###  answered
-
-• **answered**: *boolean*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:122](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L122)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:120](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L120)*
 
 ___
 
-###  busy
+### answered
 
-• **busy**: *boolean*
+•  **answered**: boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:124](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L124)*
-
-___
-
-###  connect
-
-• **connect**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:132](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L132)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:122](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L122)*
 
 ___
 
-###  connectAsync
+### busy
 
-• **connectAsync**: *Function*
+•  **busy**: boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:133](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L133)*
-
-___
-
-###  context
-
-• **context**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:114](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L114)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:124](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L124)*
 
 ___
 
-###  detect
+### connect
 
-• **detect**: *Function*
+•  **connect**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:157](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L157)*
-
-___
-
-###  detectAnsweringMachine
-
-• **detectAnsweringMachine**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:159](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L159)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:132](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L132)*
 
 ___
 
-###  detectAnsweringMachineAsync
+### connectAsync
 
-• **detectAnsweringMachineAsync**: *Function*
+•  **connectAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:160](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L160)*
-
-___
-
-###  detectAsync
-
-• **detectAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:158](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L158)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:133](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L133)*
 
 ___
 
-###  detectDigit
+### context
 
-• **detectDigit**: *Function*
+•  **context**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:167](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L167)*
-
-___
-
-###  detectDigitAsync
-
-• **detectDigitAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:168](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L168)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:114](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L114)*
 
 ___
 
-###  detectFax
+### detect
 
-• **detectFax**: *Function*
+•  **detect**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:165](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L165)*
-
-___
-
-###  detectFaxAsync
-
-• **detectFaxAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:166](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L166)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:157](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L157)*
 
 ___
 
-### `Optional` detectHuman
+### detectAnsweringMachine
 
-• **detectHuman**? : *Function*
+•  **detectAnsweringMachine**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:161](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L161)*
-
-___
-
-### `Optional` detectHumanAsync
-
-• **detectHumanAsync**? : *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:162](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L162)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:159](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L159)*
 
 ___
 
-### `Optional` detectMachine
+### detectAnsweringMachineAsync
 
-• **detectMachine**? : *Function*
+•  **detectAnsweringMachineAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:163](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L163)*
-
-___
-
-### `Optional` detectMachineAsync
-
-• **detectMachineAsync**? : *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:164](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L164)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:160](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L160)*
 
 ___
 
-###  dial
+### detectAsync
 
-• **dial**: *Function*
+•  **detectAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:127](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L127)*
-
-___
-
-###  ended
-
-• **ended**: *boolean*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:123](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L123)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:158](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L158)*
 
 ___
 
-###  failed
+### detectDigit
 
-• **failed**: *boolean*
+•  **detectDigit**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:121](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L121)*
-
-___
-
-###  faxReceive
-
-• **faxReceive**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:153](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L153)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:167](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L167)*
 
 ___
 
-###  faxReceiveAsync
+### detectDigitAsync
 
-• **faxReceiveAsync**: *Function*
+•  **detectDigitAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:154](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L154)*
-
-___
-
-###  faxSend
-
-• **faxSend**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:155](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L155)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:168](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L168)*
 
 ___
 
-###  faxSendAsync
+### detectFax
 
-• **faxSendAsync**: *Function*
+•  **detectFax**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:156](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L156)*
-
-___
-
-###  from
-
-• **from**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:118](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L118)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:165](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L165)*
 
 ___
 
-###  id
+### detectFaxAsync
 
-• **id**: *string*
+•  **detectFaxAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:109](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L109)*
-
-___
-
-### `Optional` isHeld
-
-• **isHeld**? : *Boolean*
-
-*Defined in [src/utils/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L53)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:166](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L166)*
 
 ___
 
-### `Optional` isMuted
+### detectHuman
 
-• **isMuted**? : *Boolean*
+• `Optional` **detectHuman**: Function
 
-*Defined in [src/utils/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L54)*
-
-___
-
-###  nodeId
-
-• **nodeId**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:111](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L111)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:161](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L161)*
 
 ___
 
-###  off
+### detectHumanAsync
 
-• **off**: *Function*
+• `Optional` **detectHumanAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:126](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L126)*
-
-___
-
-###  on
-
-• **on**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:125](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L125)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:162](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L162)*
 
 ___
 
-###  play
+### detectMachine
 
-• **play**: *Function*
+• `Optional` **detectMachine**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:134](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L134)*
-
-___
-
-###  playAsync
-
-• **playAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:135](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L135)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:163](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L163)*
 
 ___
 
-###  playAudio
+### detectMachineAsync
 
-• **playAudio**: *Function*
+• `Optional` **detectMachineAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:136](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L136)*
-
-___
-
-###  playAudioAsync
-
-• **playAudioAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:137](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L137)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:164](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L164)*
 
 ___
 
-###  playSilence
+### dial
 
-• **playSilence**: *Function*
+•  **dial**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:138](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L138)*
-
-___
-
-###  playSilenceAsync
-
-• **playSilenceAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:139](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L139)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:127](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L127)*
 
 ___
 
-###  playTTS
+### ended
 
-• **playTTS**: *Function*
+•  **ended**: boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:140](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L140)*
-
-___
-
-###  playTTSAsync
-
-• **playTTSAsync**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:141](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L141)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:123](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L123)*
 
 ___
 
-###  prevState
+### failed
 
-• **prevState**: *string*
+•  **failed**: boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:113](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L113)*
-
-___
-
-###  prompt
-
-• **prompt**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:142](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L142)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:121](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L121)*
 
 ___
 
-###  promptAsync
+### faxReceive
 
-• **promptAsync**: *Function*
+•  **faxReceive**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:143](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L143)*
-
-___
-
-###  promptAudio
-
-• **promptAudio**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:144](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L144)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:153](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L153)*
 
 ___
 
-###  promptAudioAsync
+### faxReceiveAsync
 
-• **promptAudioAsync**: *Function*
+•  **faxReceiveAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:145](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L145)*
-
-___
-
-###  promptTTS
-
-• **promptTTS**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:146](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L146)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:154](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L154)*
 
 ___
 
-###  promptTTSAsync
+### faxSend
 
-• **promptTTSAsync**: *Function*
+•  **faxSend**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:147](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L147)*
-
-___
-
-###  record
-
-• **record**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:129](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L129)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:155](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L155)*
 
 ___
 
-###  recordAsync
+### faxSendAsync
 
-• **recordAsync**: *Function*
+•  **faxSendAsync**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:130](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L130)*
-
-___
-
-###  sendDigits
-
-• **sendDigits**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:171](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L171)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:156](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L156)*
 
 ___
 
-###  sendDigitsAsync
+### from
 
-• **sendDigitsAsync**: *Function*
+•  **from**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:172](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L172)*
-
-___
-
-###  state
-
-• **state**: *string*
-
-*Defined in [src/utils/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L52)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:112](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L112)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:118](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L118)*
 
 ___
 
-### `Optional` tag
+### id
 
-• **tag**? : *string*
+•  **id**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:110](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L110)*
-
-___
-
-###  tap
-
-• **tap**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:169](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L169)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:109](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L109)*
 
 ___
 
-###  tapAsync
+### isHeld
 
-• **tapAsync**: *Function*
+• `Optional` **isHeld**: Boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:170](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L170)*
-
-___
-
-###  timeout
-
-• **timeout**: *number*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:119](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L119)*
+*Defined in [packages/js/src/utils/interfaces.ts:53](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L53)*
 
 ___
 
-###  to
+### isMuted
 
-• **to**: *string*
+• `Optional` **isMuted**: Boolean
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:117](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L117)*
-
-___
-
-###  type
-
-• **type**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:116](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L116)*
+*Defined in [packages/js/src/utils/interfaces.ts:54](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L54)*
 
 ___
 
-###  waitFor
+### nodeId
 
-• **waitFor**: *Function*
+•  **nodeId**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:148](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L148)*
-
-___
-
-###  waitForAnswered
-
-• **waitForAnswered**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:150](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L150)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:111](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L111)*
 
 ___
 
-###  waitForEnded
+### off
 
-• **waitForEnded**: *Function*
+•  **off**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:152](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L152)*
-
-___
-
-###  waitForEnding
-
-• **waitForEnding**: *Function*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:151](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L151)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:126](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L126)*
 
 ___
 
-###  waitForRinging
+### on
 
-• **waitForRinging**: *Function*
+•  **on**: Function
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:149](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L149)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:125](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L125)*
+
+___
+
+### play
+
+•  **play**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:134](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L134)*
+
+___
+
+### playAsync
+
+•  **playAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:135](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L135)*
+
+___
+
+### playAudio
+
+•  **playAudio**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:136](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L136)*
+
+___
+
+### playAudioAsync
+
+•  **playAudioAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:137](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L137)*
+
+___
+
+### playSilence
+
+•  **playSilence**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:138](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L138)*
+
+___
+
+### playSilenceAsync
+
+•  **playSilenceAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:139](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L139)*
+
+___
+
+### playTTS
+
+•  **playTTS**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:140](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L140)*
+
+___
+
+### playTTSAsync
+
+•  **playTTSAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:141](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L141)*
+
+___
+
+### prevState
+
+•  **prevState**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:113](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L113)*
+
+___
+
+### prompt
+
+•  **prompt**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:142](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L142)*
+
+___
+
+### promptAsync
+
+•  **promptAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:143](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L143)*
+
+___
+
+### promptAudio
+
+•  **promptAudio**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:144](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L144)*
+
+___
+
+### promptAudioAsync
+
+•  **promptAudioAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:145](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L145)*
+
+___
+
+### promptTTS
+
+•  **promptTTS**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:146](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L146)*
+
+___
+
+### promptTTSAsync
+
+•  **promptTTSAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:147](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L147)*
+
+___
+
+### record
+
+•  **record**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:129](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L129)*
+
+___
+
+### recordAsync
+
+•  **recordAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:130](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L130)*
+
+___
+
+### sendDigits
+
+•  **sendDigits**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:171](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L171)*
+
+___
+
+### sendDigitsAsync
+
+•  **sendDigitsAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:172](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L172)*
+
+___
+
+### state
+
+•  **state**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:52](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L52)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:112](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L112)*
+
+___
+
+### tag
+
+• `Optional` **tag**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:110](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L110)*
+
+___
+
+### tap
+
+•  **tap**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:169](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L169)*
+
+___
+
+### tapAsync
+
+•  **tapAsync**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:170](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L170)*
+
+___
+
+### timeout
+
+•  **timeout**: number
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:119](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L119)*
+
+___
+
+### to
+
+•  **to**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:117](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L117)*
+
+___
+
+### type
+
+•  **type**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:116](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L116)*
+
+___
+
+### waitFor
+
+•  **waitFor**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:148](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L148)*
+
+___
+
+### waitForAnswered
+
+•  **waitForAnswered**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:150](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L150)*
+
+___
+
+### waitForEnded
+
+•  **waitForEnded**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:152](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L152)*
+
+___
+
+### waitForEnding
+
+•  **waitForEnding**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:151](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L151)*
+
+___
+
+### waitForRinging
+
+•  **waitForRinging**: Function
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:149](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L149)*
 
 ## Methods
 
-###  answer
+### answer
 
-▸ **answer**(): *void*
+▸ **answer**(): void
 
-*Defined in [src/utils/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L56)*
+*Defined in [packages/js/src/utils/interfaces.ts:56](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L56)*
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  dtmf
+### dtmf
 
-▸ **dtmf**(`input`: string): *void*
+▸ **dtmf**(`input`: string): void
 
-*Defined in [src/utils/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L61)*
+*Defined in [packages/js/src/utils/interfaces.ts:61](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L61)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `input` | string |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  hangup
+### hangup
 
-▸ **hangup**(): *void*
+▸ **hangup**(): void
 
-*Defined in [src/utils/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L55)*
+*Defined in [packages/js/src/utils/interfaces.ts:55](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L55)*
 
-**Returns:** *void*
-
-___
-
-###  hold
-
-▸ **hold**(): *void*
-
-*Defined in [src/utils/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L57)*
-
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  mute
+### hold
 
-▸ **mute**(): *void*
+▸ **hold**(): void
 
-*Defined in [src/utils/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L59)*
+*Defined in [packages/js/src/utils/interfaces.ts:57](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L57)*
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  setAudioOutDevice
+### mute
 
-▸ **setAudioOutDevice**(`sinkId`: string, `callback?`: Function): *Promise‹undefined›*
+▸ **mute**(): void
 
-*Defined in [src/utils/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L63)*
+*Defined in [packages/js/src/utils/interfaces.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L59)*
 
-**Parameters:**
+**Returns:** void
+
+___
+
+### setAudioOutDevice
+
+▸ **setAudioOutDevice**(`sinkId`: string, `callback?`: Function): Promise<undefined\>
+
+*Defined in [packages/js/src/utils/interfaces.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L63)*
+
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `sinkId` | string |
 `callback?` | Function |
 
-**Returns:** *Promise‹undefined›*
+**Returns:** Promise<undefined\>
 
 ___
 
-###  transfer
+### transfer
 
-▸ **transfer**(`input`: string): *void*
+▸ **transfer**(`input`: string): void
 
-*Defined in [src/utils/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L62)*
+*Defined in [packages/js/src/utils/interfaces.ts:62](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L62)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `input` | string |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  unhold
+### unhold
 
-▸ **unhold**(): *void*
+▸ **unhold**(): void
 
-*Defined in [src/utils/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L58)*
+*Defined in [packages/js/src/utils/interfaces.ts:58](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L58)*
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  unmute
+### unmute
 
-▸ **unmute**(): *void*
+▸ **unmute**(): void
 
-*Defined in [src/utils/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L60)*
+*Defined in [packages/js/src/utils/interfaces.ts:60](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L60)*
 
-**Returns:** *void*
+**Returns:** void

@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IBladeConnectResult](ibladeconnectresult.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IBladeConnectResult
 
 # Interface: IBladeConnectResult
 
 ## Hierarchy
 
-* IMessageBase
+* [IMessageBase](imessagebase.md)
 
   ↳ **IBladeConnectResult**
 
@@ -15,69 +17,74 @@
 * [authorization](ibladeconnectresult.md#authorization)
 * [id](ibladeconnectresult.md#id)
 * [jsonrpc](ibladeconnectresult.md#jsonrpc)
-* [master_nodeid](ibladeconnectresult.md#master_nodeid)
+* [master\_nodeid](ibladeconnectresult.md#master_nodeid)
 * [nodeid](ibladeconnectresult.md#nodeid)
-* [protocols_uncertified](ibladeconnectresult.md#protocols_uncertified)
+* [protocols\_uncertified](ibladeconnectresult.md#protocols_uncertified)
 * [sessionid](ibladeconnectresult.md#sessionid)
 
 ## Properties
 
-###  authorization
+### authorization
 
-• **authorization**: *object*
+•  **authorization**: { expires_at: number ; signature: string  }
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L33)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L33)*
 
 #### Type declaration:
 
-___
-
-###  id
-
-• **id**: *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
+Name | Type |
+------ | ------ |
+`expires_at` | number |
+`signature` | string |
 
 ___
 
-###  jsonrpc
+### id
 
-• **jsonrpc**: *string*
+•  **id**: string
 
-*Inherited from void*
+*Inherited from [IMessageBase](imessagebase.md).[id](imessagebase.md#id)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
-
-___
-
-###  master_nodeid
-
-• **master_nodeid**: *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L31)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:3](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L3)*
 
 ___
 
-###  nodeid
+### jsonrpc
 
-• **nodeid**: *string*
+•  **jsonrpc**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L30)*
+*Inherited from [IMessageBase](imessagebase.md).[jsonrpc](imessagebase.md#jsonrpc)*
 
-___
-
-###  protocols_uncertified
-
-• **protocols_uncertified**: *string[]*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L32)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:2](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L2)*
 
 ___
 
-###  sessionid
+### master\_nodeid
 
-• **sessionid**: *string*
+•  **master\_nodeid**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L29)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L31)*
+
+___
+
+### nodeid
+
+•  **nodeid**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L30)*
+
+___
+
+### protocols\_uncertified
+
+•  **protocols\_uncertified**: string[]
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L32)*
+
+___
+
+### sessionid
+
+•  **sessionid**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L29)*

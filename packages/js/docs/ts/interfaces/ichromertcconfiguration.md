@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IChromeRTCConfiguration](ichromertcconfiguration.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IChromeRTCConfiguration
 
 # Interface: IChromeRTCConfiguration
 
@@ -12,103 +14,103 @@
 
 ### Properties
 
-* [bundlePolicy](ichromertcconfiguration.md#optional-bundlepolicy)
-* [certificates](ichromertcconfiguration.md#optional-certificates)
-* [iceCandidatePoolSize](ichromertcconfiguration.md#optional-icecandidatepoolsize)
-* [iceServers](ichromertcconfiguration.md#optional-iceservers)
-* [iceTransportPolicy](ichromertcconfiguration.md#optional-icetransportpolicy)
-* [peerIdentity](ichromertcconfiguration.md#optional-peeridentity)
-* [rtcpMuxPolicy](ichromertcconfiguration.md#optional-rtcpmuxpolicy)
-* [sdpSemantics](ichromertcconfiguration.md#optional-sdpsemantics)
+* [bundlePolicy](ichromertcconfiguration.md#bundlepolicy)
+* [certificates](ichromertcconfiguration.md#certificates)
+* [iceCandidatePoolSize](ichromertcconfiguration.md#icecandidatepoolsize)
+* [iceServers](ichromertcconfiguration.md#iceservers)
+* [iceTransportPolicy](ichromertcconfiguration.md#icetransportpolicy)
+* [peerIdentity](ichromertcconfiguration.md#peeridentity)
+* [rtcpMuxPolicy](ichromertcconfiguration.md#rtcpmuxpolicy)
+* [sdpSemantics](ichromertcconfiguration.md#sdpsemantics)
 
 ## Properties
 
-### `Optional` bundlePolicy
+### bundlePolicy
 
-• **bundlePolicy**? : *RTCBundlePolicy*
+• `Optional` **bundlePolicy**: RTCBundlePolicy
 
-*Inherited from void*
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[bundlePolicy](ichromertcconfiguration.md#bundlepolicy)*
 
-*Overrides void*
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[bundlePolicy](ichromertcconfiguration.md#bundlepolicy)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1162
-
-___
-
-### `Optional` certificates
-
-• **certificates**? : *RTCCertificate[]*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1163
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1175*
 
 ___
 
-### `Optional` iceCandidatePoolSize
+### certificates
 
-• **iceCandidatePoolSize**? : *number*
+• `Optional` **certificates**: RTCCertificate[]
 
-*Inherited from void*
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[certificates](ichromertcconfiguration.md#certificates)*
 
-*Overrides void*
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[certificates](ichromertcconfiguration.md#certificates)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1164
-
-___
-
-### `Optional` iceServers
-
-• **iceServers**? : *RTCIceServer[]*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1165
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1176*
 
 ___
 
-### `Optional` iceTransportPolicy
+### iceCandidatePoolSize
 
-• **iceTransportPolicy**? : *RTCIceTransportPolicy*
+• `Optional` **iceCandidatePoolSize**: number
 
-*Inherited from void*
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceCandidatePoolSize](ichromertcconfiguration.md#icecandidatepoolsize)*
 
-*Overrides void*
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceCandidatePoolSize](ichromertcconfiguration.md#icecandidatepoolsize)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1166
-
-___
-
-### `Optional` peerIdentity
-
-• **peerIdentity**? : *string*
-
-*Inherited from void*
-
-*Overrides void*
-
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1167
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1177*
 
 ___
 
-### `Optional` rtcpMuxPolicy
+### iceServers
 
-• **rtcpMuxPolicy**? : *RTCRtcpMuxPolicy*
+• `Optional` **iceServers**: RTCIceServer[]
 
-*Inherited from void*
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceServers](ichromertcconfiguration.md#iceservers)*
 
-*Overrides void*
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceServers](ichromertcconfiguration.md#iceservers)*
 
-Defined in node_modules/typescript/lib/lib.dom.d.ts:1168
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1178*
 
 ___
 
-### `Optional` sdpSemantics
+### iceTransportPolicy
 
-• **sdpSemantics**? : *"plan-b" | "unified-plan"*
+• `Optional` **iceTransportPolicy**: RTCIceTransportPolicy
 
-*Defined in [src/Modules/Verto/webrtc/interfaces.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L105)*
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceTransportPolicy](ichromertcconfiguration.md#icetransportpolicy)*
+
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[iceTransportPolicy](ichromertcconfiguration.md#icetransportpolicy)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1179*
+
+___
+
+### peerIdentity
+
+• `Optional` **peerIdentity**: string
+
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[peerIdentity](ichromertcconfiguration.md#peeridentity)*
+
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[peerIdentity](ichromertcconfiguration.md#peeridentity)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1180*
+
+___
+
+### rtcpMuxPolicy
+
+• `Optional` **rtcpMuxPolicy**: RTCRtcpMuxPolicy
+
+*Inherited from [IChromeRTCConfiguration](ichromertcconfiguration.md).[rtcpMuxPolicy](ichromertcconfiguration.md#rtcpmuxpolicy)*
+
+*Overrides [IChromeRTCConfiguration](ichromertcconfiguration.md).[rtcpMuxPolicy](ichromertcconfiguration.md#rtcpmuxpolicy)*
+
+*Defined in node_modules/typescript/lib/lib.dom.d.ts:1181*
+
+___
+
+### sdpSemantics
+
+• `Optional` **sdpSemantics**: \"plan-b\" \| \"unified-plan\"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/interfaces.ts:105](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/interfaces.ts#L105)*

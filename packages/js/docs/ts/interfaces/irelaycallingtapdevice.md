@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IRelayCallingTapDevice](irelaycallingtapdevice.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IRelayCallingTapDevice
 
 # Interface: IRelayCallingTapDevice
 
@@ -15,16 +17,16 @@
 
 ## Properties
 
-###  params
+### params
 
-• **params**: *IRelayCallingTapDeviceParams*
+•  **params**: [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md)
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L363)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L363)*
 
 ___
 
-###  type
+### type
 
-• **type**: *string*
+•  **type**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:362](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L362)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:362](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L362)*

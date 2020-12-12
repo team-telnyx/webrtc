@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallPlayType](callplaytype.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallPlayType
 
 # Enumeration: CallPlayType
 
@@ -13,32 +15,32 @@
 
 ## Enumeration members
 
-###  Audio
+### Audio
 
-• **Audio**: = "audio"
+•  **Audio**:  = "audio"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L83)*
-
-___
-
-###  Ringtone
-
-• **Ringtone**: = "ringtone"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:86](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L86)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:83](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L83)*
 
 ___
 
-###  Silence
+### Ringtone
 
-• **Silence**: = "silence"
+•  **Ringtone**:  = "ringtone"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:84](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L84)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:86](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L86)*
 
 ___
 
-###  TTS
+### Silence
 
-• **TTS**: = "tts"
+•  **Silence**:  = "silence"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:85](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L85)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:84](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L84)*
+
+___
+
+### TTS
+
+•  **TTS**:  = "tts"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:85](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L85)*

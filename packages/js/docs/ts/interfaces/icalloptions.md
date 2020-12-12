@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallOptions](icalloptions.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallOptions
 
 # Interface: ICallOptions
 
@@ -10,210 +12,210 @@
 
 ### Properties
 
-* [attach](icalloptions.md#optional-attach)
-* [audio](icalloptions.md#optional-audio)
-* [call_id](icalloptions.md#optional-call_id)
-* [call_state](icalloptions.md#optional-call_state)
-* [callerName](icalloptions.md#optional-callername)
-* [callerNumber](icalloptions.md#optional-callernumber)
-* [context](icalloptions.md#optional-context)
+* [attach](icalloptions.md#attach)
+* [audio](icalloptions.md#audio)
+* [call\_id](icalloptions.md#call_id)
+* [call\_state](icalloptions.md#call_state)
+* [callerName](icalloptions.md#callername)
+* [callerNumber](icalloptions.md#callernumber)
+* [context](icalloptions.md#context)
 * [destination](icalloptions.md#destination)
-* [device](icalloptions.md#optional-device)
-* [id](icalloptions.md#optional-id)
-* [localElement](icalloptions.md#optional-localelement)
-* [localStream](icalloptions.md#optional-localstream)
-* [node_id](icalloptions.md#optional-node_id)
-* [peer](icalloptions.md#optional-peer)
-* [remoteCallerName](icalloptions.md#optional-remotecallername)
-* [remoteCallerNumber](icalloptions.md#optional-remotecallernumber)
-* [remoteElement](icalloptions.md#optional-remoteelement)
-* [remoteSdp](icalloptions.md#optional-remotesdp)
-* [remoteStream](icalloptions.md#optional-remotestream)
-* [screenShare](icalloptions.md#optional-screenshare)
-* [useStereo](icalloptions.md#optional-usestereo)
-* [userVariables](icalloptions.md#optional-uservariables)
-* [video](icalloptions.md#optional-video)
+* [device](icalloptions.md#device)
+* [id](icalloptions.md#id)
+* [localElement](icalloptions.md#localelement)
+* [localStream](icalloptions.md#localstream)
+* [node\_id](icalloptions.md#node_id)
+* [peer](icalloptions.md#peer)
+* [remoteCallerName](icalloptions.md#remotecallername)
+* [remoteCallerNumber](icalloptions.md#remotecallernumber)
+* [remoteElement](icalloptions.md#remoteelement)
+* [remoteSdp](icalloptions.md#remotesdp)
+* [remoteStream](icalloptions.md#remotestream)
+* [screenShare](icalloptions.md#screenshare)
+* [useStereo](icalloptions.md#usestereo)
+* [userVariables](icalloptions.md#uservariables)
+* [video](icalloptions.md#video)
 
 ## Properties
 
-### `Optional` attach
+### attach
 
-• **attach**? : *boolean*
+• `Optional` **attach**: boolean
 
-*Defined in [src/utils/interfaces.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L39)*
-
-___
-
-### `Optional` audio
-
-• **audio**? : *boolean | MediaTrackConstraints*
-
-*Defined in [src/utils/interfaces.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L37)*
+*Defined in [packages/js/src/utils/interfaces.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L39)*
 
 ___
 
-### `Optional` call_id
+### audio
 
-• **call_id**? : *string*
+• `Optional` **audio**: boolean \| MediaTrackConstraints
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:194](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L194)*
-
-___
-
-### `Optional` call_state
-
-• **call_state**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:195](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L195)*
+*Defined in [packages/js/src/utils/interfaces.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L37)*
 
 ___
 
-### `Optional` callerName
+### call\_id
 
-• **callerName**? : *string*
+• `Optional` **call\_id**: string
 
-*Defined in [src/utils/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L29)*
-
-___
-
-### `Optional` callerNumber
-
-• **callerNumber**? : *string*
-
-*Defined in [src/utils/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L30)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:194](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L194)*
 
 ___
 
-### `Optional` context
+### call\_state
 
-• **context**? : *string*
+• `Optional` **call\_state**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:196](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L196)*
-
-___
-
-###  destination
-
-• **destination**: *string*
-
-*Defined in [src/utils/interfaces.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L25)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:195](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L195)*
 
 ___
 
-### `Optional` device
+### callerName
 
-• **device**? : *[ICallDevice](icalldevice.md)*
+• `Optional` **callerName**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:191](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L191)*
-
-___
-
-### `Optional` id
-
-• **id**? : *string*
-
-*Defined in [src/utils/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L31)*
+*Defined in [packages/js/src/utils/interfaces.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L29)*
 
 ___
 
-### `Optional` localElement
+### callerNumber
 
-• **localElement**? : *HTMLMediaElement | string | Function*
+• `Optional` **callerNumber**: string
 
-*Defined in [src/utils/interfaces.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L35)*
-
-___
-
-### `Optional` localStream
-
-• **localStream**? : *MediaStream*
-
-*Defined in [src/utils/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L33)*
+*Defined in [packages/js/src/utils/interfaces.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L30)*
 
 ___
 
-### `Optional` node_id
+### context
 
-• **node_id**? : *string*
+• `Optional` **context**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:193](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L193)*
-
-___
-
-### `Optional` peer
-
-• **peer**? : *[ICallPeer](icallpeer.md)*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:192](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L192)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:196](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L196)*
 
 ___
 
-### `Optional` remoteCallerName
+### destination
 
-• **remoteCallerName**? : *string*
+•  **destination**: string
 
-*Defined in [src/utils/interfaces.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L27)*
-
-___
-
-### `Optional` remoteCallerNumber
-
-• **remoteCallerNumber**? : *string*
-
-*Defined in [src/utils/interfaces.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L28)*
+*Defined in [packages/js/src/utils/interfaces.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L25)*
 
 ___
 
-### `Optional` remoteElement
+### device
 
-• **remoteElement**? : *HTMLMediaElement | string | Function*
+• `Optional` **device**: [ICallDevice](icalldevice.md)
 
-*Defined in [src/utils/interfaces.ts:36](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L36)*
-
-___
-
-### `Optional` remoteSdp
-
-• **remoteSdp**? : *string*
-
-*Defined in [src/utils/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L32)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:191](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L191)*
 
 ___
 
-### `Optional` remoteStream
+### id
 
-• **remoteStream**? : *MediaStream*
+• `Optional` **id**: string
 
-*Defined in [src/utils/interfaces.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L34)*
-
-___
-
-### `Optional` screenShare
-
-• **screenShare**? : *boolean*
-
-*Defined in [src/utils/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L47)*
+*Defined in [packages/js/src/utils/interfaces.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L31)*
 
 ___
 
-### `Optional` useStereo
+### localElement
 
-• **useStereo**? : *boolean*
+• `Optional` **localElement**: HTMLMediaElement \| string \| Function
 
-*Defined in [src/utils/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L40)*
-
-___
-
-### `Optional` userVariables
-
-• **userVariables**? : *Object*
-
-*Defined in [src/utils/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L46)*
+*Defined in [packages/js/src/utils/interfaces.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L35)*
 
 ___
 
-### `Optional` video
+### localStream
 
-• **video**? : *boolean | MediaTrackConstraints*
+• `Optional` **localStream**: MediaStream
 
-*Defined in [src/utils/interfaces.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L38)*
+*Defined in [packages/js/src/utils/interfaces.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L33)*
+
+___
+
+### node\_id
+
+• `Optional` **node\_id**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:193](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L193)*
+
+___
+
+### peer
+
+• `Optional` **peer**: [ICallPeer](icallpeer.md)
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:192](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L192)*
+
+___
+
+### remoteCallerName
+
+• `Optional` **remoteCallerName**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L27)*
+
+___
+
+### remoteCallerNumber
+
+• `Optional` **remoteCallerNumber**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L28)*
+
+___
+
+### remoteElement
+
+• `Optional` **remoteElement**: HTMLMediaElement \| string \| Function
+
+*Defined in [packages/js/src/utils/interfaces.ts:36](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L36)*
+
+___
+
+### remoteSdp
+
+• `Optional` **remoteSdp**: string
+
+*Defined in [packages/js/src/utils/interfaces.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L32)*
+
+___
+
+### remoteStream
+
+• `Optional` **remoteStream**: MediaStream
+
+*Defined in [packages/js/src/utils/interfaces.ts:34](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L34)*
+
+___
+
+### screenShare
+
+• `Optional` **screenShare**: boolean
+
+*Defined in [packages/js/src/utils/interfaces.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L47)*
+
+___
+
+### useStereo
+
+• `Optional` **useStereo**: boolean
+
+*Defined in [packages/js/src/utils/interfaces.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L40)*
+
+___
+
+### userVariables
+
+• `Optional` **userVariables**: Object
+
+*Defined in [packages/js/src/utils/interfaces.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L46)*
+
+___
+
+### video
+
+• `Optional` **video**: boolean \| MediaTrackConstraints
+
+*Defined in [packages/js/src/utils/interfaces.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/utils/interfaces.ts#L38)*

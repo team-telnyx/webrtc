@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallConnectState](callconnectstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallConnectState
 
 # Enumeration: CallConnectState
 
@@ -13,32 +15,32 @@
 
 ## Enumeration members
 
-###  Connected
+### Connected
 
-• **Connected**: = "connected"
+•  **Connected**:  = "connected"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L39)*
-
-___
-
-###  Connecting
-
-• **Connecting**: = "connecting"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L38)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L39)*
 
 ___
 
-###  Disconnected
+### Connecting
 
-• **Disconnected**: = "disconnected"
+•  **Connecting**:  = "connecting"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L37)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:38](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L38)*
 
 ___
 
-###  Failed
+### Disconnected
 
-• **Failed**: = "failed"
+•  **Disconnected**:  = "disconnected"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L40)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L37)*
+
+___
+
+### Failed
+
+•  **Failed**:  = "failed"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:40](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L40)*

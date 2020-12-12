@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [IRelayCallingPlay](irelaycallingplay.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / IRelayCallingPlay
 
 # Interface: IRelayCallingPlay
 
@@ -15,16 +17,16 @@
 
 ## Properties
 
-###  params
+### params
 
-• **params**: *IRelayCallingPlayParams*
+•  **params**: [IRelayCallingPlayParams](irelaycallingplayparams.md)
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:250](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L250)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:250](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L250)*
 
 ___
 
-###  type
+### type
 
-• **type**: *string*
+•  **type**: string
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:249](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L249)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:249](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L249)*

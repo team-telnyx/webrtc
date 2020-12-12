@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [BrowserSession](browsersession.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / BrowserSession
 
 # Class: BrowserSession
 
@@ -21,14 +23,14 @@
 * [camId](browsersession.md#camid)
 * [camLabel](browsersession.md#camlabel)
 * [contexts](browsersession.md#contexts)
-* [master_nodeid](browsersession.md#master_nodeid)
+* [master\_nodeid](browsersession.md#master_nodeid)
 * [micId](browsersession.md#micid)
 * [micLabel](browsersession.md#miclabel)
 * [nodeid](browsersession.md#nodeid)
 * [options](browsersession.md#options)
 * [relayProtocol](browsersession.md#relayprotocol)
-* [ringbackFile](browsersession.md#optional-ringbackfile)
-* [ringtoneFile](browsersession.md#optional-ringtonefile)
+* [ringbackFile](browsersession.md#ringbackfile)
+* [ringtoneFile](browsersession.md#ringtonefile)
 * [sessionid](browsersession.md#sessionid)
 * [signature](browsersession.md#signature)
 * [subscriptions](browsersession.md#subscriptions)
@@ -37,7 +39,7 @@
 
 ### Accessors
 
-* [__logger](browsersession.md#__logger)
+* [\_\_logger](browsersession.md#__logger)
 * [connected](browsersession.md#connected)
 * [iceServers](browsersession.md#iceservers)
 * [localElement](browsersession.md#localelement)
@@ -48,7 +50,7 @@
 
 ### Methods
 
-* [_existsSubscription](browsersession.md#_existssubscription)
+* [\_existsSubscription](browsersession.md#_existssubscription)
 * [broadcast](browsersession.md#broadcast)
 * [checkPermissions](browsersession.md#checkpermissions)
 * [connect](browsersession.md#connect)
@@ -77,222 +79,214 @@
 * [vertoBroadcast](browsersession.md#vertobroadcast)
 * [vertoSubscribe](browsersession.md#vertosubscribe)
 * [vertoUnsubscribe](browsersession.md#vertounsubscribe)
-* [off](browsersession.md#static-off)
-* [on](browsersession.md#static-on)
-* [telnyxStateCall](browsersession.md#static-telnyxstatecall)
-* [uuid](browsersession.md#static-uuid)
+* [off](browsersession.md#off)
+* [on](browsersession.md#on)
+* [telnyxStateCall](browsersession.md#telnyxstatecall)
+* [uuid](browsersession.md#uuid)
 
 ## Constructors
 
-###  constructor
+### constructor
 
-\+ **new BrowserSession**(`options`: [ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)): *[BrowserSession](browsersession.md)*
+\+ **new BrowserSession**(`options`: [ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)): [BrowserSession](browsersession.md)
 
 *Overrides [BaseSession](basesession.md).[constructor](basesession.md#constructor)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L63)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:63](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L63)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `options` | [ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md) |
 
-**Returns:** *[BrowserSession](browsersession.md)*
+**Returns:** [BrowserSession](browsersession.md)
 
 ## Properties
 
-###  autoRecoverCalls
+### autoRecoverCalls
 
-• **autoRecoverCalls**: *boolean* = true
+•  **autoRecoverCalls**: boolean = true
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L45)*
-
-___
-
-###  calls
-
-• **calls**: *object*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L35)*
-
-#### Type declaration:
-
-* \[ **callId**: *string*\]: [IWebRTCCall](../interfaces/iwebrtccall.md)
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:45](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L45)*
 
 ___
 
-###  camId
+### calls
 
-• **camId**: *string*
+•  **calls**: { [callId:string]: [IWebRTCCall](../interfaces/iwebrtccall.md);  }
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L41)*
-
-___
-
-###  camLabel
-
-• **camLabel**: *string*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L43)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:35](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L35)*
 
 ___
 
-###  contexts
+### camId
 
-• **contexts**: *string[]* =  []
+•  **camId**: string
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:41](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L41)*
+
+___
+
+### camLabel
+
+•  **camLabel**: string
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:43](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L43)*
+
+___
+
+### contexts
+
+•  **contexts**: string[] = []
 
 *Inherited from [BaseSession](basesession.md).[contexts](basesession.md#contexts)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L32)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:32](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L32)*
 
 ___
 
-###  master_nodeid
+### master\_nodeid
 
-• **master_nodeid**: *string*
+•  **master\_nodeid**: string
 
 *Inherited from [BaseSession](basesession.md).[master_nodeid](basesession.md#master_nodeid)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L29)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:29](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L29)*
 
 ___
 
-###  micId
+### micId
 
-• **micId**: *string*
+•  **micId**: string
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L37)*
-
-___
-
-###  micLabel
-
-• **micLabel**: *string*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L39)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:37](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L37)*
 
 ___
 
-###  nodeid
+### micLabel
 
-• **nodeid**: *string*
+•  **micLabel**: string
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:39](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L39)*
+
+___
+
+### nodeid
+
+•  **nodeid**: string
 
 *Inherited from [BaseSession](basesession.md).[nodeid](basesession.md#nodeid)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L28)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L28)*
 
 ___
 
-###  options
+### options
 
-• **options**: *[ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)*
+•  **options**: [ITelnyxRTCOptions](../interfaces/itelnyxrtcoptions.md)
 
 *Inherited from [BaseSession](basesession.md).[options](basesession.md#options)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L46)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:46](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L46)*
 
 ___
 
-###  relayProtocol
+### relayProtocol
 
-• **relayProtocol**: *string* =  null
+•  **relayProtocol**: string = null
 
 *Inherited from [BaseSession](basesession.md).[relayProtocol](basesession.md#relayprotocol)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L31)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:31](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L31)*
 
 ___
 
-### `Optional` ringbackFile
+### ringbackFile
 
-• **ringbackFile**? : *string*
+• `Optional` **ringbackFile**: string
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L49)*
-
-___
-
-### `Optional` ringtoneFile
-
-• **ringtoneFile**? : *string*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L47)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:49](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L49)*
 
 ___
 
-###  sessionid
+### ringtoneFile
 
-• **sessionid**: *string* = ""
+• `Optional` **ringtoneFile**: string
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:47](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L47)*
+
+___
+
+### sessionid
+
+•  **sessionid**: string = ""
 
 *Inherited from [BaseSession](basesession.md).[sessionid](basesession.md#sessionid)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L26)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L26)*
 
 ___
 
-###  signature
+### signature
 
-• **signature**: *string* =  null
+•  **signature**: string = null
 
 *Inherited from [BaseSession](basesession.md).[signature](basesession.md#signature)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L30)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:30](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L30)*
 
 ___
 
-###  subscriptions
+### subscriptions
 
-• **subscriptions**: *object*
+•  **subscriptions**: { [channel:string]: any;  }
 
 *Inherited from [BaseSession](basesession.md).[subscriptions](basesession.md#subscriptions)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L27)*
-
-#### Type declaration:
-
-* \[ **channel**: *string*\]: any
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L27)*
 
 ___
 
-###  timeoutErrorCode
+### timeoutErrorCode
 
-• **timeoutErrorCode**: *number* =  -32000
+•  **timeoutErrorCode**: number = -32000
 
 *Inherited from [BaseSession](basesession.md).[timeoutErrorCode](basesession.md#timeouterrorcode)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L33)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:33](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L33)*
 
 ___
 
-###  uuid
+### uuid
 
-• **uuid**: *string* =  uuidv4()
+•  **uuid**: string = uuidv4()
 
 *Inherited from [BaseSession](basesession.md).[uuid](basesession.md#uuid)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L25)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L25)*
 
 ## Accessors
 
-###  __logger
+### \_\_logger
 
-• **get __logger**(): *Logger*
+• get **__logger**(): Logger
 
 *Inherited from [BaseSession](basesession.md).[__logger](basesession.md#__logger)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L59)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:59](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L59)*
 
-**Returns:** *Logger*
+**Returns:** Logger
 
 ___
 
-###  connected
+### connected
 
-• **get connected**(): *boolean | null*
+• get **connected**(): boolean \| null
 
 *Inherited from [BaseSession](basesession.md).[connected](basesession.md#connected)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L76)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:76](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L76)*
 
 `true` if the client is connected to the Telnyx RTC server
 
@@ -305,61 +299,59 @@ console.log(client.connected); // => false
 
 **`readonly`** 
 
-**`type`** {boolean | null}
-
-**Returns:** *boolean | null*
+**Returns:** boolean \| null
 
 ___
 
-###  iceServers
+### iceServers
 
-• **get iceServers**(): *false | true | RTCIceServer[]*
+• get **iceServers**(): false \| true \| RTCIceServer[]
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:598](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L598)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:598](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L598)*
 
-**Returns:** *false | true | RTCIceServer[]*
+**Returns:** false \| true \| RTCIceServer[]
 
-• **set iceServers**(`servers`: RTCIceServer[] | boolean): *void*
+• set **iceServers**(`servers`: RTCIceServer[] \| boolean): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:588](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L588)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:588](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L588)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`servers` | RTCIceServer[] &#124; boolean |
+`servers` | RTCIceServer[] \| boolean |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  localElement
+### localElement
 
-• **get localElement**(): *string | Function | HTMLMediaElement*
+• get **localElement**(): [RTCElement](../README.md#rtcelement)
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:641](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L641)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:641](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L641)*
 
-**Returns:** *string | Function | HTMLMediaElement*
+**Returns:** [RTCElement](../README.md#rtcelement)
 
-• **set localElement**(`tag`: HTMLMediaElement | string | Function): *void*
+• set **localElement**(`tag`: HTMLMediaElement \| string \| Function): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:637](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L637)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:637](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L637)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`tag` | HTMLMediaElement &#124; string &#124; Function |
+`tag` | HTMLMediaElement \| string \| Function |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  mediaConstraints
+### mediaConstraints
 
-• **get mediaConstraints**(): *object*
+• get **mediaConstraints**(): object
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:393](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L393)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:393](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L393)*
 
 Audio and video constraints currently used by the client.
 
@@ -374,49 +366,54 @@ console.log(client.mediaConstraints);
 
 **`readonly`** 
 
-**Returns:** *object*
-
-___
-
-###  reconnectDelay
-
-• **get reconnectDelay**(): *number*
-
-*Overrides [BaseSession](basesession.md).[reconnectDelay](basesession.md#reconnectdelay)*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L72)*
-
-**Returns:** *number*
-
-___
-
-###  remoteElement
-
-• **get remoteElement**(): *string | Function | HTMLMediaElement*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:649](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L649)*
-
-**Returns:** *string | Function | HTMLMediaElement*
-
-• **set remoteElement**(`tag`: HTMLMediaElement | string | Function): *void*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:645](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L645)*
-
-**Parameters:**
+**Returns:** object
 
 Name | Type |
 ------ | ------ |
-`tag` | HTMLMediaElement &#124; string &#124; Function |
-
-**Returns:** *void*
+`audio` | boolean \| MediaTrackConstraints |
+`video` | boolean \| MediaTrackConstraints |
 
 ___
 
-###  speaker
+### reconnectDelay
 
-• **get speaker**(): *string | null*
+• get **reconnectDelay**(): number
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:633](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L633)*
+*Overrides [BaseSession](basesession.md).[reconnectDelay](basesession.md#reconnectdelay)*
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:72](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L72)*
+
+**Returns:** number
+
+___
+
+### remoteElement
+
+• get **remoteElement**(): [RTCElement](../README.md#rtcelement)
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:649](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L649)*
+
+**Returns:** [RTCElement](../README.md#rtcelement)
+
+• set **remoteElement**(`tag`: HTMLMediaElement \| string \| Function): void
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:645](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L645)*
+
+#### Parameters:
+
+Name | Type |
+------ | ------ |
+`tag` | HTMLMediaElement \| string \| Function |
+
+**Returns:** void
+
+___
+
+### speaker
+
+• get **speaker**(): string \| null
+
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:633](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L633)*
 
 Default audio output device, if set by client.
 
@@ -429,11 +426,11 @@ console.log(client.speaker);
 // => "abc123xyz"
 ```
 
-**Returns:** *string | null*
+**Returns:** string \| null
 
-• **set speaker**(`deviceId`: string): *void*
+• set **speaker**(`deviceId`: string): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:617](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L617)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:617](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L617)*
 
 Sets the default audio output device for subsequent calls.
 
@@ -447,91 +444,89 @@ if (result.length) {
 }
 ```
 
-**`type`** {(string | null)}
-
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `deviceId` | string |
 
-**Returns:** *void*
+**Returns:** void
 
 ## Methods
 
-###  _existsSubscription
+### \_existsSubscription
 
-▸ **_existsSubscription**(`protocol`: string, `channel?`: string): *boolean*
+▸ **_existsSubscription**(`protocol`: string, `channel?`: string): boolean
 
 *Inherited from [BaseSession](basesession.md).[_existsSubscription](basesession.md#_existssubscription)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L363)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:363](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L363)*
 
 Check if a subscription for this protocol-channel already exists
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `protocol` | string |
 `channel?` | string |
 
-**Returns:** *boolean*
+**Returns:** boolean
 
 boolean
 
 ___
 
-###  broadcast
+### broadcast
 
-▸ **broadcast**(`params`: [BroadcastParams](../interfaces/broadcastparams.md)): *void*
+▸ **broadcast**(`params`: [BroadcastParams](../interfaces/broadcastparams.md)): void
 
 *Inherited from [BaseSession](basesession.md).[broadcast](basesession.md#broadcast)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:135](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L135)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:135](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L135)*
 
 Broadcast a message in a protocol - channel
 
 **`todo`** Implement it
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `params` | [BroadcastParams](../interfaces/broadcastparams.md) |
 
-**Returns:** *void*
+**Returns:** void
 
 void
 
 ___
 
-###  checkPermissions
+### checkPermissions
 
-▸ **checkPermissions**(`audio`: boolean, `video`: boolean): *Promise‹boolean›*
+▸ **checkPermissions**(`audio?`: boolean, `video?`: boolean): Promise<boolean\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:124](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L124)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:124](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L124)*
 
 Checks if the browser has the permission to access mic and/or webcam
 
-**Parameters:**
+#### Parameters:
 
-Name | Type | Default | Description |
+Name | Type | Default value | Description |
 ------ | ------ | ------ | ------ |
 `audio` | boolean | true | Whether to check for microphone permissions. |
 `video` | boolean | true | Whether to check for webcam permissions.  ## Examples  Checking for audio and video permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(); ```  Checking only for audio permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(true, false); ```  Checking only for video permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(false, true); ```  |
 
-**Returns:** *Promise‹boolean›*
+**Returns:** Promise<boolean\>
 
 ___
 
-###  connect
+### connect
 
-▸ **connect**(): *Promise‹void›*
+▸ **connect**(): Promise<void\>
 
 *Overrides [BaseSession](basesession.md).[connect](basesession.md#connect)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:87](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L87)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:87](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L87)*
 
 Creates a new connection for exchanging data with the WebRTC server
 
@@ -543,15 +538,15 @@ const client = new TelnyxRTC(options);
 client.connect();
 ```
 
-**Returns:** *Promise‹void›*
+**Returns:** Promise<void\>
 
 ___
 
-###  disableMicrophone
+### disableMicrophone
 
-▸ **disableMicrophone**(): *void*
+▸ **disableMicrophone**(): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:474](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L474)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:474](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L474)*
 
 Disables use of the microphone in subsequent calls.
 
@@ -580,15 +575,15 @@ const client = new TelnyxRTC({
 client.disableMicrophone();
 ```
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  disableWebcam
+### disableWebcam
 
-▸ **disableWebcam**(): *void*
+▸ **disableWebcam**(): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:566](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L566)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:566](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L566)*
 
 Disables use of the webcam in subsequent calls.
 
@@ -611,17 +606,17 @@ const client = new TelnyxRTC({
 client.disableWebcam();
 ```
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  disconnect
+### disconnect
 
-▸ **disconnect**(): *Promise‹void›*
+▸ **disconnect**(): Promise<void\>
 
 *Overrides [BaseSession](basesession.md).[disconnect](basesession.md#disconnect)*
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:156](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L156)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:156](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L156)*
 
 Disconnect all active calls
 
@@ -633,15 +628,15 @@ const client = new TelnyxRTC(options);
 client.disconnect();
 ```
 
-**Returns:** *Promise‹void›*
+**Returns:** Promise<void\>
 
 ___
 
-###  enableMicrophone
+### enableMicrophone
 
-▸ **enableMicrophone**(): *void*
+▸ **enableMicrophone**(): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:492](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L492)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:492](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L492)*
 
 Enables use of the microphone in subsequent calls.
 
@@ -656,15 +651,15 @@ const client = new TelnyxRTC(options);
 client.enableMicrophone();
 ```
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  enableWebcam
+### enableWebcam
 
-▸ **enableWebcam**(): *void*
+▸ **enableWebcam**(): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:584](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L584)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:584](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L584)*
 
 Enables use of the webcam in subsequent calls.
 
@@ -679,59 +674,59 @@ const client = new TelnyxRTC(options);
 client.enableWebcam();
 ```
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  execute
+### execute
 
-▸ **execute**(`msg`: BaseMessage): *any*
+▸ **execute**(`msg`: [BaseMessage](basemessage.md)): any
 
 *Inherited from [BaseSession](basesession.md).[execute](basesession.md#execute)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:88](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L88)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:88](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L88)*
 
 Send a JSON object to the server.
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`msg` | BaseMessage |
+`msg` | [BaseMessage](basemessage.md) |
 
-**Returns:** *any*
+**Returns:** any
 
 Promise that will resolve/reject depending on the server response
 
 ___
 
-###  executeRaw
+### executeRaw
 
-▸ **executeRaw**(`text`: string): *void*
+▸ **executeRaw**(`text`: string): void
 
 *Inherited from [BaseSession](basesession.md).[executeRaw](basesession.md#executeraw)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:112](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L112)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:112](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L112)*
 
 Send raw text to the server.
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `text` | string |
 
-**Returns:** *void*
+**Returns:** void
 
 void
 
 ___
 
-###  getAudioInDevices
+### getAudioInDevices
 
-▸ **getAudioInDevices**(): *Promise‹MediaDeviceInfo[]›*
+▸ **getAudioInDevices**(): Promise<MediaDeviceInfo[]\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:264](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L264)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:264](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L264)*
 
 Return the audio output devices supported by the browser.
 
@@ -757,15 +752,15 @@ client.getAudioInDevices().then((result) => {
 });
 ```
 
-**Returns:** *Promise‹MediaDeviceInfo[]›*
+**Returns:** Promise<MediaDeviceInfo[]\>
 
 ___
 
-###  getAudioOutDevices
+### getAudioOutDevices
 
-▸ **getAudioOutDevices**(): *Promise‹MediaDeviceInfo[]›*
+▸ **getAudioOutDevices**(): Promise<MediaDeviceInfo[]\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L301)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:301](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L301)*
 
 Returns the audio output devices supported by the browser.
 
@@ -796,15 +791,15 @@ client.getAudioOutDevices().then((result) => {
 });
 ```
 
-**Returns:** *Promise‹MediaDeviceInfo[]›*
+**Returns:** Promise<MediaDeviceInfo[]\>
 
 ___
 
-###  getDeviceResolutions
+### getDeviceResolutions
 
-▸ **getDeviceResolutions**(`deviceId`: string): *Promise‹any[]›*
+▸ **getDeviceResolutions**(`deviceId`: string): Promise<any[]\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:371](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L371)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:371](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L371)*
 
 Returns supported resolution for the given webcam.
 
@@ -858,21 +853,21 @@ client.getDeviceResolutions(deviceId).then((result) => {
 });
 ```
 
-**Parameters:**
+#### Parameters:
 
 Name | Type | Description |
 ------ | ------ | ------ |
 `deviceId` | string | the `deviceId` from your webcam.  |
 
-**Returns:** *Promise‹any[]›*
+**Returns:** Promise<any[]\>
 
 ___
 
-###  getDevices
+### getDevices
 
-▸ **getDevices**(): *Promise‹MediaDeviceInfo[]›*
+▸ **getDevices**(): Promise<MediaDeviceInfo[]\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L222)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L222)*
 
 Returns a list of devices supported by the browser
 
@@ -896,55 +891,55 @@ client.getDevices().then((result) => {
 });
 ```
 
-**Returns:** *Promise‹MediaDeviceInfo[]›*
+**Returns:** Promise<MediaDeviceInfo[]\>
 
 ___
 
-###  getVideoDevices
+### getVideoDevices
 
-▸ **getVideoDevices**(): *Promise‹MediaDeviceInfo[]›*
+▸ **getVideoDevices**(): Promise<MediaDeviceInfo[]\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:232](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L232)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:232](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L232)*
 
 Return the device list supported by the browser
 
-**Returns:** *Promise‹MediaDeviceInfo[]›*
+**Returns:** Promise<MediaDeviceInfo[]\>
 
 ___
 
-###  logout
+### logout
 
-▸ **logout**(): *void*
+▸ **logout**(): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:141](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L141)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:141](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L141)*
 
 Alias for .disconnect()
 
 **`deprecated`** 
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-###  off
+### off
 
-▸ **off**(`eventName`: string, `callback?`: Function): *this*
+▸ **off**(`eventName`: string, `callback?`: Function): this
 
 *Inherited from [BaseSession](basesession.md).[off](basesession.md#off)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:256](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L256)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:256](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L256)*
 
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
 
-**Parameters:**
+#### Parameters:
 
 Name | Type | Description |
 ------ | ------ | ------ |
 `eventName` | string | Event name. |
 `callback?` | Function | Function handler to be removed.  |
 
-**Returns:** *this*
+**Returns:** this
 
 The client object itself.
 
@@ -970,13 +965,13 @@ client.off('telnyx.error', errorHandler)
 
 ___
 
-###  on
+### on
 
-▸ **on**(`eventName`: string, `callback`: Function): *this*
+▸ **on**(`eventName`: string, `callback`: Function): this
 
 *Inherited from [BaseSession](basesession.md).[on](basesession.md#on)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L222)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:222](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L222)*
 
 Attaches an event handler for a specific type of event.
 
@@ -1005,24 +1000,24 @@ client.on('telnyx.ready', (client) => {
 })
 ```
 
-**Parameters:**
+#### Parameters:
 
 Name | Type | Description |
 ------ | ------ | ------ |
 `eventName` | string | Event name. |
 `callback` | Function | Function to call when the event comes. |
 
-**Returns:** *this*
+**Returns:** this
 
 The client object itself.
 
 ___
 
-###  setAudioSettings
+### setAudioSettings
 
-▸ **setAudioSettings**(`settings`: [IAudioSettings](../interfaces/iaudiosettings.md)): *Promise‹MediaTrackConstraints›*
+▸ **setAudioSettings**(`settings`: [IAudioSettings](../interfaces/iaudiosettings.md)): Promise<MediaTrackConstraints\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:428](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L428)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:428](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L428)*
 
 Sets the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
 
@@ -1047,23 +1042,23 @@ const constraints = await client.setAudioSettings({
 })
 ```
 
-**Parameters:**
+#### Parameters:
 
 Name | Type | Description |
 ------ | ------ | ------ |
 `settings` | [IAudioSettings](../interfaces/iaudiosettings.md) | (https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`.  |
 
-**Returns:** *Promise‹MediaTrackConstraints›*
+**Returns:** Promise<MediaTrackConstraints\>
 
 `Promise<MediaTrackConstraints>` Audio constraints applied to the client.
 
 ___
 
-###  setVideoSettings
+### setVideoSettings
 
-▸ **setVideoSettings**(`settings`: [IVideoSettings](../interfaces/ivideosettings.md)): *Promise‹MediaTrackConstraints›*
+▸ **setVideoSettings**(`settings`: [IVideoSettings](../interfaces/ivideosettings.md)): Promise<MediaTrackConstraints\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:525](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L525)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:525](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L525)*
 
 Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
 
@@ -1089,225 +1084,225 @@ const constraints = await client.setVideoSettings({
 })
 ```
 
-**Parameters:**
+#### Parameters:
 
 Name | Type | Description |
 ------ | ------ | ------ |
 `settings` | [IVideoSettings](../interfaces/ivideosettings.md) | (https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`.  |
 
-**Returns:** *Promise‹MediaTrackConstraints›*
+**Returns:** Promise<MediaTrackConstraints\>
 
 `Promise<MediaTrackConstraints>` Video constraints applied to the client.
 
 ___
 
-###  speedTest
+### speedTest
 
-▸ **speedTest**(`bytes`: number): *Promise‹unknown›*
+▸ **speedTest**(`bytes`: number): Promise<unknown\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:163](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L163)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:163](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L163)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `bytes` | number |
 
-**Returns:** *Promise‹unknown›*
+**Returns:** Promise<unknown\>
 
 ___
 
-###  subscribe
+### subscribe
 
-▸ **subscribe**(`__namedParameters`: object): *Promise‹any›*
+▸ **subscribe**(`__namedParameters`: { channels: string[] ; handler: Function ; protocol: string  }): Promise<any\>
 
 *Inherited from [BaseSession](basesession.md).[subscribe](basesession.md#subscribe)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:142](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L142)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:142](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L142)*
 
 Subscribe to Blade protocol channels
 
 **`async`** 
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`__namedParameters` | object |
+`__namedParameters` | { channels: string[] ; handler: Function ; protocol: string  } |
 
-**Returns:** *Promise‹any›*
+**Returns:** Promise<any\>
 
 Result of the ADD subscription
 
 ___
 
-###  unsubscribe
+### unsubscribe
 
-▸ **unsubscribe**(`__namedParameters`: object): *Promise‹any›*
+▸ **unsubscribe**(`__namedParameters`: { channels: string[] ; handler: Function ; protocol: string  }): Promise<any\>
 
 *Inherited from [BaseSession](basesession.md).[unsubscribe](basesession.md#unsubscribe)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:166](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L166)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:166](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L166)*
 
 Unsubscribe from Blade protocol channels
 
 **`async`** 
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`__namedParameters` | object |
+`__namedParameters` | { channels: string[] ; handler: Function ; protocol: string  } |
 
-**Returns:** *Promise‹any›*
+**Returns:** Promise<any\>
 
 Result of the REMOVE subscription
 
 ___
 
-###  validateDeviceId
+### validateDeviceId
 
-▸ **validateDeviceId**(`id`: string, `label`: string, `kind`: MediaDeviceInfo["kind"]): *Promise‹string›*
+▸ **validateDeviceId**(`id`: string, `label`: string, `kind`: MediaDeviceInfo[\"kind\"]): Promise<string\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:308](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L308)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:308](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L308)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `id` | string |
 `label` | string |
-`kind` | MediaDeviceInfo["kind"] |
+`kind` | MediaDeviceInfo[\"kind\"] |
 
-**Returns:** *Promise‹string›*
+**Returns:** Promise<string\>
 
 ___
 
-###  validateOptions
+### validateOptions
 
-▸ **validateOptions**(): *boolean*
+▸ **validateOptions**(): boolean
 
 *Inherited from [BaseSession](basesession.md).[validateOptions](basesession.md#validateoptions)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:126](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L126)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:126](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L126)*
 
 Validates the options passed in.
 TelnyxRTC requires (login and password) OR login_token
 Verto requires host, login, passwd OR password
 
-**Returns:** *boolean*
+**Returns:** boolean
 
 boolean
 
 ___
 
-###  vertoBroadcast
+### vertoBroadcast
 
-▸ **vertoBroadcast**(`__namedParameters`: object): *void*
+▸ **vertoBroadcast**(`__namedParameters`: { data: object ; eventChannel: string = ""; nodeId: string  }): void
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:653](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L653)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:653](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L653)*
 
-**Parameters:**
-
-Name | Type |
------- | ------ |
-`__namedParameters` | object |
-
-**Returns:** *void*
-
-___
-
-###  vertoSubscribe
-
-▸ **vertoSubscribe**(`__namedParameters`: object): *Promise‹any›*
-
-*Defined in [src/Modules/Verto/BrowserSession.ts:668](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L668)*
-
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`__namedParameters` | object |
+`__namedParameters` | { data: object ; eventChannel: string = ""; nodeId: string  } |
 
-**Returns:** *Promise‹any›*
+**Returns:** void
 
 ___
 
-###  vertoUnsubscribe
+### vertoSubscribe
 
-▸ **vertoUnsubscribe**(`__namedParameters`: object): *Promise‹any›*
+▸ **vertoSubscribe**(`__namedParameters`: { eventChannel: string[] = []; handler: Function ; nodeId: string  }): Promise<any\>
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:699](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L699)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:668](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L668)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
-`__namedParameters` | object |
+`__namedParameters` | { eventChannel: string[] = []; handler: Function ; nodeId: string  } |
 
-**Returns:** *Promise‹any›*
+**Returns:** Promise<any\>
 
 ___
 
-### `Static` off
+### vertoUnsubscribe
 
-▸ **off**(`eventName`: string): *void*
+▸ **vertoUnsubscribe**(`__namedParameters`: { eventChannel: string[] = []; nodeId: string  }): Promise<any\>
 
-*Inherited from [BaseSession](basesession.md).[off](basesession.md#static-off)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:699](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L699)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:445](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L445)*
+#### Parameters:
 
-**Parameters:**
+Name | Type |
+------ | ------ |
+`__namedParameters` | { eventChannel: string[] = []; nodeId: string  } |
+
+**Returns:** Promise<any\>
+
+___
+
+### off
+
+▸ `Static`**off**(`eventName`: string): void
+
+*Inherited from [BaseSession](basesession.md).[off](basesession.md#off)*
+
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:445](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L445)*
+
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `eventName` | string |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-### `Static` on
+### on
 
-▸ **on**(`eventName`: string, `callback`: any): *void*
+▸ `Static`**on**(`eventName`: string, `callback`: any): void
 
-*Inherited from [BaseSession](basesession.md).[on](basesession.md#static-on)*
+*Inherited from [BaseSession](basesession.md).[on](basesession.md#on)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:441](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L441)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:441](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L441)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `eventName` | string |
 `callback` | any |
 
-**Returns:** *void*
+**Returns:** void
 
 ___
 
-### `Static` telnyxStateCall
+### telnyxStateCall
 
-▸ **telnyxStateCall**(`call`: [Call](call.md)): *[Call](call.md)‹›*
+▸ `Static`**telnyxStateCall**(`call`: [Call](call.md)): [Call](call.md)
 
-*Defined in [src/Modules/Verto/BrowserSession.ts:727](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L727)*
+*Defined in [packages/js/src/Modules/Verto/BrowserSession.ts:727](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BrowserSession.ts#L727)*
 
-**Parameters:**
+#### Parameters:
 
 Name | Type |
 ------ | ------ |
 `call` | [Call](call.md) |
 
-**Returns:** *[Call](call.md)‹›*
+**Returns:** [Call](call.md)
 
 ___
 
-### `Static` uuid
+### uuid
 
-▸ **uuid**(): *string*
+▸ `Static`**uuid**(): string
 
-*Inherited from [BaseSession](basesession.md).[uuid](basesession.md#static-uuid)*
+*Inherited from [BaseSession](basesession.md).[uuid](basesession.md#uuid)*
 
-*Defined in [src/Modules/Verto/BaseSession.ts:449](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L449)*
+*Defined in [packages/js/src/Modules/Verto/BaseSession.ts:449](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/BaseSession.ts#L449)*
 
-**Returns:** *string*
+**Returns:** string

@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [CallRecordState](callrecordstate.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / CallRecordState
 
 # Enumeration: CallRecordState
 
@@ -12,24 +14,24 @@
 
 ## Enumeration members
 
-###  Finished
+### Finished
 
-• **Finished**: = "finished"
+•  **Finished**:  = "finished"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:111](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L111)*
-
-___
-
-###  NoInput
-
-• **NoInput**: = "no_input"
-
-*Defined in [src/Modules/Verto/util/constants/relay.ts:110](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L110)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:111](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L111)*
 
 ___
 
-###  Recording
+### NoInput
 
-• **Recording**: = "recording"
+•  **NoInput**:  = "no\_input"
 
-*Defined in [src/Modules/Verto/util/constants/relay.ts:109](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L109)*
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:110](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L110)*
+
+___
+
+### Recording
+
+•  **Recording**:  = "recording"
+
+*Defined in [packages/js/src/Modules/Verto/util/constants/relay.ts:109](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/constants/relay.ts#L109)*

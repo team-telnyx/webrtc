@@ -1,4 +1,6 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [VertoMethod](vertomethod.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / VertoMethod
 
 # Enumeration: VertoMethod
 
@@ -24,120 +26,120 @@
 
 ## Enumeration members
 
-###  Answer
+### Answer
 
-• **Answer**: = "telnyx_rtc.answer"
+•  **Answer**:  = "telnyx\_rtc.answer"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:16](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L16)*
-
-___
-
-###  Attach
-
-• **Attach**: = "telnyx_rtc.attach"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L15)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:16](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L16)*
 
 ___
 
-###  Broadcast
+### Attach
 
-• **Broadcast**: = "telnyx_rtc.broadcast"
+•  **Attach**:  = "telnyx\_rtc.attach"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:23](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L23)*
-
-___
-
-###  Bye
-
-• **Bye**: = "telnyx_rtc.bye"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:21](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L21)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:15](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L15)*
 
 ___
 
-###  ClientReady
+### Broadcast
 
-• **ClientReady**: = "telnyx_rtc.clientReady"
+•  **Broadcast**:  = "telnyx\_rtc.broadcast"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L26)*
-
-___
-
-###  Display
-
-• **Display**: = "telnyx_rtc.display"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:18](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L18)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:23](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L23)*
 
 ___
 
-###  Event
+### Bye
 
-• **Event**: = "telnyx_rtc.event"
+•  **Bye**:  = "telnyx\_rtc.bye"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L20)*
-
-___
-
-###  Info
-
-• **Info**: = "telnyx_rtc.info"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:17](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L17)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:21](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L21)*
 
 ___
 
-###  Invite
+### ClientReady
 
-• **Invite**: = "telnyx_rtc.invite"
+•  **ClientReady**:  = "telnyx\_rtc.clientReady"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:14](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L14)*
-
-___
-
-###  Media
-
-• **Media**: = "telnyx_rtc.media"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L19)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:26](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L26)*
 
 ___
 
-###  Modify
+### Display
 
-• **Modify**: = "telnyx_rtc.modify"
+•  **Display**:  = "telnyx\_rtc.display"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L27)*
-
-___
-
-###  Punt
-
-• **Punt**: = "telnyx_rtc.punt"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:22](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L22)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:18](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L18)*
 
 ___
 
-###  Ringing
+### Event
 
-• **Ringing**: = "telnyx_rtc.ringing"
+•  **Event**:  = "telnyx\_rtc.event"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L28)*
-
-___
-
-###  Subscribe
-
-• **Subscribe**: = "telnyx_rtc.subscribe"
-
-*Defined in [src/Modules/Verto/webrtc/constants.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L24)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:20](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L20)*
 
 ___
 
-###  Unsubscribe
+### Info
 
-• **Unsubscribe**: = "telnyx_rtc.unsubscribe"
+•  **Info**:  = "telnyx\_rtc.info"
 
-*Defined in [src/Modules/Verto/webrtc/constants.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L25)*
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:17](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L17)*
+
+___
+
+### Invite
+
+•  **Invite**:  = "telnyx\_rtc.invite"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:14](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L14)*
+
+___
+
+### Media
+
+•  **Media**:  = "telnyx\_rtc.media"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:19](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L19)*
+
+___
+
+### Modify
+
+•  **Modify**:  = "telnyx\_rtc.modify"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:27](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L27)*
+
+___
+
+### Punt
+
+•  **Punt**:  = "telnyx\_rtc.punt"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:22](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L22)*
+
+___
+
+### Ringing
+
+•  **Ringing**:  = "telnyx\_rtc.ringing"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:28](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L28)*
+
+___
+
+### Subscribe
+
+•  **Subscribe**:  = "telnyx\_rtc.subscribe"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:24](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L24)*
+
+___
+
+### Unsubscribe
+
+•  **Unsubscribe**:  = "telnyx\_rtc.unsubscribe"
+
+*Defined in [packages/js/src/Modules/Verto/webrtc/constants.ts:25](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/webrtc/constants.ts#L25)*

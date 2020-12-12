@@ -1,10 +1,12 @@
-[@telnyx/webrtc - v2.2.3](../README.md) › [ICallingTapDevice](icallingtapdevice.md)
+**[@telnyx/webrtc](../README.md)**
+
+> [Globals](../README.md) / ICallingTapDevice
 
 # Interface: ICallingTapDevice
 
 ## Hierarchy
 
-* IRelayCallingTapDeviceParams
+* [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md)
 
   ↳ **ICallingTapDevice**
 
@@ -12,78 +14,78 @@
 
 ### Properties
 
-* [addr](icallingtapdevice.md#optional-addr)
-* [codec](icallingtapdevice.md#optional-codec)
-* [port](icallingtapdevice.md#optional-port)
-* [ptime](icallingtapdevice.md#optional-ptime)
-* [rate](icallingtapdevice.md#optional-rate)
-* [type](icallingtapdevice.md#optional-type)
-* [uri](icallingtapdevice.md#optional-uri)
+* [addr](icallingtapdevice.md#addr)
+* [codec](icallingtapdevice.md#codec)
+* [port](icallingtapdevice.md#port)
+* [ptime](icallingtapdevice.md#ptime)
+* [rate](icallingtapdevice.md#rate)
+* [type](icallingtapdevice.md#type)
+* [uri](icallingtapdevice.md#uri)
 
 ## Properties
 
-### `Optional` addr
+### addr
 
-• **addr**? : *string*
+• `Optional` **addr**: string
 
-*Inherited from void*
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[addr](irelaycallingtapdeviceparams.md#addr)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:353](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L353)*
-
-___
-
-### `Optional` codec
-
-• **codec**? : *string*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:355](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L355)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:353](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L353)*
 
 ___
 
-### `Optional` port
+### codec
 
-• **port**? : *number*
+• `Optional` **codec**: string
 
-*Inherited from void*
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[codec](irelaycallingtapdeviceparams.md#codec)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:354](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L354)*
-
-___
-
-### `Optional` ptime
-
-• **ptime**? : *number*
-
-*Inherited from void*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:356](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L356)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:355](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L355)*
 
 ___
 
-### `Optional` rate
+### port
 
-• **rate**? : *number*
+• `Optional` **port**: number
 
-*Inherited from void*
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[port](irelaycallingtapdeviceparams.md#port)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:358](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L358)*
-
-___
-
-### `Optional` type
-
-• **type**? : *string*
-
-*Defined in [src/Modules/Verto/util/interfaces.ts:367](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L367)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:354](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L354)*
 
 ___
 
-### `Optional` uri
+### ptime
 
-• **uri**? : *string*
+• `Optional` **ptime**: number
 
-*Inherited from void*
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[ptime](irelaycallingtapdeviceparams.md#ptime)*
 
-*Defined in [src/Modules/Verto/util/interfaces.ts:357](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L357)*
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:356](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L356)*
+
+___
+
+### rate
+
+• `Optional` **rate**: number
+
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[rate](irelaycallingtapdeviceparams.md#rate)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:358](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L358)*
+
+___
+
+### type
+
+• `Optional` **type**: string
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:367](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L367)*
+
+___
+
+### uri
+
+• `Optional` **uri**: string
+
+*Inherited from [IRelayCallingTapDeviceParams](irelaycallingtapdeviceparams.md).[uri](irelaycallingtapdeviceparams.md#uri)*
+
+*Defined in [packages/js/src/Modules/Verto/util/interfaces.ts:357](https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/util/interfaces.ts#L357)*
