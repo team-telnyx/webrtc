@@ -97,6 +97,35 @@
 
 Creates a new `TelnyxRTC` instance with the provided options.
 
+**`examples`** 
+
+Authenticating with a JSON Web Token:
+
+```javascript
+const client = new TelnyxRTC({
+  login_token: login_token,
+});
+```
+
+Authenticating with username and password credentials:
+
+```js
+const client = new TelnyxRTC({
+  login: username,
+  password: password,
+});
+```
+
+Setting `ringtoneFile` and `ringbackFile`:
+
+```js
+const client = new TelnyxRTC({
+  login_token: login_token,
+  ringtoneFile: './sounds/incoming_call.mp3',
+  ringbackFile: './sounds/ringback_tone.mp3',
+});
+```
+
 #### Parameters:
 
 Name | Type | Description |
@@ -550,12 +579,38 @@ ___
 
 Checks if the browser has the permission to access mic and/or webcam
 
+**`examples`** 
+
+Checking for audio and video permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions();
+```
+
+Checking only for audio permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions(true, false);
+```
+
+Checking only for video permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions(false, true);
+```
+
 #### Parameters:
 
 Name | Type | Default value | Description |
 ------ | ------ | ------ | ------ |
 `audio` | boolean | true | Whether to check for microphone permissions. |
-`video` | boolean | true | Whether to check for webcam permissions.  ## Examples  Checking for audio and video permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(); ```  Checking only for audio permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(true, false); ```  Checking only for video permissions:  ```js const client = new TelnyxRTC(options);  client.checkPermissions(false, true); ```  |
+`video` | boolean | true | Whether to check for webcam permissions.  |
 
 **Returns:** Promise<boolean\>
 
@@ -573,7 +628,7 @@ ___
 
 Creates a new connection for exchanging data with the WebRTC server
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -598,7 +653,7 @@ Disables use of the microphone in subsequent calls.
 Note: This setting will be ignored if `audio: true` is
 specified when creating a new call.
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -636,7 +691,7 @@ Disables use of the webcam in subsequent calls.
 
 Note: This method will disable the video even if `video: true` is specified.
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -669,7 +724,7 @@ ___
 
 Disconnect all active calls
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -694,7 +749,7 @@ Enables use of the microphone in subsequent calls.
 Note: This setting will be ignored if `audio: false` is
 specified when creating a new call.
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -719,7 +774,7 @@ Enables use of the webcam in subsequent calls.
 Note: This setting will be ignored if `video: false` is
 specified when creating a new call.
 
-## Examples
+**`examples`** 
 
 ```js
 const client = new TelnyxRTC(options);
@@ -785,7 +840,7 @@ ___
 
 Return the audio output devices supported by the browser.
 
-## Examples
+**`examples`** 
 
 Using async/await:
 
@@ -826,7 +881,7 @@ audio output devices. As of v63, this feature is behind the
 user preference `media.setsinkid.enabled`.
 See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
 
-## Examples
+**`examples`** 
 
 Using async/await:
 
@@ -932,7 +987,7 @@ ___
 
 Returns a list of devices supported by the browser
 
-## Examples
+**`examples`** 
 
 Using async/await:
 
@@ -1056,21 +1111,7 @@ ___
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
 
-#### Parameters:
-
-Name | Type | Description |
------- | ------ | ------ |
-`eventName` | string | Event name. |
-`callback?` | Function | Function handler to be removed.  |
-
-**Returns:** this
-
-The client object itself.
-
-Note: a handler will be removed from the stack by reference
-so make sure to use the same reference in both `.on()` and `.off()` methods.
-
-## Examples
+**`examples`** 
 
 Subscribe to the `telnyx.error` and then, remove the event handler.
 
@@ -1086,6 +1127,20 @@ client.on('telnyx.error', errorHandler)
  // .. later
 client.off('telnyx.error', errorHandler)
 ```
+
+#### Parameters:
+
+Name | Type | Description |
+------ | ------ | ------ |
+`eventName` | string | Event name. |
+`callback?` | Function | Function handler to be removed.  |
+
+**Returns:** this
+
+The client object itself.
+
+Note: a handler will be removed from the stack by reference
+so make sure to use the same reference in both `.on()` and `.off()` methods.
 
 ___
 

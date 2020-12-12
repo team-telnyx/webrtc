@@ -236,7 +236,7 @@ export default abstract class BaseSession {
    * Note: a handler will be removed from the stack by reference
    * so make sure to use the same reference in both `.on()` and `.off()` methods.
    *
-   * ## Examples
+   * @examples
    *
    * Subscribe to the `telnyx.error` and then, remove the event handler.
    *

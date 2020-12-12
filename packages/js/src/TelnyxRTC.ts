@@ -12,7 +12,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * @param options.ringtoneFile A URL to a wav/mp3 ringtone file.
    * @param options.ringbackFile A URL to a wav/mp3 ringback file that will be used when you disable "Generate Ringback Tone" in you SIP Connection.
    *
-   * ## Examples:
+   * @examples
    *
    * Authenticating with a JSON Web Token:
    *

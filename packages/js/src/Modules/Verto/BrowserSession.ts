@@ -76,7 +76,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Creates a new connection for exchanging data with the WebRTC server
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -95,7 +95,7 @@ export default abstract class BrowserSession extends BaseSession {
    * @param audio Whether to check for microphone permissions.
    * @param video Whether to check for webcam permissions.
    *
-   * ## Examples
+   * @examples
    *
    * Checking for audio and video permissions:
    *
@@ -145,7 +145,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Disconnect all active calls
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -199,7 +199,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Returns a list of devices supported by the browser
    *
-   * ## Examples
+   * @examples
    *
    * Using async/await:
    *
@@ -239,7 +239,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Return the audio output devices supported by the browser.
    *
-   * ## Examples
+   * @examples
    *
    * Using async/await:
    *
@@ -276,7 +276,7 @@ export default abstract class BrowserSession extends BaseSession {
    * user preference `media.setsinkid.enabled`.
    * See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
    *
-   * ## Examples
+   * @examples
    *
    * Using async/await:
    *
@@ -449,7 +449,7 @@ export default abstract class BrowserSession extends BaseSession {
    * Note: This setting will be ignored if `audio: true` is
    * specified when creating a new call.
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -481,7 +481,7 @@ export default abstract class BrowserSession extends BaseSession {
    * Note: This setting will be ignored if `audio: false` is
    * specified when creating a new call.
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -546,7 +546,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * Note: This method will disable the video even if `video: true` is specified.
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
@@ -573,7 +573,7 @@ export default abstract class BrowserSession extends BaseSession {
    * Note: This setting will be ignored if `video: false` is
    * specified when creating a new call.
    *
-   * ## Examples
+   * @examples
    *
    * ```js
    * const client = new TelnyxRTC(options);
