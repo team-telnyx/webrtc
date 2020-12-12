@@ -85,7 +85,7 @@
 
 ### constructor
 
-\+ **new Call**(`session`: [BrowserSession](browsersession.md), `opts?`: CallOptions): [Call](call.md)
+\+ **new Call**(`session`: BrowserSession, `opts?`: CallOptions): [Call](call.md)
 
 *Inherited from [Call](call.md).[constructor](call.md#constructor)*
 
@@ -95,7 +95,7 @@
 
 Name | Type |
 ------ | ------ |
-`session` | [BrowserSession](browsersession.md) |
+`session` | BrowserSession |
 `opts?` | CallOptions |
 
 **Returns:** [Call](call.md)
@@ -629,7 +629,7 @@ call.setAudioInDevice('abc123').then(() => {
 });
 ```
 
-Usage with [BrowserSession.getAudioInDevices](browsersession.md#getaudioindevices):
+Usage with {@link BrowserSession.getAudioInDevices}:
 
 ```js
 let result = await client.getAudioInDevices();
