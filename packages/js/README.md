@@ -92,8 +92,9 @@ client
 
 ### Calls
 
+To initiate an outgoing call:
+
 ```js
-// Dial a number
 const call = client.newCall({
   // Destination is required and can be a phone number or SIP URI
   destinationNumber: '18004377950',
@@ -101,7 +102,7 @@ const call = client.newCall({
 });
 ```
 
-Set `video` to `true` to enable audio & video:
+To enable video when calling:
 
 ```js
 const videoCall = client.newCall({
@@ -109,17 +110,27 @@ const videoCall = client.newCall({
   video: true,
 });
 
-// And in your HTML:
+// And in your HTML, replace the audio element with video.
 //  <video id="remoteMedia" autoplay="true" playsinline="true" />
 ```
 
 > See [TelnyxRTC.newCall](./docs/ts/classes/telnyxrtc.md#newCall) for all options.
 
-A `Call` instance has methods that can be hooked up to your UI:
+To answer an incoming call:
 
 ```js
-// Answer an incoming call in the `'telnyx.notification'` event
-call.answer();
+client.on('telnyx.notification', (notification) => {
+  const call = notification.call;
+
+  if (notification.type === 'callUpdate' && call.state === 'ringing') {
+    call.answer();
+  }
+});
+```
+
+Both the outgoing and incoming `Call` instance has methods that can be hooked up to your UI:
+
+```js
 // Hangup or reject an incoming call
 call.hangup();
 
