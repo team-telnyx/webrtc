@@ -51,6 +51,38 @@ export default class Call extends BaseCall {
     }
   }
 
+  /**
+   * Changes the audio output device (i.e. speaker) used for the call.
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.setAudioOutDevice('abc123')
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * call.setAudioOutDevice('abc123').then(() => {
+   *   // Do something using new audio input device
+   * });
+   * ```
+   *
+   * Usage with {@link BrowserSession.getAudioOutDevices}:
+   *
+   * ```js
+   * let result = await client.getAudioOutDevices();
+   *
+   * if (result.length) {
+   *   await call.setAudioOutDevice(result[1].deviceId);
+   * }
+   * ```
+   *
+   * @param deviceId The target audio output device ID
+   * @returns Promise that returns a boolean
+   */
   async setAudioOutDevice(deviceId: string): Promise<boolean> {
     this.options.speakerId = deviceId;
     const { remoteElement, speakerId } = this.options;
