@@ -2,6 +2,8 @@
  * @author andywer
  * @license MIT
  * https://github.com/andywer/typed-emitter
+ *
+ * @ignore
  */
 type Arguments<T> = [T] extends [(...args: infer U) => any]
   ? U
@@ -26,6 +28,8 @@ type Arguments<T> = [T] extends [(...args: infer U) => any]
  * })
  *
  * myEmitter.emit("error", "x")  // <- Will catch this type error
+ *
+ * @ignore
  */
 interface TypedEventEmitter<Events> {
   addListener<E extends keyof Events>(event: E, listener: Events[E]): this;

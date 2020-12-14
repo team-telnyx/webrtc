@@ -38,6 +38,8 @@ const _constraintsByKind = (
  * audio output devices. As of v63, this feature is behind the
  * user preference `media.setsinkid.enabled`.
  * See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
+ *
+ * @ignore
  */
 const getDevices = async (
   kind: MediaDeviceKind | undefined = null,
@@ -188,6 +190,7 @@ const checkDeviceIdConstraints = async (
 /**
  * Add stereo support hacking the SDP
  * @return the SDP modified
+ * @ignore
  */
 const sdpStereoHack = (sdp: string) => {
   const endOfLine = '\r\n';
@@ -343,6 +346,7 @@ const _updateMediaStreamTracks = (
 /**
  * Modify the SDP to increase video bitrate
  * @return the SDP modified
+ * @ignore
  */
 const sdpBitrateHack = (
   sdp: string,

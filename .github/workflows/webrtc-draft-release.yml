@@ -46,7 +46,7 @@ jobs:
     - name: Generate docs
       working-directory: packages/js
       run: |
-        npm run docs -- --gitRevision main # IDEA Set git revision to release-it tag
+        npm run docs # IDEA Set --gitRevision to release-it tag
         git add docs
         git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
     - name: Create draft release

@@ -16,6 +16,9 @@ const FETCH_OPTIONS: RequestInit = {
   },
 };
 
+/**
+ * @ignore Hide in docs output
+ */
 class CantinaAuth {
   public baseUrl = 'https://telnyx.com'; // TODO: change me
   public hostname: string;

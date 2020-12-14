@@ -40,6 +40,9 @@ import {
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 
+/**
+ * @ignore Hide in docs output
+ */
 export default abstract class BaseCall implements IWebRTCCall {
   public id: string = '';
 
