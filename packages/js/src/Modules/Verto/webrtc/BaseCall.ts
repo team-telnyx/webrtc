@@ -55,11 +55,11 @@ export default abstract class BaseCall implements IWebRTCCall {
    *
    * | Value | Description |
    * | `new` | New call has been created in the client. |
-   * | `trying` | It attempts to call someone. |
+   * | `trying` | It's attempting to call someone. |
    * | `requesting` | The outbound call is being sent to the server. |
-   * | `recovering` | The previous call is recovering after the page refreshes. If refreshes the page during a call, it will automatically be joined with the latest call. |
+   * | `recovering` | The previous call is recovering after the page refreshes. If the user refreshes the page during a call, it will automatically join the latest call. |
    * | `ringing` | Someone is attempting to call you. |
-   * | `answering` | Attempts to answer the inbound call. |
+   * | `answering` | You are attempting to answer this inbound call. |
    * | `early` | It receives the media before the call has been answered. |
    * | `active` | Call has become active. |
    * | `held` | Call has been held. |
