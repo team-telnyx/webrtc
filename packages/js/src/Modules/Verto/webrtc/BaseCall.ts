@@ -146,7 +146,8 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @examples
    *
    * ```js
-   * call.localStream();
+   * const stream = call.localStream();
+   * <video id="localId" srcObject={stream} autoPlay='autoplay' controls={false} />
    * ```
    */
   get localStream() {
@@ -161,7 +162,8 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @examples
    *
    * ```js
-   * call.remoteStream();
+   * const stream = call.remoteStream();
+   * <video id="remoteId" srcObject={stream} autoPlay='autoplay' controls={false} />
    * ```
    */
   get remoteStream() {
