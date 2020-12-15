@@ -26,6 +26,7 @@
 * [muteAudio](call.md#muteaudio)
 * [muteVideo](call.md#mutevideo)
 * [setAudioInDevice](call.md#setaudioindevice)
+* [setAudioOutDevice](call.md#setaudiooutdevice)
 * [toggleAudioMute](call.md#toggleaudiomute)
 * [toggleDeaf](call.md#toggledeaf)
 * [toggleHold](call.md#togglehold)
@@ -245,6 +246,50 @@ Name | Type | Description |
 **Returns:** Promise<void\>
 
 Promise that resolves if the audio input device has been updated
+
+___
+
+### setAudioOutDevice
+
+▸ **setAudioOutDevice**(`deviceId`: string): Promise<boolean\>
+
+Changes the audio output device (i.e. speaker) used for the call.
+
+**`examples`** 
+
+Using async/await:
+
+```js
+await call.setAudioOutDevice('abc123')
+```
+
+Using ES6 `Promises`:
+
+```js
+call.setAudioOutDevice('abc123').then(() => {
+  // Do something using new audio output device
+});
+```
+
+Usage with {@link BrowserSession.getAudioOutDevices}:
+
+```js
+let result = await client.getAudioOutDevices();
+
+if (result.length) {
+  await call.setAudioOutDevice(result[1].deviceId);
+}
+```
+
+#### Parameters:
+
+Name | Type | Description |
+------ | ------ | ------ |
+`deviceId` | string | The target audio output device ID |
+
+**Returns:** Promise<boolean\>
+
+Promise that returns a boolean
 
 ___
 
