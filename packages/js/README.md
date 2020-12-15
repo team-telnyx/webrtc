@@ -153,8 +153,8 @@ call.muteAudio();
 We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
 
 ```sh
-$ cd examples/vanilla
-$ open index.html
+cd examples/vanilla
+open index.html
 ```
 
 Screenshot:
@@ -174,10 +174,10 @@ We've included a few [examples in React](https://github.com/team-telnyx/webrtc/t
 #### Audio call
 
 ```sh
-$ cd examples/react-audio
-$ npm run setup
-$ npm install
-$ npm run storybook
+cd examples/react-audio
+npm run setup
+npm install
+npm run storybook
 ```
 
 Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
@@ -188,10 +188,10 @@ Screenshot:
 #### Video call
 
 ```sh
-$ cd examples/react-video
-$ npm run setup
-$ npm install
-$ npm start
+cd examples/react-video
+npm run setup
+npm install
+npm start
 ```
 
 Screenshot:
