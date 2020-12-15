@@ -1,4 +1,3 @@
-import logger from './util/logger';
 import BaseSession from './BaseSession';
 import {
   IAudioSettings,
@@ -24,8 +23,8 @@ import {
   getUserMedia,
   assureDeviceId,
 } from './webrtc/helpers';
-import { findElementByType, objEmpty } from './util/helpers';
-import { Unsubscribe, Subscribe, Broadcast, Result } from './messages/Verto';
+import { findElementByType } from './util/helpers';
+import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
 import { sessionStorage } from './util/storage';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
@@ -227,7 +226,29 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Returns a list of video devices supported by the browser (i.e. webcam).
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getVideoDevices();
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getVideoDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
+   *
+   * @returns Promise with an array of MediaDeviceInfo
    */
   getVideoDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.Video).catch((error) => {
@@ -260,6 +281,8 @@ export default abstract class BrowserSession extends BaseSession {
    *   console.log(result);
    * });
    * ```
+   *
+   * @returns Promise with an array of MediaDeviceInfo
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
@@ -297,6 +320,8 @@ export default abstract class BrowserSession extends BaseSession {
    *   console.log(result);
    * });
    * ```
+   *
+   * @returns Promise with an array of MediaDeviceInfo
    */
   getAudioOutDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioOut).catch((error) => {
