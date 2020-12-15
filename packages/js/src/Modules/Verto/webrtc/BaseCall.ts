@@ -568,7 +568,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * }
    * ```
    *
-   * @param deviceId The target video device ID
+   * @param deviceId the target video device ID
    * @returns Promise that resolves if the video device has been updated
    */
   async setVideoDevice(deviceId: string): Promise<void> {
