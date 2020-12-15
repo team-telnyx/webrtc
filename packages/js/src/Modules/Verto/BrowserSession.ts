@@ -635,7 +635,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Sets the local html element to receive the local stream.
+   * Sets the local html element that will receive the local stream.
    *
    * @example
    *
@@ -667,7 +667,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Sets the remote html element to receive the remote stream.
+   * Sets the remote html element that will receive the remote stream.
    *
    * @example
    *
