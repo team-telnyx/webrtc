@@ -417,6 +417,8 @@ client.getAudioInDevices().then((result) => {
 
 **Returns:** Promise<MediaDeviceInfo[]\>
 
+Promise with an array of MediaDeviceInfo
+
 ___
 
 ### getAudioOutDevices
@@ -455,6 +457,8 @@ client.getAudioOutDevices().then((result) => {
 ```
 
 **Returns:** Promise<MediaDeviceInfo[]\>
+
+Promise with an array of MediaDeviceInfo
 
 ___
 
@@ -564,9 +568,31 @@ ___
 
 *Inherited from [TelnyxRTC](telnyxrtc.md).[getVideoDevices](telnyxrtc.md#getvideodevices)*
 
-Return the device list supported by the browser
+Returns a list of video devices supported by the browser (i.e. webcam).
+
+**`examples`** 
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+  let result = await client.getVideoDevices();
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getVideoDevices().then((result) => {
+  console.log(result);
+});
+```
 
 **Returns:** Promise<MediaDeviceInfo[]\>
+
+Promise with an array of MediaDeviceInfo
 
 ___
 

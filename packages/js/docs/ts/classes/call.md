@@ -34,6 +34,7 @@
 * [muteVideo](call.md#mutevideo)
 * [setAudioInDevice](call.md#setaudioindevice)
 * [setAudioOutDevice](call.md#setaudiooutdevice)
+* [setVideoDevice](call.md#setvideodevice)
 * [toggleAudioMute](call.md#toggleaudiomute)
 * [toggleDeaf](call.md#toggledeaf)
 * [toggleHold](call.md#togglehold)
@@ -356,6 +357,52 @@ Name | Type | Description |
 **Returns:** Promise<boolean\>
 
 Promise that returns a boolean
+
+___
+
+### setVideoDevice
+
+▸ **setVideoDevice**(`deviceId`: string): Promise<void\>
+
+*Inherited from void*
+
+Changes the video device (i.e. webcam) used for the call.
+
+**`examples`** 
+
+Using async/await:
+
+```js
+await call.setVideoDevice('abc123')
+```
+
+Using ES6 `Promises`:
+
+```js
+call.setVideoDevice('abc123').then(() => {
+  // Do something using new video device
+});
+```
+
+Usage with {@link BrowserSession.getVideoDevices}:
+
+```js
+let result = await client.getVideoDevices();
+
+if (result.length) {
+  await call.setVideoDevice(result[1].deviceId);
+}
+```
+
+#### Parameters:
+
+Name | Type | Description |
+------ | ------ | ------ |
+`deviceId` | string | the target video device ID |
+
+**Returns:** Promise<void\>
+
+Promise that resolves if the video device has been updated
 
 ___
 
