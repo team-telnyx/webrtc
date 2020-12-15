@@ -163,7 +163,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    *
    * ```js
    * const stream = call.remoteStream();
-   * <video id="remoteId" srcObject={stream} autoPlay='autoplay' controls={false} />
+   * document.querySelector('video').srcObject = stream;
    * ```
    */
   get remoteStream() {
