@@ -16,6 +16,13 @@
 
 ## Index
 
+### Properties
+
+* [direction](call.md#direction)
+* [id](call.md#id)
+* [prevState](call.md#prevstate)
+* [state](call.md#state)
+
 ### Methods
 
 * [answer](call.md#answer)
@@ -35,6 +42,65 @@
 * [unhold](call.md#unhold)
 * [unmuteAudio](call.md#unmuteaudio)
 * [unmuteVideo](call.md#unmutevideo)
+
+## Properties
+
+### direction
+
+•  **direction**: Direction
+
+*Inherited from void*
+
+The direction of the call.
+Can be either `inbound` or `outbound`.
+
+Usage with {@link Direction}:
+
+___
+
+### id
+
+•  **id**: string = ""
+
+*Inherited from void*
+
+The call identifier.
+
+___
+
+### prevState
+
+•  **prevState**: string = ""
+
+*Inherited from void*
+
+The `prevState` of the call.
+Usage with {@link State}:
+
+___
+
+### state
+
+•  **state**: string = State[State.New]
+
+*Inherited from void*
+
+The `state` of the call.
+Usage with {@link State}:
+
+| Value | Description |
+| `new` | New call has been created in the client. |
+| `trying` | It's attempting to call someone. |
+| `requesting` | The outbound call is being sent to the server. |
+| `recovering` | The previous call is recovering after the page refreshes. If the user refreshes the page during a call, it will automatically join the latest call. |
+| `ringing` | Someone is attempting to call you. |
+| `answering` | You are attempting to answer this inbound call. |
+| `early` | It receives the media before the call has been answered. |
+| `active` | Call has become active. |
+| `held` | Call has been held. |
+| `hangup` | Call has ended. |
+| `destroy` | Call has been destroyed. |
+| `purge` | Call has been purged. |
 
 ## Methods
 
