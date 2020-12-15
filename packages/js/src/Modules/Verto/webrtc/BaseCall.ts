@@ -147,7 +147,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    *
    * ```js
    * const stream = call.localStream();
-   * document.querySelector('video').srcObject = stream;
+   * document.querySelector('audio').srcObject = stream;
    * ```
    */
   get localStream() {
@@ -163,7 +163,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    *
    * ```js
    * const stream = call.remoteStream();
-   * document.querySelector('video').srcObject = stream;
+   * document.querySelector('audio').srcObject = stream;
    * ```
    */
   get remoteStream() {
