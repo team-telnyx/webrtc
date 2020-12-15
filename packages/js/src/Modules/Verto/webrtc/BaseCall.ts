@@ -45,8 +45,7 @@ import Call from './Call';
  */
 export default abstract class BaseCall implements IWebRTCCall {
   /**
-   * The identifier of the call.
-   * It becomes `callID` to send to server.
+   * The call identifier.
   */
   public id: string = '';
 
