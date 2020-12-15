@@ -44,12 +44,45 @@ import Call from './Call';
  * @ignore Hide in docs output
  */
 export default abstract class BaseCall implements IWebRTCCall {
+  /**
+   * The identifier of the call.
+   * It becomes `callID` to send to server.
+  */
   public id: string = '';
 
+  /**
+   * The `state` of the call.
+   * Usage with {@link State}:
+   *
+   * | Value | Description |
+   * | `new` | New call has been created in the client. |
+   * | `trying` | It attempts to call someone. |
+   * | `requesting` | The outbound call is being sent to the server. |
+   * | `recovering` | The previous call is recovering after the page refreshes. If refreshes the page during a call, it will automatically be joined with the latest call. |
+   * | `ringing` | Someone is attempting to call you. |
+   * | `answering` | Attempts to answer the inbound call. |
+   * | `early` | It receives the media before the call has been answered. |
+   * | `active` | Call has become active. |
+   * | `held` | Call has been held. |
+   * | `hangup` | Call has ended. |
+   * | `destroy` | Call has been destroyed. |
+   * | `purge` | Call has been purged. |
+   *
+   */
   public state: string = State[State.New];
 
+  /**
+   * The `prevState` of the call.
+   * Usage with {@link State}:
+   */
   public prevState: string = '';
 
+  /**
+   * The direction of the call.
+   * Can be either `inbound` or `outbound`.
+   *
+   * Usage with {@link Direction}:
+   */
   public direction: Direction;
 
   public peer: Peer;
