@@ -170,10 +170,34 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._targetNodeId = what;
   }
 
+  /**
+   * Gets the local stream of the call.
+   * This can be used in a video/audio element to play the local media.
+   * [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+   *
+   * @examples
+   *
+   * ```js
+   * const stream = call.localStream();
+   * document.querySelector('audio').srcObject = stream;
+   * ```
+   */
   get localStream() {
     return this.options.localStream;
   }
 
+  /**
+   * Gets the remote stream of the call.
+   * This can be used in a video/audio element to play the local media.
+   * [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+   *
+   * @examples
+   *
+   * ```js
+   * const stream = call.remoteStream();
+   * document.querySelector('audio').srcObject = stream;
+   * ```
+   */
   get remoteStream() {
     return this.options.remoteStream;
   }

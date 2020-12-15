@@ -659,18 +659,66 @@ export default abstract class BrowserSession extends BaseSession {
     return this._speaker;
   }
 
+  /**
+   * Sets the local html element that will receive the local stream.
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   * client.localElement = '#localElementMediaId';
+   * ```
+   *
+   * @type {(HTMLMediaElement | string | Function)}
+   */
   set localElement(tag: HTMLMediaElement | string | Function) {
     this._localElement = findElementByType(tag);
   }
 
+  /**
+   * Gets the local html element.
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * console.log(client.localElement);
+   * // => HTMLMediaElement
+   * ```
+   */
   get localElement() {
     return this._localElement;
   }
 
+  /**
+   * Sets the remote html element that will receive the remote stream.
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   * client.remoteElement = '#remoteElementMediaId';
+   * ```
+   *
+   * @type {(HTMLMediaElement | string | Function)}
+   */
   set remoteElement(tag: HTMLMediaElement | string | Function) {
     this._remoteElement = findElementByType(tag);
   }
 
+  /**
+   * Gets the remote html element.
+   *
+   * @example
+   *
+   * ```js
+   * const client = new TelnyxRTC(options);
+   *
+   * console.log(client.remoteElement);
+   * // => HTMLMediaElement
+   * ```
+   */
   get remoteElement() {
     return this._remoteElement;
   }
