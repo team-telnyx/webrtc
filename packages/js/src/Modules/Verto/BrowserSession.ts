@@ -227,7 +227,29 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the device list supported by the browser
+   * Returns a list of video devices supported by the browser (i.e. webcam).
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * async function() {
+   *   const client = new TelnyxRTC(options);
+   *   let result = await client.getVideoDevices();
+   *   console.log(result);
+   * }
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * client.getVideoDevices().then((result) => {
+   *   console.log(result);
+   * });
+   * ```
+   *
+   * @returns Promise with an array of MediaDeviceInfo
    */
   getVideoDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.Video).catch((error) => {

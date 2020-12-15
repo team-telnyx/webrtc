@@ -539,6 +539,38 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleVideoTracks(this.options.localStream);
   }
 
+  /**
+   * Changes the video device (i.e. webcam) used for the call.
+   *
+   * @examples
+   *
+   * Using async/await:
+   *
+   * ```js
+   * await call.setVideoDevice('abc123')
+   * ```
+   *
+   * Using ES6 `Promises`:
+   *
+   * ```js
+   * call.setVideoDevice('abc123').then(() => {
+   *   // Do something using new video device
+   * });
+   * ```
+   *
+   * Usage with {@link BrowserSession.getVideoDevices}:
+   *
+   * ```js
+   * let result = await client.getVideoDevices();
+   *
+   * if (result.length) {
+   *   await call.setVideoDevice(result[1].deviceId);
+   * }
+   * ```
+   *
+   * @param deviceId The target video device ID
+   * @returns Promise that resolves if the video device has been updated
+   */
   async setVideoDevice(deviceId: string): Promise<void> {
     const { instance } = this.peer;
     const sender = instance
