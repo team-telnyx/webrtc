@@ -23,6 +23,11 @@
 * [prevState](call.md#prevstate)
 * [state](call.md#state)
 
+### Accessors
+
+* [localStream](call.md#localstream)
+* [remoteStream](call.md#remotestream)
+
 ### Methods
 
 * [answer](call.md#answer)
@@ -102,6 +107,48 @@ Usage with {@link State}:
 | `hangup` | Call has ended. |
 | `destroy` | Call has been destroyed. |
 | `purge` | Call has been purged. |
+
+## Accessors
+
+### localStream
+
+• get **localStream**(): MediaStream
+
+*Inherited from void*
+
+Gets the local stream of the call.
+This can be used in a video/audio element to play the local media.
+[MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+
+**`examples`** 
+
+```js
+const stream = call.localStream();
+document.querySelector('audio').srcObject = stream;
+```
+
+**Returns:** MediaStream
+
+___
+
+### remoteStream
+
+• get **remoteStream**(): MediaStream
+
+*Inherited from void*
+
+Gets the remote stream of the call.
+This can be used in a video/audio element to play the local media.
+[MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+
+**`examples`** 
+
+```js
+const stream = call.remoteStream();
+document.querySelector('audio').srcObject = stream;
+```
+
+**Returns:** MediaStream
 
 ## Methods
 

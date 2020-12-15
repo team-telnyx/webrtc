@@ -19,7 +19,9 @@
 ### Accessors
 
 * [connected](telnyxrtc.md#connected)
+* [localElement](telnyxrtc.md#localelement)
 * [mediaConstraints](telnyxrtc.md#mediaconstraints)
+* [remoteElement](telnyxrtc.md#remoteelement)
 * [speaker](telnyxrtc.md#speaker)
 
 ### Methods
@@ -109,6 +111,48 @@ console.log(client.connected); // => false
 
 ___
 
+### localElement
+
+• get **localElement**(): string \| Function \| HTMLMediaElement
+
+*Inherited from [TelnyxRTC](telnyxrtc.md).[localElement](telnyxrtc.md#localelement)*
+
+Gets the local html element.
+
+**`example`** 
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.localElement);
+// => HTMLMediaElement
+```
+
+**Returns:** string \| Function \| HTMLMediaElement
+
+• set **localElement**(`tag`: HTMLMediaElement \| string \| Function): void
+
+*Inherited from [TelnyxRTC](telnyxrtc.md).[localElement](telnyxrtc.md#localelement)*
+
+Sets the local html element that will receive the local stream.
+
+**`example`** 
+
+```js
+const client = new TelnyxRTC(options);
+client.localElement = '#localElementMediaId';
+```
+
+#### Parameters:
+
+Name | Type |
+------ | ------ |
+`tag` | HTMLMediaElement \| string \| Function |
+
+**Returns:** void
+
+___
+
 ### mediaConstraints
 
 • get **mediaConstraints**(): object
@@ -134,6 +178,48 @@ Name | Type |
 ------ | ------ |
 `audio` | boolean \| MediaTrackConstraints |
 `video` | boolean \| MediaTrackConstraints |
+
+___
+
+### remoteElement
+
+• get **remoteElement**(): string \| Function \| HTMLMediaElement
+
+*Inherited from [TelnyxRTC](telnyxrtc.md).[remoteElement](telnyxrtc.md#remoteelement)*
+
+Gets the remote html element.
+
+**`example`** 
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.remoteElement);
+// => HTMLMediaElement
+```
+
+**Returns:** string \| Function \| HTMLMediaElement
+
+• set **remoteElement**(`tag`: HTMLMediaElement \| string \| Function): void
+
+*Inherited from [TelnyxRTC](telnyxrtc.md).[remoteElement](telnyxrtc.md#remoteelement)*
+
+Sets the remote html element that will receive the remote stream.
+
+**`example`** 
+
+```js
+const client = new TelnyxRTC(options);
+client.remoteElement = '#remoteElementMediaId';
+```
+
+#### Parameters:
+
+Name | Type |
+------ | ------ |
+`tag` | HTMLMediaElement \| string \| Function |
+
+**Returns:** void
 
 ___
 
