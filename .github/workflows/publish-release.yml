@@ -65,9 +65,6 @@ jobs:
         npm run release -- \
         $(npm show @telnyx/webrtc version) \
         --ci \
-        --no-git.changelog \
-        --no-git.tag \
-        --no-github \
         --no-npm.publish \
         && \
         npm publish --access public

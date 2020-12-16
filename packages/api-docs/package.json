@@ -17,10 +17,9 @@
   "license": "MIT",
   "release-it": {
     "git": {
+      "changelog": false,
       "tag": false
     },
-    "github": {
-      "release": false
-    }
+    "github": false
   }
 }
