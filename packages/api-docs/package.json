@@ -2,9 +2,9 @@
   "name": "@telnyx/webrtc-api-docs",
   "version": "2.2.4-rc",
   "description": "Telnyx WebRTC Client API docs",
-  "main": "webrtc-api.json",
+  "main": "lib/webrtc-api.json",
   "scripts": {
-    "build": "cd ../js && npm run docs -- --json ../api-docs/dist/webrtc-api.json",
+    "build": "cd ../js && npm run docs -- --json ../api-docs/lib/webrtc-api.json",
     "prepare": "npm run build",
     "release": "../js/node_modules/.bin/release-it"
   },
