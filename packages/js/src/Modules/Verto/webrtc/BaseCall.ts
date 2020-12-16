@@ -51,9 +51,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * The `state` of the call.
-   * Usage with {@link State}:
    *
    * | Value | Description |
+   * |---|---|
    * | `new` | New call has been created in the client. |
    * | `trying` | It's attempting to call someone. |
    * | `requesting` | The outbound call is being sent to the server. |
@@ -71,8 +71,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   public state: string = State[State.New];
 
   /**
-   * The `prevState` of the call.
-   * Usage with {@link State}:
+   * The previous state of the call.
+   * See {@link Call.state} for all possible values.
    */
   public prevState: string = '';
 
