@@ -46,7 +46,7 @@ import Call from './Call';
 export default abstract class BaseCall implements IWebRTCCall {
   /**
    * The call identifier.
-  */
+   */
   public id: string = '';
 
   /**
@@ -79,8 +79,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * The direction of the call.
    * Can be either `inbound` or `outbound`.
-   *
-   * Usage with {@link Direction}:
    */
   public direction: Direction;
 
