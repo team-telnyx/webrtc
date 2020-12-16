@@ -48,21 +48,37 @@ export interface ICallOptions {
   // onNotification?: Function
 }
 
+/**
+ * {@see Call}
+ *
+ * @deprecated
+ * @ignore
+ */
 export interface ICall {
-  state: CallState;
-  isHeld?: Boolean;
-  isMuted?: Boolean;
-  hangup(): void;
+  direction?: any;
+  id?: any;
+  prevState?: any;
+  state?: any;
+  localStream?: any;
+  remoteStream?: any;
   answer(): void;
-  hold(): void;
-  unhold(): void;
-  mute(): void;
-  unmute(): void;
+  deaf(): void;
   dtmf(input: string): void;
-  transfer(input: string): void;
-  setAudioOutDevice(sinkId: string, callback?: Function): Promise<undefined>;
-  // setAudioInDevce();
-  // setVideoDevice();
+  hangup(): void;
+  hold(): Promise<any>;
+  muteAudio(): void;
+  muteVideo(): void;
+  setAudioInDevice(deviceId: string): Promise<any>;
+  setAudioOutDevice(deviceId: string): Promise<any>;
+  setVideoDevice(deviceId: string): Promise<any>;
+  toggleAudioMute(): void;
+  toggleDeaf(): void;
+  toggleHold(): Promise<any>;
+  toggleVideoMute(): void;
+  undeaf(): void;
+  unhold(): Promise<any>;
+  unmuteAudio(): void;
+  unmuteVideo(): void;
 }
 
 export interface MessageEvents {
