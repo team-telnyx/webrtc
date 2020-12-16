@@ -105,7 +105,7 @@ export interface IVideoSettings extends MediaTrackConstraints {
   camLabel?: string;
 }
 
-export interface ICall {
+export interface IVertoCall {
   id: string;
   tag?: string;
   nodeId: string;
@@ -172,7 +172,7 @@ export interface ICall {
   sendDigitsAsync: Function;
 }
 
-export interface ICallDevice {
+export interface IVertoCallDevice {
   type: string;
   params: {
     from_number: string;
@@ -181,22 +181,22 @@ export interface ICallDevice {
   };
 }
 
-export interface ICallPeer {
+export interface IVertoCallPeer {
   call_id: string;
   node_id: string;
-  device?: ICallDevice;
+  device?: IVertoCallDevice;
 }
 
-export interface ICallOptions {
-  device?: ICallDevice;
-  peer?: ICallPeer;
+export interface IVertoCallOptions {
+  device?: IVertoCallDevice;
+  peer?: IVertoCallPeer;
   node_id?: string;
   call_id?: string;
   call_state?: string;
   context?: string;
 }
 
-export interface IMakeCallParams {
+export interface IMakeVertoCallParams {
   type: string;
   from?: string;
   to: string;
@@ -232,7 +232,7 @@ export interface ICallingRecord extends IRelayCallingRecordAudio {
 }
 
 export interface ICallingConnectParams {
-  devices: DeepArray<IMakeCallParams>;
+  devices: DeepArray<IMakeVertoCallParams>;
   ringback?: ICallingPlay;
 }
 
