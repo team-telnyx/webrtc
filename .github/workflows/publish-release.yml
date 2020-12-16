@@ -59,6 +59,25 @@ jobs:
       env:
         CI: true
         NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+    - name: Release API docs
+      working-directory: packages/api-docs
+      run: |
+        npm run release -- \
+        $(npm show @telnyx/webrtc version) \
+        --ci \
+        --no-git.changelog \
+        --no-git.tag \
+        --no-github \
+        --no-npm.publish \
+        && \
+        npm publish --access public
+      env:
+        CI: true
+        # Both tokens are present because publishing with
+        # release-it in GH actions seems to be broken
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-react-client:
     if: github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')
