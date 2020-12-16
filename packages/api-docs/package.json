@@ -18,7 +18,8 @@
   "release-it": {
     "git": {
       "changelog": false,
-      "tag": false
+      "tag": false,
+      "commitMessage": "Release webrtc-api-docs ${version}"
     },
     "github": false
   }
