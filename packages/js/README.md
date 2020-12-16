@@ -1,25 +1,17 @@
-# Telnyx WebRTC SDK
+# @telnyx/webrtc
 
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) <!-- GEN:chromium-version-badge-if-release -->[![Chromium version](https://img.shields.io/badge/chromium-82.0.4057.0-blue.svg?logo=google-chrome)](https://www.chromium.org/Home)<!-- GEN:stop --> <!-- GEN:firefox-version-badge-if-release -->[![Firefox version](https://img.shields.io/badge/firefox-72-blue.svg?logo=mozilla-firefox)](https://www.mozilla.org/en-US/firefox/new/)<!-- GEN:stop --> [![WebKit version](https://img.shields.io/badge/webkit-13.0.4-blue.svg?logo=safari)](https://webkit.org/) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
 
-The Telnyx WebRTC SDK provides all the functionality you need to start making voice calls from a browser to phone numbers or other browsers.
+The Telnyx WebRTC Client provides all the functionality you need to start making voice & video calls from a browser.
 
-[v2 CHANGELOG](CHANGELOG.md)
-
-To access v1, click [here](https://github.com/team-telnyx/webrtc/tree/v1.0.9)
+- [Installation](#Installation)
+- [Usage](#Usage)
+- [Examples](#Examples)
+  - [Vanilla JavaScript](#vanilla-javascript)
+  - [React.js](#reactjs)
+- [Development](#Development)
 
 ---
-
-## Our packages
-
-- `@telnyx/webrtc`
-- `@telnyx/react-native` - [React Native](https://www.npmjs.com/package/@telnyx/react-native)
-
-## Requirements
-
-You'll need node v11.15.0 or later.
-
-You'll also need a Telnyx account in order to authenticate your application. Follow our [WebRTC quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to setup your account.
 
 ## Installation
 
@@ -37,169 +29,120 @@ import { TelnyxRTC } from '@telnyx/webrtc';
 
 ## Usage
 
-To initialize the WebRTC client, you'll need to authenticate using a Telnyx SIP Connection. Follow our [quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to learn how to use our APIs to create **JWTs** (JSON Web Tokens) to authenticate. You can also [create a Credential Connection](https://developers.telnyx.com/docs/v2/sip-trunking/quickstarts/portal-setup) and authenticate with its `username` and `password`.
+To initialize the WebRTC client, you'll need to authenticate using a Telnyx SIP Connection. Follow our [quickstart guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to create **JWTs** (JSON Web Tokens) to authenticate. You can also authenticate directly with the SIP Connection `username` and `password`.
 
-To use the `ringbackFile`, make sure the "Generate Ringback Tone" option is **disabled** in your [Telnyx Portal connection](https://portaldev.telnyx.com/#/app/connections) configuration (Inbound tab.)
+### Client
 
 ```js
 // Initialize the client
 const client = new TelnyxRTC({
-  /*
-    Use a JWT to authenticate (recommended)
-   */
+  /* Use a JWT to authenticate (recommended) */
   login_token: login_token,
-  /*
-    or use your Connection credentials
-   */
-  login: username,
-  password: password,
-  /* 
-    ringtoneFile - This file can be a wav/mp3 in your local public folder or you can host it in a CDN and pass just the URL, such as https://cdn.company.com/sounds/call.mp3
-   */
-  ringtoneFile: './sounds/incoming_call.mp3',
-  /*
-    ringbackFile - Used when you disable Generate Ringback Tone to provide your own ringback sound.
-  */
-  ringbackFile: './sounds/ringback_tone.mp3',
+  /* or use your Connection credentials */
+  // login: username,
+  // password: password,
 });
-
-// Create a variable to track the current call
-let activeCall;
-
-// Attach event listeners
-client
-  .on('telnyx.socket.open', () => console.log('socket open'))
-  .on('telnyx.socket.close', () => {
-    console.log('socket closed');
-    client.disconnect();
-  })
-  .on('telnyx.socket.error', (error) => {
-    console.log('telnyx.socket.error', error);
-    client.disconnect();
-  })
-  .on('telnyx.ready', () => console.log('ready to call'))
-  .on('telnyx.error', () => console.log('error'))
-  // Event fired on call updates, e.g. when there's an incoming call
-  .on('telnyx.notification', (notification) => {
-    activeCall = notification.call;
-
-    switch (notification.type) {
-      case 'callUpdate':
-        // Call is over and can be removed
-        if (
-          notification.call.state === 'hangup' ||
-          notification.call.state === 'destroy'
-        ) {
-          activeCall = null;
-        }
-        // An established and active call
-        if (notification.call.state === 'active') {
-          return;
-        }
-        // New calls that haven't started connecting yet
-        if (notification.call.state === 'new') {
-          return;
-        }
-        // Receiving an inbound call
-        if (notification.call.state === 'ringing') {
-          return;
-        }
-        // Call is active but on hold
-        if (notification.call.state === 'held') {
-          return;
-        }
-        break;
-    }
-  });
 
 // Connect and login
 client.connect();
 
 // You can disconnect when you're done
-// client.disconnect();
+//  client.disconnect();
 ```
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](https://github.com/team-telnyx/webrtc/tree/main/examples/react) for sample React code that handles username and password by prompting the user.
+> See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructors) for all options.
+
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](./examples) for sample React code that handles username and password by prompting the user.
+
+To hear/view calls in the browser, you'll need to specify an HTML media element:
+
+```js
+client.remoteElement = 'remoteMedia';
+```
+
+The corresponding HTML:
+
+```html
+<audio id="remoteMedia" autoplay="true" />
+<!-- or for video: -->
+<!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
+```
+
+### Events
+
+```js
+// Create a variable to track the current call
+let activeCall;
+
+// Attach event listeners
+client
+  .on('telnyx.ready', () => console.log('ready to call'))
+  .on('telnyx.error', () => console.log('error'))
+  // Events are fired on both session and call updates
+  // ex: when the session has been established
+  // ex: when there's an incoming call
+  .on('telnyx.notification', (notification) => {
+    if (notification.type === 'callUpdate') {
+      activeCall = notification.call;
+    }
+  });
+```
+
+> See [TelnyxRTC.on](./docs/ts/classes/telnyxrtc.md#on) for all events.
 
 ### Calls
 
-To initiate a call from your application:
+To initiate an outgoing call:
 
 ```js
-// You can save this call or wait for `callUpdate` and use the returned `activeCall`
 const call = client.newCall({
   // Destination is required and can be a phone number or SIP URI
   destinationNumber: '18004377950',
-  callerName: 'Caller ID Name',
-  // Caller ID number is optional.
-  // You can only specify a phone number that you own and have assigned
-  // to your Connection in the Telnyx Portal
-  callerNumber: '‬',
-  audio: true,
-  video: false, //Used to enable/disable video
+  callerNumber: '‬155531234567',
 });
 ```
 
-A [Call](./docs/ts/interfaces/icall.md) has methods that can be hooked up to your UI:
+To enable video when calling:
 
 ```js
-// End a call
-call.hangup();
+const videoCall = client.newCall({
+  destinationNumber: 'sip:example@sip.example.com',
+  video: true,
+});
 
-// Call states that can be toggled
-call.hold();
-call.unhold();
-call.muteAudio();
-call.unmuteAudio();
+// And in your HTML, replace the audio element with video.
+//  <video id="remoteMedia" autoplay="true" playsinline="true" />
+```
+
+> See [TelnyxRTC.newCall](./docs/ts/classes/telnyxrtc.md#newCall) for all options.
+
+To answer an incoming call:
+
+```js
+client.on('telnyx.notification', (notification) => {
+  const call = notification.call;
+
+  if (notification.type === 'callUpdate' && call.state === 'ringing') {
+    call.answer();
+  }
+});
+```
+
+Both the outgoing and incoming `Call` instance has methods that can be hooked up to your UI:
+
+```js
+// Hangup or reject an incoming call
+call.hangup();
 
 // Send digits and keypresses
 call.dtmf('1234');
 
-// Answer an incoming call
-call.answer();
-// Hangup (reject) an incoming call
-call.hangup();
+// Call states that can be toggled
+call.hold();
+call.muteAudio();
 ```
 
----
-
-#### Using WebRTC with React to make an audio call
-
-```Js
-    // Used to set remote stream
-    if (mediaRef.current && call && call.remoteStream) {
-        mediaRef.current.srcObject = call.remoteStream;
-    }
-
-    <audio
-      ref={mediaRef}
-      id='audioCall'
-      autoPlay='autoplay'
-      controls={false}
-    />
-```
-
----
-
-#### Using WebRTC with Vanilla Javascript to make video call
-
-```Js
-    // Used to set local and remote stream
-    client.remoteElement = 'remoteVideo';
-    client.localElement = 'localVideo';
-
-    <video
-      id="localVideo"
-      autoplay="true"
-      playsinline="true"
-    />
-     <video
-      id="remoteVideo"
-      autoplay="true"
-      playsinline="true"
-    />
-
-```
+> See [Call#methods](./docs/ts/classes/call.md#methods) for all methods.
 
 ---
 
@@ -207,9 +150,9 @@ call.hangup();
 
 ### Vanilla Javascript
 
-We've included a few [examples in Javascript(ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
+We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
 
-```
+```sh
 cd examples/vanilla
 open index.html
 ```
@@ -217,15 +160,20 @@ open index.html
 Screenshot:
 ![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/vanilla/vanilla-screeshot.png)
 
----
-
 ### ReactJS
+
+_**Requirement** Node v11.15.0 or later_
 
 We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
+> _Looking for an easier way to get started with React or React Native? Check out our other packages:_
+>
+> - [@telnyx/react-client](../react-client)
+> - [@telnyx/react-native](../react-client)
+
 #### Audio call
 
-```
+```sh
 cd examples/react-audio
 npm run setup
 npm install
@@ -239,7 +187,7 @@ Screenshot:
 
 #### Video call
 
-```
+```sh
 cd examples/react-video
 npm run setup
 npm install
@@ -249,7 +197,11 @@ npm start
 Screenshot:
 ![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
 
-### Development
+---
+
+## Development
+
+_**Requirement** Node v11.15.0 or later_
 
 This library is written in [TypeScript](https://www.typescriptlang.org/) to define a clear API with optional typechecking benefits.
 
@@ -267,11 +219,7 @@ To run all tests:
 npm test
 ```
 
-To generate TypeScript documentation:
-
-```
-npm run docs
-```
+TypeScript documentation is automatically generated from TSDoc-style comments on merge to `main`.
 
 ---
 
