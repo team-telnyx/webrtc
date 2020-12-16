@@ -60,8 +60,6 @@
 The direction of the call.
 Can be either `inbound` or `outbound`.
 
-Usage with {@link Direction}:
-
 ___
 
 ### id
@@ -80,8 +78,8 @@ ___
 
 *Inherited from void*
 
-The `prevState` of the call.
-Usage with {@link State}:
+The previous state of the call.
+See [Call.state](call.md#state) for all possible values.
 
 ___
 
@@ -92,9 +90,9 @@ ___
 *Inherited from void*
 
 The `state` of the call.
-Usage with {@link State}:
 
 | Value | Description |
+|---|---|
 | `new` | New call has been created in the client. |
 | `trying` | It's attempting to call someone. |
 | `requesting` | The outbound call is being sent to the server. |

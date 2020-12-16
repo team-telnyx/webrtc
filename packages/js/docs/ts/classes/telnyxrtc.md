@@ -747,6 +747,7 @@ An error will be thrown if `destinationNumber` is not specified.
 ```js
 const call = client.newCall().catch(console.error);
 // => `destinationNumber is required`
+```
 
 #### Parameters:
 
