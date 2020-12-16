@@ -1,0 +1,16 @@
+{
+  "name": "@telnyx/webrtc-api-docs",
+  "version": "1.0.0-development",
+  "description": "Telnyx WebRTC Client API docs",
+  "main": "webrtc-api.json",
+  "scripts": {
+    "build": "cd ../js && npm run docs -- --json ../api-docs/dist/webrtc-api.json"
+  },
+  "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/team-telnyx/webrtc.git"
+  },
+  "bugs:": "https://github.com/team-telnyx/webrtc/issues",
+  "license": "MIT"
+}
