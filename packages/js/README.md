@@ -50,7 +50,7 @@ client.connect();
 //  client.disconnect();
 ```
 
-> See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructors) for all options.
+> See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructor) for all options.
 
 Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](./examples) for sample React code that handles username and password by prompting the user.
 
