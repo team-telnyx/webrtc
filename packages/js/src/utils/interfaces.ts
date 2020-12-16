@@ -1,4 +1,4 @@
-import { Env, RTCElement, CallState } from './types';
+import { Env, RTCElement } from './types';
 
 export interface ICredentials {
   username?: string;
@@ -21,39 +21,32 @@ export interface IClientOptions {
   ringFile?: string;
 }
 
+// TODO Consolidate with `CallOptions`
 export interface ICallOptions {
-  destination: string;
-  // optional
+  destinationNumber: string;
   remoteCallerName?: string;
   remoteCallerNumber?: string;
   callerName?: string;
   callerNumber?: string;
   id?: string;
-  remoteSdp?: string;
   localStream?: MediaStream;
   remoteStream?: MediaStream;
   localElement?: HTMLMediaElement | string | Function;
   remoteElement?: HTMLMediaElement | string | Function;
+  iceServers?: RTCIceServer[];
   audio?: boolean | MediaTrackConstraints;
   video?: boolean | MediaTrackConstraints;
-  attach?: boolean;
   useStereo?: boolean;
-  // micId?: string;
-  // micLabel?: string;
-  // camId?: string;
-  // camLabel?: string;
-  // speakerId?: string;
-  userVariables?: Object;
-  screenShare?: boolean;
-  // onNotification?: Function
+  micId?: string;
+  camId?: string;
+  speakerId?: string;
+  onNotification?: Function;
+  telnyxCallControlId?: string;
+  telnyxSessionId?: string;
+  telnyxLegId?: string;
 }
 
-/**
- * {@see Call}
- *
- * @deprecated
- * @ignore
- */
+// TODO Consolidate with `Call`
 export interface ICall {
   direction?: any;
   id?: any;
