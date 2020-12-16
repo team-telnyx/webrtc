@@ -35,6 +35,8 @@
   },
   "release-it": {
     "git": {
+      "commitMessage": "Release react-native ${version}",
+      "tagAnnotation": "Release react-native ${version}",
       "tagName": "react-native/v${version}"
     },
     "github": {

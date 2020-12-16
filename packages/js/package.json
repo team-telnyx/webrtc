@@ -73,6 +73,8 @@
   },
   "release-it": {
     "git": {
+      "commitMessage": "Release webrtc ${version}",
+      "tagAnnotation": "Release webrtc ${version}",
       "tagName": "webrtc/v${version}"
     },
     "github": {

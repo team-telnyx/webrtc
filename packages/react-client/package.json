@@ -85,6 +85,8 @@
   },
   "release-it": {
     "git": {
+      "commitMessage": "Release react-client ${version}",
+      "tagAnnotation": "Release react-client ${version}",
       "tagName": "react-client/v${version}"
     },
     "github": {
