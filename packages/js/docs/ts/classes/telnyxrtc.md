@@ -72,14 +72,7 @@ const client = new TelnyxRTC({
 });
 ```
 
-### Custom ringtone and ringback
-
-Custom ringback and ringtone files can be a wav/mp3 in your local public folder
-or a file hosted on a CDN, ex: https://cdn.company.com/sounds/call.mp3.
-
-To use the `ringbackFile`, make sure the "Generate Ringback Tone" option is **disabled**
-in your [Telnyx Portal connection](https://portaldev.telnyx.com/#/app/connections)
-configuration (Inbound tab.)
+Setting `ringtoneFile` and `ringbackFile`:
 
 ```js
 const client = new TelnyxRTC({
@@ -747,7 +740,6 @@ An error will be thrown if `destinationNumber` is not specified.
 ```js
 const call = client.newCall().catch(console.error);
 // => `destinationNumber is required`
-```
 
 #### Parameters:
 
