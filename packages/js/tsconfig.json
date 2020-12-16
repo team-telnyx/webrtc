@@ -22,7 +22,7 @@
     "excludePrivate": true,
     "excludeProtected": true,
     "excludeNotDocumented": true,
-    "excludeTags": ["apidoc"],
+    "excludeTags": ["apidoc", "internalnote"],
     "hideGenerator": true,
     "readme": "none",
     "gitRevision": "main",
