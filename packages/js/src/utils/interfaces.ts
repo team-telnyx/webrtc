@@ -1,3 +1,4 @@
+import { INotificationEventData } from '../Modules/Verto/util/interfaces';
 import { Env, RTCElement } from './types';
 
 export interface ICredentials {
@@ -46,8 +47,8 @@ export interface ICallOptions {
   telnyxLegId?: string;
 }
 
-// TODO Consolidate with `Call`
-export interface ICall {
+// TODO Consolidate with `IBaseCall`
+export interface IBaseCall {
   direction?: any;
   id?: any;
   prevState?: any;
@@ -61,9 +62,6 @@ export interface ICall {
   hold(): Promise<any>;
   muteAudio(): void;
   muteVideo(): void;
-  setAudioInDevice(deviceId: string): Promise<any>;
-  setAudioOutDevice(deviceId: string): Promise<any>;
-  setVideoDevice(deviceId: string): Promise<any>;
   toggleAudioMute(): void;
   toggleDeaf(): void;
   toggleHold(): Promise<any>;
@@ -72,6 +70,17 @@ export interface ICall {
   unhold(): Promise<any>;
   unmuteAudio(): void;
   unmuteVideo(): void;
+}
+
+// TODO Consolidate with `Call`
+export interface ICall {
+  setAudioInDevice(deviceId: string): Promise<any>;
+  setAudioOutDevice(deviceId: string): Promise<any>;
+  setVideoDevice(deviceId: string): Promise<any>;
+}
+
+export interface INotification extends Omit<INotificationEventData, 'call'> {
+  call?: ICall;
 }
 
 export interface MessageEvents {
