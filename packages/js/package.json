@@ -23,7 +23,6 @@
     "prepublishOnly": "if [[ -z \"${CI}\" ]]; then npm run test; else echo \"Skipping tests in CI\"; fi",
     "test": "jest",
     "docs": "typedoc src",
-    "api-docs": "typedoc src --json ../api-docs/dist/webrtc-api.json",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
     "format": "prettier --write 'src/**/*.ts'"
