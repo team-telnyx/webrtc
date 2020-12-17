@@ -122,7 +122,7 @@ class VertoHandler {
         trigger(SwEvent.Notification, params, session.uuid);
         break;
       case VertoMethod.ClientReady:
-        params.type = NOTIFICATION_TYPE.vertoClientReady;
+        params.type = NOTIFICATION_TYPE.rtcClientReady;
         trigger(SwEvent.Notification, params, session.uuid);
         break;
       default:

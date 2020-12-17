@@ -34,7 +34,7 @@ export const NOTIFICATION_TYPE = {
   [VertoMethod.Attach]: 'participantData',
   conferenceUpdate: 'conferenceUpdate',
   callUpdate: 'callUpdate',
-  vertoClientReady: 'vertoClientReady',
+  rtcClientReady: 'rtcClientReady',
   userMediaError: 'userMediaError',
 };
 
