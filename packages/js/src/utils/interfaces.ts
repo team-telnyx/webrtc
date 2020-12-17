@@ -88,7 +88,6 @@ export interface ICall {
  * | `type` | Description | Additional properties |
  * |---|---|---|
  * | `callUpdate` | A call has changed state | `call` |
- * | `participantData` | Call participant data has changed | `call`, `displayDirection`, `displayName`, `displayNumber` |
  * | `userMediaError` | The browser does not have permission to access media devices | `error` |
  *
  * @examples
@@ -100,11 +99,7 @@ export interface ICall {
  *     console.log(notification.call);
  *
  *     // Do something with the call and update UI accordingly
- *   } else if (notification.type === 'participantData') {
- *     console.log(notification.displayName, notification.displayNumber);
- *
- *     // Update UI with new display name and/or number
- *   } else if (notification.type === 'participantData') {
+ *   } else if (notification.type === 'userMediaError') {
  *     console.log(notification.error);
  *
  *     // Handle the error and update UI accordingly
@@ -122,18 +117,6 @@ export interface ICall {
  * {
  *   type: 'callUpdate',
  *   call: Call // current call
- * }
- * ```
- *
- * #### `participantData`
- *
- * ```js
- * {
- *   type: 'participantData',
- *   call: Call,
- *   displayName: 'Ada Lovelace',
- *   displayNumber: '15551234567',
- *   displayDirection: 'inbound'
  * }
  * ```
  *
@@ -163,18 +146,6 @@ export interface INotification extends Omit<INotificationEventData, 'call'> {
    * Check your `audio` and `video` constraints for browser support.
    */
   error?: Error;
-  /**
-   * Participant's display name.
-   */
-  displayName?: string;
-  /**
-   * Participant's display phone number or SIP address.
-   */
-  displayNumber?: string;
-  /**
-   * Participant's call direction.
-   */
-  displayDirection?: 'inbound' | 'outbound';
 }
 
 export interface MessageEvents {
