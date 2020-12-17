@@ -1,5 +1,5 @@
 import { useContext, useEffect } from 'react';
-import { TelnyxRTC } from '@telnyx/webrtc';
+import { TelnyxRTC, INotification } from '@telnyx/webrtc';
 import TelnyxRTCContext from './TelnyxRTCContext';
 
 interface IProps {
@@ -7,7 +7,7 @@ interface IProps {
   onError?: (e?: any) => any;
   onSocketError?: (e?: any) => any;
   onSocketClose?: (e?: any) => any;
-  onNotification?: (e?: any) => any;
+  onNotification?: (e: INotification) => any;
 }
 
 /**
@@ -27,9 +27,6 @@ interface IProps {
  *   // ...
  * }
  * ```
- *
- * @param {IProps} [props]
- * @returns {null}
  */
 function useCallbacks(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
