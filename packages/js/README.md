@@ -219,7 +219,91 @@ To run all tests:
 npm test
 ```
 
-TypeScript documentation is automatically generated from TSDoc-style comments on merge to `main`.
+### Documentation
+
+[TypeScript documentation](./docs/ts) is automatically generated from TSDoc-style comments on merge to `main`.
+
+Only code symbols with a symbol-level TSDoc comment will appear in the docs. Use `@category` to group symbols. For example:
+
+```ts
+// `PublicUseModule` will appear in docs due to the class-level TSDoc comment.
+/**
+ * A module for public consumption
+ * @category Public Modules
+ */
+class PublicUseModule {
+  // `getSomething` WILL appear in docs because
+  // there is a TSDoc comment
+  /**
+   * Gets something.
+   */
+  getSomething() {}
+  // `getSomethingElse` will NOT appear in docs
+  // because of the `@ignore` tag
+  /**
+   * Adds another thing
+   * @ignore
+   */
+  getSomethingElse() {}
+  // `addAnotherThing` will NOT appear in docs
+  // because there is no TSDoc comment
+  addAnotherThing() {}
+  // `updateSomething` will NOT appear in docs
+  // because of the `private` keyword
+  private updateSomething() {}
+  // `deleteSomething` will NOT appear in docs
+  // because of the `protected` keyword
+  protected deleteSomething() {}
+}
+
+// `InternalUseModule` will NOT appear in docs,
+// even if its members are documented, because
+// there is no class-level TSDoc comment.
+class InternalUseModule {
+  doThis() {}
+  doThat() {}
+}
+```
+
+If you've added comments and still do not see documentation as expected, check the `typedocOptions.exclude` config in `tsconfig.json`.
+
+#### Supported tags
+
+In addition to the tags [supported by Typedoc](https://typedoc.org/guides/doccomments/#supported-tags), we use `apialias`, `example`/`examples` and `internalnote`.
+
+##### `@apialias`
+
+Use `apialias` to display a different name in public documentation.
+
+```ts
+/**
+ * @apialias PublicObject
+ */
+interface IPublicObject {}
+```
+
+##### `@examples`
+
+Precede code samples with `examples`.
+
+````ts
+/**
+ * @examples
+ * ```js
+ * new PublicUseModule(options);
+ * ```
+ */
+````
+
+##### `@internalnote`
+
+Precede internal notes that should not be rendered with `internalnote`.
+
+```ts
+/**
+ * @internalnote {@see InternalUseModule} for implementation
+ */
+```
 
 ---
 

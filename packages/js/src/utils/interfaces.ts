@@ -129,7 +129,8 @@ export interface ICall {
  * }
  * ```
  *
- * @apidoc Include in API docs
+ * @category Notification
+ * @apialias Notification
  * @internalnote {@see NOTIFICATION_TYPE}
  */
 export interface INotification extends Omit<INotificationEventData, 'call'> {
