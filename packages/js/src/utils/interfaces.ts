@@ -87,8 +87,8 @@ export interface ICall {
  *
  * | `type` | Description | Additional properties |
  * |---|---|---|
+ * | `vertoClientReady` | The client is ready to use | _None_ |
  * | `callUpdate` | A call has changed state | `call` |
- * | `participantData` | Call participant data has changed | `call`, `displayDirection`, `displayName`, `displayNumber` |
  * | `userMediaError` | The browser does not have permission to access media devices | `error` |
  *
  * @examples
@@ -96,15 +96,13 @@ export interface ICall {
  * Usage with {@link TelnyxRTC.on}:
  * ```js
  * client.on('telnyx.notification', (notification) => {
- *   if (notification.type === 'callUpdate') {
+ *   if (notification.type === 'vertoClientReady') {
+ *     // You can now enable calling in the UI
+ *   } else if (notification.type === 'callUpdate') {
  *     console.log(notification.call);
  *
  *     // Do something with the call and update UI accordingly
- *   } else if (notification.type === 'participantData') {
- *     console.log(notification.displayName, notification.displayNumber);
- *
- *     // Update UI with new display name and/or number
- *   } else if (notification.type === 'participantData') {
+ *   } else if (notification.type === 'userMediaError') {
  *     console.log(notification.error);
  *
  *     // Handle the error and update UI accordingly
@@ -116,24 +114,20 @@ export interface ICall {
  *
  * The notification structure is determined by its `type`.
  *
+ * #### `vertoClientReady`
+ *
+ * ```js
+ * {
+ *   type: 'vertoClientReady'
+ * }
+ * ```
+ *
  * #### `callUpdate`
  *
  * ```js
  * {
  *   type: 'callUpdate',
  *   call: Call // current call
- * }
- * ```
- *
- * #### `participantData`
- *
- * ```js
- * {
- *   type: 'participantData',
- *   call: Call,
- *   displayName: 'Ada Lovelace',
- *   displayNumber: '15551234567',
- *   displayDirection: 'inbound'
  * }
  * ```
  *
@@ -163,18 +157,6 @@ export interface INotification extends Omit<INotificationEventData, 'call'> {
    * Check your `audio` and `video` constraints for browser support.
    */
   error?: Error;
-  /**
-   * Participant's display name.
-   */
-  displayName?: string;
-  /**
-   * Participant's display phone number or SIP address.
-   */
-  displayNumber?: string;
-  /**
-   * Participant's call direction.
-   */
-  displayDirection?: 'inbound' | 'outbound';
 }
 
 export interface MessageEvents {
