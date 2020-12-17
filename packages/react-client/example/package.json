@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@telnyx/react-client": "file:..",
-    "@telnyx/webrtc": "^2.2.1",
+    "@telnyx/webrtc": "^2.2.4",
     "@testing-library/jest-dom": "file:../node_modules/@testing-library/jest-dom",
     "@testing-library/react": "file:../node_modules/@testing-library/react",
     "@testing-library/user-event": "file:../node_modules/@testing-library/user-event",
