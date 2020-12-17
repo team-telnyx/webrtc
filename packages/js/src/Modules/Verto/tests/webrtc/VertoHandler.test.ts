@@ -161,7 +161,7 @@ describe('VertoHandler', () => {
         )
       );
       expect(onNotification).toBeCalledWith({
-        type: 'rtcClientReady',
+        type: 'vertoClientReady',
         reattached_sessions: [],
       });
 
@@ -171,7 +171,7 @@ describe('VertoHandler', () => {
         )
       );
       expect(onNotification).toBeCalledWith({
-        type: 'rtcClientReady',
+        type: 'vertoClientReady',
         reattached_sessions: ['test'],
       });
     });
