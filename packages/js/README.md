@@ -223,12 +223,13 @@ npm test
 
 [TypeScript documentation](./docs/ts) is automatically generated from TSDoc-style comments on merge to `main`.
 
-Only code symbols with a symbol-level TSDoc comment will appear in the docs. For example:
+Only code symbols with a symbol-level TSDoc comment will appear in the docs. Use `@category` to group symbols. For example:
 
 ```ts
 // `PublicUseModule` will appear in docs due to the class-level TSDoc comment.
 /**
  * A module for public consumption
+ * @category Public Modules
  */
 class PublicUseModule {
   // `getSomething` WILL appear in docs because
@@ -268,23 +269,24 @@ If you've added comments and still do not see documentation as expected, check t
 
 #### Supported tags
 
-In addition to the tags [supported by Typedoc](https://typedoc.org/guides/doccomments/#supported-tags), we use `apidoc`, `example`/`examples` and `internalnote`.
+In addition to the tags [supported by Typedoc](https://typedoc.org/guides/doccomments/#supported-tags), we use `apialias`, `example`/`examples` and `internalnote`.
 
-##### `@apidoc`
+##### `@apialias`
 
-Use `apidoc` to be more explicit about what's being added to public documentation, or for internal notes on documentation.
+Use `apialias` to display a different name in public documentation.
 
-```js
+```ts
 /**
- * @apidoc Include in docs, TODO Add to sidebar
+ * @apialias PublicObject
  */
+interface IPublicObject {}
 ```
 
 ##### `@examples`
 
 Precede code samples with `examples`.
 
-````js
+````ts
 /**
  * @examples
  * ```js
@@ -297,7 +299,7 @@ Precede code samples with `examples`.
 
 Precede internal notes that should not be rendered with `internalnote`.
 
-```js
+```ts
 /**
  * @internalnote {@see InternalUseModule} for implementation
  */
