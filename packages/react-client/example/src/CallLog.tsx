@@ -8,7 +8,7 @@ function CallLog() {
   >([]);
 
   useEffect(() => {
-    if (!notification) return;
+    if (notification?.type !== 'callUpdate') return;
 
     setClientStateLog((prevState) => [
       ...prevState,

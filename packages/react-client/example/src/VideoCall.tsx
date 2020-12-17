@@ -61,7 +61,7 @@ function VideoCall() {
   const callState = call?.state;
 
   useEffect(() => {
-    console.log('callState:', callState);
+    console.log('video callState:', callState);
   }, [callState]);
 
   return (
