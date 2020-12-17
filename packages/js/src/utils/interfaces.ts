@@ -87,7 +87,6 @@ export interface ICall {
  *
  * | `type` | Description | Additional properties |
  * |---|---|---|
- * | `vertoClientReady` | The client is ready to use | _None_ |
  * | `callUpdate` | A call has changed state | `call` |
  * | `userMediaError` | The browser does not have permission to access media devices | `error` |
  *
@@ -96,9 +95,7 @@ export interface ICall {
  * Usage with {@link TelnyxRTC.on}:
  * ```js
  * client.on('telnyx.notification', (notification) => {
- *   if (notification.type === 'vertoClientReady') {
- *     // You can now enable calling in the UI
- *   } else if (notification.type === 'callUpdate') {
+ *   if (notification.type === 'callUpdate') {
  *     console.log(notification.call);
  *
  *     // Do something with the call and update UI accordingly
@@ -113,14 +110,6 @@ export interface ICall {
  * ### Data structure
  *
  * The notification structure is determined by its `type`.
- *
- * #### `vertoClientReady`
- *
- * ```js
- * {
- *   type: 'vertoClientReady'
- * }
- * ```
  *
  * #### `callUpdate`
  *
