@@ -11,7 +11,6 @@ The conditions of the event can be identified by the `type` property.
 | `type` | Description | Additional properties |
 |---|---|---|
 | `callUpdate` | A call has changed state | `call` |
-| `participantData` | Call participant data has changed | `call`, `displayDirection`, `displayName`, `displayNumber` |
 | `userMediaError` | The browser does not have permission to access media devices | `error` |
 
 **`examples`** 
@@ -23,11 +22,7 @@ client.on('telnyx.notification', (notification) => {
     console.log(notification.call);
 
     // Do something with the call and update UI accordingly
-  } else if (notification.type === 'participantData') {
-    console.log(notification.displayName, notification.displayNumber);
-
-    // Update UI with new display name and/or number
-  } else if (notification.type === 'participantData') {
+  } else if (notification.type === 'userMediaError') {
     console.log(notification.error);
 
     // Handle the error and update UI accordingly
@@ -45,18 +40,6 @@ The notification structure is determined by its `type`.
 {
   type: 'callUpdate',
   call: Call // current call
-}
-```
-
-#### `participantData`
-
-```js
-{
-  type: 'participantData',
-  call: Call,
-  displayName: 'Ada Lovelace',
-  displayNumber: '15551234567',
-  displayDirection: 'inbound'
 }
 ```
 
@@ -80,9 +63,6 @@ The notification structure is determined by its `type`.
 ### Properties
 
 * [call](inotification.md#call)
-* [displayDirection](inotification.md#displaydirection)
-* [displayName](inotification.md#displayname)
-* [displayNumber](inotification.md#displaynumber)
 * [error](inotification.md#error)
 * [type](inotification.md#type)
 
@@ -93,30 +73,6 @@ The notification structure is determined by its `type`.
 • `Optional` **call**: ICall
 
 The current call. Reference this call state to update your UI.
-
-___
-
-### displayDirection
-
-• `Optional` **displayDirection**: \"inbound\" \| \"outbound\"
-
-Participant's call direction.
-
-___
-
-### displayName
-
-• `Optional` **displayName**: string
-
-Participant's display name.
-
-___
-
-### displayNumber
-
-• `Optional` **displayNumber**: string
-
-Participant's display phone number or SIP address.
 
 ___
 
