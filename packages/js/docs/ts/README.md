@@ -10,3 +10,7 @@
 
 * [Call](classes/call.md)
 * [TelnyxRTC](classes/telnyxrtc.md)
+
+### Interfaces
+
+* [INotification](interfaces/inotification.md)

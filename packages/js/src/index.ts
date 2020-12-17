@@ -4,6 +4,7 @@ import {
   IClientOptions,
   ICallOptions,
   ICredentials,
+  INotification,
   MessageEvents,
 } from './utils/interfaces';
 
@@ -13,5 +14,6 @@ export {
   IClientOptions,
   ICallOptions,
   ICredentials,
+  INotification,
   MessageEvents,
 };

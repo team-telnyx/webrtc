@@ -1,3 +1,4 @@
+import BaseSession from '../BaseSession';
 import { objEmpty, isFunction } from '../util/helpers';
 
 type QueueMap = {
@@ -89,6 +90,9 @@ const deRegister = (
 
 /**
  * Trigger the eventName, passing the data to it's subscribers. Use uniqueId to identify unique events.
+ *
+ * @param eventName
+ * @param data Any data, e.g. `INotificationEventData`, `BaseSession`, `Error` or WebRTC event
  */
 const trigger = (
   eventName: string,

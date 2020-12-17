@@ -5,6 +5,7 @@ import BaseMessage from '../messages/BaseMessage';
 import { Invite, Answer, Attach, Bye, Modify, Info } from '../messages/Verto';
 import Peer from './Peer';
 import { SwEvent } from '../util/constants';
+import { INotificationEventData } from '../util/interfaces';
 import {
   State,
   DEFAULT_CALL_OPTIONS,
@@ -759,7 +760,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           display_direction === Direction.Inbound
             ? Direction.Outbound
             : Direction.Inbound;
-        const notification = {
+        const notification: INotificationEventData = {
           type: NOTIFICATION_TYPE[method],
           call: this,
           displayName,
@@ -773,7 +774,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       case VertoMethod.Info:
       case VertoMethod.Event: {
-        const notification = {
+        const notification: INotificationEventData = {
           ...params,
           type: NOTIFICATION_TYPE.generic,
           call: this,
@@ -1330,7 +1331,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _dispatchNotification(notification: any) {
+  private _dispatchNotification(notification: INotificationEventData) {
     if (this.options.screenShare === true) {
       return;
     }

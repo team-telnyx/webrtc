@@ -1,3 +1,5 @@
+import { IWebRTCCall } from '../webrtc/interfaces';
+
 interface IMessageBase {
   jsonrpc: string;
   id: string;
@@ -419,4 +421,13 @@ export interface IMessageOptions {
   media: string[];
   segments: number;
   reason?: string;
+}
+
+export interface INotificationEventData {
+  type: string;
+  call?: IWebRTCCall;
+  error?: Error;
+  displayName?: string;
+  displayNumber?: string;
+  displayDirection?: string;
 }
