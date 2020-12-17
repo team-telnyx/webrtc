@@ -6,14 +6,11 @@
 
 ## Index
 
-### Call Classes
+### Classes
 
 * [Call](classes/call.md)
-
-### Client Classes
-
 * [TelnyxRTC](classes/telnyxrtc.md)
 
-### Notification Interfaces
+### Interfaces
 
 * [INotification](interfaces/inotification.md)

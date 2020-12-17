@@ -52,8 +52,6 @@ The notification structure is determined by its `type`.
 }
 ```
 
-**`apialias`** Notification
-
 ## Hierarchy
 
 * {}
