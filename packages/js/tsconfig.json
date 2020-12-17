@@ -26,7 +26,10 @@
     "hideGenerator": true,
     "readme": "none",
     "gitRevision": "main",
-    "disableSources": true
+    "disableSources": true,
+    "hideProjectName": true,
+    "hideBreadcrumbs": true,
+    "namedAnchors": true
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "**/tests", "**/__mocks__"]
