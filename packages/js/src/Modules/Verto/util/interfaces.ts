@@ -1,16 +1,5 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
 
-interface IMessageBase {
-  jsonrpc: string;
-  id: string;
-}
-
-export interface ISubscription {
-  channel: string;
-  protocol: string;
-  subscribers: string[];
-}
-
 type Environment = 'production' | 'development';
 export interface ITelnyxRTCOptions {
   host?: string;
@@ -158,50 +147,13 @@ export interface StringTMap<T> {
 }
 export interface StringStringMap extends StringTMap<string> {}
 
-interface IRelayCallingRecordAudio {
-  beep?: boolean;
-  format?: string;
-  stereo?: boolean;
-  direction?: string;
-  initial_timeout?: number;
-  end_silence_timeout?: number;
-  terminators?: string;
-}
-
-export interface IRelayCallingRecord {
-  audio: IRelayCallingRecordAudio;
-}
-
-export interface ICallingRecord extends IRelayCallingRecordAudio {
-  audio?: IRelayCallingRecordAudio; // backwards compatibility
-  type?: 'audio';
-}
-
 export interface ICallingConnectParams {
   devices: DeepArray<IMakeVertoCallParams>;
-  ringback?: ICallingPlay;
-}
-
-interface IRelayCallingPlayParams {
-  url?: string;
-  text?: string;
-  language?: string;
-  gender?: string;
-  duration?: number;
-  name?: string;
-}
-
-export interface IRelayCallingPlay {
-  type: string;
-  params: IRelayCallingPlayParams;
-}
-
-export interface ICallingPlay extends IRelayCallingPlayParams {
-  type: string;
+  ringback?: any;
 }
 
 export interface ICallingPlayParams {
-  media: (IRelayCallingPlay | ICallingPlay)[];
+  media: any;
   volume?: number;
 }
 
@@ -218,23 +170,7 @@ export interface ICallingPlayTTS {
   volume?: number;
 }
 
-export interface IRelayCallingCollect {
-  initial_timeout?: number;
-  digits?: {
-    max: number;
-    terminators?: string;
-    digit_timeout?: number;
-  };
-  speech?: {
-    end_silence_timeout?: number;
-    speech_timeout?: number;
-    language?: string;
-    hints?: string[];
-  };
-  partial_results?: boolean;
-}
-
-export interface ICallingCollect extends IRelayCallingCollect {
+export interface ICallingCollect {
   type?: string;
   digits_max?: number;
   digits_terminators?: string;
@@ -244,7 +180,7 @@ export interface ICallingCollect extends IRelayCallingCollect {
   speech_language?: string;
   speech_hints?: string[];
   volume?: number;
-  media?: (IRelayCallingPlay | ICallingPlay)[];
+  media?: any;
 }
 
 export interface ICallingCollectAudio extends ICallingCollect {
@@ -262,57 +198,11 @@ export interface ICallingCollectRingtone extends ICallingCollect {
   duration?: number;
 }
 
-interface IRelayCallingDetectParams {
-  initial_timeout?: number;
-  end_silence_timeout?: number;
-  machine_voice_threshold?: number;
-  machine_words_threshold?: number;
-  tone?: string;
-  digits?: string;
-}
-
-export interface IRelayCallingDetect {
-  type: string;
-  params: IRelayCallingDetectParams;
-}
-
-export interface ICallingDetect extends IRelayCallingDetectParams {
+export interface ICallingDetect {
   type?: string;
   timeout?: number;
   wait_for_beep?: boolean;
 }
-
-interface IRelayCallingTapTapParams {
-  direction?: string;
-}
-
-export interface IRelayCallingTapTap {
-  type: 'audio';
-  params: IRelayCallingTapTapParams;
-}
-
-export interface ICallingTapTap extends IRelayCallingTapTapParams {
-  type: IRelayCallingTapTap['type'];
-}
-
-interface IRelayCallingTapDeviceParams {
-  addr?: string;
-  port?: number;
-  codec?: string;
-  ptime?: number;
-  uri?: string;
-  rate?: number;
-}
-
-export interface IRelayCallingTapDevice {
-  type: string;
-  params: IRelayCallingTapDeviceParams;
-}
-
-export interface ICallingTapDevice extends IRelayCallingTapDeviceParams {
-  type?: string;
-}
-
 export interface ICallingTapFlat {
   audio_direction?: string;
   target_type: string;
@@ -325,20 +215,6 @@ export interface ICallingTapFlat {
 }
 
 export interface DeepArray<T> extends Array<T | DeepArray<T>> {}
-
-export interface IRelayConsumerParams {
-  host?: string;
-  project: string;
-  token: string;
-  contexts?: string[];
-  onIncomingCall?: Function;
-  onIncomingMessage?: Function;
-  onMessageStateChange?: Function;
-  onTask?: Function;
-  setup?: Function;
-  ready?: Function;
-  teardown?: Function;
-}
 
 export interface IMessage {
   id: string;

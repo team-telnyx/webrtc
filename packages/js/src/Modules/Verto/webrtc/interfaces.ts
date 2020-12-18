@@ -84,22 +84,6 @@ export interface IWebRTCCall {
   setSpeakerPhone?: (flag: boolean) => void;
 }
 
-export interface ICantinaAuthParams {
-  hostname?: string;
-}
-
-export interface ICantinaUser {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  avatar: string;
-  project: string;
-  jwt_token: string;
-  scopes: string[];
-  config?: object;
-}
-
 // https://webrtc.org/getting-started/unified-plan-transition-guide
 export interface IChromeRTCConfiguration extends RTCConfiguration {
   sdpSemantics?: 'plan-b' | 'unified-plan';
