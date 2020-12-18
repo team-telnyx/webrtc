@@ -271,6 +271,8 @@ If you've added comments and still do not see documentation as expected, check t
 
 In addition to the tags [supported by Typedoc](https://typedoc.org/guides/doccomments/#supported-tags), we use `apialias`, `example`/`examples` and `internalnote`.
 
+_Note: `@link` is not supported in public-facing documentation at this time._
+
 ##### `@apialias`
 
 Use `apialias` to display a different name in public documentation.
