@@ -1,4 +1,3 @@
-/* eslint-disable prefer-arrow-callback */
 import {
   Login,
   Invite,
