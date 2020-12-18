@@ -34,8 +34,3 @@ export enum SwEvent {
   // RTC Events
   MediaError = 'telnyx.rtc.mediaError',
 }
-
-export enum BladeMethod {
-  Broadcast = 'blade.broadcast',
-  Disconnect = 'blade.disconnect',
-}
