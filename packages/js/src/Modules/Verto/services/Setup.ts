@@ -1,11 +1,6 @@
 import logger from '../util/logger';
 import BaseSession from '../BaseSession';
-import { Execute } from '../messages/Blade';
 import { sessionStorage } from '../util/storage';
-
-const SETUP_PROTOCOL = 'telnyx';
-const SETUP_METHOD = 'setup';
-const SETUP_CHANNEL = 'notifications';
 
 export default async (session: BaseSession): Promise<string> => {
   const params: { protocol?: string } = {};
@@ -18,18 +13,8 @@ export default async (session: BaseSession): Promise<string> => {
       params.protocol = prevProtocol;
     }
   }
-  const be = new Execute({
-    protocol: SETUP_PROTOCOL,
-    method: SETUP_METHOD,
-    params,
+  logger.error('Error during setup the session protocol.');
+  return new Promise<string>((_, reject) => {
+    reject();
   });
-  const { protocol = null } = await session.execute(be);
-  if (protocol) {
-    await session.subscribe({ protocol, channels: [SETUP_CHANNEL] });
-    await sessionStorage.setItem(signature, protocol);
-  } else {
-    logger.error('Error during setup the session protocol.');
-  }
-
-  return protocol;
 };
