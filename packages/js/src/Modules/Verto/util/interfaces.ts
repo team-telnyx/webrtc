@@ -5,66 +5,10 @@ interface IMessageBase {
   id: string;
 }
 
-type TBladeVersion = { major: number; minor: number; revision: number };
-
 export interface ISubscription {
   channel: string;
   protocol: string;
   subscribers: string[];
-}
-
-export interface IBladeResultError extends IMessageBase {
-  error: { code: number; message: string };
-}
-
-export interface IBladeConnectRequest extends IMessageBase {
-  method: string;
-  params: {
-    version: TBladeVersion;
-    authentication: { project: string; token?: string; jwt_token?: string };
-    sessionid?: string;
-    agent?: string;
-  };
-}
-
-export interface IBladeConnectResult extends IMessageBase {
-  sessionid: string;
-  nodeid: string;
-  master_nodeid: string;
-  protocols_uncertified: string[];
-  authorization: {
-    expires_at: number;
-    signature: string;
-  };
-}
-
-export interface IBladeExecuteRequest extends IMessageBase {
-  method: string;
-  params: {
-    protocol: string;
-    method: string;
-    params: any;
-  };
-}
-
-export interface IBladeExecuteResult extends IMessageBase {
-  result: {
-    requester_nodeid: string;
-    responder_nodeid: string;
-    protocol: string;
-    result: any;
-  };
-}
-
-export interface IBladeSubscriptionRequest extends IMessageBase {
-  method: string;
-  params: {
-    command: string;
-    protocol: string;
-    channels: string[];
-    auto_create?: boolean;
-    downstream?: boolean;
-  };
 }
 
 type Environment = 'production' | 'development';
