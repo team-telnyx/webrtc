@@ -1,7 +1,3 @@
-**[@telnyx/webrtc](README.md)**
-
-> Globals
-
 # @telnyx/webrtc
 
 ## Index

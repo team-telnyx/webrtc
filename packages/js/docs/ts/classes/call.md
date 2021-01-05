@@ -1,7 +1,3 @@
-**[@telnyx/webrtc](../README.md)**
-
-> [Globals](../README.md) / Call
-
 # Class: Call
 
 ## Hierarchy
@@ -79,7 +75,7 @@ ___
 *Inherited from void*
 
 The previous state of the call.
-See [Call.state](call.md#state) for all possible values.
+See `Call.state` for all possible values.
 
 ___
 
@@ -339,7 +335,7 @@ call.setAudioInDevice('abc123').then(() => {
 });
 ```
 
-Usage with {@link BrowserSession.getAudioInDevices}:
+Usage with `.getAudioInDevices`:
 
 ```js
 let result = await client.getAudioInDevices();
@@ -383,7 +379,7 @@ call.setAudioOutDevice('abc123').then(() => {
 });
 ```
 
-Usage with {@link BrowserSession.getAudioOutDevices}:
+Usage with `.getAudioOutDevices`:
 
 ```js
 let result = await client.getAudioOutDevices();
@@ -429,7 +425,7 @@ call.setVideoDevice('abc123').then(() => {
 });
 ```
 
-Usage with {@link BrowserSession.getVideoDevices}:
+Usage with `.getVideoDevices`:
 
 ```js
 let result = await client.getVideoDevices();

@@ -1,7 +1,3 @@
-**[@telnyx/webrtc](../README.md)**
-
-> [Globals](../README.md) / TelnyxRTC
-
 # Class: TelnyxRTC
 
 ## Hierarchy

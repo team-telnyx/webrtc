@@ -1,7 +1,3 @@
-**[@telnyx/webrtc](../README.md)**
-
-> [Globals](../README.md) / INotification
-
 # Interface: INotification
 
 An event dispatched by Telnyx to notify the client of changes to the session or call.
@@ -15,7 +11,7 @@ The conditions of the event can be identified by the `type` property.
 
 **`examples`** 
 
-Usage with [TelnyxRTC.on](../classes/telnyxrtc.md#on):
+Usage with TelnyxRTC Client `.on`:
 ```js
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'callUpdate') {
