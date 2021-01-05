@@ -73,7 +73,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * The previous state of the call.
-   * See {@link Call.state} for all possible values.
+   * See `Call.state` for all possible values.
    */
   public prevState: string = '';
 
@@ -520,7 +520,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * });
    * ```
    *
-   * Usage with {@link BrowserSession.getAudioInDevices}:
+   * Usage with `.getAudioInDevices`:
    *
    * ```js
    * let result = await client.getAudioInDevices();
@@ -613,7 +613,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * });
    * ```
    *
-   * Usage with {@link BrowserSession.getVideoDevices}:
+   * Usage with `.getVideoDevices`:
    *
    * ```js
    * let result = await client.getVideoDevices();

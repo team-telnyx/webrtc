@@ -92,7 +92,7 @@ export interface ICall {
  *
  * @examples
  *
- * Usage with {@link TelnyxRTC.on}:
+ * Usage with TelnyxRTC Client `.on`:
  * ```js
  * client.on('telnyx.notification', (notification) => {
  *   if (notification.type === 'callUpdate') {

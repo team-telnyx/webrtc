@@ -73,7 +73,7 @@ export default class Call extends BaseCall {
    * });
    * ```
    *
-   * Usage with {@link BrowserSession.getAudioOutDevices}:
+   * Usage with `.getAudioOutDevices`:
    *
    * ```js
    * let result = await client.getAudioOutDevices();
