@@ -14,7 +14,7 @@ env:
 
 jobs:
   build:
-    if: contains(fromJson('["webrtc", "react-client"]'), $PACKAGE_NAME)
+    if: contains(fromJson('["webrtc", "react-client"]'), env.PACKAGE_NAME)
 
     name: '@telnyx/${{ github.event.inputs.package }} Draft release'
 
@@ -39,25 +39,25 @@ jobs:
     - name: Install shared dependencies
       run: npm ci
     - name: Install package dependencies
-      working-directory: packages/$PACKAGE_DIR
+      working-directory: packages/${{ env.PACKAGE_DIR }}
       run: npm ci --ignore-scripts
     - name: Test
-      working-directory: packages/$PACKAGE_DIR
+      working-directory: packages/${{ env.PACKAGE_DIR }}
       run: npm test
       env:
         CI: true
     - name: Build
-      working-directory: packages/$PACKAGE_DIR
+      working-directory: packages/${{ env.PACKAGE_DIR }}
       run: npm run build
-    - if: $PACKAGE_NAME == 'webrtc'
+    - if: env.PACKAGE_NAME == 'webrtc'
       name: Generate docs
-      working-directory: packages/$PACKAGE_DIR
+      working-directory: packages/${{ env.PACKAGE_DIR }}
       run: |
         npm run docs # IDEA Set --gitRevision to release-it tag
         git add docs
         git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
     - name: Create draft release
-      working-directory: packages/$PACKAGE_DIR
+      working-directory: packages/${{ env.PACKAGE_DIR }}
       run: |
         npm run release -- \
         --ci \
