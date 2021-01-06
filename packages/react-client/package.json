@@ -93,7 +93,6 @@
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
-        "infile": "CHANGELOG.md",
         "tagPrefix": "react-client/v",
         "path": "./src"
       }
