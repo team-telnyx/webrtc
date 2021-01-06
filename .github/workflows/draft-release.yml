@@ -14,8 +14,8 @@ env:
 
 jobs:
   build:
-    if: contains(['webrtc', 'react-client'], $PACKAGE_NAME)
-    
+    if: contains(fromJson('["webrtc", "react-client"]'), $PACKAGE_NAME)
+
     name: '@telnyx/${{ github.event.inputs.package }} Draft release'
 
     runs-on: ubuntu-latest
