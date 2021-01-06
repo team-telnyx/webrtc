@@ -39,15 +39,12 @@ jobs:
       run: npm ci
     - name: Install package dependencies
       working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: npm ci --ignore-scripts
+      run: npm ci
     - name: Test
       working-directory: packages/${{ env.PACKAGE_DIR }}
       run: npm test
       env:
         CI: true
-    - name: Build
-      working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: npm run build
     - if: github.event.inputs.package == 'webrtc'
       name: Generate docs
       working-directory: packages/${{ env.PACKAGE_DIR }}
