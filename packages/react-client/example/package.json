@@ -6,7 +6,7 @@
   "scripts": {
     "start": "SKIP_PREFLIGHT_CHECK=true node ../node_modules/react-scripts/bin/react-scripts.js start",
     "build": "SKIP_PREFLIGHT_CHECK=true node ../node_modules/react-scripts/bin/react-scripts.js build",
-    "test": "node ../node_modules/react-scripts/bin/react-scripts.js test",
+    "test": "SKIP_PREFLIGHT_CHECK=true node ../node_modules/react-scripts/bin/react-scripts.js test",
     "eject": "node ../node_modules/react-scripts/bin/react-scripts.js eject",
     "setup": "cp .env.sample .env"
   },

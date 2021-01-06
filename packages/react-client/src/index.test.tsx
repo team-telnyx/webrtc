@@ -1,7 +1,7 @@
-import { ExampleComponent } from '.'
+import { TelnyxRTCContext } from '.';
 
-describe('ExampleComponent', () => {
+describe('TelnyxRTCContext', () => {
   it('is truthy', () => {
-    expect(ExampleComponent).toBeTruthy()
-  })
-})
+    expect(TelnyxRTCContext).toBeTruthy();
+  });
+});
