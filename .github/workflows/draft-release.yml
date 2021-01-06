@@ -1,16 +1,22 @@
-name: '@telnyx/webrtc Draft release'
+name: 'Draft release'
 
 on:
-  push:
-    branches:
-    - main
-    paths:
-    - 'packages/js/src/**'
   workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to draft release'
+        required: true
+        default: 'webrtc'
+
+env:
+  PACKAGE_NAME: ${{ github.event.inputs.package }}
+  PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
 
 jobs:
   build:
-    name: Draft release
+    if: contains(['webrtc', 'react-client'], $PACKAGE_NAME)
+    
+    name: '@telnyx/${{ github.event.inputs.package }} Draft release'
 
     runs-on: ubuntu-latest
 
@@ -33,24 +39,25 @@ jobs:
     - name: Install shared dependencies
       run: npm ci
     - name: Install package dependencies
-      working-directory: packages/js
+      working-directory: packages/$PACKAGE_DIR
       run: npm ci --ignore-scripts
     - name: Test
-      working-directory: packages/js
+      working-directory: packages/$PACKAGE_DIR
       run: npm test
       env:
         CI: true
     - name: Build
-      working-directory: packages/js
+      working-directory: packages/$PACKAGE_DIR
       run: npm run build
-    - name: Generate docs
-      working-directory: packages/js
+    - if: $PACKAGE_NAME == 'webrtc'
+      name: Generate docs
+      working-directory: packages/$PACKAGE_DIR
       run: |
         npm run docs # IDEA Set --gitRevision to release-it tag
         git add docs
         git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
     - name: Create draft release
-      working-directory: packages/js
+      working-directory: packages/$PACKAGE_DIR
       run: |
         npm run release -- \
         --ci \
