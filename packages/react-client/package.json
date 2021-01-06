@@ -91,6 +91,9 @@
       "releaseName": "react-client@${version}"
     },
     "plugins": {
+      "@release-it/bumper": {
+        "in": "VERSION"
+      },
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
         "tagPrefix": "react-client/v",
