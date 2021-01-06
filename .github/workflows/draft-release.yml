@@ -9,12 +9,11 @@ on:
         default: 'webrtc'
 
 env:
-  PACKAGE_NAME: ${{ github.event.inputs.package }}
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
 
 jobs:
   build:
-    if: contains(fromJson('["webrtc", "react-client"]'), env.PACKAGE_NAME)
+    if: contains(fromJson('["webrtc", "react-client"]'), github.event.inputs.package)
 
     name: '@telnyx/${{ github.event.inputs.package }} Draft release'
 
@@ -49,7 +48,7 @@ jobs:
     - name: Build
       working-directory: packages/${{ env.PACKAGE_DIR }}
       run: npm run build
-    - if: env.PACKAGE_NAME == 'webrtc'
+    - if: github.event.inputs.package == 'webrtc'
       name: Generate docs
       working-directory: packages/${{ env.PACKAGE_DIR }}
       run: |
