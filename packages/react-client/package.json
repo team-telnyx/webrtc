@@ -70,7 +70,7 @@
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-scripts": "^3.4.1",
-    "release-it": "^14.2.2",
+    "release-it": "github:SuaYoo/release-it#Custom_latest_tag",
     "typescript": "^3.7.5"
   },
   "files": [
