@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { TelnyxRTC } from '@telnyx/webrtc';
+import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
   login_token: string;
@@ -30,14 +30,10 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  *   console.log(call)
  * })
  * ```
- *
- * @param {CredentialOptions} credentialParam
- * @param {*} [clientOptions] See https://github.com/team-telnyx/webrtc
- * @returns {TelnyxRTC | undefined}
  */
 function useTelnyxRTC(
   credentialParam: CredentialOptions,
-  clientOptions?: any /* TODO Get type from @telnyx/webrtc package */
+  clientOptions?: IClientOptions
 ): TelnyxRTC | undefined {
   const telnyxClientRef = useRef<TelnyxRTC>();
 

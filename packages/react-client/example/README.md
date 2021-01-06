@@ -5,7 +5,7 @@ It is linked to the @telnyx/react-client package in the parent directory for dev
 To install the example app:
 
 ```shell
-npm install
+npm install --no-package-lock
 npm run setup
 ```
 

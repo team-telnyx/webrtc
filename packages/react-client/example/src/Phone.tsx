@@ -29,7 +29,7 @@ function Phone() {
   const callState = call?.state;
 
   useEffect(() => {
-    console.log('callState:', callState);
+    console.log('phone callState:', callState);
   }, [callState]);
 
   return (

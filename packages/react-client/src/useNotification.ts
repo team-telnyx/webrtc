@@ -21,8 +21,6 @@ import useCallbacks from './useCallbacks';
  *   );
  * }
  * ```
- *
- * @returns
  */
 function useNotification() {
   const [notification, setNotification] = useState<any | null>();
