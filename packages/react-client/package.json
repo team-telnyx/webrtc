@@ -95,6 +95,7 @@
         "in": "VERSION"
       },
       "@release-it/conventional-changelog": {
+        "name": "react-client",
         "preset": "conventionalcommits",
         "tagPrefix": "react-client/v",
         "path": "./src"
