@@ -177,7 +177,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @examples
    *
    * ```js
-   * const stream = call.localStream();
+   * const stream = call.localStream;
    * document.querySelector('audio').srcObject = stream;
    * ```
    */
@@ -193,7 +193,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @examples
    *
    * ```js
-   * const stream = call.remoteStream();
+   * const stream = call.remoteStream;
    * document.querySelector('audio').srcObject = stream;
    * ```
    */
