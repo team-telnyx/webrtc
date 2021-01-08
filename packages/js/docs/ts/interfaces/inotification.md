@@ -71,6 +71,7 @@ The notification structure is determined by its `type`.
 • `Optional` **call**: ICall
 
 The current call. Reference this call state to update your UI.
+See `Call` documentation.
 
 ___
 
