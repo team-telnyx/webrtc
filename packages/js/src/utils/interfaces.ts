@@ -115,6 +115,7 @@ export interface INotification extends Omit<INotificationEventData, 'call'> {
   type: string;
   /**
    * The current call. Reference this call state to update your UI.
+   * See `Call` documentation.
    */
   call?: ICall;
   /**
