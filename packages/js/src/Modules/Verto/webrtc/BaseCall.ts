@@ -818,7 +818,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       case 'bootObj': {
         this._lastSerno = 0;
         const {
-          chatID,
           chatChannel,
           infoChannel,
           modChannel,

@@ -13,9 +13,7 @@ import { ADD, REMOVE, SwEvent } from './util/constants';
 import {
   BroadcastParams,
   ITelnyxRTCOptions,
-  SubscribeParams,
 } from './util/interfaces';
-import { Subscription, Ping } from './messages/Blade';
 import { isFunction, randomInt, isValidOptions } from './util/helpers';
 import { sessionStorage } from './util/storage';
 
@@ -134,46 +132,6 @@ export default abstract class BaseSession {
    * @ignore
    */
   broadcast(params: BroadcastParams) {} // TODO: to be implemented
-
-  /**
-   * Subscribe to Blade protocol channels
-   * @async
-   * @return Result of the ADD subscription
-   * @ignore
-   */
-  async subscribe({
-    protocol,
-    channels,
-    handler,
-  }: SubscribeParams): Promise<any> {
-    const bs = new Subscription({ command: ADD, protocol, channels });
-    const result = await this.execute(bs);
-    const { failed_channels = [], subscribe_channels = [] } = result;
-    if (failed_channels.length) {
-      failed_channels.forEach((channel: string) =>
-        this._removeSubscription(protocol, channel)
-      );
-    }
-    subscribe_channels.forEach((channel: string) =>
-      this._addSubscription(protocol, handler, channel)
-    );
-    return result;
-  }
-
-  /**
-   * Unsubscribe from Blade protocol channels
-   * @async
-   * @return Result of the REMOVE subscription
-   * @ignore
-   */
-  async unsubscribe({
-    protocol,
-    channels,
-    handler,
-  }: SubscribeParams): Promise<any> {
-    const bs = new Subscription({ command: REMOVE, protocol, channels });
-    return this.execute(bs); // FIXME: handle error
-  }
 
   /**
    * Remove subscriptions and calls, close WS connection and remove all session listeners.
@@ -433,9 +391,6 @@ export default abstract class BaseSession {
       return this._closeConnection();
     }
     this._pong = false;
-    this.execute(new Ping())
-      .then(() => (this._pong = true))
-      .catch(() => (this._pong = false));
     this._keepAliveTimeout = setTimeout(
       () => this._keepAlive(),
       KEEPALIVE_INTERVAL

@@ -1,4 +1,3 @@
-import BaseSession from '../BaseSession';
 import { objEmpty, isFunction } from '../util/helpers';
 
 type QueueMap = {

@@ -47,31 +47,6 @@ export interface ICallOptions {
   telnyxLegId?: string;
 }
 
-// TODO Consolidate with `IBaseCall`
-export interface IBaseCall {
-  direction?: any;
-  id?: any;
-  prevState?: any;
-  state?: any;
-  localStream?: any;
-  remoteStream?: any;
-  answer(): void;
-  deaf(): void;
-  dtmf(input: string): void;
-  hangup(): void;
-  hold(): Promise<any>;
-  muteAudio(): void;
-  muteVideo(): void;
-  toggleAudioMute(): void;
-  toggleDeaf(): void;
-  toggleHold(): Promise<any>;
-  toggleVideoMute(): void;
-  undeaf(): void;
-  unhold(): Promise<any>;
-  unmuteAudio(): void;
-  unmuteVideo(): void;
-}
-
 // TODO Consolidate with `Call`
 export interface ICall {
   setAudioInDevice(deviceId: string): Promise<any>;
