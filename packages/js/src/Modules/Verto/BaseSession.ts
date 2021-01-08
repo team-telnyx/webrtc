@@ -193,7 +193,7 @@ export default abstract class BaseSession {
   /**
    * Attaches an event handler for a specific type of event.
    *
-   * ## Events
+   * ### Events
    * |   |   |
    * |---|---|
    * | `telnyx.ready` | The client is authenticated and available to use |
