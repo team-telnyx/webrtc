@@ -316,7 +316,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Transfer a call.
    *
-   * Note: This method is work-in-progress and not currently working.
+   * @ignore Note: This method is work-in-progress and not currently working.
    *
    * @param destination Phone number or SIP URI to dial.
    */
