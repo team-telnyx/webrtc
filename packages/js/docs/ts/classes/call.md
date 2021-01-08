@@ -1,5 +1,49 @@
 # Class: Call
 
+A `Call` is the representation of an audio or video call between
+two browsers, SIP clients or phone numbers. The `call` object is
+created whenever a new call is initiated, either by you or the
+remote caller. You can access and act upon calls initiated by
+a remote caller in a `telnyx.notification` event handler.
+
+**`examples`** 
+
+To create a new call, i.e. dial:
+
+```js
+const call = client.newCall({
+  // Destination is required and can be a phone number or SIP URI
+  destinationNumber: '18004377950',
+  callerNumber: '‬155531234567',
+});
+```
+
+To answer an incoming call:
+
+```js
+client.on('telnyx.notification', (notification) => {
+  const call = notification.call;
+
+  if (notification.type === 'callUpdate' && call.state === 'ringing') {
+    call.answer();
+  }
+});
+```
+
+Both the outgoing and incoming call has methods that can be hooked up to your UI.
+
+```js
+// Hangup or reject an incoming call
+call.hangup();
+
+// Send digits and keypresses
+call.dtmf('1234');
+
+// Call states that can be toggled
+call.hold();
+call.muteAudio();
+```
+
 ## Hierarchy
 
 * BaseCall
@@ -117,7 +161,7 @@ This can be used in a video/audio element to play the local media.
 **`examples`** 
 
 ```js
-const stream = call.localStream();
+const stream = call.localStream;
 document.querySelector('audio').srcObject = stream;
 ```
 
@@ -138,7 +182,7 @@ This can be used in a video/audio element to play the local media.
 **`examples`** 
 
 ```js
-const stream = call.remoteStream();
+const stream = call.remoteStream;
 document.querySelector('audio').srcObject = stream;
 ```
 

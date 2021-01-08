@@ -1,5 +1,34 @@
 # Class: TelnyxRTC
 
+The `TelnyxRTC` client connects your application to the Telnyx backend,
+enabling you to make outgoing calls and handle incoming calls.
+
+**`examples`** 
+
+```js
+// Initialize the client
+const client = new TelnyxRTC({
+  // Use a JWT to authenticate (recommended)
+  login_token: login_token,
+  // or use your Connection credentials
+  //  login: username,
+  //  password: password,
+});
+
+// Attach event listeners
+client
+  .on('telnyx.ready', () => console.log('ready to call'))
+  .on('telnyx.notification', (notification) => {
+    console.log('notification:', notification)
+  });
+
+// Connect and login
+client.connect();
+
+// You can disconnect when you're done
+//  client.disconnect();
+```
+
 ## Hierarchy
 
 * Verto
@@ -807,7 +836,7 @@ ___
 
 Attaches an event handler for a specific type of event.
 
-## Events
+### Events
 |   |   |
 |---|---|
 | `telnyx.ready` | The client is authenticated and available to use |
