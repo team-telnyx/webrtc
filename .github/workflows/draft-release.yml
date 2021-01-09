@@ -59,7 +59,7 @@ jobs:
     - name: Create draft release
       working-directory: packages/${{ env.PACKAGE_DIR }}
       run: |
-        npm run DEBUG=release-it:* release -- \
+        DEBUG=release-it:* npm run release -- \
         ${{ github.event.inputs.version }} \
         --ci \
         --no-git.tag \
