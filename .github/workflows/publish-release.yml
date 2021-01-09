@@ -40,19 +40,6 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
-    - name: Update version
-      working-directory: packages/js
-      run: |
-        npm run release -- \
-        --ci \
-        --no-git.tag \
-        --no-github \
-        --no-npm.publish \
-        --plugins.@release-it/bumper.in=VERSION
-        --plugins.@release-it/bumper.out=VERSION
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish package
       working-directory: packages/js
       run: npm publish --access public
@@ -105,18 +92,6 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/react-client
       run: npm ci
-    - name: Update version
-      working-directory: packages/react-client
-      run: |
-        npm run release -- \
-        --ci \
-        --no-git.tag \
-        --no-github \
-        --no-npm.publish \
-        --plugins.@release-it/bumper.out=VERSION
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     - name: Publish package
       working-directory: packages/react-client
       run: npm publish --access public
