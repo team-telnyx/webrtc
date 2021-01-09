@@ -59,9 +59,9 @@ jobs:
         --ci \
         --no-git.tag \
         --github.draft \
-        --npm.ignoreVersion \
         --no-npm.publish \
-        --no-npm.tag
+        --no-npm.tag \
+        --plugins.@release-it/bumper.in=VERSION
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

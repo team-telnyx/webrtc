@@ -81,9 +81,6 @@
       "releaseName": "webrtc@${version}"
     },
     "plugins": {
-      "@release-it/bumper": {
-        "in": "VERSION"
-      },
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
         "tagPrefix": "webrtc/v",
