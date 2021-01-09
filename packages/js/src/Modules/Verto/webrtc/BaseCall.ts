@@ -170,6 +170,24 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
+   * Gets Telnyx call IDs, if using Telnyx Call Control services.
+   * You can use these IDs to identify specific calls in your application code.
+   *
+   * @examples
+   *
+   * ```js
+   * const { telnyxCallControlId, telnyxSessionId, telnyxLegId } = call.telnyxIDs;
+   * ```
+   */
+  get telnyxIDs() {
+    return {
+      telnyxCallControlId: this.options.telnyxCallControlId,
+      telnyxSessionId: this.options.telnyxSessionId,
+      telnyxLegId: this.options.telnyxLegId,
+    };
+  }
+
+  /**
    * Gets the local stream of the call.
    * This can be used in a video/audio element to play the local media.
    * [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
