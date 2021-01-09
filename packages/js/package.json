@@ -79,13 +79,6 @@
     "github": {
       "release": true,
       "releaseName": "webrtc@${version}"
-    },
-    "plugins": {
-      "@release-it/conventional-changelog": {
-        "preset": "conventionalcommits",
-        "tagPrefix": "webrtc/v",
-        "path": "./src"
-      }
     }
   },
   "lint-staged": {

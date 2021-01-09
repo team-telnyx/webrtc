@@ -42,14 +42,6 @@
     "github": {
       "release": true,
       "releaseName": "react-native@${version}"
-    },
-    "plugins": {
-      "@release-it/conventional-changelog": {
-        "preset": "conventionalcommits",
-        "infile": "CHANGELOG.md",
-        "tagPrefix": "react-native/v",
-        "path": "./src"
-      }
     }
   },
   "dependencies": {

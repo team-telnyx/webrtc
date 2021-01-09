@@ -7,6 +7,10 @@ on:
         description: 'Package to draft release'
         required: true
         default: 'webrtc'
+      version:
+        description: 'Version'
+        required: true
+        default: '0.0.0'
 
 env:
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
@@ -55,13 +59,13 @@ jobs:
     - name: Create draft release
       working-directory: packages/${{ env.PACKAGE_DIR }}
       run: |
-        npm run release -- \
+        npm run DEBUG=release-it:* release -- \
+        ${{ github.event.inputs.version }} \
         --ci \
         --no-git.tag \
         --github.draft \
         --no-npm.publish \
-        --no-npm.tag \
-        --plugins.@release-it/bumper.in=VERSION
+        --no-npm.tag
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -89,14 +89,6 @@
     "github": {
       "release": true,
       "releaseName": "react-client@${version}"
-    },
-    "plugins": {
-      "@release-it/conventional-changelog": {
-        "name": "react-client",
-        "preset": "conventionalcommits",
-        "tagPrefix": "react-client/v",
-        "path": "./src"
-      }
     }
   }
 }
