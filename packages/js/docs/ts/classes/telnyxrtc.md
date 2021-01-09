@@ -745,6 +745,7 @@ ___
 Makes a new outbound call.
 
 This method receives an object `options` with the following properties:
+
 |   |   |   |   |
 |---|---|---|---|
 | `destinationNumber` | string | **required** | Phone number or SIP URI to dial. |
