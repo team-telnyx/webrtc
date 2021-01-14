@@ -1,4 +1,4 @@
-import { ITelnyxRTCOptions } from './interfaces';
+import { IVertoOptions } from './interfaces';
 import logger from './logger';
 import { STORAGE_PREFIX } from './constants';
 
@@ -125,7 +125,7 @@ export const isValidOptions = ({
   passwd,
   password,
   login_token,
-}: ITelnyxRTCOptions) => {
+}: IVertoOptions) => {
   const isLogin = login && (passwd || password);
   const isToken = login_token;
   return Boolean(isLogin || isToken);

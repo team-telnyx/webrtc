@@ -1,5 +1,5 @@
 import TelnyxRTCClient from './Modules/Verto';
-import { ITelnyxRTCOptions } from './Modules/Verto/util/interfaces';
+import { IVertoOptions } from './Modules/Verto/util/interfaces';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -83,7 +83,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    */
-  constructor(options: ITelnyxRTCOptions) {
+  constructor(options: IVertoOptions) {
     super(options);
   }
 }

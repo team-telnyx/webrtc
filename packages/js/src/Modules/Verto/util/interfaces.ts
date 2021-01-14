@@ -1,7 +1,7 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
 
 type Environment = 'production' | 'development';
-export interface ITelnyxRTCOptions {
+export interface IVertoOptions {
   host?: string;
   project?: string;
   token?: string;
