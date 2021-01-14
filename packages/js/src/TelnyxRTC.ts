@@ -1,6 +1,6 @@
 /* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
-import { IClientOptions } from './utils/interfaces';
+import { ICallOptions, IClientOptions } from './utils/interfaces';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -78,5 +78,52 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    */
   constructor(options: IClientOptions) {
     super(options);
+  }
+
+  /**
+   * Makes a new outbound call.
+   *
+   * @param options Options object for a new call.
+   *
+   * @return The new outbound `Call` object.
+   *
+   * @examples
+   *
+   * Making an outbound call to `+1 856-444-0362` using default values from the client:
+   *
+   * ```js
+   * const call = client.newCall({
+   *   destinationNumber: '+18564440362',
+   *   callerNumber: '+15551231234'
+   * });
+   * ```
+   *
+   * You can omit `callerNumber` when dialing a SIP address:
+   *
+   * ```js
+   * const call = client.newCall({
+   *  destinationNumber: 'sip:example-sip-username@voip-provider.example.net'
+   * });
+   * ```
+   *
+   * If you are making calls from one Telnyx connection to another, you may specify just the SIP username:
+   *
+   * ```js
+   * const call = client.newCall({
+   *  destinationNumber: 'telnyx-sip-username' // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
+   * });
+   * ```
+   *
+   * ### Error handling
+   *
+   * An error will be thrown if `destinationNumber` is not specified.
+   *
+   * ```js
+   * const call = client.newCall().catch(console.error);
+   * // => `destinationNumber is required`
+   * ```
+   */
+  newCall(options: ICallOptions) {
+    return super.newCall(options);
   }
 }

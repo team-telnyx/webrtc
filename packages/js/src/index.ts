@@ -1,21 +1,23 @@
 import TelnyxRTC from './TelnyxRTC';
 import {
   ICall,
-  ISIPClientOptions,
   IClientOptions,
-  ISIPCallOptions,
+  ICallOptions,
   ICredentials,
   INotification,
   MessageEvents,
+  ISIPClientOptions,
+  ISIPCallOptions,
 } from './utils/interfaces';
 
 export {
   TelnyxRTC,
   ICall,
-  ISIPClientOptions,
   IClientOptions,
-  ISIPCallOptions,
+  ICallOptions,
   ICredentials,
   INotification,
   MessageEvents,
+  ISIPClientOptions,
+  ISIPCallOptions,
 };
