@@ -190,7 +190,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Gets the local stream of the call.
    * This can be used in a video/audio element to play the local media.
-   * [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+   * See [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
    *
    * @examples
    *
@@ -205,8 +205,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Gets the remote stream of the call.
-   * This can be used in a video/audio element to play the local media.
-   * [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
+   * This can be used in a video/audio element to play the remote media.
+   * See [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
    *
    * @examples
    *
