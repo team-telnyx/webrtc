@@ -1,5 +1,6 @@
+/* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
-import { IVertoOptions } from './Modules/Verto/util/interfaces';
+import { IClientOptions } from './utils/interfaces';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -36,14 +37,6 @@ import { IVertoOptions } from './Modules/Verto/util/interfaces';
 export default class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Creates a new `TelnyxRTC` instance with the provided options.
-   *
-   * |   |   |   |   |
-   * |---|---|---|---|
-   * | `login_token` | string | **required** | The JSON Web Token (JWT) to authenticate with your SIP Connection. This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart). |
-   * | `login` | string | optional | The `username` to authenticate with your SIP Connection. `login` and `password` will take precedence over `login_token` for authentication. |
-   * | `password` | string | optional | The `password` to authenticate with your SIP Connection. |
-   * | `ringtoneFile` | string | optional | A URL to a wav/mp3 ringtone file. |
-   * | `ringbackFile` | string | optional | A URL to a wav/mp3 ringback file that will be used when you disable "Generate Ringback Tone" in you SIP Connection. |
    *
    * @param options Options for initializing a client
    *
@@ -83,7 +76,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    */
-  constructor(options: IVertoOptions) {
+  constructor(options: IClientOptions) {
     super(options);
   }
 }
