@@ -1,17 +1,19 @@
-# Interface: ITelnyxRTCOptions
+# Interface: IClientOptions
+
+**`interface`** IClientOptions
 
 ## Hierarchy
 
-* **ITelnyxRTCOptions**
+* **IClientOptions**
 
 ## Index
 
 ### Properties
 
-* [login](itelnyxrtcoptions.md#login)
-* [login\_token](itelnyxrtcoptions.md#login_token)
-* [password](itelnyxrtcoptions.md#password)
-* [ringbackFile](itelnyxrtcoptions.md#ringbackfile)
+* [login](iclientoptions.md#login)
+* [login\_token](iclientoptions.md#login_token)
+* [password](iclientoptions.md#password)
+* [ringbackFile](iclientoptions.md#ringbackfile)
 
 ## Properties
 
@@ -27,7 +29,7 @@ ___
 
 ### login\_token
 
-• `Optional` **login\_token**: string
+•  **login\_token**: string
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
