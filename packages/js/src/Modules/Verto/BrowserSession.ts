@@ -258,7 +258,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
-   * Return the audio output devices supported by the browser.
+   * Returns the audio input devices supported by the browser.
    *
    * @examples
    *
