@@ -23,6 +23,9 @@ export interface ISIPClientOptions {
   ringFile?: string;
 }
 
+/**
+ * @interface IClientOptions
+ */
 export interface IClientOptions {
   /**
    * The `username` to authenticate with your SIP Connection.
@@ -48,8 +51,7 @@ export interface IClientOptions {
   ringbackFile?: string;
 }
 
-// TODO Consolidate with `CallOptions`
-export interface ICallOptions {
+export interface ISIPCallOptions {
   destinationNumber: string;
   remoteCallerName?: string;
   remoteCallerNumber?: string;
@@ -79,6 +81,8 @@ export interface ICall {
   setAudioOutDevice(deviceId: string): Promise<any>;
   setVideoDevice(deviceId: string): Promise<any>;
 }
+
+export interface ICallOptions {}
 
 /**
  *

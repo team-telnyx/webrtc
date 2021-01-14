@@ -1,4 +1,4 @@
-import { ISIPClientOptions, ICallOptions } from "../../js/src/utils/interfaces";
+import { ISIPClientOptions, ISIPCallOptions } from "../../js/src/utils/interfaces";
 
 import SIP from "sip.js";
 
@@ -91,7 +91,7 @@ export default class SipClient extends BaseClient {
     return Promise.resolve();
   }
 
-  newCall(options: ICallOptions): SipCall {
+  newCall(options: ISIPCallOptions): SipCall {
     if (!options.destination) {
       throw new TypeError("destination is required");
     }
