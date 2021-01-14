@@ -7,7 +7,8 @@ export interface ICredentials {
   token?: string;
 }
 
-export interface IClientOptions {
+export interface ISIPClientOptions {
+  // SIP.js client options:
   host?: string;
   port?: number;
   env?: Env;
@@ -20,6 +21,31 @@ export interface IClientOptions {
   useCamera?: string | boolean;
   displayName?: string;
   ringFile?: string;
+}
+
+export interface IClientOptions {
+  /**
+   * The `username` to authenticate with your SIP Connection.
+   * `login` and `password` will take precedence over
+   * `login_token` for authentication.
+   */
+  login?: string;
+  /**
+   * The `password` to authenticate with your SIP Connection.
+   */
+  password?: string;
+  /**
+   * The JSON Web Token (JWT) to authenticate with your SIP Connection.
+   * This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
+   */
+  login_token?: string;
+  /* A URL to a wav/mp3 ringtone file. */
+  ringtoneFile?: string;
+  /**
+   * A URL to a wav/mp3 ringback file that will be used when you disable
+   * "Generate Ringback Tone" in you SIP Connection.
+   */
+  ringbackFile?: string;
 }
 
 // TODO Consolidate with `CallOptions`

@@ -1,6 +1,7 @@
 import TelnyxRTC from './TelnyxRTC';
 import {
   ICall,
+  ISIPClientOptions,
   IClientOptions,
   ICallOptions,
   ICredentials,
@@ -11,6 +12,7 @@ import {
 export {
   TelnyxRTC,
   ICall,
+  ISIPClientOptions,
   IClientOptions,
   ICallOptions,
   ICredentials,
