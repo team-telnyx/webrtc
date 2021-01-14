@@ -13,8 +13,3 @@
 ### Notification Interfaces
 
 * [INotification](interfaces/inotification.md)
-
-### Other Interfaces
-
-* [ICallOptions](interfaces/icalloptions.md)
-* [IClientOptions](interfaces/iclientoptions.md)
