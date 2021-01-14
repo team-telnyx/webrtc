@@ -66,7 +66,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    *
-   * ### Custom ringtone and ringback
+   * #### Custom ringtone and ringback
    *
    * Custom ringback and ringtone files can be a wav/mp3 in your local public folder
    * or a file hosted on a CDN, ex: https://cdn.company.com/sounds/call.mp3.
