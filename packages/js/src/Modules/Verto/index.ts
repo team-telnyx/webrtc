@@ -1,6 +1,6 @@
 import BrowserSession from './BrowserSession';
 import { SubscribeParams, BroadcastParams } from './util/interfaces';
-import { CallOptions } from './webrtc/interfaces';
+import { IVertoCallOptions } from './webrtc/interfaces';
 import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
 import { SwEvent, SESSION_ID } from './util/constants';
@@ -88,7 +88,7 @@ export default class Verto extends BrowserSession {
    * // => `destinationNumber is required`
    * ```
    */
-  newCall(options: CallOptions) {
+  newCall(options: IVertoCallOptions) {
     if (!options || !options.destinationNumber) {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
     }

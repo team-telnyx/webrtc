@@ -1,4 +1,4 @@
-export interface CallOptions {
+export interface IVertoCallOptions {
   // Required
   destinationNumber: string;
   // Optional
@@ -41,7 +41,7 @@ export interface IWebRTCCall {
   state: string;
   prevState: string;
   direction: string;
-  options: CallOptions;
+  options: IVertoCallOptions;
   cause: string;
   causeCode: number;
   channels: string[];

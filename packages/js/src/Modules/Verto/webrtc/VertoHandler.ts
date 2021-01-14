@@ -8,7 +8,7 @@ import { VertoMethod, NOTIFICATION_TYPE } from './constants';
 import { trigger, deRegister } from '../services/Handler';
 import { State, ConferenceAction } from './constants';
 import { MCULayoutEventHandler } from './LayoutHandler';
-import { IWebRTCCall, CallOptions } from './interfaces';
+import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 
 /**
  * @ignore Hide in docs output
@@ -48,7 +48,7 @@ class VertoHandler {
     }
 
     const _buildCall = () => {
-      const callOptions: CallOptions = {
+      const callOptions: IVertoCallOptions = {
         id: callID,
         remoteSdp: params.sdp,
         destinationNumber: params.callee_id_number,

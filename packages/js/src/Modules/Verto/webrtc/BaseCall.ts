@@ -29,7 +29,7 @@ import {
   toggleVideoTracks,
 } from './helpers';
 import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import { CallOptions, IWebRTCCall } from './interfaces';
+import { IVertoCallOptions, IWebRTCCall } from './interfaces';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -85,7 +85,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   public peer: Peer;
 
-  public options: CallOptions;
+  public options: IVertoCallOptions;
 
   public cause: string;
 
@@ -123,7 +123,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _ringback: HTMLAudioElement;
 
-  constructor(protected session: BrowserSession, opts?: CallOptions) {
+  constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
       iceServers,
       speaker: speakerId,
