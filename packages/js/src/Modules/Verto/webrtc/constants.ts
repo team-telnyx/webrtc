@@ -1,4 +1,4 @@
-import { CallOptions } from './interfaces';
+import { IVertoCallOptions } from './interfaces';
 
 export enum PeerType {
   Offer = 'offer',
@@ -38,7 +38,7 @@ export const NOTIFICATION_TYPE = {
   userMediaError: 'userMediaError',
 };
 
-export const DEFAULT_CALL_OPTIONS: CallOptions = {
+export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   destinationNumber: '',
   remoteCallerName: 'Outbound Call',
   remoteCallerNumber: '',

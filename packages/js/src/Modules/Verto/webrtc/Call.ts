@@ -1,6 +1,6 @@
 import logger from '../util/logger';
 import BaseCall from './BaseCall';
-import { CallOptions } from './interfaces';
+import { IVertoCallOptions } from './interfaces';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 
 /**
@@ -62,7 +62,7 @@ export default class Call extends BaseCall {
     super.hangup(params, execute);
   }
 
-  async startScreenShare(opts?: CallOptions) {
+  async startScreenShare(opts?: IVertoCallOptions) {
     const displayStream: MediaStream = await getDisplayMedia({ video: true });
     displayStream.getTracks().forEach((t) => {
       t.addEventListener('ended', () => {
@@ -77,7 +77,7 @@ export default class Call extends BaseCall {
       callerName,
       callerNumber,
     } = this.options;
-    const options: CallOptions = {
+    const options: IVertoCallOptions = {
       screenShare: true,
       localStream: displayStream,
       destinationNumber: `${this.extension}-screen`,

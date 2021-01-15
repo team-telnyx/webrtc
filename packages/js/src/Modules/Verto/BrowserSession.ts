@@ -4,7 +4,7 @@ import {
   IVideoSettings,
   BroadcastParams,
   SubscribeParams,
-  ITelnyxRTCOptions,
+  IVertoOptions,
 } from './util/interfaces';
 import { registerOnce, trigger } from './services/Handler';
 import {
@@ -61,7 +61,7 @@ export default abstract class BrowserSession extends BaseSession {
 
   protected _speaker: string = null;
 
-  constructor(options: ITelnyxRTCOptions) {
+  constructor(options: IVertoOptions) {
     super(options);
     this.iceServers = options.iceServers;
     this.ringtoneFile = options.ringtoneFile;

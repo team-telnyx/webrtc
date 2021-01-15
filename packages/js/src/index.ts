@@ -6,6 +6,8 @@ import {
   ICredentials,
   INotification,
   MessageEvents,
+  ISIPClientOptions,
+  ISIPCallOptions,
 } from './utils/interfaces';
 
 export {
@@ -16,4 +18,6 @@ export {
   ICredentials,
   INotification,
   MessageEvents,
+  ISIPClientOptions,
+  ISIPCallOptions,
 };

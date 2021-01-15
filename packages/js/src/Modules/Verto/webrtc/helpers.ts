@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import * as WebRTC from '../util/webrtc';
 import { isDefined } from '../util/helpers';
 import { DeviceType } from './constants';
-import { CallOptions } from './interfaces';
+import { IVertoCallOptions } from './interfaces';
 
 const getUserMedia = async (
   constraints: MediaStreamConstraints
@@ -105,7 +105,7 @@ const scanResolutions = async (deviceId: string) => {
 };
 
 const getMediaConstraints = async (
-  options: CallOptions
+  options: IVertoCallOptions
 ): Promise<MediaStreamConstraints> => {
   let { audio = true, micId } = options;
   const { micLabel = '' } = options;

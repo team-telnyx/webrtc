@@ -15,7 +15,7 @@ import {
   streamIsValid,
 } from '../util/webrtc';
 import { isFunction } from '../util/helpers';
-import { CallOptions, IChromeRTCConfiguration } from './interfaces';
+import { IVertoCallOptions, IChromeRTCConfiguration } from './interfaces';
 import { trigger } from '../services/Handler';
 
 /**
@@ -30,7 +30,7 @@ export default class Peer {
   };
   private _negotiating: boolean = false;
 
-  constructor(public type: PeerType, private options: CallOptions) {
+  constructor(public type: PeerType, private options: IVertoCallOptions) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {

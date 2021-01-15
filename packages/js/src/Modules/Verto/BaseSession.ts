@@ -10,10 +10,7 @@ import {
   deRegisterAll,
 } from './services/Handler';
 import { ADD, REMOVE, SwEvent } from './util/constants';
-import {
-  BroadcastParams,
-  ITelnyxRTCOptions,
-} from './util/interfaces';
+import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import { isFunction, randomInt, isValidOptions } from './util/helpers';
 import { sessionStorage } from './util/storage';
 
@@ -41,7 +38,7 @@ export default abstract class BaseSession {
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
 
-  constructor(public options: ITelnyxRTCOptions) {
+  constructor(public options: IVertoOptions) {
     if (!this.validateOptions()) {
       throw new Error('Invalid init options');
     }

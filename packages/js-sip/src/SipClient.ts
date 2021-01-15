@@ -1,4 +1,4 @@
-import { IClientOptions, ICallOptions } from "../../js/src/utils/interfaces";
+import { ISIPClientOptions, ISIPCallOptions } from "../../js/src/utils/interfaces";
 
 import SIP from "sip.js";
 
@@ -22,7 +22,7 @@ const getDeviceString = (input: string | Boolean): string => {
 export default class SipClient extends BaseClient {
   protected sip: SIP.Web.Simple;
 
-  constructor(o?: IClientOptions) {
+  constructor(o?: ISIPClientOptions) {
     super(o);
     this.host = this.host || HOST;
     this.port = this.port || PORT;
@@ -91,7 +91,7 @@ export default class SipClient extends BaseClient {
     return Promise.resolve();
   }
 
-  newCall(options: ICallOptions): SipCall {
+  newCall(options: ISIPCallOptions): SipCall {
     if (!options.destination) {
       throw new TypeError("destination is required");
     }
