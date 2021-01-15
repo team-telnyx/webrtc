@@ -42,7 +42,9 @@ export interface IClientOptions {
    * The `password` to authenticate with your SIP Connection.
    */
   password?: string;
-  /* A URL to a wav/mp3 ringtone file. */
+  /**
+   * A URL to a wav/mp3 ringtone file.
+   */
   ringtoneFile?: string;
   /**
    * A URL to a wav/mp3 ringback file that will be used when you disable
