@@ -46,7 +46,7 @@ export interface IClientOptions {
   ringtoneFile?: string;
   /**
    * A URL to a wav/mp3 ringback file that will be used when you disable
-   * "Generate Ringback Tone" in you SIP Connection.
+   * "Generate Ringback Tone" in your SIP Connection.
    */
   ringbackFile?: string;
 }
