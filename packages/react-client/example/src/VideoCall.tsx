@@ -45,8 +45,6 @@ function VideoCall() {
         destinationNumber: destination,
         callerName: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
         callerNumber: process.env.REACT_APP_TELNYX_PHONE_NUMBER || '',
-        remoteCallerName: '',
-        remoteCallerNumber: '',
         audio: true,
         video: true,
       });
