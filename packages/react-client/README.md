@@ -7,7 +7,7 @@
 ## Install
 
 ```bash
-npm install --save @telnyx/react-client @telnyx/webrtc
+npm install --save @telnyx/react-client
 ```
 
 ## Usage example
