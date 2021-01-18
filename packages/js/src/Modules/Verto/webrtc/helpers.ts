@@ -402,6 +402,7 @@ function getBrowserInfo() {
     const info = navigator.userAgent
       .match(/firefox\/[0-9]+\./gim)[0]
       .split('/');
+
     const name = info[0];
     const version = parseInt(info[1], 10);
 
@@ -419,10 +420,10 @@ function getBrowserInfo() {
     !navigator.userAgent.match(/edg/gim)
   ) {
     const name = navigator.userAgent.match(/safari/gim)[0];
-    const version = parseInt(
-      navigator.userAgent.match(/version\/[0-9]+\./gim),
-      10,
-    );
+    const fullVersion = navigator.userAgent
+      .match(/version\/[0-9]+\./gim)[0]
+      .split('/');
+    const version = parseInt(fullVersion[1], 10);
     return {
       name,
       version,
@@ -447,18 +448,15 @@ function getBrowserInfo() {
     };
   }
   throw new Error(
-    'This browser do not support @telnyx/webrtc. \nPlease, use Chrome|Safari|Firefox.'
+    'This browser does not support @telnyx/webrtc. \nPlease, use Chrome|Firefox|Safari.'
   );
 }
 
-function getSupportWebRTCInfo() {
+function getWebRTCInfo() {
   try {
     const browserInfo = navigator.userAgent;
     const { name, version, supportAudio, supportVideo } = getBrowserInfo();
-    const PC =
-      window.RTCPeerConnection ||
-      window.mozRTCPeerConnection ||
-      window.webkitRTCPeerConnection;
+    const PC = window.RTCPeerConnection;
     const sessionDescription = window.RTCSessionDescription;
     const iceCandidate = window.RTCIceCandidate;
     const mediaDevices = navigator.mediaDevices;
@@ -470,21 +468,21 @@ function getSupportWebRTCInfo() {
 
     return {
       browserInfo,
-      name,
-      version,
+      browserName: name,
+      browserVersion: version,
       supportWebRTC:
         !!PC &&
         !!sessionDescription &&
         !!iceCandidate &&
         !!mediaDevices &&
         !!getUserMediaMethod,
+      supportWebRTCAudio: supportAudio,
+      supportWebRTCVideo: supportVideo,
       supportRTCPeerConnection: !!PC,
       supportSessionDescription: !!sessionDescription,
       supportIceCandidate: !!iceCandidate,
       supportMediaDevices: !!mediaDevices,
       supportGetUserMedia: !!getUserMedia,
-      supportAudio,
-      supportVideo,
     };
   } catch (error) {
     console.error(error.message);
@@ -511,5 +509,5 @@ export {
   disableVideoTracks,
   toggleVideoTracks,
   getBrowserInfo,
-  getSupportWebRTCInfo,
+  getWebRTCInfo,
 };

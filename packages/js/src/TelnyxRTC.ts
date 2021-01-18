@@ -1,6 +1,7 @@
 /* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
+import { getWebRTCInfo } from './Modules/Verto/webrtc/helpers';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -125,5 +126,9 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);
+  }
+
+  public static webRTCInfo() {
+    return getWebRTCInfo();
   }
 }
