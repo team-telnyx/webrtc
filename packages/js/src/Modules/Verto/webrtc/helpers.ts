@@ -368,6 +368,129 @@ const sdpBitrateHack = (
   return lines.join(endOfLine);
 };
 
+function getBrowserInfo() {
+  if (!window || !window.navigator || !window.navigator.userAgent) {
+    throw new Error(
+      'You should use @telnyx/webrtc in a web browser such as Chrome|Safari|Firefox'
+    );
+  }
+
+  if (
+    navigator.userAgent.match(/chrom(e|ium)/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const info = navigator.userAgent
+      .match(/chrom(e|ium)\/[0-9]+\./gim)[0]
+      .split('/');
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/firefox/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const info = navigator.userAgent
+      .match(/firefox\/[0-9]+\./gim)[0]
+      .split('/');
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: false,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/safari/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const name = navigator.userAgent.match(/safari/gim)[0];
+    const version = parseInt(
+      navigator.userAgent.match(/version\/[0-9]+\./gim),
+      10,
+    );
+    return {
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/edg/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi)
+  ) {
+    const info = navigator.userAgent.match(/edg\/[0-9]+\./gim)[0].split('/');
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+  throw new Error(
+    'This browser do not support @telnyx/webrtc. \nPlease, use Chrome|Safari|Firefox.'
+  );
+}
+
+function getSupportWebRTCInfo() {
+  try {
+    const browserInfo = navigator.userAgent;
+    const { name, version, supportAudio, supportVideo } = getBrowserInfo();
+    const PC =
+      window.RTCPeerConnection ||
+      window.mozRTCPeerConnection ||
+      window.webkitRTCPeerConnection;
+    const sessionDescription = window.RTCSessionDescription;
+    const iceCandidate = window.RTCIceCandidate;
+    const mediaDevices = navigator.mediaDevices;
+    const getUserMediaMethod =
+      navigator.getUserMedia ||
+      navigator.webkitGetUserMedia ||
+      navigator.msGetUserMedia ||
+      navigator.mozGetUserMedia;
+
+    return {
+      browserInfo,
+      name,
+      version,
+      supportWebRTC:
+        !!PC &&
+        !!sessionDescription &&
+        !!iceCandidate &&
+        !!mediaDevices &&
+        !!getUserMediaMethod,
+      supportRTCPeerConnection: !!PC,
+      supportSessionDescription: !!sessionDescription,
+      supportIceCandidate: !!iceCandidate,
+      supportMediaDevices: !!mediaDevices,
+      supportGetUserMedia: !!getUserMedia,
+      supportAudio,
+      supportVideo,
+    };
+  } catch (error) {
+    console.error(error.message);
+  }
+}
+
 export {
   getUserMedia,
   getDevices,
@@ -387,4 +510,6 @@ export {
   enableVideoTracks,
   disableVideoTracks,
   toggleVideoTracks,
+  getBrowserInfo,
+  getSupportWebRTCInfo,
 };

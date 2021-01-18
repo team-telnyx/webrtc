@@ -9,6 +9,7 @@ import { sessionStorage } from './util/storage';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
 import logger from './util/logger';
+import { getSupportWebRTCInfo } from './webrtc/helpers';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -41,6 +42,10 @@ export default class Verto extends BrowserSession {
 
   unsubscribe(params: SubscribeParams) {
     return this.vertoUnsubscribe(params);
+  }
+
+  static supportWebRTInfo() {
+    return getSupportWebRTCInfo();
   }
 
   protected async _onSocketOpen() {
