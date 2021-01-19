@@ -8,6 +8,7 @@ import { Container, NumberInput } from './styles';
 const WebDialer = ({
   username,
   password,
+  token,
   defaultDestination,
   callerName,
   callerNumber,
@@ -71,6 +72,7 @@ const WebDialer = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
+      login_token: token,
       login: username,
       password,
       ringtoneFile: './sounds/incoming_call.mp3',
@@ -231,8 +233,9 @@ const WebDialer = ({
 };
 
 WebDialer.propTypes = {
-  username: PropTypes.string.isRequired,
-  password: PropTypes.string.isRequired,
+  username: PropTypes.string,
+  password: PropTypes.string,
+  token: PropTypes.string,
   defaultDestination: PropTypes.string.isRequired,
   callerName: PropTypes.string.isRequired,
   callerNumber: PropTypes.string.isRequired,

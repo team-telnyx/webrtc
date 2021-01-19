@@ -1,17 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { withKnobs, text, boolean, number } from '@storybook/addon-knobs/react';
 
 import { TelnyxRTC } from '@telnyx/webrtc';
-
-export default {
-  title: 'ClickToCall',
-  decorators: [withKnobs],
-};
 
 const ClickToCall = ({
   username,
   password,
-  destination,
+  token,
+  defaultDestination,
   callerName,
   callerNumber,
 }) => {
@@ -35,13 +30,13 @@ const ClickToCall = ({
 
   useEffect(() => {
     return resetFromStorybookUpdate;
-  }, [username, password, destination, callerName, callerNumber]);
+  }, [username, password, defaultDestination, callerName, callerNumber]);
 
   const startCall = () => {
     const newCall = clientRef.current.newCall({
       callerName,
       callerNumber,
-      destinationNumber: destination,
+      destinationNumber: defaultDestination,
       audio: true,
       video: false,
     });
@@ -50,6 +45,7 @@ const ClickToCall = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
+      login_token: token,
       login: username,
       password: password,
       ringFile: './sounds/incoming_call.mp3',
@@ -128,7 +124,7 @@ const ClickToCall = ({
     <div>
       {!call && (
         <button onClick={connect} disabled={registering}>
-          Call
+          Call {defaultDestination}
         </button>
       )}
 
@@ -154,20 +150,4 @@ const ClickToCall = ({
   );
 };
 
-export const Example = () => {
-  const username = text('Connection Username', 'username');
-  const password = text('Connection Password', 'password');
-  const destination = text('Destination', '18004377950');
-  const callerName = text('Caller Name', 'Caller ID Name');
-  const callerNumber = text('Caller Number', 'Caller ID Number');
-
-  return (
-    <ClickToCall
-      username={username}
-      password={password}
-      destination={destination}
-      callerName={callerName}
-      callerNumber={callerNumber}
-    />
-  );
-};
+export default ClickToCall;

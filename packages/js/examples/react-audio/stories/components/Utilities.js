@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
-function Utilities({ environment, username, password }) {
+function Utilities({ username, password, token }) {
   const clientRef = useRef();
   const [isConnected, setIsConnected] = useState(false);
   const [log, setLog] = useState({ title: '', message: '' });
@@ -18,7 +18,7 @@ function Utilities({ environment, username, password }) {
 
   const initClient = () => {
     clientRef.current = new TelnyxRTC({
-      env: environment,
+      login_token: token,
       login: username,
       password,
     });
@@ -195,7 +195,7 @@ function Utilities({ environment, username, password }) {
       ),
     });
   };
-  
+
   const getMediaConstraints = () => {
     setLog({
       title: 'Current media constraints',
