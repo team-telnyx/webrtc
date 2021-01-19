@@ -40,7 +40,7 @@ function Utilities({ username, password, token }) {
   };
 
   const connect = async () => {
-    if (environment && username && password && clientRef.current) {
+    if (username && password && clientRef.current) {
       if (isConnected) {
         setIsConnected(false);
         setLog({ message: 'Reconnecting...' });
@@ -203,7 +203,7 @@ function Utilities({ username, password, token }) {
     });
   };
 
-  if (!clientRef.current && environment && username && password) {
+  if (!clientRef.current && username && password) {
     initClient();
   }
 
