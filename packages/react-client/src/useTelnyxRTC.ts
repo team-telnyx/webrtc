@@ -33,7 +33,7 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  */
 function useTelnyxRTC(
   credentialParam: CredentialOptions,
-  clientOptions?: IClientOptions
+  clientOptions?: Partial<IClientOptions>
 ): TelnyxRTC | undefined {
   const telnyxClientRef = useRef<TelnyxRTC>();
 
@@ -44,6 +44,7 @@ function useTelnyxRTC(
   }
 
   telnyxClientRef.current = new TelnyxRTC({
+    login_token: '',
     ...credentialParam,
     ...clientOptions,
   });
