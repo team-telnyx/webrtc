@@ -1,4 +1,4 @@
-# React video call app
+# React Video Calling App
 
 Sample client application that demonstrates:
 

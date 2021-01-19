@@ -1,4 +1,4 @@
-# React audio widgets
+# React Audio Widgets
 
 Sample click-to-call and dialpad drop-in widgets
 
