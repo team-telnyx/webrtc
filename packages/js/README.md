@@ -148,23 +148,13 @@ call.muteAudio();
 
 ## Examples
 
-### Vanilla Javascript
-
-We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
-
-```sh
-cd examples/vanilla
-open index.html
-```
-
-Screenshot:
-![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/vanilla/vanilla-screeshot.png)
+We've included a few [examples to help you get started](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples).
 
 ### ReactJS
 
 _**Requirement** Node v11.15.0 or later_
 
-We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
+We've included a few [examples in Java](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
 
 > _Looking for an easier way to get started with React or React Native? Check out our other packages:_
 >
