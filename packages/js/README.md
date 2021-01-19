@@ -150,28 +150,10 @@ call.muteAudio();
 
 We've included a few [examples to help you get started](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples).
 
-### ReactJS
-
-_**Requirement** Node v11.15.0 or later_
-
-We've included a few [examples in Java](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
-
-> _Looking for an easier way to get started with React or React Native? Check out our other packages:_
+> _Looking for more examples in React or React Native? Check out our React client packages:_
 >
 > - [@telnyx/react-client](../react-client)
 > - [@telnyx/react-native](../react-client)
-
-#### Video call
-
-```sh
-cd examples/react-video
-npm run setup
-npm install
-npm start
-```
-
-Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
 
 ---
 

@@ -4,16 +4,11 @@ We've included a few examples for you in [React](https://reactjs.org/). Use this
 
 ![Web Dialer](./storybook-screenshot.png)
 
-> _Looking for an easier way to get started with React or React Native? Check out our other packages:_
->
-> - [@telnyx/react-client](../react-client)
-> - [@telnyx/react-native](../react-client)
-
 ## Getting started
 
 You'll need Telnyx account to get started. [Sign up for free](https://telnyx.com/sign-up) and then follow our [quick start guide](https://developers.telnyx.com/docs/v2/webrtc/quickstart) to retrieve your authentication credentials.
 
-## Running the examples
+## Running the example
 
 Set up and install the demo app:
 
