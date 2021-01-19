@@ -371,7 +371,7 @@ const sdpBitrateHack = (
 function getBrowserInfo() {
   if (!window || !window.navigator || !window.navigator.userAgent) {
     throw new Error(
-      'You should use @telnyx/webrtc in a web browser such as Chrome|Safari|Firefox'
+      'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari'
     );
   }
 
@@ -387,6 +387,7 @@ function getBrowserInfo() {
     const version = parseInt(info[1], 10);
 
     return {
+      browserInfo: navigator.userAgent,
       name,
       version,
       supportAudio: true,
@@ -407,6 +408,7 @@ function getBrowserInfo() {
     const version = parseInt(info[1], 10);
 
     return {
+      browserInfo: navigator.userAgent,
       name,
       version,
       supportAudio: true,
@@ -425,6 +427,7 @@ function getBrowserInfo() {
       .split('/');
     const version = parseInt(fullVersion[1], 10);
     return {
+      browserInfo: navigator.userAgent,
       name,
       version,
       supportAudio: true,
@@ -441,6 +444,7 @@ function getBrowserInfo() {
     const version = parseInt(info[1], 10);
 
     return {
+      browserInfo: navigator.userAgent,
       name,
       version,
       supportAudio: true,
@@ -454,12 +458,11 @@ function getBrowserInfo() {
 
 function getWebRTCInfo() {
   try {
-    const browserInfo = navigator.userAgent;
-    const { name, version, supportAudio, supportVideo } = getBrowserInfo();
+    const { browserInfo, name, version, supportAudio, supportVideo } = getBrowserInfo();
     const PC = window.RTCPeerConnection;
     const sessionDescription = window.RTCSessionDescription;
     const iceCandidate = window.RTCIceCandidate;
-    const mediaDevices = navigator.mediaDevices;
+    const mediaDevices = window.navigator && window.navigator.mediaDevices;
     const getUserMediaMethod =
       navigator.getUserMedia ||
       navigator.webkitGetUserMedia ||
@@ -486,6 +489,7 @@ function getWebRTCInfo() {
     };
   } catch (error) {
     console.error(error.message);
+    return error.message;
   }
 }
 

@@ -6,6 +6,7 @@ import {
   getDevices,
   assureDeviceId,
   getBrowserInfo,
+  getWebRTCInfo,
 } from '../../webrtc/helpers';
 
 describe('Helpers browser functions', () => {
@@ -368,7 +369,7 @@ describe('Helpers browser functions', () => {
     });
   });
 
-  describe.only('getBrowserInfo', () => {
+  describe('getBrowserInfo', () => {
     it('should return error when code runs without a web browser', async (done) => {
       Object.defineProperty(global, 'navigator', {
         value: null,
@@ -376,7 +377,7 @@ describe('Helpers browser functions', () => {
       });
 
       expect(() => getBrowserInfo()).toThrow(
-        'You should use @telnyx/webrtc in a web browser such as Chrome|Safari|Firefox'
+        'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari'
       );
       done();
     });
@@ -405,7 +406,10 @@ describe('Helpers browser functions', () => {
 
     it('should return error when code runs in Opera browser', async (done) => {
       Object.defineProperty(global, 'navigator', {
-        value: { userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 OPR/72.0.3815.400' },
+        value: {
+          userAgent:
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36 OPR/72.0.3815.400',
+        },
         writable: true,
       });
       expect(() => getBrowserInfo()).toThrow(
@@ -435,7 +439,7 @@ describe('Helpers browser functions', () => {
       Object.defineProperty(global, 'navigator', {
         value: {
           userAgent:
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:84.0) Gecko/20100101 Firefox/84.0",
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:84.0) Gecko/20100101 Firefox/84.0',
         },
         writable: true,
       });
@@ -479,6 +483,65 @@ describe('Helpers browser functions', () => {
       expect(result.version).toEqual(87);
       expect(result.supportAudio).toBeTruthy();
       expect(result.supportVideo).toBeTruthy();
+      done();
+    });
+  });
+
+  describe('getWebRTCInfo', () => {
+    it('should return error when code runs without a web browser', async (done) => {
+      Object.defineProperty(global, 'navigator', {
+        value: null,
+        writable: true,
+      });
+
+      const result = getWebRTCInfo();
+      expect(result).toEqual(
+        'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari'
+      );
+      done();
+    });
+
+    it('should return webRTC info about supported features on current browser', async (done) => {
+      const chromeUserAgent =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36';
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: chromeUserAgent },
+        writable: true,
+      });
+
+      const mockFn = jest.fn().mockImplementation(() => {
+        return {
+          global: {
+            RTCPeerConnection: jest.fn(),
+          },
+        };
+      });
+
+      const result = getWebRTCInfo();
+      expect(result).not.toBeNull();
+      expect(result.browserInfo).toEqual(chromeUserAgent);
+      expect(result.browserName).toEqual('Chrome');
+      expect(result.browserVersion).toEqual(87);
+      expect(result.supportRTCPeerConnection).toBeTruthy();
+      done();
+    });
+
+    it('should return supportWebRTC equal false when browser does not support RTC', async (done) => {
+      jest.clearAllMocks();
+      
+      const chromeUserAgent =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36';
+      Object.defineProperty(global, 'navigator', {
+        value: { userAgent: chromeUserAgent },
+        writable: true,
+      });
+
+      const result = getWebRTCInfo();
+      expect(result).not.toBeNull();
+      expect(result.browserInfo).toEqual(chromeUserAgent);
+      expect(result.browserName).toEqual('Chrome');
+      expect(result.browserVersion).toEqual(87);
+      expect(result.supportWebRTC).toBeFalsy();
       done();
     });
   });
