@@ -180,7 +180,7 @@ npm install
 npm run storybook
 ```
 
-Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
+Configuration options for your Telnyx account are available in Storybook panels.
 
 Screenshot:
 ![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-audio/storybook-screenshot.png)
