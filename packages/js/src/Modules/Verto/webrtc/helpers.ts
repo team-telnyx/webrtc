@@ -489,6 +489,79 @@ function getWebRTCInfo() {
   }
 }
 
+function getSupportedBrowserList() {
+  return [
+    {
+      operationSystem: 'Android',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: 'full',
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
+        { browserName: 'Safari', supported: 'not supported' },
+        { browserName: 'Edge', supported: 'not supported' },
+      ],
+    },
+    {
+      operationSystem: 'iOS',
+      supported: [
+        {
+          browserName: 'Chrome',
+          supported: 'not supported',
+        },
+        { browserName: 'Firefox', supported: 'not supported' },
+        {
+          browserName: 'Safari',
+          features: ['video', 'audio'],
+          supported: 'full',
+        },
+        { browserName: 'Edge', supported: 'not supported' },
+      ],
+    },
+    {
+      operationSystem: 'Linux',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: 'full',
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
+        { browserName: 'Safari', supported: 'not supported' },
+        { browserName: 'Edge', supported: 'not supported' },
+      ],
+    },
+    {
+      operationSystem: 'MacOS',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: 'full',
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
+        { browserName: 'Safari', features: ['video', 'audio'], supported: 'full' },
+        { browserName: 'Edge', features: ['video', 'audio'], supported: 'full' },
+      ],
+    },
+    {
+      operationSystem: 'Windows',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: 'full',
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
+        { browserName: 'Safari', supported: 'not supported' },
+        { browserName: 'Edge', features: ['video', 'audio'], supported: 'full' },
+      ],
+    },
+  ];
+}
+
 export {
   getUserMedia,
   getDevices,
@@ -510,4 +583,5 @@ export {
   toggleVideoTracks,
   getBrowserInfo,
   getWebRTCInfo,
+  getSupportedBrowserList,
 };
