@@ -6,7 +6,6 @@ import DialPad from './DialPad';
 import { Container, NumberInput } from './styles';
 
 const WebDialer = ({
-  environment,
   username,
   password,
   defaultDestination,
@@ -39,7 +38,6 @@ const WebDialer = ({
   };
 
   useEffect(() => resetFromStorybookUpdate, [
-    environment,
     username,
     password,
     callerName,
@@ -73,7 +71,6 @@ const WebDialer = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
-      env: environment,
       login: username,
       password,
       ringtoneFile: './sounds/incoming_call.mp3',
@@ -234,7 +231,6 @@ const WebDialer = ({
 };
 
 WebDialer.propTypes = {
-  environment: PropTypes.string.isRequired,
   username: PropTypes.string.isRequired,
   password: PropTypes.string.isRequired,
   defaultDestination: PropTypes.string.isRequired,

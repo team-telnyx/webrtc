@@ -9,7 +9,6 @@ export default {
 };
 
 const ClickToCall = ({
-  environment,
   username,
   password,
   destination,
@@ -51,7 +50,6 @@ const ClickToCall = ({
 
   const connectAndCall = () => {
     const session = new TelnyxRTC({
-      env: environment,
       login: username,
       password: password,
       ringFile: './sounds/incoming_call.mp3',
@@ -157,7 +155,6 @@ const ClickToCall = ({
 };
 
 export const Example = () => {
-  const production = boolean('Production', true);
   const username = text('Connection Username', 'username');
   const password = text('Connection Password', 'password');
   const destination = text('Destination', '18004377950');
@@ -171,7 +168,6 @@ export const Example = () => {
       destination={destination}
       callerName={callerName}
       callerNumber={callerNumber}
-      environment={production ? 'production' : 'development'}
     />
   );
 };

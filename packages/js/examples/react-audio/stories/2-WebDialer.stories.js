@@ -10,7 +10,6 @@ export default {
 };
 
 export const Example = () => {
-  const production = boolean('Production', true);
   const username = text('Connection Username', 'username');
   const password = text('Connection Password', 'password');
   const callerName = text('Caller Name', 'Caller ID Name');
@@ -19,7 +18,6 @@ export const Example = () => {
 
   return (
     <WebDialer
-      environment={production ? 'production' : 'development'}
       username={username}
       password={password}
       defaultDestination='18004377950'
