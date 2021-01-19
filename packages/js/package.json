@@ -79,7 +79,7 @@
     "github": {
       "release": true,
       "releaseName": "webrtc@${version}",
-      "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${from}...${to} ."
+      "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
     }
   },
   "lint-staged": {
