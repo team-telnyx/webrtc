@@ -7,6 +7,8 @@ import {
   assureDeviceId,
   getBrowserInfo,
   getWebRTCInfo,
+  getWebRTCSupportedBrowserList,
+  SUPPORTED_WEBRTC
 } from '../../webrtc/helpers';
 
 describe('Helpers browser functions', () => {
@@ -528,7 +530,7 @@ describe('Helpers browser functions', () => {
 
     it('should return supportWebRTC equal false when browser does not support RTC', async (done) => {
       jest.clearAllMocks();
-      
+
       const chromeUserAgent =
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36';
       Object.defineProperty(global, 'navigator', {
@@ -543,6 +545,53 @@ describe('Helpers browser functions', () => {
       expect(result.browserVersion).toEqual(87);
       expect(result.supportWebRTC).toBeFalsy();
       done();
+    });
+  });
+
+  describe('getWebRTCSupportedBrowserList', () => {
+    const supportedBrowserList = [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Firefox", "features": ["audio"], "supported": "partial"}, {"browserName": "Safari", "supported": "not supported"}, {"browserName": "Edge", "supported": "not supported"}]}, {"operationSystem": "iOS", "supported": [{"browserName": "Chrome", "supported": "not supported"}, {"browserName": "Firefox", "supported": "not supported"}, {"browserName": "Safari", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Edge", "supported": "not supported"}]}, {"operationSystem": "Linux", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Firefox", "features": ["audio"], "supported": "partial"}, {"browserName": "Safari", "supported": "not supported"}, {"browserName": "Edge", "supported": "not supported"}]}, {"operationSystem": "MacOS", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Firefox", "features": ["audio"], "supported": "partial"}, {"browserName": "Safari", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Edge", "features": ["video", "audio"], "supported": "full"}]}, {"operationSystem": "Windows", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"}, {"browserName": "Firefox", "features": ["audio"], "supported": "partial"}, {"browserName": "Safari", "supported": "not supported"}, {"browserName": "Edge", "features": ["video", "audio"], "supported": "full"}]}];
+    it('should return an array with all webrtc supported browser list', () => {
+      const result = getWebRTCSupportedBrowserList();
+      expect(result).not.toBeNull();
+      expect(result).toEqual(supportedBrowserList);
+    });
+    it('should return an array with 5 operational system', () => {
+      const result = getWebRTCSupportedBrowserList();
+      expect(result).not.toBeNull();
+      expect(result).toHaveLength(5);
+    });
+    it('should return an array with 5 operational system', () => {
+      const operationSystem = ['Android', 'iOS', 'Linux', 'MacOS', 'Windows'];
+      const result = getWebRTCSupportedBrowserList();
+      expect(result).not.toBeNull();
+      const resultSO = result.map(item => item.operationSystem);
+
+      expect(result).toHaveLength(5);
+      expect(resultSO).toEqual(operationSystem);
+    });
+
+    it('should return an array with 4 supported browsers', () => {
+      const browsers = [ 'Chrome', 'Firefox', 'Safari', 'Edge' ];
+      const result = getWebRTCSupportedBrowserList();
+      expect(result).not.toBeNull();
+      expect(result).toHaveLength(5);
+
+      const resultSupportedBrowser = result.map(item => item.supported);
+      const supportedBroswers = resultSupportedBrowser[0].map(item => item.browserName);
+      expect(supportedBroswers).toEqual(browsers);
+    });
+
+    it('should return supported info for MacOS using Firefox browser', () => {
+      const result = getWebRTCSupportedBrowserList();
+      expect(result).not.toBeNull();
+      expect(result).toHaveLength(5);
+
+      const resultMacOs = result.filter(item => item.operationSystem === 'MacOS')[0];
+      const resultFirefox = resultMacOs.supported.filter(item => item.browserName === 'Firefox')[0];
+      expect(resultFirefox.browserName).toEqual('Firefox');
+      expect(resultFirefox.supported).toEqual(SUPPORTED_WEBRTC.partial);
+      expect(resultFirefox.features).toHaveLength(1);
+      expect(resultFirefox.features[0]).toEqual('audio');
     });
   });
 });
