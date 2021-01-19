@@ -1,3 +1,5 @@
+/* eslint-disable no-unused-expressions  */
+// See: https://github.com/eslint/eslint/issues/12822 for eslint-disable no-unused-expressions reason
 import { useEffect, useRef } from 'react';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
@@ -44,6 +46,7 @@ function useTelnyxRTC(
   }
 
   telnyxClientRef.current = new TelnyxRTC({
+    // eslint-disable-next-line @typescript-eslint/camelcase
     login_token: '',
     ...credentialParam,
     ...clientOptions,
