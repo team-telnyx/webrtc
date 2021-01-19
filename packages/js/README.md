@@ -52,7 +52,7 @@ client.connect();
 
 > See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructor) for all options.
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](./examples) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [app examples](./examples) for sample code that handles username and password by prompting the user.
 
 To hear/view calls in the browser, you'll need to specify an HTML media element:
 
@@ -148,7 +148,7 @@ call.muteAudio();
 
 ## Examples
 
-We've included a few [examples to help you get started](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples).
+We've included a few [examples in vanilla JavaScript (ES6) and React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started.
 
 > _Looking for more examples in React or React Native? Check out our React client packages:_
 >
