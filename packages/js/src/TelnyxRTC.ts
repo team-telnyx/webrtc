@@ -1,7 +1,10 @@
 /* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
-import { getWebRTCInfo, getWebRTCSupportedBrowserList } from './Modules/Verto/webrtc/helpers';
+import {
+  getWebRTCInfo,
+  getWebRTCSupportedBrowserList,
+} from './Modules/Verto/webrtc/helpers';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -128,10 +131,56 @@ export default class TelnyxRTC extends TelnyxRTCClient {
     return super.newCall(options);
   }
 
+  /**
+   * Checks if the running browser has support for TelnyRTC
+   *
+   * @return an object with telnyx webrtc information.
+   *
+   * @examples
+   *
+   * If your browser has supported
+   *
+   * ```js
+   * const info = TelnyxRTC.webRTCInfo();
+   * console.log(info) // => 'This browser does not support @telnyx/webrtc. \nPlease, use Chrome|Firefox|Safari.'
+   * ```
+   *
+   * ### Error handling
+   *
+   * An error will be thrown if your browser doesn't supported TelnyxRTC
+   *
+   * ```js
+   * const info = TelnyxRTC.webRTCInfo();
+   * console.log(info) // => {browserName: "Chrome", browserVersion: 87, supportWebRTC: true, supportWebRTCAudio: true, …}
+   * ```
+   */
   public static webRTCInfo() {
     return getWebRTCInfo();
   }
 
+  /**
+   * Returns the WebRTC supported browser list.
+   *
+   * The following table indicates the browsers supported by TelnyxRTC.
+   * We support the most recent (N) and the two previous (N-2) versions of these browsers unless otherwise indicated.
+   *
+   * |  | Chrome | Firefox | Safari | Edge |
+   * |---|---|---|---|---|
+   * | Android | [x] | [x] | [ ] | [ ] |
+   * | iOS | [x] | [x] | [x] | [ ] |
+   * | Linux | [x] | [x] | [ ] | [ ] |
+   * | MacOS | [x] | [x] | [x] | [x] |
+   * | Windows | [x] | [x] | [ ] | [x] |
+   *
+   * @return an array with supported operational systems and browsers.
+   *
+   * @examples
+   * 
+   * ```js
+   * const browserList = TelnyxRTC.webRTCSupportedBrowserList();
+   * console.log(browserList) // => [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"},{...}]
+   * ```
+   */
   public static webRTCSupportedBrowserList() {
     return getWebRTCSupportedBrowserList();
   }

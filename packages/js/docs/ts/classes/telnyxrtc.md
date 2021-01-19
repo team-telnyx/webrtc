@@ -69,6 +69,8 @@ client.connect();
 * [on](telnyxrtc.md#on)
 * [setAudioSettings](telnyxrtc.md#setaudiosettings)
 * [setVideoSettings](telnyxrtc.md#setvideosettings)
+* [webRTCInfo](telnyxrtc.md#webrtcinfo)
+* [webRTCSupportedBrowserList](telnyxrtc.md#webrtcsupportedbrowserlist)
 
 ## Constructors
 
@@ -950,3 +952,62 @@ Name | Type | Description |
 **Returns:** Promise<MediaTrackConstraints\>
 
 `Promise<MediaTrackConstraints>` Video constraints applied to the client.
+
+___
+
+### webRTCInfo
+
+▸ `Static`**webRTCInfo**(): any
+
+Checks if the running browser has support for TelnyRTC
+
+**`examples`** 
+
+If your browser has supported
+
+```js
+const info = TelnyxRTC.webRTCInfo();
+console.log(info) // => 'This browser does not support @telnyx/webrtc. \nPlease, use Chrome|Firefox|Safari.'
+```
+
+### Error handling
+
+An error will be thrown if your browser doesn't supported TelnyxWebRTC
+
+```js
+const info = TelnyxRTC.webRTCInfo();
+console.log(info) // => {browserName: "Chrome", browserVersion: 87, supportWebRTC: true, supportWebRTCAudio: true, …}
+```
+
+**Returns:** any
+
+an object with telnyx webrtc information.
+
+___
+
+### webRTCSupportedBrowserList
+
+▸ `Static`**webRTCSupportedBrowserList**(): {}[]
+
+Returns the WebRTC supported browser list.
+
+The following table indicates the browsers supported by TelnyxRTC.
+We support the most recent (N) and the two previous (N-2) versions of these browsers unless otherwise indicated.
+
+|  | Chrome | Firefox | Safari | Edge |
+|---|---|---|---|---|
+| Android | [x] | [x] | [ ] | [ ] |
+| iOS | [x] | [x] | [x] | [ ] |
+| Linux | [x] | [x] | [ ] | [ ] |
+| MacOS | [x] | [x] | [x] | [x] |
+| Windows | [x] | [x] | [ ] | [x] |
+
+**`examples`** 
+```js
+const browserList = TelnyxRTC.webRTCSupportedBrowserList();
+console.log(browserList) // => [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"},{...}]
+```
+
+**Returns:** {}[]
+
+an array with supported operational systems and browsers.
