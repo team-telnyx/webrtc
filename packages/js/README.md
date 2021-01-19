@@ -171,20 +171,6 @@ We've included a few [examples in React](https://github.com/team-telnyx/webrtc/t
 > - [@telnyx/react-client](../react-client)
 > - [@telnyx/react-native](../react-client)
 
-#### Audio call
-
-```sh
-cd examples/react-audio
-npm run setup
-npm install
-npm run storybook
-```
-
-Configuration options for your Telnyx account are available in Storybook panels.
-
-Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-audio/storybook-screenshot.png)
-
 #### Video call
 
 ```sh

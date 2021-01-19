@@ -1,6 +1,8 @@
-# Examples in React
+# React audio widgets
 
 We've included a few examples for you in [React](https://reactjs.org/). Use this project to immediately start making calls, or as a jumping off point for your own Telnyx WebRTC project. Examples are provided as [Storybook](https://storybook.js.org/) components.
+
+![Web Dialer](./storybook-screenshot.png)
 
 ## Getting started
 
