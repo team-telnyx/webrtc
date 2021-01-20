@@ -134,7 +134,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Checks if the running browser has support for TelnyRTC
    *
-   * @return an object with telnyx webrtc information.
+   * @return An object with WebRTC browser support information or a string error message.
    *
    * @examples
    *
