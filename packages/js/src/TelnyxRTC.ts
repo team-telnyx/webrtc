@@ -157,7 +157,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * ```js
    * const info = TelnyxRTC.webRTCInfo();
    * if (!info.supportWebRTC) {
-   *   console.error(info) // => 'This browser does not support @telnyx/webrtc. \nPlease, use Chrome|Firefox|Safari.'
+   *   console.error(info) // => 'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()'
    * }
    * ```
    */
