@@ -452,7 +452,7 @@ function getBrowserInfo() {
     };
   }
   throw new Error(
-    'This browser does not support @telnyx/webrtc. \nPlease, use Chrome|Firefox|Safari.'
+    'This browser does not support @telnyx/webrtc.'
   );
 }
 
