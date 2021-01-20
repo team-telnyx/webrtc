@@ -157,7 +157,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * }
    * ```
    */
-  public static webRTCInfo() {
+  public static webRTCInfo(): IWebRTCInfo | string {
     return getWebRTCInfo();
   }
 
