@@ -5,19 +5,10 @@ import {
   getWebRTCInfo,
   getWebRTCSupportedBrowserList,
 } from './Modules/Verto/webrtc/helpers';
-interface IWebRTCInfo {
-  browserInfo: any;
-  browserName: string;
-  browserVersion: string;
-  supportWebRTC: boolean;
-  supportWebRTCAudio: boolean;
-  supportWebRTCVideo: boolean;
-  supportRTCPeerConnection: boolean;
-  supportSessionDescription: boolean;
-  supportIceCandidate: boolean;
-  supportMediaDevices: boolean;
-  supportGetUserMedia: boolean;
-}
+import {
+  IWebRTCInfo,
+  IWebRTCSupportedBrowser,
+} from './Modules/Verto/webrtc/interfaces';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -191,13 +182,13 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * @return An array with supported operational systems and browsers.
    *
    * @examples
-   * 
+   *
    * ```js
    * const browserList = TelnyxRTC.webRTCSupportedBrowserList();
    * console.log(browserList) // => [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"},{...}]
    * ```
    */
-  public static webRTCSupportedBrowserList() {
+  public static webRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
     return getWebRTCSupportedBrowserList();
   }
 }

@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import * as WebRTC from '../util/webrtc';
 import { isDefined } from '../util/helpers';
 import { DeviceType } from './constants';
-import { IVertoCallOptions } from './interfaces';
+import { IVertoCallOptions, IWebRTCSupportedBrowser, IWebRTCInfo } from './interfaces';
 
 const getUserMedia = async (
   constraints: MediaStreamConstraints
@@ -456,7 +456,7 @@ function getBrowserInfo() {
   );
 }
 
-function getWebRTCInfo() {
+function getWebRTCInfo(): IWebRTCInfo {
   try {
     const { browserInfo, name, version, supportAudio, supportVideo } = getBrowserInfo();
     const PC = window.RTCPeerConnection;
@@ -498,7 +498,7 @@ export enum SUPPORTED_WEBRTC {
   partial = 'partial',
 }
 
-function getWebRTCSupportedBrowserList() {
+function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
   return [
     {
       operationSystem: 'Android',
