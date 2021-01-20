@@ -168,17 +168,6 @@ export default class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Returns the WebRTC supported browser list.
    *
-   * The following table indicates the browsers supported by TelnyxRTC.
-   * We support the most recent (N) and the two previous (N-2) versions of these browsers unless otherwise indicated.
-   *
-   * |  | Chrome | Firefox | Safari | Edge |
-   * |---|---|---|---|---|
-   * | Android | [x] | [x] | [ ] | [ ] |
-   * | iOS | [x] | [x] | [x] | [ ] |
-   * | Linux | [x] | [x] | [ ] | [ ] |
-   * | MacOS | [x] | [x] | [x] | [x] |
-   * | Windows | [x] | [x] | [ ] | [x] |
-   *
    * @return An array with supported operational systems and browsers.
    *
    * @examples
