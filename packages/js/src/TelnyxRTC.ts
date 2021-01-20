@@ -161,7 +161,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    *
    * #### Error handling
    *
-   * An error will be thrown if your browser doesn't supported TelnyxRTC
+   * An error message will be returned if your browser doesn't support TelnyxRTC
    *
    * ```js
    * const info = TelnyxRTC.webRTCInfo();
