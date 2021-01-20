@@ -188,7 +188,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * | MacOS | [x] | [x] | [x] | [x] |
    * | Windows | [x] | [x] | [ ] | [x] |
    *
-   * @return an array with supported operational systems and browsers.
+   * @return An array with supported operational systems and browsers.
    *
    * @examples
    * 
