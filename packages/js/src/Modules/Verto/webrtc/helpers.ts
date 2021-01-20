@@ -452,7 +452,7 @@ function getBrowserInfo() {
     };
   }
   throw new Error(
-    'This browser does not support @telnyx/webrtc.'
+    'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()`'
   );
 }
 
