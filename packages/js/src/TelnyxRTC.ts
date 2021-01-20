@@ -5,6 +5,19 @@ import {
   getWebRTCInfo,
   getWebRTCSupportedBrowserList,
 } from './Modules/Verto/webrtc/helpers';
+interface IWebRTCInfo {
+  browserInfo: any;
+  browserName: string;
+  browserVersion: string;
+  supportWebRTC: boolean;
+  supportWebRTCAudio: boolean;
+  supportWebRTCVideo: boolean;
+  supportRTCPeerConnection: boolean;
+  supportSessionDescription: boolean;
+  supportIceCandidate: boolean;
+  supportMediaDevices: boolean;
+  supportGetUserMedia: boolean;
+}
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
