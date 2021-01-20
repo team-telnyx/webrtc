@@ -201,7 +201,7 @@ Screenshot:
 
 ## Browser support
 
-We support the most recent versions of Chrome, Firefox, Safari and Edge on MacOS and Windows unless otherwise indicated. To extend support to other browsers, import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
+We support the most recent versions of Chrome, Firefox, Safari and Edge on MacOS and Windows unless otherwise indicated. To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
 
 ```js
 import 'webrtc-adapter';
