@@ -488,7 +488,6 @@ function getWebRTCInfo() {
       supportGetUserMedia: !!getUserMedia,
     };
   } catch (error) {
-    console.error(error.message);
     return error.message;
   }
 }
