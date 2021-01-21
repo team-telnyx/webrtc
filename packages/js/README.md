@@ -78,7 +78,7 @@ client.connect();
 
 > See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructor) for all options.
 
-Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [examples](./examples) for sample React code that handles username and password by prompting the user.
+Important: You should treat Connection credentials as sensitive data and should not hardcode credentials into your frontend web application. Check out the [app examples](./examples) for sample code that handles username and password by prompting the user.
 
 To hear/view calls in the browser, you'll need to specify an HTML media element:
 
@@ -174,54 +174,25 @@ call.muteAudio();
 
 ## Examples
 
-### Vanilla Javascript
+We've included a few [examples in vanilla JavaScript (ES6) and React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started.
 
-We've included a few [examples in Javascript (ES6)](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples/vanilla) to help you get started.
-
-```sh
-cd examples/vanilla
-open index.html
-```
-
-Screenshot:
-![Video call](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/vanilla/vanilla-screeshot.png)
-
-### ReactJS
-
-_**Requirement** Node v11.15.0 or later_
-
-We've included a few [examples in React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started. This library is not limited to React and can be used with any JavaScript framework of your choosing.
-
-> _Looking for an easier way to get started with React or React Native? Check out our other packages:_
+> _Looking for more examples in React or React Native? Check out our React client packages:_
 >
 > - [@telnyx/react-client](../react-client)
 > - [@telnyx/react-native](../react-client)
 
-#### Audio call
+---
 
-```sh
-cd examples/react-audio
-npm run setup
-npm install
-npm run storybook
+## Browser support
+
+We support the most recent versions of Chrome, Firefox, Safari and Edge on MacOS and Windows unless otherwise indicated. To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
+
+```js
+import 'webrtc-adapter';
+import { TelnyxRTC } from '@telnyx/webrtc';
 ```
 
-Configuration options for your Telnyx account are available under the [Storybook **Knobs**](https://github.com/storybookjs/storybook/tree/master/addons/knobs).
-
-Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-audio/storybook-screenshot.png)
-
-#### Video call
-
-```sh
-cd examples/react-video
-npm run setup
-npm install
-npm start
-```
-
-Screenshot:
-![Web Dialer](https://raw.githubusercontent.com/team-telnyx/webrtc/master/packages/js/examples/react-video/react-video-screenshot.png)
+To check whether your browser supports TelnyxRTC, use [`TelnyxRTC.webRTCInfo`](./docs/ts/classes/telnyxrtc.md#webRTCInfo).
 
 ---
 

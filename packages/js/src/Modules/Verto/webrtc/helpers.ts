@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import * as WebRTC from '../util/webrtc';
 import { isDefined } from '../util/helpers';
 import { DeviceType } from './constants';
-import { IVertoCallOptions } from './interfaces';
+import { IVertoCallOptions, IWebRTCSupportedBrowser, IWebRTCInfo } from './interfaces';
 
 const getUserMedia = async (
   constraints: MediaStreamConstraints
@@ -368,6 +368,209 @@ const sdpBitrateHack = (
   return lines.join(endOfLine);
 };
 
+function getBrowserInfo() {
+  if (!window || !window.navigator || !window.navigator.userAgent) {
+    throw new Error(
+      'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari'
+    );
+  }
+
+  if (
+    navigator.userAgent.match(/chrom(e|ium)/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const info = navigator.userAgent
+      .match(/chrom(e|ium)\/[0-9]+\./gim)[0]
+      .split('/');
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      browserInfo: navigator.userAgent,
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/firefox/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const info = navigator.userAgent
+      .match(/firefox\/[0-9]+\./gim)[0]
+      .split('/');
+
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      browserInfo: navigator.userAgent,
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: false,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/safari/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const name = navigator.userAgent.match(/safari/gim)[0];
+    const fullVersion = navigator.userAgent
+      .match(/version\/[0-9]+\./gim)[0]
+      .split('/');
+    const version = parseInt(fullVersion[1], 10);
+    return {
+      browserInfo: navigator.userAgent,
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+
+  if (
+    navigator.userAgent.match(/edg/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi)
+  ) {
+    const info = navigator.userAgent.match(/edg\/[0-9]+\./gim)[0].split('/');
+    const name = info[0];
+    const version = parseInt(info[1], 10);
+
+    return {
+      browserInfo: navigator.userAgent,
+      name,
+      version,
+      supportAudio: true,
+      supportVideo: true,
+    };
+  }
+  throw new Error(
+    'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()`'
+  );
+}
+
+function getWebRTCInfo(): IWebRTCInfo {
+  try {
+    const { browserInfo, name, version, supportAudio, supportVideo } = getBrowserInfo();
+    const PC = window.RTCPeerConnection;
+    const sessionDescription = window.RTCSessionDescription;
+    const iceCandidate = window.RTCIceCandidate;
+    const mediaDevices = window.navigator && window.navigator.mediaDevices;
+    const getUserMediaMethod =
+      navigator.getUserMedia ||
+      navigator.webkitGetUserMedia ||
+      navigator.msGetUserMedia ||
+      navigator.mozGetUserMedia;
+
+    return {
+      browserInfo,
+      browserName: name,
+      browserVersion: version,
+      supportWebRTC:
+        !!PC &&
+        !!sessionDescription &&
+        !!iceCandidate &&
+        !!mediaDevices &&
+        !!getUserMediaMethod,
+      supportWebRTCAudio: supportAudio,
+      supportWebRTCVideo: supportVideo,
+      supportRTCPeerConnection: !!PC,
+      supportSessionDescription: !!sessionDescription,
+      supportIceCandidate: !!iceCandidate,
+      supportMediaDevices: !!mediaDevices,
+      supportGetUserMedia: !!getUserMedia,
+    };
+  } catch (error) {
+    return error.message;
+  }
+}
+
+export enum SUPPORTED_WEBRTC {
+  not_supported = 'not supported',
+  full = 'full',
+  partial = 'partial',
+}
+
+function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
+  return [
+    {
+      operationSystem: 'Android',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.full,
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
+        { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
+      ],
+    },
+    {
+      operationSystem: 'iOS',
+      supported: [
+        {
+          browserName: 'Chrome',
+          supported: SUPPORTED_WEBRTC.not_supported,
+        },
+        { browserName: 'Firefox', supported: SUPPORTED_WEBRTC.not_supported },
+        {
+          browserName: 'Safari',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
+        { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
+      ],
+    },
+    {
+      operationSystem: 'Linux',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: SUPPORTED_WEBRTC.full,
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
+        { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
+      ],
+    },
+    {
+      operationSystem: 'MacOS',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: SUPPORTED_WEBRTC.full,
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        { browserName: 'Safari', features: ['video', 'audio'], supported: SUPPORTED_WEBRTC.full },
+        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+      ],
+    },
+    {
+      operationSystem: 'Windows',
+      supported: [
+        {
+          browserName: 'Chrome',
+          features: ['video', 'audio'],
+          supported: SUPPORTED_WEBRTC.full,
+        },
+        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
+        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+      ],
+    },
+  ];
+}
+
 export {
   getUserMedia,
   getDevices,
@@ -387,4 +590,7 @@ export {
   enableVideoTracks,
   disableVideoTracks,
   toggleVideoTracks,
+  getBrowserInfo,
+  getWebRTCInfo,
+  getWebRTCSupportedBrowserList,
 };

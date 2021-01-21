@@ -1,6 +1,14 @@
 /* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
+import {
+  getWebRTCInfo,
+  getWebRTCSupportedBrowserList,
+} from './Modules/Verto/webrtc/helpers';
+import {
+  IWebRTCInfo,
+  IWebRTCSupportedBrowser,
+} from './Modules/Verto/webrtc/interfaces';
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -125,5 +133,67 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);
+  }
+
+  /**
+   * Checks if the running browser has support for TelnyRTC
+   *
+   * @return An object with WebRTC browser support information or a string error message.
+   *
+   * @examples
+   *
+   * Check if your browser supports TelnyxRTC
+   *
+   * ```js
+   * const info = TelnyxRTC.webRTCInfo();
+   * const isWebRTCSupported = info.supportWebRTC;
+   * console.log(isWebRTCSupported); // => true
+   * ```
+   *
+   * #### Error handling
+   *
+   * An error message will be returned if your browser doesn't support TelnyxRTC
+   *
+   * ```js
+   * const info = TelnyxRTC.webRTCInfo();
+   * if (!info.supportWebRTC) {
+   *   console.error(info) // => 'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()'
+   * }
+   * ```
+   */
+  public static webRTCInfo(): IWebRTCInfo | string {
+    return getWebRTCInfo();
+  }
+
+  /**
+   * Returns the WebRTC supported browser list.
+   * 
+   * The following table indicates the browsers supported by TelnyxRTC.
+   * We support the most recent (N) versions of these browsers unless otherwise indicated.
+   *
+   * |         | Chrome | Firefox | Safari | Edge |
+   * |---------|--------|---------|--------|------|
+   * | Android |  [-]   |   [-]   |  [ ]   | [ ]  |
+   * | iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
+   * | Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
+   * | MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
+   * | Windows |  [x]   |   [-]   |  [ ]   | [-]  |
+   *
+   * #### Legend
+   * [x] supports audio and video
+   * [-] supports only audio
+   * [ ] not supported
+   *  
+   * @return An array with supported operational systems and browsers.
+   *
+   * @examples
+   *
+   * ```js
+   * const browserList = TelnyxRTC.webRTCSupportedBrowserList();
+   * console.log(browserList) // => [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"},{...}]
+   * ```
+   */
+  public static webRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
+    return getWebRTCSupportedBrowserList();
   }
 }
