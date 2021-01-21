@@ -1,31 +1,6 @@
 # @telnyx/webrtc
 
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
-
-## Supported browser
-
-The following table indicates the browsers supported by TelnyxRTC.
-
-We support the most recent (N) versions of these browsers unless otherwise indicated.
-
-|         | Chrome | Firefox | Safari | Edge |
-|---------|--------|---------|--------|------|
-| Android |  [-]   |   [-]   |  [ ]   | [ ]  |
-| iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
-| Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
-| MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
-| Windows |  [x]   |   [-]   |  [ ]   | [-]  |
-
-
-### Legend
-
-[x] supports audio and video
-
-[-] supports only audio
-
-[ ] not supported
-
----
 ## Summary
 
 The Telnyx WebRTC Client provides all the functionality you need to start making voice & video calls from a browser.
@@ -185,7 +160,27 @@ We've included a few [examples in vanilla JavaScript (ES6) and React](https://gi
 
 ## Browser support
 
-We support the most recent versions of Chrome, Firefox, Safari and Edge on MacOS and Windows unless otherwise indicated. To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
+The following table indicates the browsers supported by TelnyxRTC.
+
+We support the most recent (N) versions of these browsers unless otherwise indicated.
+
+|         | Chrome | Firefox | Safari | Edge |
+|---------|--------|---------|--------|------|
+| Android |  [-]   |   [-]   |  [ ]   | [ ]  |
+| iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
+| Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
+| MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
+| Windows |  [x]   |   [-]   |  [ ]   | [-]  |
+
+
+[x] supports audio and video
+
+[-] supports only audio
+
+[ ] not supported
+
+
+ To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
 
 ```js
 import 'webrtc-adapter';
