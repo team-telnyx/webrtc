@@ -179,6 +179,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * | MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
    * | Windows |  [x]   |   [-]   |  [ ]   | [-]  |
    *
+   * #### Legend
    * [x] supports audio and video
    * [-] supports only audio
    * [ ] not supported
