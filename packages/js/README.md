@@ -10,6 +10,7 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
 - [Examples](#Examples)
   - [Vanilla JavaScript](#vanilla-javascript)
   - [React.js](#reactjs)
+- [Browser support](#Browser-support)
 - [Development](#Development)
 
 ---
