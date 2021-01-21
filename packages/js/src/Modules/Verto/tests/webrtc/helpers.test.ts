@@ -553,11 +553,7 @@ describe('Helpers browser functions', () => {
       {
         operationSystem: 'Android',
         supported: [
-          {
-            browserName: 'Chrome',
-            features: ['video', 'audio'],
-            supported: 'full',
-          },
+          { browserName: 'Chrome', features: ['audio'], supported: 'full' },
           { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
           { browserName: 'Safari', supported: 'not supported' },
           { browserName: 'Edge', supported: 'not supported' },
@@ -568,11 +564,7 @@ describe('Helpers browser functions', () => {
         supported: [
           { browserName: 'Chrome', supported: 'not supported' },
           { browserName: 'Firefox', supported: 'not supported' },
-          {
-            browserName: 'Safari',
-            features: ['video', 'audio'],
-            supported: 'full',
-          },
+          { browserName: 'Safari', features: ['audio'], supported: 'partial' },
           { browserName: 'Edge', supported: 'not supported' },
         ],
       },
@@ -603,11 +595,7 @@ describe('Helpers browser functions', () => {
             features: ['video', 'audio'],
             supported: 'full',
           },
-          {
-            browserName: 'Edge',
-            features: ['video', 'audio'],
-            supported: 'full',
-          },
+          { browserName: 'Edge', features: ['audio'], supported: 'partial' },
         ],
       },
       {
@@ -620,11 +608,7 @@ describe('Helpers browser functions', () => {
           },
           { browserName: 'Firefox', features: ['audio'], supported: 'partial' },
           { browserName: 'Safari', supported: 'not supported' },
-          {
-            browserName: 'Edge',
-            features: ['video', 'audio'],
-            supported: 'full',
-          },
+          { browserName: 'Edge', features: ['audio'], supported: 'partial' },
         ],
       },
     ];
