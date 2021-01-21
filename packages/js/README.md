@@ -157,6 +157,19 @@ We've included a few [examples in vanilla JavaScript (ES6) and React](https://gi
 
 ---
 
+## Browser support
+
+We support the most recent versions of Chrome, Firefox, Safari and Edge on MacOS and Windows unless otherwise indicated. To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
+
+```js
+import 'webrtc-adapter';
+import { TelnyxRTC } from '@telnyx/webrtc';
+```
+
+To check whether your browser supports TelnyxRTC, use [`TelnyxRTC.webRTCInfo`](./docs/ts/classes/telnyxrtc.md#webRTCInfo).
+
+---
+
 ## Development
 
 _**Requirement** Node v11.15.0 or later_
