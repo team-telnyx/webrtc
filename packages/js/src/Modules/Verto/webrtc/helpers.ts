@@ -505,7 +505,7 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
       supported: [
         {
           browserName: 'Chrome',
-          features: ['video', 'audio'],
+          features: ['audio'],
           supported: SUPPORTED_WEBRTC.full,
         },
         { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
@@ -523,8 +523,8 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
         { browserName: 'Firefox', supported: SUPPORTED_WEBRTC.not_supported },
         {
           browserName: 'Safari',
-          features: ['video', 'audio'],
-          supported: SUPPORTED_WEBRTC.full,
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
         },
         { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
       ],
@@ -552,7 +552,7 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
         },
         { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
         { browserName: 'Safari', features: ['video', 'audio'], supported: SUPPORTED_WEBRTC.full },
-        { browserName: 'Edge', features: ['video', 'audio'], supported: SUPPORTED_WEBRTC.full },
+        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
       ],
     },
     {
@@ -565,7 +565,7 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
         },
         { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
         { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
-        { browserName: 'Edge', features: ['video', 'audio'], supported: SUPPORTED_WEBRTC.full },
+        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
       ],
     },
   ];
