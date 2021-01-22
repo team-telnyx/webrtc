@@ -61,13 +61,27 @@ function useTelnyxRTC(
   });
 
   useEffect(() => {
+    if (telnyxClientRef.current?.connected) {
+      // Create new client when credentials change,
+      // e.g. when refreshing token
+      // TODO reconnect without re-instantiating client
+      telnyxClientRef.current?.disconnect();
+
+      telnyxClientRef.current = new TelnyxRTC({
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        login_token: '',
+        ...credentialParam,
+        ...clientOptions,
+      });
+    }
+
     // IDEA Allow caller to defer connect
     telnyxClientRef.current?.connect();
 
     return () => {
       telnyxClientRef.current?.disconnect();
     };
-  }, []);
+  }, [credentialParam]);
 
   return telnyxClientRef.current;
 }
