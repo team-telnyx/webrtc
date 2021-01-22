@@ -123,7 +123,7 @@ const ClickToCall = ({
   return (
     <div>
       {!call && (
-        <button onClick={connect} disabled={registering}>
+        <button data-testid='btn-call' onClick={connect} disabled={registering}>
           Call {defaultDestination}
         </button>
       )}
