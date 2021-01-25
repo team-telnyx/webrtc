@@ -35,7 +35,6 @@ module.exports = (on, config) => {
     }
 
     if (browser.name === 'firefox') {
-      console.log('launchOptions====>', launchOptions);
       const firefoxUserPrefs = {
         'media.navigator.streams.fake': true,
         'media.navigator.permission.disabled': true,

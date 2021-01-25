@@ -6,7 +6,7 @@ describe('Webialer', () => {
     cy.window().should('have.property', 'appReady', true);
   });
 
-  it('should make a call end hang up a call', () => {
+  it('should make a call and hang up a call', () => {
     cy.window()
       .its('storyData')
       .should((storyData) => {

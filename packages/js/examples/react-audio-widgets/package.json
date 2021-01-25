@@ -11,7 +11,7 @@
     "start": "start-storybook -s ./public -p 6006",
     "build-storybook": "build-storybook",
     "cypress:open": "cypress open",
-    "cypress:ci": "wait-on http://localhost:6006 & cypress run",
+    "cypress:ci:chrome": "wait-on http://localhost:6006 & cypress run --browser chrome",
     "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox"
   },
   "author": "",
