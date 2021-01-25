@@ -10,7 +10,9 @@
     "storybook": "start-storybook -s ./public -p 6006",
     "start": "start-storybook -s ./public -p 6006",
     "build-storybook": "build-storybook",
-    "cypress:open": "cypress open"
+    "cypress:open": "cypress open",
+    "cypress:ci": "wait-on http://localhost:6006 & cypress run",
+    "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox"
   },
   "author": "",
   "license": "MIT",
@@ -31,6 +33,7 @@
     "@testing-library/cypress": "^7.0.3",
     "babel-loader": "^8.0.6",
     "babel-plugin-react-docgen": "^3.1.0",
-    "cypress": "^6.3.0"
+    "cypress": "^6.3.0",
+    "wait-on": "^5.2.1"
   }
 }
