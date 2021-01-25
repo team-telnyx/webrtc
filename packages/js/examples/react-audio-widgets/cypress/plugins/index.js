@@ -15,7 +15,14 @@
 /**
  * @type {Cypress.PluginConfig}
  */
+require('dotenv').config();
+
 module.exports = (on, config) => {
   // `on` is used to hook into various events Cypress emits
   // `config` is the resolved Cypress config
+  config.env.username = process.env.STORYBOOK_USERNAME;
+  config.env.password = process.env.STORYBOOK_PASSWORD;
+  config.env.destination = process.env.STORYBOOK_DESTINATION;
+
+  return config;
 }
