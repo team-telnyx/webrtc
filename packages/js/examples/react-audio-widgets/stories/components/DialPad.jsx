@@ -17,7 +17,9 @@ const DialPad = ({
   disabled,
   isIncomingCall,
 }) => {
-  const makeSendDigit = (x) => () => onDigit(x);
+  function makeSendDigit(x) {
+    onDigit(x);
+  }
 
   const answerCall = async () => {
     if (call) {
@@ -33,65 +35,70 @@ const DialPad = ({
     <DialPadContainer>
       {isIncomingCall ? (
         <React.Fragment>
-          <ButtonAnswer type='button' onClick={answerCall}>
+          <ButtonAnswer
+            data-testid='btn-answer'
+            type='button'
+            onClick={answerCall}
+          >
             Answer
           </ButtonAnswer>
           <div />
-          <ButtonEnd type='button' onClick={hangup}>
+          <ButtonEnd data-testid='btn-reject' type='button' onClick={hangup}>
             Reject
           </ButtonEnd>
         </React.Fragment>
       ) : (
         <React.Fragment>
-          <button type='button' onClick={makeSendDigit('1')}>
+          <button type='button' onClick={() => makeSendDigit('1')}>
             1
           </button>
-          <button type='button' onClick={makeSendDigit('2')}>
+          <button type='button' onClick={() => makeSendDigit('2')}>
             2<span>ABC</span>
           </button>
-          <button type='button' onClick={makeSendDigit('3')}>
+          <button type='button' onClick={() => makeSendDigit('3')}>
             3<span>DEF</span>
           </button>
-          <button type='button' onClick={makeSendDigit('4')}>
+          <button type='button' onClick={() => makeSendDigit('4')}>
             4<span>GHI</span>
           </button>
-          <button type='button' onClick={makeSendDigit('5')}>
+          <button type='button' onClick={() => makeSendDigit('5')}>
             5<span>JKL</span>
           </button>
-          <button type='button' onClick={makeSendDigit('6')}>
+          <button type='button' onClick={() => makeSendDigit('6')}>
             6<span>MNO</span>
           </button>
-          <button type='button' onClick={makeSendDigit('7')}>
+          <button type='button' onClick={() => makeSendDigit('7')}>
             7<span>PQRS</span>
           </button>
-          <button type='button' onClick={makeSendDigit('8')}>
+          <button type='button' onClick={() => makeSendDigit('8')}>
             8<span>TUV</span>
           </button>
-          <button type='button' onClick={makeSendDigit('9')}>
+          <button type='button' onClick={() => makeSendDigit('9')}>
             9<span>WXYZ</span>
           </button>
-          <button type='button' onClick={makeSendDigit('*')}>
+          <button type='button' onClick={() => makeSendDigit('*')}>
             *
           </button>
-          <button type='button' onClick={makeSendDigit('0')}>
+          <button type='button' onClick={() => makeSendDigit('0')}>
             0
           </button>
-          <button type='button' onClick={makeSendDigit('#')}>
+          <button type='button' onClick={() => makeSendDigit('#')}>
             #
           </button>
 
           {call ? (
             <button
               type='button'
+              data-testid='btn-toggle-mute'
               onClick={toggleMute}
               className={isMute ? 'active' : ''}
             >
               {isMute ? (
-                <span role='img' aria-label={'Mute'}>
+                <span data-testid='img-mute' role='img' aria-label={'Mute'}>
                   🔇
                 </span>
               ) : (
-                <span role='img' aria-label={'Unmute'}>
+                <span data-testid='img-unmute' role='img' aria-label={'Unmute'}>
                   🔈
                 </span>
               )}
@@ -101,12 +108,18 @@ const DialPad = ({
           )}
 
           {call ? (
-            <button type='button' onClick={onEndCall} className='EndButton'>
+            <button
+              data-testid='btn-end-call'
+              type='button'
+              onClick={onEndCall}
+              className='EndButton'
+            >
               End
             </button>
           ) : (
             <button
               type='button'
+              data-testid='btn-call'
               onClick={onStartCall}
               className='CallButton'
               disabled={disabled}
@@ -119,14 +132,15 @@ const DialPad = ({
             <button
               type='button'
               onClick={toggleHold}
+              data-testid='btn-toggle-hold'
               className={isHold ? 'active' : ''}
             >
               {isHold ? (
-                <span role='img' aria-label={'Hold'}>
+                <span data-testid='img-hold' role='img' aria-label={'Hold'}>
                   ⏸
                 </span>
               ) : (
-                <span role='img' aria-label={'Unhold'}>
+                <span data-testid='img-unhold' role='img' aria-label={'Unhold'}>
                   ▶️
                 </span>
               )}
@@ -140,10 +154,12 @@ const DialPad = ({
             <button
               type='button'
               onClick={toggleDeaf}
+              data-testid='btn-toggle-deaf'
               className={isDeaf ? 'active' : ''}
             >
               {isDeaf ? (
                 <img
+                  data-testid='img-deaf'
                   src='./images/hearing_disabled-24px.svg'
                   role='img'
                   aria-label={'Deaf'}
@@ -152,6 +168,7 @@ const DialPad = ({
                 <img
                   src='./images/hearing-24px.svg'
                   role='img'
+                  data-testid='img-undeaf'
                   aria-label={'UnDeaf'}
                 ></img>
               )}
