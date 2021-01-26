@@ -12,7 +12,8 @@
     "build-storybook": "build-storybook",
     "cypress:open": "cypress open",
     "cypress:ci:chrome": "wait-on http://localhost:6006 & cypress run --browser chrome",
-    "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox"
+    "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox",
+    "cypress:ci:edge": "wait-on http://localhost:6006 & cypress run --browser edge"
   },
   "author": "",
   "license": "MIT",

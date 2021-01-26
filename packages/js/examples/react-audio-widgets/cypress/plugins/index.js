@@ -20,7 +20,7 @@ require('dotenv').config();
 module.exports = (on, config) => {
   on('before:browser:launch', (browser, launchOptions) => {
     //Using cypress with WebRTC https://github.com/cypress-io/cypress/issues/2704
-    if (browser.name === 'chrome') {
+    if (browser.name === 'chrome' || browser.name === 'edge') {
       launchOptions.args.push('--disable-gpu');
       launchOptions.args.push('--no-sandbox');
       launchOptions.args.push('--disable-setuid-sandbox');
