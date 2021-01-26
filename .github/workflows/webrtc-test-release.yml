@@ -1,16 +1,12 @@
 name: '@telnyx/webrtc Test release'
-
 on:
   pull_request:
     paths:
     - 'packages/js/**'
-
 jobs:
-  build:
+  unit-tests:
     name: Test release
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -27,24 +23,117 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
+    - name: Build
+      working-directory: packages/js
+      run: npm run build
     - name: Test
       working-directory: packages/js
       run: npm test
       env:
         CI: true
+    - name: Install React Storybook
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm ci
+      env:
+        CI: true
+    - name: Link React Storybook with SDK
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm run setup
+      env:
+        CI: true
+
+  cypress-run-chrome:
+    runs-on: ubuntu-16.04
+    # let's make sure our tests pass on Chrome browser
+    name: E2E on Chrome
+    steps:
+      - uses: actions/checkout@v1
+      - uses: cypress-io/github-action@v2
+      - name: Use Node.js 11.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: '11.x'
+      - name: Install shared dependencies
+        run: npm ci
+      - name: Install package dependencies
+        working-directory: packages/js/examples/react-audio-widgets
+        run: npm ci --ignore-scripts
+      - name: Test Chrome
+        working-directory: packages/js/examples/react-audio-widgets
+        run: npm run cypress:ci:chrome
+        env:
+          CI: true
+        with:
+          browser: chrome
+          headless: true
+          env: STORYBOOK_USERNAME=${{ secrets.NPM_CI_STORYBOOK_USERNAME }},STORYBOOK_PASSWORD=${{ secrets.NPM_CI_STORYBOOK_PASSWORD }},STORYBOOK_DESTINATION=${{ secrets.NPM_CI_STORYBOOK_DESTINATION }}
+
+  cypress-run-firefox:
+    runs-on: ubuntu-latest
+    name: E2E on Firefox
+    container:
+      image: cypress/browsers:node12.16.1-chrome80-ff73
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v1
+      - uses: cypress-io/github-action@v2
+      - name: Test Firefox
+        working-directory: packages/js/examples/react-audio-widgets
+        run: npm run cypress:ci:chrome
+        env:
+          CI: true
+        with:
+          browser: firefox
+          headless: true
+          env: STORYBOOK_USERNAME=${{ secrets.NPM_CI_STORYBOOK_USERNAME }},STORYBOOK_PASSWORD=${{ secrets.NPM_CI_STORYBOOK_PASSWORD }},STORYBOOK_DESTINATION=${{ secrets.NPM_CI_STORYBOOK_DESTINATION }}
+
+  cypress-run-edge:
+    runs-on: windows-latest
+    name: E2E on Edge
+    steps:
+      - uses: actions/checkout@v1
+      - uses: cypress-io/github-action@v2
+      - name: Test Edge
+        working-directory: packages/js/examples/react-audio-widgets
+        run: npm run cypress:ci:chrome
+        env:
+          CI: true
+        with:
+          browser: edge
+          headless: true
+          env: STORYBOOK_USERNAME=${{ secrets.NPM_CI_STORYBOOK_USERNAME }},STORYBOOK_PASSWORD=${{ secrets.NPM_CI_STORYBOOK_PASSWORD }},STORYBOOK_DESTINATION=${{ secrets.NPM_CI_STORYBOOK_DESTINATION }}
+  build:
+    name: Test release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/js
+      run: npm ci --ignore-scripts
     - name: Build
       working-directory: packages/js
       run: npm run build
-    - name: Release dry run
-      working-directory: packages/js
-      run: |
-        npm run release -- \
-        --dry-run \
-        --ci \
-        --no-git.tag \
-        --github.draft \
-        --no-npm.publish \
-        --no-npm.tag
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    # - name: Release dry run
+    #   working-directory: packages/js
+    #   run: |
+    #     npm run release -- \
+    #     --dry-run \
+    #     --ci \
+    #     --no-git.tag \
+    #     --github.draft \
+    #     --no-npm.publish \
+    #     --no-npm.tag
+    #   env:
+    #     NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
