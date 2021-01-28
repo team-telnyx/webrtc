@@ -666,7 +666,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * ```js
    * const client = new TelnyxRTC(options);
-   * client.localElement = '#localElementMediaId';
+   * client.localElement = 'localElementMediaId';
    * ```
    *
    * @type {(HTMLMediaElement | string | Function)}
@@ -698,7 +698,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * ```js
    * const client = new TelnyxRTC(options);
-   * client.remoteElement = '#remoteElementMediaId';
+   * client.remoteElement = 'remoteElementMediaId';
    * ```
    *
    * @type {(HTMLMediaElement | string | Function)}
