@@ -29,9 +29,6 @@ jobs:
     - name: Install package dependencies
       working-directory: packages/js
       run: npm ci --ignore-scripts
-    - name: Build
-      working-directory: packages/js
-      run: npm run build
     - name: Test
       working-directory: packages/js
       run: npm test
