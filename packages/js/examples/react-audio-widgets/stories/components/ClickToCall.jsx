@@ -16,6 +16,7 @@ const ClickToCall = ({
   const [registered, setRegistered] = useState();
   const [call, setCall] = useState();
   const [isInboundCall, setIsInboundCall] = useState(false);
+  const [status, setStatus] = useState('disconnected');
 
   const resetFromStorybookUpdate = () => {
     if (clientRef.current) {
@@ -30,6 +31,21 @@ const ClickToCall = ({
 
   useEffect(() => {
     return resetFromStorybookUpdate;
+  }, [username, password, defaultDestination, callerName, callerNumber]);
+
+  // exposing data for Cypress
+  React.useEffect(() => {
+    // global is `window`
+    if (window.Cypress) {
+      window.appReady = true;
+      global.storyData = {
+        username,
+        password,
+        defaultDestination,
+        callerName,
+        callerNumber,
+      };
+    }
   }, [username, password, defaultDestination, callerName, callerNumber]);
 
   const startCall = () => {
@@ -47,7 +63,7 @@ const ClickToCall = ({
     const session = new TelnyxRTC({
       login_token: token,
       login: username,
-      password: password,
+      password,
       ringFile: './sounds/incoming_call.mp3',
     });
     session.on('telnyx.socket.open', (call) => {
@@ -80,6 +96,7 @@ const ClickToCall = ({
 
       switch (notification.type) {
         case 'callUpdate':
+          setStatus(notification.call.state);
           if (
             notification.call.state === 'hangup' ||
             notification.call.state === 'destroy'
@@ -123,20 +140,19 @@ const ClickToCall = ({
   return (
     <div>
       {!call && (
-        <button onClick={connect} disabled={registering}>
+        <button data-testid='btn-call' onClick={connect} disabled={registering}>
           Call {defaultDestination}
         </button>
       )}
 
-      {registering && !registered && <div>registering...</div>}
+      {registering && !registered && <div data-testid='state-call-registering'>registering...</div>}
 
       {call && (
         <div>
           <div>
-            <button onClick={hangup}>End Call</button>
+            <button data-testid='btn-end-call' onClick={hangup}>End Call</button>
           </div>
-
-          <div>{call.state}</div>
+          <div data-testid={`state-call-${status}`}>{status}</div>
         </div>
       )}
 

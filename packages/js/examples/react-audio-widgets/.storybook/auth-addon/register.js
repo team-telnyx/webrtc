@@ -48,9 +48,9 @@ const AuthForm = () => {
           />
         </fieldset>
         <fieldset>
-          <label htmlFor='sip_username'>SIP password: </label>
+          <label htmlFor='sip_password'>SIP password: </label>
           <input
-            id='sip_username'
+            id='sip_password'
             name='password'
             type='password'
             value={state.password}

@@ -25,6 +25,21 @@ const WebDialer = ({
   const [isHold, setIsHold] = useState(false);
   const [isDeaf, setIsDeaf] = useState(false);
 
+  // exposing data for Cypress
+  React.useEffect(() => {
+    // global is `window`
+    if (window.Cypress) {
+      window.appReady = true;
+      global.storyData = {
+        username,
+        password,
+        defaultDestination: destination,
+        callerName,
+        callerNumber,
+      };
+    }
+  }, [username, password, defaultDestination, callerName, callerNumber]);
+
   const [statusCall, setStatusCall] = useState('');
 
   const resetFromStorybookUpdate = () => {
@@ -149,8 +164,12 @@ const WebDialer = ({
     call.hangup();
   };
 
-  const handleDigit = (x) =>
-    call ? call.dtmf(x) : setDestination(`${destination}${x}`);
+  const handleDigit = (x) => {
+    if (call) {
+      call.dtmf(x);
+    }
+    setDestination(`${destination}${x}`);
+  };
 
   const toggleMute = () => {
     if (call) {
@@ -200,8 +219,9 @@ const WebDialer = ({
         controls={false}
       ></audio>
 
-      <div>
+      <div data-testid='webdialer'>
         <NumberInput
+          data-testid='input-destination'
           placeholder='Destination'
           onChange={(e) => setDestination(e.target.value)}
           value={destination}
@@ -227,7 +247,7 @@ const WebDialer = ({
 
       {registering && !registered && <div>registering...</div>}
 
-      {statusCall}
+      <div data-testid={`state-call-${statusCall}`}>{statusCall}</div>
     </Container>
   );
 };
