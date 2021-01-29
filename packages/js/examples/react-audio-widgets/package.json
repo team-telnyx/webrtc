@@ -1,5 +1,5 @@
 {
-  "name": "react-audio-widgets2",
+  "name": "react-audio-widgets",
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
@@ -10,7 +10,8 @@
     "@storybook/addon-links": "^6.1.15",
     "@storybook/react": "^6.1.15",
     "babel-loader": "^8.2.2",
-    "cypress": "^6.3.0"
+    "cypress": "^6.3.0",
+    "wait-on": "^5.2.1"
   },
   "dependencies": {
     "@telnyx/webrtc": "^2.3.2",
@@ -20,7 +21,7 @@
     "styled-components": "^5.2.1"
   },
   "scripts": {
-    "storybook": "start-storybook -s ./public -p 6006",
+    "storybook": "start-storybook -s ./public -p 6006 -h localhost",
     "build-storybook": "build-storybook",
     "setup": "npm link ../../",
     "cypress:open": "cypress open",
