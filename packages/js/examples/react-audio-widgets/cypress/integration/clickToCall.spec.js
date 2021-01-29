@@ -2,7 +2,7 @@
 /* eslint-disable no-undef */
 describe('ClickToCall', () => {
   beforeEach(() => {
-    cy.visit('/iframe.html?id=audio--click-to-call');
+    cy.visit('/iframe.html?id=audio--click-to-call', { responseTimeout: 60000 });
     cy.window().should('have.property', 'appReady', true);
   });
 

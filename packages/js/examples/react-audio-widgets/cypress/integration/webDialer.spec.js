@@ -2,7 +2,7 @@
 /* eslint-disable no-undef */
 describe('Webialer', () => {
   beforeEach(() => {
-    cy.visit('/iframe.html?id=audio--web-dialer');
+    cy.visit('/iframe.html?id=audio--web-dialer', { responseTimeout: 60000 });
     cy.window().should('have.property', 'appReady', true);
   });
 
