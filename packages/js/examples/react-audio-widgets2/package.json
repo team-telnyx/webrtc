@@ -22,6 +22,10 @@
   "scripts": {
     "storybook": "start-storybook -s ./public -p 6006",
     "build-storybook": "build-storybook",
-    "cypress:open": "cypress open"
+    "setup": "npm link ../../",
+    "cypress:open": "cypress open",
+    "cypress:ci:chrome": "wait-on http://localhost:6006 & cypress run --browser chrome",
+    "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox",
+    "cypress:ci:edge": "wait-on http://localhost:6006 & cypress run --browser edge"
   }
 }
