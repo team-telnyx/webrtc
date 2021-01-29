@@ -1,19 +1,13 @@
-// Workaroung https://github.com/webpack/webpack/issues/6426
 module.exports = {
-  webpackFinal: async (config, { configType }) => {
-    config.optimization = {
-      splitChunks: {
-        name: false,
-      },
-    };
-    config.output.chunkFilename = "[name].js"
-    return config;
-  },
-  stories: ['../**/*.stories.@(js|mdx)'],
-  addons: [
+  "stories": [
+    "../stories/**/*.stories.mdx",
+    "../stories/**/*.stories.@(js|jsx|ts|tsx)"
+  ],
+  "addons": [
     './auth-addon/register.js',
+    "@storybook/addon-links",
     '@storybook/addon-docs',
     '@storybook/addon-controls',
-    '@storybook/addon-essentials',
-  ],
-};
+    "@storybook/addon-essentials"
+  ]
+}
