@@ -8,3 +8,4 @@ cypress/integration/examples
 cypress/videos/*
 cypress/screenshots/*
 .env
+yarn.lock
