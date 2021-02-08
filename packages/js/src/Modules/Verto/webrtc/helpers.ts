@@ -2,7 +2,11 @@ import logger from '../util/logger';
 import * as WebRTC from '../util/webrtc';
 import { isDefined } from '../util/helpers';
 import { DeviceType } from './constants';
-import { IVertoCallOptions, IWebRTCSupportedBrowser, IWebRTCInfo } from './interfaces';
+import {
+  IVertoCallOptions,
+  IWebRTCSupportedBrowser,
+  IWebRTCInfo,
+} from './interfaces';
 
 const getUserMedia = async (
   constraints: MediaStreamConstraints
@@ -458,7 +462,13 @@ function getBrowserInfo() {
 
 function getWebRTCInfo(): IWebRTCInfo {
   try {
-    const { browserInfo, name, version, supportAudio, supportVideo } = getBrowserInfo();
+    const {
+      browserInfo,
+      name,
+      version,
+      supportAudio,
+      supportVideo,
+    } = getBrowserInfo();
     const PC = window.RTCPeerConnection;
     const sessionDescription = window.RTCSessionDescription;
     const iceCandidate = window.RTCIceCandidate;
@@ -508,7 +518,11 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
           features: ['audio'],
           supported: SUPPORTED_WEBRTC.full,
         },
-        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        {
+          browserName: 'Firefox',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
         { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
         { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
       ],
@@ -537,7 +551,11 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
           features: ['video', 'audio'],
           supported: SUPPORTED_WEBRTC.full,
         },
-        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        {
+          browserName: 'Firefox',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
         { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
         { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
       ],
@@ -550,9 +568,21 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
           features: ['video', 'audio'],
           supported: SUPPORTED_WEBRTC.full,
         },
-        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
-        { browserName: 'Safari', features: ['video', 'audio'], supported: SUPPORTED_WEBRTC.full },
-        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        {
+          browserName: 'Firefox',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
+        {
+          browserName: 'Safari',
+          features: ['video', 'audio'],
+          supported: SUPPORTED_WEBRTC.full,
+        },
+        {
+          browserName: 'Edge',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
       ],
     },
     {
@@ -563,12 +593,57 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
           features: ['video', 'audio'],
           supported: SUPPORTED_WEBRTC.full,
         },
-        { browserName: 'Firefox', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        {
+          browserName: 'Firefox',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
         { browserName: 'Safari', supported: SUPPORTED_WEBRTC.not_supported },
-        { browserName: 'Edge', features: ['audio'], supported: SUPPORTED_WEBRTC.partial },
+        {
+          browserName: 'Edge',
+          features: ['audio'],
+          supported: SUPPORTED_WEBRTC.partial,
+        },
       ],
     },
   ];
+}
+
+function createAudio(file, id): HTMLAudioElement | null {
+  if (file && id) {
+    const ringAudio = document.createElement('audio');
+    ringAudio.id = id;
+    ringAudio.loop = true;
+    ringAudio.src = file;
+    ringAudio.load();
+    document.body.appendChild(ringAudio);
+    return ringAudio;
+  }
+  return null;
+}
+
+function playAudio(audioElement: HTMLAudioElement): void {
+  if (audioElement) {
+    audioElement
+      .play()
+      .then(() => {
+        // when resolved we can call pause();
+      })
+      .catch((error) => {
+        console.error('playAudio', error);
+      });
+  }
+}
+
+function stopAudio(audioElement: HTMLAudioElement): void {
+  // Add delay to wait until play() returns the promise
+  // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
+  setTimeout(() => {
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    }
+  }, 1000);
 }
 
 export {
@@ -593,4 +668,7 @@ export {
   getBrowserInfo,
   getWebRTCInfo,
   getWebRTCSupportedBrowserList,
+  createAudio,
+  playAudio,
+  stopAudio,
 };
