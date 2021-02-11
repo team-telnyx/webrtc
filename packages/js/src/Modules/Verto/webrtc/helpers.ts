@@ -6,6 +6,7 @@ import {
   IVertoCallOptions,
   IWebRTCSupportedBrowser,
   IWebRTCInfo,
+  IAudio,
 } from './interfaces';
 
 const getUserMedia = async (
@@ -609,12 +610,19 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
   ];
 }
 
-function createAudio(file, id): HTMLAudioElement | null {
+function createAudio(file, id): IAudio | null {
+  const elementExist = document.getElementById(id) as IAudio;
+
+  if (elementExist) {
+    return elementExist;
+  }
+
   if (file && id) {
-    const ringAudio = document.createElement('audio');
+    const ringAudio = document.createElement('audio') as IAudio;
     ringAudio.id = id;
     ringAudio.loop = true;
     ringAudio.src = file;
+    ringAudio.preload = 'auto';
     ringAudio.load();
     document.body.appendChild(ringAudio);
     return ringAudio;
@@ -622,28 +630,43 @@ function createAudio(file, id): HTMLAudioElement | null {
   return null;
 }
 
-function playAudio(audioElement: HTMLAudioElement): void {
+function playAudio(audioElement: IAudio): void {
   if (audioElement) {
-    audioElement
-      .play()
+    audioElement._playFulfilled = false;
+    audioElement._promise = audioElement.play();
+
+    audioElement._promise
       .then(() => {
-        // when resolved we can call pause();
+        audioElement._playFulfilled = true;
       })
       .catch((error) => {
         console.error('playAudio', error);
+
+        audioElement._playFulfilled = true;
       });
   }
 }
 
-function stopAudio(audioElement: HTMLAudioElement): void {
+function stopAudio(audioElement: IAudio): void {
   // Add delay to wait until play() returns the promise
   // https://developers.google.com/web/updates/2017/06/play-request-was-interrupted
-  setTimeout(() => {
-    if (audioElement) {
+
+  if (!audioElement) return;
+
+  if (audioElement._playFulfilled) {
+    audioElement.pause();
+    audioElement.currentTime = 0;
+  } else if (audioElement._promise && audioElement._promise.then) {
+    audioElement._promise.then(() => {
       audioElement.pause();
       audioElement.currentTime = 0;
-    }
-  }, 1000);
+    });
+  } else {
+    setTimeout(() => {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+    }, 1000);
+  }
 }
 
 export {

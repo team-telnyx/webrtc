@@ -32,7 +32,7 @@ import {
   stopAudio,
 } from './helpers';
 import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import { IVertoCallOptions, IWebRTCCall } from './interfaces';
+import { IVertoCallOptions, IWebRTCCall, IAudio } from './interfaces';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -122,9 +122,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceDone: boolean = false;
 
-  private _ringtone: HTMLAudioElement;
+  private _ringtone: IAudio;
 
-  private _ringback: HTMLAudioElement;
+  private _ringback: IAudio;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
