@@ -82,8 +82,8 @@ class VertoHandler {
         break;
       case VertoMethod.Invite: {
         const call = _buildCall();
-        call.setState(State.Ringing);
         call.playRingtone();
+        call.setState(State.Ringing);
         this._ack(id, method);
         break;
       }

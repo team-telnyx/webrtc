@@ -111,3 +111,7 @@ export interface IWebRTCSupportedBrowser {
   operationSystem: string;
   supported: Array<IWebRTCBrowser>;
 }
+export interface IAudio extends HTMLAudioElement {
+  _playFulfilled: boolean;
+  _promise: Promise<any>;
+}

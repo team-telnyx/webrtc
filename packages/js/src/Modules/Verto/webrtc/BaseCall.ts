@@ -27,9 +27,12 @@ import {
   enableVideoTracks,
   disableVideoTracks,
   toggleVideoTracks,
+  createAudio,
+  playAudio,
+  stopAudio,
 } from './helpers';
 import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import { IVertoCallOptions, IWebRTCCall } from './interfaces';
+import { IVertoCallOptions, IWebRTCCall, IAudio } from './interfaces';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -119,9 +122,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceDone: boolean = false;
 
-  private _ringtone: HTMLAudioElement;
+  private _ringtone: IAudio;
 
-  private _ringback: HTMLAudioElement;
+  private _ringback: IAudio;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -159,6 +162,12 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this._onMediaError = this._onMediaError.bind(this);
     this._init();
+
+    // Create _rings HTMLAudioElement
+    if (this.options) {
+      this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
+      this._ringback = createAudio(this.options.ringbackFile, '_ringback');
+    }
   }
 
   get nodeId(): string {
@@ -247,35 +256,19 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   playRingtone() {
-    if (this.options.ringtoneFile) {
-      this._ringtone = new Audio(this.options.ringtoneFile);
-      this._ringtone.id = '_ringtone';
-      this._ringtone.loop = true;
-      this._ringtone.play();
-    }
+    playAudio(this._ringtone);
   }
 
   stopRingtone() {
-    if (this._ringtone) {
-      this._ringtone.pause();
-      this._ringtone.currentTime = 0;
-    }
+    stopAudio(this._ringtone);
   }
 
   playRingback() {
-    if (this.options.ringbackFile) {
-      this._ringback = new Audio(this.options.ringbackFile);
-      this._ringback.id = '_ringback';
-      this._ringback.loop = true;
-      this._ringback.play();
-    }
+    playAudio(this._ringback);
   }
 
   stopRingback() {
-    if (this._ringback) {
-      this._ringback.pause();
-      this._ringback.currentTime = 0;
-    }
+    stopAudio(this._ringback);
   }
 
   /**
