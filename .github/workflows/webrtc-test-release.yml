@@ -1,16 +1,18 @@
 name: '@telnyx/webrtc Test release'
-
 on:
   pull_request:
     paths:
     - 'packages/js/**'
-
+  workflow_dispatch:
+    inputs:
+      package:
+        description: '@telnyx/webrtc Test'
+        required: true
+        default: 'webrtc'
 jobs:
-  build:
-    name: Test release
-
+  unit-tests:
+    name: Unit Test
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -32,6 +34,72 @@ jobs:
       run: npm test
       env:
         CI: true
+
+  cypress-run-chrome:
+    runs-on: ubuntu-16.04
+    # let's make sure our tests pass on Chrome browser
+    name: E2E tests on Chrome and Firefox
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+    - name: Install Cypress Dependency
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm install -D cypress  
+    - name: Install react-audio-widgets dependencies
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm ci --ignore-scripts
+    - name: Run Storybook Audio Widgets
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm run storybook &
+      env:
+        CI: true 
+        STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
+        STORYBOOK_PASSWORD: ${{ secrets.NPM_CI_STORYBOOK_PASSWORD }}
+        STORYBOOK_DESTINATION: ${{ secrets.NPM_CI_STORYBOOK_DESTINATION }} 
+    - name: Test on Chrome
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm run cypress:ci:chrome   
+      env:
+        CI: true   
+        STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
+        STORYBOOK_PASSWORD: ${{ secrets.NPM_CI_STORYBOOK_PASSWORD }}
+        STORYBOOK_DESTINATION: ${{ secrets.NPM_CI_STORYBOOK_DESTINATION }} 
+    - name: Test on Firefox
+      working-directory: packages/js/examples/react-audio-widgets
+      run: npm run cypress:ci:firefox   
+      env:
+        CI: true   
+        STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
+        STORYBOOK_PASSWORD: ${{ secrets.NPM_CI_STORYBOOK_PASSWORD }}
+        STORYBOOK_DESTINATION: ${{ secrets.NPM_CI_STORYBOOK_DESTINATION }} 
+        
+  build:
+    name: Build SDK
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
+        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+        fetch-depth: 0
+    - name: Use Node.js 11.x
+      uses: actions/setup-node@v1
+      with:
+        node-version: '11.x'
+    - name: Install shared dependencies
+      run: npm ci
+    - name: Install package dependencies
+      working-directory: packages/js
+      run: npm ci --ignore-scripts
     - name: Build
       working-directory: packages/js
       run: npm run build
