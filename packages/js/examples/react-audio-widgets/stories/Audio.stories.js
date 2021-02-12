@@ -16,8 +16,9 @@ export default {
 };
 
 export const ClickToCall = (args, storybook) => (
-  <ClickToCallComponent {...storybook.globals.telnyxAuth} {...args} />
+  <ClickToCallComponent {...args} {...storybook.globals.telnyxAuth} />
 );
+
 export const WebDialer = (args, storybook) => (
-  <WebDialerComponent {...storybook.globals.telnyxAuth} {...args} />
+  <WebDialerComponent {...args} {...storybook.globals.telnyxAuth} />
 );
