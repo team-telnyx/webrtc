@@ -118,8 +118,8 @@ export interface ICallOptions {
    */
   telnyxLegId?: string;
   /**
-   * Telnyx call client state, if using Call Control services. 
-   * It needs to encode to base64.
+   * Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled. 
+   * `clientState` string should be base64 encoded.
    */
   clientState?: string;
   /**
