@@ -174,7 +174,7 @@ Sets the local html element that will receive the local stream.
 
 ```js
 const client = new TelnyxRTC(options);
-client.localElement = '#localElementMediaId';
+client.localElement = 'localElementMediaId';
 ```
 
 #### Parameters:
@@ -244,7 +244,7 @@ Sets the remote html element that will receive the remote stream.
 
 ```js
 const client = new TelnyxRTC(options);
-client.remoteElement = '#remoteElementMediaId';
+client.remoteElement = 'remoteElementMediaId';
 ```
 
 #### Parameters:
