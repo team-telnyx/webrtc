@@ -49,7 +49,7 @@ jobs:
       working-directory: packages/api-docs
       run: |
         npm run release -- \
-        $(npm show @telnyx/webrtc version) \
+        $(node ./get_version.js) \
         --ci \
         --no-npm.publish \
         && \
