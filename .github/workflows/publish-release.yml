@@ -25,7 +25,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || format('webrtc/v{0}', github.event.inputs.version) }}
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
@@ -77,7 +78,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || format('react-client/v{0}', github.event.inputs.version) }}
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
@@ -112,7 +114,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || format('webrtc/v{0}', github.event.inputs.version) }}
+        # https://github.com/peter-evans/create-pull-request/issues/122
+        ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
