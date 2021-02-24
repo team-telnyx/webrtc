@@ -25,7 +25,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || ('webrtc@' + github.event.inputs.version) }}
+        ref: ${{ github.event.release.tag_name || format('webrtc@{0}', github.event.inputs.version) }}
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
@@ -77,7 +77,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || ('react-client@' + github.event.inputs.version) }}
+        ref: ${{ github.event.release.tag_name || format('react-client@{0}', github.event.inputs.version) }}
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
@@ -112,7 +112,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        ref: ${{ github.event.release.tag_name || ('webrtc@' + github.event.inputs.package) }}
+        ref: ${{ github.event.release.tag_name || format('webrtc@{0}', github.event.inputs.version) }}
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
     - name: Setup Git user
