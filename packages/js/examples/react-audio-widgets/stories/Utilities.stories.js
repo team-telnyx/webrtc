@@ -13,6 +13,6 @@ export default {
   },
 };
 
-export const Example = (args, storybook) => (
+export const Examples = (args, storybook) => (
   <Utilities {...args} {...storybook.globals.telnyxAuth} />
 );
