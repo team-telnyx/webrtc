@@ -36,14 +36,13 @@ import {
  * // Connect and login
  * client.connect();
  *
- * // You can disconnect when you're done.
- * // Disconnecting and Removing listeners.
- * Note: When you call `client.disconnect()` you need to remove all ON methods had attached before.
+ * // You can call client.disconnect() when you're done.
+ * Note: When you call `client.disconnect()` you need to remove all ON event methods had attached before.
  *
+ * // Disconnecting and Removing listeners.
  * client.disconnect();
  * client.off('telnyx.ready')
  * client.off('telnyx.notification');
- *
  * ```
  *
  * @category Client
