@@ -564,7 +564,7 @@ describe('Helpers browser functions', () => {
         supported: [
           { browserName: 'Chrome', supported: 'not supported' },
           { browserName: 'Firefox', supported: 'not supported' },
-          { browserName: 'Safari', features: ['audio'], supported: 'partial' },
+          { browserName: 'Safari', features: ['video', 'audio'], supported: 'full' },
           { browserName: 'Edge', supported: 'not supported' },
         ],
       },

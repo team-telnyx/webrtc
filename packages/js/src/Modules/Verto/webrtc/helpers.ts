@@ -538,8 +538,8 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
         { browserName: 'Firefox', supported: SUPPORTED_WEBRTC.not_supported },
         {
           browserName: 'Safari',
-          features: ['audio'],
-          supported: SUPPORTED_WEBRTC.partial,
+          features: ['video', 'audio'],
+          supported: SUPPORTED_WEBRTC.full,
         },
         { browserName: 'Edge', supported: SUPPORTED_WEBRTC.not_supported },
       ],
