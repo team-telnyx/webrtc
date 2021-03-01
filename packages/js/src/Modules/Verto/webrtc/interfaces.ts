@@ -34,6 +34,7 @@ export interface IVertoCallOptions {
   telnyxCallControlId?: string;
   telnyxSessionId?: string;
   telnyxLegId?: string;
+  clientState?: string;
 }
 
 export interface IWebRTCCall {

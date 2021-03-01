@@ -71,6 +71,10 @@ class VertoHandler {
         callOptions.telnyxLegId = params.telnyx_leg_id;
       }
 
+      if (params.client_state) {
+        callOptions.clientState = params.client_state;
+      }
+
       const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;

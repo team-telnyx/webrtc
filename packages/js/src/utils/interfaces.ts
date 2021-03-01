@@ -75,6 +75,7 @@ export interface ISIPCallOptions {
   telnyxCallControlId?: string;
   telnyxSessionId?: string;
   telnyxLegId?: string;
+  clientState?: string;
 }
 
 // TODO Consolidate with `Call`
@@ -116,6 +117,11 @@ export interface ICallOptions {
    * Telnyx call leg ID, if using Call Control services.
    */
   telnyxLegId?: string;
+  /**
+   * Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled. 
+   * `clientState` string should be base64 encoded.
+   */
+  clientState?: string;
   /**
    * If set, the call will use this stream instead of retrieving a new one.
    */

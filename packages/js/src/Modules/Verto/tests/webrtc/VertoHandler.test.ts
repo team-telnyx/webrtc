@@ -72,7 +72,7 @@ describe('VertoHandler', () => {
       await instance.connect();
       const callId = 'cd35e65f-a507-4bd2-8d21-80f36d134a2e';
       const msg = JSON.parse(
-        `{"jsonrpc":"2.0","id":4402,"method":"telnyx_rtc.invite","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003","display_direction":"outbound","telnyx_call_control_id":"cc1234","telnyx_session_id":"si1234","telnyx_leg_id":"li1234"}}`
+        `{"jsonrpc":"2.0","id":4402,"method":"telnyx_rtc.invite","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003","display_direction":"outbound","telnyx_call_control_id":"cc1234","telnyx_session_id":"si1234","telnyx_leg_id":"li1234", "client_state":"aGVsbG8gbXkgZnJpZW5k" }}`
       );
       handler.handleMessage(msg);
       expect(instance.calls).toHaveProperty(callId);
@@ -82,6 +82,7 @@ describe('VertoHandler', () => {
       );
       expect(instance.calls[callId].options.telnyxSessionId).toEqual('si1234');
       expect(instance.calls[callId].options.telnyxLegId).toEqual('li1234');
+      expect(instance.calls[callId].options.clientState).toEqual('aGVsbG8gbXkgZnJpZW5k');
       done();
     });
   });
