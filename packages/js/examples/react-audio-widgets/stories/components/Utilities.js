@@ -39,13 +39,23 @@ function Utilities({ username, password, token }) {
     });
   };
 
+  const diconnectClient = async (client) => {
+    if (client) {
+      await clientRef.current.disconnect();
+      clientRef.current.off('telnyx.error');
+      clientRef.current.off('telnyx.ready');
+      clientRef.current.off('telnyx.notification');
+      clientRef.current.off('telnyx.socket.close');
+    }
+  };
+
   const connect = async () => {
     if (username && password && clientRef.current) {
       if (isConnected) {
         setIsConnected(false);
         setLog({ message: 'Reconnecting...' });
 
-        await clientRef.current.disconnect();
+        diconnectClient();
 
         initClient();
       }
