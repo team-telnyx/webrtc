@@ -174,7 +174,7 @@ export default class TelnyxRTC extends TelnyxRTCClient {
    * |         | Chrome | Firefox | Safari | Edge |
    * |---------|--------|---------|--------|------|
    * | Android |  [-]   |   [-]   |  [ ]   | [ ]  |
-   * | iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
+   * | iOS     |  [ ]   |   [ ]   |  [x]   | [ ]  |
    * | Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
    * | MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
    * | Windows |  [x]   |   [-]   |  [ ]   | [-]  |

@@ -168,7 +168,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 |         | Chrome | Firefox | Safari | Edge |
 |---------|--------|---------|--------|------|
 | Android |  [-]   |   [-]   |  [ ]   | [ ]  |
-| iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
+| iOS     |  [ ]   |   [ ]   |  [x]   | [ ]  |
 | Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
 | MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
 | Windows |  [x]   |   [-]   |  [ ]   | [-]  |
