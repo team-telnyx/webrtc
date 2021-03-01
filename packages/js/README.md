@@ -50,7 +50,7 @@ client.connect();
 
 
 // You can call client.disconnect() when you're done.
-// Note: When you call `client.disconnect()` you need to remove all ON event methods had attached before.
+// Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
 
 // Disconnecting and Removing listeners. 
 // client.disconnect();
