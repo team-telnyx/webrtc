@@ -25,8 +25,13 @@ client
 // Connect and login
 client.connect();
 
-// You can disconnect when you're done
-//  client.disconnect();
+// You can call client.disconnect() when you're done.
+Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
+
+// Disconnecting and Removing listeners.
+client.disconnect();
+client.off('telnyx.ready')
+client.off('telnyx.notification');
 ```
 
 ## Hierarchy
@@ -1000,7 +1005,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 |         | Chrome | Firefox | Safari | Edge |
 |---------|--------|---------|--------|------|
 | Android |  [-]   |   [-]   |  [ ]   | [ ]  |
-| iOS     |  [ ]   |   [ ]   |  [-]   | [ ]  |
+| iOS     |  [ ]   |   [ ]   |  [x]   | [ ]  |
 | Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
 | MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
 | Windows |  [x]   |   [-]   |  [ ]   | [-]  |
