@@ -1,10 +1,12 @@
 import React, {Component} from 'react';
 import {View, Image, KeyboardAvoidingView, ScrollView} from 'react-native';
-import {Input, Button, Icon, CheckBox} from 'react-native-elements';
+import {Input, Button, CheckBox} from 'react-native-elements';
 import Colors from '../Colors';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
 export default class CredentialScreen extends Component {
   constructor(props) {
+    Icon.loadFont();
     super(props);
     this.state = {
       username: '',
