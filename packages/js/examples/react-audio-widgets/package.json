@@ -6,9 +6,9 @@
   "devDependencies": {
     "@babel/core": "^7.12.10",
     "@storybook/addon-actions": "^6.1.15",
-    "@storybook/addon-essentials": "^6.1.15",
+    "@storybook/addon-essentials": "^6.1.21",
     "@storybook/addon-links": "^6.1.15",
-    "@storybook/react": "^6.1.15",
+    "@storybook/react": "^6.1.21",
     "babel-loader": "^8.2.2",
     "cypress": "^6.3.0",
     "wait-on": "^5.2.1"
