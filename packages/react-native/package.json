@@ -56,6 +56,6 @@
     "@types/uuid": "^7.0.2",
     "@types/webrtc": "0.0.26",
     "release-it": "^14.2.0",
-    "tslint": "^6.1.1"
+    "tslint": "^6.1.3"
   }
 }
