@@ -1,20 +1,15 @@
 # @telnyx/webrtc
 
-## Index
+## Table of contents
 
 ### Call Classes
 
-* [Call](classes/call.md)
+- [Call](classes/call.md)
 
 ### Client Classes
 
-* [TelnyxRTC](classes/telnyxrtc.md)
+- [TelnyxRTC](classes/telnyxrtc.md)
 
 ### Notification Interfaces
 
-* [INotification](interfaces/inotification.md)
-
-### Other Interfaces
-
-* [ICallOptions](interfaces/icalloptions.md)
-* [IClientOptions](interfaces/iclientoptions.md)
+- [INotification](interfaces/inotification.md)

@@ -47,7 +47,7 @@ import {
  *
  * @category Client
  */
-export default class TelnyxRTC extends TelnyxRTCClient {
+export class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Creates a new `TelnyxRTC` instance with the provided options.
    *
@@ -202,3 +202,4 @@ export default class TelnyxRTC extends TelnyxRTCClient {
     return getWebRTCSupportedBrowserList();
   }
 }
+export default TelnyxRTC;

@@ -63,8 +63,9 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-terser": "^7.0.0",
     "rollup-plugin-typescript2": "^0.24.0",
-    "typedoc": "^0.19.2",
-    "typedoc-plugin-markdown": "^3.0.0"
+    "typedoc": "^0.20.30",
+    "typedoc-plugin-markdown": "^3.6.0",
+    "typedoc-plugin-merge-modules": "^1.0.0"
   },
   "publishConfig": {
     "access": "public",
