@@ -83,7 +83,7 @@ client.off('telnyx.notification');
 
 ### constructor
 
-\+ **new TelnyxRTC**(`options`: IClientOptions): [*TelnyxRTC*](telnyxrtc.md)
+\+ **new TelnyxRTC**(`options`: [*IClientOptions*](../interfaces/iclientoptions.md)): [*TelnyxRTC*](telnyxrtc.md)
 
 Creates a new `TelnyxRTC` instance with the provided options.
 
@@ -127,7 +127,7 @@ const client = new TelnyxRTC({
 
 Name | Type | Description |
 :------ | :------ | :------ |
-`options` | IClientOptions | Options for initializing a client    |
+`options` | [*IClientOptions*](../interfaces/iclientoptions.md) | Options for initializing a client    |
 
 **Returns:** [*TelnyxRTC*](telnyxrtc.md)
 
@@ -702,7 +702,7 @@ ___
 
 ### newCall
 
-▸ **newCall**(`options`: ICallOptions): [*Call*](call.md)
+▸ **newCall**(`options`: [*ICallOptions*](../interfaces/icalloptions.md)): [*Call*](call.md)
 
 Makes a new outbound call.
 
@@ -746,7 +746,7 @@ const call = client.newCall().catch(console.error);
 
 Name | Type | Description |
 :------ | :------ | :------ |
-`options` | ICallOptions | Options object for a new call.    |
+`options` | [*ICallOptions*](../interfaces/icalloptions.md) | Options object for a new call.    |
 
 **Returns:** [*Call*](call.md)
 

@@ -24,6 +24,7 @@ export interface ISIPClientOptions {
 }
 
 /**
+ * IClientOptions
  * @interface IClientOptions
  */
 export interface IClientOptions {
@@ -86,6 +87,7 @@ export interface ICall {
 }
 
 /**
+ * ICallOptions
  * @interface ICallOptions
  */
 export interface ICallOptions {
