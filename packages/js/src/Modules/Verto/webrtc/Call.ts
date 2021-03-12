@@ -50,7 +50,7 @@ import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
  *
  * @category Call
  */
-export default class Call extends BaseCall {
+export class Call extends BaseCall {
   public screenShare: Call;
 
   private _statsInterval: any = null;
@@ -177,3 +177,4 @@ export default class Call extends BaseCall {
     }, 2000);
   }
 }
+export default Call;

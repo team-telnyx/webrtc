@@ -7,8 +7,8 @@
     "baseUrl": "."
   },
   "typedocOptions": {
-    "mode": "file",
     "out": "./docs/ts",
+    "entryPoints": ["./src/index.ts"],
     "exclude": [
       "**/*+(test|index).ts",
       "src/Modules/Verto/messages/**/*",
@@ -16,9 +16,8 @@
       "src/Modules/Verto/tests/**/*",
       "src/Modules/Verto/util/**/*"
     ],
-    "plugin": ["typedoc-plugin-markdown"],
+    "plugin": ["typedoc-plugin-merge-modules", "typedoc-plugin-markdown"],
     "excludeExternals": true,
-    "excludeNotExported": true,
     "excludePrivate": true,
     "excludeProtected": true,
     "excludeNotDocumented": true,
@@ -27,7 +26,6 @@
     "readme": "none",
     "gitRevision": "main",
     "disableSources": true,
-    "hideProjectName": true,
     "hideBreadcrumbs": true,
     "namedAnchors": true
   },

@@ -52,17 +52,17 @@ The notification structure is determined by its `type`.
 
 ## Hierarchy
 
-* {}
+* *Omit*<INotificationEventData, *call*\>
 
   ↳ **INotification**
 
-## Index
+## Table of contents
 
 ### Properties
 
-* [call](inotification.md#call)
-* [error](inotification.md#error)
-* [type](inotification.md#type)
+- [call](inotification.md#call)
+- [error](inotification.md#error)
+- [type](inotification.md#type)
 
 ## Properties
 
@@ -86,6 +86,6 @@ ___
 
 ### type
 
-•  **type**: string
+• **type**: *string*
 
 Identifies the event case.
