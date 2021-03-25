@@ -5,9 +5,9 @@ import {
   safeParseJson,
   checkWebSocketHost,
   destructResponse,
+  isFunction,
 } from '../util/helpers';
 import { registerOnce, trigger } from './Handler';
-import { isFunction } from '../util/helpers';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
