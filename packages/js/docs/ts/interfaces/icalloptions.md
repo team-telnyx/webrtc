@@ -12,7 +12,6 @@ ICallOptions
 - [callerName](icalloptions.md#callername)
 - [callerNumber](icalloptions.md#callernumber)
 - [camId](icalloptions.md#camid)
-- [clientState](icalloptions.md#clientstate)
 - [destinationNumber](icalloptions.md#destinationnumber)
 - [iceServers](icalloptions.md#iceservers)
 - [id](icalloptions.md#id)
@@ -60,16 +59,6 @@ ___
 • `Optional` **camId**: *string*
 
 `deviceId` to use as webcam. Overrides the client's default one.
-
-___
-
-### clientState
-
-• `Optional` **clientState**: *string*
-
-Notes: Working in progress feature.
-Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled.
-`clientState` string should be base64 encoded.
 
 ___
 
