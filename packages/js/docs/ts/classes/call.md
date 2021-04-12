@@ -67,7 +67,6 @@ call.muteAudio();
 
 - [localStream](call.md#localstream)
 - [remoteStream](call.md#remotestream)
-- [telnyxIDs](call.md#telnyxids)
 
 ### Methods
 
@@ -191,23 +190,6 @@ document.querySelector('audio').srcObject = stream;
 ```
 
 **Returns:** MediaStream
-
-___
-
-### telnyxIDs
-
-• get **telnyxIDs**(): *object*
-
-Gets Telnyx call IDs, if using Telnyx Call Control services.
-You can use these IDs to identify specific calls in your application code.
-
-**`examples`** 
-
-```js
-const { telnyxCallControlId, telnyxSessionId, telnyxLegId } = call.telnyxIDs;
-```
-
-**Returns:** *object*
 
 ## Methods
 
