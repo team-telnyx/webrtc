@@ -4,3 +4,4 @@ yarn-error.log
 lib
 coverage
 .vscode
+yarn.lock
