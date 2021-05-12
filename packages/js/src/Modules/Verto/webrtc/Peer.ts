@@ -185,7 +185,7 @@ export default class Peer {
   private _config(): IChromeRTCConfiguration {
     const { iceServers = [] } = this.options;
     const config: IChromeRTCConfiguration = {
-      sdpSemantics: 'plan-b',
+      sdpSemantics: 'unified-plan',
       bundlePolicy: 'max-compat',
       iceServers,
     };
