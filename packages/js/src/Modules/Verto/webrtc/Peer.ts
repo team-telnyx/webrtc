@@ -13,6 +13,9 @@ import {
   sdpToJsonHack,
   RTCPeerConnection,
   streamIsValid,
+  buildAudioElementByTrack,
+  buildVideoElementByTrack,
+  stopTrack,
 } from '../util/webrtc';
 import { isFunction } from '../util/helpers';
 import { IVertoCallOptions, IChromeRTCConfiguration } from './interfaces';
@@ -41,6 +44,14 @@ export default class Peer {
     this._init();
   }
 
+  get isOffer() {
+    return this.type === PeerType.Offer;
+  }
+
+  get isAnswer() {
+    return this.type === PeerType.Answer;
+  }
+
   startNegotiation() {
     this._negotiating = true;
 
@@ -51,10 +62,62 @@ export default class Peer {
     }
   }
 
+  private _logTransceivers() {
+    logger.info(
+      'Number of transceivers:',
+      this.instance.getTransceivers().length
+    );
+    this.instance.getTransceivers().forEach((tr, index) => {
+      logger.info(
+        `>> Transceiver [${index}]:`,
+        tr.mid,
+        tr.direction,
+        tr.stopped
+      );
+      logger.info(
+        `>> Sender Params [${index}]:`,
+        JSON.stringify(tr.sender.getParameters(), null, 2)
+      );
+    });
+  }
+
+  private _buildMediaElementByTrack(event: RTCTrackEvent) {
+    console.debug(
+      '_buildMediaElementByTrack',
+      event.track.kind,
+      event.track.id,
+      event.streams,
+      event
+    );
+    const streamIds = event.streams.map((stream) => stream.id);
+    // switch (event.track.kind) {
+    //   case 'audio': {
+    //     const audio = buildAudioElementByTrack(event.track, streamIds);
+    //     if (this.options.speakerId) {
+    //       try {
+    //         // @ts-ignore
+    //         audio.setSinkId(this.options.speakerId);
+    //       } catch (error) {
+    //         console.debug('setSinkId not supported', this.options.speakerId);
+    //       }
+    //     }
+    //     this.call.audioElements.push(audio);
+    //     break;
+    //   }
+    //   case 'video':
+    //     this.call.videoElements.push(
+    //       buildVideoElementByTrack(event.track, streamIds)
+    //     );
+    //     break;
+    // }
+  }
+
   private async _init() {
     this.instance = RTCPeerConnection(this._config());
 
     this.instance.onsignalingstatechange = (event) => {
+      logger.info('signalingState:', this.instance.signalingState);
+
       switch (this.instance.signalingState) {
         case 'stable':
           // Workaround to skip nested negotiations
@@ -70,38 +133,114 @@ export default class Peer {
     };
 
     this.instance.onnegotiationneeded = (event) => {
-      if (this._negotiating) {
-        logger.debug('Skip twice onnegotiationneeded..');
-        return;
-      }
+      logger.info('Negotiation needed event');
       this.startNegotiation();
     };
+
+    this.instance.addEventListener('track', (event: RTCTrackEvent) => {
+      this._buildMediaElementByTrack(event);
+      // const notification = { type: 'trackAdd', event };
+      // this.call._dispatchNotification(notification);
+
+      this.options.remoteStream = event.streams[0];
+      const { remoteElement, remoteStream, screenShare } = this.options;
+      if (screenShare === false) {
+        attachMediaStream(remoteElement, remoteStream);
+      }
+    });
+
+    this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
+      this.options.remoteStream = event.stream;
+    });
+
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
         trigger(SwEvent.MediaError, error, this.options.id);
         return null;
       }
     );
+
     const {
       localElement,
       localStream = null,
       screenShare = false,
     } = this.options;
     if (streamIsValid(localStream)) {
-      if (typeof this.instance.addTrack === 'function') {
-        localStream
-          .getTracks()
-          .forEach((t) => this.instance.addTrack(t, localStream));
+      const audioTracks = localStream.getAudioTracks();
+      logger.info('Local audio tracks: ', audioTracks);
+      const videoTracks = localStream.getVideoTracks();
+      logger.info('Local video tracks: ', videoTracks);
+      // FIXME: use transceivers way only for offer - when answer gotta match mid from the ones from SRD
+      if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
+        // Use addTransceiver
+
+        audioTracks.forEach((track) => {
+          this.options.userVariables.microphoneLabel = track.label;
+          this.instance.addTransceiver(track, {
+            direction: 'sendrecv',
+            streams: [localStream],
+          });
+        });
+
+        const transceiverParams: RTCRtpTransceiverInit = {
+          direction: 'sendrecv',
+          streams: [localStream],
+        };
+
+        console.debug('Applying video transceiverParams', transceiverParams);
+        videoTracks.forEach((track) => {
+          this.options.userVariables.cameraLabel = track.label;
+          this.instance.addTransceiver(track, transceiverParams);
+        });
+      } else if (typeof this.instance.addTrack === 'function') {
+        // Use addTrack
+
+        audioTracks.forEach((track) => {
+          this.options.userVariables.microphoneLabel = track.label;
+          this.instance.addTrack(track, localStream);
+        });
+
+        videoTracks.forEach((track) => {
+          this.options.userVariables.cameraLabel = track.label;
+          this.instance.addTrack(track, localStream);
+        });
       } else {
+        // Fallback to legacy addStream ..
         // @ts-ignore
         this.instance.addStream(localStream);
       }
+
       if (screenShare !== true) {
         muteMediaElement(localElement);
         attachMediaStream(localElement, localStream);
       }
-    } else if (localStream === null) {
+    }
+
+    if (this.isOffer) {
+      if (this.options.negotiateAudio) {
+        this._checkMediaToNegotiate('audio');
+      }
+      if (this.options.negotiateVideo) {
+        this._checkMediaToNegotiate('video');
+      }
+    } else {
       this.startNegotiation();
+    }
+    this._logTransceivers();
+  }
+
+  private _getSenderByKind(kind: string) {
+    return this.instance
+      .getSenders()
+      .find(({ track }) => track && track.kind === kind);
+  }
+
+  private _checkMediaToNegotiate(kind: string) {
+    // addTransceiver of 'kind' if not present
+    const sender = this._getSenderByKind(kind);
+    if (!sender) {
+      const transceiver = this.instance.addTransceiver(kind);
+      console.log('Add transceiver', kind, transceiver);
     }
   }
 
