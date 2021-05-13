@@ -44,7 +44,7 @@ function App() {
   function connect(params) {
     setLoginParams(params);
 
-    const session = new TelnyxRTC({ ...params });
+    const session = new TelnyxRTC({ ...params, env: 'development' });
     session.enableMicrophone();
 
     session.on('telnyx.ready', (session) => {
