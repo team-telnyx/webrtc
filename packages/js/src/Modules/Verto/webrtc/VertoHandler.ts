@@ -59,6 +59,7 @@ class VertoHandler {
         attach,
       };
 
+      console.log('params.sdp===>', params.sdp);
       if (params.telnyx_call_control_id) {
         callOptions.telnyxCallControlId = params.telnyx_call_control_id;
       }

@@ -27,7 +27,7 @@ const plugins = [
   typescript({
     objectHashIgnoreUnknownHack: true,
   }),
-  terser(),
+  // terser(),
 ];
 
 export default [

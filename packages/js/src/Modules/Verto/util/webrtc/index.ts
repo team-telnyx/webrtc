@@ -1,4 +1,5 @@
 import { findElementByType } from '../helpers';
+import logger from '../logger';
 
 const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
   new window.RTCPeerConnection(config);
@@ -6,11 +7,20 @@ const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
 const getUserMedia = (constraints: MediaStreamConstraints) =>
   navigator.mediaDevices.getUserMedia(constraints);
 
-const getDisplayMedia = (constraints: MediaStreamConstraints) =>
-  // @ts-ignore
-  navigator.mediaDevices.getDisplayMedia(constraints);
+// @ts-ignore
+const getDisplayMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getDisplayMedia(constraints)
 
 const enumerateDevices = () => navigator.mediaDevices.enumerateDevices();
+
+const enumerateDevicesByKind = async (filterByKind: string = null) => {
+  let devices: MediaDeviceInfo[] = await enumerateDevices().catch(
+    (error) => []
+  );
+  if (filterByKind) {
+    devices = devices.filter(({ kind }) => kind === filterByKind);
+  }
+  return devices;
+};
 
 const getSupportedConstraints = () =>
   navigator.mediaDevices.getSupportedConstraints();
@@ -29,7 +39,6 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   if (!element.getAttribute('playsinline')) {
     element.setAttribute('playsinline', 'playsinline');
   }
-
   element.srcObject = stream;
 };
 
@@ -67,6 +76,11 @@ const setMediaElementSinkId = async (
 ): Promise<boolean> => {
   const element: HTMLMediaElement = findElementByType(tag);
   if (element === null) {
+    logger.info('No HTMLMediaElement to attach the speakerId');
+    return false;
+  }
+  if (typeof deviceId !== 'string') {
+    logger.info(`Invalid speaker deviceId: '${deviceId}'`);
     return false;
   }
   try {
@@ -82,9 +96,78 @@ const sdpToJsonHack = (sdp) => sdp;
 
 const stopStream = (stream: MediaStream) => {
   if (streamIsValid(stream)) {
-    stream.getTracks().forEach((t) => t.stop());
+    stream.getTracks().forEach(stopTrack);
   }
   stream = null;
+};
+
+const stopTrack = (track: MediaStreamTrack) => {
+  if (track && track.readyState === 'live') {
+    track.stop();
+    track.dispatchEvent(new Event('ended'));
+  }
+};
+
+const getHostname = () => window.location.hostname;
+
+const buildVideoElementByTrack = (
+  videoTrack: MediaStreamTrack,
+  streamIds: string[] = []
+) => {
+  const video = document.createElement('video');
+  video.muted = true;
+  video.autoplay = true;
+  // @ts-ignore
+  video.playsinline = true;
+  // @ts-ignore
+  video._streamIds = streamIds;
+
+  const mediaStream = new MediaStream([videoTrack]);
+  video.srcObject = mediaStream;
+
+  const onCanPlay = () => console.debug('video can play!');
+  const onPlay = () => console.debug('video is now playing...');
+  video.addEventListener('play', onPlay);
+  video.addEventListener('canplay', onCanPlay);
+  videoTrack.addEventListener('ended', () => {
+    video.removeEventListener('play', onPlay);
+    video.removeEventListener('canplay', onCanPlay);
+    video.srcObject = null;
+    // @ts-ignore
+    delete video._streamIds;
+    video.remove();
+  });
+  return video;
+};
+
+const buildAudioElementByTrack = (
+  audioTrack: MediaStreamTrack,
+  streamIds: string[] = []
+) => {
+  const audio = new Audio();
+  audio.autoplay = true;
+  // @ts-ignore
+  audio.playsinline = true;
+  // @ts-ignore
+  audio._streamIds = streamIds;
+
+  const mediaStream = new MediaStream([audioTrack]);
+  audio.srcObject = mediaStream;
+
+  const onCanPlay = () => console.debug('audio can play!');
+  const onPlay = () => console.debug('audio is now playing...');
+  audio.addEventListener('play', onPlay);
+  audio.addEventListener('canplay', onCanPlay);
+  audioTrack.addEventListener('ended', () => {
+    audio.removeEventListener('play', onPlay);
+    audio.removeEventListener('canplay', onCanPlay);
+    audio.srcObject = null;
+    // @ts-ignore
+    delete audio._streamIds;
+    audio.remove();
+  });
+
+  return audio;
 };
 
 export {
@@ -92,14 +175,19 @@ export {
   getUserMedia,
   getDisplayMedia,
   enumerateDevices,
+  enumerateDevicesByKind,
   getSupportedConstraints,
   streamIsValid,
   attachMediaStream,
   detachMediaStream,
   sdpToJsonHack,
   stopStream,
+  stopTrack,
   muteMediaElement,
   unmuteMediaElement,
   toggleMuteMediaElement,
   setMediaElementSinkId,
+  getHostname,
+  buildVideoElementByTrack,
+  buildAudioElementByTrack,
 };
