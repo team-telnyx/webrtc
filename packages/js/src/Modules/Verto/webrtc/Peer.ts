@@ -1,9 +1,15 @@
+import { Interop } from '@jitsi/sdp-interop';
+
 import logger from '../util/logger';
 import {
   getUserMedia,
   getMediaConstraints,
   sdpStereoHack,
   sdpBitrateHack,
+  sdpMediaOrderHack,
+  isPlanB,
+  isUnifiedPlan,
+  toPlanB,
 } from './helpers';
 import { SwEvent } from '../util/constants';
 import { PeerType } from './constants';
@@ -33,8 +39,11 @@ export default class Peer {
   };
   private _negotiating: boolean = false;
 
+  private interop: any;
+
   constructor(public type: PeerType, private options: IVertoCallOptions) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
+    this.interop = new Interop();
 
     this._constraints = {
       offerToReceiveAudio: true,
@@ -42,6 +51,9 @@ export default class Peer {
     };
     this._sdpReady = this._sdpReady.bind(this);
     this._init();
+    console.log('interop', this.interop);
+    // @ts-ignore
+    window.interop = this.interop;
   }
 
   get isOffer() {
@@ -90,26 +102,29 @@ export default class Peer {
       event
     );
     const streamIds = event.streams.map((stream) => stream.id);
-    // switch (event.track.kind) {
-    //   case 'audio': {
-    //     const audio = buildAudioElementByTrack(event.track, streamIds);
-    //     if (this.options.speakerId) {
-    //       try {
-    //         // @ts-ignore
-    //         audio.setSinkId(this.options.speakerId);
-    //       } catch (error) {
-    //         console.debug('setSinkId not supported', this.options.speakerId);
-    //       }
-    //     }
-    //     this.call.audioElements.push(audio);
-    //     break;
-    //   }
-    //   case 'video':
-    //     this.call.videoElements.push(
-    //       buildVideoElementByTrack(event.track, streamIds)
-    //     );
-    //     break;
-    // }
+    switch (event.track.kind) {
+      case 'audio': {
+        const audio = buildAudioElementByTrack(event.track, streamIds);
+        if (this.options.speakerId) {
+          try {
+            // @ts-ignore
+            audio.setSinkId(this.options.speakerId);
+          } catch (error) {
+            console.debug('setSinkId not supported', this.options.speakerId);
+          }
+        }
+        // this.call.audioElements.push(audio);
+        break;
+      }
+      case 'video':
+        buildVideoElementByTrack(event.track, streamIds);
+        // this.call.videoElements.push(
+        //   buildVideoElementByTrack(event.track, streamIds)
+        // );
+        break;
+      default:
+        break;
+    }
   }
 
   private async _init() {
@@ -210,7 +225,7 @@ export default class Peer {
         this.instance.addStream(localStream);
       }
 
-      if (screenShare !== true) {
+      if (screenShare === false) {
         muteMediaElement(localElement);
         attachMediaStream(localElement, localStream);
       }
@@ -284,9 +299,13 @@ export default class Peer {
       googleMinBitrate,
       googleStartBitrate,
     } = this.options;
+
+    console.log('TYPE', this.type, sessionDescription);
+
     if (useStereo) {
       sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
     }
+
     if (googleMaxBitrate && googleMinBitrate && googleStartBitrate) {
       sessionDescription.sdp = sdpBitrateHack(
         sessionDescription.sdp,
@@ -323,9 +342,10 @@ export default class Peer {
 
   private _config(): IChromeRTCConfiguration {
     const { iceServers = [] } = this.options;
+    console.log('iceServers ===>', iceServers);
     const config: IChromeRTCConfiguration = {
       sdpSemantics: 'unified-plan',
-      bundlePolicy: 'max-compat',
+      bundlePolicy: 'balanced',
       iceServers,
     };
     logger.info('RTC config', config);

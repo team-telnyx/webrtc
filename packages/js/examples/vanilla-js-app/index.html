@@ -224,7 +224,7 @@
           login: document.getElementById('username').value,
           password: document.getElementById('password').value,
           ringtoneFile: './sounds/incoming_call.mp3',
-          // iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+          iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
           // ringbackFile: './sounds/ringback_tone.mp3',
         });
 
@@ -344,6 +344,8 @@
           video: document.getElementById('video').checked
             ? { aspectRatio: 16 / 9 }
             : false,
+          // negotiateAudio: true,
+          // negotiateVideo: true,
         };
 
         currentCall = client.newCall(params);

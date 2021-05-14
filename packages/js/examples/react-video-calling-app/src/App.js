@@ -44,7 +44,11 @@ function App() {
   function connect(params) {
     setLoginParams(params);
 
-    const session = new TelnyxRTC({ ...params, env: 'development' });
+    const session = new TelnyxRTC({
+      ...params,
+      env: 'development',
+      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+    });
     session.enableMicrophone();
 
     session.on('telnyx.ready', (session) => {
@@ -102,6 +106,8 @@ function App() {
       const newCall = telnyxRTCRef.current.newCall({
         destinationNumber: extension,
         audio: true,
+        // negotiateAudio: true,
+        // negotiateVideo: true,
       });
       setState({ call: newCall, connected: state.connected });
     }
