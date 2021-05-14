@@ -345,7 +345,7 @@ export default class Peer {
     console.log('iceServers ===>', iceServers);
     const config: IChromeRTCConfiguration = {
       sdpSemantics: 'unified-plan',
-      bundlePolicy: 'balanced',
+      bundlePolicy: 'max-compat',
       iceServers,
     };
     logger.info('RTC config', config);
