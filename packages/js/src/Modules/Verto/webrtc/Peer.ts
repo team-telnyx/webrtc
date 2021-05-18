@@ -1,15 +1,9 @@
-import { Interop } from '@jitsi/sdp-interop';
-
 import logger from '../util/logger';
 import {
   getUserMedia,
   getMediaConstraints,
   sdpStereoHack,
   sdpBitrateHack,
-  sdpMediaOrderHack,
-  isPlanB,
-  isUnifiedPlan,
-  toPlanB,
 } from './helpers';
 import { SwEvent } from '../util/constants';
 import { PeerType } from './constants';
@@ -39,21 +33,15 @@ export default class Peer {
   };
   private _negotiating: boolean = false;
 
-  private interop: any;
-
   constructor(public type: PeerType, private options: IVertoCallOptions) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
-    this.interop = new Interop();
-
+  
     this._constraints = {
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
     };
     this._sdpReady = this._sdpReady.bind(this);
     this._init();
-    console.log('interop', this.interop);
-    // @ts-ignore
-    window.interop = this.interop;
   }
 
   get isOffer() {

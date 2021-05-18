@@ -37,15 +37,12 @@
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
   "dependencies": {
-    "@jitsi/sdp-interop": "^1.0.3",
     "loglevel": "^1.6.8",
-    "sdp-transform": "^2.14.1",
     "uuid": "^7.0.3"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
     "@release-it/bumper": "^2.0.0",
-    "@types/sdp-transform": "^2.4.4",
     "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
     "@typescript-eslint/eslint-plugin": "^3.6.1",

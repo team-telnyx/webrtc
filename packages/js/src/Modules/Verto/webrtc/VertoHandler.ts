@@ -1,7 +1,7 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
-import { checkSubscribeResponse, isPlanB, isUnifiedPlan, toPlanB, toUnifiedPlan } from './helpers';
+import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import { VertoMethod, NOTIFICATION_TYPE } from './constants';
