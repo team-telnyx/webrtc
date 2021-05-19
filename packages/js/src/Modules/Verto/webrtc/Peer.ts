@@ -26,21 +26,30 @@ import { trigger } from '../services/Handler';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
+
   public onSdpReadyTwice: Function = null;
+
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo: boolean;
   };
+
   private _negotiating: boolean = false;
 
   constructor(public type: PeerType, private options: IVertoCallOptions) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
-  
+
     this._constraints = {
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
     };
+
     this._sdpReady = this._sdpReady.bind(this);
+    this.handleSignalingStateChangeEvent = this.handleSignalingStateChangeEvent.bind(this);
+    this.handleNegotiationNeededEvent = this.handleNegotiationNeededEvent.bind(this);
+    this.handleTrackEvent = this.handleTrackEvent.bind(this);
+    this.createPeerConnection = this.createPeerConnection.bind(this);
+
     this._init();
   }
 
@@ -115,42 +124,50 @@ export default class Peer {
     }
   }
 
-  private async _init() {
+  private handleSignalingStateChangeEvent(event) {
+    logger.info('signalingState:', this.instance.signalingState);
+
+    switch (this.instance.signalingState) {
+      case 'stable':
+        // Workaround to skip nested negotiations
+        // Chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=740501
+        this._negotiating = false;
+        break;
+      case 'closed':
+        this.instance = null;
+        break;
+      default:
+        this._negotiating = true;
+    }
+  }
+
+  private handleNegotiationNeededEvent() {
+    logger.info('Negotiation needed event');
+    this.startNegotiation();
+  }
+
+  private handleTrackEvent(event) {
+    const {
+      streams: [first],
+    } = event;
+    const { remoteElement, screenShare } = this.options;
+    let { remoteStream } = this.options;
+
+    this._buildMediaElementByTrack(event);
+
+    remoteStream = first;
+
+    if (screenShare === false) {
+      attachMediaStream(remoteElement, remoteStream);
+    }
+  }
+
+  private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
 
-    this.instance.onsignalingstatechange = (event) => {
-      logger.info('signalingState:', this.instance.signalingState);
-
-      switch (this.instance.signalingState) {
-        case 'stable':
-          // Workaround to skip nested negotiations
-          // Chrome bug: https://bugs.chromium.org/p/chromium/issues/detail?id=740501
-          this._negotiating = false;
-          break;
-        case 'closed':
-          this.instance = null;
-          break;
-        default:
-          this._negotiating = true;
-      }
-    };
-
-    this.instance.onnegotiationneeded = (event) => {
-      logger.info('Negotiation needed event');
-      this.startNegotiation();
-    };
-
-    this.instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this._buildMediaElementByTrack(event);
-      // const notification = { type: 'trackAdd', event };
-      // this.call._dispatchNotification(notification);
-
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream);
-      }
-    });
+    this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
+    this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
+    this.instance.ontrack = this.handleTrackEvent;
 
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
@@ -160,14 +177,19 @@ export default class Peer {
       (error) => {
         trigger(SwEvent.MediaError, error, this.options.id);
         return null;
-      }
+      },
     );
+  }
+
+  private async _init() {
+    await this.createPeerConnection();
 
     const {
       localElement,
       localStream = null,
       screenShare = false,
     } = this.options;
+
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
       logger.info('Local audio tracks: ', audioTracks);
