@@ -4,6 +4,7 @@ import {
   getMediaConstraints,
   sdpStereoHack,
   sdpBitrateHack,
+  sdpMediaOrderHack,
 } from './helpers';
 import { SwEvent } from '../util/constants';
 import { PeerType } from './constants';
@@ -45,8 +46,12 @@ export default class Peer {
     };
 
     this._sdpReady = this._sdpReady.bind(this);
-    this.handleSignalingStateChangeEvent = this.handleSignalingStateChangeEvent.bind(this);
-    this.handleNegotiationNeededEvent = this.handleNegotiationNeededEvent.bind(this);
+    this.handleSignalingStateChangeEvent = this.handleSignalingStateChangeEvent.bind(
+      this
+    );
+    this.handleNegotiationNeededEvent = this.handleNegotiationNeededEvent.bind(
+      this
+    );
     this.handleTrackEvent = this.handleTrackEvent.bind(this);
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
@@ -90,40 +95,6 @@ export default class Peer {
     });
   }
 
-  private _buildMediaElementByTrack(event: RTCTrackEvent) {
-    console.debug(
-      '_buildMediaElementByTrack',
-      event.track.kind,
-      event.track.id,
-      event.streams,
-      event
-    );
-    const streamIds = event.streams.map((stream) => stream.id);
-    switch (event.track.kind) {
-      case 'audio': {
-        const audio = buildAudioElementByTrack(event.track, streamIds);
-        if (this.options.speakerId) {
-          try {
-            // @ts-ignore
-            audio.setSinkId(this.options.speakerId);
-          } catch (error) {
-            console.debug('setSinkId not supported', this.options.speakerId);
-          }
-        }
-        // this.call.audioElements.push(audio);
-        break;
-      }
-      case 'video':
-        buildVideoElementByTrack(event.track, streamIds);
-        // this.call.videoElements.push(
-        //   buildVideoElementByTrack(event.track, streamIds)
-        // );
-        break;
-      default:
-        break;
-    }
-  }
-
   private handleSignalingStateChangeEvent(event) {
     logger.info('signalingState:', this.instance.signalingState);
 
@@ -143,6 +114,9 @@ export default class Peer {
 
   private handleNegotiationNeededEvent() {
     logger.info('Negotiation needed event');
+    if (this.instance.signalingState !== 'stable') {
+      return;
+    }
     this.startNegotiation();
   }
 
@@ -152,8 +126,6 @@ export default class Peer {
     } = event;
     const { remoteElement, screenShare } = this.options;
     let { remoteStream } = this.options;
-
-    this._buildMediaElementByTrack(event);
 
     remoteStream = first;
 
@@ -177,7 +149,7 @@ export default class Peer {
       (error) => {
         trigger(SwEvent.MediaError, error, this.options.id);
         return null;
-      },
+      }
     );
   }
 
@@ -284,22 +256,55 @@ export default class Peer {
       .catch((error) => logger.error('Peer _createOffer error:', error));
   }
 
-  private _createAnswer() {
+  private _setRemoteDescription(remoteDescription: RTCSessionDescriptionInit) {
+    if (this.options.useStereo) {
+      remoteDescription.sdp = sdpStereoHack(remoteDescription.sdp);
+    }
+    if (this.instance.localDescription) {
+      remoteDescription.sdp = sdpMediaOrderHack(
+        remoteDescription.sdp,
+        this.instance.localDescription.sdp
+      );
+    }
+    const sessionDescr: RTCSessionDescription = sdpToJsonHack(
+      remoteDescription
+    );
+    logger.info(
+      'REMOTE SDP \n',
+      `Type: ${remoteDescription.type}`,
+      '\n\n',
+      remoteDescription.sdp
+    );
+    return this.instance.setRemoteDescription(sessionDescr);
+  }
+
+  private async _createAnswer() {
     if (!this._isAnswer()) {
       return;
     }
-    const { remoteSdp, useStereo } = this.options;
-    const sdp = useStereo ? sdpStereoHack(remoteSdp) : remoteSdp;
-    const sessionDescr: RTCSessionDescription = sdpToJsonHack({
-      sdp,
+    if (this.instance.signalingState !== 'stable') {
+      console.log(
+        "  - But the signaling state isn't stable, so triggering rollback"
+      );
+
+      // Set the local and remove descriptions for rollback; don't proceed
+      // until both return.
+      await Promise.all([
+        this.instance.setLocalDescription({ type: 'rollback' }),
+        this.instance.setRemoteDescription({
+          sdp: this.options.remoteSdp,
+          type: PeerType.Offer,
+        }),
+      ]);
+      return;
+    }
+    await this._setRemoteDescription({
+      sdp: this.options.remoteSdp,
       type: PeerType.Offer,
     });
-    this.instance
-      .setRemoteDescription(sessionDescr)
-      .then(() => this.instance.createAnswer())
-      .then(this._setLocalDescription.bind(this))
-      .then(this._sdpReady)
-      .catch((error) => logger.error('Peer _createAnswer error:', error));
+    this._logTransceivers();
+    const answer = await this.instance.createAnswer();
+    await this._setLocalDescription(answer);
   }
 
   private _setLocalDescription(sessionDescription: RTCSessionDescriptionInit) {
