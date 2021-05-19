@@ -94,18 +94,17 @@ const setMediaElementSinkId = async (
 
 const sdpToJsonHack = (sdp) => sdp;
 
+const stopTrack = (track: MediaStreamTrack) => {
+  if (track && track.readyState === 'live') {
+    track.stop();
+  }
+};
+
 const stopStream = (stream: MediaStream) => {
   if (streamIsValid(stream)) {
     stream.getTracks().forEach(stopTrack);
   }
   stream = null;
-};
-
-const stopTrack = (track: MediaStreamTrack) => {
-  if (track && track.readyState === 'live') {
-    track.stop();
-    track.dispatchEvent(new Event('ended'));
-  }
 };
 
 const getHostname = () => window.location.hostname;

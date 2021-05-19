@@ -180,7 +180,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * @hidden
-   * 
+   *
    * Gets Telnyx call IDs, if using Telnyx Call Control services.
    * You can use these IDs to identify specific calls in your application code.
    *
@@ -1397,20 +1397,14 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
-    const {
-      remoteStream,
-      localStream,
-      remoteElement,
-      localElement,
-    } = this.options;
+    if (this.peer && this.peer.instance) {
+      this.peer.instance.close();
+      this.peer = null;
+    }
+    const { remoteStream, localStream } = this.options;
     stopStream(remoteStream);
     stopStream(localStream);
-    if (this.options.screenShare !== true) {
-      detachMediaStream(remoteElement);
-      detachMediaStream(localElement);
-    }
     deRegister(SwEvent.MediaError, null, this.id);
-    this.peer = null;
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
   }
