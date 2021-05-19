@@ -4,7 +4,7 @@
   "description": "Telnyx WebRTC Client API docs",
   "main": "lib/webrtc-api.json",
   "scripts": {
-    "build": "cd ../js && npm run docs -- --json ../api-docs/lib/webrtc-api.json",
+    "build": "rm -fr ./lib && mkdir ./lib && cd ../js && npm run docs -- --json ../api-docs/lib/webrtc-api.json",
     "prepare": "npm run build",
     "release": "../js/node_modules/.bin/release-it"
   },
