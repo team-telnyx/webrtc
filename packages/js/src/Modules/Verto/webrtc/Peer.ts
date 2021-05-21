@@ -237,7 +237,7 @@ export default class Peer {
     const sender = this._getSenderByKind(kind);
     if (!sender) {
       const transceiver = this.instance.addTransceiver(kind);
-      console.log('Add transceiver', kind, transceiver);
+      logger.info('Add transceiver', kind, transceiver);
     }
   }
 
@@ -315,8 +315,6 @@ export default class Peer {
       googleStartBitrate,
     } = this.options;
 
-    console.log('TYPE', this.type, sessionDescription);
-
     if (useStereo) {
       sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
     }
@@ -357,7 +355,7 @@ export default class Peer {
 
   private _config(): IChromeRTCConfiguration {
     const { iceServers = [] } = this.options;
-    console.log('iceServers ===>', iceServers);
+
     const config: IChromeRTCConfiguration = {
       sdpSemantics: 'unified-plan',
       bundlePolicy: 'max-compat',
