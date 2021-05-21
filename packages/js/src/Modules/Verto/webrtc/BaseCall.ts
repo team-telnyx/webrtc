@@ -1302,7 +1302,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this._iceTimeout === null) {
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        1000,
+        10000,
       );
     }
 
