@@ -58,13 +58,7 @@ class VertoHandler {
         callerNumber: params.callee_id_number,
         attach,
       };
-      // console.log('Entrou', callOptions.remoteSdp);
-      // if (callOptions.remoteSdp) {
-      //   console.log('Entrou', callOptions.remoteSdp);
-      //   callOptions.remoteSdp = toUnifiedPlan(callOptions.remoteSdp);
-      // }
 
-      console.log('params.sdp===>', callOptions.remoteSdp);
       if (params.telnyx_call_control_id) {
         callOptions.telnyxCallControlId = params.telnyx_call_control_id;
       }
