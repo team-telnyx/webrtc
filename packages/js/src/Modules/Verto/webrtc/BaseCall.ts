@@ -179,7 +179,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * @hidden
    *
    * Gets Telnyx call IDs, if using Telnyx Call Control services.
    * You can use these IDs to identify specific calls in your application code.
