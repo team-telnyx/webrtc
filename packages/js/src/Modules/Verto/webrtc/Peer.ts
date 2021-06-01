@@ -14,9 +14,6 @@ import {
   sdpToJsonHack,
   RTCPeerConnection,
   streamIsValid,
-  buildAudioElementByTrack,
-  buildVideoElementByTrack,
-  stopTrack,
 } from '../util/webrtc';
 import { isFunction } from '../util/helpers';
 import { IVertoCallOptions, IChromeRTCConfiguration } from './interfaces';

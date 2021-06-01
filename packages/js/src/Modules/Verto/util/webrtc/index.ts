@@ -107,68 +107,6 @@ const stopStream = (stream: MediaStream) => {
   stream = null;
 };
 
-const getHostname = () => window.location.hostname;
-
-const buildVideoElementByTrack = (
-  videoTrack: MediaStreamTrack,
-  streamIds: string[] = []
-) => {
-  const video = document.createElement('video');
-  video.muted = true;
-  video.autoplay = true;
-  // @ts-ignore
-  video.playsinline = true;
-  // @ts-ignore
-  video._streamIds = streamIds;
-
-  const mediaStream = new MediaStream([videoTrack]);
-  video.srcObject = mediaStream;
-
-  const onCanPlay = () => console.debug('video can play!');
-  const onPlay = () => console.debug('video is now playing...');
-  video.addEventListener('play', onPlay);
-  video.addEventListener('canplay', onCanPlay);
-  videoTrack.addEventListener('ended', () => {
-    video.removeEventListener('play', onPlay);
-    video.removeEventListener('canplay', onCanPlay);
-    video.srcObject = null;
-    // @ts-ignore
-    delete video._streamIds;
-    video.remove();
-  });
-  return video;
-};
-
-const buildAudioElementByTrack = (
-  audioTrack: MediaStreamTrack,
-  streamIds: string[] = []
-) => {
-  const audio = new Audio();
-  audio.autoplay = true;
-  // @ts-ignore
-  audio.playsinline = true;
-  // @ts-ignore
-  audio._streamIds = streamIds;
-
-  const mediaStream = new MediaStream([audioTrack]);
-  audio.srcObject = mediaStream;
-
-  const onCanPlay = () => console.debug('audio can play!');
-  const onPlay = () => console.debug('audio is now playing...');
-  audio.addEventListener('play', onPlay);
-  audio.addEventListener('canplay', onCanPlay);
-  audioTrack.addEventListener('ended', () => {
-    audio.removeEventListener('play', onPlay);
-    audio.removeEventListener('canplay', onCanPlay);
-    audio.srcObject = null;
-    // @ts-ignore
-    delete audio._streamIds;
-    audio.remove();
-  });
-
-  return audio;
-};
-
 export {
   RTCPeerConnection,
   getUserMedia,
@@ -186,7 +124,4 @@ export {
   unmuteMediaElement,
   toggleMuteMediaElement,
   setMediaElementSinkId,
-  getHostname,
-  buildVideoElementByTrack,
-  buildAudioElementByTrack,
 };
