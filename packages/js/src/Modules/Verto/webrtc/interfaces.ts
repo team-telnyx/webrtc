@@ -87,12 +87,6 @@ export interface IWebRTCCall {
   switchCamera?: () => void;
   setSpeakerPhone?: (flag: boolean) => void;
 }
-
-// https://webrtc.org/getting-started/unified-plan-transition-guide
-export interface IChromeRTCConfiguration extends RTCConfiguration {
-  sdpSemantics?: 'plan-b' | 'unified-plan';
-}
-
 export interface IWebRTCInfo {
   browserInfo: any;
   browserName: string;
