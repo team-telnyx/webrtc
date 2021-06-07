@@ -71,6 +71,8 @@ export interface IWebRTCCall {
   deaf: () => void;
   undeaf: () => void;
   toggleDeaf: () => void;
+  setAudioBandwidthMin: (min: number) => void,
+  setAudioBandwidthMax: (max: number) => void,
   setState: (state: any) => void;
   // Privates
   handleMessage: (msg: any) => void;
