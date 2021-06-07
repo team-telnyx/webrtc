@@ -287,30 +287,6 @@ const destructSubscribeResponse = (response: any): DestructuredResult => {
   return tmp;
 };
 
-const enableAudioTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'audio', true);
-};
-
-const disableAudioTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'audio', false);
-};
-
-const toggleAudioTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'audio', null);
-};
-
-const enableVideoTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'video', true);
-};
-
-const disableVideoTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'video', false);
-};
-
-const toggleVideoTracks = (stream: MediaStream) => {
-  _updateMediaStreamTracks(stream, 'video', null);
-};
-
 const _updateMediaStreamTracks = (
   stream: MediaStream,
   kind: string = null,
@@ -346,6 +322,30 @@ const _updateMediaStreamTracks = (
         break;
     }
   });
+};
+
+const enableAudioTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'audio', true);
+};
+
+const disableAudioTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'audio', false);
+};
+
+const toggleAudioTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'audio', null);
+};
+
+const enableVideoTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'video', true);
+};
+
+const disableVideoTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'video', false);
+};
+
+const toggleVideoTracks = (stream: MediaStream) => {
+  _updateMediaStreamTracks(stream, 'video', null);
 };
 
 /**

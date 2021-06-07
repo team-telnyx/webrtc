@@ -1251,15 +1251,20 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._iceDone = true;
     const { sdp, type } = data;
     if (sdp.indexOf('candidate') === -1) {
+      logger.info('No candidate - retry \n');
       this._requestAnotherLocalDescription();
       return;
     }
+
+    this.peer.instance.removeEventListener('icecandidate', this._onIce);
+
     let msg = null;
     const tmpParams = {
       sessid: this.session.sessionid,
       sdp,
       dialogParams: this.options,
     };
+  
     switch (type) {
       case PeerType.Offer:
         this.setState(State.Requesting);
@@ -1276,6 +1281,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error(`${this.id} - Unknown local SDP type:`, data);
         return this.hangup({}, false);
     }
+
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1290,6 +1296,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
+  private _onIce(event: RTCPeerConnectionIceEvent) {
+    const { instance } = this.peer;
+    if (this._iceTimeout === null) {
+      this._iceTimeout = setTimeout(
+        () => this._onIceSdp(instance.localDescription),
+        1000,
+      );
+    }
+
+    if (event.candidate) {
+      logger.debug('RTCPeer Candidate:', event.candidate);
+    } else {
+      this._onIceSdp(instance.localDescription);
+    }
+    
+  }
+
   private _registerPeerEvents() {
     const { instance } = this.peer;
     this._iceDone = false;
@@ -1297,17 +1320,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (this._iceDone) {
         return;
       }
-      if (this._iceTimeout === null) {
-        this._iceTimeout = setTimeout(
-          () => this._onIceSdp(instance.localDescription),
-          1000
-        );
-      }
-      if (event.candidate) {
-        logger.info('IceCandidate:', event.candidate);
-      } else {
-        this._onIceSdp(instance.localDescription);
-      }
+      this._onIce(event);
     };
 
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
@@ -1396,20 +1409,14 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
-    const {
-      remoteStream,
-      localStream,
-      remoteElement,
-      localElement,
-    } = this.options;
+    if (this.peer && this.peer.instance) {
+      this.peer.instance.close();
+      this.peer = null;
+    }
+    const { remoteStream, localStream } = this.options;
     stopStream(remoteStream);
     stopStream(localStream);
-    if (this.options.screenShare !== true) {
-      detachMediaStream(remoteElement);
-      detachMediaStream(localElement);
-    }
     deRegister(SwEvent.MediaError, null, this.id);
-    this.peer = null;
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
   }

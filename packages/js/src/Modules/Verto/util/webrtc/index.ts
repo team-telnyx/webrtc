@@ -1,4 +1,5 @@
 import { findElementByType } from '../helpers';
+import logger from '../logger';
 
 const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
   new window.RTCPeerConnection(config);
@@ -6,11 +7,20 @@ const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
 const getUserMedia = (constraints: MediaStreamConstraints) =>
   navigator.mediaDevices.getUserMedia(constraints);
 
-const getDisplayMedia = (constraints: MediaStreamConstraints) =>
-  // @ts-ignore
-  navigator.mediaDevices.getDisplayMedia(constraints);
+// @ts-ignore
+const getDisplayMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getDisplayMedia(constraints)
 
 const enumerateDevices = () => navigator.mediaDevices.enumerateDevices();
+
+const enumerateDevicesByKind = async (filterByKind: string = null) => {
+  let devices: MediaDeviceInfo[] = await enumerateDevices().catch(
+    (error) => []
+  );
+  if (filterByKind) {
+    devices = devices.filter(({ kind }) => kind === filterByKind);
+  }
+  return devices;
+};
 
 const getSupportedConstraints = () =>
   navigator.mediaDevices.getSupportedConstraints();
@@ -29,7 +39,6 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   if (!element.getAttribute('playsinline')) {
     element.setAttribute('playsinline', 'playsinline');
   }
-
   element.srcObject = stream;
 };
 
@@ -67,6 +76,11 @@ const setMediaElementSinkId = async (
 ): Promise<boolean> => {
   const element: HTMLMediaElement = findElementByType(tag);
   if (element === null) {
+    logger.info('No HTMLMediaElement to attach the speakerId');
+    return false;
+  }
+  if (typeof deviceId !== 'string') {
+    logger.info(`Invalid speaker deviceId: '${deviceId}'`);
     return false;
   }
   try {
@@ -80,9 +94,15 @@ const setMediaElementSinkId = async (
 
 const sdpToJsonHack = (sdp) => sdp;
 
+const stopTrack = (track: MediaStreamTrack) => {
+  if (track && track.readyState === 'live') {
+    track.stop();
+  }
+};
+
 const stopStream = (stream: MediaStream) => {
   if (streamIsValid(stream)) {
-    stream.getTracks().forEach((t) => t.stop());
+    stream.getTracks().forEach(stopTrack);
   }
   stream = null;
 };
@@ -92,12 +112,14 @@ export {
   getUserMedia,
   getDisplayMedia,
   enumerateDevices,
+  enumerateDevicesByKind,
   getSupportedConstraints,
   streamIsValid,
   attachMediaStream,
   detachMediaStream,
   sdpToJsonHack,
   stopStream,
+  stopTrack,
   muteMediaElement,
   unmuteMediaElement,
   toggleMuteMediaElement,

@@ -22,7 +22,7 @@ export interface IVertoCallOptions {
   camId?: string;
   camLabel?: string;
   speakerId?: string;
-  userVariables?: Object;
+  userVariables?: { [key: string]: any }
   screenShare?: boolean;
   onNotification?: Function;
   googleMaxBitrate?: number;
@@ -35,6 +35,9 @@ export interface IVertoCallOptions {
   telnyxSessionId?: string;
   telnyxLegId?: string;
   clientState?: string;
+  skipNotifications?: boolean
+  negotiateAudio?: boolean
+  negotiateVideo?: boolean
 }
 
 export interface IWebRTCCall {
