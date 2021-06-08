@@ -706,6 +706,47 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
+  setAudioBandwidth(min: number, max: number) {
+    const { instance } = this.peer;
+    const sender = instance
+        .getSenders()
+        .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
+
+    if (sender) {
+
+        let p = sender.getParameters();
+        const parameters = p as RTCRtpSendParameters;
+        if (!parameters.encodings) {
+          parameters.encodings = [{ rid : 'h' }];
+        }
+        logger.info("Parameters: ", parameters);
+
+        if (min) {
+            logger.info("Setting min audio bandwidth to: ", min, " [kbps]");
+            //parameters.encodings[0].minBitrate = min * 1024;
+        }
+        if (max) {
+            logger.info("Setting max audio bandwidth to: ", max, " [kbps]");
+            parameters.encodings[0].maxBitrate = max * 1024;
+        }
+        sender.setParameters(parameters)
+            .then(() => {
+                logger.info("New audio bandwidth settings in use: ", sender.getParameters());
+                })
+                .catch(e => console.error(e));
+    } else {
+        logger.error("Could not set audio bandwidth");
+    }
+  }
+
+  setAudioBandwidthMin(min: number) {
+    this.setAudioBandwidth(min, null);
+  }
+
+  setAudioBandwidthMax(max: number) {
+    this.setAudioBandwidth(null, max);
+  }
+
   setState(state: State) {
     this._prevState = this._state;
     this._state = state;
