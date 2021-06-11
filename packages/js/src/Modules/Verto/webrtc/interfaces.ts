@@ -38,6 +38,7 @@ export interface IVertoCallOptions {
   skipNotifications?: boolean
   negotiateAudio?: boolean
   negotiateVideo?: boolean
+  mediaSettings: { useSdpASBandwidth: boolean, sdpASBandwidth: number };
 }
 
 export interface IWebRTCCall {
@@ -74,8 +75,8 @@ export interface IWebRTCCall {
   deaf: () => void;
   undeaf: () => void;
   toggleDeaf: () => void;
-  setAudioBandwidthMin: (min: number) => void,
-  setAudioBandwidthMax: (max: number) => void,
+  setAudioBandwidthEncodingsMax: (max: number) => void,
+  setVideoBandwidthEncodingsMax: (max: number) => void,
   setState: (state: any) => void;
   // Privates
   handleMessage: (msg: any) => void;

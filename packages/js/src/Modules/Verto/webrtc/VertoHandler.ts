@@ -57,6 +57,7 @@ class VertoHandler {
         callerName: params.callee_id_name,
         callerNumber: params.callee_id_number,
         attach,
+        mediaSettings: params.mediaSettings
       };
 
       if (params.telnyx_call_control_id) {
