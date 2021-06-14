@@ -706,7 +706,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
-  setBandwidthEncodingsMax(max: number, _kind: string) {
+  setBandwidthEncodingsMaxBps(max: number, _kind: string) {
     const { instance } = this.peer;
     const sender = instance
         .getSenders()
@@ -720,9 +720,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           parameters.encodings = [{ rid : 'h' }];
         }
         logger.info("Parameters: ", parameters);
-        logger.info("Setting max ", _kind === 'audio' ? "audio" : "video", " bandwidth to: ", max, " [kbps]");
+        logger.info("Setting max ", _kind === 'audio' ? "audio" : "video", " bandwidth to: ", max, " [bps]");
 
-        parameters.encodings[0].maxBitrate = max * 1024;
+        parameters.encodings[0].maxBitrate = max;
 
         sender.setParameters(parameters)
             .then(() => {
@@ -734,12 +734,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  setAudioBandwidthEncodingsMax(max: number) {
-    this.setBandwidthEncodingsMax(max, 'audio');
+  setAudioBandwidthEncodingsMaxBps(max: number) {
+    this.setBandwidthEncodingsMaxBps(max, 'audio');
   }
 
-  setVideoBandwidthEncodingsMax(max: number) {
-    this.setBandwidthEncodingsMax(max, 'video');
+  setVideoBandwidthEncodingsMaxBps(max: number) {
+    this.setBandwidthEncodingsMaxBps(max, 'video');
   }
 
   setState(state: State) {
