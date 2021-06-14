@@ -375,9 +375,19 @@ const sdpBitrateHack = (
 
 const sdpBitrateASHack = (
   sdp: string,
-  bandwidth: number
+  bandwidth_kbps: number
 ) => {
   let modifier = 'AS';
+  let bandwidth = bandwidth_kbps;
+
+  if (
+    navigator.userAgent.match(/firefox/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    modifier = 'TIAS';
+    bandwidth = (bandwidth_kbps >>> 0) * 1000;
+  }
 
   if (sdp.indexOf('b=' + modifier + ':') === -1) {
     // insert b= after c= line.
