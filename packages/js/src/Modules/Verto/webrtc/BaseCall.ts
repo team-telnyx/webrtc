@@ -730,7 +730,7 @@ export default abstract class BaseCall implements IWebRTCCall {
                 })
                 .catch(e => console.error(e));
     } else {
-        logger.error("Could not set bandwidth");
+        logger.error("Could not set bandwidth. Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
     }
   }
 

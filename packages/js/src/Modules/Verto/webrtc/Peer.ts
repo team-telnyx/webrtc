@@ -327,7 +327,7 @@ export default class Peer {
       );
     }
 
-    if (mediaSettings.useSdpASBandwidth_kbps && mediaSettings.sdpASBandwidth_kbps != null) {
+    if (mediaSettings && mediaSettings.useSdpASBandwidth_kbps && mediaSettings.sdpASBandwidth_kbps != null) {
       sessionDescription.sdp = sdpBitrateASHack(sessionDescription.sdp, mediaSettings.sdpASBandwidth_kbps);
     }
     return this.instance.setLocalDescription(sessionDescription);
