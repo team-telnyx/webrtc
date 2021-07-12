@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "build": "rollup -c",
+    "watch": "rollup -c --watch",
     "prepare": "npm run build",
     "test": "jest",
     "docs": "typedoc src",
