@@ -1,5 +1,6 @@
 import logger from '../util/logger';
 import BaseCall from './BaseCall';
+import BrowserSession from '../BrowserSession';
 import { IVertoCallOptions } from './interfaces';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 
@@ -54,6 +55,11 @@ export class Call extends BaseCall {
   public screenShare: Call;
 
   private _statsInterval: any = null;
+
+  constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
+    super(session, opts);
+    this._stats(opts.stats !== undefined);
+  }
 
   hangup(params: any = {}, execute: boolean = true) {
     if (this.screenShare instanceof Call) {

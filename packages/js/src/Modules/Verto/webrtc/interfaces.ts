@@ -38,6 +38,7 @@ export interface IVertoCallOptions {
   skipNotifications?: boolean
   negotiateAudio?: boolean
   negotiateVideo?: boolean
+  stats?: boolean
 }
 
 export interface IWebRTCCall {
