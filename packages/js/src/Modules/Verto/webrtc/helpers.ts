@@ -375,18 +375,19 @@ const sdpBitrateHack = (
 
 const sdpBitrateASHack = (
   sdp: string,
-  bandwidth_kbps: number
+  bandwidthKbps: number
 ) => {
   let modifier = 'AS';
-  let bandwidth = bandwidth_kbps;
+  let bandwidth = bandwidthKbps;
 
   if (
     navigator.userAgent.match(/firefox/gim) &&
     !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
     !navigator.userAgent.match(/edg/gim)
   ) {
+    const BITS_PER_KILOBITS = 1000;
     modifier = 'TIAS';
-    bandwidth = (bandwidth_kbps >>> 0) * 1000;
+    bandwidth = (bandwidthKbps >>> 0) * BITS_PER_KILOBITS;
   }
 
   if (sdp.indexOf('b=' + modifier + ':') === -1) {

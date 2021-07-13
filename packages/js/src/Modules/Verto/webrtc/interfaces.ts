@@ -1,3 +1,8 @@
+export interface IMediaSettings {
+  useSdpASBandwidthKbps: boolean,
+  sdpASBandwidthKbps: number
+}
+
 export interface IVertoCallOptions {
   // Required
   destinationNumber: string;
@@ -38,7 +43,7 @@ export interface IVertoCallOptions {
   skipNotifications?: boolean
   negotiateAudio?: boolean
   negotiateVideo?: boolean
-  mediaSettings: { useSdpASBandwidth_kbps: boolean, sdpASBandwidth_kbps: number };
+  mediaSettings?: IMediaSettings;
 }
 
 export interface IWebRTCCall {

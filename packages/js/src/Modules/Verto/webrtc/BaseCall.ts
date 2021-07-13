@@ -706,11 +706,21 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
-  setBandwidthEncodingsMaxBps(max: number, _kind: string) {
+  async setBandwidthEncodingsMaxBps(max: number, _kind: string) {
+
+    if (!this || !this.peer) {
+      logger.error("Could not set bandwidth (reason: no peer connection). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      return;
+    }
+  
     const { instance } = this.peer;
-    const sender = instance
-        .getSenders()
-        .find(({ track: { kind } }: RTCRtpSender) => kind === _kind);
+    const senders = instance.getSenders();
+    if (!senders) {
+      logger.error("Could not set bandwidth (reason: no senders). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      return;
+    }
+
+    const sender = senders.find(({ track: { kind } }: RTCRtpSender) => kind === _kind);
 
     if (sender) {
 
@@ -724,13 +734,13 @@ export default abstract class BaseCall implements IWebRTCCall {
 
         parameters.encodings[0].maxBitrate = max;
 
-        sender.setParameters(parameters)
+        await sender.setParameters(parameters)
             .then(() => {
                 logger.info( _kind === 'audio' ? "New audio" : "New video", " bandwidth settings in use: ", sender.getParameters());
                 })
                 .catch(e => console.error(e));
     } else {
-        logger.error("Could not set bandwidth. Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+        logger.error("Could not set bandwidth (reason: no " + _kind + " sender). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
     }
   }
 

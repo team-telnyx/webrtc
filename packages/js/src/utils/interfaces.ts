@@ -178,7 +178,7 @@ export interface ICallOptions {
   /**
    * Configures media (audio/video) in a call.
    */
-  mediaSettings: { useSdpASBandwidth_kbps: boolean, sdpASBandwidth_kbps: number };
+  mediaSettings: { useSdpASBandwidthKbps: boolean, sdpASBandwidthKbps: number };
 }
 
 /**
