@@ -311,7 +311,7 @@ export default class Peer {
       googleMaxBitrate,
       googleMinBitrate,
       googleStartBitrate,
-      mediaSettings
+      mediaSettings,
     } = this.options;
 
     if (useStereo) {
@@ -327,8 +327,15 @@ export default class Peer {
       );
     }
 
-    if (mediaSettings && mediaSettings.useSdpASBandwidthKbps && mediaSettings.sdpASBandwidthKbps !== null) {
-      sessionDescription.sdp = sdpBitrateASHack(sessionDescription.sdp, mediaSettings.sdpASBandwidthKbps);
+    if (
+      mediaSettings &&
+      mediaSettings.useSdpASBandwidthKbps &&
+      mediaSettings.sdpASBandwidthKbps !== null
+    ) {
+      sessionDescription.sdp = sdpBitrateASHack(
+        sessionDescription.sdp,
+        mediaSettings.sdpASBandwidthKbps
+      );
     }
     return this.instance.setLocalDescription(sessionDescription);
   }

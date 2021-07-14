@@ -373,10 +373,7 @@ const sdpBitrateHack = (
   return lines.join(endOfLine);
 };
 
-const sdpBitrateASHack = (
-  sdp: string,
-  bandwidthKbps: number
-) => {
+const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
   let modifier = 'AS';
   let bandwidth = bandwidthKbps;
 
@@ -392,9 +389,15 @@ const sdpBitrateASHack = (
 
   if (sdp.indexOf('b=' + modifier + ':') === -1) {
     // insert b= after c= line.
-    sdp = sdp.replace(/c=IN (.*)\r\n/, 'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n');
+    sdp = sdp.replace(
+      /c=IN (.*)\r\n/,
+      'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n'
+    );
   } else {
-    sdp = sdp.replace(new RegExp('b=' + modifier + ':.*\r\n'), 'b=' + modifier + ':' + bandwidth + '\r\n');
+    sdp = sdp.replace(
+      new RegExp('b=' + modifier + ':.*\r\n'),
+      'b=' + modifier + ':' + bandwidth + '\r\n'
+    );
   }
 
   return sdp;

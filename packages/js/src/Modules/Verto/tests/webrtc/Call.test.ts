@@ -4,8 +4,7 @@ import Call from '../../webrtc/Call';
 import Verto from '../..';
 const Connection = require('../../services/Connection');
 
-function getBitrate(call, kind)
-{
+function getBitrate(call, kind) {
   if (!call || !call.peer) {
     return 0;
   }
@@ -16,10 +15,11 @@ function getBitrate(call, kind)
     return 0;
   }
 
-  const sender = senders.find(({ track: { kind } }: RTCRtpSender) => kind === kind);
+  const sender = senders.find(
+    ({ track: { kind } }: RTCRtpSender) => kind === kind
+  );
 
   if (sender) {
-
     let p = sender.getParameters();
     const parameters = p as RTCRtpSendParameters;
     if (!parameters.encodings) {
