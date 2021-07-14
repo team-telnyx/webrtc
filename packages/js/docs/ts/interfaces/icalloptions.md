@@ -17,6 +17,7 @@ ICallOptions
 - [id](icalloptions.md#id)
 - [localElement](icalloptions.md#localelement)
 - [localStream](icalloptions.md#localstream)
+- [mediaSettings](icalloptions.md#mediasettings)
 - [micId](icalloptions.md#micid)
 - [onNotification](icalloptions.md#onnotification)
 - [remoteElement](icalloptions.md#remoteelement)
@@ -99,6 +100,16 @@ ___
 • `Optional` **localStream**: MediaStream
 
 If set, the call will use this stream instead of retrieving a new one.
+
+___
+
+### mediaSettings
+
+• **mediaSettings**: *object*
+
+Configures media (audio/video) in a call.
+
+#### Type declaration:
 
 ___
 
