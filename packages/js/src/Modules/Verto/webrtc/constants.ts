@@ -50,6 +50,7 @@ export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   attach: false,
   screenShare: false,
   userVariables: {},
+  mediaSettings: { useSdpASBandwidthKbps: false, sdpASBandwidthKbps: 0 },
 };
 
 export enum State {

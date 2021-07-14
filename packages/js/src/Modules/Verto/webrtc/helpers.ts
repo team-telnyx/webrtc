@@ -373,6 +373,36 @@ const sdpBitrateHack = (
   return lines.join(endOfLine);
 };
 
+const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
+  let modifier = 'AS';
+  let bandwidth = bandwidthKbps;
+
+  if (
+    navigator.userAgent.match(/firefox/gim) &&
+    !navigator.userAgent.match(/OPR\/[0-9]{2}/gi) &&
+    !navigator.userAgent.match(/edg/gim)
+  ) {
+    const BITS_PER_KILOBITS = 1000;
+    modifier = 'TIAS';
+    bandwidth = (bandwidthKbps >>> 0) * BITS_PER_KILOBITS;
+  }
+
+  if (sdp.indexOf('b=' + modifier + ':') === -1) {
+    // insert b= after c= line.
+    sdp = sdp.replace(
+      /c=IN (.*)\r\n/,
+      'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n'
+    );
+  } else {
+    sdp = sdp.replace(
+      new RegExp('b=' + modifier + ':.*\r\n'),
+      'b=' + modifier + ':' + bandwidth + '\r\n'
+    );
+  }
+
+  return sdp;
+};
+
 function getBrowserInfo() {
   if (!window || !window.navigator || !window.navigator.userAgent) {
     throw new Error(
@@ -680,6 +710,7 @@ export {
   sdpStereoHack,
   sdpMediaOrderHack,
   sdpBitrateHack,
+  sdpBitrateASHack,
   checkSubscribeResponse,
   destructSubscribeResponse,
   enableAudioTracks,

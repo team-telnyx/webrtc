@@ -95,7 +95,7 @@ export default class Connection {
 
   send(bladeObj: any): Promise<any> {
     const { request } = bladeObj;
-	  const promise = new Promise<void>((resolve, reject) => {
+    const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
       }

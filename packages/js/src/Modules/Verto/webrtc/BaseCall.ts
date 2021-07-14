@@ -706,11 +706,21 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
-  setAudioBandwidth(min: number, max: number) {
+  async setBandwidthEncodingsMaxBps(max: number, _kind: string) {
+
+    if (!this || !this.peer) {
+      logger.error("Could not set bandwidth (reason: no peer connection). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      return;
+    }
+  
     const { instance } = this.peer;
-    const sender = instance
-        .getSenders()
-        .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
+    const senders = instance.getSenders();
+    if (!senders) {
+      logger.error("Could not set bandwidth (reason: no senders). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      return;
+    }
+
+    const sender = senders.find(({ track: { kind } }: RTCRtpSender) => kind === _kind);
 
     if (sender) {
 
@@ -720,31 +730,26 @@ export default abstract class BaseCall implements IWebRTCCall {
           parameters.encodings = [{ rid : 'h' }];
         }
         logger.info("Parameters: ", parameters);
+        logger.info("Setting max ", _kind === 'audio' ? "audio" : "video", " bandwidth to: ", max, " [bps]");
 
-        if (min) {
-            logger.info("Setting min audio bandwidth to: ", min, " [kbps]");
-            //parameters.encodings[0].minBitrate = min * 1024;
-        }
-        if (max) {
-            logger.info("Setting max audio bandwidth to: ", max, " [kbps]");
-            parameters.encodings[0].maxBitrate = max * 1024;
-        }
-        sender.setParameters(parameters)
+        parameters.encodings[0].maxBitrate = max;
+
+        await sender.setParameters(parameters)
             .then(() => {
-                logger.info("New audio bandwidth settings in use: ", sender.getParameters());
+                logger.info( _kind === 'audio' ? "New audio" : "New video", " bandwidth settings in use: ", sender.getParameters());
                 })
                 .catch(e => console.error(e));
     } else {
-        logger.error("Could not set audio bandwidth");
+        logger.error("Could not set bandwidth (reason: no " + _kind + " sender). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
     }
   }
 
-  setAudioBandwidthMin(min: number) {
-    this.setAudioBandwidth(min, null);
+  setAudioBandwidthEncodingsMaxBps(max: number) {
+    this.setBandwidthEncodingsMaxBps(max, 'audio');
   }
 
-  setAudioBandwidthMax(max: number) {
-    this.setAudioBandwidth(null, max);
+  setVideoBandwidthEncodingsMaxBps(max: number) {
+    this.setBandwidthEncodingsMaxBps(max, 'video');
   }
 
   setState(state: State) {

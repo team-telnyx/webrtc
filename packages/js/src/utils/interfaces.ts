@@ -174,6 +174,11 @@ export interface ICallOptions {
    * Overrides client's default `telnyx.notification` handler for this call.
    */
   onNotification?: Function;
+
+  /**
+   * Configures media (audio/video) in a call.
+   */
+  mediaSettings: { useSdpASBandwidthKbps: boolean, sdpASBandwidthKbps: number };
 }
 
 /**

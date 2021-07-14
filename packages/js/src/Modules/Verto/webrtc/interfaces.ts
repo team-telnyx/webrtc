@@ -1,3 +1,8 @@
+export interface IMediaSettings {
+  useSdpASBandwidthKbps: boolean;
+  sdpASBandwidthKbps: number;
+}
+
 export interface IVertoCallOptions {
   // Required
   destinationNumber: string;
@@ -22,7 +27,7 @@ export interface IVertoCallOptions {
   camId?: string;
   camLabel?: string;
   speakerId?: string;
-  userVariables?: { [key: string]: any }
+  userVariables?: { [key: string]: any };
   screenShare?: boolean;
   onNotification?: Function;
   googleMaxBitrate?: number;
@@ -35,9 +40,10 @@ export interface IVertoCallOptions {
   telnyxSessionId?: string;
   telnyxLegId?: string;
   clientState?: string;
-  skipNotifications?: boolean
-  negotiateAudio?: boolean
-  negotiateVideo?: boolean
+  skipNotifications?: boolean;
+  negotiateAudio?: boolean;
+  negotiateVideo?: boolean;
+  mediaSettings?: IMediaSettings;
 }
 
 export interface IWebRTCCall {
@@ -74,8 +80,8 @@ export interface IWebRTCCall {
   deaf: () => void;
   undeaf: () => void;
   toggleDeaf: () => void;
-  setAudioBandwidthMin: (min: number) => void,
-  setAudioBandwidthMax: (max: number) => void,
+  setAudioBandwidthEncodingsMaxBps: (max: number) => void;
+  setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   setState: (state: any) => void;
   // Privates
   handleMessage: (msg: any) => void;
@@ -103,9 +109,9 @@ export interface IWebRTCInfo {
   supportGetUserMedia: boolean;
 }
 export interface IWebRTCBrowser {
-  browserName: string
+  browserName: string;
   features?: Array<string>;
-  supported: string
+  supported: string;
 }
 export interface IWebRTCSupportedBrowser {
   operationSystem: string;

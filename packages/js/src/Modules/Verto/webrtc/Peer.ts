@@ -4,6 +4,7 @@ import {
   getMediaConstraints,
   sdpStereoHack,
   sdpBitrateHack,
+  sdpBitrateASHack,
   sdpMediaOrderHack,
 } from './helpers';
 import { SwEvent } from '../util/constants';
@@ -310,6 +311,7 @@ export default class Peer {
       googleMaxBitrate,
       googleMinBitrate,
       googleStartBitrate,
+      mediaSettings,
     } = this.options;
 
     if (useStereo) {
@@ -322,6 +324,17 @@ export default class Peer {
         googleMaxBitrate,
         googleMinBitrate,
         googleStartBitrate
+      );
+    }
+
+    if (
+      mediaSettings &&
+      mediaSettings.useSdpASBandwidthKbps &&
+      mediaSettings.sdpASBandwidthKbps !== null
+    ) {
+      sessionDescription.sdp = sdpBitrateASHack(
+        sessionDescription.sdp,
+        mediaSettings.sdpASBandwidthKbps
       );
     }
     return this.instance.setLocalDescription(sessionDescription);

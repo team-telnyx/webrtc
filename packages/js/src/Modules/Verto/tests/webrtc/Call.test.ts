@@ -4,6 +4,32 @@ import Call from '../../webrtc/Call';
 import Verto from '../..';
 const Connection = require('../../services/Connection');
 
+function getBitrate(call, kind) {
+  if (!call || !call.peer) {
+    return 0;
+  }
+
+  const { instance } = call.peer;
+  const senders = instance.getSenders();
+  if (!senders) {
+    return 0;
+  }
+
+  const sender = senders.find(
+    ({ track: { kind } }: RTCRtpSender) => kind === kind
+  );
+
+  if (sender) {
+    let p = sender.getParameters();
+    const parameters = p as RTCRtpSendParameters;
+    if (!parameters.encodings) {
+      return 0;
+    }
+
+    return parameters.encodings[0].maxBitrate;
+  }
+}
+
 describe('Call', () => {
   let session: Verto;
   let call: Call;
@@ -482,6 +508,26 @@ describe('Call', () => {
       call.setState(State.Answering);
       Call.setStateTelnyx(call);
       expect(call.state).toEqual('ringing');
+    });
+  });
+
+  describe('.setAudioBandwidthEncodingsMaxBps()', () => {
+    it('if audio is used it should set audio max bitrate to 200 kbits/s', () => {
+      const maxBitsPerSecond = 200000;
+      if (call.options.audio && call.peer) {
+        call.setAudioBandwidthEncodingsMaxBps(maxBitsPerSecond);
+        expect(getBitrate(call, 'audio')).toEqual(maxBitsPerSecond);
+      }
+    });
+  });
+
+  describe('.setVideoBandwidthEncodingsMaxBps()', () => {
+    it('if video is used it should set video max bitrate to 300 kbits/s', () => {
+      const maxBitsPerSecond = 300000;
+      if (call.options.video && call.peer) {
+        call.setVideoBandwidthEncodingsMaxBps(maxBitsPerSecond);
+        expect(getBitrate(call, 'video')).toEqual(maxBitsPerSecond);
+      }
     });
   });
 });
