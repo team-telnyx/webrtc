@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",
@@ -9,7 +9,9 @@
     "json-rpc",
     "soft phone",
     "freeswitch",
-    "voip"
+    "voip",
+    "audio",
+    "video"
   ],
   "main": "lib/bundle.js",
   "module": "lib/bundle.mjs",
