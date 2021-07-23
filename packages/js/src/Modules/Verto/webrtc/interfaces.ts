@@ -46,6 +46,11 @@ export interface IVertoCallOptions {
   mediaSettings?: IMediaSettings;
 }
 
+export interface IStatsBinding {
+  constraints: any;
+  callback: Function;
+}
+
 export interface IWebRTCCall {
   id: string;
   state: string;
@@ -82,6 +87,7 @@ export interface IWebRTCCall {
   toggleDeaf: () => void;
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
+  getStats: (callback: Function, constraints: any) => void;
   setState: (state: any) => void;
   // Privates
   handleMessage: (msg: any) => void;

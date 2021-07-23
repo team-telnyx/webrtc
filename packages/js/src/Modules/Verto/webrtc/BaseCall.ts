@@ -32,7 +32,7 @@ import {
   stopAudio,
 } from './helpers';
 import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import { IVertoCallOptions, IWebRTCCall, IAudio } from './interfaces';
+import { IVertoCallOptions, IWebRTCCall, IAudio, IStatsBinding } from './interfaces';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -125,6 +125,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
+
+  private _statsBindings: IStatsBinding[] = [];
+  
+  private _statsIntervalId:  any = null;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -750,6 +754,26 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   setVideoBandwidthEncodingsMaxBps(max: number) {
     this.setBandwidthEncodingsMaxBps(max, 'video');
+  }
+
+  /**
+   * Registers callback for stats.
+   * 
+   * @param callback 
+   * @param constraints 
+   * @returns 
+   */
+  getStats(callback: Function, constraints: any) {
+    if (!callback) {
+      return;
+    }
+    const binding: IStatsBinding = { callback: callback, constraints: constraints };
+    this._statsBindings.push(binding);
+  
+    if (!this._statsIntervalId) {
+      const STATS_INTERVAL = 5000;
+      this._startStats(STATS_INTERVAL);
+    }
   }
 
   setState(state: State) {
@@ -1455,6 +1479,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    this._stopStats();
     if (this.peer && this.peer.instance) {
       this.peer.instance.close();
       this.peer = null;
@@ -1465,6 +1490,51 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.MediaError, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
+  }
+
+  private _startStats(interval: number) {
+    this._statsIntervalId = setInterval(this._doStats, interval);
+    logger.info('Stats started');
+  }
+
+  private _stopStats() {
+    if (this._statsIntervalId) {
+      clearInterval(this._statsIntervalId);
+      this._statsIntervalId = null;
+    }
+    logger.info('Stats stopped')
+  }
+
+  private _doStats = () => {
+    if (!this.peer || !this.peer.instance) {
+      // cannot get stats
+      return;
+    }
+
+    if (this._statsBindings.length === 0) {
+      // nothing to do
+      return;
+    }
+
+    this.peer.instance.getStats().then((res) => {
+
+      res.forEach((report) => {
+
+        this._statsBindings.forEach((binding) => { 
+          if (!binding.callback) {
+            return;
+          }
+          if (binding.constraints) {
+            for (var key in binding.constraints) {
+              if (binding.constraints.hasOwnProperty(key) && (binding.constraints[key] !== report[key])) {
+                return;
+              }
+            }
+          }
+          binding.callback(report);
+        });
+      });
+    });
   }
 
   static setStateTelnyx = (call: Call) => {
