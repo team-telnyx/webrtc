@@ -771,7 +771,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._statsBindings.push(binding);
   
     if (!this._statsIntervalId) {
-      const STATS_INTERVAL = 5000;
+      const STATS_INTERVAL = 2000;
       this._startStats(STATS_INTERVAL);
     }
   }
