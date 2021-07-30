@@ -44,6 +44,7 @@ import {
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 
+export const SDK_VERSION = '2.5.1';
 /**
  * @ignore Hide in docs output
  */
@@ -707,40 +708,59 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   async setBandwidthEncodingsMaxBps(max: number, _kind: string) {
-
     if (!this || !this.peer) {
-      logger.error("Could not set bandwidth (reason: no peer connection). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      logger.error(
+        'Could not set bandwidth (reason: no peer connection). Dynamic bandwidth can only be set when there is a call running - is there any call running?)'
+      );
       return;
     }
-  
+
     const { instance } = this.peer;
     const senders = instance.getSenders();
     if (!senders) {
-      logger.error("Could not set bandwidth (reason: no senders). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      logger.error(
+        'Could not set bandwidth (reason: no senders). Dynamic bandwidth can only be set when there is a call running - is there any call running?)'
+      );
       return;
     }
 
-    const sender = senders.find(({ track: { kind } }: RTCRtpSender) => kind === _kind);
+    const sender = senders.find(
+      ({ track: { kind } }: RTCRtpSender) => kind === _kind
+    );
 
     if (sender) {
+      let p = sender.getParameters();
+      const parameters = p as RTCRtpSendParameters;
+      if (!parameters.encodings) {
+        parameters.encodings = [{ rid: 'h' }];
+      }
+      logger.info('Parameters: ', parameters);
+      logger.info(
+        'Setting max ',
+        _kind === 'audio' ? 'audio' : 'video',
+        ' bandwidth to: ',
+        max,
+        ' [bps]'
+      );
 
-        let p = sender.getParameters();
-        const parameters = p as RTCRtpSendParameters;
-        if (!parameters.encodings) {
-          parameters.encodings = [{ rid : 'h' }];
-        }
-        logger.info("Parameters: ", parameters);
-        logger.info("Setting max ", _kind === 'audio' ? "audio" : "video", " bandwidth to: ", max, " [bps]");
+      parameters.encodings[0].maxBitrate = max;
 
-        parameters.encodings[0].maxBitrate = max;
-
-        await sender.setParameters(parameters)
-            .then(() => {
-                logger.info( _kind === 'audio' ? "New audio" : "New video", " bandwidth settings in use: ", sender.getParameters());
-                })
-                .catch(e => console.error(e));
+      await sender
+        .setParameters(parameters)
+        .then(() => {
+          logger.info(
+            _kind === 'audio' ? 'New audio' : 'New video',
+            ' bandwidth settings in use: ',
+            sender.getParameters()
+          );
+        })
+        .catch((e) => console.error(e));
     } else {
-        logger.error("Could not set bandwidth (reason: no " + _kind + " sender). Dynamic bandwidth can only be set when there is a call running - is there any call running?)");
+      logger.error(
+        'Could not set bandwidth (reason: no ' +
+          _kind +
+          ' sender). Dynamic bandwidth can only be set when there is a call running - is there any call running?)'
+      );
     }
   }
 
@@ -1309,8 +1329,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       sessid: this.session.sessionid,
       sdp,
       dialogParams: this.options,
+      'User-Agent': `Web-${SDK_VERSION}`,
     };
-  
+
     switch (type) {
       case PeerType.Offer:
         this.setState(State.Requesting);
@@ -1347,7 +1368,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this._iceTimeout === null) {
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        1000,
+        1000
       );
     }
 
@@ -1356,7 +1377,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     } else {
       this._onIceSdp(instance.localDescription);
     }
-    
   }
 
   private _registerPeerEvents() {
