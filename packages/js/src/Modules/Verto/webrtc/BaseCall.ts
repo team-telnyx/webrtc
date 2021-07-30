@@ -44,7 +44,8 @@ import {
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 
-export const SDK_VERSION = '2.5.1';
+const SDK_VERSION = '2.5.1';
+
 /**
  * @ignore Hide in docs output
  */
