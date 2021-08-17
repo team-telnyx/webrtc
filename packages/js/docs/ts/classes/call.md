@@ -74,6 +74,7 @@ call.muteAudio();
 - [answer](call.md#answer)
 - [deaf](call.md#deaf)
 - [dtmf](call.md#dtmf)
+- [getStats](call.md#getstats)
 - [hangup](call.md#hangup)
 - [hold](call.md#hold)
 - [muteAudio](call.md#muteaudio)
@@ -263,6 +264,23 @@ call.dtmf('#');
 Name | Type | Description |
 :------ | :------ | :------ |
 `dtmf` | *string* | Single DTMF key    |
+
+**Returns:** *void*
+
+___
+
+### getStats
+
+▸ **getStats**(`callback`: Function, `constraints`: *any*): *void*
+
+Registers callback for stats.
+
+#### Parameters:
+
+Name | Type |
+:------ | :------ |
+`callback` | Function |
+`constraints` | *any* |
 
 **Returns:** *void*
 
