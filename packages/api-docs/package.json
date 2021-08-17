@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc-api-docs",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Telnyx WebRTC Client API docs",
   "main": "lib/webrtc-api.json",
   "scripts": {
