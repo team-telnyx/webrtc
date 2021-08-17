@@ -43,8 +43,9 @@ import {
 } from '../util/webrtc';
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
+import pkg from '../../../../package.json';
 
-const SDK_VERSION = '2.5.1';
+const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output

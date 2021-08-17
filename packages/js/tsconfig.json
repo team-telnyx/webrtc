@@ -3,8 +3,8 @@
   "compilerOptions": {
     "declarationDir": "./lib",
     "outDir": "./lib",
-    "rootDir": "./src",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "resolveJsonModule": true
   },
   "typedocOptions": {
     "out": "./docs/ts",
