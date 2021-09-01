@@ -88,6 +88,20 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *   ringbackFile: './sounds/ringback_tone.mp3',
    * });
    * ```
+   *
+   * #### To hear/view calls in the browser, you'll need to specify an HTML media element:
+   *
+   *```js
+   * client.remoteElement = 'remoteMedia';
+   *```
+   *
+   * The corresponding HTML:
+   *
+   *```html
+   * <audio id="remoteMedia" autoplay="true" />
+   * <!-- or for video: -->
+   * <!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
+   *```
    */
   constructor(options: IClientOptions) {
     super(options);
@@ -172,7 +186,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
 
   /**
    * Returns the WebRTC supported browser list.
-   * 
+   *
    * The following table indicates the browsers supported by TelnyxRTC.
    * We support the most recent (N) versions of these browsers unless otherwise indicated.
    *
@@ -188,7 +202,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * [x] supports audio and video
    * [-] supports only audio
    * [ ] not supported
-   *  
+   *
    * @return An array with supported operational systems and browsers.
    *
    * @examples
