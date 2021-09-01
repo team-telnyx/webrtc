@@ -123,6 +123,20 @@ const client = new TelnyxRTC({
 });
 ```
 
+#### To hear/view calls in the browser, you'll need to specify an HTML media element:
+
+```js
+client.remoteElement = 'remoteMedia';
+```
+
+The corresponding HTML:
+
+```html
+<audio id="remoteMedia" autoplay="true" />
+<!-- or for video: -->
+<!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
+```
+
 #### Parameters:
 
 Name | Type | Description |
