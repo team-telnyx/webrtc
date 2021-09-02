@@ -65,6 +65,7 @@ export default class Dialer extends Component<Props> {
       });
 
       this.client.on('telnyx.notification', (notification) => {
+        console.log('notification===>', notification);
         switch (notification.type) {
           case 'callUpdate':
             return this._handleCallUpdate(notification.call);

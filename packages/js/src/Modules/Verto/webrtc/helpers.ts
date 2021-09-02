@@ -641,6 +641,7 @@ function getWebRTCSupportedBrowserList(): Array<IWebRTCSupportedBrowser> {
 }
 
 function createAudio(file, id): IAudio | null {
+  if (!document) return null;
   const elementExist = document.getElementById(id) as IAudio;
 
   if (elementExist) {
