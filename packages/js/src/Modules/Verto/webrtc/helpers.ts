@@ -29,7 +29,7 @@ const _constraintsByKind = (
   kind: string = null
 ): { audio: boolean; video: boolean } => {
   return {
-    audio: !kind || kind === DeviceType.AudioIn,
+    audio: !kind || kind === DeviceType.AudioIn || kind === DeviceType.AudioOut,
     video: !kind || kind === DeviceType.Video,
   };
 };
@@ -50,7 +50,10 @@ const getDevices = async (
   kind: MediaDeviceKind | undefined = null,
   fullList: boolean = false
 ): Promise<MediaDeviceInfo[]> => {
-  let devices = await WebRTC.enumerateDevices().catch((error) => []);
+  let devices = await WebRTC.enumerateDevices().catch((error) => {
+    console.error('enumerateDevices', error);
+    return [];
+  });
   if (kind) {
     devices = devices.filter((d: MediaDeviceInfo) => d.kind === kind);
   }
