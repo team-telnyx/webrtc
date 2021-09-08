@@ -325,6 +325,7 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioOutDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioOut).catch((error) => {
+      console.error('getAudioOutDevices', error);
       trigger(SwEvent.MediaError, error, this.uuid);
       return [];
     });
