@@ -136,11 +136,11 @@ class VertoHandler {
           trigger(SwEvent.Notification, params, session.uuid);
         }
         break;
-      // case VertoMethod.ClientReady:
-      //   logger.warn('Verto message ClientReady method:', msg);
-      //   // params.type = NOTIFICATION_TYPE.vertoClientReady;
-      //   // trigger(SwEvent.Notification, params, session.uuid);
-      //   break;
+      case VertoMethod.ClientReady:
+        logger.warn('Verto message ClientReady method:', msg);
+        params.type = NOTIFICATION_TYPE.vertoClientReady;
+        trigger(SwEvent.Notification, params, session.uuid);
+        break;
       default:
         logger.warn('Verto message unknown method:', msg);
     }
