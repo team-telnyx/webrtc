@@ -23,6 +23,7 @@
         "tsx": "never"
       }
     ],
+    "import/prefer-default-export": "off",
     "no-underscore-dangle": "off",
     "camelcase": "off",
     "no-plusplus": "off"

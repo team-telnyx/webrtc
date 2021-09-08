@@ -9,14 +9,21 @@ import { trigger, deRegister } from '../services/Handler';
 import { State, ConferenceAction } from './constants';
 import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
+import { Gateway } from '../messages/verto/Gateway';
 
 /**
  * @ignore Hide in docs output
  */
+
+const RETRY_REGISTER_TIME = 3;
 class VertoHandler {
   public nodeId: string;
 
-  constructor(public session: BrowserSession) {}
+  private retriedRegister: number;
+
+  constructor(public session: BrowserSession) {
+    this.retriedRegister = 0;
+  }
 
   private _ack(id: number, method: string): void {
     const msg = new Result(id, method);
@@ -81,7 +88,7 @@ class VertoHandler {
       return call;
     };
 
-    console.log('method===>', method);
+    const messageTocheckRegisterState = new Gateway();
 
     switch (method) {
       case VertoMethod.Punt:
@@ -129,17 +136,38 @@ class VertoHandler {
         trigger(SwEvent.Notification, params, session.uuid);
         break;
 
+      case VertoMethod.ClientReady:
+        // We need to send a GatewayState to make sure that the user is registered
+        // to avoid GATEWAY_DOWN when the user tries to make a new call
+        this.session.execute(messageTocheckRegisterState);
+        break;
+
       case VertoMethod.GatewayState:
-        logger.warn('Verto message GatewayState:', msg);
+        // If the user is REGED tell the client that it is ready to make calls
         if (msg.params && msg.params.state && msg.params.state === 'REGED') {
           params.type = NOTIFICATION_TYPE.vertoClientReady;
           trigger(SwEvent.Notification, params, session.uuid);
+          break;
         }
-        break;
-      case VertoMethod.ClientReady:
-        logger.warn('Verto message ClientReady method:', msg);
-        params.type = NOTIFICATION_TYPE.vertoClientReady;
-        trigger(SwEvent.Notification, params, session.uuid);
+
+        /*
+          If the server returns NOREG it can be that the server is registering the user,
+          or it can mean that the user can not be registered for some reason, 
+          to make sure the reason we try to check if the user is registered 3 times, 
+          after that, we send a Telnyx.Error.
+        */
+        if (msg.params && msg.params.state && msg.params.state === 'NOREG') {
+          this.retriedRegister += 1;
+
+          if (this.retriedRegister === RETRY_REGISTER_TIME) {
+            this.retriedRegister = 0;
+            trigger(SwEvent.Error, params, session.uuid);
+            break;
+          } else {
+            this.session.execute(messageTocheckRegisterState);
+          }
+        }
+
         break;
       default:
         logger.warn('Verto message unknown method:', msg);
