@@ -57,7 +57,7 @@ class VertoHandler {
         callerName: params.callee_id_name,
         callerNumber: params.callee_id_number,
         attach,
-        mediaSettings: params.mediaSettings
+        mediaSettings: params.mediaSettings,
       };
 
       if (params.telnyx_call_control_id) {
@@ -80,6 +80,8 @@ class VertoHandler {
       call.nodeId = this.nodeId;
       return call;
     };
+
+    console.log('method===>', method);
 
     switch (method) {
       case VertoMethod.Punt:
@@ -126,10 +128,19 @@ class VertoHandler {
         params.type = NOTIFICATION_TYPE.generic;
         trigger(SwEvent.Notification, params, session.uuid);
         break;
-      case VertoMethod.ClientReady:
-        params.type = NOTIFICATION_TYPE.vertoClientReady;
-        trigger(SwEvent.Notification, params, session.uuid);
+
+      case VertoMethod.GatewayState:
+        logger.warn('Verto message GatewayState:', msg);
+        if (msg.params && msg.params.state && msg.params.state === 'REGED') {
+          params.type = NOTIFICATION_TYPE.vertoClientReady;
+          trigger(SwEvent.Notification, params, session.uuid);
+        }
         break;
+      // case VertoMethod.ClientReady:
+      //   logger.warn('Verto message ClientReady method:', msg);
+      //   // params.type = NOTIFICATION_TYPE.vertoClientReady;
+      //   // trigger(SwEvent.Notification, params, session.uuid);
+      //   break;
       default:
         logger.warn('Verto message unknown method:', msg);
     }
