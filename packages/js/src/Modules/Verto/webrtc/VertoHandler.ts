@@ -88,7 +88,11 @@ class VertoHandler {
       return call;
     };
 
-    const messageTocheckRegisterState = new Gateway();
+    const messageToCheckRegisterState = new Gateway();
+
+    console.log("====>method", method);
+    console.log("====>msg", msg);
+    console.log("====>params", params);
 
     switch (method) {
       case VertoMethod.Punt:
@@ -139,12 +143,13 @@ class VertoHandler {
       case VertoMethod.ClientReady:
         // We need to send a GatewayState to make sure that the user is registered
         // to avoid GATEWAY_DOWN when the user tries to make a new call
-        this.session.execute(messageTocheckRegisterState);
+        this.session.execute(messageToCheckRegisterState);
         break;
 
       case VertoMethod.GatewayState:
         // If the user is REGED tell the client that it is ready to make calls
         if (msg.params && msg.params.state && msg.params.state === 'REGED') {
+          this.retriedRegister = 0;
           params.type = NOTIFICATION_TYPE.vertoClientReady;
           trigger(SwEvent.Notification, params, session.uuid);
           break;
@@ -164,7 +169,7 @@ class VertoHandler {
             trigger(SwEvent.Error, params, session.uuid);
             break;
           } else {
-            this.session.execute(messageTocheckRegisterState);
+            this.session.execute(messageToCheckRegisterState);
           }
         }
 
