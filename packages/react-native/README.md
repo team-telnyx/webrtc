@@ -1,3 +1,12 @@
+# Deprecated project
+
+**NOTE: this project is no longer active and not recommended for use.**
+
+Please use the native SDKs 
+ - Android Telnyx WebRTC SDK [here](https://github.com/team-telnyx/telnyx-webrtc-android)
+ - IOS Telnyx WebRTC SDK [here](https://github.com/team-telnyx/telnyx-webrtc-ios)
+
+
 # Telnyx React Native
 
 The Telnyx SDK for React Native enables developers to connect and use Telnyx APIs within their own React Native apps. Our TelnyxRTC SDK allows developers to build or add robust and innovative communication services to their applications.
