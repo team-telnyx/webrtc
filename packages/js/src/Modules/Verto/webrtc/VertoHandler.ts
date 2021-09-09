@@ -90,10 +90,6 @@ class VertoHandler {
 
     const messageToCheckRegisterState = new Gateway();
 
-    console.log("====>method", method);
-    console.log("====>msg", msg);
-    console.log("====>params", params);
-
     switch (method) {
       case VertoMethod.Punt:
         session.disconnect();

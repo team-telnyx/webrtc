@@ -12,7 +12,7 @@ const DEFAULT_PARAMS = {
   callerName: 'Jest Client',
   callerNumber: '5678',
 };
-describe('VertoHandler', () => {
+describe.only('VertoHandler', () => {
   let instance: BrowserSession;
   let handler: VertoHandler;
   let call: Call;
@@ -172,18 +172,16 @@ describe('VertoHandler', () => {
         type: 'vertoClientReady',
       });
       
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
+        )
+      );
 
-      // handler.handleMessage(
-      //   JSON.parse(
-      //     '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], state: "REGED"}}'
-      //   )
-      // );
-
-      // expect(onNotification).toBeCalledWith({
-      //   type: 'vertoClientReady',
-      //   reattached_sessions: ['test'],
-      //   state: 'REGED',
-      // });
+      expect(onNotification).toBeCalledWith({
+        state: 'REGED',
+        type: 'vertoClientReady',
+      });
     });
   });
 });
