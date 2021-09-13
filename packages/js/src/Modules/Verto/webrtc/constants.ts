@@ -26,6 +26,7 @@ export enum VertoMethod {
   ClientReady = 'telnyx_rtc.clientReady',
   Modify = 'telnyx_rtc.modify',
   Ringing = 'telnyx_rtc.ringing',
+  GatewayState = 'telnyx_rtc.gatewayState',
 }
 
 export const NOTIFICATION_TYPE = {

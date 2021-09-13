@@ -20,6 +20,11 @@
       src="https://unpkg.com/@telnyx/webrtc"
     ></script>
 
+    <!-- <script
+    type="text/javascript"
+    src="../../lib/bundle.js"
+  ></script> -->
+
     <!-- To style up the demo a little -->
     <link
       rel="stylesheet"
@@ -211,6 +216,14 @@
         document.getElementById('env').checked = '1';
       });
 
+      function detachListeners(client){
+        if(client) {
+          client.off('telnyx.error');
+          client.off('telnyx.ready');
+          client.off('telnyx.notification');
+          client.off('telnyx.socket.close');
+        }
+      }
       /**
        * Connect with TelnyxWebRTC.TelnyxRTC creating a client and attaching all the event handler.
        */
@@ -255,11 +268,19 @@
           btnConnect.classList.remove('d-none');
           btnDisconnect.classList.add('d-none');
           connectStatus.innerHTML = 'Disconnected';
+          client.disconnect();
+          detachListeners(client);
         });
 
         // Handle error...
         client.on('telnyx.error', function (error) {
           console.error('telnyx error:', error);
+          alert(error.message)
+          btnConnect.classList.remove('d-none');
+          btnDisconnect.classList.add('d-none');
+          connectStatus.innerHTML = 'Disconnected';
+          client.disconnect();
+          detachListeners(client);
         });
 
         client.on('telnyx.notification', handleNotification);

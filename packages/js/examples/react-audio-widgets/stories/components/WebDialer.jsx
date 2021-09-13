@@ -85,6 +85,15 @@ const WebDialer = ({
     }
   }, [registered, disableMicrophone]);
 
+  const detachListeners = (client) => {
+    if (client) {
+      client.off('telnyx.error');
+      client.off('telnyx.ready');
+      client.off('telnyx.notification');
+      client.off('telnyx.socket.close');
+    }
+  };
+
   const connectAndCall = () => {
     const session = new TelnyxRTC({
       login_token: token,
@@ -108,16 +117,20 @@ const WebDialer = ({
       console.error('telnyx.error', error);
       setRegistered(false);
       setRegistering(false);
+      session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.error', (error) => {
       console.log('telnyx.socket.error', error);
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.close', (error) => {
       console.log('telnyx.socket.close', error);
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.notification', (notification) => {

@@ -31,7 +31,10 @@ describe('VertoHandler', () => {
       token: 'token',
     });
     onNotification.mockClear();
-    instance.on('telnyx.notification', onNotification);
+    instance.on('telnyx.notification', (notification) => {
+      // console.log('=========>notification', notification)
+      onNotification(notification);
+    });
     handler = new VertoHandler(instance);
   });
 
@@ -82,7 +85,9 @@ describe('VertoHandler', () => {
       );
       expect(instance.calls[callId].options.telnyxSessionId).toEqual('si1234');
       expect(instance.calls[callId].options.telnyxLegId).toEqual('li1234');
-      expect(instance.calls[callId].options.clientState).toEqual('aGVsbG8gbXkgZnJpZW5k');
+      expect(instance.calls[callId].options.clientState).toEqual(
+        'aGVsbG8gbXkgZnJpZW5k'
+      );
       done();
     });
   });
@@ -154,26 +159,28 @@ describe('VertoHandler', () => {
     });
   });
 
-  describe('telnyx_rtc.clientReady', () => {
+  describe('telnyx_rtc.gatewayState', () => {
     it('should dispatch a notification', () => {
       handler.handleMessage(
         JSON.parse(
-          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+          '{"jsonrpc":"2.0","id":20342,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
         )
       );
-      expect(onNotification).toBeCalledWith({
-        type: 'vertoClientReady',
-        reattached_sessions: [],
-      });
 
+      expect(onNotification).toBeCalledWith({
+        state: 'REGED',
+        type: 'vertoClientReady',
+      });
+      
       handler.handleMessage(
         JSON.parse(
-          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"]}}'
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
         )
       );
+
       expect(onNotification).toBeCalledWith({
+        state: 'REGED',
         type: 'vertoClientReady',
-        reattached_sessions: ['test'],
       });
     });
   });

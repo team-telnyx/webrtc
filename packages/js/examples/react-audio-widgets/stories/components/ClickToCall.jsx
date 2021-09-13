@@ -59,6 +59,15 @@ const ClickToCall = ({
     setCall(newCall);
   };
 
+  function detachListeners(client) {
+    if (client) {
+      client.off('telnyx.error');
+      client.off('telnyx.ready');
+      client.off('telnyx.notification');
+      client.off('telnyx.socket.close');
+    }
+  }
+
   const connectAndCall = () => {
     const session = new TelnyxRTC({
       login_token: token,
@@ -79,16 +88,20 @@ const ClickToCall = ({
     session.on('telnyx.error', (error) => {
       console.log('telnyx.error', error);
       alert(error.message);
+      session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.error', (error) => {
       console.log('telnyx.socket.error', error);
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.close', (error) => {
       console.log('telnyx.socket.close', error);
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.notification', (notification) => {
@@ -145,12 +158,16 @@ const ClickToCall = ({
         </button>
       )}
 
-      {registering && !registered && <div data-testid='state-call-registering'>registering...</div>}
+      {registering && !registered && (
+        <div data-testid='state-call-registering'>registering...</div>
+      )}
 
       {call && (
         <div>
           <div>
-            <button data-testid='btn-end-call' onClick={hangup}>End Call</button>
+            <button data-testid='btn-end-call' onClick={hangup}>
+              End Call
+            </button>
           </div>
           <div data-testid={`state-call-${status}`}>{status}</div>
         </div>

@@ -41,6 +41,15 @@ function App() {
     }
   }
 
+  function detachListeners(client){
+    if(client) {
+      client.off('telnyx.error');
+      client.off('telnyx.ready');
+      client.off('telnyx.notification');
+      client.off('telnyx.socket.close');
+    }
+  }
+
   function connect(params) {
     setLoginParams(params);
 
@@ -50,19 +59,24 @@ function App() {
     session.on('telnyx.ready', (session) => {
       setState({ connected: true });
     });
+
     session.on('telnyx.error', (error) => {
       alert(error.message);
+      session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.error', (error) => {
       setState({ connected: false });
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.socket.close', (error) => {
       console.log('close', error);
       setState({ connected: false });
       session.disconnect();
+      detachListeners(session);
     });
 
     session.on('telnyx.notification', (notification) => {
