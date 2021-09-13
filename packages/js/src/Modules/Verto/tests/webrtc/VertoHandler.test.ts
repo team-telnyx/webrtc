@@ -12,7 +12,7 @@ const DEFAULT_PARAMS = {
   callerName: 'Jest Client',
   callerNumber: '5678',
 };
-describe.only('VertoHandler', () => {
+describe('VertoHandler', () => {
   let instance: BrowserSession;
   let handler: VertoHandler;
   let call: Call;
