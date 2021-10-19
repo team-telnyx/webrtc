@@ -89,8 +89,7 @@ class VertoHandler {
     };
 
     const messageToCheckRegisterState = new Gateway();
-    const gateWayState =
-      msg && msg.params && msg.params.state ? msg.params.state : '';
+    
 
     switch (method) {
       case VertoMethod.Punt:
@@ -145,6 +144,9 @@ class VertoHandler {
         break;
 
       case VertoMethod.GatewayState:
+        // eslint-disable-next-line no-case-declarations
+        const gateWayState = msg && msg.params && msg.params.state ? msg.params.state : '';
+
         switch (gateWayState) {
           // If the user is REGED tell the client that it is ready to make calls
           case 'REGED':
