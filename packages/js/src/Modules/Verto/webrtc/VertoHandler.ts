@@ -89,6 +89,7 @@ class VertoHandler {
     };
 
     const messageToCheckRegisterState = new Gateway();
+    
 
     switch (method) {
       case VertoMethod.Punt:
