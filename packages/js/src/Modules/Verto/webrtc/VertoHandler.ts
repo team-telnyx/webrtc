@@ -166,11 +166,10 @@ class VertoHandler {
             if (this.retriedRegister === RETRY_REGISTER_TIME) {
               this.retriedRegister = 0;
               trigger(SwEvent.SocketError, params, session.uuid);
-              break;
             } else {
               this.session.execute(messageToCheckRegisterState);
-              break;
             }
+            break;
           case 'FAIL_WAIT':
             trigger(SwEvent.SocketError, params, session.uuid);
             break;
