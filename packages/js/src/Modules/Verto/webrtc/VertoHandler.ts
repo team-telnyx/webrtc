@@ -165,16 +165,16 @@ class VertoHandler {
 
             if (this.retriedRegister === RETRY_REGISTER_TIME) {
               this.retriedRegister = 0;
-              trigger(SwEvent.SocketError, params, session.uuid);
+              trigger(SwEvent.Error, params, session.uuid);
             } else {
               this.session.execute(messageToCheckRegisterState);
             }
             break;
           case 'FAIL_WAIT':
-            trigger(SwEvent.SocketError, params, session.uuid);
+            trigger(SwEvent.Error, params, session.uuid);
             break;
           case 'FAILED':
-            trigger(SwEvent.SocketError, params, session.uuid);
+            trigger(SwEvent.Error, params, session.uuid);
             break;
           default:
             logger.warn('GatewayState message unknown method:', msg);
