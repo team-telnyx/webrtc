@@ -64,8 +64,8 @@ export default class Verto extends BrowserSession {
       this._autoReconnect = true;
       this.sessionid = response.sessid;
       sessionStorage.setItem(SESSION_ID, this.sessionid);
-      trigger(SwEvent.Ready, this, this.uuid);
-      logger.info('Session Ready!');
+      // trigger(SwEvent.Ready, this, this.uuid);
+      // logger.info('Session Ready!');
     }
   }
 

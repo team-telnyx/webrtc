@@ -143,32 +143,44 @@ class VertoHandler {
         break;
 
       case VertoMethod.GatewayState:
-        // If the user is REGED tell the client that it is ready to make calls
-        if (msg.params && msg.params.state && msg.params.state === 'REGED') {
-          this.retriedRegister = 0;
-          params.type = NOTIFICATION_TYPE.vertoClientReady;
-          trigger(SwEvent.Notification, params, session.uuid);
-          break;
-        }
+        // eslint-disable-next-line no-case-declarations
+        const gateWayState = msg && msg.params && msg.params.state ? msg.params.state : '';
 
-        /*
+        switch (gateWayState) {
+          // If the user is REGED tell the client that it is ready to make calls
+          case 'REGED':
+            this.retriedRegister = 0;
+            params.type = NOTIFICATION_TYPE.vertoClientReady;
+            trigger(SwEvent.Ready, params, session.uuid);
+            break;
+          /*
           If the server returns NOREG it can be that the server is registering the user,
           or it can mean that the user can not be registered for some reason, 
           to make sure the reason we try to check if the user is registered 3 times, 
           after that, we send a Telnyx.Error.
         */
-        if (msg.params && msg.params.state && msg.params.state === 'NOREG') {
-          this.retriedRegister += 1;
+          case 'UNREGED':
+          case 'NOREG':
+            this.retriedRegister += 1;
 
-          if (this.retriedRegister === RETRY_REGISTER_TIME) {
-            this.retriedRegister = 0;
+            if (this.retriedRegister === RETRY_REGISTER_TIME) {
+              this.retriedRegister = 0;
+              trigger(SwEvent.Error, params, session.uuid);
+              break;
+            } else {
+              this.session.execute(messageToCheckRegisterState);
+              break;
+            }
+          case 'FAIL_WAIT':
             trigger(SwEvent.Error, params, session.uuid);
             break;
-          } else {
-            this.session.execute(messageToCheckRegisterState);
-          }
+          case 'FAILED':
+            trigger(SwEvent.Error, params, session.uuid);
+            break;
+          default:
+            logger.warn('GatewayState message unknown method:', msg);
+            break;
         }
-
         break;
       default:
         logger.warn('Verto message unknown method:', msg);
