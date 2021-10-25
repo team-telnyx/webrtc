@@ -160,6 +160,7 @@ class VertoHandler {
           to make sure the reason we try to check if the user is registered 3 times, 
           after that, we send a Telnyx.Error.
         */
+          case 'UNREGED':
           case 'NOREG':
             this.retriedRegister += 1;
 
