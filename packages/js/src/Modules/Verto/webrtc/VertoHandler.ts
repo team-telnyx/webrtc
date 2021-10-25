@@ -152,7 +152,7 @@ class VertoHandler {
           case 'REGED':
             this.retriedRegister = 0;
             params.type = NOTIFICATION_TYPE.vertoClientReady;
-            trigger(SwEvent.Notification, params, session.uuid);
+            trigger(SwEvent.Ready, params, session.uuid);
             break;
           /*
           If the server returns NOREG it can be that the server is registering the user,
@@ -167,10 +167,11 @@ class VertoHandler {
             if (this.retriedRegister === RETRY_REGISTER_TIME) {
               this.retriedRegister = 0;
               trigger(SwEvent.Error, params, session.uuid);
+              break;
             } else {
               this.session.execute(messageToCheckRegisterState);
+              break;
             }
-            break;
           case 'FAIL_WAIT':
             trigger(SwEvent.Error, params, session.uuid);
             break;
