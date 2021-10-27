@@ -32,7 +32,9 @@ describe('VertoHandler', () => {
     });
     onNotification.mockClear();
     instance.on('telnyx.notification', (notification) => {
-      // console.log('=========>notification', notification)
+      onNotification(notification);
+    });
+    instance.on('telnyx.ready', (notification) => {
       onNotification(notification);
     });
     handler = new VertoHandler(instance);
@@ -40,6 +42,8 @@ describe('VertoHandler', () => {
 
   afterEach(() => {
     instance.off('telnyx.notification');
+    instance.off('telnyx.ready');
+
     Object.keys(instance.calls).forEach((k) =>
       instance.calls[k].setState(State.Purge)
     );
