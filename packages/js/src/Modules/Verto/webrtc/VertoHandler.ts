@@ -177,7 +177,7 @@ class VertoHandler {
             }
           case 'FAILED':
           case 'FAIL_WAIT': {
-            if (!this.session.hasAutoReconnect) {
+            if (!this.session.hasAutoReconnect()) {
               trigger(SwEvent.Error, params, session.uuid);
               break;
             }
