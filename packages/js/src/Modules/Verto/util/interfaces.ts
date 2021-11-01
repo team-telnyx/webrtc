@@ -14,6 +14,7 @@ export interface IVertoOptions {
   ringbackFile?: string;
   env?: Environment;
   iceServers?: RTCIceServer[];
+  autoReconnect?: boolean; 
 }
 export interface SubscribeParams {
   channels?: string[];
