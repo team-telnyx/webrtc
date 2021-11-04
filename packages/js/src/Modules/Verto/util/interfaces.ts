@@ -14,6 +14,12 @@ export interface IVertoOptions {
   ringbackFile?: string;
   env?: Environment;
   iceServers?: RTCIceServer[];
+  /**
+   * autoReconnect: Determine if the SDK has to re-connect automatically when detecting a gateway connection failure. 
+   * This is set to`true` as default
+   * @type {boolean}
+   */
+  autoReconnect?: boolean;
 }
 export interface SubscribeParams {
   channels?: string[];

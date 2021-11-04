@@ -16,6 +16,9 @@ import { Gateway } from '../messages/verto/Gateway';
  */
 
 const RETRY_REGISTER_TIME = 3;
+const RETRY_CONNECT_TIME = 3;
+let retriedConnect = 0;
+
 class VertoHandler {
   public nodeId: string;
 
@@ -89,7 +92,6 @@ class VertoHandler {
     };
 
     const messageToCheckRegisterState = new Gateway();
-    
 
     switch (method) {
       case VertoMethod.Punt:
@@ -145,7 +147,8 @@ class VertoHandler {
 
       case VertoMethod.GatewayState:
         // eslint-disable-next-line no-case-declarations
-        const gateWayState = msg && msg.params && msg.params.state ? msg.params.state : '';
+        const gateWayState =
+          msg && msg.params && msg.params.state ? msg.params.state : '';
 
         switch (gateWayState) {
           // If the user is REGED tell the client that it is ready to make calls
@@ -172,12 +175,29 @@ class VertoHandler {
               this.session.execute(messageToCheckRegisterState);
               break;
             }
-          case 'FAIL_WAIT':
-            trigger(SwEvent.Error, params, session.uuid);
-            break;
           case 'FAILED':
-            trigger(SwEvent.Error, params, session.uuid);
+          case 'FAIL_WAIT': {
+            if (!this.session.hasAutoReconnect()) {
+              retriedConnect = 0;
+              trigger(SwEvent.Error, params, session.uuid);
+              break;
+            }
+            
+            retriedConnect += 1;
+            if (retriedConnect === RETRY_CONNECT_TIME) {
+              retriedConnect = 0;
+              trigger(SwEvent.Error, params, session.uuid);
+              break;
+            } else {
+              setTimeout(() => {
+                this.session.disconnect().then(() => {
+                  this.session.clearConnection();
+                  this.session.connect();
+                });
+              }, 500);
+            }
             break;
+          }
           default:
             logger.warn('GatewayState message unknown method:', msg);
             break;

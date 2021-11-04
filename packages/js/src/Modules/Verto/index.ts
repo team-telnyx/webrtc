@@ -51,6 +51,7 @@ export default class Verto extends BrowserSession {
       passwd,
       login_token,
       userVariables,
+      autoReconnect = true,
     } = this.options;
     const msg = new Login(
       login,
@@ -61,11 +62,9 @@ export default class Verto extends BrowserSession {
     );
     const response = await this.execute(msg).catch(this._handleLoginError);
     if (response) {
-      this._autoReconnect = true;
+      this._autoReconnect = autoReconnect;
       this.sessionid = response.sessid;
       sessionStorage.setItem(SESSION_ID, this.sessionid);
-      // trigger(SwEvent.Ready, this, this.uuid);
-      // logger.info('Session Ready!');
     }
   }
 

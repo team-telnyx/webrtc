@@ -405,4 +405,12 @@ export default abstract class BaseSession {
   static uuid(): string {
     return uuidv4();
   }
+
+  public clearConnection() {
+    this.connection = null;
+  }
+
+  public hasAutoReconnect() {
+    return this._autoReconnect;
+  }
 }
