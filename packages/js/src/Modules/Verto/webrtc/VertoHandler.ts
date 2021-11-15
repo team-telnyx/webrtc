@@ -38,9 +38,12 @@ class VertoHandler {
 
   handleMessage(msg: any) {
     const { session } = this;
-    const { id, method, params } = msg;
+    const { id, method, params = {} } = msg;
 
-    const { callID, eventChannel, eventType } = params;
+    const callID = params?.callID;
+    const eventChannel = params?.eventChannel;
+    const eventType = params?.eventType;
+
     const attach = method === VertoMethod.Attach;
 
     if (eventType === 'channelPvtData') {
@@ -145,66 +148,76 @@ class VertoHandler {
         this.session.execute(messageToCheckRegisterState);
         break;
 
-      case VertoMethod.GatewayState:
-        // eslint-disable-next-line no-case-declarations
-        const gateWayState =
+      default: {
+        const hasStateResult =
+          msg && msg.result && msg.result.params && msg.result.params.state
+            ? msg.result.params.state
+            : '';
+
+        const hasStateParam =
           msg && msg.params && msg.params.state ? msg.params.state : '';
 
-        switch (gateWayState) {
-          // If the user is REGED tell the client that it is ready to make calls
-          case 'REGED':
-            this.retriedRegister = 0;
-            params.type = NOTIFICATION_TYPE.vertoClientReady;
-            trigger(SwEvent.Ready, params, session.uuid);
-            break;
-          /*
-          If the server returns NOREG it can be that the server is registering the user,
-          or it can mean that the user can not be registered for some reason, 
-          to make sure the reason we try to check if the user is registered 3 times, 
-          after that, we send a Telnyx.Error.
-        */
-          case 'UNREGED':
-          case 'NOREG':
-            this.retriedRegister += 1;
+        const gateWayState = hasStateResult || hasStateParam;
 
-            if (this.retriedRegister === RETRY_REGISTER_TIME) {
+        if (gateWayState) {
+          // eslint-disable-next-line no-case-declarations
+          switch (gateWayState) {
+            // If the user is REGED tell the client that it is ready to make calls
+            case 'REGED':
               this.retriedRegister = 0;
-              trigger(SwEvent.Error, params, session.uuid);
+              params.type = NOTIFICATION_TYPE.vertoClientReady;
+              trigger(SwEvent.Ready, params, session.uuid);
               break;
-            } else {
-              this.session.execute(messageToCheckRegisterState);
+            /*
+              If the server returns NOREG it can be that the server is registering the user,
+              or it can mean that the user can not be registered for some reason, 
+              to make sure the reason we try to check if the user is registered 3 times, 
+              after that, we send a Telnyx.Error.
+            */
+            case 'UNREGED':
+            case 'NOREG':
+              this.retriedRegister += 1;
+
+              if (this.retriedRegister === RETRY_REGISTER_TIME) {
+                this.retriedRegister = 0;
+                trigger(SwEvent.Error, params, session.uuid);
+                break;
+              } else {
+                this.session.execute(messageToCheckRegisterState);
+                break;
+              }
+            case 'FAILED':
+            case 'FAIL_WAIT': {
+              if (!this.session.hasAutoReconnect()) {
+                retriedConnect = 0;
+                trigger(SwEvent.Error, params, session.uuid);
+                break;
+              }
+
+              retriedConnect += 1;
+              if (retriedConnect === RETRY_CONNECT_TIME) {
+                retriedConnect = 0;
+                trigger(SwEvent.Error, params, session.uuid);
+                break;
+              } else {
+                setTimeout(() => {
+                  this.session.disconnect().then(() => {
+                    this.session.clearConnection();
+                    this.session.connect();
+                  });
+                }, 500);
+              }
               break;
             }
-          case 'FAILED':
-          case 'FAIL_WAIT': {
-            if (!this.session.hasAutoReconnect()) {
-              retriedConnect = 0;
-              trigger(SwEvent.Error, params, session.uuid);
+            default:
+              logger.warn('GatewayState message unknown method:', msg);
               break;
-            }
-            
-            retriedConnect += 1;
-            if (retriedConnect === RETRY_CONNECT_TIME) {
-              retriedConnect = 0;
-              trigger(SwEvent.Error, params, session.uuid);
-              break;
-            } else {
-              setTimeout(() => {
-                this.session.disconnect().then(() => {
-                  this.session.clearConnection();
-                  this.session.connect();
-                });
-              }, 500);
-            }
-            break;
           }
-          default:
-            logger.warn('GatewayState message unknown method:', msg);
-            break;
+          break;
         }
-        break;
-      default:
         logger.warn('Verto message unknown method:', msg);
+        break;
+      }
     }
   }
 
