@@ -8,7 +8,6 @@ class Gateway extends BaseRequest {
     super();
 
     const params: any = {
-      method: VertoMethod.GatewayState,
       jsonrpc: '2.0',
       params: {},
     };
