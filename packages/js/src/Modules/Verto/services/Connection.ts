@@ -8,6 +8,7 @@ import {
   isFunction,
 } from '../util/helpers';
 import { registerOnce, trigger } from './Handler';
+import { GatewayStateType } from '../webrtc/constants';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
@@ -82,7 +83,16 @@ export default class Connection {
       }
       this._unsetTimer(msg.id);
       logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
-      if (!trigger(msg.id, msg)) {
+
+      /**
+       * GatewayStateType
+       * It was necesary to dispatch the VertoHandler to check
+       * GatewayState messages with result prop inside the JSON-RPC
+       */
+      if (
+        !trigger(msg.id, msg) ||
+        GatewayStateType[`${msg?.result?.params?.state}`]
+      ) {
         // If there is not an handler for this message, dispatch an incoming!
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
       }

@@ -7,10 +7,7 @@ class Gateway extends BaseRequest {
   constructor() {
     super();
 
-    const params: any = {
-      jsonrpc: '2.0',
-      params: {},
-    };
+    const params: any = {};
 
     this.buildRequest({ method: this.method, params });
   }
