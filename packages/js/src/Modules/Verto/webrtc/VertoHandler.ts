@@ -18,7 +18,6 @@ import { Gateway } from '../messages/verto/Gateway';
 const RETRY_REGISTER_TIME = 3;
 const RETRY_CONNECT_TIME = 3;
 let retriedConnect = 0;
-let previousGatewayState = '';
 class VertoHandler {
   public nodeId: string;
 
@@ -164,17 +163,10 @@ class VertoHandler {
           switch (gateWayState) {
             // If the user is REGED tell the client that it is ready to make calls
             case 'REGED': {
-              /**
-               * This is necessary to avoid dispaching the telnyx.ready many times
-               * due to the a lot of REGED messages that are coming from the server
-               */
+              this.retriedRegister = 0;
+              params.type = NOTIFICATION_TYPE.vertoClientReady;
+              trigger(SwEvent.Ready, params, session.uuid);
 
-              if (previousGatewayState !== gateWayState) {
-                previousGatewayState = gateWayState;
-                this.retriedRegister = 0;
-                params.type = NOTIFICATION_TYPE.vertoClientReady;
-                trigger(SwEvent.Ready, params, session.uuid);
-              }
               break;
             }
 
@@ -187,7 +179,6 @@ class VertoHandler {
             case 'UNREGED':
             case 'NOREG':
               this.retriedRegister += 1;
-              previousGatewayState = '';
               if (this.retriedRegister === RETRY_REGISTER_TIME) {
                 this.retriedRegister = 0;
                 trigger(SwEvent.Error, params, session.uuid);
@@ -198,7 +189,6 @@ class VertoHandler {
               }
             case 'FAILED':
             case 'FAIL_WAIT': {
-              previousGatewayState = '';
               if (!this.session.hasAutoReconnect()) {
                 retriedConnect = 0;
                 trigger(SwEvent.Error, params, session.uuid);

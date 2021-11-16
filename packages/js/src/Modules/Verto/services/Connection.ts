@@ -90,8 +90,8 @@ export default class Connection {
        * GatewayState messages with result prop inside the JSON-RPC
        */
       if (
-        !trigger(msg.id, msg) ||
-        GatewayStateType[`${msg?.result?.params?.state}`]
+        GatewayStateType[`${msg?.result?.params?.state}`] ||
+        !trigger(msg.id, msg)
       ) {
         // If there is not an handler for this message, dispatch an incoming!
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
