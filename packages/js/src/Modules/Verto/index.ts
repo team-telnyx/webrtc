@@ -3,12 +3,10 @@ import { SubscribeParams, BroadcastParams } from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
 import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
-import { SwEvent, SESSION_ID } from './util/constants';
-import { trigger } from './services/Handler';
+import { SESSION_ID } from './util/constants';
 import { sessionStorage } from './util/storage';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
-import logger from './util/logger';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 

@@ -164,7 +164,7 @@ describe('VertoHandler', () => {
   });
 
   describe('telnyx_rtc.gatewayState', () => {
-    it('should dispatch a notification', () => {
+    it('should dispatch a telnyx.ready notification', () => {
       handler.handleMessage(
         JSON.parse(
           '{"jsonrpc":"2.0","id":20342,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
@@ -175,7 +175,7 @@ describe('VertoHandler', () => {
         state: 'REGED',
         type: 'vertoClientReady',
       });
-      
+
       handler.handleMessage(
         JSON.parse(
           '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
@@ -184,6 +184,20 @@ describe('VertoHandler', () => {
 
       expect(onNotification).toBeCalledWith({
         state: 'REGED',
+        type: 'vertoClientReady',
+      });
+    });
+  });
+
+  describe('Verto message unknown method:', () => {
+    it('if result.params.state is REGED should dispatch a telnyx.ready notification', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(onNotification).toBeCalledWith({
         type: 'vertoClientReady',
       });
     });

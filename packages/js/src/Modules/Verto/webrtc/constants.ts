@@ -95,3 +95,15 @@ export enum DeviceType {
   AudioIn = 'audioinput',
   AudioOut = 'audiooutput',
 }
+
+export enum GatewayStateType {
+  REGED = 'REGED',
+  UNREGED = 'UNREGED',
+  NOREG = 'NOREG',
+  FAILED = 'FAILED',
+  FAIL_WAIT = 'FAIL_WAIT',
+  REGISTER = 'REGISTER',
+  TRYING = 'TRYING',
+  EXPIRED = 'EXPIRED',
+  UNREGISTER = 'UNREGISTER',
+}

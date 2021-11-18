@@ -7,11 +7,7 @@ class Gateway extends BaseRequest {
   constructor() {
     super();
 
-    const params: any = {
-      method: VertoMethod.GatewayState,
-      jsonrpc: '2.0',
-      params: {},
-    };
+    const params: any = {};
 
     this.buildRequest({ method: this.method, params });
   }

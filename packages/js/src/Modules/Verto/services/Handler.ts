@@ -90,7 +90,7 @@ const trigger = (
   data: any,
   uniqueId: string = GLOBAL,
   globalPropagation: boolean = true
-) => {
+): boolean => {
   const _propagate: boolean = globalPropagation && uniqueId !== GLOBAL;
   if (!isQueued(event, uniqueId)) {
     if (_propagate) {

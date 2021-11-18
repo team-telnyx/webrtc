@@ -26,7 +26,8 @@
     "import/prefer-default-export": "off",
     "no-underscore-dangle": "off",
     "camelcase": "off",
-    "no-plusplus": "off"
+    "no-plusplus": "off",
+    "operator-linebreak": "off"
   },
   "settings": {
     "import/resolver": {
