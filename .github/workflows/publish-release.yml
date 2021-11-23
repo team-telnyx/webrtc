@@ -81,7 +81,7 @@ jobs:
         with:
           webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
           title: ${{ steps.latest_commit.outputs.TITLE }}
-          body: ${{ steps.latest_commit.outputs.BODY }}
+          body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
           context: "New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"
 
   publish-react-client:
