@@ -86,7 +86,6 @@
       }
     },
     "git": {
-      "changelog": "git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:'%s' | grep -i -E '^(feat|fix|docs|refactor|chore)'",
       "commitMessage": "chore: release webrtc ${version}",
       "tagAnnotation": "Release webrtc ${version}",
       "tagName": "webrtc/v${version}"
