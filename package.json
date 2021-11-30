@@ -2,7 +2,7 @@
   "name": "telnyx",
   "version": "1.0.0",
   "main": "index.js",
-  "private": false,
+  "private": true,
   "scripts": {
     "test": "jest",
     "postinstall": "husky install",

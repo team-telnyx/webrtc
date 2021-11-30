@@ -24,13 +24,7 @@ function Utilities({ username, password, token }) {
     });
 
     clientRef.current.on('telnyx.ready', (client) => {
-      setIsConnected(client.connected);
-
-      if (client.connected) {
-        setLog({ message: 'Connected' });
-      } else {
-        setLog({ message: 'Not connected' });
-      }
+      setLog({ message: 'Connected' });
     });
 
     clientRef.current.on('telnyx.error', (error) => {

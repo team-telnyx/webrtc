@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@telnyx/webrtc": "^2.2.0",
+    "@telnyx/webrtc": "^2.6.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-scripts": "^4.0.3"
