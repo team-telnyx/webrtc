@@ -325,7 +325,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         causeCode: 17,
       });
       this._execute(bye)
-        .catch((error) => logger.error('telnyl_rtc.bye failed!', error))
+        .catch((error) => {
+          logger.error('telnyl_rtc.bye failed!', error)
+          trigger(SwEvent.Error, error, this.session.uuid);
+        })
         .then(_close.bind(this));
     } else {
       _close();
