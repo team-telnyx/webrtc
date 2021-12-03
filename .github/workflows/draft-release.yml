@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: "Package to draft release"
+        description: 'Package for draft release'
         required: true
         default: "webrtc"
       version:
@@ -30,11 +30,12 @@ jobs:
           ref: "main"
           # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
       - name: Setup Git user
         # https://github.com/actions/checkout/issues/13
         run: |
-          git config user.name github-actions[bot]
-          git config user.email ${{ secrets.GIT_REPO_USERNAME }}
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
       - name: Use Node.js 11.x
         uses: actions/setup-node@v1
         with:
