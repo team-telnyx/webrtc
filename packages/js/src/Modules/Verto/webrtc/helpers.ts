@@ -57,14 +57,24 @@ const getDevices = async (
   if (kind) {
     devices = devices.filter((d: MediaDeviceInfo) => d.kind === kind);
   }
-  const valid: boolean =
-    devices.length &&
-    devices.every((d: MediaDeviceInfo) => d.deviceId && d.label);
-  if (!valid) {
-    const stream = await WebRTC.getUserMedia(_constraintsByKind(kind));
-    WebRTC.stopStream(stream);
-    return getDevices(kind);
+
+  /**
+   * If device list by kind returns a list with items and each item doesn't have deviceId and label it should ask for browser permission and call the getDevices again
+   * because with permission browser allowed the device list comes with a list of items with label and deviceid fullfilled 
+   */
+  if (devices && devices.length > 0) {
+    const valid: boolean = devices.every(
+      (d: MediaDeviceInfo) => d.deviceId && d.label
+    );
+    if (!valid) {
+      const stream: MediaStream = await WebRTC.getUserMedia(
+        _constraintsByKind(kind)
+      );
+      WebRTC.stopStream(stream);
+      return getDevices(kind);
+    }
   }
+
   if (fullList === true) {
     return devices;
   }
