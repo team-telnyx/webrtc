@@ -19,7 +19,7 @@
     "git": {
       "changelog": false,
       "tag": false,
-      "commitMessage": "Release webrtc-api-docs ${version}",
+      "commitMessage": "chore: release webrtc-api-docs ${version}",
       "tagName": "webrtc/v${version}"
     },
     "github": false
