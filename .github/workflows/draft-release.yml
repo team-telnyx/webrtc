@@ -52,7 +52,7 @@ jobs:
         run: |
           npm run docs # IDEA Set --gitRevision to release-it tag
           git add docs
-          git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
+          git commit -m "docs: update ts docs" || echo "docs: no docs changes to commit"
       - name: Create draft release
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
