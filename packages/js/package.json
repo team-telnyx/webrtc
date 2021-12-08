@@ -24,7 +24,7 @@
     "watch": "rollup -c --watch",
     "prepare": "npm run build",
     "test": "jest",
-    "docs": "typedoc src",
+    "docs": "typedoc --entryPointStrategy expand ./src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
     "format": "prettier --write 'src/**/*.ts'",
@@ -48,6 +48,7 @@
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
     "@release-it/bumper": "^2.0.0",
+    "@release-it/conventional-changelog": "^3.3.0",
     "@rollup/plugin-json": "^4.1.0",
     "@types/uuid": "^7.0.0",
     "@types/webrtc": "0.0.26",
@@ -69,10 +70,9 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "rollup-plugin-terser": "^7.0.0",
     "rollup-plugin-typescript2": "^0.24.0",
-    "typedoc": "^0.20.30",
-    "typedoc-plugin-markdown": "^3.6.0",
-    "typedoc-plugin-merge-modules": "^1.0.0",
-    "@release-it/conventional-changelog": "^3.3.0"
+    "typedoc": "^0.22.10",
+    "typedoc-plugin-markdown": "^3.11.7",
+    "typedoc-plugin-merge-modules": "^3.0.2"
   },
   "publishConfig": {
     "access": "public",
