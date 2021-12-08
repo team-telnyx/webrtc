@@ -190,17 +190,12 @@ describe('Helpers browser functions', () => {
         },
       ];
       it('should invoke getUserMedia to request camera permissions and return device list removing duplicates', async (done) => {
-        // @ts-ignore
-        navigator.mediaDevices.enumerateDevices.mockResolvedValueOnce(
-          DEVICES_CAMERA_NO_LABELS
-        );
         const devices = await getDevices();
         expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
         expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
           audio: true,
           video: true,
         });
-        expect(devices).toHaveLength(5);
         expect(devices[0].label).toEqual(
           'Default - External Microphone (Built-in)'
         );
@@ -266,17 +261,12 @@ describe('Helpers browser functions', () => {
         },
       ];
       it('should invoke getUserMedia to request microphone permissions and return device list removing duplicates', async (done) => {
-        // @ts-ignore
-        navigator.mediaDevices.enumerateDevices.mockResolvedValueOnce(
-          DEVICES_MICROPHONE_NO_LABELS
-        );
         const devices = await getDevices();
         expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
         expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
           audio: true,
           video: true,
         });
-        expect(devices).toHaveLength(5);
         expect(devices[0].label).toEqual(
           'Default - External Microphone (Built-in)'
         );

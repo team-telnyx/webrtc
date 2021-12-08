@@ -80,7 +80,7 @@ Object.defineProperty(navigator, 'mediaDevices', {
   value: {
     enumerateDevices: jest.fn().mockResolvedValue(ENUMERATED_MEDIA_DEVICES),
     getSupportedConstraints: jest.fn().mockReturnValue(SUPPORTED_CONSTRAINTS),
-    getUserMedia: jest.fn((constraints) => {
+    getUserMedia: jest.fn(async (constraints) => {
       const stream = new global.MediaStream();
       const { audio = null, video = null } = constraints;
       if (audio !== null) {
