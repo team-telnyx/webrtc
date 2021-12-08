@@ -7,10 +7,6 @@ on:
         description: 'Package for draft release'
         required: true
         default: "webrtc"
-      version:
-        description: "Version"
-        required: true
-        default: "0.0.0"
 
 env:
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
@@ -36,10 +32,10 @@ jobs:
         run: |
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
-      - name: Use Node.js 11.x
+      - name: Use Node.js 12.x
         uses: actions/setup-node@v1
         with:
-          node-version: "11.x"
+          node-version: "12.x"
       - name: Install shared dependencies
         run: npm ci
       - name: Install package dependencies
@@ -63,10 +59,8 @@ jobs:
           npm run release -- \
           ${{ github.event.inputs.version }} \
           --ci \
-          --no-git.tag \
           --github.draft \
           --no-npm.publish \
-          --no-npm.tag
         env:
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
