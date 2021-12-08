@@ -6,29 +6,6 @@
     "baseUrl": ".",
     "resolveJsonModule": true
   },
-  "typedocOptions": {
-    "out": "./docs/ts",
-    "entryPoints": ["./src/index.ts"],
-    "exclude": [
-      "**/*+(test|index).ts",
-      "src/Modules/Verto/messages/**/*",
-      "src/Modules/Verto/services/**/*",
-      "src/Modules/Verto/tests/**/*",
-      "src/Modules/Verto/util/**/*"
-    ],
-    "plugin": ["typedoc-plugin-merge-modules", "typedoc-plugin-markdown"],
-    "excludeExternals": true,
-    "excludePrivate": true,
-    "excludeProtected": true,
-    "excludeNotDocumented": true,
-    "excludeTags": ["internalnote"],
-    "hideGenerator": true,
-    "readme": "none",
-    "gitRevision": "main",
-    "disableSources": true,
-    "hideBreadcrumbs": true,
-    "namedAnchors": true
-  },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "**/tests", "**/__mocks__"]
 }

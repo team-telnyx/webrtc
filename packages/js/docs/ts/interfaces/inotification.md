@@ -9,7 +9,7 @@ The conditions of the event can be identified by the `type` property.
 | `callUpdate` | A call has changed state | `call` |
 | `userMediaError` | The browser does not have permission to access media devices | `error` |
 
-**`examples`** 
+**`examples`**
 
 Usage with TelnyxRTC Client `.on`:
 ```js
@@ -52,23 +52,23 @@ The notification structure is determined by its `type`.
 
 ## Hierarchy
 
-* *Omit*<INotificationEventData, *call*\>
+- `Omit`<`INotificationEventData`, ``"call"``\>
 
-  ↳ **INotification**
+  ↳ **`INotification`**
 
 ## Table of contents
 
 ### Properties
 
-- [call](inotification.md#call)
-- [error](inotification.md#error)
-- [type](inotification.md#type)
+- [call](INotification.md#call)
+- [error](INotification.md#error)
+- [type](INotification.md#type)
 
 ## Properties
 
 ### call
 
-• `Optional` **call**: ICall
+• `Optional` **call**: `ICall`
 
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
@@ -77,15 +77,23 @@ ___
 
 ### error
 
-• `Optional` **error**: Error
+• `Optional` **error**: `Error`
 
 Error from the `userMediaError` event.
 Check your `audio` and `video` constraints for browser support.
+
+#### Overrides
+
+Omit.error
 
 ___
 
 ### type
 
-• **type**: *string*
+• **type**: `string`
 
 Identifies the event case.
+
+#### Overrides
+
+Omit.type

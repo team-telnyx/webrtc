@@ -4,17 +4,17 @@
 
 ### Call Classes
 
-- [Call](classes/call.md)
+- [Call](classes/Call.md)
 
 ### Client Classes
 
-- [TelnyxRTC](classes/telnyxrtc.md)
+- [TelnyxRTC](classes/TelnyxRTC.md)
 
 ### Notification Interfaces
 
-- [INotification](interfaces/inotification.md)
+- [INotification](interfaces/INotification.md)
 
 ### Other Interfaces
 
-- [ICallOptions](interfaces/icalloptions.md)
-- [IClientOptions](interfaces/iclientoptions.md)
+- [ICallOptions](interfaces/ICallOptions.md)
+- [IClientOptions](interfaces/IClientOptions.md)

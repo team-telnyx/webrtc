@@ -6,7 +6,7 @@ created whenever a new call is initiated, either by you or the
 remote caller. You can access and act upon calls initiated by
 a remote caller in a `telnyx.notification` event handler.
 
-**`examples`** 
+**`examples`**
 
 To create a new call, i.e. dial:
 
@@ -46,97 +46,111 @@ call.muteAudio();
 
 ## Hierarchy
 
-* *BaseCall*
+- `BaseCall`
 
-  ↳ **Call**
+  ↳ **`Call`**
 
 ## Table of contents
 
 ### Constructors
 
-- [constructor](call.md#constructor)
+- [constructor](Call.md#constructor)
 
 ### Properties
 
-- [direction](call.md#direction)
-- [id](call.md#id)
-- [prevState](call.md#prevstate)
-- [state](call.md#state)
+- [direction](Call.md#direction)
+- [id](Call.md#id)
+- [prevState](Call.md#prevstate)
+- [state](Call.md#state)
 
 ### Accessors
 
-- [localStream](call.md#localstream)
-- [remoteStream](call.md#remotestream)
-- [telnyxIDs](call.md#telnyxids)
+- [localStream](Call.md#localstream)
+- [remoteStream](Call.md#remotestream)
+- [telnyxIDs](Call.md#telnyxids)
 
 ### Methods
 
-- [answer](call.md#answer)
-- [deaf](call.md#deaf)
-- [dtmf](call.md#dtmf)
-- [getStats](call.md#getstats)
-- [hangup](call.md#hangup)
-- [hold](call.md#hold)
-- [muteAudio](call.md#muteaudio)
-- [muteVideo](call.md#mutevideo)
-- [setAudioInDevice](call.md#setaudioindevice)
-- [setAudioOutDevice](call.md#setaudiooutdevice)
-- [setVideoDevice](call.md#setvideodevice)
-- [toggleAudioMute](call.md#toggleaudiomute)
-- [toggleDeaf](call.md#toggledeaf)
-- [toggleHold](call.md#togglehold)
-- [toggleVideoMute](call.md#togglevideomute)
-- [undeaf](call.md#undeaf)
-- [unhold](call.md#unhold)
-- [unmuteAudio](call.md#unmuteaudio)
-- [unmuteVideo](call.md#unmutevideo)
+- [answer](Call.md#answer)
+- [deaf](Call.md#deaf)
+- [dtmf](Call.md#dtmf)
+- [getStats](Call.md#getstats)
+- [hangup](Call.md#hangup)
+- [hold](Call.md#hold)
+- [muteAudio](Call.md#muteaudio)
+- [muteVideo](Call.md#mutevideo)
+- [setAudioInDevice](Call.md#setaudioindevice)
+- [setAudioOutDevice](Call.md#setaudiooutdevice)
+- [setVideoDevice](Call.md#setvideodevice)
+- [toggleAudioMute](Call.md#toggleaudiomute)
+- [toggleDeaf](Call.md#toggledeaf)
+- [toggleHold](Call.md#togglehold)
+- [toggleVideoMute](Call.md#togglevideomute)
+- [undeaf](Call.md#undeaf)
+- [unhold](Call.md#unhold)
+- [unmuteAudio](Call.md#unmuteaudio)
+- [unmuteVideo](Call.md#unmutevideo)
 
 ## Constructors
 
 ### constructor
 
-\+ **new Call**(`session`: *default*, `opts?`: IVertoCallOptions): [*Call*](call.md)
+• **new Call**(`session`, `opts?`)
 
-#### Parameters:
+#### Parameters
 
-Name | Type |
-:------ | :------ |
-`session` | *default* |
-`opts?` | IVertoCallOptions |
+| Name | Type |
+| :------ | :------ |
+| `session` | `default` |
+| `opts?` | `IVertoCallOptions` |
 
-**Returns:** [*Call*](call.md)
+#### Inherited from
+
+BaseCall.constructor
 
 ## Properties
 
 ### direction
 
-• **direction**: Direction
+• **direction**: `Direction`
 
 The direction of the call.
 Can be either `inbound` or `outbound`.
+
+#### Inherited from
+
+BaseCall.direction
 
 ___
 
 ### id
 
-• **id**: *string*= ''
+• **id**: `string` = `''`
 
 The call identifier.
+
+#### Inherited from
+
+BaseCall.id
 
 ___
 
 ### prevState
 
-• **prevState**: *string*= ''
+• **prevState**: `string` = `''`
 
 The previous state of the call.
 See `Call.state` for all possible values.
+
+#### Inherited from
+
+BaseCall.prevState
 
 ___
 
 ### state
 
-• **state**: *string*
+• **state**: `string`
 
 The `state` of the call.
 
@@ -155,102 +169,136 @@ The `state` of the call.
 | `destroy` | Call has been destroyed. |
 | `purge` | Call has been purged. |
 
+#### Inherited from
+
+BaseCall.state
+
 ## Accessors
 
 ### localStream
 
-• get **localStream**(): MediaStream
+• `get` **localStream**(): `MediaStream`
 
 Gets the local stream of the call.
 This can be used in a video/audio element to play the local media.
 See [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
 
-**`examples`** 
+**`examples`**
 
 ```js
 const stream = call.localStream;
 document.querySelector('audio').srcObject = stream;
 ```
 
-**Returns:** MediaStream
+#### Returns
+
+`MediaStream`
+
+#### Inherited from
+
+BaseCall.localStream
 
 ___
 
 ### remoteStream
 
-• get **remoteStream**(): MediaStream
+• `get` **remoteStream**(): `MediaStream`
 
 Gets the remote stream of the call.
 This can be used in a video/audio element to play the remote media.
 See [MediaStream](https://developer.mozilla.org/en-US/docs/Web/API/MediaStream).
 
-**`examples`** 
+**`examples`**
 
 ```js
 const stream = call.remoteStream;
 document.querySelector('audio').srcObject = stream;
 ```
 
-**Returns:** MediaStream
+#### Returns
+
+`MediaStream`
+
+#### Inherited from
+
+BaseCall.remoteStream
 
 ___
 
 ### telnyxIDs
 
-• get **telnyxIDs**(): *object*
+• `get` **telnyxIDs**(): `Object`
 
 Gets Telnyx call IDs, if using Telnyx Call Control services.
 You can use these IDs to identify specific calls in your application code.
 
-**`examples`** 
+**`examples`**
 
 ```js
 const { telnyxCallControlId, telnyxSessionId, telnyxLegId } = call.telnyxIDs;
 ```
 
-**Returns:** *object*
+#### Returns
+
+`Object`
+
+#### Inherited from
+
+BaseCall.telnyxIDs
 
 ## Methods
 
 ### answer
 
-▸ **answer**(): *void*
+▸ **answer**(): `void`
 
 Starts the process to answer the incoming call.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.answer()
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.answer
 
 ___
 
 ### deaf
 
-▸ **deaf**(): *void*
+▸ **deaf**(): `void`
 
 Turns off the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.deaf()
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.deaf
 
 ___
 
 ### dtmf
 
-▸ **dtmf**(`dtmf`: *string*): *void*
+▸ **dtmf**(`dtmf`): `void`
 
 Sends dual-tone multi-frequency (DTMF) signal
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.dtmf('0');
@@ -259,55 +307,73 @@ call.dtmf('*');
 call.dtmf('#');
 ```
 
-#### Parameters:
+#### Parameters
 
-Name | Type | Description |
-:------ | :------ | :------ |
-`dtmf` | *string* | Single DTMF key    |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `dtmf` | `string` | Single DTMF key |
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.dtmf
 
 ___
 
 ### getStats
 
-▸ **getStats**(`callback`: Function, `constraints`: *any*): *void*
+▸ **getStats**(`callback`, `constraints`): `void`
 
 Registers callback for stats.
 
-#### Parameters:
+#### Parameters
 
-Name | Type |
-:------ | :------ |
-`callback` | Function |
-`constraints` | *any* |
+| Name | Type |
+| :------ | :------ |
+| `callback` | `Function` |
+| `constraints` | `any` |
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.getStats
 
 ___
 
 ### hangup
 
-▸ **hangup**(`params?`: *any*, `execute?`: *boolean*): *void*
+▸ **hangup**(`params?`, `execute?`): `void`
 
-#### Parameters:
+#### Parameters
 
-Name | Type | Default value |
-:------ | :------ | :------ |
-`params` | *any* | - |
-`execute` | *boolean* | true |
+| Name | Type | Default value |
+| :------ | :------ | :------ |
+| `params` | `any` | `{}` |
+| `execute` | `boolean` | `true` |
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Overrides
+
+BaseCall.hangup
 
 ___
 
 ### hold
 
-▸ **hold**(): *Promise*<any\>
+▸ **hold**(): `Promise`<`any`\>
 
 Holds the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -324,53 +390,71 @@ call.hold().then(() => {
 });
 ```
 
-**Returns:** *Promise*<any\>
+#### Returns
+
+`Promise`<`any`\>
 
 Promise that resolves or rejects based on server response
+
+#### Inherited from
+
+BaseCall.hold
 
 ___
 
 ### muteAudio
 
-▸ **muteAudio**(): *void*
+▸ **muteAudio**(): `void`
 
 Turns off audio output, i.e. makes it so other
 call participants cannot hear your audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.muteAudio();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.muteAudio
 
 ___
 
 ### muteVideo
 
-▸ **muteVideo**(): *void*
+▸ **muteVideo**(): `void`
 
 Turns off the video output, i.e. hides
 video from other call participants.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.muteVideo();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.muteVideo
 
 ___
 
 ### setAudioInDevice
 
-▸ **setAudioInDevice**(`deviceId`: *string*): *Promise*<void\>
+▸ **setAudioInDevice**(`deviceId`): `Promise`<`void`\>
 
 Changes the audio input device (i.e. microphone) used for the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -396,25 +480,31 @@ if (result.length) {
 }
 ```
 
-#### Parameters:
+#### Parameters
 
-Name | Type | Description |
-:------ | :------ | :------ |
-`deviceId` | *string* | The target audio input device ID   |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `deviceId` | `string` | The target audio input device ID |
 
-**Returns:** *Promise*<void\>
+#### Returns
+
+`Promise`<`void`\>
 
 Promise that resolves if the audio input device has been updated
+
+#### Inherited from
+
+BaseCall.setAudioInDevice
 
 ___
 
 ### setAudioOutDevice
 
-▸ **setAudioOutDevice**(`deviceId`: *string*): *Promise*<boolean\>
+▸ **setAudioOutDevice**(`deviceId`): `Promise`<`boolean`\>
 
 Changes the audio output device (i.e. speaker) used for the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -440,13 +530,15 @@ if (result.length) {
 }
 ```
 
-#### Parameters:
+#### Parameters
 
-Name | Type | Description |
-:------ | :------ | :------ |
-`deviceId` | *string* | The target audio output device ID   |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `deviceId` | `string` | The target audio output device ID |
 
-**Returns:** *Promise*<boolean\>
+#### Returns
+
+`Promise`<`boolean`\>
 
 Promise that returns a boolean
 
@@ -454,11 +546,11 @@ ___
 
 ### setVideoDevice
 
-▸ **setVideoDevice**(`deviceId`: *string*): *Promise*<void\>
+▸ **setVideoDevice**(`deviceId`): `Promise`<`void`\>
 
 Changes the video device (i.e. webcam) used for the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -484,57 +576,75 @@ if (result.length) {
 }
 ```
 
-#### Parameters:
+#### Parameters
 
-Name | Type | Description |
-:------ | :------ | :------ |
-`deviceId` | *string* | the target video device ID   |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `deviceId` | `string` | the target video device ID |
 
-**Returns:** *Promise*<void\>
+#### Returns
+
+`Promise`<`void`\>
 
 Promise that resolves if the video device has been updated
+
+#### Inherited from
+
+BaseCall.setVideoDevice
 
 ___
 
 ### toggleAudioMute
 
-▸ **toggleAudioMute**(): *void*
+▸ **toggleAudioMute**(): `void`
 
 Toggles the audio output on/off.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.toggleAudioMute();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.toggleAudioMute
 
 ___
 
 ### toggleDeaf
 
-▸ **toggleDeaf**(): *void*
+▸ **toggleDeaf**(): `void`
 
 Toggles the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.toggleDeaf()
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.toggleDeaf
 
 ___
 
 ### toggleHold
 
-▸ **toggleHold**(): *Promise*<any\>
+▸ **toggleHold**(): `Promise`<`any`\>
 
 Toggles hold state of the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -546,51 +656,69 @@ await call.toggleHold()
 console.log(call.state) // => 'active'
 ```
 
-**Returns:** *Promise*<any\>
+#### Returns
+
+`Promise`<`any`\>
 
 Promise that resolves or rejects based on server response
+
+#### Inherited from
+
+BaseCall.toggleHold
 
 ___
 
 ### toggleVideoMute
 
-▸ **toggleVideoMute**(): *void*
+▸ **toggleVideoMute**(): `void`
 
 Toggles the video output on/off.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.toggleVideoMute();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.toggleVideoMute
 
 ___
 
 ### undeaf
 
-▸ **undeaf**(): *void*
+▸ **undeaf**(): `void`
 
 Turns on the remote stream audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.undeaf()
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.undeaf
 
 ___
 
 ### unhold
 
-▸ **unhold**(): *Promise*<any\>
+▸ **unhold**(): `Promise`<`any`\>
 
 Removes hold from the call.
 
-**`examples`** 
+**`examples`**
 
 Using async/await:
 
@@ -607,40 +735,58 @@ call.unhold().then(() => {
 });
 ```
 
-**Returns:** *Promise*<any\>
+#### Returns
+
+`Promise`<`any`\>
 
 Promise that resolves or rejects based on server response
+
+#### Inherited from
+
+BaseCall.unhold
 
 ___
 
 ### unmuteAudio
 
-▸ **unmuteAudio**(): *void*
+▸ **unmuteAudio**(): `void`
 
 Turns on audio output, i.e. makes it so other
 call participants can hear your audio.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.unmuteAudio();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.unmuteAudio
 
 ___
 
 ### unmuteVideo
 
-▸ **unmuteVideo**(): *void*
+▸ **unmuteVideo**(): `void`
 
 Turns on the video output, i.e. makes
 video visible to other call participants.
 
-**`examples`** 
+**`examples`**
 
 ```js
 call.unmuteVideo();
 ```
 
-**Returns:** *void*
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.unmuteVideo
