@@ -32,7 +32,7 @@
     "postpublish": "../../node_modules/.bin/pinst --enable"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=11"
   },
   "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
   "repository": {
