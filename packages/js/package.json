@@ -32,7 +32,7 @@
     "postpublish": "../../node_modules/.bin/pinst --enable"
   },
   "engines": {
-    "node": ">=11"
+    "node": ">=14"
   },
   "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
   "repository": {
@@ -79,6 +79,9 @@
     "@telnyx:registry": "https://registry.npmjs.org"
   },
   "release-it": {
+    "npm": {
+      "publish": false
+    },
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": "conventionalcommits",
