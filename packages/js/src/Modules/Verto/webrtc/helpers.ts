@@ -50,47 +50,39 @@ const getDevices = async (
   kind: MediaDeviceKind | undefined = null,
   fullList: boolean = false
 ): Promise<MediaDeviceInfo[]> => {
-  let devices = await WebRTC.enumerateDevices().catch((error) => {
-    console.error('enumerateDevices', error);
-    return [];
-  });
-  if (kind) {
-    devices = devices.filter((d: MediaDeviceInfo) => d.kind === kind);
-  }
+  let devices = [];
+  //get user device browser permission
+  const stream = await navigator.mediaDevices
+    .getUserMedia(_constraintsByKind(kind))
+    .catch((error) => {
+      console.error(error);
+      return null;
+    });
 
-  /**
-   * If device list by kind returns a list with items and each item doesn't have deviceId and label it should ask for browser permission and call the getDevices again
-   * because with permission browser allowed the device list comes with a list of items with label and deviceid fullfilled 
-   */
-  if (devices && devices.length > 0) {
-    const valid: boolean = devices.every(
-      (d: MediaDeviceInfo) => d.deviceId && d.label
-    );
-    if (!valid) {
-      const stream: MediaStream = await WebRTC.getUserMedia(
-        _constraintsByKind(kind)
-      );
-      WebRTC.stopStream(stream);
-      return getDevices(kind);
+  if (stream) {
+    devices = await navigator.mediaDevices.enumerateDevices();
+    if (kind) {
+      devices = devices.filter((d: MediaDeviceInfo) => d.kind === kind);
     }
-  }
 
-  if (fullList === true) {
-    return devices;
-  }
-  const found = [];
-  devices = devices.filter(({ kind, groupId }: MediaDeviceInfo) => {
-    if (!groupId) {
-      return true;
+    if (fullList === true) {
+      return devices;
     }
-    const key = `${kind}-${groupId}`;
-    if (!found.includes(key)) {
-      found.push(key);
-      return true;
-    }
-    return false;
-  });
 
+    // Remove duplicate devices
+    const found = [];
+    devices = devices.filter(({ kind, groupId }: MediaDeviceInfo) => {
+      if (!groupId) {
+        return true;
+      }
+      const key = `${kind}-${groupId}`;
+      if (!found.includes(key)) {
+        found.push(key);
+        return true;
+      }
+      return false;
+    });
+  }
   return devices;
 };
 
