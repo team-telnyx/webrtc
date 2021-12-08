@@ -1,4 +1,4 @@
-name: 'Publish release'
+name: "Publish release"
 
 on:
   release:
@@ -6,147 +6,165 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to publish'
+        description: "Package to publish"
         required: true
-        default: 'webrtc'
+        default: "webrtc"
       version:
-        description: 'Version'
+        description: "Version"
         required: true
-        default: '0.0.0'
+        default: "0.0.0"
 
 jobs:
   publish-js:
     if: github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')
 
-    name: '@telnyx/webrtc Publish release'
+    name: "@telnyx/webrtc Publish release"
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Setup Git user
-      # https://github.com/actions/checkout/issues/13
-      run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: '11.x'
-        registry-url: https://registry.npmjs.org/
-    - name: Install shared dependencies
-      run: npm ci
-    - name: Install package dependencies
-      working-directory: packages/js
-      run: npm ci --ignore-scripts
-    - name: Publish package
-      working-directory: packages/js
-      run: npm publish --access public
-      env:
-        CI: true
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-    - name: Release API docs
-      working-directory: packages/api-docs
-      run: |
-        npm run release -- \
-        $(node ./get_version.js) \
-        --ci \
-        --no-npm.publish \
-        && \
-        npm publish --access public
-      env:
-        CI: true
-        # Both tokens are present because publishing with
-        # release-it in GH actions seems to be broken
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+      - name: Setup Git user
+        # https://github.com/actions/checkout/issues/13
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: "12.x"
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: npm ci
+      - name: Install package dependencies
+        working-directory: packages/js
+        run: npm ci --ignore-scripts
+      - name: Publish package
+        working-directory: packages/js
+        run: npm publish --access public
+        env:
+          CI: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+      - name: Release API docs
+        working-directory: packages/api-docs
+        run: |
+          npm run release -- \
+          $(node ./get_version.js) \
+          --ci \
+          --no-npm.publish \
+          && \
+          npm publish --access public
+        env:
+          CI: true
+          # Both tokens are present because publishing with
+          # release-it in GH actions seems to be broken
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get latest commit info
+        run: |
+          echo "::set-output name=TITLE::$(git show -1 --format='%s' -s)"
+          echo "::set-output name=BODY::$(git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:'%s' | grep -i -E '^(feat|fix|docs|refactor|chore)' )"
+        id: latest_commit
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@master
+        with:
+          path: packages/${{ env.PACKAGE_DIR }}
+      - name: Post to Slack
+        uses: homeday-de/slack-release-bot-action@main
+        with:
+          webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
+          title: ${{ steps.latest_commit.outputs.TITLE }}
+          body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
+          context: "New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"
 
   publish-react-client:
     if: github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')
 
-    name: '@telnyx/react-client Publish release'
+    name: "@telnyx/react-client Publish release"
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-    - name: Setup Git user
-      # https://github.com/actions/checkout/issues/13
-      run: |
-        git config user.name github-actions[bot]
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: '11.x'
-        registry-url: https://registry.npmjs.org/
-    - name: Install shared dependencies
-      run: npm ci
-    - name: Install package dependencies
-      working-directory: packages/react-client
-      run: npm ci
-    - name: Publish package
-      working-directory: packages/react-client
-      run: npm publish --access public
-      env:
-        CI: true
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+      - name: Setup Git user
+        # https://github.com/actions/checkout/issues/13
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+      - name: Use Node.js 11.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: "11.x"
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: npm ci
+      - name: Install package dependencies
+        working-directory: packages/react-client
+        run: npm ci
+      - name: Publish package
+        working-directory: packages/react-client
+        run: npm publish --access public
+        env:
+          CI: true
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
 
   publish-api-docs:
     if: github.event.inputs.package == 'webrtc-api-docs'
 
-    name: '@telnyx/webrtc-api-docs Publish release'
+    name: "@telnyx/webrtc-api-docs Publish release"
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-    - name: Setup Git user
-      # https://github.com/actions/checkout/issues/13
-      run: |
-        git config user.name github-actions[bot]
-        git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: '11.x'
-        registry-url: https://registry.npmjs.org/
-    - name: Install shared dependencies
-      run: npm ci
-    - name: Install package dependencies
-      working-directory: packages/js
-      run: npm ci --ignore-scripts
-    - name: Release API docs
-      working-directory: packages/api-docs
-      run: |
-        npm run release -- \
-        $(node ./get_version.js) \
-        --ci \
-        --no-npm.publish \
-        && \
-        npm publish --access public
-      env:
-        CI: true
-        # Both tokens are present because publishing with
-        # release-it in GH actions seems to be broken
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+      - name: Setup Git user
+        # https://github.com/actions/checkout/issues/13
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+      - name: Use Node.js 11.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: "11.x"
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: npm ci
+      - name: Install package dependencies
+        working-directory: packages/js
+        run: npm ci --ignore-scripts
+      - name: Release API docs
+        working-directory: packages/api-docs
+        run: |
+          npm run release -- \
+          $(node ./get_version.js) \
+          --ci \
+          --no-npm.publish \
+          && \
+          npm publish --access public
+        env:
+          CI: true
+          # Both tokens are present because publishing with
+          # release-it in GH actions seems to be broken
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-expressions  */
 // See: https://github.com/eslint/eslint/issues/12822 for eslint-disable no-unused-expressions reason
 import { useEffect, useMemo } from 'react';
+//@ts-ignore
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {

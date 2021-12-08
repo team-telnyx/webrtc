@@ -1,16 +1,12 @@
-name: 'Draft release'
+name: "Draft release"
 
 on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to draft release'
+        description: 'Package for draft release'
         required: true
-        default: 'webrtc'
-      version:
-        description: 'Version'
-        required: true
-        default: '0.0.0'
+        default: "webrtc"
 
 env:
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
@@ -19,54 +15,51 @@ jobs:
   build:
     if: contains(fromJson('["webrtc", "react-client"]'), github.event.inputs.package)
 
-    name: '@telnyx/${{ github.event.inputs.package }} Draft release'
+    name: "@telnyx/${{ github.event.inputs.package }} Draft release"
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-        token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Setup Git user
-      # https://github.com/actions/checkout/issues/13
-      run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
-      with:
-        node-version: '11.x'
-    - name: Install shared dependencies
-      run: npm ci
-    - name: Install package dependencies
-      working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: npm ci
-    - name: Test
-      working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: npm test
-      env:
-        CI: true
-    - if: github.event.inputs.package == 'webrtc'
-      name: Generate docs
-      working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: |
-        npm run docs # IDEA Set --gitRevision to release-it tag
-        git add docs
-        git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
-    - name: Create draft release
-      working-directory: packages/${{ env.PACKAGE_DIR }}
-      run: |
-        npm run release -- \
-        ${{ github.event.inputs.version }} \
-        --ci \
-        --no-git.tag \
-        --github.draft \
-        --no-npm.publish \
-        --no-npm.tag
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+      - name: Setup Git user
+        # https://github.com/actions/checkout/issues/13
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+      - name: Use Node.js 12.x
+        uses: actions/setup-node@v1
+        with:
+          node-version: "12.x"
+      - name: Install shared dependencies
+        run: npm ci
+      - name: Install package dependencies
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: npm ci
+      - name: Test
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: npm test
+        env:
+          CI: true
+      - if: github.event.inputs.package == 'webrtc'
+        name: Generate docs
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: |
+          npm run docs # IDEA Set --gitRevision to release-it tag
+          git add docs
+          git commit -m "docs: Update TS docs" || echo "No docs changes to commit"
+      - name: Create draft release
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: |
+          npm run release -- \
+          --ci \
+          --github.draft \
+          --no-npm.publish \
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

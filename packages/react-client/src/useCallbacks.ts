@@ -1,4 +1,5 @@
 import { useContext, useEffect } from 'react';
+// @ts-ignore
 import { TelnyxRTC, INotification } from '@telnyx/webrtc';
 import TelnyxRTCContext from './TelnyxRTCContext';
 

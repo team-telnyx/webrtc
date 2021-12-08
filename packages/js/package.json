@@ -27,7 +27,9 @@
     "docs": "typedoc src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
-    "format": "prettier --write 'src/**/*.ts'"
+    "format": "prettier --write 'src/**/*.ts'",
+    "prepublishOnly": "../../node_modules/.bin/pinst --disable",
+    "postpublish": "../../node_modules/.bin/pinst --enable"
   },
   "engines": {
     "node": ">=11"
@@ -69,23 +71,29 @@
     "rollup-plugin-typescript2": "^0.24.0",
     "typedoc": "^0.20.30",
     "typedoc-plugin-markdown": "^3.6.0",
-    "typedoc-plugin-merge-modules": "^1.0.0"
+    "typedoc-plugin-merge-modules": "^1.0.0",
+    "@release-it/conventional-changelog": "^3.3.0"
   },
   "publishConfig": {
     "access": "public",
     "@telnyx:registry": "https://registry.npmjs.org"
   },
   "release-it": {
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "conventionalcommits",
+        "infile": "CHANGELOG.md"
+      }
+    },
     "git": {
-      "changelog": "git log --pretty=format:\"* %s (%h)\" ${from}...${to} .",
-      "commitMessage": "Release webrtc ${version}",
+      "commitMessage": "chore: release webrtc ${version}",
       "tagAnnotation": "Release webrtc ${version}",
       "tagName": "webrtc/v${version}"
     },
     "github": {
       "release": true,
       "releaseName": "webrtc@${version}",
-      "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
+      "releaseNotes": "git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:'%s' | grep -i -E '^(feat|fix|docs|refactor|chore)'"
     }
   },
   "lint-staged": {
