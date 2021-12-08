@@ -1,3 +1,16 @@
+## [2.7.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.6.2...webrtc/v2.7.0) (2021-12-08)
+
+
+### Features
+
+* **WEBRTC-558:** add slack notification ([#219](https://github.com/team-telnyx/webrtc/issues/219)) ([3925a82](https://github.com/team-telnyx/webrtc/commit/3925a822d5c42658a23a7e9fd1df8ff563a723a1))
+
+
+### Bug Fixes
+
+* **Hotfix:** package.lock update and node upgrade to 14 ([#228](https://github.com/team-telnyx/webrtc/issues/228)) ([29b7c27](https://github.com/team-telnyx/webrtc/commit/29b7c2789dfac30083a0cb62ae4677e943cb5767))
+* **WEBRTC-746:** recursive call to getDevices when the browser does not support audiooutput like Safari and Firefox. ([#223](https://github.com/team-telnyx/webrtc/issues/223)) ([bbc2231](https://github.com/team-telnyx/webrtc/commit/bbc2231cc1a62a1bff62bbcb974c7f0231fef06e))
+
 ### [2.2.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.7...webrtc/v2.2.7) (2021-01-08)
 
 ### [2.2.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.2.6...webrtc/v2.2.6) (2021-01-08)
