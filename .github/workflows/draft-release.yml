@@ -57,7 +57,6 @@ jobs:
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
           npm run release -- \
-          ${{ github.event.inputs.version }} \
           --ci \
           --github.draft \
           --no-npm.publish \
