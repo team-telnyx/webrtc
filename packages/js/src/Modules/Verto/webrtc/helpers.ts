@@ -51,7 +51,7 @@ const getDevices = async (
   fullList: boolean = false
 ): Promise<MediaDeviceInfo[]> => {
   let devices = [];
-  //get user device browser permission
+  // get user device browser permission
   const stream = await navigator.mediaDevices
     .getUserMedia(_constraintsByKind(kind))
     .catch((error) => {
@@ -60,6 +60,7 @@ const getDevices = async (
     });
 
   if (stream) {
+    WebRTC.stopStream(stream);
     devices = await navigator.mediaDevices.enumerateDevices();
     if (kind) {
       devices = devices.filter((d: MediaDeviceInfo) => d.kind === kind);
@@ -71,11 +72,11 @@ const getDevices = async (
 
     // Remove duplicate devices
     const found = [];
-    devices = devices.filter(({ kind, groupId }: MediaDeviceInfo) => {
-      if (!groupId) {
+    devices = devices.filter((item: MediaDeviceInfo) => {
+      if (!item.groupId) {
         return true;
       }
-      const key = `${kind}-${groupId}`;
+      const key = `${item.kind}-${item.groupId}`;
       if (!found.includes(key)) {
         found.push(key);
         return true;
