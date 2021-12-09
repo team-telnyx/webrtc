@@ -27,7 +27,7 @@ export default abstract class BaseSession {
   public contexts: string[] = [];
   public timeoutErrorCode = -32000;
 
-  protected connection: Connection = null;
+  public connection: Connection = null;
   protected _jwtAuth: boolean = false;
   protected _doKeepAlive: boolean = false;
   protected _keepAliveTimeout: any;

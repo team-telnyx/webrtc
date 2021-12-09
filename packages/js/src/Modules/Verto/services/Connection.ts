@@ -24,7 +24,7 @@ const WS_STATE = {
 const TIMEOUT_MS = 10 * 1000;
 
 export default class Connection {
-  private previousGatewayState = '';
+  public previousGatewayState = '';
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
@@ -106,19 +106,25 @@ export default class Connection {
 
         const gateWayState = hasStateResult || hasStateParam;
 
-        // Used to send the first REGED WebSocket Message
-        if (
-          gateWayState === GatewayStateType.REGED &&
-          this.previousGatewayState !== GatewayStateType.REGED
-        ) {
-          this.previousGatewayState = GatewayStateType.REGED;
-          trigger(SwEvent.SocketMessage, msg, this.session.uuid);
-        }
 
-        // If the next messages is not REGED dispatch the new messages
-        if (gateWayState !== GatewayStateType.REGED) {
-          trigger(SwEvent.SocketMessage, msg, this.session.uuid);
-        }
+        // // Used to send the first REGED WebSocket Message
+        // if (
+        //   gateWayState === GatewayStateType.REGED &&
+        //   this.previousGatewayState !== GatewayStateType.REGED
+        // ) {
+        //   trigger(SwEvent.SocketMessage, msg, this.session.uuid);
+        // }
+
+        // // If the next messages is not REGED dispatch the new messages
+        // if (gateWayState !== GatewayStateType.REGED) {
+        //   trigger(SwEvent.SocketMessage, msg, this.session.uuid);
+        // }
+        console.log('OLX====> current state', gateWayState);
+        console.log('OLX====> this.previousGatewayState state', this.previousGatewayState);
+
+        trigger(SwEvent.SocketMessage, msg, this.session.uuid);
+
+        this.previousGatewayState = gateWayState;
       }
     };
   }
