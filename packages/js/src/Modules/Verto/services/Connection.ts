@@ -106,19 +106,6 @@ export default class Connection {
 
         const gateWayState = hasStateResult || hasStateParam;
 
-
-        // // Used to send the first REGED WebSocket Message
-        // if (
-        //   gateWayState === GatewayStateType.REGED &&
-        //   this.previousGatewayState !== GatewayStateType.REGED
-        // ) {
-        //   trigger(SwEvent.SocketMessage, msg, this.session.uuid);
-        // }
-
-        // // If the next messages is not REGED dispatch the new messages
-        // if (gateWayState !== GatewayStateType.REGED) {
-        //   trigger(SwEvent.SocketMessage, msg, this.session.uuid);
-        // }
         console.log('OLX====> current state', gateWayState);
         console.log('OLX====> this.previousGatewayState state', this.previousGatewayState);
 
