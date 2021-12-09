@@ -1,3 +1,10 @@
+### [2.7.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.0...webrtc/v2.7.1) (2021-12-09)
+
+
+### Bug Fixes
+
+* add stop stream after query it ([#233](https://github.com/team-telnyx/webrtc/issues/233)) ([0e4fba9](https://github.com/team-telnyx/webrtc/commit/0e4fba97cfd98fd464f2076d1c32f7366366e9f2))
+
 ## [2.7.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.6.2...webrtc/v2.7.0) (2021-12-08)
 
 
