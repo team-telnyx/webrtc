@@ -158,9 +158,6 @@ class VertoHandler {
 
         const gateWayState = hasStateResult || hasStateParam;
 
-        console.log('OLX====> VERTO current state', gateWayState);
-        console.log('OLX====> VERTO session.connection.previousGatewayState state', session.connection.previousGatewayState);
-
         if (gateWayState) {
           // eslint-disable-next-line no-case-declarations
           switch (gateWayState) {

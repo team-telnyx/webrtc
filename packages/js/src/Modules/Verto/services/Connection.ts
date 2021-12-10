@@ -106,11 +106,9 @@ export default class Connection {
 
         const gateWayState = hasStateResult || hasStateParam;
 
-        console.log('OLX====> current state', gateWayState);
-        console.log('OLX====> this.previousGatewayState state', this.previousGatewayState);
-
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
 
+        // save previous gate state
         this.previousGatewayState = gateWayState;
       }
     };
