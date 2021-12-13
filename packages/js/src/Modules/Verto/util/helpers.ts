@@ -133,15 +133,18 @@ export const isValidOptions = ({
 };
 
 export const getGatewayState = (msg: IMessageRPC): GatewayStateType | '' => {
-  const hasStateResult: GatewayStateType | '' =
-    msg && msg.result && msg.result.params && msg.result.params.state
-      ? msg.result.params.state
-      : '';
+  let stateResult: GatewayStateType | '' = '';
+  let stateParam: GatewayStateType | '' = '';
 
-  const hasStateParam: GatewayStateType | '' =
-    msg && msg.params && msg.params.state ? msg.params.state : '';
+  if (msg?.result?.params?.state) {
+    stateResult = msg?.result?.params?.state;
+  }
 
-  const gateWayState = hasStateResult || hasStateParam;
+  if (msg?.params?.state) {
+    stateParam = msg?.params?.state;
+  }
+
+  const gateWayState = stateResult || stateParam;
 
   return gateWayState;
 };
