@@ -1,3 +1,10 @@
+### [2.7.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.1...webrtc/v2.7.4) (2021-12-13)
+
+
+### Bug Fixes
+
+* **ENGDESK-12851:** add code to avoid multiples REGED messages on the client side ([#235](https://github.com/team-telnyx/webrtc/issues/235)) ([86b3a0e](https://github.com/team-telnyx/webrtc/commit/86b3a0e98cd7b6f60bc00beb1fb21773cdcb2401))
+
 ### [2.7.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.0...webrtc/v2.7.1) (2021-12-09)
 
 
