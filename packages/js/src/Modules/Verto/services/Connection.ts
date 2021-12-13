@@ -6,6 +6,7 @@ import {
   checkWebSocketHost,
   destructResponse,
   isFunction,
+  getGatewayState,
 } from '../util/helpers';
 import { registerOnce, trigger } from './Handler';
 import { GatewayStateType } from '../webrtc/constants';
@@ -95,16 +96,7 @@ export default class Connection {
         !trigger(msg.id, msg)
       ) {
         // If there is not an handler for this message, dispatch an incoming!
-
-        const hasStateResult =
-          msg && msg.result && msg.result.params && msg.result.params.state
-            ? msg.result.params.state
-            : '';
-
-        const hasStateParam =
-          msg && msg.params && msg.params.state ? msg.params.state : '';
-
-        const gateWayState = hasStateResult || hasStateParam;
+        const gateWayState = getGatewayState(msg);
 
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
 

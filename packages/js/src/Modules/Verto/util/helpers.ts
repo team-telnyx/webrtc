@@ -1,6 +1,7 @@
-import { IVertoOptions } from './interfaces';
+import { IMessageRPC, IVertoOptions } from './interfaces';
 import logger from './logger';
 import { STORAGE_PREFIX } from './constants';
+import { GatewayStateType } from '../webrtc/constants';
 
 // hack to remove undefined values from the object
 export const deepCopy = (obj: Object) => JSON.parse(JSON.stringify(obj));
@@ -129,4 +130,18 @@ export const isValidOptions = ({
   const isLogin = login && (passwd || password);
   const isToken = login_token;
   return Boolean(isLogin || isToken);
+};
+
+export const getGatewayState = (msg: IMessageRPC): GatewayStateType | '' => {
+  const hasStateResult: GatewayStateType | '' =
+    msg && msg.result && msg.result.params && msg.result.params.state
+      ? msg.result.params.state
+      : '';
+
+  const hasStateParam: GatewayStateType | '' =
+    msg && msg.params && msg.params.state ? msg.params.state : '';
+
+  const gateWayState = hasStateResult || hasStateParam;
+
+  return gateWayState;
 };

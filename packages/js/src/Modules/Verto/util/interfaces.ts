@@ -49,3 +49,18 @@ export interface INotificationEventData {
   displayNumber?: string;
   displayDirection?: string;
 }
+
+export interface IRequestRPC {
+  id: any;
+  method?: any;
+  params?: any;
+}
+
+export interface IResponseRPC {
+  id: any;
+  result?: {
+    params: any;
+  };
+}
+
+export interface IMessageRPC extends IRequestRPC, IResponseRPC {}
