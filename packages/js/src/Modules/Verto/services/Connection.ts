@@ -6,6 +6,7 @@ import {
   checkWebSocketHost,
   destructResponse,
   isFunction,
+  getGatewayState,
 } from '../util/helpers';
 import { registerOnce, trigger } from './Handler';
 import { GatewayStateType } from '../webrtc/constants';
@@ -24,6 +25,7 @@ const WS_STATE = {
 const TIMEOUT_MS = 10 * 1000;
 
 export default class Connection {
+  public previousGatewayState = '';
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
@@ -94,7 +96,12 @@ export default class Connection {
         !trigger(msg.id, msg)
       ) {
         // If there is not an handler for this message, dispatch an incoming!
+        const gateWayState = getGatewayState(msg);
+
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
+
+        // save previous gate state
+        this.previousGatewayState = gateWayState;
       }
     };
   }

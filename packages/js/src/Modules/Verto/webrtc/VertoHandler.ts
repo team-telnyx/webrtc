@@ -11,6 +11,7 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
+import { getGatewayState } from '../util/helpers';
 
 /**
  * @ignore Hide in docs output
@@ -148,24 +149,24 @@ class VertoHandler {
         break;
 
       default: {
-        const hasStateResult =
-          msg && msg.result && msg.result.params && msg.result.params.state
-            ? msg.result.params.state
-            : '';
-
-        const hasStateParam =
-          msg && msg.params && msg.params.state ? msg.params.state : '';
-
-        const gateWayState = hasStateResult || hasStateParam;
+        const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {
           // eslint-disable-next-line no-case-declarations
           switch (gateWayState) {
             // If the user is REGED tell the client that it is ready to make calls
+            case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
-              VertoHandler.retriedRegister = 0;
-              params.type = NOTIFICATION_TYPE.vertoClientReady;
-              trigger(SwEvent.Ready, params, session.uuid);
+              if (
+                session.connection.previousGatewayState !==
+                  GatewayStateType.REGED &&
+                session.connection.previousGatewayState !==
+                  GatewayStateType.REGISTER
+              ) {
+                VertoHandler.retriedRegister = 0;
+                params.type = NOTIFICATION_TYPE.vertoClientReady;
+                trigger(SwEvent.Ready, params, session.uuid);
+              }
               break;
             }
 
@@ -198,31 +199,38 @@ class VertoHandler {
               }
             case GatewayStateType.FAILED:
             case GatewayStateType.FAIL_WAIT: {
-              if (!this.session.hasAutoReconnect()) {
-                VertoHandler.retriedConnect = 0;
-                trigger(
-                  SwEvent.Error,
-                  new ErrorResponse(
-                    `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                    'FAILED|FAIL_WAIT'
-                  ),
-                  session.uuid
-                );
-                break;
-              }
+              if (
+                session.connection.previousGatewayState !==
+                  GatewayStateType.FAILED &&
+                session.connection.previousGatewayState !==
+                  GatewayStateType.FAIL_WAIT
+              ) {
+                if (!this.session.hasAutoReconnect()) {
+                  VertoHandler.retriedConnect = 0;
+                  trigger(
+                    SwEvent.Error,
+                    new ErrorResponse(
+                      `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
+                      'FAILED|FAIL_WAIT'
+                    ),
+                    session.uuid
+                  );
+                  break;
+                }
 
-              VertoHandler.retriedConnect += 1;
-              if (VertoHandler.retriedConnect === RETRY_CONNECT_TIME) {
-                VertoHandler.retriedConnect = 0;
-                trigger(SwEvent.Error, params, session.uuid);
-                break;
-              } else {
-                setTimeout(() => {
-                  this.session.disconnect().then(() => {
-                    this.session.clearConnection();
-                    this.session.connect();
-                  });
-                }, 500);
+                VertoHandler.retriedConnect += 1;
+                if (VertoHandler.retriedConnect === RETRY_CONNECT_TIME) {
+                  VertoHandler.retriedConnect = 0;
+                  trigger(SwEvent.Error, params, session.uuid);
+                  break;
+                } else {
+                  setTimeout(() => {
+                    this.session.disconnect().then(() => {
+                      this.session.clearConnection();
+                      this.session.connect();
+                    });
+                  }, 500);
+                }
               }
               break;
             }
