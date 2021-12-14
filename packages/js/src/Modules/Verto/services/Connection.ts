@@ -101,7 +101,9 @@ export default class Connection {
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
 
         // save previous gate state
-        this.previousGatewayState = gateWayState;
+        if(Boolean(gateWayState)) {
+          this.previousGatewayState = gateWayState;
+        }
       }
     };
   }
