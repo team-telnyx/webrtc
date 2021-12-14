@@ -1,3 +1,10 @@
+### [2.7.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.2...webrtc/v2.7.3) (2021-12-14)
+
+
+### Bug Fixes
+
+* change previousGatewayState only if gateWayState exist to avoid send many REGISTER messages ([#244](https://github.com/team-telnyx/webrtc/issues/244)) ([70c10fa](https://github.com/team-telnyx/webrtc/commit/70c10faae274e08e019fdf2187af839dd0ad744c))
+
 ### [2.7.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.1...webrtc/v2.7.2) (2021-12-13)
 
 
