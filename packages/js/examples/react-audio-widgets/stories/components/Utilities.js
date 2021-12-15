@@ -203,7 +203,11 @@ function Utilities({ username, password, token }) {
   const getMediaConstraints = () => {
     setLog({
       title: 'Current media constraints',
-      message: JSON.stringify(clientRef.current.mediaConstraints),
+      message: (
+        <pre style={{ display: 'block', backgroundColor: '#ccc' }}>
+          {JSON.stringify(clientRef.current.mediaConstraints, undefined, 2)}
+        </pre>
+      ),
     });
   };
 
@@ -230,7 +234,7 @@ function Utilities({ username, password, token }) {
       </section>
 
       {clientRef.current && (
-        <section>
+        <section style={{ display: 'flex', flexDirection: 'column' }}>
           <div>
             <button type='button' onClick={() => getAudioInDevices()}>
               Get Audio Input Devices
@@ -258,7 +262,9 @@ function Utilities({ username, password, token }) {
             <button type='button' onClick={() => getAudioOutDevices()}>
               Get Audio Output Devices
             </button>
+          </div>
 
+          <div>
             <button type='button' onClick={() => getSpeaker()}>
               Get Speaker
             </button>
