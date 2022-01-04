@@ -11,7 +11,7 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
-import { getGatewayState } from '../util/helpers';
+import { getGatewayState, randomInt } from '../util/helpers';
 
 /**
  * @ignore Hide in docs output
@@ -34,6 +34,10 @@ class VertoHandler {
       msg.targetNodeId = this.nodeId;
     }
     this.session.execute(msg);
+  }
+
+  private reconnectDelay() {
+    return randomInt(2, 6) * 1000
   }
 
   handleMessage(msg: any) {
@@ -194,7 +198,7 @@ class VertoHandler {
               } else {
                 setTimeout(() => {
                   this.session.execute(messageToCheckRegisterState);
-                }, 500);
+                }, this.reconnectDelay());
                 break;
               }
             case GatewayStateType.FAILED:
@@ -229,7 +233,7 @@ class VertoHandler {
                       this.session.clearConnection();
                       this.session.connect();
                     });
-                  }, 500);
+                  }, this.reconnectDelay());
                 }
               }
               break;
