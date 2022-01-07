@@ -4,7 +4,6 @@ import Utilities from './components/Utilities';
 
 export default {
   title: 'Utilities',
-  
 };
 
 export const Examples = (args, storybook) => (

@@ -5,7 +5,6 @@ import WebDialerComponent from './components/WebDialer';
 
 export default {
   title: 'Audio',
- 
 };
 
 export const ClickToCall = (args, storybook) => (
