@@ -5,16 +5,14 @@
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.10",
-    "@storybook/addon-actions": "^6.4.0",
     "@storybook/addon-essentials": "^6.4.0",
-    "@storybook/addon-links": "^6.4.0",
     "@storybook/react": "^6.4.0",
     "babel-loader": "^8.2.2",
     "cypress": "^9.1.0",
     "wait-on": "^5.2.1"
   },
   "dependencies": {
-    "@telnyx/webrtc": "^2.6.1",
+    "@telnyx/webrtc": "^2.7.3",
     "prop-types": "^15.7.2",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
