@@ -70,7 +70,7 @@ export default abstract class BaseSession {
   }
 
   get reconnectDelay() {
-    return randomInt(6, 2) * 1000;
+    return randomInt(2, 6) * 1000;
   }
 
   /**
