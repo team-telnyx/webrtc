@@ -44,12 +44,10 @@ export default class Peer {
     };
 
     this._sdpReady = this._sdpReady.bind(this);
-    this.handleSignalingStateChangeEvent = this.handleSignalingStateChangeEvent.bind(
-      this
-    );
-    this.handleNegotiationNeededEvent = this.handleNegotiationNeededEvent.bind(
-      this
-    );
+    this.handleSignalingStateChangeEvent =
+      this.handleSignalingStateChangeEvent.bind(this);
+    this.handleNegotiationNeededEvent =
+      this.handleNegotiationNeededEvent.bind(this);
     this.handleTrackEvent = this.handleTrackEvent.bind(this);
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
@@ -139,6 +137,7 @@ export default class Peer {
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
 
+    //@ts-ignore
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -264,9 +263,8 @@ export default class Peer {
         this.instance.localDescription.sdp
       );
     }
-    const sessionDescr: RTCSessionDescription = sdpToJsonHack(
-      remoteDescription
-    );
+    const sessionDescr: RTCSessionDescription =
+      sdpToJsonHack(remoteDescription);
     logger.info(
       'REMOTE SDP \n',
       `Type: ${remoteDescription.type}`,
