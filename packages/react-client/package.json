@@ -37,7 +37,7 @@
   "license": "MIT",
   "peerDependencies": {
     "@telnyx/webrtc": "^2.6.1",
-    "react": "^16.0.0"
+    "react": "^17.0.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.11.9",
