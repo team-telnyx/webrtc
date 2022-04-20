@@ -16,7 +16,7 @@ IClientOptions
 
 ## Properties
 
-### login
+### <a id="login" name="login"></a> login
 
 • `Optional` **login**: `string`
 
@@ -26,7 +26,7 @@ The `username` to authenticate with your SIP Connection.
 
 ___
 
-### login\_token
+### <a id="login_token" name="login_token"></a> login\_token
 
 • **login\_token**: `string`
 
@@ -35,7 +35,7 @@ This is the recommended authentication strategy. [See how to create one](https:/
 
 ___
 
-### password
+### <a id="password" name="password"></a> password
 
 • `Optional` **password**: `string`
 
@@ -43,7 +43,7 @@ The `password` to authenticate with your SIP Connection.
 
 ___
 
-### ringbackFile
+### <a id="ringbackfile" name="ringbackfile"></a> ringbackFile
 
 • `Optional` **ringbackFile**: `string`
 
@@ -52,7 +52,7 @@ A URL to a wav/mp3 ringback file that will be used when you disable
 
 ___
 
-### ringtoneFile
+### <a id="ringtonefile" name="ringtonefile"></a> ringtoneFile
 
 • `Optional` **ringtoneFile**: `string`
 
