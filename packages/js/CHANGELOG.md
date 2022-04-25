@@ -1,3 +1,11 @@
+### [2.7.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.3...webrtc/v2.7.4) (2022-04-25)
+
+
+### Bug Fixes
+
+* change timeout value of 500 to use a random number between 3000 ([#246](https://github.com/team-telnyx/webrtc/issues/246)) ([34a232a](https://github.com/team-telnyx/webrtc/commit/34a232a768683aa8e60c395b658ce9ac44db47a6))
+* **WEBRTC-1705:** reverting dependabot updates to fix typedoc generation ([#278](https://github.com/team-telnyx/webrtc/issues/278)) ([5ac667d](https://github.com/team-telnyx/webrtc/commit/5ac667d8d01df418dcbbc814968628121631e4e7))
+
 ### [2.7.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.2...webrtc/v2.7.3) (2021-12-14)
 
 
