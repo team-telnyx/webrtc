@@ -66,7 +66,7 @@ The notification structure is determined by its `type`.
 
 ## Properties
 
-### call
+### <a id="call" name="call"></a> call
 
 • `Optional` **call**: `ICall`
 
@@ -75,7 +75,7 @@ See `Call` documentation.
 
 ___
 
-### error
+### <a id="error" name="error"></a> error
 
 • `Optional` **error**: `Error`
 
@@ -88,7 +88,7 @@ Omit.error
 
 ___
 
-### type
+### <a id="type" name="type"></a> type
 
 • **type**: `string`
 

@@ -5,15 +5,15 @@
   "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.10",
-    "@storybook/addon-essentials": "^6.4.0",
-    "@storybook/react": "^6.4.0",
+    "@storybook/addon-essentials": "^6.4.22",
+    "@storybook/react": "^6.4.22",
     "babel-loader": "^8.2.2",
     "cypress": "^9.1.0",
-    "wait-on": "^5.2.1"
+    "wait-on": "^5.2.1",
+    "prop-types": "^15.7.2"
   },
   "dependencies": {
     "@telnyx/webrtc": "^2.7.3",
-    "prop-types": "^15.7.2",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "styled-components": "^5.2.1"
