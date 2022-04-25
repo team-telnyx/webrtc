@@ -46,7 +46,7 @@ call.muteAudio();
 
 ## Hierarchy
 
-- `default`
+- `BaseCall`
 
   ↳ **`Call`**
 
@@ -93,7 +93,7 @@ call.muteAudio();
 
 ## Constructors
 
-### <a id="constructor" name="constructor"></a> constructor
+### constructor
 
 • **new Call**(`session`, `opts?`)
 
@@ -110,7 +110,7 @@ BaseCall.constructor
 
 ## Properties
 
-### <a id="direction" name="direction"></a> direction
+### direction
 
 • **direction**: `Direction`
 
@@ -123,7 +123,7 @@ BaseCall.direction
 
 ___
 
-### <a id="id" name="id"></a> id
+### id
 
 • **id**: `string` = `''`
 
@@ -135,7 +135,7 @@ BaseCall.id
 
 ___
 
-### <a id="prevstate" name="prevstate"></a> prevState
+### prevState
 
 • **prevState**: `string` = `''`
 
@@ -148,7 +148,7 @@ BaseCall.prevState
 
 ___
 
-### <a id="state" name="state"></a> state
+### state
 
 • **state**: `string`
 
@@ -175,7 +175,7 @@ BaseCall.state
 
 ## Accessors
 
-### <a id="localstream" name="localstream"></a> localStream
+### localStream
 
 • `get` **localStream**(): `MediaStream`
 
@@ -200,7 +200,7 @@ BaseCall.localStream
 
 ___
 
-### <a id="remotestream" name="remotestream"></a> remoteStream
+### remoteStream
 
 • `get` **remoteStream**(): `MediaStream`
 
@@ -225,7 +225,7 @@ BaseCall.remoteStream
 
 ___
 
-### <a id="telnyxids" name="telnyxids"></a> telnyxIDs
+### telnyxIDs
 
 • `get` **telnyxIDs**(): `Object`
 
@@ -248,7 +248,7 @@ BaseCall.telnyxIDs
 
 ## Methods
 
-### <a id="answer" name="answer"></a> answer
+### answer
 
 ▸ **answer**(): `void`
 
@@ -270,7 +270,7 @@ BaseCall.answer
 
 ___
 
-### <a id="deaf" name="deaf"></a> deaf
+### deaf
 
 ▸ **deaf**(): `void`
 
@@ -292,7 +292,7 @@ BaseCall.deaf
 
 ___
 
-### <a id="dtmf" name="dtmf"></a> dtmf
+### dtmf
 
 ▸ **dtmf**(`dtmf`): `void`
 
@@ -323,7 +323,7 @@ BaseCall.dtmf
 
 ___
 
-### <a id="getstats" name="getstats"></a> getStats
+### getStats
 
 ▸ **getStats**(`callback`, `constraints`): `void`
 
@@ -346,7 +346,7 @@ BaseCall.getStats
 
 ___
 
-### <a id="hangup" name="hangup"></a> hangup
+### hangup
 
 ▸ **hangup**(`params?`, `execute?`): `void`
 
@@ -367,7 +367,7 @@ BaseCall.hangup
 
 ___
 
-### <a id="hold" name="hold"></a> hold
+### hold
 
 ▸ **hold**(): `Promise`<`any`\>
 
@@ -402,7 +402,7 @@ BaseCall.hold
 
 ___
 
-### <a id="muteaudio" name="muteaudio"></a> muteAudio
+### muteAudio
 
 ▸ **muteAudio**(): `void`
 
@@ -425,7 +425,7 @@ BaseCall.muteAudio
 
 ___
 
-### <a id="mutevideo" name="mutevideo"></a> muteVideo
+### muteVideo
 
 ▸ **muteVideo**(): `void`
 
@@ -448,7 +448,7 @@ BaseCall.muteVideo
 
 ___
 
-### <a id="setaudioindevice" name="setaudioindevice"></a> setAudioInDevice
+### setAudioInDevice
 
 ▸ **setAudioInDevice**(`deviceId`): `Promise`<`void`\>
 
@@ -498,7 +498,7 @@ BaseCall.setAudioInDevice
 
 ___
 
-### <a id="setaudiooutdevice" name="setaudiooutdevice"></a> setAudioOutDevice
+### setAudioOutDevice
 
 ▸ **setAudioOutDevice**(`deviceId`): `Promise`<`boolean`\>
 
@@ -544,7 +544,7 @@ Promise that returns a boolean
 
 ___
 
-### <a id="setvideodevice" name="setvideodevice"></a> setVideoDevice
+### setVideoDevice
 
 ▸ **setVideoDevice**(`deviceId`): `Promise`<`void`\>
 
@@ -594,7 +594,7 @@ BaseCall.setVideoDevice
 
 ___
 
-### <a id="toggleaudiomute" name="toggleaudiomute"></a> toggleAudioMute
+### toggleAudioMute
 
 ▸ **toggleAudioMute**(): `void`
 
@@ -616,7 +616,7 @@ BaseCall.toggleAudioMute
 
 ___
 
-### <a id="toggledeaf" name="toggledeaf"></a> toggleDeaf
+### toggleDeaf
 
 ▸ **toggleDeaf**(): `void`
 
@@ -638,7 +638,7 @@ BaseCall.toggleDeaf
 
 ___
 
-### <a id="togglehold" name="togglehold"></a> toggleHold
+### toggleHold
 
 ▸ **toggleHold**(): `Promise`<`any`\>
 
@@ -668,7 +668,7 @@ BaseCall.toggleHold
 
 ___
 
-### <a id="togglevideomute" name="togglevideomute"></a> toggleVideoMute
+### toggleVideoMute
 
 ▸ **toggleVideoMute**(): `void`
 
@@ -690,7 +690,7 @@ BaseCall.toggleVideoMute
 
 ___
 
-### <a id="undeaf" name="undeaf"></a> undeaf
+### undeaf
 
 ▸ **undeaf**(): `void`
 
@@ -712,7 +712,7 @@ BaseCall.undeaf
 
 ___
 
-### <a id="unhold" name="unhold"></a> unhold
+### unhold
 
 ▸ **unhold**(): `Promise`<`any`\>
 
@@ -747,7 +747,7 @@ BaseCall.unhold
 
 ___
 
-### <a id="unmuteaudio" name="unmuteaudio"></a> unmuteAudio
+### unmuteAudio
 
 ▸ **unmuteAudio**(): `void`
 
@@ -770,7 +770,7 @@ BaseCall.unmuteAudio
 
 ___
 
-### <a id="unmutevideo" name="unmutevideo"></a> unmuteVideo
+### unmuteVideo
 
 ▸ **unmuteVideo**(): `void`
 

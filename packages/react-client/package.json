@@ -37,11 +37,11 @@
   "license": "MIT",
   "peerDependencies": {
     "@telnyx/webrtc": "^2.6.1",
-    "react": "^17.0.2"
+    "react": "^16.14.0"
   },
   "dependencies": {
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.11.9",
@@ -69,7 +69,7 @@
     "microbundle-crl": "^0.13.11",
     "npm-run-all": "^4.1.5",
     "prettier": "^2.1.2",
-    "react-scripts": "^5.0.1",
+    "react-scripts": "^4.0.3",
     "release-it": "^14.14.2",
     "typescript": "^3.7.5"
   },
