@@ -1,6 +1,7 @@
 # @telnyx/webrtc
 
 ![npm (scoped)](https://img.shields.io/npm/v/@telnyx/webrtc) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://joinslack.telnyx.com/)
+
 ## Summary
 
 The Telnyx WebRTC Client provides all the functionality you need to start making voice & video calls from a browser.
@@ -48,15 +49,15 @@ const client = new TelnyxRTC({
 // Connect and login
 client.connect();
 
-
 // You can call client.disconnect() when you're done.
 // Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
 
-// Disconnecting and Removing listeners. 
+// Disconnecting and Removing listeners.
 // client.disconnect();
 // client.off('telnyx.ready')
 // client.off('telnyx.notification');
 ```
+
 > See ON [Events](https://github.com/team-telnyx/webrtc/tree/main/packages/js#events)
 
 > See [TelnyxRTC#constructor](./docs/ts/classes/telnyxrtc.md#constructor) for all options.
@@ -157,12 +158,11 @@ call.muteAudio();
 
 ## Examples
 
-We've included a few [examples in vanilla JavaScript (ES6) and React](https://github.com/team-telnyx/webrtc/tree/main/packages/js/examples) to help you get started.
+We've included a few [examples in vanilla JavaScript (ES6) and React](https://github.com/team-telnyx/webrtc-examples/tree/main/js) to help you get started.
 
-> _Looking for more examples in React or React Native? Check out our React client packages:_
+> _Looking for more examples in React? Check out our React client packages:_
 >
 > - [@telnyx/react-client](../react-client)
-> - [@telnyx/react-native](../react-client)
 
 ---
 
@@ -173,13 +173,12 @@ The following table indicates the browsers supported by TelnyxRTC.
 We support the most recent (N) versions of these browsers unless otherwise indicated.
 
 |         | Chrome | Firefox | Safari | Edge |
-|---------|--------|---------|--------|------|
-| Android |  [-]   |   [-]   |  [ ]   | [ ]  |
-| iOS     |  [ ]   |   [ ]   |  [x]   | [ ]  |
-| Linux   |  [x]   |   [-]   |  [ ]   | [ ]  |
-| MacOS   |  [x]   |   [-]   |  [x]   | [-]  |
-| Windows |  [x]   |   [-]   |  [ ]   | [-]  |
-
+| ------- | ------ | ------- | ------ | ---- |
+| Android | [-]    | [-]     | [ ]    | [ ]  |
+| iOS     | [ ]    | [ ]     | [x]    | [ ]  |
+| Linux   | [x]    | [-]     | [ ]    | [ ]  |
+| MacOS   | [x]    | [-]     | [x]    | [-]  |
+| Windows | [x]    | [-]     | [ ]    | [-]  |
 
 [x] supports audio and video
 
@@ -187,8 +186,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 
 [ ] not supported
 
-
- To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
+To extend support to other browsers, install and import [webrtc-adapter](https://www.npmjs.com/package/webrtc-adapter) before importing `TelnyxRTC`. For example:
 
 ```js
 import 'webrtc-adapter';
