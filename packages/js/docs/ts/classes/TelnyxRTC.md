@@ -36,7 +36,7 @@ client.off('telnyx.notification');
 
 ## Hierarchy
 
-- `TelnyxRTCClient`
+- `default`
 
   ↳ **`TelnyxRTC`**
 
@@ -79,7 +79,7 @@ client.off('telnyx.notification');
 
 ## Constructors
 
-### constructor
+### <a id="constructor" name="constructor"></a> constructor
 
 • **new TelnyxRTC**(`options`)
 
@@ -147,7 +147,7 @@ TelnyxRTCClient.constructor
 
 ## Accessors
 
-### connected
+### <a id="connected" name="connected"></a> connected
 
 • `get` **connected**(): `boolean`
 
@@ -170,7 +170,7 @@ TelnyxRTCClient.connected
 
 ___
 
-### localElement
+### <a id="localelement" name="localelement"></a> localElement
 
 • `get` **localElement**(): `string` \| `Function` \| `HTMLMediaElement`
 
@@ -220,7 +220,7 @@ TelnyxRTCClient.localElement
 
 ___
 
-### mediaConstraints
+### <a id="mediaconstraints" name="mediaconstraints"></a> mediaConstraints
 
 • `get` **mediaConstraints**(): `Object`
 
@@ -247,7 +247,7 @@ TelnyxRTCClient.mediaConstraints
 
 ___
 
-### remoteElement
+### <a id="remoteelement" name="remoteelement"></a> remoteElement
 
 • `get` **remoteElement**(): `string` \| `Function` \| `HTMLMediaElement`
 
@@ -297,7 +297,7 @@ TelnyxRTCClient.remoteElement
 
 ___
 
-### speaker
+### <a id="speaker" name="speaker"></a> speaker
 
 • `get` **speaker**(): `string`
 
@@ -350,7 +350,7 @@ TelnyxRTCClient.speaker
 
 ## Methods
 
-### checkPermissions
+### <a id="checkpermissions" name="checkpermissions"></a> checkPermissions
 
 ▸ **checkPermissions**(`audio?`, `video?`): `Promise`<`boolean`\>
 
@@ -399,7 +399,7 @@ TelnyxRTCClient.checkPermissions
 
 ___
 
-### connect
+### <a id="connect" name="connect"></a> connect
 
 ▸ **connect**(): `Promise`<`void`\>
 
@@ -423,7 +423,7 @@ TelnyxRTCClient.connect
 
 ___
 
-### disableMicrophone
+### <a id="disablemicrophone" name="disablemicrophone"></a> disableMicrophone
 
 ▸ **disableMicrophone**(): `void`
 
@@ -464,7 +464,7 @@ TelnyxRTCClient.disableMicrophone
 
 ___
 
-### disableWebcam
+### <a id="disablewebcam" name="disablewebcam"></a> disableWebcam
 
 ▸ **disableWebcam**(): `void`
 
@@ -499,7 +499,7 @@ TelnyxRTCClient.disableWebcam
 
 ___
 
-### disconnect
+### <a id="disconnect" name="disconnect"></a> disconnect
 
 ▸ **disconnect**(): `Promise`<`void`\>
 
@@ -523,7 +523,7 @@ TelnyxRTCClient.disconnect
 
 ___
 
-### enableMicrophone
+### <a id="enablemicrophone" name="enablemicrophone"></a> enableMicrophone
 
 ▸ **enableMicrophone**(): `void`
 
@@ -550,7 +550,7 @@ TelnyxRTCClient.enableMicrophone
 
 ___
 
-### enableWebcam
+### <a id="enablewebcam" name="enablewebcam"></a> enableWebcam
 
 ▸ **enableWebcam**(): `void`
 
@@ -577,7 +577,7 @@ TelnyxRTCClient.enableWebcam
 
 ___
 
-### getAudioInDevices
+### <a id="getaudioindevices" name="getaudioindevices"></a> getAudioInDevices
 
 ▸ **getAudioInDevices**(): `Promise`<`MediaDeviceInfo`[]\>
 
@@ -617,7 +617,7 @@ TelnyxRTCClient.getAudioInDevices
 
 ___
 
-### getAudioOutDevices
+### <a id="getaudiooutdevices" name="getaudiooutdevices"></a> getAudioOutDevices
 
 ▸ **getAudioOutDevices**(): `Promise`<`MediaDeviceInfo`[]\>
 
@@ -662,7 +662,7 @@ TelnyxRTCClient.getAudioOutDevices
 
 ___
 
-### getDeviceResolutions
+### <a id="getdeviceresolutions" name="getdeviceresolutions"></a> getDeviceResolutions
 
 ▸ **getDeviceResolutions**(`deviceId`): `Promise`<`any`[]\>
 
@@ -734,7 +734,7 @@ TelnyxRTCClient.getDeviceResolutions
 
 ___
 
-### getDevices
+### <a id="getdevices" name="getdevices"></a> getDevices
 
 ▸ **getDevices**(): `Promise`<`MediaDeviceInfo`[]\>
 
@@ -770,7 +770,7 @@ TelnyxRTCClient.getDevices
 
 ___
 
-### getVideoDevices
+### <a id="getvideodevices" name="getvideodevices"></a> getVideoDevices
 
 ▸ **getVideoDevices**(): `Promise`<`MediaDeviceInfo`[]\>
 
@@ -808,7 +808,7 @@ TelnyxRTCClient.getVideoDevices
 
 ___
 
-### logout
+### <a id="logout" name="logout"></a> logout
 
 ▸ **logout**(): `void`
 
@@ -826,7 +826,7 @@ TelnyxRTCClient.logout
 
 ___
 
-### newCall
+### <a id="newcall" name="newcall"></a> newCall
 
 ▸ **newCall**(`options`): [`Call`](Call.md)
 
@@ -886,7 +886,7 @@ TelnyxRTCClient.newCall
 
 ___
 
-### off
+### <a id="off" name="off"></a> off
 
 ▸ **off**(`eventName`, `callback?`): [`TelnyxRTC`](TelnyxRTC.md)
 
@@ -932,7 +932,7 @@ TelnyxRTCClient.off
 
 ___
 
-### on
+### <a id="on" name="on"></a> on
 
 ▸ **on**(`eventName`, `callback`): [`TelnyxRTC`](TelnyxRTC.md)
 
@@ -982,7 +982,7 @@ TelnyxRTCClient.on
 
 ___
 
-### setAudioSettings
+### <a id="setaudiosettings" name="setaudiosettings"></a> setAudioSettings
 
 ▸ **setAudioSettings**(`settings`): `Promise`<`MediaTrackConstraints`\>
 
@@ -1027,7 +1027,7 @@ TelnyxRTCClient.setAudioSettings
 
 ___
 
-### setVideoSettings
+### <a id="setvideosettings" name="setvideosettings"></a> setVideoSettings
 
 ▸ **setVideoSettings**(`settings`): `Promise`<`MediaTrackConstraints`\>
 
@@ -1073,7 +1073,7 @@ TelnyxRTCClient.setVideoSettings
 
 ___
 
-### webRTCInfo
+### <a id="webrtcinfo" name="webrtcinfo"></a> webRTCInfo
 
 ▸ `Static` **webRTCInfo**(): `string` \| `IWebRTCInfo`
 
@@ -1108,7 +1108,7 @@ An object with WebRTC browser support information or a string error message.
 
 ___
 
-### webRTCSupportedBrowserList
+### <a id="webrtcsupportedbrowserlist" name="webrtcsupportedbrowserlist"></a> webRTCSupportedBrowserList
 
 ▸ `Static` **webRTCSupportedBrowserList**(): `IWebRTCSupportedBrowser`[]
 

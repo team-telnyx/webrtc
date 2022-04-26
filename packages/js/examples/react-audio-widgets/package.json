@@ -21,7 +21,7 @@
   "scripts": {
     "storybook": "start-storybook -s ./public -p 6006 -h localhost",
     "build-storybook": "build-storybook",
-    "setup": "npm link ../../",
+    "setup": "yarn link ../../",
     "cypress:open": "cypress open",
     "cypress:ci:chrome": "wait-on http://localhost:6006 & cypress run --browser chrome",
     "cypress:ci:firefox": "wait-on http://localhost:6006 & cypress run --browser firefox",
