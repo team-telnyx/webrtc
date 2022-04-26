@@ -36,18 +36,19 @@ jobs:
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
       - name: Use Node.js 14.x
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: "14.x"
+          cache: 'yarn'
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Install package dependencies
         working-directory: packages/js
-        run: npm ci --ignore-scripts
+        run: yarn install --frozen-lockfile
       - name: Publish package
         working-directory: packages/js
-        run: npm publish --access public
+        run: yarn publish --access public
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
@@ -105,19 +106,20 @@ jobs:
         run: |
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
-      - name: Use Node.js 11.x
-        uses: actions/setup-node@v1
+      - name: Use Node.js 14.x
+        uses: actions/setup-node@v2
         with:
-          node-version: "11.x"
+          node-version: "14.x"
+          cache: 'yarn'
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Install package dependencies
         working-directory: packages/react-client
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Publish package
         working-directory: packages/react-client
-        run: npm publish --access public
+        run: yarn publish --access public
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
@@ -142,25 +144,26 @@ jobs:
         run: |
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
-      - name: Use Node.js 11.x
-        uses: actions/setup-node@v1
+      - name: Use Node.js 14.x
+        uses: actions/setup-node@v2
         with:
-          node-version: "11.x"
+          node-version: "14.x"
+          cache: 'yarn'
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Install package dependencies
         working-directory: packages/js
-        run: npm ci --ignore-scripts
+        run: yarn install --frozen-lockfile
       - name: Release API docs
         working-directory: packages/api-docs
         run: |
-          npm run release -- \
+          yarn release -- \
           $(node ./get_version.js) \
           --ci \
           --no-npm.publish \
           && \
-          npm publish --access public
+          yarn publish --access public
         env:
           CI: true
           # Both tokens are present because publishing with

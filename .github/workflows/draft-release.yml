@@ -33,30 +33,32 @@ jobs:
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
       - name: Use Node.js 14.x
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v2
         with:
           node-version: "14.x"
+          cache: 'yarn'
+          registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Install package dependencies
         working-directory: packages/${{ env.PACKAGE_DIR }}
-        run: npm ci
+        run: yarn install --frozen-lockfile
       - name: Test
         working-directory: packages/${{ env.PACKAGE_DIR }}
-        run: npm test
+        run: yarn test
         env:
           CI: true
       - if: github.event.inputs.package == 'webrtc'
         name: Generate docs
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          npm run docs # IDEA Set --gitRevision to release-it tag
+          yarn docs # IDEA Set --gitRevision to release-it tag
           git add docs
           git commit -m "docs: update ts docs" || echo "docs: no docs changes to commit"
       - name: Create draft release
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          npm run release -- \
+          yarn release -- \
           --ci \
           --github.draft \
           --no-npm.publish \
