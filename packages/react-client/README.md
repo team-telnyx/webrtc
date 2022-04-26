@@ -185,17 +185,17 @@ function VideoConference({ activeCall }) {
 Install dependencies:
 
 ```bash
-npm install
+yarn install
+yarn start
+yarn link
+
 # in another tab:
-cd example && npm install && npm run setup
-```
+git clone https://github.com/team-telnyx/webrtc-examples/tree/main/react-client/react-app
 
-Watch and compile files:
-
-```bash
-npm start
-# fill in example/.env, then in another tab:
-cd example && npm start
+# fill in .env
+yarn install
+yarn link @telnyx/react-client
+yarn start
 ```
 
 ---
