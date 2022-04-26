@@ -12,7 +12,7 @@ on:
 jobs:
   unit-tests:
     name: Unit Test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
       with:
@@ -20,23 +20,25 @@ jobs:
         ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
+    - name: Use Node.js 14.x
+      uses: actions/setup-node@v2
       with:
-        node-version: '11.x'
+        node-version: "14.x"
+        cache: 'yarn'
+        registry-url: https://registry.npmjs.org/
     - name: Install shared dependencies
-      run: npm ci
+      run: yarn install --frozen-lockfile
     - name: Install package dependencies
       working-directory: packages/js
-      run: npm ci --ignore-scripts
+      run: yarn install --frozen-lockfile
     - name: Test
       working-directory: packages/js
-      run: npm test
+      run: yarn test
       env:
         CI: true
 
   cypress-run-chrome:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     # let's make sure our tests pass on Chrome browser
     name: E2E tests on Chrome and Firefox
     steps:
@@ -46,19 +48,21 @@ jobs:
         ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
+    - name: Use Node.js 14.x
+      uses: actions/setup-node@v2
       with:
-        node-version: '11.x'
+        node-version: "14.x"
+        cache: 'yarn'
+        registry-url: https://registry.npmjs.org/
     - name: Install Cypress Dependency
       working-directory: packages/js/examples/react-audio-widgets
-      run: npm install -D cypress  
+      run: yarn install -D cypress  
     - name: Install react-audio-widgets dependencies
       working-directory: packages/js/examples/react-audio-widgets
-      run: npm ci --ignore-scripts
+      run: yarn install --frozen-lockfile
     - name: Run Storybook Audio Widgets
       working-directory: packages/js/examples/react-audio-widgets
-      run: npm run storybook &
+      run: yarn storybook &
       env:
         CI: true 
         STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
@@ -66,7 +70,7 @@ jobs:
         STORYBOOK_DESTINATION: ${{ secrets.NPM_CI_STORYBOOK_DESTINATION }} 
     - name: Test on Chrome
       working-directory: packages/js/examples/react-audio-widgets
-      run: npm run cypress:ci:chrome   
+      run: yarn cypress:ci:chrome   
       env:
         CI: true   
         STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
@@ -74,7 +78,7 @@ jobs:
         STORYBOOK_DESTINATION: ${{ secrets.NPM_CI_STORYBOOK_DESTINATION }} 
     - name: Test on Firefox
       working-directory: packages/js/examples/react-audio-widgets
-      run: npm run cypress:ci:firefox   
+      run: yarn cypress:ci:firefox   
       env:
         CI: true   
         STORYBOOK_USERNAME: ${{ secrets.NPM_CI_STORYBOOK_USERNAME }}
@@ -91,28 +95,20 @@ jobs:
         ref: 'main'
         # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
         fetch-depth: 0
-    - name: Use Node.js 11.x
-      uses: actions/setup-node@v1
+    - name: Use Node.js 14.x
+      uses: actions/setup-node@v2
       with:
-        node-version: '11.x'
+        node-version: "14.x"
+        cache: 'yarn'
+        registry-url: https://registry.npmjs.org/
     - name: Install shared dependencies
-      run: npm ci
+      run: yarn install --frozen-lockfile
     - name: Install package dependencies
       working-directory: packages/js
-      run: npm ci --ignore-scripts
+      run: yarn install --frozen-lockfile
     - name: Build
       working-directory: packages/js
-      run: npm run build
-    - name: Release dry run
-      working-directory: packages/js
-      run: |
-        npm run release -- \
-        --dry-run \
-        --ci \
-        --no-git.tag \
-        --github.draft \
-        --no-npm.publish \
-        --no-npm.tag
+      run: yarn build
       env:
         NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

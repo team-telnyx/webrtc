@@ -8,5 +8,5 @@ cypress/integration/examples
 cypress/videos/*
 cypress/screenshots/*
 .env
-yarn.lock
 storybook-static
+package-lock.json

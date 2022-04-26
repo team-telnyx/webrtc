@@ -22,7 +22,7 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c --watch",
-    "prepare": "npm run build",
+    "prepare": "yarn build",
     "test": "jest",
     "docs": "typedoc --entryPointStrategy expand ./src",
     "release": "release-it",

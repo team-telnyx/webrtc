@@ -32,7 +32,7 @@ ICallOptions
 
 ## Properties
 
-### audio
+### <a id="audio" name="audio"></a> audio
 
 • `Optional` **audio**: `boolean`
 
@@ -40,7 +40,7 @@ Overrides client's default audio constraints. Defaults to `true`
 
 ___
 
-### callerName
+### <a id="callername" name="callername"></a> callerName
 
 • `Optional` **callerName**: `string`
 
@@ -48,7 +48,7 @@ Name to use as the caller ID name when dialing out to a destination.
 
 ___
 
-### callerNumber
+### <a id="callernumber" name="callernumber"></a> callerNumber
 
 • `Optional` **callerNumber**: `string`
 
@@ -56,7 +56,7 @@ Number to use as the caller ID when dialing out to a destination. A valid phone 
 
 ___
 
-### camId
+### <a id="camid" name="camid"></a> camId
 
 • `Optional` **camId**: `string`
 
@@ -64,7 +64,7 @@ ___
 
 ___
 
-### clientState
+### <a id="clientstate" name="clientstate"></a> clientState
 
 • `Optional` **clientState**: `string`
 
@@ -73,7 +73,7 @@ Telnyx's Call Control client_state. Can be used with Connections with Advanced -
 
 ___
 
-### destinationNumber
+### <a id="destinationnumber" name="destinationnumber"></a> destinationNumber
 
 • **destinationNumber**: `string`
 
@@ -81,7 +81,7 @@ Phone number or SIP URI to dial.
 
 ___
 
-### iceServers
+### <a id="iceservers" name="iceservers"></a> iceServers
 
 • `Optional` **iceServers**: `RTCIceServer`[]
 
@@ -89,7 +89,7 @@ Overrides client's default `iceServers`.
 
 ___
 
-### id
+### <a id="id" name="id"></a> id
 
 • `Optional` **id**: `string`
 
@@ -97,7 +97,7 @@ Custom ID to identify the call. This will be used as the `callID` in place of th
 
 ___
 
-### localElement
+### <a id="localelement" name="localelement"></a> localElement
 
 • `Optional` **localElement**: `string` \| `HTMLMediaElement`
 
@@ -105,7 +105,7 @@ Overrides client's default `localElement`.
 
 ___
 
-### localStream
+### <a id="localstream" name="localstream"></a> localStream
 
 • `Optional` **localStream**: `MediaStream`
 
@@ -113,7 +113,7 @@ If set, the call will use this stream instead of retrieving a new one.
 
 ___
 
-### mediaSettings
+### <a id="mediasettings" name="mediasettings"></a> mediaSettings
 
 • **mediaSettings**: `Object`
 
@@ -121,7 +121,7 @@ Configures media (audio/video) in a call.
 
 ___
 
-### micId
+### <a id="micid" name="micid"></a> micId
 
 • `Optional` **micId**: `string`
 
@@ -129,7 +129,7 @@ ___
 
 ___
 
-### onNotification
+### <a id="onnotification" name="onnotification"></a> onNotification
 
 • `Optional` **onNotification**: `Function`
 
@@ -137,7 +137,7 @@ Overrides client's default `telnyx.notification` handler for this call.
 
 ___
 
-### remoteElement
+### <a id="remoteelement" name="remoteelement"></a> remoteElement
 
 • `Optional` **remoteElement**: `string` \| `HTMLMediaElement`
 
@@ -145,7 +145,7 @@ Overrides client's default `remoteElement`.
 
 ___
 
-### remoteStream
+### <a id="remotestream" name="remotestream"></a> remoteStream
 
 • `Optional` **remoteStream**: `MediaStream`
 
@@ -153,7 +153,7 @@ If set, the call will use this stream instead of retrieving a new one.
 
 ___
 
-### speakerId
+### <a id="speakerid" name="speakerid"></a> speakerId
 
 • `Optional` **speakerId**: `string`
 
@@ -161,7 +161,7 @@ ___
 
 ___
 
-### telnyxCallControlId
+### <a id="telnyxcallcontrolid" name="telnyxcallcontrolid"></a> telnyxCallControlId
 
 • `Optional` **telnyxCallControlId**: `string`
 
@@ -169,7 +169,7 @@ Telnyx Call Control ID, if using Call Control services.
 
 ___
 
-### telnyxLegId
+### <a id="telnyxlegid" name="telnyxlegid"></a> telnyxLegId
 
 • `Optional` **telnyxLegId**: `string`
 
@@ -177,7 +177,7 @@ Telnyx call leg ID, if using Call Control services.
 
 ___
 
-### telnyxSessionId
+### <a id="telnyxsessionid" name="telnyxsessionid"></a> telnyxSessionId
 
 • `Optional` **telnyxSessionId**: `string`
 
@@ -185,7 +185,7 @@ Telnyx call session ID, if using Call Control services.
 
 ___
 
-### useStereo
+### <a id="usestereo" name="usestereo"></a> useStereo
 
 • `Optional` **useStereo**: `boolean`
 
@@ -193,7 +193,7 @@ Uses stereo audio instead of mono.
 
 ___
 
-### video
+### <a id="video" name="video"></a> video
 
 • `Optional` **video**: `boolean`
 
