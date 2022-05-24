@@ -1,5 +1,5 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
-import { Pong } from '../messages/verto/Pong';
+import { Ping } from '../messages/verto/Ping';
 
 describe('Messages', function () {
   describe('Verto', function () {
@@ -100,11 +100,11 @@ describe('Messages', function () {
       });
     });
 
-    describe('Pong', function () {
+    describe('Ping', function () {
       it('should match struct', function () {
-        const message = new Pong().request;
+        const message = new Ping().request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.pong","params":{}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.ping","params":{}}`
         );
         expect(message).toEqual(res);
       });

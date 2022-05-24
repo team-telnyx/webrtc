@@ -12,7 +12,7 @@ import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
-import { Pong } from '../messages/verto/Pong';
+import { Ping } from '../messages/verto/Ping';
 
 /**
  * @ignore Hide in docs output
@@ -100,13 +100,13 @@ class VertoHandler {
     };
 
     const messageToCheckRegisterState = new Gateway();
-    const messagePong = new Pong();
+    const messagePing = new Ping();
 
     debugger;
     switch (method) {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
-        this.session.execute(messagePong);
+        this.session.execute(messagePing);
         break;
       }
       case VertoMethod.Punt:
