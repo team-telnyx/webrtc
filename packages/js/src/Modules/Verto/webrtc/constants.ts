@@ -27,6 +27,8 @@ export enum VertoMethod {
   Modify = 'telnyx_rtc.modify',
   Ringing = 'telnyx_rtc.ringing',
   GatewayState = 'telnyx_rtc.gatewayState',
+  Ping = 'telnyx_rtc.ping',
+  Pong = 'telnyx_rtc.pong',
 }
 
 export const NOTIFICATION_TYPE = {
