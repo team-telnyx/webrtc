@@ -1,3 +1,10 @@
+## [2.8.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.6...webrtc/v2.8.0) (2022-05-25)
+
+
+### Features
+
+* **WEBRTC-1798:** add ping request to the server to keep connected ([#287](https://github.com/team-telnyx/webrtc/issues/287)) ([95ce187](https://github.com/team-telnyx/webrtc/commit/95ce187758112edba9f66a4e904c56f9a749dee7))
+
 ### [2.7.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.5...webrtc/v2.7.6) (2022-04-26)
 
 ### [2.7.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.4...webrtc/v2.7.5) (2022-04-26)
