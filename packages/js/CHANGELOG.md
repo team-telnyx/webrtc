@@ -1,3 +1,5 @@
+### [2.8.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.0...webrtc/v2.8.1) (2022-07-07)
+
 ## [2.8.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.6...webrtc/v2.8.0) (2022-05-25)
 
 
