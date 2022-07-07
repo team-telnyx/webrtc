@@ -3,8 +3,8 @@ export const ADD = 'add';
 export const REMOVE = 'remove';
 export const SESSION_ID = 'sessId';
 
-export const PROD_HOST = 'wss://rtc.telnyx.com:14938';
-export const DEV_HOST = 'wss://rtcdev.telnyx.com:14938';
+export const PROD_HOST = 'wss://rtc.telnyx.com';
+export const DEV_HOST = 'wss://rtcdev.telnyx.com';
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const TURN_SERVER = {
   urls: 'turn:turn.telnyx.com:3478?transport=tcp',
