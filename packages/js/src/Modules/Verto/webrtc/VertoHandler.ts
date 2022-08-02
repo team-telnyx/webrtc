@@ -102,7 +102,6 @@ class VertoHandler {
     const messageToCheckRegisterState = new Gateway();
     const messagePing = new Ping();
 
-    debugger;
     switch (method) {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
