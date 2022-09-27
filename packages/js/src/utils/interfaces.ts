@@ -121,7 +121,7 @@ export interface ICallOptions {
   telnyxLegId?: string;
   /**
    *
-   * Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled. 
+   * Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled.
    * `clientState` string should be base64 encoded.
    */
   clientState?: string;
@@ -177,7 +177,10 @@ export interface ICallOptions {
   /**
    * Configures media (audio/video) in a call.
    */
-  mediaSettings: { useSdpASBandwidthKbps: boolean, sdpASBandwidthKbps: number };
+  mediaSettings?: {
+    useSdpASBandwidthKbps?: boolean;
+    sdpASBandwidthKbps?: number;
+  };
 }
 
 /**
