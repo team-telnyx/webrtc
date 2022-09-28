@@ -1,6 +1,6 @@
 export interface IMediaSettings {
-  useSdpASBandwidthKbps: boolean;
-  sdpASBandwidthKbps: number;
+  useSdpASBandwidthKbps?: boolean;
+  sdpASBandwidthKbps?: number;
 }
 
 export interface IVertoCallOptions {

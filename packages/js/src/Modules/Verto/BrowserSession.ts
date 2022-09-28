@@ -656,7 +656,7 @@ export default abstract class BrowserSession extends BaseSession {
    * // => "abc123xyz"
    * ```
    */
-  get speaker(): string | null {
+  get speaker(): string {
     return this._speaker;
   }
 
@@ -756,9 +756,8 @@ export default abstract class BrowserSession extends BaseSession {
       msg.targetNodeId = nodeId;
     }
     const response = await this.execute(msg);
-    const { unauthorized = [], subscribed = [] } = destructSubscribeResponse(
-      response
-    );
+    const { unauthorized = [], subscribed = [] } =
+      destructSubscribeResponse(response);
     if (unauthorized.length) {
       unauthorized.forEach((channel) =>
         this._removeSubscription(this.relayProtocol, channel)
@@ -786,9 +785,8 @@ export default abstract class BrowserSession extends BaseSession {
       msg.targetNodeId = nodeId;
     }
     const response = await this.execute(msg);
-    const { unsubscribed = [], notSubscribed = [] } = destructSubscribeResponse(
-      response
-    );
+    const { unsubscribed = [], notSubscribed = [] } =
+      destructSubscribeResponse(response);
     unsubscribed.forEach((channel) =>
       this._removeSubscription(this.relayProtocol, channel)
     );
