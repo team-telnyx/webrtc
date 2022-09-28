@@ -115,7 +115,7 @@ ___
 
 ### <a id="mediasettings" name="mediasettings"></a> mediaSettings
 
-• **mediaSettings**: `Object`
+• `Optional` **mediaSettings**: `Object`
 
 Configures media (audio/video) in a call.
 
