@@ -1,3 +1,10 @@
+### [2.8.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.1...webrtc/v2.8.2) (2022-09-28)
+
+
+### Bug Fixes
+
+* **ENGDESK-19054:** Voice SDK missing types when installed in TypeScript projects. ([#299](https://github.com/team-telnyx/webrtc/issues/299)) ([ae76c98](https://github.com/team-telnyx/webrtc/commit/ae76c984d57c423d8bcac935be680670cfa8614e))
+
 ### [2.8.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.0...webrtc/v2.8.1) (2022-07-07)
 
 ## [2.8.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.7.6...webrtc/v2.8.0) (2022-05-25)
