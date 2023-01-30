@@ -1,5 +1,9 @@
 import BrowserSession from './BrowserSession';
-import { SubscribeParams, BroadcastParams } from './util/interfaces';
+import {
+  SubscribeParams,
+  BroadcastParams,
+  IVertoOptions,
+} from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
 import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
@@ -14,6 +18,20 @@ export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL;
 
   public timeoutErrorCode = -329990; // fake verto timeout error code.
+
+  constructor(options: IVertoOptions) {
+    super(options);
+    // hang up current call when browser closes or refreshes.
+    window.addEventListener('beforeunload', (e) => {
+      if (this.calls) {
+        Object.keys(this.calls).forEach((callId) => {
+          if (this.calls[callId]) {
+            this.calls[callId].hangup({}, true);
+          }
+        });
+      }
+    });
+  }
 
   validateOptions() {
     return isValidOptions(this.options);
