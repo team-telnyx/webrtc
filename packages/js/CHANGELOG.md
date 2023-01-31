@@ -1,3 +1,10 @@
+## [2.9.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.2...webrtc/v2.9.0) (2023-01-31)
+
+
+### Features
+
+* **ENGDESK-21003:** add beforeunload event to hang up active calls when the browser is closed or refreshed ([#304](https://github.com/team-telnyx/webrtc/issues/304)) ([5f4a899](https://github.com/team-telnyx/webrtc/commit/5f4a8992e128c9ca9b7c7d5b84412daae2636dcc))
+
 ### [2.8.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.1...webrtc/v2.8.2) (2022-09-28)
 
 
