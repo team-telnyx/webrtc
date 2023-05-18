@@ -332,10 +332,9 @@
 
 
         if(client && Object.keys(client.calls).length > 1) {
-          debugger
           heldCallsList.classList.remove('d-none');
           for (const key in client.calls) {
-            if(client.calls[key].id !== currentCall.id && client.calls[key].state === 'held') {
+            if(client.calls[key].state === 'held') {
               heldCallsList.innerHTML = `<li>
               <div>
                 <div id="callId" class="telnyx-labels">Call Id: ${client.calls[key].id}</div>
@@ -364,9 +363,7 @@
           }
         }
 
-      } else {
-        heldCallsList.classList.add('d-none');
-      }
+      } 
 
 
         switch (notification.type) {
@@ -385,7 +382,7 @@
        * Update the UI when the call's state change
        */
       function handleCallUpdate(call) {
-        currentCall = call;
+        
         switch (call.state) {
           case 'new': // Setup the UI
             break;
@@ -393,9 +390,9 @@
             break;
           case 'recovering': // Call is recovering from a previous session
             if (confirm('Recover the previous call?')) {
-              currentCall.answer();
+              call.answer();
             } else {
-              currentCall.hangup();
+              call.hangup();
             }
             break;
           case 'ringing': // Someone is calling you
@@ -404,14 +401,14 @@
 
             for (const key in client.calls) {
               // put on hold previous calls
-              if(client.calls[key].id !== currentCall.id) {
+              if(client.calls[key].id !== call.id) {
                 client.calls[key].hold();
 
                   // pick up the new call
                   if (confirm('Pick up the call?')) {
-                    currentCall.answer();
+                    call.answer();
                   } else {
-                    currentCall.hangup();
+                    call.hangup();
                   }
               }
             }
@@ -419,9 +416,9 @@
             if(Object.keys(client.calls).length === 1) {
               setTimeout(function () {
                 if (confirm('Pick up the call?')) {
-                  currentCall.answer();
+                  call.answer();
                 } else {
-                  currentCall.hangup();
+                  call.hangup();
                 }
               }, 1000);
             }
@@ -429,6 +426,7 @@
             
             break;
           case 'active': // Call has become active
+          currentCall = call;
           if(Object.keys(client.calls).length === 1) {
             startCall.classList.add('d-none');
             hangupCall.classList.remove('d-none');
@@ -437,10 +435,17 @@
             break;
           case 'hangup': // Call is over
             if(Object.keys(client.calls).length === 1) {
+              heldCallsList.innerHTML = '';
               startCall.classList.remove('d-none');
               hangupCall.classList.add('d-none');
               hangupCall.disabled = true;
             }
+
+              //TODO add logic to remove from held list only the call that was hangup
+            if(call.prevState === 'held') {
+              heldCallsList.innerHTML = '';
+            }
+            
             
             break;
           case 'destroy': // Call has been destroyed
