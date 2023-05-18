@@ -163,6 +163,20 @@
           </div>
         </div>
       </div>
+      <div class="row pt-5">
+        <div id="heldCalls" class="row w-100 utils-margin-top-bg">
+          <div class="col-md-6 col-xs-12">
+            <div class="card">
+              <div class="card-body">
+                <h2><div class="telnyx-labels">Held Calls</div></h2>
+                <ul id="heldCallsList" class="d-none">
+               
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       <div id="videos_faces" class="row py-3 utils-margin-top-bg">
         <div class="row w-100">
           <div class="col-md-6 col-xs-12">
@@ -210,6 +224,8 @@
 
       var labelId = document.getElementById('labelId');
       var labelSessionId = document.getElementById('labelSessionId'); 
+
+      var heldCallsList = document.getElementById('heldCallsList');
     
     
       
@@ -315,6 +331,44 @@
         console.log('client.sessionid===>', client.sessionid)
 
 
+        if(client && Object.keys(client.calls).length > 1) {
+          debugger
+          heldCallsList.classList.remove('d-none');
+          for (const key in client.calls) {
+            if(client.calls[key].id !== currentCall.id && client.calls[key].state === 'held') {
+              heldCallsList.innerHTML = `<li>
+              <div>
+                <div id="callId" class="telnyx-labels">Call Id: ${client.calls[key].id}</div>
+                <div id="callId" class="telnyx-labels">State: ${client.calls[key].state}</div>
+              </div>
+                <div style="
+                display: flex;
+                justify-content: space-between;
+                  ">
+                  <button
+                    id="pickupHeld"
+                    class="col-md-6 btn btn-primary px-5 mt-4 mr-2"
+                    onClick="pickupHeld('${client.calls[key].id}')"
+                  >
+                    Pick ups
+                  </button>
+                  <button
+                    id="hangupHeld"
+                    class="col-md-6 btn btn-danger px-5 mt-4 "
+                    onClick="hangupHeld('${client.calls[key].id}')"
+                  >
+                    Hang up
+                  </button>
+                </div>
+                </li>`;
+          }
+        }
+
+      } else {
+        heldCallsList.classList.add('d-none');
+      }
+
+
         switch (notification.type) {
           case 'callUpdate':
             handleCallUpdate(notification.call);
@@ -375,18 +429,39 @@
             
             break;
           case 'active': // Call has become active
+          if(Object.keys(client.calls).length === 1) {
             startCall.classList.add('d-none');
             hangupCall.classList.remove('d-none');
             hangupCall.disabled = false;
+          }
             break;
           case 'hangup': // Call is over
-            startCall.classList.remove('d-none');
-            hangupCall.classList.add('d-none');
-            hangupCall.disabled = true;
+            if(Object.keys(client.calls).length === 1) {
+              startCall.classList.remove('d-none');
+              hangupCall.classList.add('d-none');
+              hangupCall.disabled = true;
+            }
+            
             break;
           case 'destroy': // Call has been destroyed
+          if(Object.keys(client.calls).length === 1) {
             currentCall = null;
+          }
             break;
+        }
+      }
+
+      function pickupHeld(callId) {
+        if(client.calls[callId]) {
+          client.calls[callId].unhold();
+          currentCall.hold();
+        }
+      }
+
+      function hangupHeld(callId) {
+        if(client.calls[callId]) {
+          client.calls[callId].hangup();
+          // currentCall.hold();
         }
       }
 
