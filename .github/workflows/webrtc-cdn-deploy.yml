@@ -17,7 +17,7 @@ jobs:
 
     name: "@telnyx/${{ github.event.inputs.package }} CDN release"
 
-    runs-on: ["self-hosted", "telnyx-xsmall"]
+    runs-on: telnyx-xsmall
 
     steps:
       - uses: actions/checkout@v2
