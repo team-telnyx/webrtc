@@ -63,7 +63,7 @@ jobs:
 
       - name: Deploy files to downloads/webrtc folder
         run: |
-          s3cmd sync ./packages/js/lib/ s3://portaldev.telnyx.com/downloads/webrtc/ \
+          s3cmd sync ./packages/js/lib/bundle.js s3://portal.telnyx.com/downloads/webrtc/ \
             --exclude="downloads/*" \
             --add-header='Cache-Control: public, must-revalidate' \
             --acl-public \
@@ -72,6 +72,6 @@ jobs:
             --delete-after \
             --cf-invalidate-default-index \
             --recursive;
-          s3cmd modify s3://portaldev.telnyx.com/downloads/webrtc/*.js \
+          s3cmd modify s3://portal.telnyx.com/downloads/webrtc/*.js \
             --mime-type='text/javascript' \
             --cf-invalidate;
