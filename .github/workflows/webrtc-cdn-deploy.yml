@@ -46,6 +46,7 @@ jobs:
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: yarn test
       - name: Build compiled JS files
+        working-directory: packages/${{ env.PACKAGE_DIR }}
         run: yarn build
         env:
           CI: true
