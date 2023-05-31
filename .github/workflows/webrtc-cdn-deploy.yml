@@ -1,0 +1,90 @@
+name: "CDN release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package for CDN release'
+        required: true
+        default: "webrtc"
+
+env:
+  PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
+
+jobs:
+  build:
+    if: contains(fromJson('["webrtc"]'), github.event.inputs.package)
+
+    name: "@telnyx/${{ github.event.inputs.package }} CDN release"
+
+    runs-on: ["self-hosted", "telnyx-xsmall"]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+      - name: Setup Git user
+        # https://github.com/actions/checkout/issues/13
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+      - name: Use Node.js 14.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14.x"
+          cache: 'yarn'
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: yarn install --frozen-lockfile
+      - name: Install package dependencies
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: yarn install --frozen-lockfile
+      - name: Test
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: yarn test
+      - name: Build compiled JS files
+        run: yarn build
+        env:
+          CI: true
+          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Prepare ASDF deps
+        uses: asdf-vm/actions/install@v2.1.0
+
+      - name: SETUP | get aws creds
+        uses: hashicorp/vault-action@v2.4.0
+        with:
+          url: https://vault-ha-prod.internal.telnyx.com
+          token: ${{ secrets.VAULT_HA_TOKEN_PROD }}
+          secrets: |
+            /infra-core-squad/data/provided-creds/aws/infra-as-code AWS_ACCESS_KEY_ID | AWS_ACCESS_KEY_ID ;
+            /infra-core-squad/data/provided-creds/aws/infra-as-code AWS_SECRET_ACCESS_KEY | AWS_SECRET_ACCESS_KEY
+
+      - name: Set up S3cmd cli tool
+        uses: s3-actions/s3cmd@v1.2.0
+        with:
+          provider: aws
+          region: "us-east-1"
+          access_key: ${{ AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ AWS_SECRET_ACCESS_KEY }}
+
+      - name: Deploy files to downloads/webrtc folder
+        run: |
+          s3cmd sync ./packages/js/lib/ s3://portaldev.telnyx.com/downloads/webrtc \
+            --exclude="downloads/*" \
+            --add-header='Cache-Control: public, must-revalidate' \
+            --acl-public \
+            --no-preserve \
+            --delete-removed \
+            --delete-after \
+            --cf-invalidate-default-index \
+            --recursive;
+          s3cmd modify s3://portaldev.telnyx.com/downloads/webrtc/*.js \
+            --mime-type='text/javascript' \
+            --cf-invalidate;
+
+         
