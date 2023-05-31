@@ -17,7 +17,7 @@ jobs:
 
     name: "@telnyx/${{ github.event.inputs.package }} CDN release"
 
-    runs-on: ["self-hosted", "telnyx-xsmall"]
+    runs-on: telnyx-xsmall
 
     steps:
       - uses: actions/checkout@v2
@@ -69,8 +69,8 @@ jobs:
         with:
           provider: aws
           region: "us-east-1"
-          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          access_key: ${{ env.AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
       - name: Deploy files to downloads/webrtc folder
         run: |
