@@ -17,7 +17,7 @@ jobs:
 
     name: "@telnyx/${{ github.event.inputs.package }} CDN release"
 
-    runs-on: ubuntu-latest
+    runs-on: ["self-hosted", "telnyx-xsmall"]
 
     steps:
       - uses: actions/checkout@v2
@@ -51,14 +51,26 @@ jobs:
           CI: true
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Prepare ASDF deps
+        uses: asdf-vm/actions/install@v2.1.0
+
+      - name: SETUP | get aws creds
+        uses: hashicorp/vault-action@v2.4.0
+        with:
+          url: https://vault-ha-prod.internal.telnyx.com
+          token: ${{ secrets.VAULT_HA_TOKEN_PROD }}
+          secrets: |
+            /infra-core-squad/data/provided-creds/aws/infra-as-code AWS_ACCESS_KEY_ID | AWS_ACCESS_KEY_ID ;
+            /infra-core-squad/data/provided-creds/aws/infra-as-code AWS_SECRET_ACCESS_KEY | AWS_SECRET_ACCESS_KEY
 
       - name: Set up S3cmd cli tool
         uses: s3-actions/s3cmd@v1.2.0
         with:
           provider: aws
           region: "us-east-1"
-          access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          access_key: ${{ AWS_ACCESS_KEY_ID }}
+          secret_key: ${{ AWS_SECRET_ACCESS_KEY }}
 
       - name: Deploy files to downloads/webrtc folder
         run: |
