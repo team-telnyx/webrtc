@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-//@ts-ignore
+import { useMemo } from 'react';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -65,11 +64,11 @@ function useTelnyxRTC(
   credentialParam: CredentialOptions,
   clientOptions?: Partial<IClientOptions>
 ): TelnyxRTC | undefined {
-  const telnyxClientRef = useRef<TelnyxRTC | undefined>(undefined);
+  const telnyxClient = useMemo(() => {
+    let client: TelnyxRTC | undefined;
 
-  useEffect(() => {
-    if (telnyxClientRef.current?.connected) {
-      if (process.env.NODE_ENV === 'development' && telnyxClientRef.current) {
+    if (client?.connected) {
+      if (process.env.NODE_ENV === 'development' && client) {
         console.warn(
           'Instance of Telnyx Client already exists and will be disconnected.'
         );
@@ -78,21 +77,39 @@ function useTelnyxRTC(
       // Create new client when credentials change,
       // e.g. when refreshing token
       // TODO reconnect without re-instantiating client
-      telnyxClientRef.current?.disconnect();
+      client?.disconnect().then(() => {
+        client?.off('telnyx.ready');
+        client?.off('telnyx.error');
+        client?.off('telnyx.notification');
+        client?.off('telnyx.socket.close');
+        client?.off('telnyx.socket.error');
+        client = undefined;
 
-      telnyxClientRef.current = initTelnyxRTC({
-        credentialParam,
-        clientOptions,
+        console.log('disconnected...');
+
+        client = initTelnyxRTC({
+          credentialParam,
+          clientOptions,
+        });
       });
     } else {
-      telnyxClientRef.current = initTelnyxRTC({
+      client = initTelnyxRTC({
         credentialParam,
         clientOptions,
       });
     }
-  }, [credentialParam]);
 
-  return telnyxClientRef.current;
+    return client;
+  }, [
+    //@ts-expect-error
+    credentialParam.login_token,
+    //@ts-expect-error
+    credentialParam.login,
+    //@ts-expect-error
+    credentialParam.password,
+  ]);
+
+  return telnyxClient;
 }
 
 export default useTelnyxRTC;

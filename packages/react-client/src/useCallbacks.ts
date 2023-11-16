@@ -42,16 +42,16 @@ function useCallbacks(props?: IProps): null {
         telnyxClient.on('telnyx.error', props.onError);
       }
 
+      if (props?.onNotification) {
+        telnyxClient.on('telnyx.notification', props.onNotification);
+      }
+
       if (props?.onSocketError) {
         telnyxClient.on('telnyx.socket.error', props.onSocketError);
       }
 
       if (props?.onSocketClose) {
         telnyxClient.on('telnyx.socket.close', props.onSocketClose);
-      }
-
-      if (props?.onNotification) {
-        telnyxClient.on('telnyx.notification', props.onNotification);
       }
     }
   }, [telnyxClient]);
