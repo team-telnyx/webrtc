@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-//@ts-ignore
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -33,42 +32,44 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * ```
  */
 
-const initTelnyxRTC = ({
-  credentialParam,
-  clientOptions,
-}: {
-  credentialParam: CredentialOptions;
-  clientOptions?: Partial<IClientOptions>;
-}) => {
-  const session = new TelnyxRTC({
-    // eslint-disable-next-line @typescript-eslint/camelcase
-    login_token: '',
-    ...credentialParam,
-    ...clientOptions,
-  });
-
-  session.on('telnyx.error', () => {
-    session?.disconnect();
-  });
-
-  session.on('telnyx.socket.error', () => {
-    session?.disconnect();
-  });
-
-  // IDEA Allow caller to defer connect
-  session?.connect();
-
-  return session;
-};
-
 function useTelnyxRTC(
   credentialParam: CredentialOptions,
   clientOptions?: Partial<IClientOptions>
 ): TelnyxRTC | undefined {
   const telnyxClientRef = useRef<TelnyxRTC | undefined>(undefined);
 
+  const initTelnyxRTC = ({
+    credentialParam,
+    clientOptions,
+  }: {
+    credentialParam: CredentialOptions;
+    clientOptions?: Partial<IClientOptions>;
+  }) => {
+    const session = new TelnyxRTC({
+      // eslint-disable-next-line @typescript-eslint/camelcase
+      login_token: '',
+      ...credentialParam,
+      ...clientOptions,
+    });
+
+    session.on('telnyx.error', () => {
+      session?.disconnect();
+    });
+
+    session.on('telnyx.socket.error', () => {
+      session?.disconnect();
+    });
+
+    // IDEA Allow caller to defer connect
+    return session?.connect().then(() => {
+      console.log('after connected===>', session.connected);
+
+      return session;
+    });
+  };
+
   useEffect(() => {
-    if (telnyxClientRef.current?.connected) {
+    if (telnyxClientRef.current?.connection?.isAlive) {
       if (process.env.NODE_ENV === 'development' && telnyxClientRef.current) {
         console.warn(
           'Instance of Telnyx Client already exists and will be disconnected.'
@@ -78,16 +79,21 @@ function useTelnyxRTC(
       // Create new client when credentials change,
       // e.g. when refreshing token
       // TODO reconnect without re-instantiating client
-      telnyxClientRef.current?.disconnect();
 
-      telnyxClientRef.current = initTelnyxRTC({
-        credentialParam,
-        clientOptions,
+      telnyxClientRef.current.disconnect().then(() => {
+        initTelnyxRTC({
+          credentialParam,
+          clientOptions,
+        }).then((session) => {
+          telnyxClientRef.current = session;
+        });
       });
     } else {
-      telnyxClientRef.current = initTelnyxRTC({
+      initTelnyxRTC({
         credentialParam,
         clientOptions,
+      }).then((session) => {
+        telnyxClientRef.current = session;
       });
     }
   }, [credentialParam]);
