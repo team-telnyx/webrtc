@@ -92,8 +92,6 @@ function useTelnyxRTC(
     }
   }, [credentialParam]);
 
-  console.log('telnyxClientRef.current===>', telnyxClientRef.current);
-
   return telnyxClientRef.current;
 }
 

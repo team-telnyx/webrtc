@@ -11,8 +11,6 @@ interface IProps {
 function TelnyxRTCProvider({ children, credential, options }: IProps) {
   const telnyxClient = useTelnyxRTC(credential, options);
 
-  console.log('telnyxClient===>', telnyxClient);
-
   return (
     <TelnyxRTCContext.Provider value={telnyxClient || null}>
       <Fragment>{children}</Fragment>

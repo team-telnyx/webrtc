@@ -31,7 +31,6 @@ interface IProps {
  */
 function useCallbacks(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
-  console.log('useCallbacks===>telnyxClient', telnyxClient);
 
   useEffect(() => {
     if (telnyxClient) {
