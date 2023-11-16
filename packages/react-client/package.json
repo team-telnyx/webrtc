@@ -40,6 +40,9 @@
     "react": ">=16.8",
     "react-dom": ">=16.8"
   },
+  "dependencies": {
+    "@telnyx/webrtc": ">=2.9.0"
+  },
   "devDependencies": {
     "@babel/plugin-proposal-unicode-property-regex": "^7.18.6",
     "@babel/preset-react": "^7.23.3",
@@ -73,7 +76,5 @@
       "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
     }
   },
-  "dependencies": {
-    "@telnyx/webrtc": "^2.9.0"
-  }
+
 }
