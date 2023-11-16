@@ -1,66 +1,66 @@
-name: '@telnyx/webrtc Test release'
+name: "@telnyx/webrtc Test release"
 on:
   pull_request:
     paths:
-    - 'packages/js/**'
+      - "packages/js/**"
   workflow_dispatch:
     inputs:
       package:
-        description: '@telnyx/webrtc Test'
+        description: "@telnyx/webrtc Test"
         required: true
-        default: 'webrtc'
+        default: "webrtc"
 jobs:
   unit-tests:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-    - name: Use Node.js 14.x
-      uses: actions/setup-node@v2
-      with:
-        node-version: "14.x"
-        cache: 'yarn'
-        registry-url: https://registry.npmjs.org/
-    - name: Install shared dependencies
-      run: yarn install --frozen-lockfile
-    - name: Install package dependencies
-      working-directory: packages/js
-      run: yarn install --frozen-lockfile
-    - name: Test
-      working-directory: packages/js
-      run: yarn test
-      env:
-        CI: true
-        
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16.x"
+          cache: "yarn"
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: yarn install --frozen-lockfile
+      - name: Install package dependencies
+        working-directory: packages/js
+        run: yarn install --frozen-lockfile
+      - name: Test
+        working-directory: packages/js
+        run: yarn test
+        env:
+          CI: true
+
   build:
     name: Build SDK
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      with:
-        # https://github.com/peter-evans/create-pull-request/issues/122
-        ref: 'main'
-        # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-        fetch-depth: 0
-    - name: Use Node.js 14.x
-      uses: actions/setup-node@v2
-      with:
-        node-version: "14.x"
-        cache: 'yarn'
-        registry-url: https://registry.npmjs.org/
-    - name: Install shared dependencies
-      run: yarn install --frozen-lockfile
-    - name: Install package dependencies
-      working-directory: packages/js
-      run: yarn install --frozen-lockfile
-    - name: Build
-      working-directory: packages/js
-      run: yarn build
-      env:
-        NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v2
+        with:
+          # https://github.com/peter-evans/create-pull-request/issues/122
+          ref: "main"
+          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          fetch-depth: 0
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16.x"
+          cache: "yarn"
+          registry-url: https://registry.npmjs.org/
+      - name: Install shared dependencies
+        run: yarn install --frozen-lockfile
+      - name: Install package dependencies
+        working-directory: packages/js
+        run: yarn install --frozen-lockfile
+      - name: Build
+        working-directory: packages/js
+        run: yarn build
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
