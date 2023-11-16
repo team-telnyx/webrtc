@@ -20,7 +20,6 @@
     "build": "microbundle-crl --no-compress --format modern,cjs",
     "start": "microbundle-crl watch --no-compress --format modern,cjs",
     "prepare": "install-peers && run-s build",
-    "install-peers": "install-peers",
     "test": "jest",
     "test:watch": "jest --watch",
     "format": "prettier --write 'src/**/*.ts'",
