@@ -77,20 +77,17 @@ function useTelnyxRTC(
       // Create new client when credentials change,
       // e.g. when refreshing token
       // TODO reconnect without re-instantiating client
-      client?.disconnect().then(() => {
-        client?.off('telnyx.ready');
-        client?.off('telnyx.error');
-        client?.off('telnyx.notification');
-        client?.off('telnyx.socket.close');
-        client?.off('telnyx.socket.error');
-        client = undefined;
+      client?.disconnect();
+      client?.off('telnyx.ready');
+      client?.off('telnyx.error');
+      client?.off('telnyx.notification');
+      client?.off('telnyx.socket.close');
+      client?.off('telnyx.socket.error');
+      client = undefined;
 
-        console.log('disconnected...');
-
-        client = initTelnyxRTC({
-          credentialParam,
-          clientOptions,
-        });
+      client = initTelnyxRTC({
+        credentialParam,
+        clientOptions,
       });
     } else {
       client = initTelnyxRTC({

@@ -75,6 +75,5 @@
       "releaseName": "react-client@${version}",
       "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
     }
-  },
-
+  }
 }
