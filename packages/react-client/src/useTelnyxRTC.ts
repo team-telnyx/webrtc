@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useMemo } from 'react';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
@@ -40,7 +41,6 @@ const initTelnyxRTC = ({
   clientOptions?: Partial<IClientOptions>;
 }) => {
   const session = new TelnyxRTC({
-    // eslint-disable-next-line @typescript-eslint/camelcase
     login_token: '',
     ...credentialParam,
     ...clientOptions,
@@ -97,12 +97,13 @@ function useTelnyxRTC(
     }
 
     return client;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    //@ts-expect-error
+    //@ts-ignore
     credentialParam.login_token,
-    //@ts-expect-error
+    //@ts-ignore
     credentialParam.login,
-    //@ts-expect-error
+    //@ts-ignore
     credentialParam.password,
   ]);
 

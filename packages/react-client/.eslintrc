@@ -1,13 +1,10 @@
 {
   "parser": "@typescript-eslint/parser",
   "extends": [
-    "standard",
-    "standard-react",
-    "plugin:prettier/recommended",
-    "prettier/standard",
-    "prettier/react",
-    "plugin:@typescript-eslint/eslint-recommended",
-    "plugin:@typescript-eslint/recommended"
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:import/warnings"
   ],
   "env": {
     "node": true
@@ -21,7 +18,7 @@
   },
   "settings": {
     "react": {
-      "version": "16"
+      "version": "detect"
     }
   },
   "rules": {
@@ -30,6 +27,17 @@
     "react/jsx-handler-names": 0,
     "react/jsx-fragments": 0,
     "react/no-unused-prop-types": 0,
-    "import/export": 0
-  }
+    "import/export": 0,
+    "@typescript-eslint/no-explicit-any": "off",
+    "camelcase": "off",
+    "@typescript-eslint/camelcase": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "rules": {
+        "camelcase": ["off"]
+      }
+    }
+  ]
 }
