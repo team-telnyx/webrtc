@@ -1,7 +1,4 @@
-/* eslint-disable no-unused-expressions  */
-// See: https://github.com/eslint/eslint/issues/12822 for eslint-disable no-unused-expressions reason
-import { useEffect, useMemo } from 'react';
-//@ts-ignore
+import { useMemo } from 'react';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -34,13 +31,44 @@ export type CredentialOptions = TokenCredential | UsernameCredential;
  * })
  * ```
  */
+
+const initTelnyxRTC = ({
+  credentialParam,
+  clientOptions,
+}: {
+  credentialParam: CredentialOptions;
+  clientOptions?: Partial<IClientOptions>;
+}) => {
+  const session = new TelnyxRTC({
+    // eslint-disable-next-line @typescript-eslint/camelcase
+    login_token: '',
+    ...credentialParam,
+    ...clientOptions,
+  });
+
+  session.on('telnyx.error', () => {
+    session?.disconnect();
+  });
+
+  session.on('telnyx.socket.error', () => {
+    session?.disconnect();
+  });
+
+  // IDEA Allow caller to defer connect
+  session?.connect();
+
+  return session;
+};
+
 function useTelnyxRTC(
   credentialParam: CredentialOptions,
   clientOptions?: Partial<IClientOptions>
 ): TelnyxRTC | undefined {
   const telnyxClient = useMemo(() => {
-    if (telnyxClient?.connected) {
-      if (process.env.NODE_ENV === 'development' && telnyxClient) {
+    let client: TelnyxRTC | undefined;
+
+    if (client?.connected) {
+      if (process.env.NODE_ENV === 'development' && client) {
         console.warn(
           'Instance of Telnyx Client already exists and will be disconnected.'
         );
@@ -49,35 +77,34 @@ function useTelnyxRTC(
       // Create new client when credentials change,
       // e.g. when refreshing token
       // TODO reconnect without re-instantiating client
-      telnyxClient?.disconnect();
+      client?.disconnect();
+      client?.off('telnyx.ready');
+      client?.off('telnyx.error');
+      client?.off('telnyx.notification');
+      client?.off('telnyx.socket.close');
+      client?.off('telnyx.socket.error');
+      client = undefined;
+
+      client = initTelnyxRTC({
+        credentialParam,
+        clientOptions,
+      });
+    } else {
+      client = initTelnyxRTC({
+        credentialParam,
+        clientOptions,
+      });
     }
 
-    const session = new TelnyxRTC({
-      // eslint-disable-next-line @typescript-eslint/camelcase
-      login_token: '',
-      ...credentialParam,
-      ...clientOptions,
-    });
-
-    session.on('telnyx.error', () => {
-      session?.disconnect();
-    });
-
-    session.on('telnyx.socket.error', () => {
-      session?.disconnect();
-    });
-
-    // IDEA Allow caller to defer connect
-    session?.connect();
-
-    return session;
-  }, [credentialParam]);
-
-  useEffect(() => {
-    return () => {
-      telnyxClient?.disconnect();
-    };
-  }, [telnyxClient]);
+    return client;
+  }, [
+    //@ts-expect-error
+    credentialParam.login_token,
+    //@ts-expect-error
+    credentialParam.login,
+    //@ts-expect-error
+    credentialParam.password,
+  ]);
 
   return telnyxClient;
 }

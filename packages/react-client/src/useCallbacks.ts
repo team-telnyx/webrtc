@@ -33,26 +33,28 @@ function useCallbacks(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
 
   useEffect(() => {
-    if (props?.onReady) {
-      telnyxClient!.on('telnyx.ready', props.onReady);
-    }
+    if (telnyxClient) {
+      if (props?.onReady) {
+        telnyxClient.on('telnyx.ready', props.onReady);
+      }
 
-    if (props?.onError) {
-      telnyxClient!.on('telnyx.error', props.onError);
-    }
+      if (props?.onError) {
+        telnyxClient.on('telnyx.error', props.onError);
+      }
 
-    if (props?.onSocketError) {
-      telnyxClient!.on('telnyx.socket.error', props.onSocketError);
-    }
+      if (props?.onNotification) {
+        telnyxClient.on('telnyx.notification', props.onNotification);
+      }
 
-    if (props?.onSocketClose) {
-      telnyxClient!.on('telnyx.socket.close', props.onSocketClose);
-    }
+      if (props?.onSocketError) {
+        telnyxClient.on('telnyx.socket.error', props.onSocketError);
+      }
 
-    if (props?.onNotification) {
-      telnyxClient!.on('telnyx.notification', props.onNotification);
+      if (props?.onSocketClose) {
+        telnyxClient.on('telnyx.socket.close', props.onSocketClose);
+      }
     }
-  }, []);
+  }, [telnyxClient]);
 
   return null;
 }
