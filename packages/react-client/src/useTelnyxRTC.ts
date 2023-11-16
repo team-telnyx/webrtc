@@ -84,12 +84,12 @@ function useTelnyxRTC(
         credentialParam,
         clientOptions,
       });
+    } else {
+      telnyxClientRef.current = initTelnyxRTC({
+        credentialParam,
+        clientOptions,
+      });
     }
-
-    telnyxClientRef.current = initTelnyxRTC({
-      credentialParam,
-      clientOptions,
-    });
   }, [credentialParam]);
 
   console.log('telnyxClientRef.current===>', telnyxClientRef.current);
