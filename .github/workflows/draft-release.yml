@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package for draft release'
+        description: "Package for draft release"
         required: true
         default: "webrtc"
 
@@ -32,11 +32,11 @@ jobs:
         run: |
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
-      - name: Use Node.js 14.x
-        uses: actions/setup-node@v2
+      - name: Use Node.js 16.x
+        uses: actions/setup-node@v4
         with:
-          node-version: "14.x"
-          cache: 'yarn'
+          node-version: "16"
+          cache: "yarn"
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
         run: yarn install --frozen-lockfile
