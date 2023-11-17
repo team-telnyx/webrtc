@@ -17,4 +17,8 @@ declare module '*.svg' {
   export { svgComponent as ReactComponent };
 }
 
-declare module '@telnyx/webrtc' {}
+declare module '@telnyx/webrtc' {
+  export interface TelnyxRTC {}
+  export interface IClientOptions {}
+  export interface INotification {}
+}
