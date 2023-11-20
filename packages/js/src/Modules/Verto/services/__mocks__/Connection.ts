@@ -14,7 +14,7 @@ export const mockSend = jest.fn((bladeObj: any) => {
       const { result, error } = destructResponse(response);
       return error ? reject(error) : resolve(result);
     } else {
-      resolve();
+      resolve('');
     }
   });
 });

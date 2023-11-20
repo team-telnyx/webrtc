@@ -9,7 +9,7 @@ The conditions of the event can be identified by the `type` property.
 | `callUpdate` | A call has changed state | `call` |
 | `userMediaError` | The browser does not have permission to access media devices | `error` |
 
-**`examples`**
+**`Examples`**
 
 Usage with TelnyxRTC Client `.on`:
 ```js
@@ -48,11 +48,13 @@ The notification structure is determined by its `type`.
 }
 ```
 
-**`apialias`** Notification
+**`Apialias`**
+
+Notification
 
 ## Hierarchy
 
-- `Omit`<`INotificationEventData`, ``"call"``\>
+- `Omit`\<`INotificationEventData`, ``"call"``\>
 
   ↳ **`INotification`**
 

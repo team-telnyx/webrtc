@@ -1,8 +1,7 @@
 # Interface: ICallOptions
 
 ICallOptions
-
-**`interface`** ICallOptions
+ ICallOptions
 
 ## Table of contents
 
@@ -118,6 +117,13 @@ ___
 • `Optional` **mediaSettings**: `Object`
 
 Configures media (audio/video) in a call.
+
+#### Type declaration
+
+| Name | Type |
+| :------ | :------ |
+| `sdpASBandwidthKbps?` | `number` |
+| `useSdpASBandwidthKbps?` | `boolean` |
 
 ___
 
