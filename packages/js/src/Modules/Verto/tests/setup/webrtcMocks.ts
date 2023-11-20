@@ -16,34 +16,20 @@ class MediaStreamMock implements MediaStream {
   addTrack(track: MediaStreamTrack) {
     this._tracks.push(track);
   }
+  //@ts-ignore
+  clone(): MediaStream {}
+  //@ts-ignore
+  getTrackById(trackId: any): MediaStreamTrack {}
 
-  clone(): MediaStream {
-    throw new Error('Method not implemented.');
-  }
+  removeTrack(track: any) {}
 
-  getTrackById(trackId: any): MediaStreamTrack {
-    throw new Error('Method not implemented.');
-  }
+  stop() {}
 
-  removeTrack(track: any) {
-    throw new Error('Method not implemented.');
-  }
+  addEventListener(type: any, listener: any, options?: any) {}
 
-  stop() {
-    throw new Error('Method not implemented.');
-  }
-
-  addEventListener(type: any, listener: any, options?: any) {
-    throw new Error('Method not implemented.');
-  }
-
-  removeEventListener(type: any, listener: any, options?: any) {
-    throw new Error('Method not implemented.');
-  }
-
-  dispatchEvent(event: Event): boolean {
-    throw new Error('Method not implemented.');
-  }
+  removeEventListener(type: any, listener: any, options?: any) {}
+  //@ts-ignore
+  dispatchEvent(event: Event): boolean {}
 
   getTracks() {
     return this._tracks;
@@ -75,25 +61,16 @@ class MediaStreamTrackMock implements MediaStreamTrack {
   onoverconstrained: (this: MediaStreamTrack, ev: Event) => any;
   onunmute: (this: MediaStreamTrack, ev: Event) => any;
 
-  applyConstraints(constraints: any): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-
-  clone(): MediaStreamTrack {
-    throw new Error('Method not implemented.');
-  }
-
-  getCapabilities(): MediaTrackCapabilities {
-    throw new Error('Method not implemented.');
-  }
-
-  getConstraints(): MediaTrackConstraints {
-    throw new Error('Method not implemented.');
-  }
-
-  getSettings(): MediaTrackSettings {
-    throw new Error('Method not implemented.');
-  }
+  //@ts-ignore
+  applyConstraints(constraints: any): Promise<void> {}
+  //@ts-ignore
+  clone(): MediaStreamTrack {}
+  //@ts-ignore
+  getCapabilities(): MediaTrackCapabilities {}
+  //@ts-ignore
+  getConstraints(): MediaTrackConstraints {}
+  //@ts-ignore
+  getSettings(): MediaTrackSettings {}
 
   stop() {
     this.enabled = false;
@@ -107,11 +84,11 @@ class MediaStreamTrackMock implements MediaStreamTrack {
   removeEventListener(type: any, listener: any, options?: any) {
     // throw new Error("Method not implemented.")
   }
-
-  dispatchEvent(event: Event): boolean {
-    throw new Error('Method not implemented.');
-  }
+  //@ts-ignore
+  dispatchEvent(event: Event): boolean {}
 }
+
+class RTCRtpTransceiver implements RTCRtpTransceiver {}
 
 class RTCRtpSenderMock implements RTCRtpSender {
   dtmf: RTCDTMFSender;
@@ -120,25 +97,17 @@ class RTCRtpSenderMock implements RTCRtpSender {
   transport: RTCDtlsTransport;
   getParameters(): RTCRtpSendParameters;
   getParameters(): RTCRtpParameters;
-  getParameters(): any {
-    throw new Error('Method not implemented.');
-  }
-  getStats(): Promise<RTCStatsReport> {
-    throw new Error('Method not implemented.');
-  }
+  getParameters(): any {}
+  //@ts-ignore
+  getStats(): Promise<RTCStatsReport> {}
   replaceTrack(withTrack: MediaStreamTrack): Promise<void>;
   replaceTrack(withTrack: MediaStreamTrack): Promise<void>;
-  replaceTrack(withTrack: any): any {
-    throw new Error('Method not implemented.');
-  }
+  replaceTrack(withTrack: any): any {}
   setParameters(parameters: RTCRtpSendParameters): Promise<void>;
   setParameters(parameters?: RTCRtpParameters): Promise<void>;
-  setParameters(parameters?: any): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
-  setStreams(...streams: MediaStream[]): void {
-    throw new Error('Method not implemented.');
-  }
+  //@ts-ignore
+  setParameters(parameters?: any): Promise<void> {}
+  setStreams(...streams: MediaStream[]): void {}
 }
 
 class RTCPeerConnectionMock implements RTCPeerConnection {
@@ -176,13 +145,13 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   // addIceCandidate(candidate: RTCIceCandidateInit | RTCIceCandidate, successCallback: () => void, failureCallback: RTCPeerConnectionErrorCallback): Promise<void>
   addIceCandidate(
     candidate?: RTCIceCandidateInit | RTCIceCandidate
-  ): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<void> {}
   addTrack(track: MediaStreamTrack, ...streams: MediaStream[]): RTCRtpSender {
     // throw new Error('Method not implemented.')
     return new RTCRtpSenderMock();
   }
+  //@ts-ignore
   addTransceiver(
     trackOrKind: string | MediaStreamTrack,
     init?: RTCRtpTransceiverInit
@@ -190,9 +159,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     const transceiver = new RTCRtpTransceiver();
     return transceiver;
   }
-  close() {
-    throw new Error('Method not implemented.');
-  }
+  close() {}
   createAnswer(options?: RTCOfferOptions): Promise<RTCSessionDescriptionInit>;
   createAnswer(options?: RTCAnswerOptions): Promise<RTCSessionDescriptionInit>;
   createAnswer(
@@ -202,9 +169,8 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   createAnswer(
     successCallback?: any,
     failureCallback?: any
-  ): Promise<RTCSessionDescriptionInit | void> {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<RTCSessionDescriptionInit | void> {}
   createDataChannel(
     label: string,
     dataChannelDict?: RTCDataChannelInit
@@ -213,9 +179,8 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     label: string,
     dataChannelDict?: RTCDataChannelInit
   ): RTCDataChannel;
-  createDataChannel(label: any, dataChannelDict?: any): RTCDataChannel {
-    throw new Error('Method not implemented.');
-  }
+  //@ts-ignore
+  createDataChannel(label: any, dataChannelDict?: any): RTCDataChannel {}
   createOffer(options?: RTCOfferOptions): Promise<RTCSessionDescriptionInit>;
   createOffer(options?: RTCOfferOptions): Promise<RTCSessionDescriptionInit>;
   createOffer(
@@ -227,21 +192,16 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     successCallback?: any,
     failureCallback?: any,
     options?: any
-  ): Promise<RTCSessionDescriptionInit | void> {
-    throw new Error('Method not implemented.');
-  }
-  getConfiguration(): RTCConfiguration {
-    throw new Error('Method not implemented.');
-  }
-  getIdentityAssertion(): Promise<string> {
-    throw new Error('Method not implemented.');
-  }
-  getReceivers(): RTCRtpReceiver[] {
-    throw new Error('Method not implemented.');
-  }
-  getSenders(): RTCRtpSender[] {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<RTCSessionDescriptionInit | void> {}
+  //@ts-ignore
+  getConfiguration(): RTCConfiguration {}
+  //@ts-ignore
+  getIdentityAssertion(): Promise<string> {}
+  //@ts-ignore
+  getReceivers(): RTCRtpReceiver[] {}
+  //@ts-ignore
+  getSenders(): RTCRtpSender[] {}
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(
@@ -253,25 +213,17 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     selector?: any,
     successCallback?: any,
     failureCallback?: any
-  ): Promise<RTCStatsReport | void> {
-    throw new Error('Method not implemented.');
-  }
-  getTransceivers(): RTCRtpTransceiver[] {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<RTCStatsReport | void> {}
+  //@ts-ignore
+  getTransceivers(): RTCRtpTransceiver[] {}
   removeTrack(sender: RTCRtpSender): void;
   removeTrack(sender: RTCRtpSender): void;
-  removeTrack(sender: any) {
-    throw new Error('Method not implemented.');
-  }
+  removeTrack(sender: any) {}
   setConfiguration(configuration: RTCConfiguration): void;
   setConfiguration(configuration: RTCConfiguration): void;
-  setConfiguration(configuration: any) {
-    throw new Error('Method not implemented.');
-  }
-  setIdentityProvider(provider: string, options?: any): void {
-    throw new Error('Method not implemented.');
-  }
+  setConfiguration(configuration: any) {}
+  setIdentityProvider(provider: string, options?: any): void {}
   setLocalDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setLocalDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setLocalDescription(
@@ -283,9 +235,8 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-  ): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<void> {}
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(
@@ -297,9 +248,8 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-  ): Promise<void> {
-    throw new Error('Method not implemented.');
-  }
+    //@ts-ignore
+  ): Promise<void> {}
   addEventListener<
     K extends
       | 'connectionstatechange'
@@ -347,12 +297,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     listener: EventListenerOrEventListenerObject,
     options?: boolean | EventListenerOptions
   ): void;
-  removeEventListener(type: any, listener: any, options?: any) {
-    throw new Error('Method not implemented.');
-  }
-  dispatchEvent(event: Event): boolean {
-    throw new Error('Method not implemented.');
-  }
+  removeEventListener(type: any, listener: any, options?: any) {}
+  //@ts-ignore
+  dispatchEvent(event: Event): boolean {}
 }
 
 export { MediaStreamMock, MediaStreamTrackMock, RTCPeerConnectionMock };
