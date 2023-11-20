@@ -149,7 +149,6 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     //@ts-ignore
   ): Promise<void> {}
   addTrack(track: MediaStreamTrack, ...streams: MediaStream[]): RTCRtpSender {
-    // throw new Error('Method not implemented.')
     return new RTCRtpSenderMock();
   }
   addTransceiver(
@@ -273,9 +272,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     listener: EventListenerOrEventListenerObject,
     options?: boolean | AddEventListenerOptions
   ): void;
-  addEventListener(type: any, listener: any, options?: any) {
-    // throw new Error('Method not implemented.')
-  }
+  addEventListener(type: any, listener: any, options?: any) {}
   removeEventListener<
     K extends
       | 'connectionstatechange'
