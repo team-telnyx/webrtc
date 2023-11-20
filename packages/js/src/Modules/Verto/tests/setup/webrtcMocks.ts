@@ -187,7 +187,8 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     trackOrKind: string | MediaStreamTrack,
     init?: RTCRtpTransceiverInit
   ): RTCRtpTransceiver {
-    throw new Error('Method not implemented.');
+    const transceiver = new RTCRtpTransceiver();
+    return transceiver;
   }
   close() {
     throw new Error('Method not implemented.');
