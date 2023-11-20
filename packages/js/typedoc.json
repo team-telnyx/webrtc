@@ -13,7 +13,7 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeNotDocumented": true,
-  "excludeTags": ["internalnote"],
+  "excludeTags": ["@internalnote", "@internal"],
   "hideGenerator": true,
   "readme": "none",
   "gitRevision": "main",

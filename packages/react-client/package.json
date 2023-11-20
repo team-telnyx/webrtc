@@ -67,8 +67,7 @@
     "prettier": "^2.1.2",
     "react": "^16.8",
     "react-dom": "^16.8",
-    "release-it": "^14.14.2",
-    "typescript": "^5.2.2"
+    "release-it": "^14.14.2"
   },
   "files": [
     "dist"

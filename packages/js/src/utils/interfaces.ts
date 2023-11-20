@@ -235,7 +235,7 @@ export interface ICallOptions {
  *
  * @category Notification
  * @apialias Notification
- * @internalnote {@see NOTIFICATION_TYPE}
+ * @internalnote {see NOTIFICATION_TYPE}
  */
 export interface INotification extends Omit<INotificationEventData, 'call'> {
   /**

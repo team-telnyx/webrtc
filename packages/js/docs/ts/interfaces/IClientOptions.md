@@ -1,8 +1,7 @@
 # Interface: IClientOptions
 
 IClientOptions
-
-**`interface`** IClientOptions
+ IClientOptions
 
 ## Table of contents
 
