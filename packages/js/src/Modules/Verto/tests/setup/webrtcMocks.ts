@@ -59,6 +59,7 @@ class MediaStreamMock implements MediaStream {
 }
 
 class MediaStreamTrackMock implements MediaStreamTrack {
+  contentHint: string;
   enabled: boolean = true;
   id: string = uuidv4();
   isolated: boolean;
@@ -68,10 +69,10 @@ class MediaStreamTrackMock implements MediaStreamTrack {
   readonly: boolean;
   readyState: MediaStreamTrackState;
   remote: boolean;
-  onended: (this: MediaStreamTrack, ev: MediaStreamErrorEvent) => any;
+  onended: (this: MediaStreamTrack, ev: Event) => any;
   onisolationchange: (this: MediaStreamTrack, ev: Event) => any;
   onmute: (this: MediaStreamTrack, ev: Event) => any;
-  onoverconstrained: (this: MediaStreamTrack, ev: MediaStreamErrorEvent) => any;
+  onoverconstrained: (this: MediaStreamTrack, ev: Event) => any;
   onunmute: (this: MediaStreamTrack, ev: Event) => any;
 
   applyConstraints(constraints: any): Promise<void> {
@@ -141,6 +142,7 @@ class RTCRtpSenderMock implements RTCRtpSender {
 }
 
 class RTCPeerConnectionMock implements RTCPeerConnection {
+  restartIce: () => void;
   canTrickleIceCandidates: boolean;
   connectionState: RTCPeerConnectionState;
   currentLocalDescription: RTCSessionDescription;
@@ -156,17 +158,14 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     this: RTCPeerConnection,
     ev: RTCPeerConnectionIceEvent
   ) => any;
-  onicecandidateerror: (
-    this: RTCPeerConnection,
-    ev: RTCPeerConnectionIceErrorEvent
-  ) => any;
+  onicecandidateerror: (this: RTCPeerConnection, ev: Event) => any;
   oniceconnectionstatechange: (this: RTCPeerConnection, ev: Event) => any;
   onicegatheringstatechange: (this: RTCPeerConnection, ev: Event) => any;
   onnegotiationneeded: (this: RTCPeerConnection, ev: Event) => any;
   onsignalingstatechange: (this: RTCPeerConnection, ev: Event) => any;
-  onstatsended: (this: RTCPeerConnection, ev: RTCStatsEvent) => any;
+  onstatsended: (this: RTCPeerConnection, ev: Event) => any;
   ontrack: (this: RTCPeerConnection, ev: RTCTrackEvent) => any;
-  peerIdentity: Promise<RTCIdentityAssertion>;
+  peerIdentity: Promise<any>;
   pendingLocalDescription: RTCSessionDescription;
   pendingRemoteDescription: RTCSessionDescription;
   remoteDescription: RTCSessionDescription;
@@ -246,7 +245,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(
     selector: MediaStreamTrack,
-    successCallback: RTCStatsCallback,
+    successCallback: any,
     failureCallback: RTCPeerConnectionErrorCallback
   ): Promise<void>;
   getStats(
@@ -269,10 +268,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   setConfiguration(configuration: any) {
     throw new Error('Method not implemented.');
   }
-  setIdentityProvider(
-    provider: string,
-    options?: RTCIdentityProviderOptions
-  ): void {
+  setIdentityProvider(provider: string, options?: any): void {
     throw new Error('Method not implemented.');
   }
   setLocalDescription(description: RTCSessionDescriptionInit): Promise<void>;
@@ -317,10 +313,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
       | 'track'
   >(
     type: K,
-    listener: (
-      this: RTCPeerConnection,
-      ev: RTCPeerConnectionEventMap[K]
-    ) => void,
+    listener: (this: RTCPeerConnection, ev: Event) => void,
     options?: boolean | AddEventListenerOptions
   ): void;
   addEventListener(
@@ -345,10 +338,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
       | 'track'
   >(
     type: K,
-    listener: (
-      this: RTCPeerConnection,
-      ev: RTCPeerConnectionEventMap[K]
-    ) => void,
+    listener: (this: RTCPeerConnection, ev: Event) => void,
     options?: boolean | EventListenerOptions
   ): void;
   removeEventListener(
