@@ -7,6 +7,7 @@ const tmpMap = {
   remoteCallerNumber: 'remote_caller_id_number',
   callerName: 'caller_id_name',
   callerNumber: 'caller_id_number',
+  customHeaders: 'custom_headers',
 };
 
 export default abstract class BaseRequest extends BaseMessage {
@@ -24,12 +25,14 @@ export default abstract class BaseRequest extends BaseMessage {
         speakerId,
         ...dialogParams
       } = params.dialogParams;
+
       for (const key in tmpMap) {
         if (key && dialogParams.hasOwnProperty(key)) {
           dialogParams[tmpMap[key]] = dialogParams[key];
           delete dialogParams[key];
         }
       }
+
       params.dialogParams = dialogParams;
     }
 

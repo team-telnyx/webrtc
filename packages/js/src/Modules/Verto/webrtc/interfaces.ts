@@ -44,6 +44,7 @@ export interface IVertoCallOptions {
   negotiateAudio?: boolean;
   negotiateVideo?: boolean;
   mediaSettings?: IMediaSettings;
+  customHeaders?: { name: string; value: string }[];
 }
 
 export interface IStatsBinding {

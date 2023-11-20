@@ -66,6 +66,8 @@ class VertoHandler {
     }
 
     const _buildCall = () => {
+      debugger;
+
       const callOptions: IVertoCallOptions = {
         id: callID,
         remoteSdp: params.sdp,
@@ -92,6 +94,15 @@ class VertoHandler {
 
       if (params.client_state) {
         callOptions.clientState = params.client_state;
+      }
+      debugger;
+
+      if (
+        params.dialogParams &&
+        params.dialogParams.custom_headers &&
+        params.dialogParams.custom_headers.length
+      ) {
+        callOptions.customHeaders = params.dialogParams.custom_headers;
       }
 
       const call = new Call(session, callOptions);
