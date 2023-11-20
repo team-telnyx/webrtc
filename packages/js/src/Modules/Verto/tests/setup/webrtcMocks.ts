@@ -88,7 +88,8 @@ class MediaStreamTrackMock implements MediaStreamTrack {
   dispatchEvent(event: Event): boolean {}
 }
 
-class RTCRtpTransceiver implements RTCRtpTransceiver {}
+//@ts-ignore
+class RTCRtpTransceiverMock implements RTCRtpTransceiver {}
 
 class RTCRtpSenderMock implements RTCRtpSender {
   dtmf: RTCDTMFSender;
@@ -151,12 +152,12 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     // throw new Error('Method not implemented.')
     return new RTCRtpSenderMock();
   }
-  //@ts-ignore
   addTransceiver(
     trackOrKind: string | MediaStreamTrack,
     init?: RTCRtpTransceiverInit
   ): RTCRtpTransceiver {
-    const transceiver = new RTCRtpTransceiver();
+    const transceiver = new RTCRtpTransceiverMock();
+    //@ts-ignore
     return transceiver;
   }
   close() {}
