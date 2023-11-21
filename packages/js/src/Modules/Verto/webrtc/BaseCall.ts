@@ -1387,14 +1387,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        {
-          this.setState(State.Answering);
-          msg =
-            this.options.attach === true
-              ? new Attach(tmpParams)
-              : new Answer(tmpParams);
-        }
-
+        this.setState(State.Answering);
+        msg =
+          this.options.attach === true
+            ? new Attach(tmpParams)
+            : new Answer(tmpParams);
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
