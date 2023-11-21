@@ -1389,7 +1389,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       case PeerType.Answer:
         {
           this.setState(State.Answering);
-          console.log('tmpParams===>', tmpParams);
           msg =
             this.options.attach === true
               ? new Attach(tmpParams)
