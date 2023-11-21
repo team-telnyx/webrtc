@@ -44,12 +44,16 @@ export interface IVertoCallOptions {
   negotiateAudio?: boolean;
   negotiateVideo?: boolean;
   mediaSettings?: IMediaSettings;
-  customHeaders?: { name: string; value: string }[];
+  customHeaders?: Array<{ name: string; value: string }>;
 }
 
 export interface IStatsBinding {
   constraints: any;
   callback: Function;
+}
+
+export interface AnswerParams {
+  customHeaders?: Array<{ name: string; value: string }>;
 }
 
 export interface IWebRTCCall {
@@ -66,7 +70,7 @@ export interface IWebRTCCall {
   localStream: MediaStream;
   remoteStream: MediaStream;
   invite: () => void;
-  answer: () => void;
+  answer: (params: AnswerParams) => void;
   hangup: (params: any, execute: boolean) => void;
   transfer: (destination: string) => void;
   replace: (replaceCallID: string) => void;

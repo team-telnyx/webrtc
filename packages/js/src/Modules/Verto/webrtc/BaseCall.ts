@@ -32,7 +32,13 @@ import {
   stopAudio,
 } from './helpers';
 import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import { IVertoCallOptions, IWebRTCCall, IAudio, IStatsBinding } from './interfaces';
+import {
+  IVertoCallOptions,
+  IWebRTCCall,
+  IAudio,
+  IStatsBinding,
+  AnswerParams,
+} from './interfaces';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -130,8 +136,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _ringback: IAudio;
 
   private _statsBindings: IStatsBinding[] = [];
-  
-  private _statsIntervalId:  any = null;
+
+  private _statsIntervalId: any = null;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -255,10 +261,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer() {
+  answer(params: AnswerParams = {}) {
     this.stopRingtone();
 
     this.direction = Direction.Inbound;
+
+    this.options = {
+      ...this.options,
+      customHeaders: [
+        ...(params.customHeaders
+          ? params.customHeaders
+          : this.options.customHeaders),
+      ],
+    };
+
     this.peer = new Peer(PeerType.Answer, this.options);
     this._registerPeerEvents();
   }
@@ -326,7 +342,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
       this._execute(bye)
         .catch((error) => {
-          logger.error('telnyl_rtc.bye failed!', error)
+          logger.error('telnyl_rtc.bye failed!', error);
           trigger(SwEvent.Error, error, this.session.uuid);
         })
         .then(_close.bind(this));
@@ -783,18 +799,21 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Registers callback for stats.
-   * 
-   * @param callback 
-   * @param constraints 
-   * @returns 
+   *
+   * @param callback
+   * @param constraints
+   * @returns
    */
   getStats(callback: Function, constraints: any) {
     if (!callback) {
       return;
     }
-    const binding: IStatsBinding = { callback: callback, constraints: constraints };
+    const binding: IStatsBinding = {
+      callback: callback,
+      constraints: constraints,
+    };
     this._statsBindings.push(binding);
-  
+
     if (!this._statsIntervalId) {
       const STATS_INTERVAL = 2000;
       this._startStats(STATS_INTERVAL);
@@ -1354,6 +1373,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.peer.instance.removeEventListener('icecandidate', this._onIce);
 
     let msg = null;
+
     const tmpParams = {
       sessid: this.session.sessionid,
       sdp,
@@ -1367,11 +1387,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        this.setState(State.Answering);
-        msg =
-          this.options.attach === true
-            ? new Attach(tmpParams)
-            : new Answer(tmpParams);
+        {
+          this.setState(State.Answering);
+          console.log('tmpParams===>', tmpParams);
+          msg =
+            this.options.attach === true
+              ? new Attach(tmpParams)
+              : new Answer(tmpParams);
+        }
+
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
@@ -1476,12 +1500,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _init() {
-    const {
-      id,
-      userVariables,
-      remoteCallerNumber,
-      onNotification,
-    } = this.options;
+    const { id, userVariables, remoteCallerNumber, onNotification } =
+      this.options;
     if (!id) {
       this.options.id = uuidv4();
     }
@@ -1528,7 +1548,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearInterval(this._statsIntervalId);
       this._statsIntervalId = null;
     }
-    logger.info('Stats stopped')
+    logger.info('Stats stopped');
   }
 
   private _doStats = () => {
@@ -1543,16 +1563,17 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     this.peer.instance.getStats().then((res) => {
-
       res.forEach((report) => {
-
-        this._statsBindings.forEach((binding) => { 
+        this._statsBindings.forEach((binding) => {
           if (!binding.callback) {
             return;
           }
           if (binding.constraints) {
             for (var key in binding.constraints) {
-              if (binding.constraints.hasOwnProperty(key) && (binding.constraints[key] !== report[key])) {
+              if (
+                binding.constraints.hasOwnProperty(key) &&
+                binding.constraints[key] !== report[key]
+              ) {
                 return;
               }
             }
@@ -1561,7 +1582,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         });
       });
     });
-  }
+  };
 
   static setStateTelnyx = (call: Call) => {
     if (!call) {
