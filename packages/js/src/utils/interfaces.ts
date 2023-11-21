@@ -183,7 +183,7 @@ export interface ICallOptions {
   };
 
   /**
-   * Add custom headers to the INVITE request.
+   * Add custom headers to the INVITE and ANSWER request.
    */
   customHeaders?: { name: string; value: string }[];
 }
