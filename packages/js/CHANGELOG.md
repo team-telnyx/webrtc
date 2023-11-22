@@ -1,3 +1,11 @@
+## [2.10.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.9.0...webrtc/v2.10.0) (2023-11-22)
+
+
+### Features
+
+* **ENGDESK-26634:** add custom headers to invite and answer messages ([#338](https://github.com/team-telnyx/webrtc/issues/338)) ([69814b4](https://github.com/team-telnyx/webrtc/commit/69814b4f4123b7dba777813836551ac771e54892))
+* **ENGDESK-27107:** Upgrade WebRTC library to support React 18 ([#321](https://github.com/team-telnyx/webrtc/issues/321)) ([66d0c0e](https://github.com/team-telnyx/webrtc/commit/66d0c0ee8bcd458b20e7fe67c0561663c3190417))
+
 ## [2.9.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.8.2...webrtc/v2.9.0) (2023-01-31)
 
 
