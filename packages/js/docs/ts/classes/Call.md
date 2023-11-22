@@ -234,9 +234,15 @@ BaseCall.telnyxIDs
 
 ### <a id="answer" name="answer"></a> answer
 
-▸ **answer**(): `void`
+▸ **answer**(`params?`): `void`
 
 Starts the process to answer the incoming call.
+
+#### Parameters
+
+| Name | Type |
+| :------ | :------ |
+| `params` | `AnswerParams` |
 
 #### Returns
 

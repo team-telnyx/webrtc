@@ -12,6 +12,7 @@ ICallOptions
 - [callerNumber](ICallOptions.md#callernumber)
 - [camId](ICallOptions.md#camid)
 - [clientState](ICallOptions.md#clientstate)
+- [customHeaders](ICallOptions.md#customheaders)
 - [destinationNumber](ICallOptions.md#destinationnumber)
 - [iceServers](ICallOptions.md#iceservers)
 - [id](ICallOptions.md#id)
@@ -69,6 +70,14 @@ ___
 
 Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled.
 `clientState` string should be base64 encoded.
+
+___
+
+### <a id="customheaders" name="customheaders"></a> customHeaders
+
+• `Optional` **customHeaders**: \{ `name`: `string` ; `value`: `string`  }[]
+
+Add custom headers to the INVITE and ANSWER request.
 
 ___
 
