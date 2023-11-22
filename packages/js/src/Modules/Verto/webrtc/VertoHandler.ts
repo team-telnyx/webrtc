@@ -94,6 +94,14 @@ class VertoHandler {
         callOptions.clientState = params.client_state;
       }
 
+      if (
+        params.dialogParams &&
+        params.dialogParams.custom_headers &&
+        params.dialogParams.custom_headers.length
+      ) {
+        callOptions.customHeaders = params.dialogParams.custom_headers;
+      }
+
       const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;
