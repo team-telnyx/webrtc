@@ -111,6 +111,12 @@ class VertoHandler {
       case VertoMethod.Punt:
         session.disconnect();
         break;
+      case VertoMethod.Modify: {
+        console.log('VertoHandler.ts: Modify');
+        debugger;
+        break;
+      }
+
       case VertoMethod.Invite: {
         const call = _buildCall();
         call.playRingtone();

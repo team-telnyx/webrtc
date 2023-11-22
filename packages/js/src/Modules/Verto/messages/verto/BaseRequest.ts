@@ -33,6 +33,7 @@ export default abstract class BaseRequest extends BaseMessage {
       params.dialogParams = dialogParams;
     }
 
+    console.log('BaseRequest===>params', params);
     this.buildRequest({ method: this.toString(), params });
   }
 }

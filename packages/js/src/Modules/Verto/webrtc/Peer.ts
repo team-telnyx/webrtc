@@ -93,7 +93,7 @@ export default class Peer {
 
   private handleSignalingStateChangeEvent(event) {
     logger.info('signalingState:', this.instance.signalingState);
-
+    console.log('onsignalingstatechange===>:', event);
     switch (this.instance.signalingState) {
       case 'stable':
         // Workaround to skip nested negotiations
@@ -108,24 +108,22 @@ export default class Peer {
     }
   }
 
-  private handleNegotiationNeededEvent() {
+  private handleNegotiationNeededEvent(event) {
     logger.info('Negotiation needed event');
     if (this.instance.signalingState !== 'stable') {
       return;
     }
+    console.log('onnegotiationneeded===>:', event);
     this.startNegotiation();
   }
 
-  private handleTrackEvent(event) {
-    const {
-      streams: [first],
-    } = event;
-    const { remoteElement, screenShare } = this.options;
-    let { remoteStream } = this.options;
-
-    remoteStream = first;
-
+  private handleTrackEvent(event: RTCTrackEvent) {
+    this.options.remoteStream = event.streams[0];
+    const { remoteElement, remoteStream, screenShare } = this.options;
     if (screenShare === false) {
+      console.log('handleTrackEvent remoteElement', remoteElement);
+      console.log('handleTrackEvent remoteStream', remoteStream);
+
       attachMediaStream(remoteElement, remoteStream);
     }
   }
@@ -137,10 +135,10 @@ export default class Peer {
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
 
-    //@ts-ignore
-    this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
-      this.options.remoteStream = event.stream;
-    });
+    // this.instance.addEventListener('track', (event: RTCTrackEvent) => {
+    //   console.log('changing track', event.streams);
+    //   this.options.remoteStream = event.streams[0];
+    // });
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {

@@ -8,7 +8,8 @@ const getUserMedia = (constraints: MediaStreamConstraints) =>
   navigator.mediaDevices.getUserMedia(constraints);
 
 // @ts-ignore
-const getDisplayMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getDisplayMedia(constraints)
+const getDisplayMedia = (constraints: MediaStreamConstraints) =>
+  navigator.mediaDevices.getDisplayMedia(constraints);
 
 const enumerateDevices = () => navigator.mediaDevices.enumerateDevices();
 
@@ -39,6 +40,9 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   if (!element.getAttribute('playsinline')) {
     element.setAttribute('playsinline', 'playsinline');
   }
+  console.log('attachMediaStream===>element', element);
+
+  console.log('attachMediaStream===>stream', stream);
   element.srcObject = stream;
 };
 
