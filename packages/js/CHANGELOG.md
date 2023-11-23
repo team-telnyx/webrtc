@@ -1,3 +1,10 @@
+### [2.10.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.0...webrtc/v2.10.1) (2023-11-23)
+
+
+### Bug Fixes
+
+* the params.customHeaders was not being destructuring correctly the values ([#339](https://github.com/team-telnyx/webrtc/issues/339)) ([b7e1c2a](https://github.com/team-telnyx/webrtc/commit/b7e1c2a4dcc974b36f32c59a54a6380a8cbd4d07))
+
 ## [2.10.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.9.0...webrtc/v2.10.0) (2023-11-22)
 
 
