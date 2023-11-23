@@ -266,14 +266,12 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.direction = Direction.Inbound;
 
-    this.options = {
-      ...this.options,
-      customHeaders: [
-        ...(params.customHeaders
-          ? params.customHeaders
-          : this.options.customHeaders),
-      ],
-    };
+    if(params?.customHeaders?.length > 0) {
+      this.options = {
+        ...this.options,
+        customHeaders: params.customHeaders
+      };
+    }
 
     this.peer = new Peer(PeerType.Answer, this.options);
     this._registerPeerEvents();
