@@ -1,3 +1,10 @@
+### [2.10.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.1...webrtc/v2.10.2) (2024-02-20)
+
+
+### Bug Fixes
+
+* **ENGDESK-26922:** Make `login_token` optional ([#340](https://github.com/team-telnyx/webrtc/issues/340)) ([1c0b36a](https://github.com/team-telnyx/webrtc/commit/1c0b36a8daec1d2552da7dde7842763c1aa477ca))
+
 ### [2.10.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.0...webrtc/v2.10.1) (2023-11-23)
 
 
