@@ -32,7 +32,7 @@ export interface IClientOptions {
    * The JSON Web Token (JWT) to authenticate with your SIP Connection.
    * This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
    */
-  login_token: string;
+  login_token?: string;
   /**
    * The `username` to authenticate with your SIP Connection.
    * `login` and `password` will take precedence over
