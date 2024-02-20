@@ -27,7 +27,7 @@ ___
 
 ### <a id="login_token" name="login_token"></a> login\_token
 
-• **login\_token**: `string`
+• `Optional` **login\_token**: `string`
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
