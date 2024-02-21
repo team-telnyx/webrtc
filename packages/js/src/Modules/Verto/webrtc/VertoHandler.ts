@@ -4,7 +4,7 @@ import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
-import { VertoMethod, NOTIFICATION_TYPE, GatewayStateType } from './constants';
+import { VertoMethod, NOTIFICATION_TYPE, GatewayStateType, Direction } from './constants';
 import { trigger, deRegister } from '../services/Handler';
 import { State, ConferenceAction } from './constants';
 import { MCULayoutEventHandler } from './LayoutHandler';
@@ -123,6 +123,7 @@ class VertoHandler {
         const call = _buildCall();
         call.playRingtone();
         call.setState(State.Ringing);
+        call.direction = Direction.Inbound
         this._ack(id, method);
         break;
       }
