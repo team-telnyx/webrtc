@@ -19,6 +19,7 @@ class Login extends BaseRequest {
       login_token,
       userVariables,
       loginParams: {},
+      'User-Agent': window.navigator.userAgent,
     };
     if (sessionid) {
       params.sessid = sessionid;
