@@ -918,6 +918,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       case VertoMethod.Ringing: {
         this.playRingback();
+        if (params.telnyx_call_control_id) {
+          this.options.telnyxCallControlId = params.telnyx_call_control_id;
+        }
+  
+        if (params.telnyx_session_id) {
+          this.options.telnyxSessionId = params.telnyx_session_id;
+        }
+  
+        if (params.telnyx_leg_id) {
+          this.options.telnyxLegId = params.telnyx_leg_id;
+        }
         break;
       }
       case VertoMethod.Bye:
