@@ -1,3 +1,16 @@
+## [2.11.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.2...webrtc/v2.11.0) (2024-02-26)
+
+
+### Features
+
+* **TELAPPS-4794:** expose user agent on login ([#343](https://github.com/team-telnyx/webrtc/issues/343)) ([a8b9606](https://github.com/team-telnyx/webrtc/commit/a8b96068255c4cec50d43d737a85fea267f3b52a))
+
+
+### Bug Fixes
+
+* **ENGDESK-23349:** bind telnyxids on ringing event for outbound calls ([#342](https://github.com/team-telnyx/webrtc/issues/342)) ([1b1df78](https://github.com/team-telnyx/webrtc/commit/1b1df782c3c4034d412be079b92019e661dbd5ce))
+* **ENGDESK-28811:** call object direction is undefined upon receiving call ([#341](https://github.com/team-telnyx/webrtc/issues/341)) ([8ac5a3f](https://github.com/team-telnyx/webrtc/commit/8ac5a3f6626d67cde4cf14c541aa26085be19ae6))
+
 ### [2.10.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.1...webrtc/v2.10.2) (2024-02-20)
 
 
