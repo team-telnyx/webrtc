@@ -1,7 +1,14 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
 import { Ping } from '../messages/verto/Ping';
+const userAgent = 'mock user agent';
 
 describe('Messages', function () {
+  beforeAll(() => {
+    // Mocking the user agent for consistency
+    Object.defineProperty(window, 'navigator', {
+      value: { userAgent },
+    });
+  });
   describe('Verto', function () {
     describe('Login', function () {
       it('should match struct', function () {
@@ -9,10 +16,10 @@ describe('Messages', function () {
           'login',
           'password',
           'dskbksdjbfkjsdf234y67234kjrwe98',
-          null
+          null!
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": "${userAgent}","login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -25,9 +32,20 @@ describe('Messages', function () {
           '123456789'
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": "${userAgent}","login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
+      });
+
+      it('Should pass User-Agent to the backend', () => {
+        const req = new Login('login', 'password', 'token', 'session').request;
+        expect(req).toEqual(
+          expect.objectContaining({
+            params: expect.objectContaining({
+              'User-Agent': userAgent,
+            }),
+          })
+        );
       });
     });
 
