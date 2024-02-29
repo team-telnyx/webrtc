@@ -1,14 +1,14 @@
 /* eslint-disable no-useless-constructor */
-import TelnyxRTCClient from './Modules/Verto';
+import TelnyxRTCClient from './Modules/Janus/index';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
 import {
   getWebRTCInfo,
   getWebRTCSupportedBrowserList,
-} from './Modules/Verto/webrtc/helpers';
+} from './Modules/Janus/webrtc/helpers';
 import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
-} from './Modules/Verto/webrtc/interfaces';
+} from './Modules/Janus/webrtc/interfaces';
 
 import * as pkg from '../package.json';
 
@@ -106,7 +106,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *```
    */
   constructor(options: IClientOptions) {
-    super(options);
+    super(options)
     console.log(`SDK version: ${pkg.version}`);
   }
 
@@ -154,7 +154,8 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * ```
    */
   newCall(options: ICallOptions) {
-    return super.newCall(options);
+    // TODO: implement newCall
+    // return super.newCall(options);
   }
 
   /**

@@ -42,6 +42,7 @@
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
   "dependencies": {
+    "eventemitter3": "^5.0.1",
     "loglevel": "^1.6.8",
     "uuid": "^7.0.3"
   },
