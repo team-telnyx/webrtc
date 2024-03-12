@@ -13,7 +13,7 @@ type ConnectionOptions = {
 };
 export class Connection extends EventEmitter {
   private _socket: WebSocket | null = null;
-  
+
   private _host: string = PROD_HOST;
 
   constructor(options: ConnectionOptions) {
@@ -30,6 +30,11 @@ export class Connection extends EventEmitter {
     this._socket.addEventListener('close', this._onClose);
     this._socket.addEventListener('error', this._onError);
     this._socket.addEventListener('message', this._onMessage);
+  }
+
+  public disconnect() {
+    this._socket.close();
+    this.emit(ConnectionEvents.StateChange);
   }
 
   private _onOpen = () => {

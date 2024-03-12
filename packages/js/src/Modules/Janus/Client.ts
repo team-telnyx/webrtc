@@ -1,4 +1,6 @@
+import { ICallOptions } from 'src/utils/interfaces';
 import { Call } from './Call';
+import CallAgent from './CallAgent';
 import { Connection } from './Connection';
 import { deRegister, register } from './Handler';
 import KeepAliveAgent from './KeepAliveAgent';
@@ -8,8 +10,6 @@ import { Environment } from './constants';
 import { IClientOptions } from './interfaces';
 import { AttachSipPluginTransaction } from './transactions/AttachSIPPlugin';
 import { CreateSessionTransaction } from './transactions/CreateSession';
-import CallAgent from './CallAgent';
-import { ICallOptions } from 'src/utils/interfaces';
 
 export default class JanusClient {
   private _gatewaySessionId: number | null = null;
@@ -28,11 +28,10 @@ export default class JanusClient {
       environment: Environment.production,
     });
     this._options = options;
+    this._connection.connect();
   }
 
   public async connect() {
-    this._connection.connect();
-
     const { sessionId } = await transactionManager.execute(
       new CreateSessionTransaction()
     );
@@ -82,6 +81,7 @@ export default class JanusClient {
   }
   public disconnect() {
     // TODO - implement
+    this._connection.disconnect();
   }
 
   public enableWebcam() {

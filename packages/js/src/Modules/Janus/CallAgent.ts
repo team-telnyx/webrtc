@@ -51,10 +51,22 @@ export default class CallAgent {
     this._gatewayHandleId = gatewayHandleId;
     this._gatewaySessionId = gatewaySessionId;
     this._connection.addListener(ConnectionEvents.Message, this._onMessage);
+    this._connection.addListener(
+      ConnectionEvents.StateChange,
+      this._onConnectionStateChange
+    );
     this._ringtone = createAudio(ringtoneFile, '_ringtone');
     this._ringback = createAudio(ringbackFile, '_ringback');
   }
 
+  private _onConnectionStateChange = async () => {
+    if (!this._connection.isDead) {
+      await Promise.all(
+        Object.values(this._calls).map((call: Call) => call.closeCall())
+      );
+      this._calls.clear();
+    }
+  };
   private _onMessage = (data: string) => {
     const msg = JSON.parse(data) as JanusResponse;
     if (isSIPIncomingCallMessage(msg)) {
@@ -78,6 +90,7 @@ export default class CallAgent {
       type: 'callUpdate',
       call,
     });
+    this._calls.delete(call.id);
   };
   private _onAccept = async (msg: JanusSIPCallAcceptedEvent) => {
     const call = this._calls.get(msg.plugindata.data.call_id);

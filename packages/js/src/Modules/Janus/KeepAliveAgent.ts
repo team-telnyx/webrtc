@@ -52,7 +52,7 @@ export default class KeepAliveAgent {
   };
 
   private _onConnectionStateChange = () => {
-    if (!this._connection.isAlive) {
+    if (this._connection.isDead) {
       return this.stop();
     }
     this.start();
