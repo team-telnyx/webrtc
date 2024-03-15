@@ -102,9 +102,7 @@ export const findElementByType = (
 
 export const attachMediaStream = (tag: any, stream: MediaStream) => {
   const element = findElementByType(tag);
-  if (tag === 'remoteVideo') {
-    debugger
-  }
+
   if (element === null) {
     return;
   }

@@ -1,7 +1,7 @@
 import { createAudio, playAudio, stopAudio } from '../Verto/webrtc/helpers';
 import { IAudio } from '../Verto/webrtc/interfaces';
 import { Call } from './Call';
-import { Connection } from './Connection';
+import { connection } from './Connection';
 import { trigger } from './Handler';
 import Peer from './Peer';
 import { transactionManager } from './TransactionManager';
@@ -22,36 +22,23 @@ import {
 import { findElementByType } from './util/webrtc';
 
 type CallAgentOptions = {
-  connection: Connection;
-  gatewaySessionId: number;
-  gatewayHandleId: number;
   ringtoneFile?: string;
   ringbackFile?: string;
 };
 
 export default class CallAgent {
   private _calls: Map<string, Call>;
-  private _connection: Connection;
-  private _gatewaySessionId: number;
-  private _gatewayHandleId: number;
+
   // TODO move from verto
   private _ringtone: IAudio;
   private _ringback: IAudio;
   private _remoteElement: HTMLMediaElement | null;
 
-  constructor({
-    connection,
-    gatewaySessionId,
-    gatewayHandleId,
-    ringbackFile,
-    ringtoneFile,
-  }: CallAgentOptions) {
+  constructor({ ringbackFile, ringtoneFile }: CallAgentOptions) {
     this._calls = new Map();
-    this._connection = connection;
-    this._gatewayHandleId = gatewayHandleId;
-    this._gatewaySessionId = gatewaySessionId;
-    this._connection.addListener(ConnectionEvents.Message, this._onMessage);
-    this._connection.addListener(
+
+    connection.addListener(ConnectionEvents.Message, this._onMessage);
+    connection.addListener(
       ConnectionEvents.StateChange,
       this._onConnectionStateChange
     );
@@ -60,7 +47,7 @@ export default class CallAgent {
   }
 
   private _onConnectionStateChange = async () => {
-    if (!this._connection.isDead) {
+    if (!connection.connected) {
       await Promise.all(
         Object.values(this._calls).map((call: Call) => call.closeCall())
       );
@@ -86,11 +73,11 @@ export default class CallAgent {
       return;
     }
     await call.closeCall();
+    this._calls.delete(call.id);
     trigger(SwEvent.Notification, {
       type: 'callUpdate',
       call,
     });
-    this._calls.delete(call.id);
   };
   private _onAccept = async (msg: JanusSIPCallAcceptedEvent) => {
     const call = this._calls.get(msg.plugindata.data.call_id);
@@ -112,20 +99,15 @@ export default class CallAgent {
   public async Outbound(options: ICallOptions) {
     const call = new Call(options, 'outbound');
     this._calls.set(call.id, call);
-    call.peer = await Peer.createOffer({
-      handleId: this._gatewayHandleId,
-      sessionId: this._gatewaySessionId,
-      remoteElement: this._remoteElement,
-      ...options,
-    });
+    call.peer = await Peer.createOffer(options);
     try {
       const { callId, telnyxCallControlId, telnyxLegId, telnyxSessionId } =
         await transactionManager.execute(
           new SIPCallTransaction({
             callId: call.id,
             uri: options.destinationNumber,
-            session_id: options.sessionId,
-            handle_id: options.handleId,
+            session_id: connection.gatewaySessionId,
+            handle_id: connection.gatewayHandleId,
             jsep: call.peer.peerConnection.localDescription,
           })
         );
@@ -138,7 +120,6 @@ export default class CallAgent {
         telnyxLegId,
         telnyxSessionId,
       };
-      debugger;
       trigger(SwEvent.Notification, {
         type: 'callUpdate',
         call,
@@ -152,8 +133,6 @@ export default class CallAgent {
     const callOptions: ICallOptions = {
       id: msg.plugindata.data.result.call_id,
       destinationNumber: msg.plugindata.data.result.callee,
-      sessionId: msg.session_id,
-      handleId: msg.sender,
       callerName: msg.plugindata.data.result.displayname,
       callerNumber: msg.plugindata.data.result.callee,
       telnyxCallControlId:

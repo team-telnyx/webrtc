@@ -1,34 +1,33 @@
-import { Connection } from './Connection';
+import { connection } from './Connection';
 import { transactionManager } from './TransactionManager';
 import { ConnectionEvents } from './constants';
 import { KeepAliveTransaction } from './transactions/KeepAlive';
 
-type ConstructorParams = {
-  connection: Connection;
-  gatewaySessionId: number;
-};
-
 const KEEP_ALIVE_INTERVAL = 10 * 1000;
 export default class KeepAliveAgent {
-  private _gatewaySessionId: number;
+  private _interval: number | null;
   private _failedAttempts: number;
-  private _interval: number;
-  private _connection: Connection;
 
-  constructor({ connection, gatewaySessionId }: ConstructorParams) {
+  constructor() {
+    this._interval = null;
     this._failedAttempts = 0;
-    this._gatewaySessionId = gatewaySessionId;
-    this._connection = connection;
-    this._connection.addListener(
+    connection.addListener(
       ConnectionEvents.StateChange,
       this._onConnectionStateChange
     );
   }
 
-  private _onTick = async () => {
+  private _onConnectionStateChange = () => {
+    if (connection.connected) {
+      this.start();
+    } else {
+      this.stop();
+    }
+  };
+  private _tick = async () => {
     try {
-      await transactionManager.execute(
-        new KeepAliveTransaction(this._gatewaySessionId)
+      const ok = await transactionManager.execute(
+        new KeepAliveTransaction(connection.gatewaySessionId)
       );
       this._failedAttempts = 0;
     } catch (error) {
@@ -36,25 +35,20 @@ export default class KeepAliveAgent {
       if (this._failedAttempts > 3) {
         this.stop();
       }
+      console.error(error);
     }
   };
 
-  public start = () => {
-    this.stop();
-    this._interval = window.setInterval(this._onTick, KEEP_ALIVE_INTERVAL);
-  };
+  public start() {
+    if (this._interval != null) {
+      return;
+    }
+    this._interval = window.setInterval(this._tick, KEEP_ALIVE_INTERVAL);
+  }
 
-  public stop = () => {
+  public stop() {
     if (this._interval != null) {
       window.clearInterval(this._interval);
-      this._interval = null;
     }
-  };
-
-  private _onConnectionStateChange = () => {
-    if (this._connection.isDead) {
-      return this.stop();
-    }
-    this.start();
-  };
+  }
 }

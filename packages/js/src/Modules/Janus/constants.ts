@@ -36,6 +36,7 @@ export enum SwEvent {
   Ready = 'telnyx.ready',
   Error = 'telnyx.error',
   Notification = 'telnyx.notification',
+  RegisterStateChange = 'telnyx.register.stateChange',
 
   // Blade Events
   Messages = 'telnyx.messages',

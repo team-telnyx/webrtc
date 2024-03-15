@@ -1,4 +1,5 @@
 import { muteMediaElement } from '../Verto/util/webrtc';
+import { connection } from './Connection';
 import { trigger } from './Handler';
 import { transactionManager } from './TransactionManager';
 import { SwEvent } from './constants';
@@ -8,6 +9,7 @@ import { DeferredPromise, deferredPromise } from './util/promise';
 import { attachMediaStream } from './util/webrtc';
 
 type PeerType = 'offer' | 'answer';
+
 export default class Peer {
   public type: PeerType;
   private _callOptions: ICallOptions;
@@ -92,7 +94,7 @@ export default class Peer {
       this.peerConnection.addTrack(track, stream);
     });
   };
-  
+
   private _createRTCPeerConnection(): RTCPeerConnection {
     const peerConnection = new RTCPeerConnection({
       bundlePolicy: 'max-compat',
@@ -116,8 +118,8 @@ export default class Peer {
   private _onIceCandidate = async (event: RTCPeerConnectionIceEvent) => {
     await transactionManager.execute(
       new ICETrickleTransaction({
-        handle_id: this._callOptions.handleId,
-        session_id: this._callOptions.sessionId,
+        handle_id: connection.gatewayHandleId,
+        session_id: connection.gatewaySessionId,
         candidate: event.candidate,
       })
     );
@@ -144,6 +146,7 @@ export default class Peer {
   };
 
   public close() {
+    this._callOptions.localStream.getTracks().forEach((track) => track.stop());
     this.peerConnection.close();
     this.peerConnection = null;
   }
@@ -151,6 +154,7 @@ export default class Peer {
   private _onTrackEvent = (event: RTCTrackEvent) => {
     const [stream] = event.streams;
     this._callOptions.remoteStream = stream;
+    debugger
     attachMediaStream(
       this._callOptions.remoteElement,
       this._callOptions.remoteStream

@@ -131,16 +131,6 @@ export interface ICallOptions {
   customHeaders?: { name: string; value: string }[];
 
   /**
-   * Janus Session Id
-   */
-  sessionId: number;
-
-  /**
-   * Janus handle Id
-   */
-  handleId: number;
-
-  /**
    * SDP offer
    */
   remoteSdp?: RTCSessionDescriptionInit;

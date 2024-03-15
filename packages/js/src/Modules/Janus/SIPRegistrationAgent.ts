@@ -1,4 +1,4 @@
-import { Connection } from './Connection';
+import { connection } from './Connection';
 import { trigger } from './Handler';
 import { transactionManager } from './TransactionManager';
 import { SwEvent } from './constants';
@@ -10,41 +10,20 @@ import { isSipError } from './util/janus';
 
 type RegistrationState =
   | 'unregistered'
-  | 'registering'
   | 'registered'
-  | 'error';
+  | 'error'
+  | 'registering';
 
-type ISipRegistrationAgent = {
-  options: IClientOptions;
-  connection: Connection;
-  sessionId: number;
-  handleId: number;
-};
 export class SIPRegistrationAgent {
-  private _connection: Connection;
-  private _options: IClientOptions;
-  private _sessionId: number;
-  private _handleId: number;
   public state: RegistrationState;
 
-  constructor({
-    connection,
-    options,
-    sessionId,
-    handleId,
-  }: ISipRegistrationAgent) {
-    this._options = options;
+  constructor() {
     this.state = 'unregistered';
-    this._handleId = handleId;
-    this._sessionId = sessionId;
-
-    this._connection = connection;
-    this._connection.addListener('message', this._onMessage);
   }
 
-  private _onMessage(msg: string) {
+  private _onMessage = (msg: string) => {
     const data = JSON.parse(msg) as JanusResponse;
-    
+
     if (isSipError(data)) {
       this.state = 'error';
       trigger(SwEvent.Error, new Error(data.plugindata.data.error));
@@ -55,30 +34,33 @@ export class SIPRegistrationAgent {
       data.janus === Janus.event &&
       data.plugindata.data.result.event === 'registered'
     ) {
-      this.state = 'registered';
-      trigger(SwEvent.Ready, {
-        session_id: this._sessionId,
-        handle_id: this._handleId,
-      });
+      this._setState('registered');
+      trigger(SwEvent.Ready, connection);
     }
-  }
+  };
 
-  async register() {
+  private _setState = (state: RegistrationState) => {
+    this.state = state;
+    trigger(SwEvent.RegisterStateChange, this.state);
+  };
+  async register(options: IClientOptions): Promise<RegistrationState> {
     try {
-      this.state = 'unregistered';
+      connection.addListener('message', this._onMessage);
       await transactionManager.execute(
         new SIPRegisterTransaction({
-          ...this._options,
-          session_id: this._sessionId,
-          handle_id: this._handleId,
+          ...options,
+          session_id: connection.gatewaySessionId,
+          handle_id: connection.gatewayHandleId,
         })
       );
-      this.state = 'registering';
+      this._setState('registering');
+      return this.state;
     } catch (error) {
-      this.state = 'error';
-      trigger(SwEvent.Error, error);
+      this._setState('error');
     }
   }
 
-  async unregister() {}
+  async unregister() {
+    connection.removeListener('message', this._onMessage);
+  }
 }

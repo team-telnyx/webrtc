@@ -31,7 +31,7 @@ export function isSIPIncomingCallMessage(
   return (
     msg.janus === 'event' &&
     msg.plugindata.data.sip === 'event' &&
-    msg.plugindata.data.result.event === 'incomingcall' &&
+    msg.plugindata.data.result?.event === 'incomingcall' &&
     (msg as JanusSIPIncomingCallEvent).jsep != null
   );
 }
@@ -42,7 +42,7 @@ export function isSIPCallAcceptedEvent(
   return (
     msg.janus === 'event' &&
     msg.plugindata.data.sip === 'event' &&
-    (msg as JanusSIPCallAcceptedEvent).plugindata.data.result.event ===
+    (msg as JanusSIPCallAcceptedEvent).plugindata.data.result?.event ===
       'accepted'
   );
 }

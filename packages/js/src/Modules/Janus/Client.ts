@@ -1,108 +1,60 @@
 import { ICallOptions } from 'src/utils/interfaces';
-import { Call } from './Call';
 import CallAgent from './CallAgent';
-import { Connection } from './Connection';
-import { deRegister, register } from './Handler';
+import { connection } from './Connection';
 import KeepAliveAgent from './KeepAliveAgent';
 import { SIPRegistrationAgent } from './SIPRegistrationAgent';
-import { transactionManager } from './TransactionManager';
-import { Environment } from './constants';
 import { IClientOptions } from './interfaces';
-import { AttachSipPluginTransaction } from './transactions/AttachSIPPlugin';
-import { CreateSessionTransaction } from './transactions/CreateSession';
+import { deRegister, register } from './Handler';
 
 export default class JanusClient {
-  private _gatewaySessionId: number | null = null;
-  private _gatewayHandleId: number | null = null;
-  private _connection: Connection;
   private _options: IClientOptions;
   private _sipRegistrationAgent: SIPRegistrationAgent;
   private _keepAliveAgent: KeepAliveAgent;
   private _callAgent: CallAgent;
 
-  static telnyxStateCall(call: Call) {
-    return call;
-  }
-  constructor(options: IClientOptions) {
-    this._connection = new Connection({
-      environment: Environment.production,
-    });
+  constructor(options?: IClientOptions) {
+    this._sipRegistrationAgent = new SIPRegistrationAgent();
     this._options = options;
-    this._connection.connect();
+  }
+
+  public get connected() {
+    return connection.connected;
+  }
+
+  public async disconnect() {
+    connection.disconnect();
+    this._keepAliveAgent?.stop();
+    await this._sipRegistrationAgent.unregister();
   }
 
   public async connect() {
-    const { sessionId } = await transactionManager.execute(
-      new CreateSessionTransaction()
-    );
-
-    this._gatewaySessionId = sessionId;
-
-    const { handleId } = await transactionManager.execute(
-      new AttachSipPluginTransaction({
-        sessionId: this._gatewaySessionId,
-      })
-    );
-    this._gatewayHandleId = handleId;
-
-    this._keepAliveAgent = new KeepAliveAgent({
-      connection: this._connection,
-      gatewaySessionId: this._gatewaySessionId,
-    });
-
-    this._sipRegistrationAgent = new SIPRegistrationAgent({
-      connection: this._connection,
-      options: this._options,
-      sessionId: this._gatewaySessionId,
-      handleId: this._gatewayHandleId,
-    });
-
-    this._callAgent = new CallAgent({
-      gatewayHandleId: this._gatewayHandleId,
-      gatewaySessionId: this._gatewaySessionId,
-      connection: this._connection,
-    });
-
-    await this._sipRegistrationAgent.register();
+    await connection.connect();
+    this._keepAliveAgent = new KeepAliveAgent();
+    this._sipRegistrationAgent = new SIPRegistrationAgent();
+    this._callAgent = new CallAgent(this._options);
     this._keepAliveAgent.start();
   }
 
+  public get registrationState() {
+    return this._sipRegistrationAgent.state;
+  }
+  public register(options: IClientOptions) {
+    return this._sipRegistrationAgent.register(options);
+  }
   async newCall(options: ICallOptions) {
-    const call = await this._callAgent.Outbound({
-      ...options,
-      handleId: this._gatewayHandleId,
-      sessionId: this._gatewaySessionId,
-    });
+    const call = await this._callAgent.Outbound(options);
     return call;
   }
 
+  public on(event: string, handler: Function) {
+    // TODO change to event emitter instead
+    register(event, handler);
+  }
+  public off(event: string, handler: Function) {
+    // TODO change to event emitter instead
+    deRegister(event, handler);
+  }
   get calls() {
     return this._callAgent.calls;
-  }
-  public disconnect() {
-    // TODO - implement
-    this._connection.disconnect();
-  }
-
-  public enableWebcam() {
-    // TODO - implement
-    return true;
-  }
-  public disableWebcam() {
-    // TODO - implement
-    return true;
-  }
-
-  set remoteElement(
-    element: HTMLMediaElement | string | (() => HTMLMediaElement)
-  ) {
-    this._callAgent.remoteElement = element;
-  }
-
-  on(eventName: string, callback: Function) {
-    register(eventName, callback);
-  }
-  off(eventName: string, callback: Function) {
-    deRegister(eventName, callback);
   }
 }

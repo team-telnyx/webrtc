@@ -8,23 +8,15 @@ class TransactionManager {
   private _queue: BaseTransaction<unknown>[];
   private _connection: Connection;
 
-  constructor(connection?: Connection) {
+  constructor() {
     this._queue = [];
     this._transactions = new Map();
-    this._connection = connection;
-    if (connection) {
-      this.setConnection(connection);
-    }
   }
 
   public setConnection(connection: Connection) {
     this._connection = connection;
-    this._connection.on(
-      ConnectionEvents.StateChange,
-      this._onConnectionStateChange
-    );
-    this._connection.on(ConnectionEvents.Message, this._onMessage);
-    this._onConnectionStateChange();
+    this._connection.addListener(ConnectionEvents.Message, this._onMessage);
+    this._connection.addListener(ConnectionEvents.StateChange, this._onConnectionStateChange);
   }
   private _onMessage = (message: string) => {
     const data = JSON.parse(message) as JanusResponse;
@@ -35,7 +27,9 @@ class TransactionManager {
     const transaction = this._transactions.get(data.transaction);
     transaction.onMessage(data);
   };
+
   private _onConnectionStateChange = () => {
+    
     if (this._connection.connected) {
       this._queue.forEach((transaction) => {
         this._executeTransaction(transaction);
@@ -43,6 +37,7 @@ class TransactionManager {
       this._queue = [];
     }
   };
+
   public execute<T>(transaction: BaseTransaction<T>): Promise<T> {
     if (!this._connection.connected) {
       this._queue.push(transaction);
@@ -59,3 +54,4 @@ class TransactionManager {
 }
 
 export const transactionManager = new TransactionManager();
+(window as any).transactionManager = transactionManager;

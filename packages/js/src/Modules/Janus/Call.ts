@@ -5,6 +5,8 @@ import { ICallOptions } from './interfaces';
 import { JanusSIPCallAcceptedEvent } from './messages/response';
 import { SIPAnswerTransaction } from './transactions/SIPAnswer';
 import { SIPHangupTransaction } from './transactions/SIPHangup';
+import { connection } from './Connection';
+import { attachMediaStream } from './util/webrtc';
 
 type CallState = 'new' | 'connecting' | 'ringing' | 'active' | 'held' | 'done';
 
@@ -15,11 +17,11 @@ export class Call {
   public id: string;
   public direction: CallDirection;
   public state: CallState;
-  private _options: ICallOptions;
+  public options: ICallOptions;
 
   constructor(options: ICallOptions, direction: CallDirection) {
-    this._options = options;
-    this.id = this._options.id || uuidV4();
+    this.options = options;
+    this.id = this.options.id || uuidV4();
     this.state = 'new';
     this.direction = direction;
   }
@@ -32,8 +34,8 @@ export class Call {
   public hangup = async () => {
     await transactionManager.execute(
       new SIPHangupTransaction({
-        handle_id: this._options.handleId,
-        session_id: this._options.sessionId,
+        handle_id: connection.gatewayHandleId,
+        session_id: connection.gatewaySessionId,
       })
     );
   };
@@ -43,12 +45,12 @@ export class Call {
       return;
     }
 
-    this.peer = await Peer.createAnswer(this._options);
+    this.peer = await Peer.createAnswer(this.options);
     await transactionManager.execute(
       new SIPAnswerTransaction({
         answer: this.peer.peerConnection.localDescription,
-        gatewayHandleId: this._options.handleId,
-        gatewaySessionId: this._options.sessionId,
+        gatewayHandleId: connection.gatewayHandleId,
+        gatewaySessionId: connection.gatewaySessionId,
       })
     );
   };
@@ -66,7 +68,7 @@ export class Call {
   };
 
   public getStats(...args: any[]) {
-    // TODO implement 
+    // TODO implement
     console.log(arguments);
   }
 
@@ -75,8 +77,13 @@ export class Call {
     telnyxLegId: string;
     telnyxSessionId: string;
   }) {
-    this._options.telnyxCallControlId = ids.telnyxCallControlId;
-    this._options.telnyxLegId = ids.telnyxLegId;
-    this._options.telnyxSessionId = ids.telnyxSessionId;
+    this.options.telnyxCallControlId = ids.telnyxCallControlId;
+    this.options.telnyxLegId = ids.telnyxLegId;
+    this.options.telnyxSessionId = ids.telnyxSessionId;
+  }
+
+  set remoteElement(element: HTMLMediaElement) {
+    this.options.remoteElement = element;
+    attachMediaStream(element, this.options.remoteStream);
   }
 }
