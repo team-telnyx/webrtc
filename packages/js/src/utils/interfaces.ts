@@ -1,27 +1,4 @@
 import { INotificationEventData } from '../Modules/Verto/util/interfaces';
-import { Env, RTCElement } from './types';
-
-export interface ICredentials {
-  username?: string;
-  password?: string;
-  token?: string;
-}
-
-export interface ISIPClientOptions {
-  // SIP.js client options:
-  host?: string;
-  port?: number;
-  env?: Env;
-  project?: string;
-  credentials: ICredentials;
-  localElement?: RTCElement;
-  remoteElement?: RTCElement;
-  useMic?: string | boolean;
-  useSpeaker?: string | boolean;
-  useCamera?: string | boolean;
-  displayName?: string;
-  ringFile?: string;
-}
 
 /**
  * IClientOptions
@@ -52,31 +29,6 @@ export interface IClientOptions {
    * "Generate Ringback Tone" in your SIP Connection.
    */
   ringbackFile?: string;
-}
-
-export interface ISIPCallOptions {
-  destinationNumber: string;
-  remoteCallerName?: string;
-  remoteCallerNumber?: string;
-  callerName?: string;
-  callerNumber?: string;
-  id?: string;
-  localStream?: MediaStream;
-  remoteStream?: MediaStream;
-  localElement?: HTMLMediaElement | string | Function;
-  remoteElement?: HTMLMediaElement | string | Function;
-  iceServers?: RTCIceServer[];
-  audio?: boolean | MediaTrackConstraints;
-  video?: boolean | MediaTrackConstraints;
-  useStereo?: boolean;
-  micId?: string;
-  camId?: string;
-  speakerId?: string;
-  onNotification?: Function;
-  telnyxCallControlId?: string;
-  telnyxSessionId?: string;
-  telnyxLegId?: string;
-  clientState?: string;
 }
 
 // TODO Consolidate with `Call`
