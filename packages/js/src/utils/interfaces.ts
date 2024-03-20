@@ -221,3 +221,27 @@ export interface MessageEvents {
   'socket.connect': () => void;
   'socket.close': (error?: Error) => void;
 }
+
+
+export interface IWebRTCInfo {
+  browserInfo: any;
+  browserName: string;
+  browserVersion: number;
+  supportWebRTC: boolean;
+  supportWebRTCAudio: boolean;
+  supportWebRTCVideo: boolean;
+  supportRTCPeerConnection: boolean;
+  supportSessionDescription: boolean;
+  supportIceCandidate: boolean;
+  supportMediaDevices: boolean;
+  supportGetUserMedia: boolean;
+}
+export interface IWebRTCBrowser {
+  browserName: string;
+  features?: Array<string>;
+  supported: string;
+}
+export interface IWebRTCSupportedBrowser {
+  operationSystem: string;
+  supported: Array<IWebRTCBrowser>;
+}
