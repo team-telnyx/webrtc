@@ -1,2 +1,2 @@
-import SipClient from './SipClient';
-export default SipClient;
+export { Client as TelnyxRTC } from "./client";
+export * from "./types";

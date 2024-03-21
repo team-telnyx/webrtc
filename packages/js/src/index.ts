@@ -3,11 +3,8 @@ import {
   ICall,
   IClientOptions,
   ICallOptions,
-  ICredentials,
   INotification,
   MessageEvents,
-  ISIPClientOptions,
-  ISIPCallOptions,
 } from './utils/interfaces';
 
 export {
@@ -15,9 +12,6 @@ export {
   ICall,
   IClientOptions,
   ICallOptions,
-  ICredentials,
   INotification,
   MessageEvents,
-  ISIPClientOptions,
-  ISIPCallOptions,
 };
