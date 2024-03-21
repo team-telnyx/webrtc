@@ -60,6 +60,7 @@ export interface ICall {
   state: CallState;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
+  destinationNumber: string;
   telnyxIDs: {};
   hangup(): Promise<void>;
   answer(): Promise<void>;

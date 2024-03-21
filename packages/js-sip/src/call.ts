@@ -8,23 +8,26 @@ import { eventBus } from "./events";
 import { CallState, ICall } from "./types";
 
 export class Call implements ICall {
+  public direction: "inbound" | "outbound";
+  public prevState: CallState;
+  public state: CallState;
+  public destinationNumber: string;
+
   private _session: Session;
   private _sessionManager: SessionManager;
 
   constructor(
     session: Session,
     manager: SessionManager,
-    direction: "inbound" | "outbound"
+    direction: "inbound" | "outbound",
+    destinationNumber: string
   ) {
     session.dialog?.id;
     this._session = session;
     this._sessionManager = manager;
     this.direction = direction;
+    this.destinationNumber = destinationNumber;
   }
-
-  public direction: "inbound" | "outbound";
-  public prevState: CallState;
-  public state: CallState;
 
   public get id() {
     return this._session.id;
@@ -40,7 +43,9 @@ export class Call implements ICall {
   public telnyxIDs: {};
 
   public hangup(): Promise<void> {
-    return this._sessionManager.hangup(this._session);
+    return this._sessionManager.hangup(this._session).then(() => {
+      this.setState("hangup");
+    });
   }
 
   public setState(nextState: CallState) {
@@ -52,7 +57,7 @@ export class Call implements ICall {
 
   public answer(): Promise<void> {
     return this._sessionManager.answer(this._session).then(() => {
-      this.setState("answering");
+      this.setState("active");
     });
   }
   public deaf(): void {

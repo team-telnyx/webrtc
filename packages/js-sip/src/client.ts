@@ -2,7 +2,7 @@ import { Session, UserAgent } from "sip.js";
 import { IncomingResponse } from "sip.js/lib/core";
 import { SessionManager } from "sip.js/lib/platform/web";
 import { Call } from "./call";
-import { SwEvent } from "./constant";
+import { SwEvent, TELNYX_WS_URL_DEV } from "./constant";
 import { eventBus } from "./events";
 import {
   AnyFunction,
@@ -35,7 +35,7 @@ export class Client implements IClient {
       video: false,
     };
 
-    this._sessionManager = new SessionManager("wss://sipdev.telnyx.com:7443", {
+    this._sessionManager = new SessionManager(TELNYX_WS_URL_DEV, {
       aor: `sip:${options.login}@sip.telnyx.com`,
       delegate: {
         onRegistered: this._onRegister,
@@ -46,6 +46,7 @@ export class Client implements IClient {
         onCallReceived: this._onCallReceived,
         onCallHangup: this._onCallHangup,
       },
+      registrationRetry: false,
       userAgentOptions: {
         logLevel: "warn",
         authorizationUsername: options.login,
@@ -69,11 +70,16 @@ export class Client implements IClient {
     if (!call) {
       return;
     }
-    call.setState("hangup");
     delete this.calls[call.id];
+    call.setState("hangup");
   };
   private _onCallReceived = (session: Session) => {
-    const call = new Call(session, this._sessionManager, "inbound");
+    const call = new Call(
+      session,
+      this._sessionManager,
+      "inbound",
+      session.remoteIdentity.uri.toString()
+    );
     this.calls[session.id] = call;
     call.setState("ringing");
   };
@@ -133,7 +139,13 @@ export class Client implements IClient {
         },
       }
     );
-    const call = new Call(session, this._sessionManager, "outbound");
+    const call = new Call(
+      session,
+      this._sessionManager,
+      "outbound",
+      options.destinationNumber
+    );
+    this.calls[session.id] = call;
     return call;
   }
 
@@ -153,6 +165,7 @@ export class Client implements IClient {
   }
 
   private _onRegister = () => {
+    eventBus.emit(SwEvent.Registered, { time: performance.now() });
     eventBus.emit(SwEvent.Ready);
   };
   private _onUnregister = () => {
@@ -171,6 +184,10 @@ export class Client implements IClient {
   }
 
   public async connect() {
+    eventBus.emit(SwEvent.Registering, {
+      time: performance.now(),
+    });
+
     await this._sessionManager.connect();
     await this._sessionManager.register();
   }

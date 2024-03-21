@@ -11,6 +11,9 @@ export enum SwEvent {
   SpeedTest = "telnyx.internal.speedtest",
 
   // Global Events
+  Registering = "telnyx.register.registering",
+  Registered = "telnyx.register.registered",
+
   Ready = "telnyx.ready",
   Closed = "telnyx.closed",
   Error = "telnyx.error",
