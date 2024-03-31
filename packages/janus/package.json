@@ -1,0 +1,25 @@
+{
+  "name": "@telnyx/janus",
+  "version": "1.0.0",
+  "description": "Telnyx WebRTC Client",
+  "keywords": [
+    "telnyx",
+    "webrtc",
+    "sip",
+    "soft phone",
+    "janus",
+    "voip",
+    "audio",
+    "video"
+  ],
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/team-telnyx/webrtc.git"
+  },
+  "bugs:": "https://github.com/team-telnyx/webrtc/issues",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.4.3"
+  }
+}
