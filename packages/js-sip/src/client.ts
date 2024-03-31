@@ -2,7 +2,7 @@ import { Session, UserAgent } from "sip.js";
 import { IncomingResponse } from "sip.js/lib/core";
 import { SessionManager } from "sip.js/lib/platform/web";
 import { Call } from "./call";
-import { SwEvent, TELNYX_WS_URL_DEV } from "./constant";
+import { SwEvent, TELNYX_WS_URL_DEV, stunServers } from "./constant";
 import { eventBus } from "./events";
 import {
   AnyFunction,
@@ -46,6 +46,11 @@ export class Client implements IClient {
         onCallReceived: this._onCallReceived,
         onCallHangup: this._onCallHangup,
       },
+      media: {
+        remote: {
+          video: document.createElement("video"),
+        },
+      },
       registrationRetry: false,
       userAgentOptions: {
         logLevel: "warn",
@@ -54,11 +59,12 @@ export class Client implements IClient {
         uri: UserAgent.makeURI(`sip:${options.login}@sip.telnyx.com`),
         displayName: options.login,
         sessionDescriptionHandlerFactoryOptions: {
-          iceGatheringTimeout: 1000,
+          iceGatheringTimeout: 500,
           peerConnectionConfiguration: {
+            iceServers: [stunServers],
             bundlePolicy: "max-compat",
             sdpSemantics: "unified-plan",
-            rtcpMuxPolicy: "negotiate",
+            rtcpMuxPolicy: undefined,
           },
         },
       },

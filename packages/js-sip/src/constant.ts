@@ -27,10 +27,10 @@ export enum SwEvent {
   MediaError = "telnyx.rtc.mediaError",
 }
 
-const stunServers = {
+export const stunServers = {
   urls: ["stun:stun.telnyx.com:3478"],
 };
-const turnServers = {
+export const turnServers = {
   urls: ["turn:turn.telnyx.com:3478?transport=tcp"],
   username: "turnuser",
   password: "turnpassword",
