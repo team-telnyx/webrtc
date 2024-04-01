@@ -1,7 +1,7 @@
-import { connection } from './Connection';
-import { transactionManager } from './TransactionManager';
-import { ConnectionEvents } from './constants';
-import { KeepAliveTransaction } from './transactions/KeepAlive';
+import { connection } from "./Connection";
+import { transactionManager } from "./TransactionManager";
+import { ConnectionEvents } from "./constants";
+import { KeepAliveTransaction } from "./transactions/KeepAlive";
 
 const KEEP_ALIVE_INTERVAL = 10 * 1000;
 export default class KeepAliveAgent {
@@ -26,7 +26,10 @@ export default class KeepAliveAgent {
   };
   private _tick = async () => {
     try {
-      const ok = await transactionManager.execute(
+      if (!connection.gatewaySessionId) {
+        return;
+      }
+      await transactionManager.execute(
         new KeepAliveTransaction(connection.gatewaySessionId)
       );
       this._failedAttempts = 0;

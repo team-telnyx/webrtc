@@ -1,4 +1,4 @@
-import { Janus } from './janus';
+import { Janus } from "./janus";
 
 export type JanusErrorResponse = {
   janus: Janus.error;
@@ -35,11 +35,11 @@ export type JanusRegisteringEvent = {
   transaction?: string;
   sender: number;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
+      sip: "event";
       result: {
-        event: 'registering';
+        event: "registering";
       };
     };
   };
@@ -51,11 +51,11 @@ export type JanusRegisteredEvent = {
   sender: number;
   transaction?: string;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
+      sip: "event";
       result: {
-        event: 'registered';
+        event: "registered";
         username: string;
         register_sent: boolean;
         master_id: number;
@@ -65,15 +65,15 @@ export type JanusRegisteredEvent = {
 };
 
 export type JanusSIPCallingEvent = {
-  janus: 'event';
+  janus: "event";
   session_id: number;
   transaction?: string;
   sender: number;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
-      result: { event: 'calling'; call_id: string };
+      sip: "event";
+      result: { event: "calling"; call_id: string };
       call_id: string;
     };
   };
@@ -85,11 +85,11 @@ export type JanusSIPRingingEvent = {
   transaction?: string;
   sender: number;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
+      sip: "event";
       result: {
-        event: 'ringing';
+        event: "ringing";
         headers: Record<string, string>;
       };
       call_id: string;
@@ -103,9 +103,9 @@ export type JanusSIPError = {
   transaction?: string;
   sender: number;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
+      sip: "event";
       error_code: number;
       error: string;
       result?: undefined;
@@ -115,7 +115,7 @@ export type JanusSIPError = {
 
 export type JanusSIPIncomingCallEvent = {
   transaction?: string;
-  janus: 'event';
+  janus: "event";
   jsep: {
     sdp: string;
     type: RTCSdpType;
@@ -127,12 +127,12 @@ export type JanusSIPIncomingCallEvent = {
         call_id: string;
         callee: string;
         displayname: string;
-        event: 'incomingcall';
+        event: "incomingcall";
         headers: Record<string, string>;
       };
-      sip: 'event';
+      sip: "event";
     };
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
   };
   sender: number;
   session_id: number;
@@ -148,13 +148,13 @@ export type JanusSIPCallAcceptedEvent = {
     data: {
       call_id: string;
       result: {
-        event: 'accepted';
+        event: "accepted";
         headers: Record<string, string>;
         username: string;
       };
-      sip: 'event';
+      sip: "event";
     };
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
   };
   sender: number;
   session_id: number;
@@ -167,11 +167,11 @@ export type JanusSIPHangupEvent = {
   transaction?: string;
   sender: number;
   plugindata: {
-    plugin: 'janus.plugin.sip';
+    plugin: "janus.plugin.sip";
     data: {
-      sip: 'event';
+      sip: "event";
       result: {
-        event: 'hangup';
+        event: "hangup";
         code: number;
         reason: string;
         reason_header: string;
@@ -180,6 +180,17 @@ export type JanusSIPHangupEvent = {
       };
       call_id: string;
     };
+  };
+};
+
+export type JanusSIPUnregisterResponse = {
+  janus: Janus.event
+  sip: "event";
+  transaction?: string;
+  result: {
+    event: "unregistered";
+    username: string;
+    register_sent: boolean;
   };
 };
 
@@ -195,4 +206,5 @@ export type JanusResponse =
   | JanusSIPError
   | JanusSIPHangupEvent
   | JanusSIPIncomingCallEvent
-  | JanusSIPCallAcceptedEvent;
+  | JanusSIPCallAcceptedEvent
+  | JanusSIPUnregisterResponse;

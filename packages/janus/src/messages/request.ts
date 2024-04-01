@@ -1,4 +1,4 @@
-import { Janus } from './janus';
+import { Janus } from "./janus";
 
 // Messages that are SENT to the janus gateway
 export type JanusCreateSessionRequest = {
@@ -8,7 +8,7 @@ export type JanusCreateSessionRequest = {
 
 export type JanusAttachPluginRequest = {
   janus: Janus.attach;
-  plugin: 'janus.plugin.sip';
+  plugin: "janus.plugin.sip";
   opaque_id: string;
   transaction?: string;
   session_id: number;
@@ -17,7 +17,7 @@ export type JanusAttachPluginRequest = {
 export type JanusSIPRegisterRequest = {
   janus: Janus.message;
   body: {
-    request: 'register';
+    request: "register";
     login?: string;
     password?: string;
     login_token?: string;
@@ -31,7 +31,7 @@ export type JanusSIPRegisterRequest = {
 export type JanusSIPCallRequest = {
   janus: Janus.message;
   body: {
-    request: 'call';
+    request: "call";
     call_id: string;
     uri: string;
     refer_id?: string;
@@ -54,8 +54,8 @@ export type JanusICETrickleRequest = {
   candidate:
     | {
         candidate: string;
-        sdpMid: string;
-        sdpMLineIndex: number;
+        sdpMid: string | null;
+        sdpMLineIndex: number | null;
       }
     | { completed: true };
   transaction?: string;
@@ -64,7 +64,7 @@ export type JanusICETrickleRequest = {
 };
 
 export type JanusKeepAliveRequest = {
-  janus: 'keepalive';
+  janus: "keepalive";
   session_id: number;
   transaction?: string;
 };
@@ -72,14 +72,11 @@ export type JanusKeepAliveRequest = {
 export type JanusSIPAnswerRequest = {
   janus: Janus.message;
   body: {
-    request: 'accept';
+    request: "accept";
     autoaccept_reinvites: false;
   };
   transaction?: string;
-  jsep: {
-    type: 'answer';
-    sdp: string;
-  };
+  jsep: RTCSessionDescriptionInit
   session_id: number;
   handle_id: number;
 };
@@ -87,9 +84,13 @@ export type JanusSIPAnswerRequest = {
 export type JanusSIPHangupRequest = {
   janus: Janus.message;
   body: {
-    request: 'hangup';
+    request: "hangup";
   };
   transaction?: string;
   session_id: number;
   handle_id: number;
+};
+
+export type JanusSIPUnregisterRequest = {
+  request: "unregister";
 };

@@ -8,10 +8,9 @@ import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
-
 import * as pkg from '../package.json';
-import JanusClient from './Modules/Janus/Client';
 
+import { JanusClient } from '@telnyx/janus';
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
  * enabling you to make outgoing calls and handle incoming calls.
@@ -155,7 +154,7 @@ export class TelnyxRTC extends JanusClient {
    */
   newCall = (options: ICallOptions) => {
     return super.newCall(options);
-  }
+  };
 
   /**
    * Checks if the running browser has support for TelnyRTC

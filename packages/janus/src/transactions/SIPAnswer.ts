@@ -1,8 +1,8 @@
-import { Janus } from '../messages/janus';
-import { JanusSIPAnswerRequest } from '../messages/request';
-import { JanusResponse } from '../messages/response';
-import { isSIPCallAcceptedEvent, isSipError } from '../util/janus';
-import { BaseTransaction } from './BaseTransaction';
+import { Janus } from "../messages/janus";
+import { JanusSIPAnswerRequest } from "../messages/request";
+import { JanusResponse } from "../messages/response";
+import { isSIPCallAcceptedEvent, isSipError } from "../util/janus";
+import { BaseTransaction } from "./BaseTransaction";
 
 type AnswerConstructorParams = {
   gatewaySessionId: number;
@@ -21,10 +21,10 @@ export class SIPAnswerTransaction extends BaseTransaction<
     super({
       janus: Janus.message,
       body: {
-        request: 'accept',
+        request: "accept",
         autoaccept_reinvites: false,
       },
-      jsep: { type: 'answer', sdp: answer.sdp },
+      jsep: answer,
       session_id: gatewaySessionId,
       handle_id: gatewayHandleId,
     });

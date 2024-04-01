@@ -1,2 +1,1 @@
-console.log('USING JANUS')
-export const works = true;
+export { default as JanusClient } from "./Client";

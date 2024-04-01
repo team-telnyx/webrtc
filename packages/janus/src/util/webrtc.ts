@@ -4,7 +4,7 @@ export const sdpBitrateHack = (
   min: number,
   start: number
 ) => {
-  const endOfLine = '\r\n';
+  const endOfLine = "\r\n";
   const lines = sdp.split(endOfLine);
   lines.forEach((line, i) => {
     if (/^a=fmtp:\d*/.test(line)) {
@@ -19,7 +19,7 @@ export const sdpBitrateHack = (
 };
 
 export const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
-  let modifier = 'AS';
+  let modifier = "AS";
   let bandwidth = bandwidthKbps;
 
   if (
@@ -28,20 +28,20 @@ export const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
     !navigator.userAgent.match(/edg/gim)
   ) {
     const BITS_PER_KILOBITS = 1000;
-    modifier = 'TIAS';
+    modifier = "TIAS";
     bandwidth = (bandwidthKbps >>> 0) * BITS_PER_KILOBITS;
   }
 
-  if (sdp.indexOf('b=' + modifier + ':') === -1) {
+  if (sdp.indexOf("b=" + modifier + ":") === -1) {
     // insert b= after c= line.
     sdp = sdp.replace(
       /c=IN (.*)\r\n/,
-      'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n'
+      "c=IN $1\r\nb=" + modifier + ":" + bandwidth + "\r\n"
     );
   } else {
     sdp = sdp.replace(
-      new RegExp('b=' + modifier + ':.*\r\n'),
-      'b=' + modifier + ':' + bandwidth + '\r\n'
+      new RegExp("b=" + modifier + ":.*\r\n"),
+      "b=" + modifier + ":" + bandwidth + "\r\n"
     );
   }
 
@@ -49,7 +49,7 @@ export const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
 };
 
 export const sdpStereoHack = (sdp: string) => {
-  const endOfLine = '\r\n';
+  const endOfLine = "\r\n";
   const sdpLines = sdp.split(endOfLine);
 
   const opusIndex = sdpLines.findIndex(
@@ -60,7 +60,7 @@ export const sdpStereoHack = (sdp: string) => {
   }
 
   const getCodecPayloadType = (line: string) => {
-    const pattern = new RegExp('a=rtpmap:(\\d+) \\w+\\/\\d+');
+    const pattern = new RegExp("a=rtpmap:(\\d+) \\w+\\/\\d+");
     const result = line.match(pattern);
     return result && result.length == 2 ? result[1] : null;
   };
@@ -72,7 +72,7 @@ export const sdpStereoHack = (sdp: string) => {
   if (fmtpLineIndex >= 0) {
     if (!/stereo=1;/.test(sdpLines[fmtpLineIndex])) {
       // Append stereo=1 to fmtp line if not already present
-      sdpLines[fmtpLineIndex] += '; stereo=1; sprop-stereo=1';
+      sdpLines[fmtpLineIndex] += "; stereo=1; sprop-stereo=1";
     }
   } else {
     // create an fmtp line
@@ -87,12 +87,12 @@ export const sdpStereoHack = (sdp: string) => {
 export const findElementByType = (
   tag: HTMLMediaElement | string | Function
 ): HTMLMediaElement => {
-  if (typeof document !== 'object' || !('getElementById' in document)) {
+  if (typeof document !== "object" || !("getElementById" in document)) {
     return null;
   }
-  if (typeof tag === 'string') {
+  if (typeof tag === "string") {
     return <HTMLMediaElement>document.getElementById(tag) || null;
-  } else if (typeof tag === 'function') {
+  } else if (typeof tag === "function") {
     return tag();
   } else if (tag instanceof HTMLMediaElement) {
     return tag;
@@ -100,17 +100,20 @@ export const findElementByType = (
   return null;
 };
 
-export const attachMediaStream = (tag: any, stream: MediaStream) => {
+export const attachMediaStream = (tag: any, stream?: MediaStream | null) => {
+  if (stream == null) {
+    return;
+  }
   const element = findElementByType(tag);
 
   if (element === null) {
     return;
   }
-  if (!element.getAttribute('autoplay')) {
-    element.setAttribute('autoplay', 'autoplay');
+  if (!element.getAttribute("autoplay")) {
+    element.setAttribute("autoplay", "autoplay");
   }
-  if (!element.getAttribute('playsinline')) {
-    element.setAttribute('playsinline', 'playsinline');
+  if (!element.getAttribute("playsinline")) {
+    element.setAttribute("playsinline", "playsinline");
   }
   element.srcObject = stream;
 };

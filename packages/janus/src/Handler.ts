@@ -1,9 +1,9 @@
 export const isFunction = (variable: any): boolean =>
-  variable instanceof Function || typeof variable === 'function';
+  variable instanceof Function || typeof variable === "function";
 
 type QueueMap = { [key: string]: Function[] };
 
-const GLOBAL = 'GLOBAL';
+const GLOBAL = "GLOBAL";
 const queue: QueueMap = {};
 const _buildEventName = (event: string, uniqueId: string) =>
   `${event}|${uniqueId}`;
@@ -42,7 +42,7 @@ const registerOnce = (
   uniqueId: string = GLOBAL
 ) => {
   /* tslint:disable-next-line */
-  const cb = function (data) {
+  const cb = function (data: any) {
     deRegister(event, cb, uniqueId);
     callback(data);
   };
@@ -120,7 +120,7 @@ const trigger = (
  * Remove all subscriptions
  */
 const deRegisterAll = (event: string) => {
-  const eventName = _buildEventName(event, '');
+  const eventName = _buildEventName(event, "");
   Object.keys(queue)
     .filter((name) => name.indexOf(eventName) === 0)
     .forEach((event) => delete queue[event]);

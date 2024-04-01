@@ -1,7 +1,7 @@
-import { Janus } from '../messages/janus';
-import { JanusICETrickleRequest } from '../messages/request';
-import { JanusResponse } from '../messages/response';
-import { BaseTransaction } from './BaseTransaction';
+import { Janus } from "../messages/janus";
+import { JanusICETrickleRequest } from "../messages/request";
+import { JanusResponse } from "../messages/response";
+import { BaseTransaction } from "./BaseTransaction";
 
 type ICETrickleTransactionOptions = {
   candidate: RTCIceCandidate | null;
@@ -26,6 +26,11 @@ export class ICETrickleTransaction extends BaseTransaction<
     });
   }
   public onMessage(msg: JanusResponse): void {
+    
+    if (!("janus" in msg)) {
+      return;
+    }
+
     if (msg.janus === Janus.ack) {
       return this._resolve(true);
     }

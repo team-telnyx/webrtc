@@ -1,7 +1,7 @@
-import { Janus } from '../messages/janus';
-import { JanusKeepAliveRequest } from '../messages/request';
-import { JanusResponse } from '../messages/response';
-import { BaseTransaction } from './BaseTransaction';
+import { Janus } from "../messages/janus";
+import { JanusKeepAliveRequest } from "../messages/request";
+import { JanusResponse } from "../messages/response";
+import { BaseTransaction } from "./BaseTransaction";
 
 const KEEP_ALIVE_TIMEOUT = 5000;
 export class KeepAliveTransaction extends BaseTransaction<
@@ -28,6 +28,9 @@ export class KeepAliveTransaction extends BaseTransaction<
 
   public onMessage(msg: JanusResponse): void {
     clearTimeout(this._timeout);
+    if (!("janus" in msg)) {
+      return;
+    }
 
     if (msg.janus === Janus.error) {
       this._reject();
