@@ -27,7 +27,6 @@ const plugins = [
   commonJS(),
   typescript({
     objectHashIgnoreUnknownHack: true,
-    abortOnError: false
   }),
   terser(),
   json(),

@@ -12,7 +12,8 @@
     "audio",
     "video"
   ],
-  "main": "src/index.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
   "repository": {
     "type": "git",
     "url": "git://github.com/team-telnyx/webrtc.git"

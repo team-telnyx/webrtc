@@ -1,4 +1,3 @@
-import { muteMediaElement } from "../../js/src/Modules/Verto/util/webrtc";
 import { connection } from "./Connection";
 import { trigger } from "./Handler";
 import { transactionManager } from "./TransactionManager";
@@ -75,7 +74,6 @@ export default class Peer {
     }
 
     this._addStreamTracks(this._callOptions.localStream);
-    muteMediaElement(this._callOptions.localElement);
     attachMediaStream(
       this._callOptions.localElement,
       this._callOptions.localStream

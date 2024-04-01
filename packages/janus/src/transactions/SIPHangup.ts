@@ -1,8 +1,7 @@
-import { Janus } from '../messages/janus';
-import { JanusSIPHangupRequest } from '../messages/request';
-import { JanusResponse } from '../messages/response';
-import { isSipHangupEvent } from '../util/janus';
-import { BaseTransaction } from './BaseTransaction';
+import { Janus } from "../messages/janus";
+import { JanusSIPHangupRequest } from "../messages/request";
+import { JanusResponse } from "../messages/response";
+import { BaseTransaction } from "./BaseTransaction";
 
 type SIPHangupTransactionOptions = {
   session_id: number;
@@ -15,7 +14,7 @@ export class SIPHangupTransaction extends BaseTransaction<
   constructor({ session_id, handle_id }: SIPHangupTransactionOptions) {
     super({
       janus: Janus.message,
-      body: { request: 'hangup' },
+      body: { request: "hangup" },
       session_id: session_id,
       handle_id: handle_id,
     });

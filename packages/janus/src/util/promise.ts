@@ -12,5 +12,6 @@ export function deferredPromise<T>(): DeferredPromise<T> {
     resolve = _resolve;
     reject = _reject;
   });
-  return { promise, resolve, reject };
+
+  return { promise, resolve: resolve!, reject: reject! };
 }

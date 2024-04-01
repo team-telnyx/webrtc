@@ -5,7 +5,7 @@
     "outDir": "./lib",
     "baseUrl": ".",
     "resolveJsonModule": true,
-    "rootDirs": ["./src", "../janus"]
+    "rootDirs": ["./src"]
   },
   "include": ["./src/**/*"],
   "exclude": ["node_modules", "**/tests", "**/__mocks__"]

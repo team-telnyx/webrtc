@@ -86,7 +86,7 @@ export const sdpStereoHack = (sdp: string) => {
 
 export const findElementByType = (
   tag: HTMLMediaElement | string | Function
-): HTMLMediaElement => {
+): HTMLMediaElement | null => {
   if (typeof document !== "object" || !("getElementById" in document)) {
     return null;
   }
