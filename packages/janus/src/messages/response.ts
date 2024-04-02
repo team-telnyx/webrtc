@@ -140,7 +140,7 @@ export type JanusSIPIncomingCallEvent = {
 
 export type JanusSIPCallAcceptedEvent = {
   janus: Janus.event;
-  jsep: {
+  jsep?: {
     sdp: string;
     type: RTCSdpType;
   };

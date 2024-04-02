@@ -74,8 +74,6 @@ export default class Call implements ICall {
     return this.options.destinationNumber;
   }
 
-  public onCallAccepted = () => {};
-
   public get id() {
     if (!this.options.id) {
       throw new Error("Call id is not set");
@@ -125,13 +123,15 @@ export default class Call implements ICall {
     try {
       await transactionManager.execute(
         new SIPAnswerTransaction({
-          answer: this.peer.peerConnection.localDescription!,
+          answer: this.peer.connection.localDescription!,
           gatewayHandleId: connection.gatewayHandleId,
           gatewaySessionId: connection.gatewaySessionId,
         })
       );
       this.setState("active");
-    } catch (error) {}
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   deaf(): void {

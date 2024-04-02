@@ -84,7 +84,6 @@ export default class CallAgent {
     const call = new Call(options, "inbound", msg.jsep);
     this.calls[call.id] = call;
     call.setState("ringing");
-    this.ringtoneAudio.play().catch((err) => console.error(err));
   };
 
   private _onHangup = async (msg: JanusSIPHangupEvent) => {
@@ -98,15 +97,15 @@ export default class CallAgent {
 
   private _onCallAccepted = async (msg: JanusSIPCallAcceptedEvent) => {
     const call = this.calls[msg.plugindata.data.call_id];
+
     if (!call) {
       return;
     }
-    try {
-      this.ringbackAudio.pause();
-    } catch (error) {
-      console.error(error);
+
+    if (msg.jsep && call.peer?.peerType == "offer") {
+      await call.peer?.setRemoteDescription(msg.jsep);
     }
-    await call.peer?.onRemoteSDP(msg.jsep);
+
     call.setState("active");
   };
 
@@ -125,12 +124,11 @@ export default class CallAgent {
           uri: options.destinationNumber,
           session_id: connection.gatewaySessionId,
           handle_id: connection.gatewayHandleId,
-          jsep: call.peer.peerConnection.localDescription!,
+          jsep: call.peer.connection.localDescription!,
         })
       );
       call.telnyxIDs = ids;
       call.setState("ringing");
-      this.ringbackAudio.play();
     } catch (error) {
       trigger(SwEvent.Error, error);
     }
