@@ -20,7 +20,6 @@ export class SIPRegistrationAgent {
 
   constructor() {
     this.state = "unregistered";
-    connection.addListener(ConnectionEvents.Message, this._onMessage);
   }
 
   private _onMessage = (msg: string) => {
@@ -41,6 +40,7 @@ export class SIPRegistrationAgent {
       data.plugindata.data.result.event === "registered"
     ) {
       this._setState("registered");
+      connection.removeListener(ConnectionEvents.Message, this._onMessage);
       trigger(SwEvent.Ready, connection);
     }
   };
@@ -62,6 +62,7 @@ export class SIPRegistrationAgent {
     ) {
       return this.state;
     }
+    connection.addListener(ConnectionEvents.Message, this._onMessage);
 
     try {
       await transactionManager.execute(

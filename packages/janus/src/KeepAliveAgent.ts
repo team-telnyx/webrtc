@@ -1,9 +1,8 @@
 import { connection } from "./Connection";
 import { transactionManager } from "./TransactionManager";
-import { ConnectionEvents } from "./constants";
 import { KeepAliveTransaction } from "./transactions/KeepAlive";
 
-const KEEP_ALIVE_INTERVAL = 10 * 1000;
+const KEEP_ALIVE_INTERVAL = 10 * 5000;
 export default class KeepAliveAgent {
   private _interval: number | null;
   private _failedAttempts: number;
@@ -11,19 +10,8 @@ export default class KeepAliveAgent {
   constructor() {
     this._interval = null;
     this._failedAttempts = 0;
-    connection.addListener(
-      ConnectionEvents.StateChange,
-      this._onConnectionStateChange
-    );
   }
 
-  private _onConnectionStateChange = () => {
-    if (connection.connected) {
-      this.start();
-    } else {
-      this.stop();
-    }
-  };
   private _tick = async () => {
     try {
       if (!connection.gatewaySessionId) {

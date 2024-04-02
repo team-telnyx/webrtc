@@ -1,8 +1,3 @@
-type CreateAudioOptions = {
-  src: string;
-  loop?: Boolean;
-};
-
 export function createAudioElement(src: string, loop = true) {
   const audio = document.createElement("audio");
   audio.autoplay = true;

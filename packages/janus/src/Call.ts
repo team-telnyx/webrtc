@@ -1,3 +1,4 @@
+import { v4 as uuid } from "uuid";
 import { connection } from "./Connection";
 import { trigger } from "./Handler";
 import Peer from "./Peer";
@@ -6,7 +7,6 @@ import { SwEvent } from "./constants";
 import { SIPAnswerTransaction } from "./transactions/SIPAnswer";
 import { SIPHangupTransaction } from "./transactions/SIPHangup";
 import { CallState, ICall, ICallOptions } from "./types";
-import { v4 as uuid } from "uuid";
 
 type CallDirection = "inbound" | "outbound";
 type TelnyxIds = {
@@ -107,6 +107,7 @@ export default class Call implements ICall {
   };
 
   answer = async (): Promise<void> => {
+    debugger;
     if (this.direction === "outbound") {
       throw new Error("Cannot answer an outbound call");
     }
@@ -137,7 +138,7 @@ export default class Call implements ICall {
   deaf(): void {
     throw new Error("Method not implemented.");
   }
-  dtmf(dtmf: string): Promise<void> {
+  dtmf(_dtmf: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
   hold(): Promise<void> {
@@ -149,13 +150,13 @@ export default class Call implements ICall {
   muteVideo(): Promise<void> {
     throw new Error("Method not implemented.");
   }
-  setAudioInDevice(deviceId: string): Promise<void> {
+  setAudioInDevice(_deviceId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
-  setAudioOutDevice(deviceId: string): Promise<void> {
+  setAudioOutDevice(_deviceId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
-  setVideoDevice(deviceId: string): Promise<void> {
+  setVideoDevice(_deviceId: string): Promise<void> {
     throw new Error("Method not implemented.");
   }
   toggleAudioMute(): void {

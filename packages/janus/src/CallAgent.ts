@@ -17,7 +17,6 @@ import {
   isSIPIncomingCallMessage,
   isSipHangupEvent,
 } from "./util/janus";
-import { createAudioElement } from "./util/media";
 
 type CallAgentConstructorOptions = {
   ringbackFile?: string;
@@ -27,23 +26,18 @@ type CallAgentConstructorOptions = {
 };
 
 export default class CallAgent {
-  private ringbackAudio: HTMLAudioElement;
-  private ringtoneAudio: HTMLAudioElement;
   public localElement: HTMLMediaElement | null;
   public remoteElement: HTMLMediaElement | null;
   public defaultMediaConstrains: MediaStreamConstraints;
   public calls: Record<string, Call>;
 
   constructor({
-    ringbackFile = "",
-    ringtoneFile = "",
     localElement = null,
     remoteElement = null,
   }: CallAgentConstructorOptions) {
     this.localElement = localElement;
     this.remoteElement = remoteElement;
-    this.ringbackAudio = createAudioElement(ringbackFile);
-    this.ringtoneAudio = createAudioElement(ringtoneFile);
+
     this.calls = {};
     this.defaultMediaConstrains = { audio: true, video: true };
 

@@ -1,6 +1,7 @@
 import CallAgent from "./CallAgent";
 import { connection } from "./Connection";
 import { deRegister, register } from "./Handler";
+import KeepAliveAgent from "./KeepAliveAgent";
 import { SIPRegistrationAgent } from "./SIPRegistrationAgent";
 import {
   ICall,
@@ -15,13 +16,13 @@ export default class JanusClient implements IClient {
   private _options: IClientOptions;
   private _sipRegistrationAgent: SIPRegistrationAgent;
   private _callAgent: CallAgent;
-  // private _keepAliveAgent: KeepAliveAgent;
+  private _keepAliveAgent: KeepAliveAgent;
 
   constructor(options: IClientOptions = {}) {
     this._options = options;
 
     this._sipRegistrationAgent = new SIPRegistrationAgent();
-    // this._keepAliveAgent = new KeepAliveAgent();
+    this._keepAliveAgent = new KeepAliveAgent();
     this._callAgent = new CallAgent(this._options);
   }
 
@@ -35,7 +36,7 @@ export default class JanusClient implements IClient {
   // TODO: implement
   speaker: string | null = null;
 
-  checkPermissions(audio: boolean, video: boolean): Promise<boolean> {
+  checkPermissions(_audio: boolean, _video: boolean): Promise<boolean> {
     throw new Error("Method not implemented.");
   }
   disableMicrophone(): void {
@@ -68,7 +69,7 @@ export default class JanusClient implements IClient {
   }
 
   getDeviceResolutions(
-    deviceId: string
+    _deviceId: string
   ): { resolution: string; width: number; height: number }[] {
     throw new Error("Method not implemented.");
   }
@@ -101,7 +102,7 @@ export default class JanusClient implements IClient {
   }
   public async disconnect() {
     await this._sipRegistrationAgent.unregister();
-    // this._keepAliveAgent?.stop();
+    this._keepAliveAgent.stop();
     connection.disconnect();
   }
 
@@ -110,6 +111,7 @@ export default class JanusClient implements IClient {
     if (this._options.login || this._options.login_token) {
       await this._sipRegistrationAgent.register(this._options);
     }
+    this._keepAliveAgent.start();
   }
 
   async newCall(options: ICallOptions) {

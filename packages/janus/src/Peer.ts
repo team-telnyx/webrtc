@@ -1,6 +1,7 @@
 import { connection } from "./Connection";
+import { trigger } from "./Handler";
 import { transactionManager } from "./TransactionManager";
-import { STUN_SERVER, TURN_SERVER } from "./constants";
+import { STUN_SERVER, SwEvent, TURN_SERVER } from "./constants";
 import { ICETrickleTransaction } from "./transactions/ICETrickleTransaction";
 import { ICallOptions } from "./types";
 import { DeferredPromise, deferredPromise } from "./util/promise";
@@ -20,6 +21,7 @@ export default class Peer {
   ) => {
     const peer = new Peer(options, "answer");
     await peer._setupLocalStream();
+    debugger;
     await peer.setRemoteDescription(remoteSDP);
     return peer;
   };
@@ -58,9 +60,8 @@ export default class Peer {
       return;
     }
     await this.connection.setRemoteDescription(sdp);
-    await this.connection.createAnswer().then((answer) => {
-      this.connection.setLocalDescription(answer);
-    });
+    const answer = await this.connection.createAnswer();
+    await this.connection.setLocalDescription(answer);
   };
 
   private _createConnection() {
@@ -75,7 +76,7 @@ export default class Peer {
     }
     pc.addEventListener("track", this._onTrack);
     pc.addEventListener("icecandidate", this._onIceCandidate);
-    pc.addEventListener("iceconnectionstatechange", (ev) => {
+    pc.addEventListener("iceconnectionstatechange", () => {
       console.log("iceconnectionstatechange", pc.iceConnectionState);
     });
     return pc;
@@ -92,11 +93,14 @@ export default class Peer {
       audio: this._callOptions.audio ?? true,
       video: this._callOptions.video ?? false,
     };
-    // TODO add support for specific devices
+
     const stream = await navigator.mediaDevices
       .getUserMedia(constrains)
       .then((stream) => stream)
-      .catch((err) => null);
+      .catch((err) => {
+        trigger(SwEvent.MediaError, err);
+        return null;
+      });
 
     const tracks = stream?.getTracks() ?? [];
 
