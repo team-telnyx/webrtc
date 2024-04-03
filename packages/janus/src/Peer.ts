@@ -90,8 +90,8 @@ export default class Peer {
 
   private _setupLocalStream = async () => {
     const constrains: MediaStreamConstraints = {
-      audio: this._callOptions.audio ?? true,
-      video: this._callOptions.video ?? false,
+      audio: true,
+      video: false,
     };
 
     const stream = await navigator.mediaDevices

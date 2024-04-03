@@ -76,7 +76,7 @@ export type JanusSIPAnswerRequest = {
     autoaccept_reinvites: false;
   };
   transaction?: string;
-  jsep: RTCSessionDescriptionInit
+  jsep: RTCSessionDescriptionInit;
   session_id: number;
   handle_id: number;
 };
@@ -92,5 +92,17 @@ export type JanusSIPHangupRequest = {
 };
 
 export type JanusSIPUnregisterRequest = {
-  request: "unregister";
+  janus: Janus.message;
+  session_id: number;
+  handle_id: number;
+  body: {
+    request: "unregister";
+  };
+};
+
+export type JanusSIPDTMFRequest = {
+  janus: Janus.message;
+  session_id: number;
+  handle_id: number;
+  body: { request: "dtmf_info"; digit: string };
 };

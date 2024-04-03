@@ -7,6 +7,7 @@ import { SwEvent } from "./constants";
 import { SIPAnswerTransaction } from "./transactions/SIPAnswer";
 import { SIPHangupTransaction } from "./transactions/SIPHangup";
 import { CallState, ICall, ICallOptions } from "./types";
+import { SIPDTMFTransaction } from "./transactions/SIPDTMF";
 
 type CallDirection = "inbound" | "outbound";
 type TelnyxIds = {
@@ -138,8 +139,17 @@ export default class Call implements ICall {
   deaf(): void {
     throw new Error("Method not implemented.");
   }
-  dtmf(_dtmf: string): Promise<void> {
-    throw new Error("Method not implemented.");
+  async dtmf(digit: string): Promise<void> {
+    if (!connection.gatewayHandleId || !connection.gatewaySessionId) {
+      throw new Error("Gateway handle or session id not found");
+    }
+    await transactionManager.execute(
+      new SIPDTMFTransaction({
+        digit,
+        gatewayHandleId: connection.gatewayHandleId,
+        gatewaySessionId: connection.gatewaySessionId,
+      })
+    );
   }
   hold(): Promise<void> {
     throw new Error("Method not implemented.");
