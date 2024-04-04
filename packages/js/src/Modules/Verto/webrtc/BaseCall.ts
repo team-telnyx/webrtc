@@ -4,7 +4,7 @@ import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
 import { Invite, Answer, Attach, Bye, Modify, Info } from '../messages/Verto';
 import Peer from './Peer';
-import { SwEvent } from '../util/constants';
+import { SwEvent, TIME_CALL_INVITE } from '../util/constants';
 import { INotificationEventData } from '../util/interfaces';
 import {
   State,
@@ -246,10 +246,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  invite() {
+  async invite() {
     this.direction = Direction.Outbound;
     this.peer = new Peer(PeerType.Offer, this.options);
-    this._registerPeerEvents();
+    await this.peer.iceGatheringComplete.promise;
+    console.log('icegatheringcompleted')
+    this._onIceSdp(this.peer.instance.localDescription);
   }
 
   /**
@@ -261,20 +263,21 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer(params: AnswerParams = {}) {
+  async answer(params: AnswerParams = {}) {
     this.stopRingtone();
 
     this.direction = Direction.Inbound;
 
-    if(params?.customHeaders?.length > 0) {
+    if (params?.customHeaders?.length > 0) {
       this.options = {
         ...this.options,
-        customHeaders: params.customHeaders
+        customHeaders: params.customHeaders,
       };
     }
 
     this.peer = new Peer(PeerType.Answer, this.options);
-    this._registerPeerEvents();
+    await this.peer.iceGatheringComplete.promise;
+    this._onIceSdp(this.peer.instance.localDescription);
   }
 
   playRingtone() {
@@ -921,11 +924,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
         }
-  
+
         if (params.telnyx_session_id) {
           this.options.telnyxSessionId = params.telnyx_session_id;
         }
-  
+
         if (params.telnyx_leg_id) {
           this.options.telnyxLegId = params.telnyx_leg_id;
         }
@@ -1373,6 +1376,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._iceTimeout = null;
     this._iceDone = true;
     const { sdp, type } = data;
+
     if (sdp.indexOf('candidate') === -1) {
       logger.info('No candidate - retry \n');
       this._requestAnotherLocalDescription();
@@ -1419,6 +1423,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         this.hangup();
       });
+    console.timeEnd(TIME_CALL_INVITE);
+
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
@@ -1435,30 +1441,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     } else {
       this._onIceSdp(instance.localDescription);
     }
-  }
-
-  private _registerPeerEvents() {
-    const { instance } = this.peer;
-    this._iceDone = false;
-    instance.onicecandidate = (event) => {
-      if (this._iceDone) {
-        return;
-      }
-      this._onIce(event);
-    };
-
-    //@ts-ignore
-    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
-      this.options.remoteStream = event.stream;
-    });
-
-    instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream);
-      }
-    });
   }
 
   private _checkConferenceSerno = (serno: number) => {

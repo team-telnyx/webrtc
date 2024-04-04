@@ -2,7 +2,7 @@ export const STORAGE_PREFIX = '@telnyx:';
 export const ADD = 'add';
 export const REMOVE = 'remove';
 export const SESSION_ID = 'sessId';
-
+export const TIME_CALL_INVITE = 'Time to call invite';
 export const PROD_HOST = 'wss://rtc.telnyx.com';
 export const DEV_HOST = 'wss://rtcdev.telnyx.com';
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
