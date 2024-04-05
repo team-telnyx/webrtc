@@ -612,12 +612,11 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   set iceServers(servers: RTCIceServer[] | boolean) {
+    const googleStun = { urls: ['stun:stun.l.google.com:19302'] };
     if (typeof servers === 'boolean') {
-      this._iceServers = servers
-        ? [{ urls: ['stun:stun.l.google.com:19302'] }]
-        : [];
+      this._iceServers = servers ? [googleStun] : [];
     } else {
-      this._iceServers = servers || [TURN_SERVER, STUN_SERVER];
+      this._iceServers = servers || [TURN_SERVER, STUN_SERVER, googleStun];
     }
   }
 

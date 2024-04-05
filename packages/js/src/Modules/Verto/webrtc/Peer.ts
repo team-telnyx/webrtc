@@ -137,7 +137,6 @@ export default class Peer {
   }
 
   private handleIceCandidate = (event: RTCPeerConnectionIceEvent) => {
-    console.log(event.candidate);
     if (event.candidate && ['relay', 'srflx'].includes(event.candidate.type)) {
       // Found enough candidates to establish a connection
       // This is a workaround for the issue where iceGatheringState is always 'gathering'
@@ -380,6 +379,7 @@ export default class Peer {
     const { iceServers = [] } = this.options;
 
     const config: RTCConfiguration = {
+      iceCandidatePoolSize: 255,
       bundlePolicy: 'max-compat',
       iceServers,
     };
