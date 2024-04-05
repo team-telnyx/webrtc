@@ -234,7 +234,7 @@ BaseCall.telnyxIDs
 
 ### <a id="answer" name="answer"></a> answer
 
-▸ **answer**(`params?`): `void`
+▸ **answer**(`params?`): `Promise`\<`void`\>
 
 Starts the process to answer the incoming call.
 
@@ -246,7 +246,7 @@ Starts the process to answer the incoming call.
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 **`Examples`**
 
