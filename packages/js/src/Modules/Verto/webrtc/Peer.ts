@@ -16,7 +16,11 @@ import {
   RTCPeerConnection,
   streamIsValid,
 } from '../util/webrtc';
-import { isFunction } from '../util/helpers';
+import {
+  DeferredPromise,
+  deferredPromise,
+  isFunction,
+} from '../util/helpers';
 import { IVertoCallOptions } from './interfaces';
 import { trigger } from '../services/Handler';
 
@@ -25,7 +29,7 @@ import { trigger } from '../services/Handler';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-
+  public iceGatheringComplete: DeferredPromise<boolean>;
   public onSdpReadyTwice: Function = null;
 
   private _constraints: {
@@ -50,6 +54,7 @@ export default class Peer {
       this.handleNegotiationNeededEvent.bind(this);
     this.handleTrackEvent = this.handleTrackEvent.bind(this);
     this.createPeerConnection = this.createPeerConnection.bind(this);
+    this.iceGatheringComplete = deferredPromise({ debounceTime: 100 });
 
     this._init();
   }
@@ -130,12 +135,20 @@ export default class Peer {
     }
   }
 
+  private handleIceCandidate = (event: RTCPeerConnectionIceEvent) => {
+    if (event.candidate && ['relay', 'srflx'].includes(event.candidate.type)) {
+      // Found enough candidates to establish a connection
+      // This is a workaround for the issue where iceGatheringState is always 'gathering'
+      this.iceGatheringComplete.resolve(true);
+    }
+  };
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
 
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
+    this.instance.addEventListener('icecandidate', this.handleIceCandidate);
 
     //@ts-ignore
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
@@ -365,6 +378,7 @@ export default class Peer {
     const { iceServers = [] } = this.options;
 
     const config: RTCConfiguration = {
+      iceCandidatePoolSize: 255,
       bundlePolicy: 'max-compat',
       iceServers,
     };
