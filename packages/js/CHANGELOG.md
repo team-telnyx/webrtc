@@ -1,3 +1,10 @@
+## [2.12.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.11.0...webrtc/v2.12.0) (2024-04-05)
+
+
+### Features
+
+* add a faster work-around for ice gathering never completing ([#349](https://github.com/team-telnyx/webrtc/issues/349)) ([47e1863](https://github.com/team-telnyx/webrtc/commit/47e18633b142263d49ca061f8b0c29fd5d5edf2a))
+
 ## [2.11.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.10.2...webrtc/v2.11.0) (2024-02-26)
 
 
