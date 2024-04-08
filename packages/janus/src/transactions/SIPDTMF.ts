@@ -24,8 +24,8 @@ export class SIPDTMFTransaction extends BaseTransaction<
         request: "dtmf_info",
         digit,
       },
-      session_id: gatewayHandleId,
-      handle_id: gatewaySessionId,
+      session_id: gatewaySessionId,
+      handle_id: gatewayHandleId,
     });
   }
   public onMessage(_msg: JanusResponse): void {

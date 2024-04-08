@@ -1,3 +1,4 @@
+import { Janus } from "../messages/janus";
 import { JanusSIPUnregisterRequest } from "../messages/request";
 import {
   JanusResponse,
@@ -18,10 +19,21 @@ export class SIPUnregisterTransaction extends BaseTransaction<
   boolean,
   JanusSIPUnregisterRequest
 > {
-  constructor() {
-    super({ request: "unregister" });
+  constructor({
+    handleId,
+    sessionId,
+  }: {
+    sessionId: number;
+    handleId: number;
+  }) {
+    super({
+      janus: Janus.message,
+      body: { request: "unregister" },
+      session_id: sessionId,
+      handle_id: handleId,
+    });
   }
-  
+
   public onMessage(msg: JanusResponse): void {
     if (isSIPUnregisterResponse(msg)) {
       return this._resolve?.(true);

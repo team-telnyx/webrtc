@@ -8,6 +8,8 @@ import { SIPAnswerTransaction } from "./transactions/SIPAnswer";
 import { SIPHangupTransaction } from "./transactions/SIPHangup";
 import { CallState, ICall, ICallOptions } from "./types";
 import { SIPDTMFTransaction } from "./transactions/SIPDTMF";
+import { SIPHoldTransaction } from "./transactions/SIPHold";
+import { SIPUnholdTransaction } from "./transactions/SIPUnhold";
 
 type CallDirection = "inbound" | "outbound";
 type TelnyxIds = {
@@ -108,7 +110,6 @@ export default class Call implements ICall {
   };
 
   answer = async (): Promise<void> => {
-    debugger;
     if (this.direction === "outbound") {
       throw new Error("Cannot answer an outbound call");
     }
@@ -151,9 +152,25 @@ export default class Call implements ICall {
       })
     );
   }
-  hold(): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
+
+  hold = async (): Promise<void> => {
+    if (this.state === "held") {
+      return;
+    }
+
+    if (!connection.gatewayHandleId || !connection.gatewaySessionId) {
+      throw new Error("Gateway handle or session id not found");
+    }
+
+    await transactionManager.execute(
+      new SIPHoldTransaction({
+        handlerId: connection.gatewayHandleId,
+        sessionId: connection.gatewaySessionId,
+      })
+    );
+    this.setState("held");
+  };
+
   muteAudio(): Promise<void> {
     throw new Error("Method not implemented.");
   }
@@ -175,18 +192,35 @@ export default class Call implements ICall {
   toggleDeaf(): void {
     throw new Error("Method not implemented.");
   }
-  toggleHold(): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
+
+  toggleHold = (): Promise<void> => {
+    if (this.state === "held") {
+      return this.unhold();
+    }
+    return this.hold();
+  };
+
   toggleVideoMute(): void {
     throw new Error("Method not implemented.");
   }
+
   undeaf(): void {
     throw new Error("Method not implemented.");
   }
-  unhold(): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
+
+  unhold = async (): Promise<void> => {
+    if (!connection.gatewayHandleId || !connection.gatewaySessionId) {
+      throw new Error("Gateway handle or session id not found");
+    }
+    await transactionManager.execute(
+      new SIPUnholdTransaction({
+        handlerId: connection.gatewayHandleId,
+        sessionId: connection.gatewaySessionId,
+      })
+    );
+    this.setState("active");
+  };
+
   unmuteAudio(): void {
     throw new Error("Method not implemented.");
   }

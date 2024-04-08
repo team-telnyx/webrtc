@@ -184,7 +184,7 @@ export type JanusSIPHangupEvent = {
 };
 
 export type JanusSIPUnregisterResponse = {
-  janus: Janus.event
+  janus: Janus.event;
   sip: "event";
   transaction?: string;
   result: {
@@ -194,6 +194,59 @@ export type JanusSIPUnregisterResponse = {
   };
 };
 
+export type JanusSIPDTMFResponse = {
+  janus: Janus.event;
+  session_id: number;
+  sender: number;
+  transaction?: string;
+  plugindata: {
+    plugin: "janus.plugin.sip";
+    data: {
+      sip: "event";
+      call_id: string;
+      result: {
+        event: "dtmf";
+        sender: string;
+        signal: string;
+        duration: number;
+      };
+    };
+  };
+};
+
+export type JanusSIPHoldingResponse = {
+  janus: Janus.event;
+  session_id: number;
+  transaction?: string;
+  sender: number;
+  plugindata: {
+    plugin: "janus.plugin.sip";
+    data: {
+      sip: "event";
+      result: {
+        event: "holding";
+      };
+      call_id: string;
+    };
+  };
+};
+
+export type JanusSIPResumingResponse = {
+  janus: Janus.event;
+  session_id: number;
+  transaction?: string;
+  sender: number;
+  plugindata: {
+    plugin: "janus.plugin.sip";
+    data: {
+      sip: "event";
+      result: {
+        event: "resuming";
+      };
+      call_id: string;
+    };
+  };
+};
 export type JanusResponse =
   | JanusSessionCreatedResponse
   | JanusAttachPluginResponse
@@ -207,4 +260,7 @@ export type JanusResponse =
   | JanusSIPHangupEvent
   | JanusSIPIncomingCallEvent
   | JanusSIPCallAcceptedEvent
-  | JanusSIPUnregisterResponse;
+  | JanusSIPUnregisterResponse
+  | JanusSIPDTMFResponse
+  | JanusSIPResumingResponse
+  | JanusSIPHoldingResponse;

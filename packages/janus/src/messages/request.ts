@@ -95,6 +95,7 @@ export type JanusSIPUnregisterRequest = {
   janus: Janus.message;
   session_id: number;
   handle_id: number;
+  transaction?: string;
   body: {
     request: "unregister";
   };
@@ -104,5 +105,27 @@ export type JanusSIPDTMFRequest = {
   janus: Janus.message;
   session_id: number;
   handle_id: number;
+  transaction?: string;
   body: { request: "dtmf_info"; digit: string };
+};
+
+export type JanusSIPHoldCallRequest = {
+  janus: Janus.message;
+  session_id: number;
+  handle_id: number;
+  transaction?: string;
+  body: {
+    request: "hold";
+    direction: "sendonly" | "recvonly" | "inactive";
+  };
+};
+
+export type JanusSIPUnholdCallRequest = {
+  janus: Janus.message;
+  session_id: number;
+  handle_id: number;
+  transaction?: string;
+  body: {
+    request: "unhold";
+  };
 };

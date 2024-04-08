@@ -1,5 +1,6 @@
 import CallAgent from "./CallAgent";
 import { connection } from "./Connection";
+import { DTMFAgent } from "./DTMFAgent";
 import { deRegister, register } from "./Handler";
 import KeepAliveAgent from "./KeepAliveAgent";
 import { SIPRegistrationAgent } from "./SIPRegistrationAgent";
@@ -17,6 +18,7 @@ export default class JanusClient implements IClient {
   private _sipRegistrationAgent: SIPRegistrationAgent;
   private _callAgent: CallAgent;
   private _keepAliveAgent: KeepAliveAgent;
+  private _dtmfAgent: DTMFAgent;
 
   constructor(options: IClientOptions = {}) {
     this._options = options;
@@ -24,6 +26,7 @@ export default class JanusClient implements IClient {
     this._sipRegistrationAgent = new SIPRegistrationAgent();
     this._keepAliveAgent = new KeepAliveAgent();
     this._callAgent = new CallAgent(this._options);
+    this._dtmfAgent = new DTMFAgent();
   }
 
   public get calls(): Record<string, ICall> {
@@ -103,6 +106,7 @@ export default class JanusClient implements IClient {
   public async disconnect() {
     await this._sipRegistrationAgent.unregister();
     this._keepAliveAgent.stop();
+    this._dtmfAgent.stop();
     connection.disconnect();
   }
 
@@ -112,6 +116,7 @@ export default class JanusClient implements IClient {
       await this._sipRegistrationAgent.register(this._options);
     }
     this._keepAliveAgent.start();
+    this._dtmfAgent.start();
   }
 
   async newCall(options: ICallOptions) {

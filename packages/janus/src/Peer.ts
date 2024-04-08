@@ -21,7 +21,6 @@ export default class Peer {
   ) => {
     const peer = new Peer(options, "answer");
     await peer._setupLocalStream();
-    debugger;
     await peer.setRemoteDescription(remoteSDP);
     return peer;
   };

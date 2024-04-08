@@ -33,6 +33,7 @@ export enum SwEvent {
   SpeedTest = 'telnyx.internal.speedtest',
 
   // Global Events
+  DTMF = 'telnyx.dtmf',
   Ready = 'telnyx.ready',
   Error = 'telnyx.error',
   Notification = 'telnyx.notification',

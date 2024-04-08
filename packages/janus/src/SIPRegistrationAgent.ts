@@ -81,7 +81,17 @@ export class SIPRegistrationAgent {
   }
 
   async unregister() {
-    await transactionManager.execute(new SIPUnregisterTransaction());
+    if (!connection.gatewaySessionId || !connection.gatewayHandleId) {
+      return;
+    }
+
+    await transactionManager.execute(
+      new SIPUnregisterTransaction({
+        handleId: connection.gatewayHandleId,
+        sessionId: connection.gatewaySessionId,
+      })
+    );
+    
     connection.removeListener(ConnectionEvents.Message, this._onMessage);
     this._setState("unregistered");
   }
