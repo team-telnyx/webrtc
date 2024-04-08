@@ -11,6 +11,12 @@ export default class SipCall implements ICall {
     private session: SIP.InviteClientContext | SIP.InviteServerContext,
     private isIncoming: boolean = false
   ) {}
+  setAudioInDevice(deviceId: string): Promise<any> {
+    throw new Error("Method not implemented.");
+  }
+  setVideoDevice(deviceId: string): Promise<any> {
+    throw new Error("Method not implemented.");
+  }
 
   get state(): CallState {
     const C = SIP.Web.Simple.C;

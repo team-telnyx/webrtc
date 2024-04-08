@@ -1,5 +1,4 @@
 /* eslint-disable no-useless-constructor */
-import TelnyxRTCClient from './Modules/Verto';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
 import {
   getWebRTCInfo,
@@ -9,9 +8,9 @@ import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
-
 import * as pkg from '../package.json';
 
+import { JanusClient } from '@telnyx/janus';
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
  * enabling you to make outgoing calls and handle incoming calls.
@@ -49,7 +48,7 @@ import * as pkg from '../package.json';
  *
  * @category Client
  */
-export class TelnyxRTC extends TelnyxRTCClient {
+export class TelnyxRTC extends JanusClient {
   /**
    * Creates a new `TelnyxRTC` instance with the provided options.
    *
@@ -153,9 +152,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * // => `destinationNumber is required`
    * ```
    */
-  newCall(options: ICallOptions) {
+  newCall = (options: ICallOptions) => {
     return super.newCall(options);
-  }
+  };
 
   /**
    * Checks if the running browser has support for TelnyRTC
