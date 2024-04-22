@@ -1,3 +1,10 @@
+## [2.13.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.12.0...webrtc/v2.13.0) (2024-04-22)
+
+
+### Features
+
+* add probe to fetch webrtc statistics periodically ([#350](https://github.com/team-telnyx/webrtc/issues/350)) ([2a72b60](https://github.com/team-telnyx/webrtc/commit/2a72b60843599dd824ee40ef79bdce2d8ba1ce52))
+
 ## [2.12.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.11.0...webrtc/v2.12.0) (2024-04-05)
 
 
