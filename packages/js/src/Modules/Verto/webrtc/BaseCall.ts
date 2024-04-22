@@ -1429,7 +1429,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    this.peer.instance.removeEventListener('icecandidate', this._onIce);
+    this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
     let msg = null;
 

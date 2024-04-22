@@ -154,6 +154,24 @@ call.muteAudio();
 
 > See [Call#methods](./docs/ts/classes/call.md#methods) for all methods.
 
+### Debugging
+
+In order to have a better idea on what is going on under the hood you can gather webrtc metrics for a call:
+
+```js
+const call = client.newCall({
+  // Destination is required and can be a phone number or SIP URI
+  destinationNumber: '18004377950',
+  callerNumber: '‬155531234567',
+});
+
+// Start the gathering of data
+call.startDebugger();
+
+// Stop the gathering of data
+call.stopDebugger();
+```
+
 ---
 
 ## Examples
