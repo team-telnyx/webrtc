@@ -50,13 +50,15 @@ import {
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 import pkg from '../../../../package.json';
-
+import { WebRTCStats } from '@peermetrics/webrtc-stats';
 const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
  */
 export default abstract class BaseCall implements IWebRTCCall {
+  private _webRTCStats: WebRTCStats | null;
+
   /**
    * The call identifier.
    */
@@ -183,6 +185,47 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  public startDebugger() {
+    if (this._webRTCStats != null) {
+      return;
+    }
+
+    this._webRTCStats = new WebRTCStats({
+      getStatsInterval: 1000,
+      rawStats: false,
+      statsObject: false,
+      filteredStats: false,
+      remote: true,
+      wrapGetUserMedia: true,
+      debug: false,
+      logLevel: 'none',
+    });
+
+    this._webRTCStats.addConnection({
+      pc: this.peer.instance,
+      peerId: this.options.id,
+      connectionId: `${this.options.telnyxSessionId}/${this.options.telnyxLegId}`,
+    });
+  }
+  public stopDebugger() {
+    if (this._webRTCStats == null) {
+      return;
+    }
+    const data = this._webRTCStats.getTimeline('stats');
+    const blob = new Blob([JSON.stringify(data)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `call_${this.options.id}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+
+    this._webRTCStats.destroy();
+    this._webRTCStats = null;
+  }
+
   get nodeId(): string {
     return this._targetNodeId;
   }
@@ -266,10 +309,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.direction = Direction.Inbound;
 
-    if(params?.customHeaders?.length > 0) {
+    if (params?.customHeaders?.length > 0) {
       this.options = {
         ...this.options,
-        customHeaders: params.customHeaders
+        customHeaders: params.customHeaders,
       };
     }
 
@@ -921,11 +964,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
         }
-  
+
         if (params.telnyx_session_id) {
           this.options.telnyxSessionId = params.telnyx_session_id;
         }
-  
+
         if (params.telnyx_leg_id) {
           this.options.telnyxLegId = params.telnyx_leg_id;
         }
