@@ -50,13 +50,15 @@ import {
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 import pkg from '../../../../package.json';
-
+import { WebRTCStats } from '@peermetrics/webrtc-stats';
 const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
  */
 export default abstract class BaseCall implements IWebRTCCall {
+  private _webRTCStats: WebRTCStats | null;
+
   /**
    * The call identifier.
    */
@@ -181,6 +183,50 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
       this._ringback = createAudio(this.options.ringbackFile, '_ringback');
     }
+  }
+
+  public get isDebuggerRunning(): boolean {
+    return this._webRTCStats != null;
+  }
+  public startDebugger() {
+    if (this.isDebuggerRunning) {
+      return;
+    }
+
+    this._webRTCStats = new WebRTCStats({
+      getStatsInterval: 1000,
+      rawStats: false,
+      statsObject: false,
+      filteredStats: false,
+      remote: true,
+      wrapGetUserMedia: true,
+      debug: false,
+      logLevel: 'none',
+    });
+
+    this._webRTCStats.addConnection({
+      pc: this.peer.instance,
+      peerId: this.options.id,
+      connectionId: `${this.options.telnyxSessionId}/${this.options.telnyxLegId}`,
+    });
+  }
+  public stopDebugger() {
+    if (this._webRTCStats == null) {
+      return;
+    }
+    const data = this._webRTCStats.getTimeline('stats');
+    const blob = new Blob([JSON.stringify(data)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `call_${this.options.id}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+
+    this._webRTCStats.destroy();
+    this._webRTCStats = null;
   }
 
   get nodeId(): string {
@@ -333,7 +379,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     this.stopRingtone();
-
+    this.stopDebugger();  
     if (execute) {
       const bye = new Bye({
         sessid: this.session.sessionid,

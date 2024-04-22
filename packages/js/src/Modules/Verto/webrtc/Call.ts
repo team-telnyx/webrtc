@@ -1,7 +1,7 @@
 import logger from '../util/logger';
+import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 import BaseCall from './BaseCall';
 import { IVertoCallOptions } from './interfaces';
-import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 
 /**
  * A `Call` is the representation of an audio or video call between
@@ -53,6 +53,7 @@ import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 export class Call extends BaseCall {
   public screenShare: Call;
 
+
   private _statsInterval: any = null;
 
   hangup(params: any = {}, execute: boolean = true) {
@@ -71,12 +72,8 @@ export class Call extends BaseCall {
         }
       });
     });
-    const {
-      remoteCallerName,
-      remoteCallerNumber,
-      callerName,
-      callerNumber,
-    } = this.options;
+    const { remoteCallerName, remoteCallerNumber, callerName, callerNumber } =
+      this.options;
     const options: IVertoCallOptions = {
       screenShare: true,
       localStream: displayStream,
