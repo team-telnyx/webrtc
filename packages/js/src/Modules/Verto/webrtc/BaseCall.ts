@@ -185,8 +185,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  public get isDebuggerRunning(): boolean {
+    return this._webRTCStats != null;
+  }
   public startDebugger() {
-    if (this._webRTCStats != null) {
+    if (this.isDebuggerRunning) {
       return;
     }
 
@@ -373,7 +376,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     this.stopRingtone();
-
+    this.stopDebugger();  
     if (execute) {
       const bye = new Bye({
         sessid: this.session.sessionid,
