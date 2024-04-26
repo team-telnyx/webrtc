@@ -163,14 +163,15 @@ const call = client.newCall({
   // Destination is required and can be a phone number or SIP URI
   destinationNumber: '18004377950',
   callerNumber: '‬155531234567',
+  debug: true // Default is false,
+  debugOutput: 'socket' // Possible values are 'socket' | 'file'
 });
 
-// Start the gathering of data
-call.startDebugger();
-
-// Stop the gathering of data
-call.stopDebugger();
+// The debug dump is set to be sent to telnyx by default, if you want to save the debug data to disk
+// You can change the debugOutput option to 'file'
 ```
+
+
 
 ---
 

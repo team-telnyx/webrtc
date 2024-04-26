@@ -50,6 +50,8 @@ export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   audio: true,
   video: false,
   useStereo: false,
+  debug: false,
+  debugOutput: 'socket',
   attach: false,
   screenShare: false,
   userVariables: {},

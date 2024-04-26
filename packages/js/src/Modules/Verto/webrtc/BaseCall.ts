@@ -51,6 +51,7 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
 import pkg from '../../../../package.json';
 import { WebRTCStats } from '@peermetrics/webrtc-stats';
+import { WebRTCStatsMessage } from '../messages/WebRTCStatsMessage';
 const SDK_VERSION = pkg.version;
 
 /**
@@ -296,7 +297,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.direction = Direction.Outbound;
     this.peer = new Peer(PeerType.Offer, this.options);
     await this.peer.iceGatheringComplete.promise;
-    console.log('icegatheringcompleted')
     this._onIceSdp(this.peer.instance.localDescription);
   }
 
@@ -374,12 +374,30 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.setState(State.Hangup);
 
     const _close = () => {
-      this.peer ? this.peer.instance.close() : null;
-      this.setState(State.Destroy);
+      const debugData = this.peer?.close();
+      if (!debugData) {
+        return this.setState(State.Destroy);
+      }
+      if (this.options.debugOutput === 'socket') {
+        this._execute(new WebRTCStatsMessage(debugData));
+      }
+      if (this.options.debugOutput === 'file') {
+        // Save to file
+        const blob = new Blob([JSON.stringify(debugData)], {
+          type: 'application/json',
+        });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `call_${this.options.id}.json`;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+      }
+      return this.setState(State.Destroy);
     };
 
     this.stopRingtone();
-    this.stopDebugger();  
+    this.stopDebugger();
     if (execute) {
       const bye = new Bye({
         sessid: this.session.sessionid,
@@ -1470,7 +1488,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.hangup();
       });
     console.timeEnd(TIME_CALL_INVITE);
-
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {

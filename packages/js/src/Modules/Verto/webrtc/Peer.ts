@@ -16,14 +16,10 @@ import {
   RTCPeerConnection,
   streamIsValid,
 } from '../util/webrtc';
-import {
-  DeferredPromise,
-  deferredPromise,
-  isFunction,
-} from '../util/helpers';
+import { DeferredPromise, deferredPromise, isFunction } from '../util/helpers';
 import { IVertoCallOptions } from './interfaces';
 import { trigger } from '../services/Handler';
-
+import { WebRTCStats } from '@peermetrics/webrtc-stats';
 /**
  * @ignore Hide in docs output
  */
@@ -31,7 +27,7 @@ export default class Peer {
   public instance: RTCPeerConnection;
   public iceGatheringComplete: DeferredPromise<boolean>;
   public onSdpReadyTwice: Function = null;
-
+  private _webrtcStats: WebRTCStats;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo: boolean;
@@ -56,6 +52,18 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
     this.iceGatheringComplete = deferredPromise({ debounceTime: 100 });
 
+    if (this.options.debug) {
+      this._webrtcStats = new WebRTCStats({
+        getStatsInterval: 1000,
+        rawStats: false,
+        statsObject: false,
+        filteredStats: false,
+        remote: true,
+        wrapGetUserMedia: true,
+        debug: false,
+        logLevel: 'warn',
+      });
+    }
     this._init();
   }
 
@@ -144,7 +152,13 @@ export default class Peer {
   };
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
-
+    if (this.options.debug) {
+      this._webrtcStats?.addConnection({
+        pc: this.instance,
+        peerId: this.options.id,
+        connectionId: this.options.id,
+      });
+    }
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
@@ -233,6 +247,7 @@ export default class Peer {
     } else {
       this.startNegotiation();
     }
+
     this._logTransceivers();
   }
 
@@ -385,5 +400,15 @@ export default class Peer {
 
     logger.info('RTC config', config);
     return config;
+  }
+
+  public close() {
+    let data = null;
+    if (this._webrtcStats) {
+      data = this._webrtcStats.getTimeline('stats');
+      this._webrtcStats.destroy();
+    }
+    this.instance.close();
+    return data;
   }
 }

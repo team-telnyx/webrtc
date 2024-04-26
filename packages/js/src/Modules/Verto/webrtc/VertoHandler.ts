@@ -76,6 +76,8 @@ class VertoHandler {
         callerNumber: params.callee_id_number,
         attach,
         mediaSettings: params.mediaSettings,
+        debug: session.options.debug ?? false,
+        debugOutput: session.options.debugOutput ?? 'socket',
       };
 
       if (params.telnyx_call_control_id) {
