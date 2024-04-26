@@ -1,3 +1,10 @@
+## [2.14.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.13.0...webrtc/v2.14.0) (2024-04-26)
+
+
+### Features
+
+* implement debug output for file and websocket ([#352](https://github.com/team-telnyx/webrtc/issues/352)) ([8d1f8e6](https://github.com/team-telnyx/webrtc/commit/8d1f8e6c6a0874d9a4a4be21c101f81678084afb))
+
 ## [2.13.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.12.0...webrtc/v2.13.0) (2024-04-22)
 
 
