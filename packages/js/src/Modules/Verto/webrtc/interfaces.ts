@@ -45,6 +45,8 @@ export interface IVertoCallOptions {
   negotiateVideo?: boolean;
   mediaSettings?: IMediaSettings;
   customHeaders?: Array<{ name: string; value: string }>;
+  debug?: boolean;
+  debugOutput?: 'socket' | 'file';
 }
 
 export interface IStatsBinding {
