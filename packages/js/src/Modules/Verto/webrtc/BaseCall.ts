@@ -370,7 +370,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.sipCode = params.sipCode || null;
     this.sipReason = params.sipReason || null;
     this.sipCallId = params.sip_call_id || null;
-
+    this.options.customHeaders = [
+      ...this.options.customHeaders ?? [],
+      ...params?.dialogParams?.customHeaders ?? [],
+    ];
     this.setState(State.Hangup);
 
     const _close = () => {
