@@ -1,3 +1,10 @@
+## [2.15.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.14.0...webrtc/v2.15.0) (2024-04-30)
+
+
+### Features
+
+* add custom headers on bye ([#353](https://github.com/team-telnyx/webrtc/issues/353)) ([a17781c](https://github.com/team-telnyx/webrtc/commit/a17781c0df72256aab38f386fa90eb521f4aa246))
+
 ## [2.14.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.13.0...webrtc/v2.14.0) (2024-04-26)
 
 
