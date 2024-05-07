@@ -405,7 +405,7 @@ export default class Peer {
   public close() {
     let data = null;
     if (this._webrtcStats) {
-      data = this._webrtcStats.getTimeline('stats');
+      data = this._webrtcStats.getTimeline();
       this._webrtcStats.destroy();
     }
     this.instance.close();

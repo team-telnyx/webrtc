@@ -215,7 +215,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this._webRTCStats == null) {
       return;
     }
-    const data = this._webRTCStats.getTimeline('stats');
+    const data = this._webRTCStats.getTimeline();
     const blob = new Blob([JSON.stringify(data)], {
       type: 'application/json',
     });
