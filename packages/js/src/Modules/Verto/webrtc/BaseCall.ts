@@ -1,57 +1,55 @@
+import { WebRTCStats } from '@peermetrics/webrtc-stats';
 import { v4 as uuidv4 } from 'uuid';
-import logger from '../util/logger';
+import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import { Invite, Answer, Attach, Bye, Modify, Info } from '../messages/Verto';
-import Peer from './Peer';
+import { Answer, Attach, Bye, Info, Invite, Modify } from '../messages/Verto';
+import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent, TIME_CALL_INVITE } from '../util/constants';
+import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
-import {
-  State,
-  DEFAULT_CALL_OPTIONS,
-  ConferenceAction,
-  Role,
-  PeerType,
-  VertoMethod,
-  NOTIFICATION_TYPE,
-  Direction,
-} from './constants';
-import { trigger, register, deRegister } from '../services/Handler';
-import {
-  sdpStereoHack,
-  sdpMediaOrderHack,
-  checkSubscribeResponse,
-  enableAudioTracks,
-  disableAudioTracks,
-  toggleAudioTracks,
-  enableVideoTracks,
-  disableVideoTracks,
-  toggleVideoTracks,
-  createAudio,
-  playAudio,
-  stopAudio,
-} from './helpers';
-import { objEmpty, mutateLiveArrayData, isFunction } from '../util/helpers';
-import {
-  IVertoCallOptions,
-  IWebRTCCall,
-  IAudio,
-  IStatsBinding,
-  AnswerParams,
-} from './interfaces';
+import logger from '../util/logger';
 import {
   attachMediaStream,
-  detachMediaStream,
-  sdpToJsonHack,
-  stopStream,
   getUserMedia,
+  sdpToJsonHack,
   setMediaElementSinkId,
+  stopStream
 } from '../util/webrtc';
-import { MCULayoutEventHandler } from './LayoutHandler';
 import Call from './Call';
-import pkg from '../../../../package.json';
-import { WebRTCStats } from '@peermetrics/webrtc-stats';
-import { WebRTCStatsMessage } from '../messages/WebRTCStatsMessage';
+import { MCULayoutEventHandler } from './LayoutHandler';
+import Peer from './Peer';
+import {
+  ConferenceAction,
+  DEFAULT_CALL_OPTIONS,
+  Direction,
+  NOTIFICATION_TYPE,
+  PeerType,
+  Role,
+  State,
+  VertoMethod,
+} from './constants';
+import {
+  checkSubscribeResponse,
+  createAudio,
+  disableAudioTracks,
+  disableVideoTracks,
+  enableAudioTracks,
+  enableVideoTracks,
+  playAudio,
+  sdpMediaOrderHack,
+  sdpStereoHack,
+  stopAudio,
+  toggleAudioTracks,
+  toggleVideoTracks,
+} from './helpers';
+import {
+  AnswerParams,
+  IAudio,
+  IStatsBinding,
+  IVertoCallOptions,
+  IWebRTCCall,
+} from './interfaces';
 const SDK_VERSION = pkg.version;
 
 /**
@@ -186,49 +184,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  public get isDebuggerRunning(): boolean {
-    return this._webRTCStats != null;
-  }
-  public startDebugger() {
-    if (this.isDebuggerRunning) {
-      return;
-    }
-
-    this._webRTCStats = new WebRTCStats({
-      getStatsInterval: 1000,
-      rawStats: false,
-      statsObject: false,
-      filteredStats: false,
-      remote: true,
-      wrapGetUserMedia: true,
-      debug: false,
-      logLevel: 'none',
-    });
-
-    this._webRTCStats.addConnection({
-      pc: this.peer.instance,
-      peerId: this.options.id,
-      connectionId: `${this.options.telnyxSessionId}/${this.options.telnyxLegId}`,
-    });
-  }
-  public stopDebugger() {
-    if (this._webRTCStats == null) {
-      return;
-    }
-    const data = this._webRTCStats.getTimeline('stats');
-    const blob = new Blob([JSON.stringify(data)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `call_${this.options.id}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-
-    this._webRTCStats.destroy();
-    this._webRTCStats = null;
-  }
 
   get nodeId(): string {
     return this._targetNodeId;
@@ -295,7 +250,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   async invite() {
     this.direction = Direction.Outbound;
-    this.peer = new Peer(PeerType.Offer, this.options);
+    this.peer = new Peer(PeerType.Offer, this.options, this.session);
     await this.peer.iceGatheringComplete.promise;
     this._onIceSdp(this.peer.instance.localDescription);
   }
@@ -321,7 +276,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
-    this.peer = new Peer(PeerType.Answer, this.options);
+    this.peer = new Peer(PeerType.Answer, this.options, this.session);
     await this.peer.iceGatheringComplete.promise;
     this._onIceSdp(this.peer.instance.localDescription);
   }
@@ -371,36 +326,17 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.sipReason = params.sipReason || null;
     this.sipCallId = params.sip_call_id || null;
     this.options.customHeaders = [
-      ...this.options.customHeaders ?? [],
-      ...params?.dialogParams?.customHeaders ?? [],
+      ...(this.options.customHeaders ?? []),
+      ...(params?.dialogParams?.customHeaders ?? []),
     ];
     this.setState(State.Hangup);
 
     const _close = () => {
-      const debugData = this.peer?.close();
-      if (!debugData) {
-        return this.setState(State.Destroy);
-      }
-      if (this.options.debugOutput === 'socket') {
-        this._execute(new WebRTCStatsMessage(debugData));
-      }
-      if (this.options.debugOutput === 'file') {
-        // Save to file
-        const blob = new Blob([JSON.stringify(debugData)], {
-          type: 'application/json',
-        });
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = `call_${this.options.id}.json`;
-        link.click();
-        URL.revokeObjectURL(downloadUrl);
-      }
+      this.peer?.close();
       return this.setState(State.Destroy);
     };
 
     this.stopRingtone();
-    this.stopDebugger();
     if (execute) {
       const bye = new Bye({
         sessid: this.session.sessionid,
