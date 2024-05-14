@@ -6,7 +6,7 @@ import {
   DebugReportStopMessage,
 } from '../messages/WebRTCStats';
 
-const POLL_INTERVAL = 5000;
+const POLL_INTERVAL = 1000;
 export function saveToFile(data: any, filename: string) {
   const blob = new Blob([JSON.stringify(data)], {
     type: 'application/json',
