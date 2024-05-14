@@ -1,3 +1,10 @@
+## [2.16.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.15.0...webrtc/v2.16.0) (2024-05-14)
+
+
+### Features
+
+* chunk debug log ([#356](https://github.com/team-telnyx/webrtc/issues/356)) ([70b6e5e](https://github.com/team-telnyx/webrtc/commit/70b6e5ed1bd5e04443885497dccd2288284092d4))
+
 ## [2.15.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.14.0...webrtc/v2.15.0) (2024-04-30)
 
 
