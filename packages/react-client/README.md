@@ -180,6 +180,19 @@ function VideoConference({ activeCall }) {
 }
 ```
 
+---
+
+## Debugging
+
+Enabling debugging will help telnyx diagnose issues on the client side
+to enable debugging you can set `debug=true` in the provider options
+
+```jsx
+<TelnyxRTCProvider credential={credential} options={{ debug: true }}>
+  // Your app goes here
+</TelnyxRTCProvider>
+```
+
 ## Development
 
 Install dependencies:

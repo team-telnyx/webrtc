@@ -1,25 +1,30 @@
+import BrowserSession from '../BrowserSession';
+import { trigger } from '../services/Handler';
+import { SwEvent } from '../util/constants';
+import {
+  WebRTCStatsReporter,
+  saveToFile,
+  webRTCStatsReporter,
+} from '../util/debug';
+import { DeferredPromise, deferredPromise, isFunction } from '../util/helpers';
 import logger from '../util/logger';
 import {
-  getUserMedia,
-  getMediaConstraints,
-  sdpStereoHack,
-  sdpBitrateHack,
-  sdpBitrateASHack,
-  sdpMediaOrderHack,
-} from './helpers';
-import { SwEvent } from '../util/constants';
-import { PeerType } from './constants';
-import {
+  RTCPeerConnection,
   attachMediaStream,
   muteMediaElement,
   sdpToJsonHack,
-  RTCPeerConnection,
   streamIsValid,
 } from '../util/webrtc';
-import { DeferredPromise, deferredPromise, isFunction } from '../util/helpers';
+import { PeerType } from './constants';
+import {
+  getMediaConstraints,
+  getUserMedia,
+  sdpBitrateASHack,
+  sdpBitrateHack,
+  sdpMediaOrderHack,
+  sdpStereoHack,
+} from './helpers';
 import { IVertoCallOptions } from './interfaces';
-import { trigger } from '../services/Handler';
-import { WebRTCStats } from '@peermetrics/webrtc-stats';
 /**
  * @ignore Hide in docs output
  */
@@ -27,15 +32,20 @@ export default class Peer {
   public instance: RTCPeerConnection;
   public iceGatheringComplete: DeferredPromise<boolean>;
   public onSdpReadyTwice: Function = null;
-  private _webrtcStats: WebRTCStats;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo: boolean;
   };
 
+  private _webrtcStatsReporter: WebRTCStatsReporter;
+  private _session: BrowserSession;
   private _negotiating: boolean = false;
 
-  constructor(public type: PeerType, private options: IVertoCallOptions) {
+  constructor(
+    public type: PeerType,
+    private options: IVertoCallOptions,
+    session: BrowserSession
+  ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
@@ -52,18 +62,8 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
     this.iceGatheringComplete = deferredPromise({ debounceTime: 100 });
 
-    if (this.options.debug) {
-      this._webrtcStats = new WebRTCStats({
-        getStatsInterval: 1000,
-        rawStats: false,
-        statsObject: false,
-        filteredStats: false,
-        remote: true,
-        wrapGetUserMedia: true,
-        debug: false,
-        logLevel: 'warn',
-      });
-    }
+    this._session = session;
+
     this._init();
   }
 
@@ -83,6 +83,35 @@ export default class Peer {
     } else {
       this._createAnswer();
     }
+  }
+
+  public startDebugger() {
+    if (!this.options.debug) {
+      return;
+    }
+
+    this._webrtcStatsReporter = webRTCStatsReporter();
+    this._session.execute(this._webrtcStatsReporter.start());
+
+    this._webrtcStatsReporter.debuggerInstance.addConnection({
+      pc: this.instance,
+      peerId: this.options.id,
+      connectionId: this.options.telnyxSessionId,
+    });
+
+    this._webrtcStatsReporter.debuggerInstance.on(
+      'timeline',
+      this._onDebugReportMessage
+    );
+  }
+
+  public stopDebugger() {
+    if (!this.options.debug) {
+      return;
+    }
+
+    this._webrtcStatsReporter.debuggerInstance.destroy();
+    this._session.execute(this._webrtcStatsReporter.stop());
   }
 
   private _logTransceivers() {
@@ -152,13 +181,9 @@ export default class Peer {
   };
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
-    if (this.options.debug) {
-      this._webrtcStats?.addConnection({
-        pc: this.instance,
-        peerId: this.options.id,
-        connectionId: this.options.id,
-      });
-    }
+
+    this.startDebugger();
+
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
@@ -402,13 +427,24 @@ export default class Peer {
     return config;
   }
 
-  public close() {
-    let data = null;
-    if (this._webrtcStats) {
-      data = this._webrtcStats.getTimeline('stats');
-      this._webrtcStats.destroy();
+  private _onDebugReportMessage = (data) => {
+    if (!this.options.debug) {
+      return;
     }
-    this.instance.close();
-    return data;
+    this._session.execute(this._webrtcStatsReporter.reportDataMessage(data));
+  };
+
+  public close() {
+    if (!this.options.debug) {
+      return;
+    }
+    debugger
+
+    if (this.options.debugOutput === 'file') {
+      const timeline = this._webrtcStatsReporter.debuggerInstance.getTimeline();
+      saveToFile(timeline, this.options.telnyxSessionId);
+    }
+
+    this.stopDebugger();
   }
 }
