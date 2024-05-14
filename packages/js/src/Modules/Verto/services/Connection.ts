@@ -122,6 +122,7 @@ export default class Connection {
         const { result, error } = destructResponse(response);
         return error ? reject(error) : resolve(result);
       });
+      this._setTimer(request.id);
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     this._wsClient.send(JSON.stringify(request));
@@ -143,6 +144,14 @@ export default class Connection {
     delete this._timers[id];
   }
 
+  private _setTimer(id: string) {
+    this._timers[id] = setTimeout(() => {
+      trigger(id, {
+        error: { code: this.session.timeoutErrorCode, message: 'Timeout' },
+      });
+      this._unsetTimer(id);
+    }, TIMEOUT_MS);
+  }
 
   private _handleStringResponse(response: string) {
     if (/^#SP/.test(response)) {
