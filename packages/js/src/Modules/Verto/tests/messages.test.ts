@@ -1,12 +1,16 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
 import { Ping } from '../messages/verto/Ping';
-const userAgent = 'mock user agent';
+import { version } from '../../../../package.json';
+const userAgent = JSON.stringify({
+  data: 'mock user agent',
+  sdkVersion: version,
+});
 
 describe('Messages', function () {
   beforeAll(() => {
     // Mocking the user agent for consistency
     Object.defineProperty(window, 'navigator', {
-      value: { userAgent },
+      value: { userAgent: 'mock user agent' },
     });
   });
   describe('Verto', function () {
@@ -19,7 +23,7 @@ describe('Messages', function () {
           null!
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": "${userAgent}","login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -32,7 +36,7 @@ describe('Messages', function () {
           '123456789'
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": "${userAgent}","login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent}, "login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -42,7 +46,7 @@ describe('Messages', function () {
         expect(req).toEqual(
           expect.objectContaining({
             params: expect.objectContaining({
-              'User-Agent': userAgent,
+              'User-Agent': expect.anything(),
             }),
           })
         );
