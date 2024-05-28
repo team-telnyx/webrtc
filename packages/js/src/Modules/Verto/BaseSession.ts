@@ -1,18 +1,17 @@
 import * as log from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
-import logger from './util/logger';
-import Connection from './services/Connection';
 import BaseMessage from './messages/BaseMessage';
+import Connection from './services/Connection';
 import {
   deRegister,
+  deRegisterAll,
   register,
   trigger,
-  deRegisterAll,
 } from './services/Handler';
-import { ADD, REMOVE, SwEvent } from './util/constants';
+import { SwEvent } from './util/constants';
+import { isFunction, isValidOptions, randomInt } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
-import { isFunction, randomInt, isValidOptions } from './util/helpers';
-import { sessionStorage } from './util/storage';
+import logger from './util/logger';
 
 const KEEPALIVE_INTERVAL = 10 * 1000;
 
@@ -238,7 +237,7 @@ export default abstract class BaseSession {
    * @return void
    */
   protected _handleLoginError(error: any) {
-    trigger(SwEvent.Error, error, this.uuid);
+    trigger(SwEvent.Error, { error, sessionId: this.sessionid }, this.uuid);
   }
 
   /**

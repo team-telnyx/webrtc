@@ -7,8 +7,7 @@ import {
 import { IVertoCallOptions } from './webrtc/interfaces';
 import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
-import { SESSION_ID, TIME_CALL_INVITE } from './util/constants';
-import { sessionStorage } from './util/storage';
+import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
 
@@ -42,7 +41,7 @@ export default class Verto extends BrowserSession {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
     }
 
-    console.time(TIME_CALL_INVITE)
+    console.time(TIME_CALL_INVITE);
     const call = new Call(this, options);
     call.invite();
     return call;
@@ -81,7 +80,6 @@ export default class Verto extends BrowserSession {
     if (response) {
       this._autoReconnect = autoReconnect;
       this.sessionid = response.sessid;
-      sessionStorage.setItem(SESSION_ID, this.sessionid);
     }
   }
 

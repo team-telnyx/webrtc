@@ -76,7 +76,11 @@ export default class Connection {
     this._wsClient.onclose = (event): boolean =>
       trigger(SwEvent.SocketClose, event, this.session.uuid);
     this._wsClient.onerror = (event): boolean =>
-      trigger(SwEvent.SocketError, event, this.session.uuid);
+      trigger(
+        SwEvent.SocketError,
+        { error: event, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
     this._wsClient.onmessage = (event): void => {
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
@@ -101,7 +105,7 @@ export default class Connection {
         trigger(SwEvent.SocketMessage, msg, this.session.uuid);
 
         // save previous gate state
-        if(Boolean(gateWayState)) {
+        if (Boolean(gateWayState)) {
           this.previousGatewayState = gateWayState;
         }
       }
@@ -142,7 +146,6 @@ export default class Connection {
     clearTimeout(this._timers[id]);
     delete this._timers[id];
   }
-
 
   private _handleStringResponse(response: string) {
     if (/^#SP/.test(response)) {

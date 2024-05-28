@@ -14,7 +14,7 @@ import {
   getUserMedia,
   sdpToJsonHack,
   setMediaElementSinkId,
-  stopStream
+  stopStream,
 } from '../util/webrtc';
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
@@ -184,7 +184,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-
   get nodeId(): string {
     return this._targetNodeId;
   }
@@ -346,8 +345,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
       this._execute(bye)
         .catch((error) => {
-          logger.error('telnyl_rtc.bye failed!', error);
-          trigger(SwEvent.Error, error, this.session.uuid);
+          logger.error('telnyx_rtc.bye failed!', error);
+          trigger(
+            SwEvent.Error,
+            { error, sessionId: this.session.sessionid },
+            this.session.uuid
+          );
         })
         .then(_close.bind(this));
     } else {
@@ -1360,7 +1363,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (isFunction(this.peer.onSdpReadyTwice)) {
       trigger(
         SwEvent.Error,
-        new Error('SDP without candidates for the second time!'),
+        {
+          error: new Error('SDP without candidates for the second time!'),
+          sessionId: this.session.sessionid,
+        },
         this.session.uuid
       );
       return;

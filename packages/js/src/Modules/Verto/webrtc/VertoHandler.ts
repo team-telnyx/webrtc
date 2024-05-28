@@ -4,7 +4,12 @@ import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
-import { VertoMethod, NOTIFICATION_TYPE, GatewayStateType, Direction } from './constants';
+import {
+  VertoMethod,
+  NOTIFICATION_TYPE,
+  GatewayStateType,
+  Direction,
+} from './constants';
 import { trigger, deRegister } from '../services/Handler';
 import { State, ConferenceAction } from './constants';
 import { MCULayoutEventHandler } from './LayoutHandler';
@@ -125,7 +130,7 @@ class VertoHandler {
         const call = _buildCall();
         call.playRingtone();
         call.setState(State.Ringing);
-        call.direction = Direction.Inbound
+        call.direction = Direction.Inbound;
         this._ack(id, method);
         break;
       }
@@ -206,10 +211,13 @@ class VertoHandler {
                 VertoHandler.retriedRegister = 0;
                 trigger(
                   SwEvent.Error,
-                  new ErrorResponse(
-                    `Fail to register the user, the server tried ${RETRY_REGISTER_TIME} times`,
-                    'UNREGED|NOREG'
-                  ),
+                  {
+                    error: new ErrorResponse(
+                      `Fail to register the user, the server tried ${RETRY_REGISTER_TIME} times`,
+                      'UNREGED|NOREG'
+                    ),
+                    sessionId: session.sessionid,
+                  },
                   session.uuid
                 );
                 break;
@@ -231,10 +239,13 @@ class VertoHandler {
                   VertoHandler.retriedConnect = 0;
                   trigger(
                     SwEvent.Error,
-                    new ErrorResponse(
-                      `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                      'FAILED|FAIL_WAIT'
-                    ),
+                    {
+                      error: new ErrorResponse(
+                        `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
+                        'FAILED|FAIL_WAIT'
+                      ),
+                      sessionId: session.sessionid,
+                    },
                     session.uuid
                   );
                   break;
@@ -243,7 +254,14 @@ class VertoHandler {
                 VertoHandler.retriedConnect += 1;
                 if (VertoHandler.retriedConnect === RETRY_CONNECT_TIME) {
                   VertoHandler.retriedConnect = 0;
-                  trigger(SwEvent.Error, params, session.uuid);
+                  trigger(
+                    SwEvent.Error,
+                    {
+                      error: new Error('Connection Retry Failed'),
+                      sessionId: session.sessionid,
+                    },
+                    session.uuid
+                  );
                   break;
                 } else {
                   setTimeout(() => {
