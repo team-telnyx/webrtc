@@ -1,3 +1,10 @@
+## [2.17.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.16.0...webrtc/v2.17.0) (2024-05-28)
+
+
+### Features
+
+* propagate session id with error event ([#358](https://github.com/team-telnyx/webrtc/issues/358)) ([0f931ed](https://github.com/team-telnyx/webrtc/commit/0f931ede12f637b7ec6db265162deb73dd2f2ff1))
+
 ## [2.16.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.15.0...webrtc/v2.16.0) (2024-05-14)
 
 
