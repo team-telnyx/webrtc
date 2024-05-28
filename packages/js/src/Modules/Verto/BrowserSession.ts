@@ -25,7 +25,6 @@ import {
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
 import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
-import { sessionStorage } from './util/storage';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
@@ -84,7 +83,6 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async connect(): Promise<void> {
-    this.sessionid = await sessionStorage.getItem(SESSION_ID);
     super.connect();
   }
 

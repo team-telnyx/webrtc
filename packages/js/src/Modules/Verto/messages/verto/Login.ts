@@ -1,4 +1,5 @@
 import BaseRequest from './BaseRequest';
+import pkg from '../../../../../package.json';
 
 class Login extends BaseRequest {
   method: string = 'login';
@@ -19,7 +20,10 @@ class Login extends BaseRequest {
       login_token,
       userVariables,
       loginParams: {},
-      'User-Agent': window.navigator.userAgent,
+      'User-Agent': {
+        sdkVersion: pkg.version,
+        data: navigator.userAgent,
+      },
     };
     if (sessionid) {
       params.sessid = sessionid;
