@@ -14,12 +14,11 @@ jobs:
     name: Unit Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
-          # https://github.com/peter-evans/create-pull-request/issues/122
-          ref: "main"
-          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
+          ref: ${{ github.ref }}
           fetch-depth: 0
+
       - name: Use Node.js 16.x
         uses: actions/setup-node@v4
         with:
@@ -28,9 +27,11 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
         run: yarn install --frozen-lockfile
+
       - name: Install package dependencies
         working-directory: packages/js
         run: yarn install --frozen-lockfile
+
       - name: Test
         working-directory: packages/js
         run: yarn test
