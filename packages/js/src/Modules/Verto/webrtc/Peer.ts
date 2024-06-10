@@ -398,11 +398,11 @@ export default class Peer {
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
-    if (!this.options.codecs || this.options.codecs.length === 0) {
+    if (!this.options.preferred_codecs || this.options.preferred_codecs.length === 0) {
       return;
     }
     if (transceiver.setCodecPreferences) {
-      return transceiver.setCodecPreferences(this.options.codecs);
+      return transceiver.setCodecPreferences(this.options.preferred_codecs);
     }
   };
   /** Workaround for ReactNative: first time SDP has no candidates */

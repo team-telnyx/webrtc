@@ -47,7 +47,7 @@ export interface IVertoCallOptions {
   customHeaders?: Array<{ name: string; value: string }>;
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
-  codecs?: RTCRtpCodecCapability[];
+  preferred_codecs?: RTCRtpCodecCapability[];
 }
 
 export interface IStatsBinding {
@@ -57,6 +57,7 @@ export interface IStatsBinding {
 
 export interface AnswerParams {
   customHeaders?: Array<{ name: string; value: string }>;
+  preferred_codecs?: Array<RTCRtpCodecCapability>;
 }
 
 export interface IWebRTCCall {
