@@ -1,3 +1,10 @@
+## [2.18.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.17.0...webrtc/v2.18.0) (2024-06-10)
+
+
+### Features
+
+* support caller codec preference ([#361](https://github.com/team-telnyx/webrtc/issues/361)) ([cac97ac](https://github.com/team-telnyx/webrtc/commit/cac97acf042d7820dd41e501b6b8281e0a67e80d))
+
 ## [2.17.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.16.0...webrtc/v2.17.0) (2024-05-28)
 
 
