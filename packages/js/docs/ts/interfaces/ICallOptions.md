@@ -13,6 +13,8 @@ ICallOptions
 - [camId](ICallOptions.md#camid)
 - [clientState](ICallOptions.md#clientstate)
 - [customHeaders](ICallOptions.md#customheaders)
+- [debug](ICallOptions.md#debug)
+- [debugOutput](ICallOptions.md#debugoutput)
 - [destinationNumber](ICallOptions.md#destinationnumber)
 - [iceServers](ICallOptions.md#iceservers)
 - [id](ICallOptions.md#id)
@@ -21,6 +23,7 @@ ICallOptions
 - [mediaSettings](ICallOptions.md#mediasettings)
 - [micId](ICallOptions.md#micid)
 - [onNotification](ICallOptions.md#onnotification)
+- [preferred\_codecs](ICallOptions.md#preferred_codecs)
 - [remoteElement](ICallOptions.md#remoteelement)
 - [remoteStream](ICallOptions.md#remotestream)
 - [speakerId](ICallOptions.md#speakerid)
@@ -78,6 +81,22 @@ ___
 • `Optional` **customHeaders**: \{ `name`: `string` ; `value`: `string`  }[]
 
 Add custom headers to the INVITE and ANSWER request.
+
+___
+
+### <a id="debug" name="debug"></a> debug
+
+• `Optional` **debug**: `boolean`
+
+Enable debug mode for this call.
+
+___
+
+### <a id="debugoutput" name="debugoutput"></a> debugOutput
+
+• `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
+
+Output debug logs to a file.
 
 ___
 
@@ -149,6 +168,14 @@ ___
 • `Optional` **onNotification**: `Function`
 
 Overrides client's default `telnyx.notification` handler for this call.
+
+___
+
+### <a id="preferred_codecs" name="preferred_codecs"></a> preferred\_codecs
+
+• `Optional` **preferred\_codecs**: `RTCRtpCodecCapability`[]
+
+Preferred codecs for the call.
 
 ___
 
