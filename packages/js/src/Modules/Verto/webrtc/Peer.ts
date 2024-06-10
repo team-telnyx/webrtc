@@ -173,7 +173,10 @@ export default class Peer {
   }
 
   private handleIceCandidate = (event: RTCPeerConnectionIceEvent) => {
-    if (event.candidate && ['relay', 'srflx'].includes(event.candidate.type)) {
+    if (
+      event.candidate &&
+      ['relay', 'srflx', 'prflx'].includes(event.candidate.type)
+    ) {
       // Found enough candidates to establish a connection
       // This is a workaround for the issue where iceGatheringState is always 'gathering'
       this.iceGatheringComplete.resolve(true);
@@ -219,19 +222,19 @@ export default class Peer {
       // FIXME: use transceivers way only for offer - when answer gotta match mid from the ones from SRD
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
-
-        audioTracks.forEach((track) => {
-          this.options.userVariables.microphoneLabel = track.label;
-          this.instance.addTransceiver(track, {
-            direction: 'sendrecv',
-            streams: [localStream],
-          });
-        });
-
         const transceiverParams: RTCRtpTransceiverInit = {
           direction: 'sendrecv',
           streams: [localStream],
         };
+
+        audioTracks.forEach((track) => {
+          this.options.userVariables.microphoneLabel = track.label;
+          const transceiver = this.instance.addTransceiver(
+            track,
+            transceiverParams
+          );
+          this._setAudioCodec(transceiver);
+        });
 
         console.debug('Applying video transceiverParams', transceiverParams);
         videoTracks.forEach((track) => {
@@ -245,6 +248,9 @@ export default class Peer {
           this.options.userVariables.microphoneLabel = track.label;
           this.instance.addTrack(track, localStream);
         });
+        this.instance
+          .getTransceivers()
+          .forEach((trans) => this._setAudioCodec(trans));
 
         videoTracks.forEach((track) => {
           this.options.userVariables.cameraLabel = track.label;
@@ -391,6 +397,14 @@ export default class Peer {
     return this.instance.setLocalDescription(sessionDescription);
   }
 
+  private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
+    if (!this.options.preferred_codecs || this.options.preferred_codecs.length === 0) {
+      return;
+    }
+    if (transceiver.setCodecPreferences) {
+      return transceiver.setCodecPreferences(this.options.preferred_codecs);
+    }
+  };
   /** Workaround for ReactNative: first time SDP has no candidates */
   private _sdpReady(): void {
     if (isFunction(this.onSdpReadyTwice)) {
@@ -438,7 +452,6 @@ export default class Peer {
     if (!this.options.debug) {
       return;
     }
-    debugger
 
     if (this.options.debugOutput === 'file') {
       const timeline = this._webrtcStatsReporter.debuggerInstance.getTimeline();

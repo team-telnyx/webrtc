@@ -186,6 +186,21 @@ export interface ICallOptions {
    * Add custom headers to the INVITE and ANSWER request.
    */
   customHeaders?: { name: string; value: string }[];
+
+  /**
+   * Enable debug mode for this call.
+   */
+  debug?: boolean;
+
+  /**
+   * Output debug logs to a file.
+   */
+  debugOutput?: 'socket' | 'file';
+
+  /**
+   * Preferred codecs for the call.
+   */
+  preferred_codecs?: RTCRtpCodecCapability[];
 }
 
 /**
