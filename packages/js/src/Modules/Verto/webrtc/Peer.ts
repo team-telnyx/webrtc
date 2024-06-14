@@ -191,8 +191,14 @@ export default class Peer {
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
     this.instance.addEventListener('icecandidate', this.handleIceCandidate);
-
-    //@ts-ignore
+    this.instance.addEventListener(
+      'iceconnectionstatechange',
+      this._handleIceConnectionStateChange
+    );
+    this.instance.addEventListener(
+      'icegatheringstatechange',
+      this._handleIceGatheringStateChange
+    ); //@ts-ignore
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -205,6 +211,18 @@ export default class Peer {
     );
   }
 
+  private _handleIceConnectionStateChange = (event) => {
+    console.log(
+      `[${new Date().toISOString()}] ICE Connection State`,
+      this.instance.iceConnectionState
+    );
+  };
+  private _handleIceGatheringStateChange = (event) => {
+    console.log(
+      `[${new Date().toISOString()}] ICE Gathering State`,
+      this.instance.iceGatheringState
+    );
+  };
   private async _init() {
     await this.createPeerConnection();
 
@@ -398,7 +416,10 @@ export default class Peer {
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
-    if (!this.options.preferred_codecs || this.options.preferred_codecs.length === 0) {
+    if (
+      !this.options.preferred_codecs ||
+      this.options.preferred_codecs.length === 0
+    ) {
       return;
     }
     if (transceiver.setCodecPreferences) {
