@@ -4,11 +4,13 @@ import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
   login_token: string;
+  debug?: boolean
 };
 
 type UsernameCredential = {
   login: string;
   password: string;
+  debug?: boolean
 };
 
 export type CredentialOptions = TokenCredential | UsernameCredential;
