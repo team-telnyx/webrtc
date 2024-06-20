@@ -1,3 +1,15 @@
+## [2.19.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.18.0...webrtc/v2.19.0) (2024-06-20)
+
+
+### Features
+
+* log ice events ([#363](https://github.com/team-telnyx/webrtc/issues/363)) ([f591bcb](https://github.com/team-telnyx/webrtc/commit/f591bcb360c395863155936b5686a1d0ca6d28df))
+
+
+### Bug Fixes
+
+* add debug typespec ([#362](https://github.com/team-telnyx/webrtc/issues/362)) ([479e745](https://github.com/team-telnyx/webrtc/commit/479e7459ca006ad6395c249794562e9b074fbfa5))
+
 ## [2.18.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.17.0...webrtc/v2.18.0) (2024-06-10)
 
 
