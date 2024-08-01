@@ -8,6 +8,7 @@ import {
   register,
   trigger,
 } from './services/Handler';
+import { RegisterAgent } from './services/RegisterAgent';
 import { SwEvent } from './util/constants';
 import { isFunction, isValidOptions, randomInt } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
@@ -36,6 +37,7 @@ export default abstract class BaseSession {
 
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
+  private registerAgent: RegisterAgent;
 
   constructor(public options: IVertoOptions) {
     if (!this.validateOptions()) {
@@ -48,6 +50,7 @@ export default abstract class BaseSession {
 
     this._attachListeners();
     this.connection = new Connection(this);
+    this.registerAgent = new RegisterAgent(this);
   }
 
   get __logger(): log.Logger {
@@ -411,5 +414,13 @@ export default abstract class BaseSession {
 
   public hasAutoReconnect() {
     return this._autoReconnect;
+  }
+
+  /**
+   * Get the registration state of the client
+   * @return Promise<boolean>
+   */
+  public getIsRegistered() {
+    return this.registerAgent.getIsRegistered();
   }
 }

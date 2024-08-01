@@ -190,6 +190,15 @@ client.newCall({
 });
 ```
 
+### Getting the Registration State
+
+To retrieve the registration state from the server gateway you can
+use `client.getIsRegistered` method
+
+```js
+client.getIsRegistered().then(isRegistered => {...})
+```
+
 ---
 
 ## Examples
