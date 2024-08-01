@@ -67,6 +67,7 @@ client.off('telnyx.notification');
 - [getAudioOutDevices](TelnyxRTC.md#getaudiooutdevices)
 - [getDeviceResolutions](TelnyxRTC.md#getdeviceresolutions)
 - [getDevices](TelnyxRTC.md#getdevices)
+- [getIsRegistered](TelnyxRTC.md#getisregistered)
 - [getVideoDevices](TelnyxRTC.md#getvideodevices)
 - [logout](TelnyxRTC.md#logout)
 - [newCall](TelnyxRTC.md#newcall)
@@ -770,6 +771,24 @@ client.getDevices().then((result) => {
 #### Inherited from
 
 TelnyxRTCClient.getDevices
+
+___
+
+### <a id="getisregistered" name="getisregistered"></a> getIsRegistered
+
+▸ **getIsRegistered**(): `Promise`\<`boolean`\>
+
+Get the registration state of the client
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+Promise<boolean>
+
+#### Inherited from
+
+TelnyxRTCClient.getIsRegistered
 
 ___
 
