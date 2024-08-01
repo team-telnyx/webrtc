@@ -1,3 +1,10 @@
+## [2.20.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.19.0...webrtc/v2.20.0) (2024-08-01)
+
+
+### Features
+
+* get registration state from the gateway ([#366](https://github.com/team-telnyx/webrtc/issues/366)) ([c5af08b](https://github.com/team-telnyx/webrtc/commit/c5af08bcd45f53ea1dba3861a0a53229cf2dbc54))
+
 ## [2.19.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.18.0...webrtc/v2.19.0) (2024-06-20)
 
 
