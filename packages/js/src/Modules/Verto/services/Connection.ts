@@ -10,6 +10,7 @@ import {
 } from '../util/helpers';
 import { registerOnce, trigger } from './Handler';
 import { GatewayStateType } from '../webrtc/constants';
+import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
@@ -70,6 +71,11 @@ export default class Connection {
   }
 
   connect() {
+    const reconnectToken = getReconnectToken();
+    if (reconnectToken) {
+      this._host += `?voice_sdk_id=${reconnectToken}`;
+    }
+
     this._wsClient = new WebSocketClass(this._host);
     this._wsClient.onopen = (event): boolean =>
       trigger(SwEvent.SocketOpen, event, this.session.uuid);
@@ -86,6 +92,10 @@ export default class Connection {
       if (typeof msg === 'string') {
         this._handleStringResponse(msg);
         return;
+      }
+
+      if (msg.voice_sdk_id) {
+        setReconnectToken(msg.voice_sdk_id);
       }
       this._unsetTimer(msg.id);
       logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
