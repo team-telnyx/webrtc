@@ -1,3 +1,10 @@
+## [2.21.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.20.0...webrtc/v2.21.0) (2024-08-14)
+
+
+### Features
+
+* attach reconnection token to host ([#367](https://github.com/team-telnyx/webrtc/issues/367)) ([27be846](https://github.com/team-telnyx/webrtc/commit/27be8463f59a00d8e3369c2826efc3d3d8236b70))
+
 ## [2.20.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.19.0...webrtc/v2.20.0) (2024-08-01)
 
 
