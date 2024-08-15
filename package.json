@@ -45,5 +45,6 @@
     "@typescript-eslint/eslint-plugin": "3.6.1",
     "@typescript-eslint/parser": "3.6.1",
     "eslint": "8.3.0"
-  }
+  },
+  "packageManager": "yarn@4.3.1"
 }
