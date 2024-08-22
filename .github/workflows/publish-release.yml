@@ -48,7 +48,7 @@ jobs:
         run: yarn install --immutable
       - name: Publish package
         working-directory: packages/js
-        run: yarn publish --access public
+        run: yarn npm publish --access public
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
@@ -114,7 +114,7 @@ jobs:
         run: yarn install --immutable
       - name: Publish package
         working-directory: packages/react-client
-        run: yarn publish --access public
+        run: yarn npm publish --access public
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
@@ -155,7 +155,7 @@ jobs:
         run: |
           yarn release $(node ./get_version.js) --ci  --no-npm.publish
           && \
-          yarn publish --access public
+          yarn npm publish --access public
         env:
           CI: true
           # Both tokens are present because publishing with
