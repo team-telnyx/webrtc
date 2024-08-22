@@ -39,10 +39,10 @@ jobs:
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Install package dependencies
         working-directory: packages/${{ env.PACKAGE_DIR }}
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Test
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: yarn test
@@ -58,7 +58,7 @@ jobs:
       - name: Create draft release
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release  --ci  --github.draft  --no-npm.publish
+          yarn release --ci --github.draft --no-npm.publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
