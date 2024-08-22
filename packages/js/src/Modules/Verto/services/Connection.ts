@@ -11,6 +11,7 @@ import {
 import { registerOnce, trigger } from './Handler';
 import { GatewayStateType } from '../webrtc/constants';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
+import { attachMediaStream } from '../util/webrtc';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
@@ -71,12 +72,14 @@ export default class Connection {
   }
 
   connect() {
+    const websocketUrl = new URL(this._host);
     const reconnectToken = getReconnectToken();
+
     if (reconnectToken) {
-      this._host += `?voice_sdk_id=${reconnectToken}`;
+      websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
     }
 
-    this._wsClient = new WebSocketClass(this._host);
+    this._wsClient = new WebSocketClass(websocketUrl.toString());
     this._wsClient.onopen = (event): boolean =>
       trigger(SwEvent.SocketOpen, event, this.session.uuid);
     this._wsClient.onclose = (event): boolean =>
