@@ -1,3 +1,12 @@
+### [2.21.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.21.0...webrtc/v2.21.1) (2024-08-22)
+
+
+### Bug Fixes
+
+* add .yarn/install_state.gz to .gitignore ([#369](https://github.com/team-telnyx/webrtc/issues/369)) ([7b2b7a4](https://github.com/team-telnyx/webrtc/commit/7b2b7a41a5ed6a1ea992732549fff25fdab093ac))
+* query param is  appended multiple times ([#368](https://github.com/team-telnyx/webrtc/issues/368)) ([14c2711](https://github.com/team-telnyx/webrtc/commit/14c2711549e6738e4f09a6489e76d5bc4c84b442))
+* upgrade ci to use yarn v2 ([#370](https://github.com/team-telnyx/webrtc/issues/370)) ([cc46e49](https://github.com/team-telnyx/webrtc/commit/cc46e491b057c67d1a884e3678098ab0515bb09a))
+
 ## [2.21.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.20.0...webrtc/v2.21.0) (2024-08-14)
 
 
