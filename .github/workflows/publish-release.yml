@@ -42,10 +42,10 @@ jobs:
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Install package dependencies
         working-directory: packages/js
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Publish package
         working-directory: packages/js
         run: yarn publish --access public
@@ -55,12 +55,7 @@ jobs:
       - name: Release API docs
         working-directory: packages/api-docs
         run: |
-          npm run release -- \
-          $(node ./get_version.js) \
-          --ci \
-          --no-npm.publish \
-          && \
-          npm publish --access public
+          npm run release $(node ./get_version.js) --ci --no-npm.publish && npm publish --access public
         env:
           CI: true
           # Both tokens are present because publishing with
@@ -113,10 +108,10 @@ jobs:
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Install package dependencies
         working-directory: packages/react-client
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Publish package
         working-directory: packages/react-client
         run: yarn publish --access public
@@ -151,10 +146,10 @@ jobs:
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
       - name: Install shared dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Install package dependencies
         working-directory: packages/js
-        run: yarn install --frozen-lockfile
+        run: yarn install --immutable
       - name: Release API docs
         working-directory: packages/api-docs
         run: |
