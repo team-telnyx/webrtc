@@ -58,10 +58,7 @@ jobs:
       - name: Create draft release
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release -- \
-          --ci \
-          --github.draft \
-          --no-npm.publish \
+          yarn release  --ci  --github.draft  --no-npm.publish
         env:
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -158,10 +158,7 @@ jobs:
       - name: Release API docs
         working-directory: packages/api-docs
         run: |
-          yarn release -- \
-          $(node ./get_version.js) \
-          --ci \
-          --no-npm.publish \
+          yarn release $(node ./get_version.js) --ci  --no-npm.publish
           && \
           yarn publish --access public
         env:
