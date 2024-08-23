@@ -52,17 +52,7 @@ jobs:
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-      - name: Release API docs
-        working-directory: packages/api-docs
-        run: |
-          npm run release $(node ./get_version.js) --ci --no-npm.publish && npm publish --access public
-        env:
-          CI: true
-          # Both tokens are present because publishing with
-          # release-it in GH actions seems to be broken
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Get latest commit info
         run: |
           echo "::set-output name=TITLE::$(git show -1 --format='%s' -s)"
@@ -118,48 +108,3 @@ jobs:
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-
-  publish-api-docs:
-    if: github.event.inputs.package == 'webrtc-api-docs'
-
-    name: "@telnyx/webrtc-api-docs Publish release"
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          # https://github.com/peter-evans/create-pull-request/issues/122
-          ref: "main"
-          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-          fetch-depth: 0
-          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
-      - name: Setup Git user
-        # https://github.com/actions/checkout/issues/13
-        run: |
-          git config user.name TelnyxIntegrations
-          git config user.email integrations@telnyx.com
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18.x"
-          cache: "yarn"
-          registry-url: https://registry.npmjs.org/
-      - name: Install shared dependencies
-        run: yarn install --immutable
-      - name: Install package dependencies
-        working-directory: packages/js
-        run: yarn install --immutable
-      - name: Release API docs
-        working-directory: packages/api-docs
-        run: |
-          yarn release $(node ./get_version.js) --ci  --no-npm.publish
-          && \
-          npm publish --access public
-        env:
-          CI: true
-          # Both tokens are present because publishing with
-          # release-it in GH actions seems to be broken
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
