@@ -361,34 +361,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  /**
-   * Transfer a call.
-   *
-   * @ignore Note: This method is work-in-progress and not currently working.
-   *
-   * @param destination Phone number or SIP URI to dial.
-   */
-  transfer(destination: string) {
-    console.warn('The call.transfer method is not currently implemented.');
-    const msg = new Modify({
-      sessid: this.session.sessionid,
-      action: 'transfer',
-      destination,
-      dialogParams: this.options,
-    });
-    this._execute(msg);
-  }
-
-  replace(replaceCallID: string) {
-    const msg = new Modify({
-      sessid: this.session.sessionid,
-      action: 'replace',
-      replaceCallID,
-      dialogParams: this.options,
-    });
-    this._execute(msg);
-  }
-
+ 
   /**
    * Holds the call.
    *

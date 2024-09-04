@@ -76,8 +76,7 @@ export interface IWebRTCCall {
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params: any, execute: boolean) => void;
-  transfer: (destination: string) => void;
-  replace: (replaceCallID: string) => void;
+
   hold: () => void;
   unhold: () => void;
   toggleHold: () => void;
