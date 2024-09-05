@@ -14,7 +14,7 @@ import { isFunction, isValidOptions, randomInt } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
 
-const KEEPALIVE_INTERVAL = 10 * 1000;
+const KEEPALIVE_INTERVAL = 30 * 1000;
 
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
@@ -92,12 +92,7 @@ export default abstract class BaseSession {
         this.connect();
       });
     }
-    return this.connection.send(msg).catch((error) => {
-      if (error.code && error.code === this.timeoutErrorCode) {
-        this._closeConnection();
-      }
-      throw error;
-    });
+    return this.connection.send(msg);
   }
 
   /**
@@ -386,9 +381,7 @@ export default abstract class BaseSession {
     if (this._doKeepAlive !== true) {
       return;
     }
-    if (this._pong === false) {
-      return this._closeConnection();
-    }
+
     this._pong = false;
     this._keepAliveTimeout = setTimeout(
       () => this._keepAlive(),
