@@ -1,3 +1,11 @@
+### [2.21.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.21.1...webrtc/v2.21.2) (2024-09-05)
+
+
+### Bug Fixes
+
+* keep socket open for longer ([#379](https://github.com/team-telnyx/webrtc/issues/379)) ([89b92ec](https://github.com/team-telnyx/webrtc/commit/89b92ec7b6a92647da5f35a710d33206a170bacb))
+* use npm publish ([#376](https://github.com/team-telnyx/webrtc/issues/376)) ([ca965c4](https://github.com/team-telnyx/webrtc/commit/ca965c4d6c998977f637b9d47edf549d56492308))
+
 ### [2.21.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.21.0...webrtc/v2.21.1) (2024-08-22)
 
 
