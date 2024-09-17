@@ -9,7 +9,8 @@ class Login extends BaseRequest {
     passwd: string,
     login_token: string,
     sessionid: string,
-    userVariables: Object = {}
+    userVariables: Object = {},
+    reconnection: boolean
   ) {
     super();
 
@@ -19,6 +20,7 @@ class Login extends BaseRequest {
       passwd,
       login_token,
       userVariables,
+      reconnection,
       loginParams: {},
       'User-Agent': {
         sdkVersion: pkg.version,

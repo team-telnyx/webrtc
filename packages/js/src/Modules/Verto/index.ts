@@ -10,6 +10,7 @@ import Call from './webrtc/Call';
 import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
 import { isValidOptions } from './util/helpers';
+import { getReconnectToken } from './util/reconnect';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -69,12 +70,14 @@ export default class Verto extends BrowserSession {
       userVariables,
       autoReconnect = true,
     } = this.options;
+
     const msg = new Login(
       login,
       password || passwd,
       login_token,
       this.sessionid,
-      userVariables
+      userVariables,
+      !!getReconnectToken()
     );
     const response = await this.execute(msg).catch(this._handleLoginError);
     if (response) {
