@@ -21,10 +21,12 @@ describe('Messages', function () {
           'login',
           'password',
           'dskbksdjbfkjsdf234y67234kjrwe98',
-          null!
+          null!,
+          {},
+          false
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password", "reconnection": false,"login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -34,16 +36,25 @@ describe('Messages', function () {
           'login',
           'password',
           'dskbksdjbfkjsdf234y67234kjrwe98',
-          '123456789'
+          '123456789',
+          {},
+          false
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","reconnection": false, "login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
 
       it('Should pass User-Agent to the backend', () => {
-        const req = new Login('login', 'password', 'token', 'session').request;
+        const req = new Login(
+          'login',
+          'password',
+          'token',
+          'session',
+          {},
+          false
+        ).request;
         expect(req).toEqual(
           expect.objectContaining({
             params: expect.objectContaining({
