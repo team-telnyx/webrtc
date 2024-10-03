@@ -361,7 +361,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
- 
   /**
    * Holds the call.
    *
@@ -917,6 +916,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Bye:
+        const byeClientState = params.client_state || params.clientState;
+
+        if (!!byeClientState) {
+          this.options.clientState = byeClientState;
+        }
+
         this.stopRingback();
         this.stopRingtone();
         this.hangup(params, false);
