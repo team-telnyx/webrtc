@@ -44,7 +44,7 @@ export default abstract class BaseSession {
       throw new Error('Invalid init options');
     }
     this._onSocketOpen = this._onSocketOpen.bind(this);
-    this._onSocketCloseOrError = this._onSocketCloseOrError.bind(this);
+    this.onNetworkClose = this.onNetworkClose.bind(this);
     this._onSocketMessage = this._onSocketMessage.bind(this);
     this._handleLoginError = this._handleLoginError.bind(this);
 
@@ -248,8 +248,7 @@ export default abstract class BaseSession {
    * Callback when the ws connection is going to close or get an error
    * @return void
    */
-  protected _onSocketCloseOrError(event: any): void {
-    logger.error(`Socket ${event.type} ${event.message}`);
+  public onNetworkClose(): void {
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }
@@ -335,8 +334,8 @@ export default abstract class BaseSession {
   private _attachListeners() {
     this._detachListeners();
     this.on(SwEvent.SocketOpen, this._onSocketOpen);
-    this.on(SwEvent.SocketClose, this._onSocketCloseOrError);
-    this.on(SwEvent.SocketError, this._onSocketCloseOrError);
+    this.on(SwEvent.SocketClose, this.onNetworkClose);
+    this.on(SwEvent.SocketError, this.onNetworkClose);
     this.on(SwEvent.SocketMessage, this._onSocketMessage);
   }
 
@@ -346,8 +345,8 @@ export default abstract class BaseSession {
    */
   private _detachListeners() {
     this.off(SwEvent.SocketOpen, this._onSocketOpen);
-    this.off(SwEvent.SocketClose, this._onSocketCloseOrError);
-    this.off(SwEvent.SocketError, this._onSocketCloseOrError);
+    this.off(SwEvent.SocketClose, this.onNetworkClose);
+    this.off(SwEvent.SocketError, this.onNetworkClose);
     this.off(SwEvent.SocketMessage, this._onSocketMessage);
   }
 
