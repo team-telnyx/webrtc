@@ -1,5 +1,3 @@
-# Interface: IClientOptions
-
 IClientOptions
  IClientOptions
 
@@ -7,11 +5,11 @@ IClientOptions
 
 ### Properties
 
-- [login](IClientOptions.md#login)
-- [login\_token](IClientOptions.md#login_token)
-- [password](IClientOptions.md#password)
-- [ringbackFile](IClientOptions.md#ringbackfile)
-- [ringtoneFile](IClientOptions.md#ringtonefile)
+- [login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login)
+- [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
+- [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
+- [ringbackFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringbackfile)
+- [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
 
 ## Properties
 

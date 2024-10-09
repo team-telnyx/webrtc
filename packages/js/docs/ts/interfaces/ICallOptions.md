@@ -1,5 +1,3 @@
-# Interface: ICallOptions
-
 ICallOptions
  ICallOptions
 
@@ -7,31 +5,31 @@ ICallOptions
 
 ### Properties
 
-- [audio](ICallOptions.md#audio)
-- [callerName](ICallOptions.md#callername)
-- [callerNumber](ICallOptions.md#callernumber)
-- [camId](ICallOptions.md#camid)
-- [clientState](ICallOptions.md#clientstate)
-- [customHeaders](ICallOptions.md#customheaders)
-- [debug](ICallOptions.md#debug)
-- [debugOutput](ICallOptions.md#debugoutput)
-- [destinationNumber](ICallOptions.md#destinationnumber)
-- [iceServers](ICallOptions.md#iceservers)
-- [id](ICallOptions.md#id)
-- [localElement](ICallOptions.md#localelement)
-- [localStream](ICallOptions.md#localstream)
-- [mediaSettings](ICallOptions.md#mediasettings)
-- [micId](ICallOptions.md#micid)
-- [onNotification](ICallOptions.md#onnotification)
-- [preferred\_codecs](ICallOptions.md#preferred_codecs)
-- [remoteElement](ICallOptions.md#remoteelement)
-- [remoteStream](ICallOptions.md#remotestream)
-- [speakerId](ICallOptions.md#speakerid)
-- [telnyxCallControlId](ICallOptions.md#telnyxcallcontrolid)
-- [telnyxLegId](ICallOptions.md#telnyxlegid)
-- [telnyxSessionId](ICallOptions.md#telnyxsessionid)
-- [useStereo](ICallOptions.md#usestereo)
-- [video](ICallOptions.md#video)
+- [audio](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#audio)
+- [callerName](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#callername)
+- [callerNumber](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#callernumber)
+- [camId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#camid)
+- [clientState](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#clientstate)
+- [customHeaders](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#customheaders)
+- [debug](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debug)
+- [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debugoutput)
+- [destinationNumber](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#destinationnumber)
+- [iceServers](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#iceservers)
+- [id](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#id)
+- [localElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localelement)
+- [localStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localstream)
+- [mediaSettings](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#mediasettings)
+- [micId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#micid)
+- [onNotification](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#onnotification)
+- [preferred\_codecs](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#preferred_codecs)
+- [remoteElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remoteelement)
+- [remoteStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remotestream)
+- [speakerId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#speakerid)
+- [telnyxCallControlId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxcallcontrolid)
+- [telnyxLegId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxlegid)
+- [telnyxSessionId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxsessionid)
+- [useStereo](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#usestereo)
+- [video](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#video)
 
 ## Properties
 

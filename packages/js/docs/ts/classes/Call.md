@@ -1,5 +1,3 @@
-# Class: Call
-
 A `Call` is the representation of an audio or video call between
 two browsers, SIP clients or phone numbers. The `call` object is
 created whenever a new call is initiated, either by you or the
@@ -54,37 +52,37 @@ call.muteAudio();
 
 ### Properties
 
-- [direction](Call.md#direction)
-- [id](Call.md#id)
-- [prevState](Call.md#prevstate)
-- [state](Call.md#state)
+- [direction](/docs/voice/webrtc/js-sdk/classes/Call.md#direction)
+- [id](/docs/voice/webrtc/js-sdk/classes/Call.md#id)
+- [prevState](/docs/voice/webrtc/js-sdk/classes/Call.md#prevstate)
+- [state](/docs/voice/webrtc/js-sdk/classes/Call.md#state)
 
 ### Accessors
 
-- [localStream](Call.md#localstream)
-- [remoteStream](Call.md#remotestream)
-- [telnyxIDs](Call.md#telnyxids)
+- [localStream](/docs/voice/webrtc/js-sdk/classes/Call.md#localstream)
+- [remoteStream](/docs/voice/webrtc/js-sdk/classes/Call.md#remotestream)
+- [telnyxIDs](/docs/voice/webrtc/js-sdk/classes/Call.md#telnyxids)
 
 ### Methods
 
-- [answer](Call.md#answer)
-- [deaf](Call.md#deaf)
-- [dtmf](Call.md#dtmf)
-- [getStats](Call.md#getstats)
-- [hold](Call.md#hold)
-- [muteAudio](Call.md#muteaudio)
-- [muteVideo](Call.md#mutevideo)
-- [setAudioInDevice](Call.md#setaudioindevice)
-- [setAudioOutDevice](Call.md#setaudiooutdevice)
-- [setVideoDevice](Call.md#setvideodevice)
-- [toggleAudioMute](Call.md#toggleaudiomute)
-- [toggleDeaf](Call.md#toggledeaf)
-- [toggleHold](Call.md#togglehold)
-- [toggleVideoMute](Call.md#togglevideomute)
-- [undeaf](Call.md#undeaf)
-- [unhold](Call.md#unhold)
-- [unmuteAudio](Call.md#unmuteaudio)
-- [unmuteVideo](Call.md#unmutevideo)
+- [answer](/docs/voice/webrtc/js-sdk/classes/Call.md#answer)
+- [deaf](/docs/voice/webrtc/js-sdk/classes/Call.md#deaf)
+- [dtmf](/docs/voice/webrtc/js-sdk/classes/Call.md#dtmf)
+- [getStats](/docs/voice/webrtc/js-sdk/classes/Call.md#getstats)
+- [hold](/docs/voice/webrtc/js-sdk/classes/Call.md#hold)
+- [muteAudio](/docs/voice/webrtc/js-sdk/classes/Call.md#muteaudio)
+- [muteVideo](/docs/voice/webrtc/js-sdk/classes/Call.md#mutevideo)
+- [setAudioInDevice](/docs/voice/webrtc/js-sdk/classes/Call.md#setaudioindevice)
+- [setAudioOutDevice](/docs/voice/webrtc/js-sdk/classes/Call.md#setaudiooutdevice)
+- [setVideoDevice](/docs/voice/webrtc/js-sdk/classes/Call.md#setvideodevice)
+- [toggleAudioMute](/docs/voice/webrtc/js-sdk/classes/Call.md#toggleaudiomute)
+- [toggleDeaf](/docs/voice/webrtc/js-sdk/classes/Call.md#toggledeaf)
+- [toggleHold](/docs/voice/webrtc/js-sdk/classes/Call.md#togglehold)
+- [toggleVideoMute](/docs/voice/webrtc/js-sdk/classes/Call.md#togglevideomute)
+- [undeaf](/docs/voice/webrtc/js-sdk/classes/Call.md#undeaf)
+- [unhold](/docs/voice/webrtc/js-sdk/classes/Call.md#unhold)
+- [unmuteAudio](/docs/voice/webrtc/js-sdk/classes/Call.md#unmuteaudio)
+- [unmuteVideo](/docs/voice/webrtc/js-sdk/classes/Call.md#unmutevideo)
 
 ## Properties
 
