@@ -1,5 +1,3 @@
-# Class: Call
-
 A `Call` is the representation of an audio or video call between
 two browsers, SIP clients or phone numbers. The `call` object is
 created whenever a new call is initiated, either by you or the
@@ -54,37 +52,37 @@ call.muteAudio();
 
 ### Properties
 
-- [direction](Call.md#direction)
-- [id](Call.md#id)
-- [prevState](Call.md#prevstate)
-- [state](Call.md#state)
+- [direction](./classes/Call.md#direction)
+- [id](./classes/Call.md#id)
+- [prevState](./classes/Call.md#prevstate)
+- [state](./classes/Call.md#state)
 
 ### Accessors
 
-- [localStream](Call.md#localstream)
-- [remoteStream](Call.md#remotestream)
-- [telnyxIDs](Call.md#telnyxids)
+- [localStream](./classes/Call.md#localstream)
+- [remoteStream](./classes/Call.md#remotestream)
+- [telnyxIDs](./classes/Call.md#telnyxids)
 
 ### Methods
 
-- [answer](Call.md#answer)
-- [deaf](Call.md#deaf)
-- [dtmf](Call.md#dtmf)
-- [getStats](Call.md#getstats)
-- [hold](Call.md#hold)
-- [muteAudio](Call.md#muteaudio)
-- [muteVideo](Call.md#mutevideo)
-- [setAudioInDevice](Call.md#setaudioindevice)
-- [setAudioOutDevice](Call.md#setaudiooutdevice)
-- [setVideoDevice](Call.md#setvideodevice)
-- [toggleAudioMute](Call.md#toggleaudiomute)
-- [toggleDeaf](Call.md#toggledeaf)
-- [toggleHold](Call.md#togglehold)
-- [toggleVideoMute](Call.md#togglevideomute)
-- [undeaf](Call.md#undeaf)
-- [unhold](Call.md#unhold)
-- [unmuteAudio](Call.md#unmuteaudio)
-- [unmuteVideo](Call.md#unmutevideo)
+- [answer](./classes/Call.md#answer)
+- [deaf](./classes/Call.md#deaf)
+- [dtmf](./classes/Call.md#dtmf)
+- [getStats](./classes/Call.md#getstats)
+- [hold](./classes/Call.md#hold)
+- [muteAudio](./classes/Call.md#muteaudio)
+- [muteVideo](./classes/Call.md#mutevideo)
+- [setAudioInDevice](./classes/Call.md#setaudioindevice)
+- [setAudioOutDevice](./classes/Call.md#setaudiooutdevice)
+- [setVideoDevice](./classes/Call.md#setvideodevice)
+- [toggleAudioMute](./classes/Call.md#toggleaudiomute)
+- [toggleDeaf](./classes/Call.md#toggledeaf)
+- [toggleHold](./classes/Call.md#togglehold)
+- [toggleVideoMute](./classes/Call.md#togglevideomute)
+- [undeaf](./classes/Call.md#undeaf)
+- [unhold](./classes/Call.md#unhold)
+- [unmuteAudio](./classes/Call.md#unmuteaudio)
+- [unmuteVideo](./classes/Call.md#unmutevideo)
 
 ## Properties
 

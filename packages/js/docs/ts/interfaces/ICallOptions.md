@@ -1,5 +1,3 @@
-# Interface: ICallOptions
-
 ICallOptions
  ICallOptions
 
@@ -7,31 +5,31 @@ ICallOptions
 
 ### Properties
 
-- [audio](ICallOptions.md#audio)
-- [callerName](ICallOptions.md#callername)
-- [callerNumber](ICallOptions.md#callernumber)
-- [camId](ICallOptions.md#camid)
-- [clientState](ICallOptions.md#clientstate)
-- [customHeaders](ICallOptions.md#customheaders)
-- [debug](ICallOptions.md#debug)
-- [debugOutput](ICallOptions.md#debugoutput)
-- [destinationNumber](ICallOptions.md#destinationnumber)
-- [iceServers](ICallOptions.md#iceservers)
-- [id](ICallOptions.md#id)
-- [localElement](ICallOptions.md#localelement)
-- [localStream](ICallOptions.md#localstream)
-- [mediaSettings](ICallOptions.md#mediasettings)
-- [micId](ICallOptions.md#micid)
-- [onNotification](ICallOptions.md#onnotification)
-- [preferred\_codecs](ICallOptions.md#preferred_codecs)
-- [remoteElement](ICallOptions.md#remoteelement)
-- [remoteStream](ICallOptions.md#remotestream)
-- [speakerId](ICallOptions.md#speakerid)
-- [telnyxCallControlId](ICallOptions.md#telnyxcallcontrolid)
-- [telnyxLegId](ICallOptions.md#telnyxlegid)
-- [telnyxSessionId](ICallOptions.md#telnyxsessionid)
-- [useStereo](ICallOptions.md#usestereo)
-- [video](ICallOptions.md#video)
+- [audio](./interfaces/ICallOptions.md#audio)
+- [callerName](./interfaces/ICallOptions.md#callername)
+- [callerNumber](./interfaces/ICallOptions.md#callernumber)
+- [camId](./interfaces/ICallOptions.md#camid)
+- [clientState](./interfaces/ICallOptions.md#clientstate)
+- [customHeaders](./interfaces/ICallOptions.md#customheaders)
+- [debug](./interfaces/ICallOptions.md#debug)
+- [debugOutput](./interfaces/ICallOptions.md#debugoutput)
+- [destinationNumber](./interfaces/ICallOptions.md#destinationnumber)
+- [iceServers](./interfaces/ICallOptions.md#iceservers)
+- [id](./interfaces/ICallOptions.md#id)
+- [localElement](./interfaces/ICallOptions.md#localelement)
+- [localStream](./interfaces/ICallOptions.md#localstream)
+- [mediaSettings](./interfaces/ICallOptions.md#mediasettings)
+- [micId](./interfaces/ICallOptions.md#micid)
+- [onNotification](./interfaces/ICallOptions.md#onnotification)
+- [preferred\_codecs](./interfaces/ICallOptions.md#preferred_codecs)
+- [remoteElement](./interfaces/ICallOptions.md#remoteelement)
+- [remoteStream](./interfaces/ICallOptions.md#remotestream)
+- [speakerId](./interfaces/ICallOptions.md#speakerid)
+- [telnyxCallControlId](./interfaces/ICallOptions.md#telnyxcallcontrolid)
+- [telnyxLegId](./interfaces/ICallOptions.md#telnyxlegid)
+- [telnyxSessionId](./interfaces/ICallOptions.md#telnyxsessionid)
+- [useStereo](./interfaces/ICallOptions.md#usestereo)
+- [video](./interfaces/ICallOptions.md#video)
 
 ## Properties
 

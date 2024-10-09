@@ -1,5 +1,3 @@
-# Interface: IClientOptions
-
 IClientOptions
  IClientOptions
 
@@ -7,11 +5,11 @@ IClientOptions
 
 ### Properties
 
-- [login](IClientOptions.md#login)
-- [login\_token](IClientOptions.md#login_token)
-- [password](IClientOptions.md#password)
-- [ringbackFile](IClientOptions.md#ringbackfile)
-- [ringtoneFile](IClientOptions.md#ringtonefile)
+- [login](./interfaces/IClientOptions.md#login)
+- [login\_token](./interfaces/IClientOptions.md#login_token)
+- [password](./interfaces/IClientOptions.md#password)
+- [ringbackFile](./interfaces/IClientOptions.md#ringbackfile)
+- [ringtoneFile](./interfaces/IClientOptions.md#ringtonefile)
 
 ## Properties
 
