@@ -1,5 +1,3 @@
-# Interface: INotification
-
 An event dispatched by Telnyx to notify the client of changes to the session or call.
 
 The conditions of the event can be identified by the `type` property.
@@ -62,9 +60,9 @@ Notification
 
 ### Properties
 
-- [call](INotification.md#call)
-- [error](INotification.md#error)
-- [type](INotification.md#type)
+- [call](./interfaces/INotification.md#call)
+- [error](./interfaces/INotification.md#error)
+- [type](./interfaces/INotification.md#type)
 
 ## Properties
 
