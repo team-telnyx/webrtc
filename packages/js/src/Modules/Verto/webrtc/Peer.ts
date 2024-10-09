@@ -182,6 +182,23 @@ export default class Peer {
       this.iceGatheringComplete.resolve(true);
     }
   };
+  private handleConnectionStateChange = async (event: Event) => {
+    const { connectionState } = this.instance;
+    console.log(
+      `[${new Date().toISOString()}] Connection State`,
+      connectionState
+    );
+
+    if (connectionState === 'connected') {
+      return this.iceGatheringComplete.resolve(true);
+    }
+
+    if (connectionState === 'failed' || connectionState === 'disconnected') {
+      this.instance.restartIce();
+      return this._session.onNetworkClose();
+    }
+  };
+
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
 
@@ -190,6 +207,10 @@ export default class Peer {
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
+    this.instance.addEventListener(
+      'connectionstatechange',
+      this.handleConnectionStateChange
+    );
     this.instance.addEventListener('icecandidate', this.handleIceCandidate);
     this.instance.addEventListener(
       'iceconnectionstatechange',
