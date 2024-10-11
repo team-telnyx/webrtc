@@ -365,10 +365,11 @@ export default abstract class BaseSession {
   }
 
   /**
+   * @private
    * Close and remove the current connection.
    * @return void
    */
-  private _closeConnection() {
+  public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
     if (this.connection) {
