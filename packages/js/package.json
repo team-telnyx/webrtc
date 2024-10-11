@@ -25,6 +25,7 @@
     "prepare": "yarn build",
     "test": "jest",
     "docs": "typedoc --entryPointStrategy expand ./src",
+    "docs:html": "typedoc --entryPointStrategy expand --options typedoc.html.json ./src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
     "format": "prettier --write 'src/**/*.ts'",
