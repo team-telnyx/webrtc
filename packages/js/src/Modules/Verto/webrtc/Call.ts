@@ -53,7 +53,6 @@ import { IVertoCallOptions } from './interfaces';
 export class Call extends BaseCall {
   public screenShare: Call;
 
-
   private _statsInterval: any = null;
 
   hangup(params: any = {}, execute: boolean = true) {
@@ -63,6 +62,10 @@ export class Call extends BaseCall {
     super.hangup(params, execute);
   }
 
+  /**
+   * @deprecated
+   * @private
+   */
   async startScreenShare(opts?: IVertoCallOptions) {
     const displayStream: MediaStream = await getDisplayMedia({ video: true });
     displayStream.getTracks().forEach((t) => {
@@ -89,6 +92,10 @@ export class Call extends BaseCall {
     return this.screenShare;
   }
 
+  /**
+   * @deprecated
+   * @private
+   */
   stopScreenShare() {
     if (this.screenShare instanceof Call) {
       this.screenShare.hangup();

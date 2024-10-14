@@ -247,6 +247,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    *
    * @returns Promise with an array of MediaDeviceInfo
+   * @deprecated
    */
   getVideoDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.Video).catch((error) => {
@@ -391,6 +392,7 @@ export default abstract class BrowserSession extends BaseSession {
    *   console.log(result);
    * });
    * ```
+   * @deprecated
    */
   async getDeviceResolutions(deviceId: string) {
     try {
@@ -545,6 +547,7 @@ export default abstract class BrowserSession extends BaseSession {
    *  height: 720
    * })
    * ```
+   * @deprecated
    */
   async setVideoSettings(settings: IVideoSettings) {
     if (!settings) {
@@ -586,6 +589,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * client.disableWebcam();
    * ```
+   * @deprecated
    */
   disableWebcam() {
     this._videoConstraints = false;
@@ -604,6 +608,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * client.enableWebcam();
    * ```
+   * @deprecated
    */
   enableWebcam() {
     this._videoConstraints = true;

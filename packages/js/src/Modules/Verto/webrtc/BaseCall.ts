@@ -590,6 +590,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```js
    * call.muteVideo();
    * ```
+   * @deprecated
    */
   muteVideo() {
     disableVideoTracks(this.options.localStream);
@@ -604,6 +605,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```js
    * call.unmuteVideo();
    * ```
+   * @deprecated
    */
   unmuteVideo() {
     enableVideoTracks(this.options.localStream);
@@ -617,6 +619,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```js
    * call.toggleVideoMute();
    * ```
+   * @deprecated
    */
   toggleVideoMute() {
     toggleVideoTracks(this.options.localStream);
@@ -653,6 +656,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    *
    * @param deviceId the target video device ID
    * @returns Promise that resolves if the video device has been updated
+   * @deprecated
    */
   async setVideoDevice(deviceId: string): Promise<void> {
     const { instance } = this.peer;
