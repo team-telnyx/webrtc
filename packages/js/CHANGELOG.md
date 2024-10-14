@@ -1,3 +1,13 @@
+## [2.22.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.21.2...webrtc/v2.22.0) (2024-10-14)
+
+
+### Features
+
+* add reconnection flag to login message ([#380](https://github.com/team-telnyx/webrtc/issues/380)) ([643e252](https://github.com/team-telnyx/webrtc/commit/643e25240ec34a3262811e53fe46d907a2c32390))
+* change reconnection logic ([#383](https://github.com/team-telnyx/webrtc/issues/383)) ([8ac1d8c](https://github.com/team-telnyx/webrtc/commit/8ac1d8ca14293dc09dc57e7c89b45ef4e6a6b5ff))
+* publish generated docs to gh pages ([#385](https://github.com/team-telnyx/webrtc/issues/385)) ([d3a3d37](https://github.com/team-telnyx/webrtc/commit/d3a3d37d59678a4ad292b72c19fe8954ea91b16b))
+* set client_state from bye message ([#382](https://github.com/team-telnyx/webrtc/issues/382)) ([b2c4611](https://github.com/team-telnyx/webrtc/commit/b2c461124ccc70cf5604d40a6d2708c6014c4f83))
+
 ### [2.21.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.21.1...webrtc/v2.21.2) (2024-09-05)
 
 
