@@ -194,8 +194,17 @@ export default class Peer {
     }
 
     if (connectionState === 'failed' || connectionState === 'disconnected') {
-      this.instance.restartIce();
-      return this._session.onNetworkClose();
+      const onConnectionOnline = () => {
+        this.instance.restartIce();
+        this._session._closeConnection();
+        this._session.connect();
+        window.removeEventListener('online', onConnectionOnline);
+      };
+
+      if (navigator.onLine) {
+        return onConnectionOnline();
+      }
+      window.addEventListener('online', onConnectionOnline);
     }
   };
 
