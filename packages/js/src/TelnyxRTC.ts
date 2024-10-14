@@ -152,6 +152,36 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * const call = client.newCall().catch(console.error);
    * // => `destinationNumber is required`
    * ```
+   * 
+   * ### Setting Custom Headers
+   * 
+   * ```js
+   * 
+   * client.newCall({
+   *  destinationNumber: '18004377950',
+   * 
+   *  callerNumber: '155531234567',
+   * 
+   *  customHeaders: [ {name: "X-Header", value: "value" } ] 
+   * });
+   * ```
+
+   * ### Setting Preferred Codec
+   *
+   * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
+   *
+   * `preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs)
+   *
+   * ```js
+   * const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
+   *
+   * const PCMACodec = allCodecs.find((c) => c.mimeType.toLowerCase().includes('pcma'));
+   *
+   * client.newCall({
+   *  destinationNumber: '123',
+   *  preferred_codecs: [PCMACodec],
+   * });
+   * ```
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);

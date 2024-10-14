@@ -247,6 +247,7 @@ export default abstract class BaseSession {
   /**
    * Callback when the ws connection is going to close or get an error
    * @return void
+   * @private
    */
   public onNetworkClose(): void {
     if (this.relayProtocol) {
