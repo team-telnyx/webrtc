@@ -73,6 +73,7 @@ client.off('telnyx.notification');
 - [newCall](TelnyxRTC.md#newcall)
 - [off](TelnyxRTC.md#off)
 - [on](TelnyxRTC.md#on)
+- [onNetworkClose](TelnyxRTC.md#onnetworkclose)
 - [setAudioSettings](TelnyxRTC.md#setaudiosettings)
 - [setVideoSettings](TelnyxRTC.md#setvideosettings)
 - [webRTCInfo](TelnyxRTC.md#webrtcinfo)
@@ -1001,6 +1002,24 @@ client.on('telnyx.ready', (client) => {
 #### Inherited from
 
 TelnyxRTCClient.on
+
+___
+
+### <a id="onnetworkclose" name="onnetworkclose"></a> onNetworkClose
+
+▸ **onNetworkClose**(): `void`
+
+Callback when the ws connection is going to close or get an error
+
+#### Returns
+
+`void`
+
+void
+
+#### Inherited from
+
+TelnyxRTCClient.onNetworkClose
 
 ___
 
