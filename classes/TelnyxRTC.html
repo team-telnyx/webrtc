@@ -65,7 +65,6 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#newCall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a>
 <a href="TelnyxRTC.html#off" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a>
 <a href="TelnyxRTC.html#on" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on</span></a>
-<a href="TelnyxRTC.html#onNetworkClose" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Network<wbr/>Close</span></a>
 <a href="TelnyxRTC.html#setAudioSettings" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Settings</span></a>
 <a href="TelnyxRTC.html#setVideoSettings" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Video<wbr/>Settings</span></a>
 <a href="TelnyxRTC.html#webRTCInfo" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>webRTCInfo</span></a>
@@ -310,7 +309,8 @@ specified before disabling the microphone.</p>
 </code><button>Copy</button></pre>
 <pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1"> = </span><span class="hl-0">new</span><span class="hl-1"> </span><span class="hl-4">TelnyxRTC</span><span class="hl-1">({</span><br/><span class="hl-1">  ...</span><span class="hl-3">options</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-3">video:</span><span class="hl-1"> </span><span class="hl-0">true</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">disableWebcam</span><span class="hl-1">();</span>
 </code><button>Copy</button></pre>
-</div><aside class="tsd-sources">
+
+<h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.disableWebcam</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="disconnect" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>disconnect</span><a href="#disconnect" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
@@ -353,7 +353,8 @@ specified when creating a new call.</p>
 <div class="tsd-comment tsd-typography">
 <h4>Examples</h4><pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1"> = </span><span class="hl-0">new</span><span class="hl-1"> </span><span class="hl-4">TelnyxRTC</span><span class="hl-1">(</span><span class="hl-3">options</span><span class="hl-1">);</span><br/><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">enableWebcam</span><span class="hl-1">();</span>
 </code><button>Copy</button></pre>
-</div><aside class="tsd-sources">
+
+<h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.enableWebcam</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="getAudioInDevices" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>get<wbr/>Audio<wbr/>In<wbr/>Devices</span><a href="#getAudioInDevices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
@@ -435,7 +436,8 @@ it will return a list of resolutions from the default device set up in your oper
 <p>Using ES6 <code>Promises</code>:</p>
 <pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">getDeviceResolutions</span><span class="hl-1">(</span><span class="hl-3">deviceId</span><span class="hl-1">).</span><span class="hl-4">then</span><span class="hl-1">((</span><span class="hl-3">result</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-3">result</span><span class="hl-1">);</span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
-</div><aside class="tsd-sources">
+
+<h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.getDeviceResolutions</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="getDevices" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>get<wbr/>Devices</span><a href="#getDevices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
@@ -481,7 +483,8 @@ it will return a list of resolutions from the default device set up in your oper
 <p>Using ES6 <code>Promises</code>:</p>
 <pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">getVideoDevices</span><span class="hl-1">().</span><span class="hl-4">then</span><span class="hl-1">((</span><span class="hl-3">result</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-3">result</span><span class="hl-1">);</span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
-</div><aside class="tsd-sources">
+
+<h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.getVideoDevices</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="logout" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>logout</span><a href="#logout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
@@ -523,6 +526,12 @@ it will return a list of resolutions from the default device set up in your oper
 </code><button>Copy</button></pre>
 <a id="md:error-handling" class="tsd-anchor"></a><h3><a href="#md:error-handling">Error handling</a></h3><p>An error will be thrown if <code>destinationNumber</code> is not specified.</p>
 <pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">call</span><span class="hl-1"> = </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">().</span><span class="hl-4">catch</span><span class="hl-1">(</span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-3">error</span><span class="hl-1">);</span><br/><span class="hl-5">// =&gt; `destinationNumber is required`</span>
+</code><button>Copy</button></pre>
+<a id="md:setting-custom-headers" class="tsd-anchor"></a><h3><a href="#md:setting-custom-headers">Setting Custom Headers</a></h3><pre><code class="language-js"><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;18004377950&#39;</span><span class="hl-1">,</span><br/><br/><span class="hl-1"> </span><span class="hl-3">callerNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;155531234567&#39;</span><span class="hl-1">,</span><br/><br/><span class="hl-1"> </span><span class="hl-3">customHeaders:</span><span class="hl-1"> [ {</span><span class="hl-3">name:</span><span class="hl-1"> </span><span class="hl-6">&quot;X-Header&quot;</span><span class="hl-1">, </span><span class="hl-3">value:</span><span class="hl-1"> </span><span class="hl-6">&quot;value&quot;</span><span class="hl-1"> } ] </span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+<a id="md:setting-preferred-codec" class="tsd-anchor"></a><h3><a href="#md:setting-preferred-codec">Setting Preferred Codec</a></h3><p>You can pass <code>preferred_codecs</code> to the <code>newCall</code> method to set codec preference during the call.</p>
+<p><code>preferred_codecs</code> is a sub-array of the codecs returned by <a href="https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs">RTCRtpReceiver.getCapabilities(&#39;audio&#39;)</a></p>
+<pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">allCodecs</span><span class="hl-1"> = </span><span class="hl-3">RTCRtpReceiver</span><span class="hl-1">.</span><span class="hl-4">getCapabilities</span><span class="hl-1">(</span><span class="hl-6">&#39;audio&#39;</span><span class="hl-1">).</span><span class="hl-3">codecs</span><span class="hl-1">;</span><br/><br/><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">PCMACodec</span><span class="hl-1"> = </span><span class="hl-3">allCodecs</span><span class="hl-1">.</span><span class="hl-4">find</span><span class="hl-1">((</span><span class="hl-3">c</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> </span><span class="hl-3">c</span><span class="hl-1">.</span><span class="hl-3">mimeType</span><span class="hl-1">.</span><span class="hl-4">toLowerCase</span><span class="hl-1">().</span><span class="hl-4">includes</span><span class="hl-1">(</span><span class="hl-6">&#39;pcma&#39;</span><span class="hl-1">));</span><br/><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;123&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">preferred_codecs:</span><span class="hl-1"> [</span><span class="hl-3">PCMACodec</span><span class="hl-1">],</span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Overrides TelnyxRTCClient.newCall</p></aside></li></ul></section>
@@ -621,17 +630,6 @@ so make sure to use the same reference in both <code>.on()</code> and <code>.off
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.on</p></aside></li></ul></section>
-<section class="tsd-panel tsd-member tsd-is-inherited"><a id="onNetworkClose" class="tsd-anchor"></a>
-<h3 class="tsd-anchor-link"><span>on<wbr/>Network<wbr/>Close</span><a href="#onNetworkClose" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures tsd-is-inherited">
-<li class="tsd-signature tsd-anchor-link" id="onNetworkClose.onNetworkClose-1"><span class="tsd-kind-call-signature">on<wbr/>Network<wbr/>Close</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#onNetworkClose.onNetworkClose-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
-<li class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Callback when the ws connection is going to close or get an error</p>
-</div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><p>void</p>
-
-<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
-<p>Inherited from TelnyxRTCClient.onNetworkClose</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="setAudioSettings" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>set<wbr/>Audio<wbr/>Settings</span><a href="#setAudioSettings" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -690,7 +688,8 @@ by matching both <code>id</code> and <code>label</code> with the device list ret
 <h4>Examples</h4><p>Set webcam by <code>id</code> and <code>label</code> with 720p resolution.</p>
 <pre><code class="language-js"><span class="hl-5">// within an async function</span><br/><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">constraints</span><span class="hl-1"> = </span><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">setVideoSettings</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">camId:</span><span class="hl-1"> </span><span class="hl-6">&#39;882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">camLabel:</span><span class="hl-1"> </span><span class="hl-6">&#39;Default WebCam (Built-in)&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">width:</span><span class="hl-1"> </span><span class="hl-8">1080</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">height:</span><span class="hl-1"> </span><span class="hl-8">720</span><br/><span class="hl-1">})</span>
 </code><button>Copy</button></pre>
-</div><aside class="tsd-sources">
+
+<h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.setVideoSettings</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member"><a id="webRTCInfo" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagStatic">Static</code> <span>webRTCInfo</span><a href="#webRTCInfo" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
@@ -818,13 +817,18 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#newCall" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a></li>
 <li>
 <ul>
-<li><a href="#md:error-handling"><span>Error handling</span></a></li></ul></li>
+<li><a href="#md:error-handling"><span>Error handling</span></a></li>
+<li>
+<ul>
+<li><a href="#md:setting-custom-headers"><span>Setting <wbr/>Custom <wbr/>Headers</span></a></li>
+<li>
+<ul>
+<li><a href="#md:setting-preferred-codec"><span>Setting <wbr/>Preferred <wbr/>Codec</span></a></li></ul></li></ul></li></ul></li>
 <li><a href="#off" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a></li>
 <li><a href="#on" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on</span></a></li>
 <li>
 <ul>
 <li><a href="#md:events"><span>Events</span></a></li></ul></li>
-<li><a href="#onNetworkClose" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Network<wbr/>Close</span></a></li>
 <li><a href="#setAudioSettings" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Settings</span></a></li>
 <li><a href="#setVideoSettings" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Video<wbr/>Settings</span></a></li>
 <li><a href="#webRTCInfo" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>webRTCInfo</span></a></li>
