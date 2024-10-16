@@ -33,7 +33,7 @@ ICallOptions
 
 ## Properties
 
-### <a id="audio" name="audio"></a> audio
+### audio
 
 • `Optional` **audio**: `boolean`
 
@@ -41,7 +41,7 @@ Overrides client's default audio constraints. Defaults to `true`
 
 ___
 
-### <a id="callername" name="callername"></a> callerName
+### callerName
 
 • `Optional` **callerName**: `string`
 
@@ -49,7 +49,7 @@ Name to use as the caller ID name when dialing out to a destination.
 
 ___
 
-### <a id="callernumber" name="callernumber"></a> callerNumber
+### callerNumber
 
 • `Optional` **callerNumber**: `string`
 
@@ -57,7 +57,7 @@ Number to use as the caller ID when dialing out to a destination. A valid phone 
 
 ___
 
-### <a id="camid" name="camid"></a> camId
+### camId
 
 • `Optional` **camId**: `string`
 
@@ -65,7 +65,7 @@ ___
 
 ___
 
-### <a id="clientstate" name="clientstate"></a> clientState
+### clientState
 
 • `Optional` **clientState**: `string`
 
@@ -74,7 +74,7 @@ Telnyx's Call Control client_state. Can be used with Connections with Advanced -
 
 ___
 
-### <a id="customheaders" name="customheaders"></a> customHeaders
+### customHeaders
 
 • `Optional` **customHeaders**: \{ `name`: `string` ; `value`: `string`  }[]
 
@@ -82,7 +82,7 @@ Add custom headers to the INVITE and ANSWER request.
 
 ___
 
-### <a id="debug" name="debug"></a> debug
+### debug
 
 • `Optional` **debug**: `boolean`
 
@@ -90,7 +90,7 @@ Enable debug mode for this call.
 
 ___
 
-### <a id="debugoutput" name="debugoutput"></a> debugOutput
+### debugOutput
 
 • `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
 
@@ -98,7 +98,7 @@ Output debug logs to a file.
 
 ___
 
-### <a id="destinationnumber" name="destinationnumber"></a> destinationNumber
+### destinationNumber
 
 • **destinationNumber**: `string`
 
@@ -106,7 +106,7 @@ Phone number or SIP URI to dial.
 
 ___
 
-### <a id="iceservers" name="iceservers"></a> iceServers
+### iceServers
 
 • `Optional` **iceServers**: `RTCIceServer`[]
 
@@ -114,7 +114,7 @@ Overrides client's default `iceServers`.
 
 ___
 
-### <a id="id" name="id"></a> id
+### id
 
 • `Optional` **id**: `string`
 
@@ -122,7 +122,7 @@ Custom ID to identify the call. This will be used as the `callID` in place of th
 
 ___
 
-### <a id="localelement" name="localelement"></a> localElement
+### localElement
 
 • `Optional` **localElement**: `string` \| `HTMLMediaElement`
 
@@ -130,7 +130,7 @@ Overrides client's default `localElement`.
 
 ___
 
-### <a id="localstream" name="localstream"></a> localStream
+### localStream
 
 • `Optional` **localStream**: `MediaStream`
 
@@ -138,7 +138,7 @@ If set, the call will use this stream instead of retrieving a new one.
 
 ___
 
-### <a id="mediasettings" name="mediasettings"></a> mediaSettings
+### mediaSettings
 
 • `Optional` **mediaSettings**: `Object`
 
@@ -153,7 +153,7 @@ Configures media (audio/video) in a call.
 
 ___
 
-### <a id="micid" name="micid"></a> micId
+### micId
 
 • `Optional` **micId**: `string`
 
@@ -161,7 +161,7 @@ ___
 
 ___
 
-### <a id="onnotification" name="onnotification"></a> onNotification
+### onNotification
 
 • `Optional` **onNotification**: `Function`
 
@@ -169,7 +169,7 @@ Overrides client's default `telnyx.notification` handler for this call.
 
 ___
 
-### <a id="preferred_codecs" name="preferred_codecs"></a> preferred\_codecs
+### preferred\_codecs
 
 • `Optional` **preferred\_codecs**: `RTCRtpCodecCapability`[]
 
@@ -177,7 +177,7 @@ Preferred codecs for the call.
 
 ___
 
-### <a id="remoteelement" name="remoteelement"></a> remoteElement
+### remoteElement
 
 • `Optional` **remoteElement**: `string` \| `HTMLMediaElement`
 
@@ -185,7 +185,7 @@ Overrides client's default `remoteElement`.
 
 ___
 
-### <a id="remotestream" name="remotestream"></a> remoteStream
+### remoteStream
 
 • `Optional` **remoteStream**: `MediaStream`
 
@@ -193,7 +193,7 @@ If set, the call will use this stream instead of retrieving a new one.
 
 ___
 
-### <a id="speakerid" name="speakerid"></a> speakerId
+### speakerId
 
 • `Optional` **speakerId**: `string`
 
@@ -201,7 +201,7 @@ ___
 
 ___
 
-### <a id="telnyxcallcontrolid" name="telnyxcallcontrolid"></a> telnyxCallControlId
+### telnyxCallControlId
 
 • `Optional` **telnyxCallControlId**: `string`
 
@@ -209,7 +209,7 @@ Telnyx Call Control ID, if using Call Control services.
 
 ___
 
-### <a id="telnyxlegid" name="telnyxlegid"></a> telnyxLegId
+### telnyxLegId
 
 • `Optional` **telnyxLegId**: `string`
 
@@ -217,7 +217,7 @@ Telnyx call leg ID, if using Call Control services.
 
 ___
 
-### <a id="telnyxsessionid" name="telnyxsessionid"></a> telnyxSessionId
+### telnyxSessionId
 
 • `Optional` **telnyxSessionId**: `string`
 
@@ -225,7 +225,7 @@ Telnyx call session ID, if using Call Control services.
 
 ___
 
-### <a id="usestereo" name="usestereo"></a> useStereo
+### useStereo
 
 • `Optional` **useStereo**: `boolean`
 
@@ -233,7 +233,7 @@ Uses stereo audio instead of mono.
 
 ___
 
-### <a id="video" name="video"></a> video
+### video
 
 • `Optional` **video**: `boolean`
 

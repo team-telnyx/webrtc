@@ -66,7 +66,7 @@ Notification
 
 ## Properties
 
-### <a id="call" name="call"></a> call
+### call
 
 • `Optional` **call**: `ICall`
 
@@ -75,7 +75,7 @@ See `Call` documentation.
 
 ___
 
-### <a id="error" name="error"></a> error
+### error
 
 • `Optional` **error**: `Error`
 
@@ -88,7 +88,7 @@ Omit.error
 
 ___
 
-### <a id="type" name="type"></a> type
+### type
 
 • **type**: `string`
 
