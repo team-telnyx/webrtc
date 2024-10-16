@@ -13,11 +13,13 @@
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeNotDocumented": true,
+  "cleanOutputDir": true,
   "excludeTags": ["@internalnote", "@internal"],
   "hideGenerator": true,
   "readme": "none",
   "gitRevision": "main",
   "disableSources": true,
   "hideBreadcrumbs": true,
-  "namedAnchors": true
+  "hidePageTitle": true,
+  "publicPath": "/docs/voice/webrtc/js-sdk/"
 }

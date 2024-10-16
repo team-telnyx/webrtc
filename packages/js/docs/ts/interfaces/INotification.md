@@ -1,5 +1,3 @@
-# Interface: INotification
-
 An event dispatched by Telnyx to notify the client of changes to the session or call.
 
 The conditions of the event can be identified by the `type` property.
@@ -62,13 +60,13 @@ Notification
 
 ### Properties
 
-- [call](INotification.md#call)
-- [error](INotification.md#error)
-- [type](INotification.md#type)
+- [call](/docs/voice/webrtc/js-sdk/interfaces/INotification.md#call)
+- [error](/docs/voice/webrtc/js-sdk/interfaces/INotification.md#error)
+- [type](/docs/voice/webrtc/js-sdk/interfaces/INotification.md#type)
 
 ## Properties
 
-### <a id="call" name="call"></a> call
+### call
 
 • `Optional` **call**: `ICall`
 
@@ -77,7 +75,7 @@ See `Call` documentation.
 
 ___
 
-### <a id="error" name="error"></a> error
+### error
 
 • `Optional` **error**: `Error`
 
@@ -90,7 +88,7 @@ Omit.error
 
 ___
 
-### <a id="type" name="type"></a> type
+### type
 
 • **type**: `string`
 
