@@ -926,7 +926,7 @@ const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
 const PCMACodec = allCodecs.find((c) => c.mimeType.toLowerCase().includes('pcma'));
 
 client.newCall({
- destinationNumber: '123',
+ destinationNumber: 'xxx',
  preferred_codecs: [PCMACodec],
 });
 ```

@@ -178,7 +178,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * const PCMACodec = allCodecs.find((c) => c.mimeType.toLowerCase().includes('pcma'));
    *
    * client.newCall({
-   *  destinationNumber: '123',
+   *  destinationNumber: 'xxx',
    *  preferred_codecs: [PCMACodec],
    * });
    * ```
