@@ -1,0 +1,30 @@
+name: Run on Release Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get release description
+        working-directory: packages/js
+        run: |
+          echo "## Release: ${{ github.event.release.name }}" >> CHANGELOG.md
+          echo "${{ github.event.release.body }}" >> CHANGELOG.md
+          echo "" >> CHANGELOg.md
+
+      - name: Commit and push changes
+        working-directory: packages/js
+        run: |
+          git config user.name TelnyxIntegrations
+          git config user.email integrations@telnyx.com
+          git add CHANGELOG.md
+          git commit --no-verify -m "Update CHANGELOG with release ${{ github.event.release.tag_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
