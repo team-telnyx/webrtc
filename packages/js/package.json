@@ -50,7 +50,6 @@
   "devDependencies": {
     "@babel/preset-env": "^7.11.0",
     "@release-it/bumper": "^2.0.0",
-    "@release-it/conventional-changelog": "^3.3.0",
     "@rollup/plugin-json": "^4.1.0",
     "@types/jest": "^26.0.20",
     "@types/node": "20.9.2",
@@ -89,12 +88,6 @@
   "release-it": {
     "npm": {
       "publish": false
-    },
-    "plugins": {
-      "@release-it/conventional-changelog": {
-        "preset": "conventionalcommits",
-        "infile": "CHANGELOG.md"
-      }
     },
     "git": {
       "commitMessage": "chore: release webrtc ${version}",
