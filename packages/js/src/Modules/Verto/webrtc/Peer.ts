@@ -31,6 +31,7 @@ import { IVertoCallOptions } from './interfaces';
 export default class Peer {
   public instance: RTCPeerConnection;
   public iceGatheringComplete: DeferredPromise<boolean>;
+  private iceGatheringTimeout: number | null;
   public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -60,7 +61,8 @@ export default class Peer {
       this.handleNegotiationNeededEvent.bind(this);
     this.handleTrackEvent = this.handleTrackEvent.bind(this);
     this.createPeerConnection = this.createPeerConnection.bind(this);
-    this.iceGatheringComplete = deferredPromise({ debounceTime: 100 });
+    this.iceGatheringComplete = deferredPromise({ debounceTime: undefined });
+    this.iceGatheringTimeout = null;
 
     this._session = session;
 
@@ -181,6 +183,12 @@ export default class Peer {
       // This is a workaround for the issue where iceGatheringState is always 'gathering'
       this.iceGatheringComplete.resolve(true);
     }
+    if (event.candidate == null) {
+      console.log(
+        'ICE Candidate gathering is Complete without finding a relay candidate'
+      );
+      this.iceGatheringComplete.resolve(true);
+    }
   };
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
@@ -252,6 +260,9 @@ export default class Peer {
       `[${new Date().toISOString()}] ICE Gathering State`,
       this.instance.iceGatheringState
     );
+    if (this.instance.iceGatheringState === 'complete') {
+      this.iceGatheringComplete.resolve(true);
+    }
   };
   private async _init() {
     await this.createPeerConnection();
@@ -442,6 +453,11 @@ export default class Peer {
         mediaSettings.sdpASBandwidthKbps
       );
     }
+    window.clearTimeout(this.iceGatheringTimeout);
+    this.iceGatheringTimeout = window.setTimeout(() => {
+      // Failsafe for ICE gathering going on forever.
+      this.iceGatheringComplete.resolve(true);
+    }, 1000);
     return this.instance.setLocalDescription(sessionDescription);
   }
 
