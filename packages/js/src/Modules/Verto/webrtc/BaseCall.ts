@@ -247,11 +247,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  async invite() {
+  invite() {
     this.direction = Direction.Outbound;
     this.peer = new Peer(PeerType.Offer, this.options, this.session);
-    await this.peer.iceGatheringComplete.promise;
-    this._onIceSdp(this.peer.instance.localDescription);
+    this._registerPeerEvents();
   }
 
   /**
@@ -263,7 +262,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  async answer(params: AnswerParams = {}) {
+  answer(params: AnswerParams = {}) {
     this.stopRingtone();
 
     this.direction = Direction.Inbound;
@@ -279,8 +278,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     this.peer = new Peer(PeerType.Answer, this.options, this.session);
-    await this.peer.iceGatheringComplete.promise;
-    this._onIceSdp(this.peer.instance.localDescription);
+    this._registerPeerEvents();
   }
 
   playRingtone() {
@@ -1434,6 +1432,30 @@ export default abstract class BaseCall implements IWebRTCCall {
     } else {
       this._onIceSdp(instance.localDescription);
     }
+  }
+
+  private _registerPeerEvents() {
+    const { instance } = this.peer;
+    this._iceDone = false;
+    instance.onicecandidate = (event) => {
+      if (this._iceDone) {
+        return;
+      }
+      this._onIce(event);
+    };
+
+    //@ts-ignore
+    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
+      this.options.remoteStream = event.stream;
+    });
+
+    instance.addEventListener('track', (event: RTCTrackEvent) => {
+      this.options.remoteStream = event.streams[0];
+      const { remoteElement, remoteStream, screenShare } = this.options;
+      if (screenShare === false) {
+        attachMediaStream(remoteElement, remoteStream);
+      }
+    });
   }
 
   private _checkConferenceSerno = (serno: number) => {
