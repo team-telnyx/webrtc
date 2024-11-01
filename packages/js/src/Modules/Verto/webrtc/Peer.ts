@@ -6,7 +6,7 @@ import {
   saveToFile,
   webRTCStatsReporter,
 } from '../util/debug';
-import { DeferredPromise, deferredPromise, isFunction } from '../util/helpers';
+import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
 import {
   RTCPeerConnection,
@@ -30,7 +30,6 @@ import { IVertoCallOptions } from './interfaces';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-  public iceGatheringComplete: DeferredPromise<boolean>;
   public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -60,7 +59,6 @@ export default class Peer {
       this.handleNegotiationNeededEvent.bind(this);
     this.handleTrackEvent = this.handleTrackEvent.bind(this);
     this.createPeerConnection = this.createPeerConnection.bind(this);
-    this.iceGatheringComplete = deferredPromise({ debounceTime: 100 });
 
     this._session = session;
 
@@ -172,26 +170,12 @@ export default class Peer {
     }
   }
 
-  private handleIceCandidate = (event: RTCPeerConnectionIceEvent) => {
-    if (
-      event.candidate &&
-      ['relay', 'srflx', 'prflx'].includes(event.candidate.type)
-    ) {
-      // Found enough candidates to establish a connection
-      // This is a workaround for the issue where iceGatheringState is always 'gathering'
-      this.iceGatheringComplete.resolve(true);
-    }
-  };
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     console.log(
       `[${new Date().toISOString()}] Connection State`,
       connectionState
     );
-
-    if (connectionState === 'connected') {
-      return this.iceGatheringComplete.resolve(true);
-    }
 
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = () => {
@@ -220,7 +204,6 @@ export default class Peer {
       'connectionstatechange',
       this.handleConnectionStateChange
     );
-    this.instance.addEventListener('icecandidate', this.handleIceCandidate);
     this.instance.addEventListener(
       'iceconnectionstatechange',
       this._handleIceConnectionStateChange
@@ -483,7 +466,6 @@ export default class Peer {
     const { iceServers = [] } = this.options;
 
     const config: RTCConfiguration = {
-      iceCandidatePoolSize: 255,
       bundlePolicy: 'max-compat',
       iceServers,
     };
