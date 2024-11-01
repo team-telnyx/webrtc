@@ -232,7 +232,7 @@ BaseCall.telnyxIDs
 
 ### answer
 
-▸ **answer**(`params?`): `Promise`\<`void`\>
+▸ **answer**(`params?`): `void`
 
 Starts the process to answer the incoming call.
 
@@ -244,7 +244,7 @@ Starts the process to answer the incoming call.
 
 #### Returns
 
-`Promise`\<`void`\>
+`void`
 
 **`Examples`**
 
@@ -409,6 +409,8 @@ video from other call participants.
 call.muteVideo();
 ```
 
+**`Deprecated`**
+
 #### Inherited from
 
 BaseCall.muteVideo
@@ -555,6 +557,8 @@ if (result.length) {
 }
 ```
 
+**`Deprecated`**
+
 #### Inherited from
 
 BaseCall.setVideoDevice
@@ -650,6 +654,8 @@ Toggles the video output on/off.
 ```js
 call.toggleVideoMute();
 ```
+
+**`Deprecated`**
 
 #### Inherited from
 
@@ -753,6 +759,8 @@ video visible to other call participants.
 ```js
 call.unmuteVideo();
 ```
+
+**`Deprecated`**
 
 #### Inherited from
 

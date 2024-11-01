@@ -71,7 +71,6 @@ client.off('telnyx.notification');
 - [newCall](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#newcall)
 - [off](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#off)
 - [on](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#on)
-- [onNetworkClose](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#onnetworkclose)
 - [setAudioSettings](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#setaudiosettings)
 - [setVideoSettings](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#setvideosettings)
 - [webRTCInfo](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#webrtcinfo)
@@ -496,6 +495,8 @@ const client = new TelnyxRTC({
 client.disableWebcam();
 ```
 
+**`Deprecated`**
+
 #### Inherited from
 
 TelnyxRTCClient.disableWebcam
@@ -573,6 +574,8 @@ const client = new TelnyxRTC(options);
 
 client.enableWebcam();
 ```
+
+**`Deprecated`**
 
 #### Inherited from
 
@@ -731,6 +734,8 @@ client.getDeviceResolutions(deviceId).then((result) => {
 });
 ```
 
+**`Deprecated`**
+
 #### Inherited from
 
 TelnyxRTCClient.getDeviceResolutions
@@ -822,6 +827,8 @@ client.getVideoDevices().then((result) => {
   console.log(result);
 });
 ```
+
+**`Deprecated`**
 
 #### Inherited from
 
@@ -1033,24 +1040,6 @@ TelnyxRTCClient.on
 
 ___
 
-### onNetworkClose
-
-▸ **onNetworkClose**(): `void`
-
-Callback when the ws connection is going to close or get an error
-
-#### Returns
-
-`void`
-
-void
-
-#### Inherited from
-
-TelnyxRTCClient.onNetworkClose
-
-___
-
 ### setAudioSettings
 
 ▸ **setAudioSettings**(`settings`): `Promise`\<`MediaTrackConstraints`\>
@@ -1135,6 +1124,8 @@ const constraints = await client.setVideoSettings({
  height: 720
 })
 ```
+
+**`Deprecated`**
 
 #### Inherited from
 
