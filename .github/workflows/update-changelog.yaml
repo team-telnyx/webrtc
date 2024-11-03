@@ -17,7 +17,7 @@ jobs:
         run: |
           echo "## Release: ${{ github.event.release.name }}" >> CHANGELOG.md
           echo "${{ github.event.release.body }}" >> CHANGELOG.md
-          echo "" >> CHANGELOg.md
+          echo "" >> CHANGELOG.md
 
       - name: Commit and push changes
         working-directory: packages/js
@@ -26,5 +26,6 @@ jobs:
           git config user.email integrations@telnyx.com
           git add CHANGELOG.md
           git commit --no-verify -m "Update CHANGELOG with release ${{ github.event.release.tag_name }}"
+          git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
