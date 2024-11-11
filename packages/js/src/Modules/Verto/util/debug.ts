@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { WebRTCStats } from '@peermetrics/webrtc-stats';
 import {
-    DebugReportDataMessage,
+  DebugReportDataMessage,
   DebugReportStartMessage,
   DebugReportStopMessage,
 } from '../messages/WebRTCStats';
@@ -20,7 +20,7 @@ export function saveToFile(data: any, filename: string) {
 }
 
 export type WebRTCStatsReporter = {
-  reportDataMessage: (data: any) => DebugReportDataMessage
+  reportDataMessage: (data: any) => DebugReportDataMessage;
   start: () => DebugReportStartMessage;
   stop: () => DebugReportStopMessage;
   reportId: string;
@@ -37,11 +37,12 @@ export function webRTCStatsReporter(): WebRTCStatsReporter {
     return new DebugReportStopMessage(reportId);
   };
 
-  const reportDataMessage = (data) => new DebugReportDataMessage(reportId, data);
+  const reportDataMessage = (data) =>
+    new DebugReportDataMessage(reportId, data);
   const debuggerInstance = new WebRTCStats({
     getStatsInterval: POLL_INTERVAL,
     rawStats: false,
-    statsObject: false,
+    statsObject: true,
     filteredStats: false,
     remote: true,
     wrapGetUserMedia: true,
