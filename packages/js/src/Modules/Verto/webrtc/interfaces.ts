@@ -48,6 +48,7 @@ export interface IVertoCallOptions {
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
   preferred_codecs?: RTCRtpCodecCapability[];
+  prefetchIceCandidates?: boolean;
 }
 
 export interface IStatsBinding {

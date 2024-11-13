@@ -83,6 +83,7 @@ class VertoHandler {
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
+        prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
       };
 
       if (params.telnyx_call_control_id) {
