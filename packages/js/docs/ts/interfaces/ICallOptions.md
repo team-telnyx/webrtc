@@ -22,6 +22,7 @@ ICallOptions
 - [micId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#micid)
 - [onNotification](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#onnotification)
 - [preferred\_codecs](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#preferred_codecs)
+- [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#prefetchicecandidates)
 - [remoteElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remoteelement)
 - [remoteStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remotestream)
 - [speakerId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#speakerid)
@@ -174,6 +175,14 @@ ___
 • `Optional` **preferred\_codecs**: `RTCRtpCodecCapability`[]
 
 Preferred codecs for the call.
+
+___
+
+### prefetchIceCandidates
+
+• `Optional` **prefetchIceCandidates**: `boolean`
+
+Enable or disable ICE Candidate Prefetching.
 
 ___
 

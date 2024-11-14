@@ -5,13 +5,33 @@ IClientOptions
 
 ### Properties
 
+- [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
+- [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
 - [login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login)
 - [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
 - [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
+- [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#prefetchicecandidates)
 - [ringbackFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringbackfile)
 - [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
 
 ## Properties
+
+### debug
+
+• `Optional` **debug**: `boolean`
+
+Enable debug mode for this client.
+This will gather WebRTC debugging information.
+
+___
+
+### debugOutput
+
+• `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
+
+Debug output option
+
+___
 
 ### login
 
@@ -37,6 +57,14 @@ ___
 • `Optional` **password**: `string`
 
 The `password` to authenticate with your SIP Connection.
+
+___
+
+### prefetchIceCandidates
+
+• `Optional` **prefetchIceCandidates**: `boolean`
+
+Enable or disable prefetching ICE candidates.
 
 ___
 

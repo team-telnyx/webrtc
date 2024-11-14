@@ -938,6 +938,17 @@ client.newCall({
 });
 ```
 
+### ICE Candidate Prefetching
+
+ICE candidate prefetching can be enabled by passing `prefetchIceCandidates` to the `newCall` method.
+example:
+```js
+client.newCall({
+ destinationNumber: 'xxx',
+ prefetchIceCandidates: true,
+});
+```
+
 #### Overrides
 
 TelnyxRTCClient.newCall
