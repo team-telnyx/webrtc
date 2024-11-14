@@ -182,6 +182,18 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *  preferred_codecs: [PCMACodec],
    * });
    * ```
+   * 
+   * ### ICE Candidate Prefetching
+   * 
+   * ICE candidate prefetching can be enabled by passing `prefetchIceCandidates` to the `newCall` method.
+   * example:
+   * ```js
+   * client.newCall({
+   *  destinationNumber: 'xxx',
+   *  prefetchIceCandidates: true,
+   * });
+   * ```
+   * 
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);

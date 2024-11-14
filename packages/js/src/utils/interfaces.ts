@@ -52,6 +52,22 @@ export interface IClientOptions {
    * "Generate Ringback Tone" in your SIP Connection.
    */
   ringbackFile?: string;
+
+  /**
+   * Enable debug mode for this client.
+   * This will gather WebRTC debugging information.
+   */
+  debug?: boolean;
+
+  /**
+   * Debug output option
+   */
+  debugOutput?: 'socket' | 'file';
+
+  /**
+   * Enable or disable prefetching ICE candidates.
+   */
+  prefetchIceCandidates?: boolean;
 }
 
 export interface ISIPCallOptions {
@@ -201,6 +217,11 @@ export interface ICallOptions {
    * Preferred codecs for the call.
    */
   preferred_codecs?: RTCRtpCodecCapability[];
+
+  /**
+   * Enable or disable ICE Candidate Prefetching.
+   */
+  prefetchIceCandidates?: boolean;
 }
 
 /**

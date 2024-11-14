@@ -463,10 +463,11 @@ export default class Peer {
   }
 
   private _config(): RTCConfiguration {
-    const { iceServers = [] } = this.options;
+    const { iceServers = [], prefetchIceCandidates } = this.options;
 
     const config: RTCConfiguration = {
       bundlePolicy: 'max-compat',
+      iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
       iceServers,
     };
 
