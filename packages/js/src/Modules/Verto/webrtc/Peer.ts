@@ -91,16 +91,16 @@ export default class Peer {
     this._webrtcStatsReporter = webRTCStatsReporter();
     this._session.execute(this._webrtcStatsReporter.start());
 
+    this._webrtcStatsReporter.debuggerInstance.on(
+      'timeline',
+      this._onDebugReportMessage
+    );
+
     this._webrtcStatsReporter.debuggerInstance.addConnection({
       pc: this.instance,
       peerId: this.options.id,
       connectionId: this.options.telnyxSessionId,
     });
-
-    this._webrtcStatsReporter.debuggerInstance.on(
-      'timeline',
-      this._onDebugReportMessage
-    );
   }
 
   public stopDebugger() {
@@ -108,8 +108,8 @@ export default class Peer {
       return;
     }
 
-    this._webrtcStatsReporter.debuggerInstance.destroy();
     this._session.execute(this._webrtcStatsReporter.stop());
+    this._webrtcStatsReporter.debuggerInstance.destroy();
   }
 
   private _logTransceivers() {
