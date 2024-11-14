@@ -219,7 +219,7 @@ export interface ICallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
 
   /**
-   * ICE Candidate Prefetching.
+   * Enable or disable ICE Candidate Prefetching.
    */
   prefetchIceCandidates?: boolean;
 }
