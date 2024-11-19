@@ -1,3 +1,11 @@
+## [2.22.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.1...webrtc/v2.22.2) (2024-11-14)
+
+### Enhancement
+- WebRTC Debug Report:  Enhance collected data.  
+
+### Features
+- add an option to allow ice candidate prefetching (#396)
+
 ## [2.22.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.0...webrtc/v2.22.1) (2024-10-14)
 
 ### Bug Fixes
