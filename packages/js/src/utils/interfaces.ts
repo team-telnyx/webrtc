@@ -68,6 +68,11 @@ export interface IClientOptions {
    * Enable or disable prefetching ICE candidates.
    */
   prefetchIceCandidates?: boolean;
+
+  /**
+   * Force the use of a relay ICE candidate.
+   */
+  forceRelayCandidate?: boolean;
 }
 
 export interface ISIPCallOptions {
@@ -222,6 +227,11 @@ export interface ICallOptions {
    * Enable or disable ICE Candidate Prefetching.
    */
   prefetchIceCandidates?: boolean;
+
+  /**
+   * Force the use of a relay ICE candidate.
+   */
+  forceRelayCandidate?: boolean;
 }
 
 /**

@@ -463,12 +463,17 @@ export default class Peer {
   }
 
   private _config(): RTCConfiguration {
-    const { iceServers = [], prefetchIceCandidates } = this.options;
+    const {
+      iceServers = [],
+      prefetchIceCandidates,
+      forceRelayCandidate,
+    } = this.options;
 
     const config: RTCConfiguration = {
       bundlePolicy: 'max-compat',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
       iceServers,
+      iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
     };
 
     logger.info('RTC config', config);
