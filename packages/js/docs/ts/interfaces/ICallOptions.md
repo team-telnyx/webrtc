@@ -14,6 +14,7 @@ ICallOptions
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debugoutput)
 - [destinationNumber](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#destinationnumber)
+- [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#forcerelaycandidate)
 - [iceServers](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#iceservers)
 - [id](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#id)
 - [localElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localelement)
@@ -104,6 +105,14 @@ ___
 • **destinationNumber**: `string`
 
 Phone number or SIP URI to dial.
+
+___
+
+### forceRelayCandidate
+
+• `Optional` **forceRelayCandidate**: `boolean`
+
+Force the use of a relay ICE candidate.
 
 ___
 

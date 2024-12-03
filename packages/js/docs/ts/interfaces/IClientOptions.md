@@ -7,6 +7,7 @@ IClientOptions
 
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
+- [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#forcerelaycandidate)
 - [login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login)
 - [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
 - [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
@@ -30,6 +31,14 @@ ___
 • `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
 
 Debug output option
+
+___
+
+### forceRelayCandidate
+
+• `Optional` **forceRelayCandidate**: `boolean`
+
+Force the use of a relay ICE candidate.
 
 ___
 
