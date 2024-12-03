@@ -13,6 +13,8 @@ export function clearReconnectToken(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
-window.addEventListener('beforeunload', () => {
-  clearReconnectToken();
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    clearReconnectToken();
+  });
+}
