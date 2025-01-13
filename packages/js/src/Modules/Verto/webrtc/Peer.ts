@@ -83,18 +83,22 @@ export default class Peer {
     }
   }
 
-  public startDebugger() {
+  public async startDebugger() {
     if (!this.options.debug) {
       return;
     }
 
     this._webrtcStatsReporter = webRTCStatsReporter();
-    this._session.execute(this._webrtcStatsReporter.start());
+
+    await this._session.execute(this._webrtcStatsReporter.start());
 
     this._webrtcStatsReporter.debuggerInstance.on(
       'timeline',
       this._onDebugReportMessage
     );
+
+    // Wait for the connection to be established
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     this._webrtcStatsReporter.debuggerInstance.addConnection({
       pc: this.instance,
@@ -195,7 +199,7 @@ export default class Peer {
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
 
-    this.startDebugger();
+    await this.startDebugger();
 
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
@@ -480,11 +484,13 @@ export default class Peer {
     return config;
   }
 
-  private _onDebugReportMessage = (data) => {
+  private _onDebugReportMessage = async (data) => {
     if (!this.options.debug) {
       return;
     }
-    this._session.execute(this._webrtcStatsReporter.reportDataMessage(data));
+    await this._session.execute(
+      this._webrtcStatsReporter.reportDataMessage(data)
+    );
   };
 
   public close() {
