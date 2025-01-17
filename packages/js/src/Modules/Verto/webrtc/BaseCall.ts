@@ -337,6 +337,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     this.stopRingtone();
+    this.stopRingback();
     if (execute) {
       const bye = new Bye({
         sessid: this.session.sessionid,
