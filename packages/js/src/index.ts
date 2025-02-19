@@ -1,4 +1,5 @@
 import TelnyxRTC from './TelnyxRTC';
+
 import {
   ICall,
   IClientOptions,
@@ -21,3 +22,5 @@ export {
   ISIPClientOptions,
   ISIPCallOptions,
 };
+
+export * from './PreCallDiagnosis';
