@@ -132,7 +132,9 @@ const getMediaConstraints = async (
     }
   }
 
-  let { video = false, camId } = options;
+  let { camId } = options;
+  let video = options.video || hasVideo(options.remoteSdp);
+
   const { camLabel = '' } = options;
   if (camId) {
     camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
@@ -148,6 +150,20 @@ const getMediaConstraints = async (
 
   return { audio, video };
 };
+
+function hasVideo(sdp) {
+  // If no SDP provided, return false
+  if (!sdp) return false;
+
+  // Convert to string if needed
+  const sdpStr = typeof sdp === 'object' ? sdp.sdp : sdp;
+
+  // Look for video media section
+  // A video media section starts with "m=video"
+  return sdpStr
+    .split('\n')
+    .some((line) => line.trim().toLowerCase().startsWith('m=video'));
+}
 
 const assureDeviceId = async (
   id: string,
@@ -499,13 +515,8 @@ function getBrowserInfo() {
 
 function getWebRTCInfo(): IWebRTCInfo {
   try {
-    const {
-      browserInfo,
-      name,
-      version,
-      supportAudio,
-      supportVideo,
-    } = getBrowserInfo();
+    const { browserInfo, name, version, supportAudio, supportVideo } =
+      getBrowserInfo();
     const PC = window.RTCPeerConnection;
     const sessionDescription = window.RTCSessionDescription;
     const iceCandidate = window.RTCIceCandidate;
