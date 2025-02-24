@@ -1,3 +1,32 @@
+
+## [2.22.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.5...webrtc/v2.22.6) (2025-02-20)
+
+### Bug fixes
+
+fix: attach with video when receiving m=video sdp (#409)
+
+## [2.22.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.4...webrtc/v2.22.5) (2025-01-17)
+
+### Bug Fixes 
+
+fix(webrtc): Stop ringback tone when call is hung up (#406)
+
+## [2.22.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.3...webrtc/v2.22.4) (2025-01-14)
+
+### Bug fixes
+
+Fix inconsistency in reporting `addConnection` debug event through the websocket
+
+## [2.22.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.2...webrtc/v2.22.3) (2024-12-03)
+
+### Bug fixes
+
+fix: Fix compatibility with NextJS
+
+### Features
+
+feat: add option to force usage of relay candidate (#400)
+
 ## [2.22.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.1...webrtc/v2.22.2) (2024-11-14)
 
 ### Enhancement
