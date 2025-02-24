@@ -1,4 +1,4 @@
-name: Run on Release Publish
+name: Update Changelog
 
 on:
   release:
@@ -7,6 +7,9 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout code
