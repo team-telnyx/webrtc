@@ -94,6 +94,11 @@ export interface AnswerParams {
    * });
    */
   preferred_codecs?: Array<RTCRtpCodecCapability>;
+
+  /**
+   * ### Setting Media Constraints
+   */
+  video?: boolean;
 }
 
 export interface IWebRTCCall {

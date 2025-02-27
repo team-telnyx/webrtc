@@ -265,6 +265,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   answer(params: AnswerParams = {}) {
     this.stopRingtone();
 
+    this.options.video = params.video ?? this.options.video ?? false;
     this.direction = Direction.Inbound;
 
     if (params?.customHeaders?.length > 0) {
