@@ -133,7 +133,7 @@ const getMediaConstraints = async (
   }
 
   let { camId } = options;
-  let video = options.video || hasVideo(options.remoteSdp);
+  let video = options.video;
 
   const { camLabel = '' } = options;
   if (camId) {
