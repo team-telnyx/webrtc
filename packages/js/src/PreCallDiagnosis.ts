@@ -230,7 +230,10 @@ export class PreCallDiagnosis {
       debug: true,
     });
 
-    return _reportPromise.promise;
+    const report = await _reportPromise.promise;
+    await client.disconnect();
+
+    return report;
   }
 
   private static mapReport(report: any): Report {
