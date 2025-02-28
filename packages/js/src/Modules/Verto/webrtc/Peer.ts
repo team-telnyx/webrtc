@@ -112,6 +112,11 @@ export default class Peer {
       return;
     }
 
+    trigger(
+      SwEvent.StatsReport,
+      this._webrtcStatsReporter.debuggerInstance.getTimeline()
+    );
+
     this._session.execute(this._webrtcStatsReporter.stop());
     this._webrtcStatsReporter.debuggerInstance.destroy();
   }
