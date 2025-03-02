@@ -1,3 +1,4 @@
+import { calculateMOS, getQuality } from '../../../utils/mos';
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
@@ -493,6 +494,9 @@ export default class Peer {
     if (!this.options.debug) {
       return;
     }
+    if (data.event === 'stats') {
+      trigger(SwEvent.StatsFrame, toRealtimeMetrics(data), this._session.uuid);
+    }
     await this._session.execute(
       this._webrtcStatsReporter.reportDataMessage(data)
     );
@@ -510,4 +514,31 @@ export default class Peer {
 
     this.stopDebugger();
   }
+}
+
+function toRealtimeMetrics({ data }) {
+  const { audio, remote } = data;
+  const { audio: remoteAudio } = remote;
+  const jitter = remoteAudio.inbound[0]?.jitter ?? Infinity;
+  const rtt = remoteAudio.inbound[0]?.roundTripTime ?? Infinity;
+  const packetsReceived = audio.inbound[0]?.packetsReceived ?? -1;
+  const packetsLost = audio.inbound[0]?.packetsLost ?? -1;
+
+  const mos = calculateMOS({
+    jitter: jitter * 1000, // in ms
+    rtt: rtt * 1000, // in ms
+    packetsLost: packetsLost,
+    packetsReceived: packetsReceived,
+  });
+
+  return {
+    jitter,
+    rtt,
+    mos,
+    quality: getQuality(mos),
+    inboundAudio: audio.inbound[0],
+    outboundAudio: audio.outbound[0],
+    remoteInboundAudio: remoteAudio.inbound[0],
+    remoteOutboundAudio: remoteAudio.outbound[0],
+  };
 }

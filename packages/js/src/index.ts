@@ -10,7 +10,7 @@ import {
   ISIPClientOptions,
   ISIPCallOptions,
 } from './utils/interfaces';
-
+import { SwEvent } from './Modules/Verto/util/constants';
 export {
   TelnyxRTC,
   ICall,
@@ -21,6 +21,7 @@ export {
   MessageEvents,
   ISIPClientOptions,
   ISIPCallOptions,
+  SwEvent,
 };
 
 export * from './PreCallDiagnosis';
