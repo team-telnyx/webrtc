@@ -47,7 +47,11 @@ function calculateEquipmentImpairment(data: {
 }
 
 export type Quality = 'excellent' | 'good' | 'fair' | 'poor' | 'bad';
-export function getQuality(mos: number): Quality {
+
+export function getQuality(mos: number): Quality | null {
+  if (isNaN(mos)) {
+    return null;
+  }
   if (mos > 4.2) {
     return 'excellent';
   } else if (mos >= 4.1 && mos <= 4.2) {
