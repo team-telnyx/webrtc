@@ -1,4 +1,14 @@
 
+## [2.22.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.6...webrtc/v2.22.7) (2025-03-06)
+
+### Features
+
+feat: implement real time call quality metrics (#414)
+feat: implement pre-call diagnosis (#407)
+
+### Bug fixes
+fix: disable automatic video response in favor of answer option (#413)
+
 ## [2.22.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.5...webrtc/v2.22.6) (2025-02-20)
 
 ### Bug fixes
