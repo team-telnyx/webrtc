@@ -171,6 +171,45 @@ const call = client.newCall({
 // You can change the debugOutput option to 'file'
 ```
 
+### In-Call Quality Metrics
+
+To be able to get the in-call quality metrics you have to first enable debugging for the call and then listen for the `telnyx.stats.frame` event.
+
+```js
+const call = client.newCall({
+  // Destination is required and can be a phone number or SIP URI
+  destinationNumber: '18004377950',
+  debug: true, // it is required to enable debugging for the call,
+});
+
+client.on('telnyx.stats.frame', (stats) => {
+  console.log(stats);
+});
+```
+
+### Pre-Call Diagnosis
+
+To be able to run pre-call diagnosis you can use the `PreCallDiagnosis.run` method.
+
+```js
+import { PreCallDiagnosis } from '@telnyx/webrtc';
+
+PreCallDiagnosis.run({
+  credentials: {
+    login: clientOptions.login,
+    password: clientOptions.password,
+    loginToken: clientOptions.login_token,
+  },
+  texMLApplicationNumber: '+1-240-775-8982',
+})
+  .then((report) => {
+    console.log(report);
+  })
+  .catch((error) => {
+    console.error(error);
+  });
+```
+
 ### Setting Preferred Codec
 
 You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
