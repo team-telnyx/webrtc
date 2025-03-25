@@ -13,18 +13,11 @@ import {
   RTCPeerConnection,
   attachMediaStream,
   muteMediaElement,
-  sdpToJsonHack,
   streamIsValid,
+  convertUnifiedPlanToPlanB,
 } from '../util/webrtc';
 import { PeerType } from './constants';
-import {
-  getMediaConstraints,
-  getUserMedia,
-  sdpBitrateASHack,
-  sdpBitrateHack,
-  sdpMediaOrderHack,
-  sdpStereoHack,
-} from './helpers';
+import { getMediaConstraints, getUserMedia } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 /**
  * @ignore Hide in docs output
@@ -354,26 +347,16 @@ export default class Peer {
   }
 
   private _setRemoteDescription(remoteDescription: RTCSessionDescriptionInit) {
-    if (this.options.useStereo) {
-      remoteDescription.sdp = sdpStereoHack(remoteDescription.sdp);
-    }
-    if (this.instance.localDescription) {
-      remoteDescription.sdp = sdpMediaOrderHack(
-        remoteDescription.sdp,
-        this.instance.localDescription.sdp
-      );
-    }
-    const sessionDescr: RTCSessionDescription =
-      sdpToJsonHack(remoteDescription);
-    logger.info(
-      'REMOTE SDP \n',
-      `Type: ${remoteDescription.type}`,
-      '\n\n',
-      remoteDescription.sdp
+    return this.instance.setRemoteDescription(
+      convertUnifiedPlanToPlanB(remoteDescription)
     );
-    return this.instance.setRemoteDescription(sessionDescr);
   }
 
+  private _setLocalDescription(localDescription: RTCSessionDescriptionInit) {
+    return this.instance.setLocalDescription(
+      convertUnifiedPlanToPlanB(localDescription)
+    );
+  }
   private async _createAnswer() {
     if (!this._isAnswer()) {
       return;
@@ -401,41 +384,6 @@ export default class Peer {
     this._logTransceivers();
     const answer = await this.instance.createAnswer();
     await this._setLocalDescription(answer);
-  }
-
-  private _setLocalDescription(sessionDescription: RTCSessionDescriptionInit) {
-    const {
-      useStereo,
-      googleMaxBitrate,
-      googleMinBitrate,
-      googleStartBitrate,
-      mediaSettings,
-    } = this.options;
-
-    if (useStereo) {
-      sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
-    }
-
-    if (googleMaxBitrate && googleMinBitrate && googleStartBitrate) {
-      sessionDescription.sdp = sdpBitrateHack(
-        sessionDescription.sdp,
-        googleMaxBitrate,
-        googleMinBitrate,
-        googleStartBitrate
-      );
-    }
-
-    if (
-      mediaSettings &&
-      mediaSettings.useSdpASBandwidthKbps &&
-      mediaSettings.sdpASBandwidthKbps !== null
-    ) {
-      sessionDescription.sdp = sdpBitrateASHack(
-        sessionDescription.sdp,
-        mediaSettings.sdpASBandwidthKbps
-      );
-    }
-    return this.instance.setLocalDescription(sessionDescription);
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
@@ -479,13 +427,15 @@ export default class Peer {
       forceRelayCandidate,
     } = this.options;
 
-    const config: RTCConfiguration = {
+    const config: any = {
+      sdpSemantics: 'plan-b',
       bundlePolicy: 'max-compat',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
       iceServers,
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
     };
 
+    console.log('config', config);
     logger.info('RTC config', config);
     return config;
   }

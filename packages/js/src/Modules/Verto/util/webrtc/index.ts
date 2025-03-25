@@ -92,6 +92,120 @@ const setMediaElementSinkId = async (
   }
 };
 
+/**
+ * Converts an RTCSessionDescription SDP from Unified Plan to Plan B semantics
+ * 
+ * @param sessionDescription - The RTCSessionDescription object with Unified Plan SDP
+ * @returns A new RTCSessionDescription object with Plan B SDP
+ */
+export function convertUnifiedPlanToPlanB(sessionDescription: RTCSessionDescriptionInit): RTCSessionDescriptionInit {
+  if (!sessionDescription || !sessionDescription.sdp) {
+    return sessionDescription;
+  }
+
+  const sdp = sessionDescription.sdp;
+  
+  // Parse the SDP into sections
+  const sections = sdp.split('m=');
+  const firstSection = sections.shift();
+  
+  // Group media sections by type (audio/video)
+  const mediaTypes = {
+    audio: [],
+    video: []
+  };
+  
+  sections.forEach(section => {
+    if (section.startsWith('audio')) {
+      mediaTypes.audio.push('m=' + section);
+    } else if (section.startsWith('video')) {
+      mediaTypes.video.push('m=' + section);
+    }
+  });
+  
+  // Create Plan B SDP by consolidating tracks of the same media type
+  let planBSdp = firstSection;
+  
+  // Process audio sections
+  if (mediaTypes.audio.length > 0) {
+    const consolidatedAudio = consolidateMediaSections(mediaTypes.audio);
+    planBSdp += consolidatedAudio;
+  }
+  
+  // Process video sections
+  if (mediaTypes.video.length > 0) {
+    const consolidatedVideo = consolidateMediaSections(mediaTypes.video);
+    planBSdp += consolidatedVideo;
+  }
+  
+  return {
+    type: sessionDescription.type,
+    sdp: planBSdp
+  };
+}
+
+/**
+ * Helper function to consolidate multiple media sections of the same type
+ * into a single Plan B media section
+ */
+function consolidateMediaSections(sections: string[]): string {
+  if (sections.length === 0) return '';
+  if (sections.length === 1) return sections[0];
+  
+  // Take the first section as the base
+  const firstSection = sections[0];
+  const mLine = firstSection.split('\r\n')[0];
+  
+  // Extract all SSRCs and related attributes from all sections
+  let ssrcs: string[] = [];
+  let ssrcGroups: string[] = [];
+  let rtpMappings: Set<string> = new Set();
+  let rtcpFb: Set<string> = new Set();
+  let fmtp: Set<string> = new Set();
+  
+  sections.forEach(section => {
+    const lines = section.split('\r\n');
+    
+    lines.forEach(line => {
+      if (line.includes('a=ssrc:')) {
+        ssrcs.push(line);
+      } else if (line.includes('a=ssrc-group:')) {
+        ssrcGroups.push(line);
+      } else if (line.includes('a=rtpmap:')) {
+        rtpMappings.add(line);
+      } else if (line.includes('a=rtcp-fb:')) {
+        rtcpFb.add(line);
+      } else if (line.includes('a=fmtp:')) {
+        fmtp.add(line);
+      }
+    });
+  });
+  
+  // Build the consolidated section
+  let result = mLine + '\r\n';
+  
+  // Add common attributes from the first section
+  const lines = firstSection.split('\r\n');
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.includes('a=ssrc:') && 
+        !line.includes('a=ssrc-group:') &&
+        !line.includes('a=rtpmap:') &&
+        !line.includes('a=rtcp-fb:') &&
+        !line.includes('a=fmtp:')) {
+      result += line + '\r\n';
+    }
+  }
+  
+  // Add consolidated attributes
+  [...rtpMappings].forEach(line => result += line + '\r\n');
+  [...rtcpFb].forEach(line => result += line + '\r\n');
+  [...fmtp].forEach(line => result += line + '\r\n');
+  ssrcGroups.forEach(line => result += line + '\r\n');
+  ssrcs.forEach(line => result += line + '\r\n');
+  
+  return result;
+}
 const sdpToJsonHack = (sdp) => sdp;
 
 const stopTrack = (track: MediaStreamTrack) => {
