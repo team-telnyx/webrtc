@@ -25,6 +25,7 @@ export interface IVertoOptions {
   debugOutput?: 'socket' | 'file';
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  region?: string;
 }
 export interface SubscribeParams {
   channels?: string[];

@@ -36,14 +36,18 @@ export default class Connection {
   public downDur: number = null;
 
   constructor(public session: BaseSession) {
-    const { host, env } = session.options;
+    const { host, env, region } = session.options;
+
+    if (env) {
+      this._host = env === 'development' ? DEV_HOST : PROD_HOST;
+    }
 
     if (host) {
       this._host = checkWebSocketHost(host);
     }
 
-    if (env) {
-      this._host = env === 'development' ? DEV_HOST : PROD_HOST;
+    if (region) {
+      this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
   }
 

@@ -73,6 +73,11 @@ export interface IClientOptions {
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;
+
+  /**
+   * Region to use for the connection.
+   */
+  region?: string;
 }
 
 export interface ISIPCallOptions {
