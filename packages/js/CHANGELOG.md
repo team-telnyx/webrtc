@@ -1,3 +1,8 @@
+## [2.22.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.7...webrtc/v2.22.8) (2025-03-28)
+
+### Features
+
+feat: regional subdomains for voice-sdk (#417)
 
 ## [2.22.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.6...webrtc/v2.22.7) (2025-03-06)
 
