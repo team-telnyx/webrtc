@@ -12,6 +12,7 @@ IClientOptions
 - [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
 - [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
 - [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#prefetchicecandidates)
+- [region](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#region)
 - [ringbackFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringbackfile)
 - [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
 
@@ -74,6 +75,14 @@ ___
 • `Optional` **prefetchIceCandidates**: `boolean`
 
 Enable or disable prefetching ICE candidates.
+
+___
+
+### region
+
+• `Optional` **region**: `string`
+
+Region to use for the connection.
 
 ___
 
