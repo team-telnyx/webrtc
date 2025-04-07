@@ -78,6 +78,14 @@ export interface IClientOptions {
    * Region to use for the connection.
    */
   region?: string;
+
+  /**
+   * anonymous_login login options
+   */
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+  };
 }
 
 export interface ISIPCallOptions {
