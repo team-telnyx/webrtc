@@ -4,9 +4,8 @@ export interface IMediaSettings {
 }
 
 export interface IVertoCallOptions {
-  // Required
-  destinationNumber: string;
   // Optional
+  destinationNumber?: string;
   remoteCallerName?: string;
   remoteCallerNumber?: string;
   callerName?: string;
