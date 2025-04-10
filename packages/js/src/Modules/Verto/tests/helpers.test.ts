@@ -6,7 +6,7 @@ import {
   isDefined,
   checkWebSocketHost,
   destructResponse,
-  isValidOptions,
+  isValidLoginOptions,
 } from '../util/helpers';
 
 describe('Helpers functions', () => {
@@ -190,7 +190,7 @@ describe('Helpers functions', () => {
   describe('isValidOptions()', () => {
     it('should return false if is a empty object', () => {
       const options: IVertoOptions = {};
-      expect(isValidOptions(options)).toBeFalsy();
+      expect(isValidLoginOptions(options)).toBeFalsy();
     });
     it('should return false if none of options is provided', () => {
       const options: IVertoOptions = {
@@ -199,27 +199,27 @@ describe('Helpers functions', () => {
         passwd: '',
         login_token: '',
       };
-      expect(isValidOptions(options)).toBeFalsy();
+      expect(isValidLoginOptions(options)).toBeFalsy();
     });
     it('should return true if login and password is provided', () => {
       const options: IVertoOptions = {
         login: 'deivid',
         password: 'test',
       };
-      expect(isValidOptions(options)).toBeTruthy();
+      expect(isValidLoginOptions(options)).toBeTruthy();
     });
     it('should return true if login and passwd is provided', () => {
       const options: IVertoOptions = {
         login: 'deivid',
         passwd: 'test',
       };
-      expect(isValidOptions(options)).toBeTruthy();
+      expect(isValidLoginOptions(options)).toBeTruthy();
     });
     it('should return true if only login_token is provided', () => {
       const options: IVertoOptions = {
         login_token: 'asdfkasdf1243123njn123oi4n',
       };
-      expect(isValidOptions(options)).toBeTruthy();
+      expect(isValidLoginOptions(options)).toBeTruthy();
     });
   });
 });

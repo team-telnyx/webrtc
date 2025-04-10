@@ -26,6 +26,13 @@ export interface IVertoOptions {
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   region?: string;
+  /**
+   * anonymous_login login options
+   */
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+  };
 }
 export interface SubscribeParams {
   channels?: string[];

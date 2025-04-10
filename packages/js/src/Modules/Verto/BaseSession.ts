@@ -10,7 +10,12 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import { SwEvent } from './util/constants';
-import { isFunction, isValidOptions, randomInt } from './util/helpers';
+import {
+  isFunction,
+  isValidAnonymousLoginOptions,
+  isValidLoginOptions,
+  randomInt,
+} from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
 
@@ -116,7 +121,10 @@ export default abstract class BaseSession {
    * @ignore
    */
   validateOptions() {
-    return isValidOptions(this.options);
+    return (
+      isValidLoginOptions(this.options) ||
+      isValidAnonymousLoginOptions(this.options)
+    );
   }
 
   /**

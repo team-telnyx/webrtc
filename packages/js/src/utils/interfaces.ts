@@ -78,6 +78,14 @@ export interface IClientOptions {
    * Region to use for the connection.
    */
   region?: string;
+
+  /**
+   * anonymous_login login options
+   */
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+  };
 }
 
 export interface ISIPCallOptions {
@@ -120,7 +128,7 @@ export interface ICallOptions {
   /**
    * Phone number or SIP URI to dial.
    */
-  destinationNumber: string;
+  destinationNumber?: string;
   /**
    * Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.
    */
