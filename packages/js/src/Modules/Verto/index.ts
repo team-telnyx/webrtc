@@ -105,7 +105,9 @@ export default class Verto extends BrowserSession {
       !!getReconnectToken()
     );
     const response = await this.execute(msg).catch(this._handleLoginError);
-    console.log(response);
+    if (response) {
+      this.sessionid = response.sessid;
+    }
   };
 
   private validateCallOptions(options: IVertoCallOptions) {
