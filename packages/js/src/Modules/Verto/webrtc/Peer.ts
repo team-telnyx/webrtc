@@ -173,6 +173,7 @@ export default class Peer {
     const { remoteElement, screenShare } = this.options;
     let { remoteStream } = this.options;
 
+    console.log('TRACK EVENT!', first);
     remoteStream = first;
 
     if (screenShare === false) {

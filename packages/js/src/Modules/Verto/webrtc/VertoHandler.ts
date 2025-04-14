@@ -71,6 +71,7 @@ class VertoHandler {
     }
 
     const _buildCall = () => {
+      console.log('session options', session.options);
       const callOptions: IVertoCallOptions = {
         id: callID,
         remoteSdp: params.sdp,

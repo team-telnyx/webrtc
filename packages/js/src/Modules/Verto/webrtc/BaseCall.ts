@@ -182,6 +182,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
       this._ringback = createAudio(this.options.ringbackFile, '_ringback');
     }
+    console.log('callOptions', this.options);
   }
 
   get nodeId(): string {
