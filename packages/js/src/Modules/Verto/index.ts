@@ -9,8 +9,12 @@ import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
 import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
-import { isValidOptions } from './util/helpers';
+import {
+  isValidAnonymousLoginOptions,
+  isValidLoginOptions,
+} from './util/helpers';
 import { getReconnectToken } from './util/reconnect';
+import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -34,11 +38,14 @@ export default class Verto extends BrowserSession {
   }
 
   validateOptions() {
-    return isValidOptions(this.options);
+    return (
+      isValidLoginOptions(this.options) ||
+      isValidAnonymousLoginOptions(this.options)
+    );
   }
 
   newCall(options: IVertoCallOptions) {
-    if (!options || !options.destinationNumber) {
+    if (!this.validateCallOptions(options)) {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
     }
 
@@ -60,7 +67,7 @@ export default class Verto extends BrowserSession {
     return this.vertoUnsubscribe(params);
   }
 
-  protected async _onSocketOpen() {
+  private handleLoginOnSocketOpen = async () => {
     this._idle = false;
     const {
       login,
@@ -83,6 +90,39 @@ export default class Verto extends BrowserSession {
     if (response) {
       this._autoReconnect = autoReconnect;
       this.sessionid = response.sessid;
+    }
+  };
+
+  private handleAnonymousLoginOnSocketOpen = async () => {
+    this._idle = false;
+    const { anonymous_login } = this.options;
+    const { target_type, target_id } = anonymous_login;
+    const msg = new AnonymousLogin(
+      target_type,
+      target_id,
+      this.sessionid,
+      this.options.userVariables,
+      !!getReconnectToken()
+    );
+    const response = await this.execute(msg).catch(this._handleLoginError);
+    if (response) {
+      this.sessionid = response.sessid;
+    }
+  };
+
+  private validateCallOptions(options: IVertoCallOptions) {
+    if (isValidAnonymousLoginOptions(this.options)) {
+      return true;
+    }
+    return Boolean(options.destinationNumber);
+  }
+
+  protected async _onSocketOpen() {
+    if (isValidLoginOptions(this.options)) {
+      return this.handleLoginOnSocketOpen();
+    }
+    if (isValidAnonymousLoginOptions(this.options)) {
+      return this.handleAnonymousLoginOnSocketOpen();
     }
   }
 

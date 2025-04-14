@@ -121,7 +121,7 @@ export const randomInt = (min: number, max: number) => {
  * Verto requires host, login, passwd OR password
  * @return boolean
  */
-export const isValidOptions = ({
+export const isValidLoginOptions = ({
   login,
   passwd,
   password,
@@ -130,6 +130,16 @@ export const isValidOptions = ({
   const isLogin = login && (passwd || password);
   const isToken = login_token;
   return Boolean(isLogin || isToken);
+};
+
+export const isValidAnonymousLoginOptions = ({
+  anonymous_login,
+}: IVertoOptions) => {
+  return (
+    Boolean(anonymous_login) &&
+    Boolean(anonymous_login.target_id) &&
+    Boolean(anonymous_login.target_type)
+  );
 };
 
 export const getGatewayState = (msg: IMessageRPC): GatewayStateType | '' => {
