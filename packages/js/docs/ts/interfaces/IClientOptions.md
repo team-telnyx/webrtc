@@ -5,6 +5,7 @@ IClientOptions
 
 ### Properties
 
+- [anonymous\_login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#anonymous_login)
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
 - [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#forcerelaycandidate)
@@ -17,6 +18,21 @@ IClientOptions
 - [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
 
 ## Properties
+
+### anonymous\_login
+
+• `Optional` **anonymous\_login**: `Object`
+
+anonymous_login login options
+
+#### Type declaration
+
+| Name | Type |
+| :------ | :------ |
+| `target_id` | `string` |
+| `target_type` | `string` |
+
+___
 
 ### debug
 

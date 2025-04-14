@@ -102,7 +102,7 @@ ___
 
 ### destinationNumber
 
-• **destinationNumber**: `string`
+• `Optional` **destinationNumber**: `string`
 
 Phone number or SIP URI to dial.
 
