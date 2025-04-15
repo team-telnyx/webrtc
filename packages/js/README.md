@@ -238,6 +238,39 @@ use `client.getIsRegistered` method
 client.getIsRegistered().then(isRegistered => {...})
 ```
 
+### Anonymous Login for AI assistant
+
+The TelnyxRTC client can be used with an AI assistant by using the `anonymous_login` method. This allows you to authenticate without a SIP connection, making it easier to integrate with AI assistants.
+
+```js
+const client = new TelnyxRTC({
+  anonymous_login: {
+    target_id: 'YOUR_TARGET_ID',
+    target_type: 'ai_assistant',
+  },
+});
+
+client.connect();
+```
+
+This will allow you to use the TelnyxRTC client without a SIP connection, making it easier to integrate with AI assistants.
+
+Making calls with the AI assistant is similar to making calls with a SIP connection. You can use the `newCall` method to initiate a call, the destination number can be left blank. however it is recommended to use the `opus` codec
+
+```js
+function getOpusCodec() {
+  const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
+  const codec = allCodecs.find((codec) => codec.mimeType === 'audio/opus');
+  return codec;
+}
+
+const call = client.newCall({
+  destinationNumber: '',
+  remoteElement: 'remoteElement',
+  preferred_codecs: [getOpusCodec()],
+});
+```
+
 ---
 
 ## Examples

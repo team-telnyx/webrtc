@@ -1,3 +1,9 @@
+## [2.22.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.8...webrtc/v2.22.9) (2025-04-14)
+
+### Features
+
+feat: anonymous login and ai_agent calls (#420)
+
 ## [2.22.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.7...webrtc/v2.22.8) (2025-03-28)
 
 ### Features
