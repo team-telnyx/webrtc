@@ -242,10 +242,13 @@ client.getIsRegistered().then(isRegistered => {...})
 
 The TelnyxRTC client can be used with an AI assistant by using the `anonymous_login` method. This allows you to authenticate without a SIP connection, making it easier to integrate with AI assistants.
 
+**Note:** In order for anonymous login to work, you have to set `telephony_settings.supports_unauthenticated_web_calls` to `true` via the API or in the assistant's telephony settings tab in the portal.
+
 ```js
 const client = new TelnyxRTC({
   anonymous_login: {
-    target_id: 'YOUR_TARGET_ID',
+    /** Your AI assistant's ID */
+    target_id: 'assistant-UUID',
     target_type: 'ai_assistant',
   },
 });
@@ -253,21 +256,29 @@ const client = new TelnyxRTC({
 client.connect();
 ```
 
-This will allow you to use the TelnyxRTC client without a SIP connection, making it easier to integrate with AI assistants.
+### Making Calls to AI Assistants
 
-Making calls with the AI assistant is similar to making calls with a SIP connection. You can use the `newCall` method to initiate a call, the destination number can be left blank. however it is recommended to use the `opus` codec
+Making calls to the AI assistant is similar to making calls with a SIP connection. You can use the `newCall` method to initiate a call, the destination number can be left blank.
 
 ```js
-function getOpusCodec() {
-  const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
-  const codec = allCodecs.find((codec) => codec.mimeType === 'audio/opus');
-  return codec;
-}
-
 const call = client.newCall({
   destinationNumber: '',
   remoteElement: 'remoteElement',
-  preferred_codecs: [getOpusCodec()],
+  /** other call options. */
+});
+```
+
+Its recommended that you set the preferred codec to `opus` by passing the `preferred_codecs` option to the `newCall` method when calling AI assistants.
+
+```js
+const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
+const opusCodec = allCodecs.find((c) =>
+  c.mimeType.toLowerCase().includes('opus')
+);
+
+client.newCall({
+  destinationNumber: '',
+  preferred_codecs: [opusCodec],
 });
 ```
 
