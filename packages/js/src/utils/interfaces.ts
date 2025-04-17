@@ -83,7 +83,14 @@ export interface IClientOptions {
    * anonymous_login login options
    */
   anonymous_login?: {
+    /**
+     * A string indicating the target type, for now only `ai_assistant` is supported.
+     */
     target_type: string;
+    /**
+     * The target ID to use for the anonymous login.
+     * this is typically the ID of the AI assistant you want to connect to.
+     */
     target_id: string;
   };
 }
