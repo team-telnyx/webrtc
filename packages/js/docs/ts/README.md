@@ -11,6 +11,7 @@
 ### Other Classes
 
 - [PreCallDiagnosis](/docs/voice/webrtc/js-sdk/classes/PreCallDiagnosis.md)
+- [WebRTCStats](/docs/voice/webrtc/js-sdk/classes/WebRTCStats.md)
 
 ### Notification Interfaces
 
@@ -25,3 +26,4 @@
 - [RTCIceCandidateStats](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)
 - [Report](/docs/voice/webrtc/js-sdk/interfaces/Report.md)
 - [TelnyxIDs](/docs/voice/webrtc/js-sdk/interfaces/TelnyxIDs.md)
+- [WebRTCStatsEvents](/docs/voice/webrtc/js-sdk/interfaces/WebRTCStatsEvents.md)
