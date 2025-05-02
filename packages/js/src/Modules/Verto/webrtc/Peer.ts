@@ -16,12 +16,11 @@ import {
   sdpToJsonHack,
   streamIsValid,
 } from '../util/webrtc';
+import { unifiedToPlanB } from '../util/webrtc/plan-b';
 import { PeerType } from './constants';
 import {
   getMediaConstraints,
   getUserMedia,
-  sdpBitrateASHack,
-  sdpBitrateHack,
   sdpMediaOrderHack,
   sdpStereoHack,
 } from './helpers';
@@ -404,37 +403,42 @@ export default class Peer {
   }
 
   private _setLocalDescription(sessionDescription: RTCSessionDescriptionInit) {
-    const {
-      useStereo,
-      googleMaxBitrate,
-      googleMinBitrate,
-      googleStartBitrate,
-      mediaSettings,
-    } = this.options;
+    // const {
+    //   useStereo,
+    //   googleMaxBitrate,
+    //   googleMinBitrate,
+    //   googleStartBitrate,
+    //   mediaSettings,
+    // } = this.options;
 
-    if (useStereo) {
-      sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
-    }
+    // if (useStereo) {
+    //   sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
+    // }
 
-    if (googleMaxBitrate && googleMinBitrate && googleStartBitrate) {
-      sessionDescription.sdp = sdpBitrateHack(
-        sessionDescription.sdp,
-        googleMaxBitrate,
-        googleMinBitrate,
-        googleStartBitrate
-      );
-    }
+    // if (googleMaxBitrate && googleMinBitrate && googleStartBitrate) {
+    //   sessionDescription.sdp = sdpBitrateHack(
+    //     sessionDescription.sdp,
+    //     googleMaxBitrate,
+    //     googleMinBitrate,
+    //     googleStartBitrate
+    //   );
+    // }
 
-    if (
-      mediaSettings &&
-      mediaSettings.useSdpASBandwidthKbps &&
-      mediaSettings.sdpASBandwidthKbps !== null
-    ) {
-      sessionDescription.sdp = sdpBitrateASHack(
-        sessionDescription.sdp,
-        mediaSettings.sdpASBandwidthKbps
-      );
-    }
+    // if (
+    //   mediaSettings &&
+    //   mediaSettings.useSdpASBandwidthKbps &&
+    //   mediaSettings.sdpASBandwidthKbps !== null
+    // ) {
+    //   sessionDescription.sdp = sdpBitrateASHack(
+    //     sessionDescription.sdp,
+    //     mediaSettings.sdpASBandwidthKbps
+    //   );
+    // }
+    // if (sessionDescription.type === 'offer') {
+    sessionDescription.sdp = unifiedToPlanB(sessionDescription.sdp);
+    console.log(sessionDescription.sdp);
+    // }
+
     return this.instance.setLocalDescription(sessionDescription);
   }
 
@@ -479,11 +483,13 @@ export default class Peer {
       forceRelayCandidate,
     } = this.options;
 
-    const config: RTCConfiguration = {
-      bundlePolicy: 'max-compat',
+    const config: any = {
+      bundlePolicy: 'balanced',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
       iceServers,
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
+      rtcpMuxPolicy: 'negotiate' as any,
+      sdpSemantics: 'plan-b',
     };
 
     logger.info('RTC config', config);
