@@ -1,18 +1,14 @@
-import { calculateMOS, getQuality } from '../../../utils/mos';
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import {
-  WebRTCStatsReporter,
-  saveToFile,
-  webRTCStatsReporter,
-} from '../util/debug';
+import { createWebRTCStatsReporter, WebRTCStatsReporter } from '../util/debug';
+
 import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
 import {
-  RTCPeerConnection,
   attachMediaStream,
   muteMediaElement,
+  RTCPeerConnection,
   sdpToJsonHack,
   streamIsValid,
 } from '../util/webrtc';
@@ -37,7 +33,7 @@ export default class Peer {
     offerToReceiveVideo: boolean;
   };
 
-  private _webrtcStatsReporter: WebRTCStatsReporter;
+  private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
 
@@ -64,6 +60,10 @@ export default class Peer {
     this._session = session;
 
     this._init();
+
+    if (this.isDebugEnabled) {
+      this.statsReporter = createWebRTCStatsReporter(session);
+    }
   }
 
   get isOffer() {
@@ -74,6 +74,13 @@ export default class Peer {
     return this.type === PeerType.Answer;
   }
 
+  get isDebugEnabled() {
+    return this.options.debug || this._session.options.debug;
+  }
+
+  get debugOutput() {
+    return this.options.debugOutput || this._session.options.debugOutput;
+  }
   startNegotiation() {
     this._negotiating = true;
 
@@ -82,44 +89,6 @@ export default class Peer {
     } else {
       this._createAnswer();
     }
-  }
-
-  public async startDebugger() {
-    if (!this.options.debug) {
-      return;
-    }
-
-    this._webrtcStatsReporter = webRTCStatsReporter();
-
-    await this._session.execute(this._webrtcStatsReporter.start());
-
-    this._webrtcStatsReporter.debuggerInstance.on(
-      'timeline',
-      this._onDebugReportMessage
-    );
-
-    // Wait for the connection to be established
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    this._webrtcStatsReporter.debuggerInstance.addConnection({
-      pc: this.instance,
-      peerId: this.options.id,
-      connectionId: this.options.telnyxSessionId,
-    });
-  }
-
-  public stopDebugger() {
-    if (!this.options.debug) {
-      return;
-    }
-
-    trigger(
-      SwEvent.StatsReport,
-      this._webrtcStatsReporter.debuggerInstance.getTimeline()
-    );
-
-    this._session.execute(this._webrtcStatsReporter.stop());
-    this._webrtcStatsReporter.debuggerInstance.destroy();
   }
 
   private _logTransceivers() {
@@ -205,8 +174,6 @@ export default class Peer {
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());
 
-    await this.startDebugger();
-
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;
     this.instance.ontrack = this.handleTrackEvent;
@@ -248,6 +215,11 @@ export default class Peer {
   };
   private async _init() {
     await this.createPeerConnection();
+    await this.statsReporter?.start(
+      this.instance,
+      this._session.sessionid,
+      this._session.sessionid
+    );
 
     const {
       localElement,
@@ -490,55 +462,10 @@ export default class Peer {
     return config;
   }
 
-  private _onDebugReportMessage = async (data) => {
-    if (!this.options.debug) {
-      return;
+  public async close() {
+    if (this.instance) {
+      this.instance.close();
+      this.instance = null;
     }
-    if (data.event === 'stats') {
-      trigger(SwEvent.StatsFrame, toRealtimeMetrics(data), this._session.uuid);
-    }
-    await this._session.execute(
-      this._webrtcStatsReporter.reportDataMessage(data)
-    );
-  };
-
-  public close() {
-    if (!this.options.debug) {
-      return;
-    }
-
-    if (this.options.debugOutput === 'file') {
-      const timeline = this._webrtcStatsReporter.debuggerInstance.getTimeline();
-      saveToFile(timeline, this.options.telnyxSessionId);
-    }
-
-    this.stopDebugger();
   }
-}
-
-function toRealtimeMetrics({ data }) {
-  const { audio, remote } = data;
-  const { audio: remoteAudio } = remote;
-  const jitter = remoteAudio.inbound[0]?.jitter ?? Infinity;
-  const rtt = remoteAudio.inbound[0]?.roundTripTime ?? Infinity;
-  const packetsReceived = audio.inbound[0]?.packetsReceived ?? -1;
-  const packetsLost = audio.inbound[0]?.packetsLost ?? -1;
-
-  const mos = calculateMOS({
-    jitter: jitter * 1000, // in ms
-    rtt: rtt * 1000, // in ms
-    packetsLost: packetsLost,
-    packetsReceived: packetsReceived,
-  });
-
-  return {
-    jitter,
-    rtt,
-    mos,
-    quality: getQuality(mos),
-    inboundAudio: audio.inbound[0],
-    outboundAudio: audio.outbound[0],
-    remoteInboundAudio: remoteAudio.inbound[0],
-    remoteOutboundAudio: remoteAudio.outbound[0],
-  };
 }

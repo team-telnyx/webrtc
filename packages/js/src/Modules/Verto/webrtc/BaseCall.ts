@@ -150,6 +150,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       camLabel,
       localElement,
       remoteElement,
+      options,
       mediaConstraints: { audio, video },
       ringtoneFile,
       ringbackFile,
@@ -170,6 +171,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         speakerId,
         ringtoneFile,
         ringbackFile,
+        debug: options.debug,
+        debugOutput: options.debugOutput,
       },
       opts
     );
@@ -332,8 +335,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     ];
     this.setState(State.Hangup);
 
-    const _close = () => {
-      this.peer?.close();
+    const _close = async () => {
+      await this.peer?.close();
       return this.setState(State.Destroy);
     };
 
