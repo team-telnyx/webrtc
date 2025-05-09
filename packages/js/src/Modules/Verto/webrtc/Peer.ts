@@ -462,7 +462,7 @@ export default class Peer {
     return config;
   }
 
-  public async close() {
+  public close() {
     if (this.instance) {
       this.instance.close();
       this.instance = null;

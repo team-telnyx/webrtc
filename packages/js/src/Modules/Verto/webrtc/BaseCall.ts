@@ -335,8 +335,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     ];
     this.setState(State.Hangup);
 
-    const _close = async () => {
-      await this.peer?.close();
+    const _close = () => {
+      this.peer?.close();
       return this.setState(State.Destroy);
     };
 
