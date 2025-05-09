@@ -27,10 +27,10 @@ anonymous_login login options
 
 #### Type declaration
 
-| Name | Type |
-| :------ | :------ |
-| `target_id` | `string` |
-| `target_type` | `string` |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `target_id` | `string` | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to. |
+| `target_type` | `string` | A string indicating the target type, for now only `ai_assistant` is supported. |
 
 ___
 
