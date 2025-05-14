@@ -462,7 +462,8 @@ export default class Peer {
     return config;
   }
 
-  public close() {
+  public async close() {
+    await this.statsReporter?.stop(this.debugOutput);
     if (this.instance) {
       this.instance.close();
       this.instance = null;
