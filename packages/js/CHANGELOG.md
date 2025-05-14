@@ -1,3 +1,15 @@
+## [2.22.11](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.10...webrtc/v2.22.11) (2025-05-14)
+
+### Bug fixes
+
+fix: the pre-call diagnosis report sometimes doesn't resolve. (#426)
+
+## [2.22.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.9...webrtc/v2.22.10) (2025-05-09)
+
+### Bug fixes
+
+fix: debug report file is not generated (#425)
+
 ## [2.22.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.8...webrtc/v2.22.9) (2025-04-14)
 
 ### Features
