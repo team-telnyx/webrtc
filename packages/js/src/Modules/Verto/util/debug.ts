@@ -72,7 +72,7 @@ export function createWebRTCStatsReporter(
 
   const stop = async (debugOutput: string) => {
     const timeline = stats.getTimeline();
-    trigger(SwEvent.StatsReport, timeline);
+    trigger(SwEvent.StatsReport, timeline, session.uuid);
     if (debugOutput === 'file') {
       const filename = `webrtc-stats-${reportId}-${Date.now()}`;
       saveToFile(timeline, filename);
