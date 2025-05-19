@@ -7,6 +7,9 @@ import {
 } from '../util/helpers';
 import { GatewayStateType } from '../webrtc/constants';
 
+/**
+ * @private
+ */
 export class RegisterAgent {
   private session: BaseSession;
   private gatewayStateTask: DeferredPromise<GatewayStateType | ''>;
