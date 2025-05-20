@@ -65,7 +65,6 @@ client.off('telnyx.notification');
 - [getAudioOutDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getaudiooutdevices)
 - [getDeviceResolutions](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdeviceresolutions)
 - [getDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdevices)
-- [getIsRegistered](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getisregistered)
 - [getVideoDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getvideodevices)
 - [logout](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#logout)
 - [newCall](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#newcall)
@@ -775,24 +774,6 @@ client.getDevices().then((result) => {
 #### Inherited from
 
 TelnyxRTCClient.getDevices
-
-___
-
-### getIsRegistered
-
-▸ **getIsRegistered**(): `Promise`\<`boolean`\>
-
-Get the registration state of the client
-
-#### Returns
-
-`Promise`\<`boolean`\>
-
-Promise<boolean>
-
-#### Inherited from
-
-TelnyxRTCClient.getIsRegistered
 
 ___
 

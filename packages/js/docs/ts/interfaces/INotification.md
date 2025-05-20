@@ -68,7 +68,7 @@ Notification
 
 ### call
 
-• `Optional` **call**: `ICall`
+• `Optional` **call**: [`Call`](/docs/voice/webrtc/js-sdk/classes/Call.md)
 
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
