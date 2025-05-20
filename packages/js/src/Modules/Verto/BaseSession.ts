@@ -420,9 +420,10 @@ export default abstract class BaseSession {
 
   /**
    * Get the registration state of the client
+   * @private
    * @return Promise<boolean>
    */
-  public getIsRegistered() {
+  private getIsRegistered() {
     return this.registerAgent.getIsRegistered();
   }
 }

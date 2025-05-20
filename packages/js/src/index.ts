@@ -1,26 +1,20 @@
 import TelnyxRTC from './TelnyxRTC';
-
 import {
-  ICall,
   IClientOptions,
   ICallOptions,
   ICredentials,
   INotification,
-  MessageEvents,
-  ISIPClientOptions,
-  ISIPCallOptions,
 } from './utils/interfaces';
 import { SwEvent } from './Modules/Verto/util/constants';
+import Call from './Modules/Verto/webrtc/Call';
+
 export {
+  Call,
   TelnyxRTC,
-  ICall,
   IClientOptions,
   ICallOptions,
   ICredentials,
   INotification,
-  MessageEvents,
-  ISIPClientOptions,
-  ISIPCallOptions,
   SwEvent,
 };
 

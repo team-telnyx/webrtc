@@ -1,3 +1,4 @@
+import Call from 'src/Modules/Verto/webrtc/Call';
 import { INotificationEventData } from '../Modules/Verto/util/interfaces';
 import { Env, RTCElement } from './types';
 
@@ -5,22 +6,6 @@ export interface ICredentials {
   username?: string;
   password?: string;
   token?: string;
-}
-
-export interface ISIPClientOptions {
-  // SIP.js client options:
-  host?: string;
-  port?: number;
-  env?: Env;
-  project?: string;
-  credentials: ICredentials;
-  localElement?: RTCElement;
-  remoteElement?: RTCElement;
-  useMic?: string | boolean;
-  useSpeaker?: string | boolean;
-  useCamera?: string | boolean;
-  displayName?: string;
-  ringFile?: string;
 }
 
 /**
@@ -93,38 +78,6 @@ export interface IClientOptions {
      */
     target_id: string;
   };
-}
-
-export interface ISIPCallOptions {
-  destinationNumber: string;
-  remoteCallerName?: string;
-  remoteCallerNumber?: string;
-  callerName?: string;
-  callerNumber?: string;
-  id?: string;
-  localStream?: MediaStream;
-  remoteStream?: MediaStream;
-  localElement?: HTMLMediaElement | string | Function;
-  remoteElement?: HTMLMediaElement | string | Function;
-  iceServers?: RTCIceServer[];
-  audio?: boolean | MediaTrackConstraints;
-  video?: boolean | MediaTrackConstraints;
-  useStereo?: boolean;
-  micId?: string;
-  camId?: string;
-  speakerId?: string;
-  onNotification?: Function;
-  telnyxCallControlId?: string;
-  telnyxSessionId?: string;
-  telnyxLegId?: string;
-  clientState?: string;
-}
-
-// TODO Consolidate with `Call`
-export interface ICall {
-  setAudioInDevice(deviceId: string): Promise<any>;
-  setAudioOutDevice(deviceId: string): Promise<any>;
-  setVideoDevice(deviceId: string): Promise<any>;
 }
 
 /**
@@ -317,21 +270,10 @@ export interface INotification extends Omit<INotificationEventData, 'call'> {
    * The current call. Reference this call state to update your UI.
    * See `Call` documentation.
    */
-  call?: ICall;
+  call?: Call;
   /**
    * Error from the `userMediaError` event.
    * Check your `audio` and `video` constraints for browser support.
    */
   error?: Error;
-}
-
-export interface MessageEvents {
-  ready: () => void;
-  registered: () => void;
-  unregistered: () => void;
-  error: () => void;
-  callUpdate: (call: ICall) => void;
-  'socket.error': (error: Error) => void;
-  'socket.connect': () => void;
-  'socket.close': (error?: Error) => void;
 }
