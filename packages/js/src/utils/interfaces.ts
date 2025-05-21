@@ -1,6 +1,5 @@
-import Call from 'src/Modules/Verto/webrtc/Call';
+import Call from '../Modules/Verto/webrtc/Call';
 import { INotificationEventData } from '../Modules/Verto/util/interfaces';
-import { Env, RTCElement } from './types';
 
 export interface ICredentials {
   username?: string;
