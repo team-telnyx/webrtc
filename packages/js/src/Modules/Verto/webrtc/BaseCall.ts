@@ -1319,20 +1319,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
-  private _onRemoteSdp(remoteSdp: string) {
-    let sdp = sdpMediaOrderHack(
-      remoteSdp,
-      this.peer.instance.localDescription.sdp
-    );
-    if (this.options.useStereo) {
-      sdp = sdpStereoHack(sdp);
-    }
-    const sessionDescr: RTCSessionDescription = sdpToJsonHack({
-      sdp,
-      type: PeerType.Answer,
-    });
-    this.peer.instance
-      .setRemoteDescription(sessionDescr)
+  private async _onRemoteSdp(remoteSdp: string) {
+    const sdp = new RTCSessionDescription({ sdp: remoteSdp, type: 'answer' });
+
+    await this.peer.instance
+      .setRemoteDescription(sdp)
       .then(() => {
         if (this.gotEarly) {
           this.setState(State.Early);

@@ -1,6 +1,6 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
-import { SwEvent } from '../util/constants';
+import { GOOGLE_STUN_SERVER, SwEvent, TURN_SERVER } from '../util/constants';
 import { createWebRTCStatsReporter, WebRTCStatsReporter } from '../util/debug';
 
 import { isFunction } from '../util/helpers';
@@ -310,7 +310,7 @@ export default class Peer {
     }
   }
 
-  private _createOffer() {
+  private async _createOffer() {
     if (!this._isOffer()) {
       return;
     }
@@ -318,32 +318,17 @@ export default class Peer {
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
-    this.instance
+    await this.instance
       .createOffer(this._constraints)
       .then(this._setLocalDescription.bind(this))
       .then(this._sdpReady)
       .catch((error) => logger.error('Peer _createOffer error:', error));
   }
 
-  private _setRemoteDescription(remoteDescription: RTCSessionDescriptionInit) {
-    if (this.options.useStereo) {
-      remoteDescription.sdp = sdpStereoHack(remoteDescription.sdp);
-    }
-    if (this.instance.localDescription) {
-      remoteDescription.sdp = sdpMediaOrderHack(
-        remoteDescription.sdp,
-        this.instance.localDescription.sdp
-      );
-    }
-    const sessionDescr: RTCSessionDescription =
-      sdpToJsonHack(remoteDescription);
-    logger.info(
-      'REMOTE SDP \n',
-      `Type: ${remoteDescription.type}`,
-      '\n\n',
-      remoteDescription.sdp
-    );
-    return this.instance.setRemoteDescription(sessionDescr);
+  private async _setRemoteDescription(
+    remoteDescription: RTCSessionDescriptionInit
+  ) {
+    await this.instance.setRemoteDescription(remoteDescription);
   }
 
   private async _createAnswer() {
@@ -375,7 +360,9 @@ export default class Peer {
     await this._setLocalDescription(answer);
   }
 
-  private _setLocalDescription(sessionDescription: RTCSessionDescriptionInit) {
+  private async _setLocalDescription(
+    sessionDescription: RTCSessionDescriptionInit
+  ) {
     const {
       useStereo,
       googleMaxBitrate,
@@ -407,7 +394,7 @@ export default class Peer {
         mediaSettings.sdpASBandwidthKbps
       );
     }
-    return this.instance.setLocalDescription(sessionDescription);
+    await this.instance.setLocalDescription(sessionDescription);
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
@@ -445,16 +432,12 @@ export default class Peer {
   }
 
   private _config(): RTCConfiguration {
-    const {
-      iceServers = [],
-      prefetchIceCandidates,
-      forceRelayCandidate,
-    } = this.options;
+    const { prefetchIceCandidates, forceRelayCandidate } = this.options;
 
     const config: RTCConfiguration = {
       bundlePolicy: 'max-compat',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
-      iceServers,
+      iceServers: [GOOGLE_STUN_SERVER, TURN_SERVER],
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
     };
 

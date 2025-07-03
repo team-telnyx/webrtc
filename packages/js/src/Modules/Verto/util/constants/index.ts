@@ -5,6 +5,7 @@ export const SESSION_ID = 'sessId';
 export const TIME_CALL_INVITE = 'Time to call invite';
 export const PROD_HOST = 'wss://rtc.telnyx.com';
 export const DEV_HOST = 'wss://rtcdev.telnyx.com';
+export const GOOGLE_STUN_SERVER = { urls: 'stun:stun.l.google.com:19302' };
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const TURN_SERVER = {
   urls: 'turn:turn.telnyx.com:3478?transport=tcp',
