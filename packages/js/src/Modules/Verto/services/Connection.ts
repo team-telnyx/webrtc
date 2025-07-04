@@ -1,17 +1,16 @@
-import logger from '../util/logger';
 import BaseSession from '../BaseSession';
-import { SwEvent, PROD_HOST, DEV_HOST } from '../util/constants';
+import { DEV_HOST, PROD_HOST, SwEvent } from '../util/constants';
 import {
-  safeParseJson,
   checkWebSocketHost,
   destructResponse,
-  isFunction,
   getGatewayState,
+  isFunction,
+  safeParseJson,
 } from '../util/helpers';
-import { registerOnce, trigger } from './Handler';
-import { GatewayStateType } from '../webrtc/constants';
+import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
-import { attachMediaStream } from '../util/webrtc';
+import { GatewayStateType } from '../webrtc/constants';
+import { registerOnce, trigger } from './Handler';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {

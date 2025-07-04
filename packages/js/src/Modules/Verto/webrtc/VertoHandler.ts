@@ -282,7 +282,7 @@ class VertoHandler {
           }
           break;
         }
-        logger.warn('Verto message unknown method:', msg);
+        logger.debug('Verto message unknown method:', msg);
         break;
       }
     }
