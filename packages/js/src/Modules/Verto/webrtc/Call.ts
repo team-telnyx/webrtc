@@ -1,3 +1,4 @@
+import { ConversationMessage } from '../messages/verto/ConverstationMessage';
 import logger from '../util/logger';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 import BaseCall from './BaseCall';
@@ -102,6 +103,9 @@ export class Call extends BaseCall {
     }
   }
 
+  sendConversationMessage = (message: string) => {
+    return this.session.execute(new ConversationMessage(message));
+  };
   /**
    * Changes the audio output device (i.e. speaker) used for the call.
    *
