@@ -96,14 +96,16 @@ export default class Verto extends BrowserSession {
   private handleAnonymousLoginOnSocketOpen = async () => {
     this._idle = false;
     const { anonymous_login } = this.options;
-    const { target_type, target_id } = anonymous_login;
-    const msg = new AnonymousLogin(
-      target_type,
-      target_id,
-      this.sessionid,
-      this.options.userVariables,
-      !!getReconnectToken()
-    );
+
+    const msg = new AnonymousLogin({
+      target_id: anonymous_login.target_id,
+      target_type: anonymous_login.target_type,
+      target_version_id: anonymous_login.target_version_id,
+      sessionId: this.sessionid,
+      userVariables: this.options.userVariables,
+      reconnection: !!getReconnectToken(),
+    });
+
     const response = await this.execute(msg).catch(this._handleLoginError);
     if (response) {
       this.sessionid = response.sessid;

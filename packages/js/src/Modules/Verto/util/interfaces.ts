@@ -32,6 +32,7 @@ export interface IVertoOptions {
   anonymous_login?: {
     target_type: string;
     target_id: string;
+    target_version_id?: string;
   };
 }
 export interface SubscribeParams {
