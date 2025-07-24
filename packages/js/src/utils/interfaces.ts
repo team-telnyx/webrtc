@@ -76,6 +76,12 @@ export interface IClientOptions {
      * this is typically the ID of the AI assistant you want to connect to.
      */
     target_id: string;
+
+    /**
+     * The target version ID to use for the anonymous login.
+     * This is optional and can be used to specify a particular version of the AI assistant.
+     */
+    target_version_id?: string;
   };
 }
 
