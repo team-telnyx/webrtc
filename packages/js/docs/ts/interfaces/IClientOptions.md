@@ -31,6 +31,7 @@ anonymous_login login options
 | :------ | :------ | :------ |
 | `target_id` | `string` | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to. |
 | `target_type` | `string` | A string indicating the target type, for now only `ai_assistant` is supported. |
+| `target_version_id?` | `string` | The target version ID to use for the anonymous login. This is optional and can be used to specify a particular version of the AI assistant. |
 
 ___
 
