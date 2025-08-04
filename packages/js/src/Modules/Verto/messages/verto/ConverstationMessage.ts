@@ -2,7 +2,7 @@ import BaseMessage from '../BaseMessage';
 import { v4 as uuid } from 'uuid';
 
 class ConversationMessage extends BaseMessage {
-  constructor(message: string) {
+  constructor(message: string, attachments?: string[]) {
     super();
     this.method = 'ai_conversation';
 
@@ -20,6 +20,14 @@ class ConversationMessage extends BaseMessage {
               type: 'input_text',
               text: message,
             },
+            ...attachments?.map((attachment) => {
+              return {
+                type: 'image_url',
+                image_url: {
+                  url: attachment,
+                },
+              };
+            }),
           ],
         },
       },

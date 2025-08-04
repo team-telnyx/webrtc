@@ -103,8 +103,8 @@ export class Call extends BaseCall {
     }
   }
 
-  sendConversationMessage = (message: string) => {
-    return this.session.execute(new ConversationMessage(message));
+  sendConversationMessage = (message: string, attachments?: string[]) => {
+    return this.session.execute(new ConversationMessage(message, attachments));
   };
   /**
    * Changes the audio output device (i.e. speaker) used for the call.
