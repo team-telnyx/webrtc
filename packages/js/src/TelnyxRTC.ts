@@ -194,9 +194,70 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Call Establishment Optimization
+   * 
+   * For faster call establishment without trickle ICE support, you can enable optimization features:
+   * ```js
+   * client.newCall({
+   *  destinationNumber: 'xxx',
+   *  enableOptimization: true,      // Enable connection pooling and media stream reuse
+   *  prefetchIceCandidates: true,   // Prefetch ICE candidates for faster gathering
+   *  iceGatheringTimeout: 500,      // Reduce ICE gathering timeout (ms)
+   * });
+   * ```
+   * 
+   * You can also pre-initialize the connection pool for even faster calls:
+   * ```js
+   * // Initialize connection pool after client is ready
+   * await client.initializeConnectionPool({ prefetchIceCandidates: true });
+   * ```
+   * 
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);
+  }
+
+  /**
+   * Initialize connection pool for faster call establishment
+   * 
+   * This method pre-creates connections with completed ICE gathering to reduce
+   * call setup time. It's especially beneficial when trickle ICE is not supported.
+   * 
+   * @param options Configuration options for the connection pool
+   * 
+   * @examples
+   * 
+   * Initialize the connection pool after client is ready:
+   * 
+   * ```js
+   * client.on('telnyx.ready', async () => {
+   *   await client.initializeConnectionPool({
+   *     prefetchIceCandidates: true,
+   *     enableOptimization: true
+   *   });
+   *   console.log('Connection pool initialized');
+   * });
+   * ```
+   */
+  async initializeConnectionPool(options?: ICallOptions): Promise<void> {
+    return super.initializeConnectionPool(options);
+  }
+
+  /**
+   * Get performance metrics for recent calls
+   * 
+   * Returns timing information about call establishment performance,
+   * useful for monitoring and optimization.
+   * 
+   * @examples
+   * 
+   * ```js
+   * const metrics = client.getCallMetrics();
+   * console.log('Average call setup time:', metrics.averageSetupTime);
+   * ```
+   */
+  getCallMetrics(): any[] {
+    return super.getCallMetrics();
   }
 
   /**

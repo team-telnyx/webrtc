@@ -9,6 +9,7 @@ import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
 import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
+import BaseCall from './webrtc/BaseCall';
 import {
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
@@ -65,6 +66,36 @@ export default class Verto extends BrowserSession {
 
   unsubscribe(params: SubscribeParams) {
     return this.vertoUnsubscribe(params);
+  }
+
+  /**
+   * Initialize connection pool for faster call establishment
+   */
+  async initializeConnectionPool(options?: IVertoCallOptions): Promise<void> {
+    if (!options) {
+      options = { enableOptimization: true, prefetchIceCandidates: true };
+    }
+    return BaseCall.initializeConnectionPool(this, options);
+  }
+
+  /**
+   * Get performance metrics for recent calls
+   */
+  getCallMetrics(): any[] {
+    // Collect metrics from all calls
+    const allMetrics: any[] = [];
+    if (this.calls) {
+      Object.keys(this.calls).forEach(callId => {
+        const call = this.calls[callId];
+        if (call && typeof call.getPerformanceMetrics === 'function') {
+          const metrics = call.getPerformanceMetrics();
+          if (metrics && Object.keys(metrics).length > 0) {
+            allMetrics.push({ callId, ...metrics });
+          }
+        }
+      });
+    }
+    return allMetrics;
   }
 
   private handleLoginOnSocketOpen = async () => {

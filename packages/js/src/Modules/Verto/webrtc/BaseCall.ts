@@ -19,6 +19,7 @@ import {
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Peer from './Peer';
+import { CallOptimizer } from './CallOptimizer';
 import {
   ConferenceAction,
   DEFAULT_CALL_OPTIONS,
@@ -57,6 +58,8 @@ const SDK_VERSION = pkg.version;
  */
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
+
+  private static _optimizer: CallOptimizer | null = null;
 
   /**
    * The call identifier.
@@ -139,6 +142,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _statsBindings: IStatsBinding[] = [];
 
   private _statsIntervalId: any = null;
+
+  private _performanceStartTime: number = 0;
+  
+  private _performanceMetrics: any = {};
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -250,10 +257,75 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  invite() {
+  /**
+   * Initialize the call optimizer for the session
+   */
+  private static initializeOptimizer(session: BrowserSession): void {
+    if (!BaseCall._optimizer) {
+      BaseCall._optimizer = new CallOptimizer(session);
+    }
+  }
+
+  /**
+   * Get the call optimizer instance
+   */
+  private static getOptimizer(session?: BrowserSession): CallOptimizer | null {
+    if (!BaseCall._optimizer && session) {
+      BaseCall.initializeOptimizer(session);
+    }
+    return BaseCall._optimizer;
+  }
+
+  /**
+   * Get performance metrics for this call
+   */
+  getPerformanceMetrics(): any {
+    return { ...this._performanceMetrics };
+  }
+
+  /**
+   * Initialize connection pool for faster call establishment
+   */
+  static async initializeConnectionPool(session: BrowserSession, options?: any): Promise<void> {
+    const optimizer = BaseCall.getOptimizer(session);
+    if (optimizer && options) {
+      await optimizer.initializePool(options);
+    }
+  }
+
+  async invite() {
+    this._performanceStartTime = performance.now();
+    this._performanceMetrics.inviteStart = this._performanceStartTime;
+    
     this.direction = Direction.Outbound;
+    
+    // Try to use optimizer for faster peer creation
+    const optimizer = BaseCall.getOptimizer(this.session);
+    if (optimizer && this.options.enableOptimization !== false) {
+      try {
+        logger.debug('BaseCall: Using optimizer for peer creation');
+        const { peer, metrics } = await optimizer.getOptimizedPeer(this.options);
+        this.peer = peer;
+        
+        // Store performance metrics
+        this._performanceMetrics = { ...this._performanceMetrics, ...metrics };
+        
+        // Register events for the optimized peer
+        this._registerPeerEvents();
+        
+        logger.debug(`BaseCall: Optimized peer ready in ${metrics.totalTime}ms`);
+        return;
+      } catch (error) {
+        logger.warn('BaseCall: Optimizer failed, falling back to standard peer creation:', error);
+      }
+    }
+    
+    // Fallback to standard peer creation
+    logger.debug('BaseCall: Using standard peer creation');
     this.peer = new Peer(PeerType.Offer, this.options, this.session);
     this._registerPeerEvents();
+    
+    this._performanceMetrics.peerCreationTime = performance.now() - this._performanceStartTime;
   }
 
   /**
@@ -265,7 +337,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer(params: AnswerParams = {}) {
+  async answer(params: AnswerParams = {}) {
+    this._performanceStartTime = performance.now();
+    this._performanceMetrics.answerStart = this._performanceStartTime;
+    
     this.stopRingtone();
 
     this.options.video = params.video ?? this.options.video ?? false;
@@ -281,8 +356,22 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.preferred_codecs = params.preferred_codecs;
     }
 
+    // For incoming calls, we can still try to optimize media stream acquisition
+    const optimizer = BaseCall.getOptimizer(this.session);
+    if (optimizer && this.options.enableOptimization !== false) {
+      try {
+        logger.debug('BaseCall: Using optimizer for media stream in answer');
+        this.options.localStream = await optimizer.getSharedMediaStream(this.options);
+        this._performanceMetrics.mediaOptimized = true;
+      } catch (error) {
+        logger.warn('BaseCall: Failed to get optimized media stream for answer:', error);
+      }
+    }
+
     this.peer = new Peer(PeerType.Answer, this.options, this.session);
     this._registerPeerEvents();
+    
+    this._performanceMetrics.answerTime = performance.now() - this._performanceStartTime;
   }
 
   playRingtone() {
@@ -1417,15 +1506,30 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
     if (this._iceTimeout === null) {
+      // Track ICE gathering start time
+      if (!this._performanceMetrics.iceGatheringStart) {
+        this._performanceMetrics.iceGatheringStart = performance.now();
+      }
+      
+      // Use optimized ICE timeout based on options
+      const iceTimeout = this.options.iceGatheringTimeout || 
+                        (this.options.prefetchIceCandidates ? 500 : 1000);
+      
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        1000
+        iceTimeout
       );
     }
 
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
     } else {
+      // ICE gathering complete
+      this._performanceMetrics.iceGatheringEnd = performance.now();
+      if (this._performanceMetrics.iceGatheringStart) {
+        this._performanceMetrics.iceGatheringTime = 
+          this._performanceMetrics.iceGatheringEnd - this._performanceMetrics.iceGatheringStart;
+      }
       this._onIceSdp(instance.localDescription);
     }
   }

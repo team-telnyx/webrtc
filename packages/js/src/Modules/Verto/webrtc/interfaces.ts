@@ -49,6 +49,8 @@ export interface IVertoCallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  enableOptimization?: boolean;
+  iceGatheringTimeout?: number;
 }
 
 export interface IStatsBinding {
@@ -145,6 +147,8 @@ export interface IWebRTCCall {
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
   stopScreenShare?: () => void;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
+  // Optimization methods
+  getPerformanceMetrics?: () => any;
   // RN
   switchCamera?: () => void;
   setSpeakerPhone?: (flag: boolean) => void;

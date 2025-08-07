@@ -210,6 +210,19 @@ export interface ICallOptions {
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;
+
+  /**
+   * Enable call establishment optimizations including connection pooling and media stream reuse.
+   * Particularly beneficial when trickle ICE is not supported on the server side.
+   */
+  enableOptimization?: boolean;
+
+  /**
+   * Custom timeout for ICE gathering in milliseconds.
+   * Lower values can speed up call establishment but may miss some ICE candidates.
+   * Default: 1000ms, Optimized: 500ms
+   */
+  iceGatheringTimeout?: number;
 }
 
 /**
