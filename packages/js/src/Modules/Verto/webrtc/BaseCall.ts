@@ -5,14 +5,13 @@ import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
 import { Answer, Attach, Bye, Info, Invite, Modify } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
-import { SwEvent, TIME_CALL_INVITE } from '../util/constants';
+import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import logger from '../util/logger';
 import {
   attachMediaStream,
   getUserMedia,
-  sdpToJsonHack,
   setMediaElementSinkId,
   stopStream,
 } from '../util/webrtc';
@@ -37,8 +36,6 @@ import {
   enableAudioTracks,
   enableVideoTracks,
   playAudio,
-  sdpMediaOrderHack,
-  sdpStereoHack,
   stopAudio,
   toggleAudioTracks,
   toggleVideoTracks,
@@ -187,6 +184,47 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  private get performanceMetrics() {
+    const peerCreation = performance.measure(
+      'peer-creation',
+      'peer-creation-start',
+      'peer-creation-end'
+    );
+
+    const iceGathering = performance.measure(
+      'ice-gathering',
+      'ice-gathering-start',
+      'ice-gathering-end'
+    );
+
+    const sdpSend = performance.measure(
+      'sdp-send',
+      'sdp-send-start',
+      'sdp-send-end'
+    );
+
+    const totalDuration = performance.measure(
+      'total-duration',
+      'peer-creation-start',
+      'sdp-send-end'
+    );
+
+    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    return {
+      'Peer Creation': {
+        duration: formatDuration(peerCreation.duration),
+      },
+      'ICE Gathering': {
+        duration: formatDuration(iceGathering.duration),
+      },
+      'SDP Send': {
+        duration: formatDuration(sdpSend.duration),
+      },
+      'Total Duration': {
+        duration: formatDuration(totalDuration.duration),
+      },
+    };
+  }
   get nodeId(): string {
     return this._targetNodeId;
   }
@@ -252,6 +290,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   invite() {
     this.direction = Direction.Outbound;
+    performance.mark(`peer-creation-start`);
     this.peer = new Peer(PeerType.Offer, this.options, this.session);
     this._registerPeerEvents();
   }
@@ -1373,6 +1412,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
+    performance.mark('ice-gathering-end');
     let msg = null;
 
     const tmpParams = {
@@ -1399,6 +1439,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         return this.hangup({}, false);
     }
 
+    performance.mark('sdp-send-start');
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1410,8 +1451,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         this.hangup();
+      })
+      .finally(() => {
+        performance.mark('sdp-send-end');
+        console.group('Performance Metrics');
+        console.table(this.performanceMetrics);
+        console.groupEnd();
+
+        performance.clearMarks();
       });
-    console.timeEnd(TIME_CALL_INVITE);
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {

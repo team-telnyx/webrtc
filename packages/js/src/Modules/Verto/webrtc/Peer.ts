@@ -82,6 +82,8 @@ export default class Peer {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
   startNegotiation() {
+    performance.mark(`ice-gathering-start`);
+
     this._negotiating = true;
 
     if (this._isOffer()) {
@@ -199,6 +201,8 @@ export default class Peer {
         return null;
       }
     );
+
+    performance.mark(`peer-creation-end`);
   }
 
   private _handleIceConnectionStateChange = (event) => {
@@ -363,37 +367,6 @@ export default class Peer {
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    const {
-      useStereo,
-      googleMaxBitrate,
-      googleMinBitrate,
-      googleStartBitrate,
-      mediaSettings,
-    } = this.options;
-
-    if (useStereo) {
-      sessionDescription.sdp = sdpStereoHack(sessionDescription.sdp);
-    }
-
-    if (googleMaxBitrate && googleMinBitrate && googleStartBitrate) {
-      sessionDescription.sdp = sdpBitrateHack(
-        sessionDescription.sdp,
-        googleMaxBitrate,
-        googleMinBitrate,
-        googleStartBitrate
-      );
-    }
-
-    if (
-      mediaSettings &&
-      mediaSettings.useSdpASBandwidthKbps &&
-      mediaSettings.sdpASBandwidthKbps !== null
-    ) {
-      sessionDescription.sdp = sdpBitrateASHack(
-        sessionDescription.sdp,
-        mediaSettings.sdpASBandwidthKbps
-      );
-    }
     await this.instance.setLocalDescription(sessionDescription);
   }
 
@@ -435,7 +408,7 @@ export default class Peer {
     const { prefetchIceCandidates, forceRelayCandidate } = this.options;
 
     const config: RTCConfiguration = {
-      bundlePolicy: 'max-compat',
+      bundlePolicy: 'balanced',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
       iceServers: [GOOGLE_STUN_SERVER, TURN_SERVER],
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
