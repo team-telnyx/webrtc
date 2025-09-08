@@ -127,7 +127,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceTimeout = null;
 
-  private _iceDone: boolean = false;
+  private _initialSdpSent: boolean = false;
 
   private _ringtone: IAudio;
 
@@ -1392,16 +1392,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     Object.defineProperty(this.peer, 'onSdpReadyTwice', {
       value: this._onIceSdp.bind(this),
     });
-    this._iceDone = false;
+    this._initialSdpSent = false;
     this.peer.startNegotiation();
   }
 
   private _onIceSdp(data: RTCSessionDescription) {
-    if (this._iceTimeout) {
-      clearTimeout(this._iceTimeout);
-    }
-    this._iceTimeout = null;
-    this._iceDone = true;
+    this._initialSdpSent = true;
     const { sdp, type } = data;
 
     if (sdp.indexOf('candidate') === -1) {
@@ -1409,8 +1405,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._requestAnotherLocalDescription();
       return;
     }
-
-    this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
     performance.mark('ice-gathering-end');
     let msg = null;
@@ -1464,28 +1458,73 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
-    if (this._iceTimeout === null) {
-      this._iceTimeout = setTimeout(
-        () => this._onIceSdp(instance.localDescription),
-        1000
-      );
-    }
 
     if (event.candidate) {
+      // Filter out empty candidates
+      if (event.candidate.candidate === '') return;
+      
+      // Filter out local candidates for privacy/security
+      if (event.candidate.type === 'host') return;
+      
       logger.debug('RTCPeer Candidate:', event.candidate);
-    } else {
-      this._onIceSdp(instance.localDescription);
+      if (!this._initialSdpSent) {
+        // Send initial SDP immediately (without waiting for more candidates)
+        this._onIceSdp(instance.localDescription);
+      } else {
+        // Send individual candidate immediately
+        this._sendIceCandidate(event.candidate);
+      }
     }
+    // Note: null candidate (end of candidates) is now handled by onicegatheringstatechange
+  }
+
+  private _sendIceCandidate(candidate: RTCIceCandidate) {
+    const msg = new Info({
+      sessid: this.session.sessionid,
+      candidate: {
+        candidate: candidate.candidate,
+        sdpMLineIndex: candidate.sdpMLineIndex,
+        sdpMid: candidate.sdpMid,
+        usernameFragment: candidate.usernameFragment
+      },
+      dialogParams: this.options,
+    });
+    this._execute(msg);
+  }
+
+  private _sendEndOfCandidates() {
+    const msg = new Info({
+      sessid: this.session.sessionid,
+      endOfCandidates: true,
+      dialogParams: this.options,
+    });
+    this._execute(msg);
   }
 
   private _registerPeerEvents() {
     const { instance } = this.peer;
-    this._iceDone = false;
+    this._initialSdpSent = false;
     instance.onicecandidate = (event) => {
-      if (this._iceDone) {
+      if (this._initialSdpSent) {
         return;
       }
       this._onIce(event);
+    };
+
+    instance.onicegatheringstatechange = (event) => {
+      logger.debug('ICE gathering state changed:', instance.iceGatheringState);
+      if (instance.iceGatheringState === 'complete') {
+        if (!this._initialSdpSent) {
+          logger.warn('ICE gathering completed but no candidates were sent', event);
+        }
+
+        this._sendEndOfCandidates();
+        instance.removeEventListener('icecandidate', this._onIce);
+      }
+    };
+
+    instance.onicecandidateerror = (event) => {
+      logger.error('ICE candidate error:', event.errorText || event.errorCode);
     };
 
     //@ts-ignore
