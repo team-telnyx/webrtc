@@ -1460,22 +1460,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     const { instance } = this.peer;
 
     if (event.candidate) {
-      // Filter out empty candidates
-      if (event.candidate.candidate === '') return;
-      
-      // Filter out local candidates for privacy/security
-      if (event.candidate.type === 'host') return;
-      
+      if (event.candidate.candidate === '' || event.candidate.type === 'host') return;
+
       logger.debug('RTCPeer Candidate:', event.candidate);
       if (!this._initialSdpSent) {
-        // Send initial SDP immediately (without waiting for more candidates)
         this._onIceSdp(instance.localDescription);
       } else {
-        // Send individual candidate immediately
         this._sendIceCandidate(event.candidate);
       }
     }
-    // Note: null candidate (end of candidates) is now handled by onicegatheringstatechange
   }
 
   private _sendIceCandidate(candidate: RTCIceCandidate) {
