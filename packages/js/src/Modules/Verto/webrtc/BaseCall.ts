@@ -1517,7 +1517,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     instance.onicecandidateerror = (event) => {
-      logger.error('ICE candidate error:', event.errorText || event.errorCode);
+      logger.error('ICE candidate error:', event);
     };
 
     //@ts-ignore
