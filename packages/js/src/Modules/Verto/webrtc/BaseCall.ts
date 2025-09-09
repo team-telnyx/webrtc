@@ -944,6 +944,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (!trigger(SwEvent.Notification, notification, this.id)) {
           trigger(SwEvent.Notification, notification, this.session.uuid);
         }
+        if (params.candidate) {
+          this._addIceCandidate(params.candidate);
+        }
         break;
       }
       case VertoMethod.Ringing: {
@@ -1493,6 +1496,20 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
     });
     this._execute(msg);
+  }
+
+  private _addIceCandidate(candidate: RTCIceCandidate) {
+    try {
+      this.peer.instance.addIceCandidate(candidate)
+        .then(() => {
+          logger.debug('Successfully added ICE candidate:', candidate);
+        })
+        .catch((error) => {
+          logger.error('Failed to add ICE candidate:', error, candidate);
+        });
+    } catch (error) {
+      logger.error('Invalid ICE candidate format:', error, candidate);
+    }
   }
 
   private _sendEndOfCandidates() {
