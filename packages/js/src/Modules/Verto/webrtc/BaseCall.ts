@@ -1460,9 +1460,19 @@ export default abstract class BaseCall implements IWebRTCCall {
     const { instance } = this.peer;
 
     if (event.candidate) {
-      if (event.candidate.candidate === '' || event.candidate.type === 'host') return;
+      if (event.candidate.type === 'host' && event.candidate.candidate !== '') return;
 
       logger.debug('RTCPeer Candidate:', event.candidate);
+      
+      // Handle end-of-candidates indication (empty string per RFC8838)
+      if (event.candidate.candidate === '') {
+        logger.debug('End-of-candidates received (empty string candidate)');
+        if (this._initialSdpSent) {
+          this._sendIceCandidate(event.candidate);
+        }
+        return;
+      }
+
       if (!this._initialSdpSent) {
         this._onIceSdp(instance.localDescription);
       } else {
@@ -1509,6 +1519,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (instance.iceGatheringState === 'complete') {
         if (!this._initialSdpSent) {
           logger.warn('ICE gathering completed but no candidates were sent', event);
+        } else {
+          logger.debug('Finished gathering candidates');
         }
 
         this._sendEndOfCandidates();
