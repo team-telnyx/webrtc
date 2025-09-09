@@ -1403,13 +1403,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._initialSdpSent = true;
     const { sdp, type } = data;
 
-    if (sdp.indexOf('candidate') === -1) {
-      logger.info('No candidate - retry \n');
-      this._requestAnotherLocalDescription();
-      return;
-    }
-
-    performance.mark('ice-gathering-end');
     let msg = null;
 
     const tmpParams = {
@@ -1540,6 +1533,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           logger.debug('Finished gathering candidates');
         }
 
+        performance.mark('ice-gathering-end');
         this._sendEndOfCandidates();
         instance.removeEventListener('icecandidate', this._onIce);
       }
