@@ -23,6 +23,12 @@ class Bye extends BaseRequest {
     return VertoMethod.Bye;
   }
 }
+
+class Candidate extends BaseRequest {
+  toString() {
+    return VertoMethod.Candidate;
+  }
+}
 class Modify extends BaseRequest {
   toString() {
     return VertoMethod.Modify;
@@ -55,6 +61,7 @@ export {
   Answer,
   Attach,
   Bye,
+  Candidate,
   Modify,
   Info,
   Broadcast,

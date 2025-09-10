@@ -2,7 +2,22 @@ import { VertoMethod } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 
-// Mock performance
+const originalConsoleDebug = console.debug;
+const originalConsoleLog = console.log;
+const originalConsoleGroup = console.group;
+
+beforeAll(() => {
+  console.debug = jest.fn();
+  console.log = jest.fn();
+  console.group = jest.fn();
+});
+
+afterAll(() => {
+  console.debug = originalConsoleDebug;
+  console.log = originalConsoleLog;
+  console.group = originalConsoleGroup;
+});
+
 Object.defineProperty(global, 'performance', {
   writable: true,
   value: {
@@ -43,7 +58,7 @@ describe('Call Trickle ICE', () => {
   });
 
   describe('ICE candidate message handling', () => {
-    it('should call _addIceCandidate when receiving Info message with candidate', () => {
+    it('should call _addIceCandidate when receiving Candidate message with valid candidate', () => {
       const candidate = {
         candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
         sdpMLineIndex: 0,
@@ -54,8 +69,8 @@ describe('Call Trickle ICE', () => {
       const addCandidateSpy = jest.spyOn(call.peer.instance, 'addIceCandidate');
 
       call.handleMessage({
-        method: VertoMethod.Info,
-        params: { candidate },
+        method: VertoMethod.Candidate,
+        params: candidate,
       });
 
       expect(addCandidateSpy).toHaveBeenCalledWith(candidate);
@@ -66,6 +81,7 @@ describe('Call Trickle ICE', () => {
         candidate: 'invalid-candidate',
         sdpMLineIndex: 0,
         sdpMid: '0',
+        usernameFragment: 'test',
       };
 
       if (!call.peer || !call.peer.instance) {
@@ -80,10 +96,37 @@ describe('Call Trickle ICE', () => {
       // Should not throw
       expect(() => {
         call.handleMessage({
-          method: VertoMethod.Info,
-          params: { candidate },
+          method: VertoMethod.Candidate,
+          params: candidate,
         });
       }).not.toThrow();
+    });
+
+    it('should call addIceCandidate even for invalid candidates (validation moved to _addIceCandidate)', () => {
+      const invalidCandidates = [
+        {
+          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        },
+        {
+          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+        },
+        {
+        },
+      ];
+
+      const addCandidateSpy = jest.spyOn(call.peer.instance, 'addIceCandidate');
+
+      invalidCandidates.forEach((candidate) => {
+        call.handleMessage({
+          method: VertoMethod.Candidate,
+          params: candidate,
+        });
+      });
+
+      expect(addCandidateSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -246,16 +289,92 @@ describe('Call Trickle ICE', () => {
 
       call.peer.instance.onicecandidate(candidateEvent);
 
-      // Should send the candidate via Info message
+      // Should send the candidate via Candidate message
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
-            method: VertoMethod.Info,
+            method: VertoMethod.Candidate,
             params: expect.objectContaining({
               candidate: expect.objectContaining({
                 candidate: mockCandidate.candidate,
                 sdpMLineIndex: mockCandidate.sdpMLineIndex,
                 sdpMid: mockCandidate.sdpMid,
+                usernameFragment: mockCandidate.usernameFragment,
+              }),
+            }),
+          }),
+        })
+      );
+    });
+
+    it('should handle empty candidate string (end-of-candidates) via Candidate message', () => {
+      // Mock session execute to capture outgoing messages
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({});
+
+      // Create a mock empty string ICE candidate (end-of-candidates indication per RFC 8838)
+      const mockEmptyCandidate = {
+        candidate: '',
+        sdpMLineIndex: null,
+        sdpMid: null,
+        usernameFragment: null,
+      } as RTCIceCandidate;
+
+      // Create a proper RTCPeerConnectionIceEvent mock
+      const candidateEvent = {
+        type: 'icecandidate',
+        candidate: mockEmptyCandidate,
+        target: call.peer.instance,
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      // Mock the localDescription to indicate SDP was already sent
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({
+          type: 'offer',
+          sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+        }),
+        configurable: true,
+      });
+
+      // First trigger SDP sending by simulating ICE candidate when _initialSdpSent is false
+      const initialCandidateEvent = {
+        type: 'icecandidate',
+        candidate: {
+          candidate:
+            'candidate:initial 1 UDP 1694498813 192.168.1.3 54402 typ host',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test',
+        },
+        target: call.peer.instance,
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      call.peer.instance.onicecandidate(initialCandidateEvent);
+
+      sessionExecuteSpy.mockClear();
+
+      // Set _initialSdpSent to true to simulate that SDP was sent
+      (call as any)._initialSdpSent = true;
+
+      // Update the event handler to allow candidates through
+      call.peer.instance.onicecandidate = (event) => {
+        (call as any)._onIce(event);
+      };
+
+      call.peer.instance.onicecandidate(candidateEvent);
+
+      // Should send the empty candidate (end-of-candidates) via Candidate message
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Candidate,
+            params: expect.objectContaining({
+              candidate: expect.objectContaining({
+                candidate: '',
+                sdpMLineIndex: null,
+                sdpMid: null,
+                usernameFragment: null,
               }),
             }),
           }),

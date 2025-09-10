@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import { Answer, Attach, Bye, Info, Invite, Modify } from '../messages/Verto';
+import { Answer, Attach, Bye, Candidate, Info, Invite, Modify } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
@@ -934,6 +934,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         break;
       }
+      case VertoMethod.Candidate: {
+        this._addIceCandidate(params);
+        break;
+      }
       case VertoMethod.Info:
       case VertoMethod.Event: {
         const notification: INotificationEventData = {
@@ -943,9 +947,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         };
         if (!trigger(SwEvent.Notification, notification, this.id)) {
           trigger(SwEvent.Notification, notification, this.session.uuid);
-        }
-        if (params.candidate) {
-          this._addIceCandidate(params.candidate);
         }
         break;
       }
@@ -1380,25 +1381,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _requestAnotherLocalDescription() {
-    if (isFunction(this.peer.onSdpReadyTwice)) {
-      trigger(
-        SwEvent.Error,
-        {
-          error: new Error('SDP without candidates for the second time!'),
-          sessionId: this.session.sessionid,
-        },
-        this.session.uuid
-      );
-      return;
-    }
-    Object.defineProperty(this.peer, 'onSdpReadyTwice', {
-      value: this._onIceSdp.bind(this),
-    });
-    this._initialSdpSent = false;
-    this.peer.startNegotiation();
-  }
-
   private _onIceSdp(data: RTCSessionDescription) {
     this._initialSdpSent = true;
     const { sdp, type } = data;
@@ -1478,9 +1460,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _sendIceCandidate(candidate: RTCIceCandidate) {
-    const msg = new Info({
+    const msg = new Candidate({
       sessid: this.session.sessionid,
-      candidate: {
+      candidate: { // https://www.w3.org/TR/webrtc/#dom-peerconnection-addicecandidate
         candidate: candidate.candidate,
         sdpMLineIndex: candidate.sdpMLineIndex,
         sdpMid: candidate.sdpMid,
