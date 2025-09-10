@@ -361,3 +361,6 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 ## [2.0.1] - 2020-05-12
 
 ## First Release!
+## Release: WebRTC SDK V2.22.17
+feat: add call initialization metrics
+
