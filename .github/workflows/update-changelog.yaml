@@ -31,9 +31,10 @@ jobs:
       - name: Get release description
         working-directory: packages/js
         run: |
-          echo "## Release: ${{ github.event.release.name || github.event.inputs.title }}" >> CHANGELOG.md
-          echo "${{ github.event.release.body || github.event.inputs.description}}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
+          sed -i '' '1i\
+          ## [${{github.event.release.tag_name}}](${{github.event.release.html_url}}) (${{github.event.release.created_at}})\
+          \
+          ${{github.event.release.body}}\' CHANGELOG.md
 
       - name: Commit and push changes
         working-directory: packages/js
@@ -41,7 +42,7 @@ jobs:
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
           git add CHANGELOG.md
-          git commit --no-verify -m "Update CHANGELOG with release ${{ github.event.release.tag_name || github.event.inputs.title }}"
+          git commit --no-verify -m "Update CHANGELOG.md with release ${{ github.event.release.tag_name || github.event.inputs.title }}"
           git push -u origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
