@@ -1391,6 +1391,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       sessid: this.session.sessionid,
       sdp,
       dialogParams: this.options,
+      trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
     };
 

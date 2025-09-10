@@ -231,6 +231,48 @@ describe('Call Trickle ICE', () => {
     });
   });
 
+  describe('Trickle ICE parameter validation', () => {
+    it('should send Invite with trickle: true when onicecandidate fires', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ node_id: 'test-node' });
+
+      const mockSdp = {
+        type: 'offer' as RTCSdpType,
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+      };
+
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => mockSdp,
+        configurable: true,
+      });
+
+      // Trigger onicecandidate event which should send Invite with trickle: true
+      const candidateEvent = {
+        candidate: {
+          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        }
+      } as RTCPeerConnectionIceEvent;
+
+      call.peer.instance.onicecandidate(candidateEvent);
+
+      // Verify that the Invite message was sent with trickle: true
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Invite,
+            params: expect.objectContaining({
+              trickle: true,
+              sdp: mockSdp.sdp,
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   describe('Trickle ICE message behavior', () => {
     it('should handle ICE candidate events from peer connection', () => {
       // Mock session execute to capture outgoing messages
