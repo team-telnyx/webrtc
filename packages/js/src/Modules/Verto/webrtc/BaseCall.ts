@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import { Answer, Attach, Bye, Candidate, Info, Invite, Modify } from '../messages/Verto';
+import { Answer, Attach, Bye, Candidate, EndOfCandidates, Info, Invite, Modify } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
@@ -1488,7 +1488,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _sendEndOfCandidates() {
-    const msg = new Info({
+    const msg = new EndOfCandidates({
       sessid: this.session.sessionid,
       endOfCandidates: true,
       dialogParams: this.options,

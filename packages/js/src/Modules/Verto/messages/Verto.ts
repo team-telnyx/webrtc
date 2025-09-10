@@ -29,6 +29,13 @@ class Candidate extends BaseRequest {
     return VertoMethod.Candidate;
   }
 }
+
+class EndOfCandidates extends BaseRequest {
+  toString() {
+    return VertoMethod.EndOfCandidates;
+  }
+}
+
 class Modify extends BaseRequest {
   toString() {
     return VertoMethod.Modify;
@@ -62,6 +69,7 @@ export {
   Attach,
   Bye,
   Candidate,
+  EndOfCandidates,
   Modify,
   Info,
   Broadcast,

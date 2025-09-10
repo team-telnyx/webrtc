@@ -433,7 +433,7 @@ describe('Call Trickle ICE', () => {
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
-            method: VertoMethod.Info,
+            method: VertoMethod.EndOfCandidates,
             params: expect.objectContaining({
               endOfCandidates: true,
             }),
