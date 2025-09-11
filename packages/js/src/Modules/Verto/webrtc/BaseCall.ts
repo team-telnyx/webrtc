@@ -3,7 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import { Answer, Attach, Bye, Candidate, EndOfCandidates, Info, Invite, Modify } from '../messages/Verto';
+import {
+  Answer,
+  Attach,
+  Bye,
+  Candidate,
+  EndOfCandidates,
+  Info,
+  Invite,
+  Modify,
+} from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
@@ -1439,10 +1448,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     const { instance } = this.peer;
 
     if (event.candidate) {
-      if (event.candidate.type === 'host' && event.candidate.candidate !== '') return;
+      if (event.candidate.type === 'host' && event.candidate.candidate !== '')
+        return;
 
       logger.debug('RTCPeer Candidate:', event.candidate);
-      
+
       // Handle end-of-candidates indication (empty string per RFC8838)
       if (event.candidate.candidate === '') {
         logger.debug('End-of-candidates received (empty string candidate)');
@@ -1463,12 +1473,11 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _sendIceCandidate(candidate: RTCIceCandidate) {
     const msg = new Candidate({
       sessid: this.session.sessionid,
-      candidate: { // https://www.w3.org/TR/webrtc/#dom-peerconnection-addicecandidate
-        candidate: candidate.candidate,
-        sdpMLineIndex: candidate.sdpMLineIndex,
-        sdpMid: candidate.sdpMid,
-        usernameFragment: candidate.usernameFragment
-      },
+      // https://www.w3.org/TR/webrtc/#dom-peerconnection-addicecandidate
+      candidate: candidate.candidate,
+      sdpMLineIndex: candidate.sdpMLineIndex,
+      sdpMid: candidate.sdpMid,
+      usernameFragment: candidate.usernameFragment,
       dialogParams: this.options,
     });
     this._execute(msg);
@@ -1476,7 +1485,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _addIceCandidate(candidate: RTCIceCandidate) {
     try {
-      this.peer.instance.addIceCandidate(candidate)
+      this.peer.instance
+        .addIceCandidate(candidate)
         .then(() => {
           logger.debug('Successfully added ICE candidate:', candidate);
         })
@@ -1511,7 +1521,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
         if (!this._initialSdpSent) {
-          logger.warn('ICE gathering completed but no candidates were sent', event);
+          logger.warn(
+            'ICE gathering completed but no candidates were sent',
+            event
+          );
         } else {
           logger.debug('Finished gathering candidates');
         }
