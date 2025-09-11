@@ -331,18 +331,16 @@ describe('Call Trickle ICE', () => {
 
       call.peer.instance.onicecandidate(candidateEvent);
 
-      // Should send the candidate via Candidate message
+      // Should send the candidate via Candidate message with flattened structure
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
             method: VertoMethod.Candidate,
             params: expect.objectContaining({
-              candidate: expect.objectContaining({
-                candidate: mockCandidate.candidate,
-                sdpMLineIndex: mockCandidate.sdpMLineIndex,
-                sdpMid: mockCandidate.sdpMid,
-                usernameFragment: mockCandidate.usernameFragment,
-              }),
+              candidate: mockCandidate.candidate,
+              sdpMLineIndex: mockCandidate.sdpMLineIndex,
+              sdpMid: mockCandidate.sdpMid,
+              usernameFragment: mockCandidate.usernameFragment,
             }),
           }),
         })
@@ -406,18 +404,16 @@ describe('Call Trickle ICE', () => {
 
       call.peer.instance.onicecandidate(candidateEvent);
 
-      // Should send the empty candidate (end-of-candidates) via Candidate message
+      // Should send the empty candidate (end-of-candidates) via Candidate message with flattened structure
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
             method: VertoMethod.Candidate,
             params: expect.objectContaining({
-              candidate: expect.objectContaining({
-                candidate: '',
-                sdpMLineIndex: null,
-                sdpMid: null,
-                usernameFragment: null,
-              }),
+              candidate: '',
+              sdpMLineIndex: null,
+              sdpMid: null,
+              usernameFragment: null,
             }),
           }),
         })
