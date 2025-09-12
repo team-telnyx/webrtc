@@ -1390,6 +1390,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
+  private _removeCandidatesFromIceSdp(sdp: string): string {
+    return sdp
+      .split('\n')
+      .filter((line) => !line.includes('a=candidate'))
+      .join('\n');
+  }
+
   private _onIceSdp(data: RTCSessionDescription) {
     this._initialSdpSent = true;
     const { sdp, type } = data;
@@ -1398,7 +1405,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const tmpParams = {
       sessid: this.session.sessionid,
-      sdp,
+      sdp: this._removeCandidatesFromIceSdp(sdp),
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
@@ -1448,6 +1455,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     const { instance } = this.peer;
 
     if (event.candidate) {
+      if (!this._initialSdpSent) {
+        this._onIceSdp(instance.localDescription);
+      }
+
       if (event.candidate.type === 'host' && event.candidate.candidate !== '')
         return;
 
@@ -1456,17 +1467,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       // Handle end-of-candidates indication (empty string per RFC8838)
       if (event.candidate.candidate === '') {
         logger.debug('End-of-candidates received (empty string candidate)');
-        if (this._initialSdpSent) {
-          this._sendIceCandidate(event.candidate);
-        }
-        return;
       }
 
-      if (!this._initialSdpSent) {
-        this._onIceSdp(instance.localDescription);
-      } else {
-        this._sendIceCandidate(event.candidate);
-      }
+      this._sendIceCandidate(event.candidate);
     }
   }
 
@@ -1505,6 +1508,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
     });
     this._execute(msg);
+    performance.mark('ice-gathering-end');
   }
 
   private _registerPeerEvents() {
@@ -1529,7 +1533,6 @@ export default abstract class BaseCall implements IWebRTCCall {
           logger.debug('Finished gathering candidates');
         }
 
-        performance.mark('ice-gathering-end');
         this._sendEndOfCandidates();
         instance.removeEventListener('icecandidate', this._onIce);
       }
