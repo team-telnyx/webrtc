@@ -11,6 +11,8 @@ import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 import { registerOnce, trigger } from './Handler';
+import { ConnectionManager } from './ConnectionManager';
+import { ErrorHandler } from '../util/ErrorHandler';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
@@ -30,6 +32,7 @@ export default class Connection {
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
+  private _connectionManager: ConnectionManager;
 
   public upDur: number = null;
   public downDur: number = null;
@@ -48,6 +51,9 @@ export default class Connection {
     if (region) {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
+
+    // Initialize connection manager for enhanced error handling
+    this._connectionManager = new ConnectionManager(session);
   }
 
   get connected(): boolean {
@@ -83,16 +89,23 @@ export default class Connection {
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
-    this._wsClient.onopen = (event): boolean =>
-      trigger(SwEvent.SocketOpen, event, this.session.uuid);
-    this._wsClient.onclose = (event): boolean =>
-      trigger(SwEvent.SocketClose, event, this.session.uuid);
-    this._wsClient.onerror = (event): boolean =>
-      trigger(
+    this._wsClient.onopen = (event): boolean => {
+      this._connectionManager.onConnected();
+      return trigger(SwEvent.SocketOpen, event, this.session.uuid);
+    };
+    this._wsClient.onclose = (event): boolean => {
+      this._connectionManager.onConnectionClosed(false);
+      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+    };
+    this._wsClient.onerror = (event): boolean => {
+      const error = new Error(`WebSocket error: ${event.type}`);
+      this._connectionManager.handleConnectionError(error);
+      return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
         this.session.uuid
       );
+    };
     this._wsClient.onmessage = (event): void => {
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
@@ -140,22 +153,42 @@ export default class Connection {
       }
       registerOnce(request.id, (response: any) => {
         const { result, error } = destructResponse(response);
-        return error ? reject(error) : resolve(result);
+        if (error) {
+          const telnyxError = ErrorHandler.handleError(
+            'Connection.send',
+            new Error(`Request failed: ${error.message || error}`),
+            { requestId: request.id, method: request.method }
+          );
+          return reject(telnyxError);
+        }
+        return resolve(result);
       });
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
-    this._wsClient.send(JSON.stringify(request));
+    
+    try {
+      this._wsClient.send(JSON.stringify(request));
+    } catch (error) {
+      const telnyxError = ErrorHandler.handleConnectionError(
+        error as Error,
+        'Connection.send',
+        { requestId: request.id }
+      );
+      return Promise.reject(telnyxError);
+    }
 
     return promise;
   }
 
   close() {
     if (this._wsClient) {
+      this._connectionManager.onConnectionClosed(true); // Expected closure
       isFunction(this._wsClient._beginClose)
         ? this._wsClient._beginClose()
         : this._wsClient.close();
     }
     this._wsClient = null;
+    this._connectionManager.destroy();
   }
 
   private _unsetTimer(id: string) {

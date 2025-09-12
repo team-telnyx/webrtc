@@ -1514,11 +1514,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   };
 
   private _onMediaError(error: any) {
-    this._dispatchNotification({
-      type: NOTIFICATION_TYPE.userMediaError,
-      error,
-    });
-    this.hangup({}, false);
+    const { CallErrorHandler } = require('../services/CallErrorHandler');
+    CallErrorHandler.handleCallMediaError(this, error);
   }
 
   private _dispatchConferenceUpdate(params: any) {

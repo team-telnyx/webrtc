@@ -1,4 +1,52 @@
 import Call from '../Modules/Verto/webrtc/Call';
+import { TelnyxError } from '../Modules/Verto/util/TelnyxError';
+
+/**
+ * Enhanced error context information
+ */
+export interface IErrorContext {
+  sessionId?: string;
+  callId?: string;
+  userId?: string;
+  timestamp: string;
+  userAgent?: string;
+  networkState?: boolean;
+  reconnectionInfo?: {
+    attempts: number;
+    maxAttempts: number;
+    nextRetryIn: number;
+    lastConnectedAt?: string;
+  };
+}
+
+/**
+ * Enhanced error notification with better user experience
+ */
+export interface IErrorNotification {
+  type: 'error';
+  code: string;
+  message: string;
+  context: IErrorContext;
+  userMessage?: string;
+  canRetry: boolean;
+  suggestedAction?: string;
+  metadata?: any;
+}
+
+/**
+ * Connection state change notification
+ */
+export interface IConnectionStateNotification {
+  type: 'connectionStateChange';
+  state: 'disconnected' | 'connecting' | 'connected' | 'failed';
+  error?: any;
+  reconnectionInfo?: {
+    attempts: number;
+    maxAttempts: number;
+    nextRetryIn: number;
+    lastConnectedAt?: string;
+  };
+}
 import { INotificationEventData } from '../Modules/Verto/util/interfaces';
 
 export interface ICredentials {
@@ -258,7 +306,18 @@ export interface ICallOptions {
  * ```js
  * {
  *   type: 'userMediaError',
- *   error: Error
+ *   error: TelnyxError // Enhanced error with user-friendly messages
+ * }
+ * ```
+ *
+ * #### `connectionStateChange`
+ *
+ * ```js
+ * {
+ *   type: 'connectionStateChange',
+ *   state: 'connected' | 'disconnected' | 'connecting' | 'failed',
+ *   error?: TelnyxError,
+ *   reconnectionInfo?: ReconnectionInfo
  * }
  * ```
  *
@@ -277,8 +336,21 @@ export interface INotification extends Omit<INotificationEventData, 'call'> {
    */
   call?: Call;
   /**
-   * Error from the `userMediaError` event.
+   * Enhanced error from the `userMediaError` event with user-friendly messages and retry information.
    * Check your `audio` and `video` constraints for browser support.
    */
-  error?: Error;
+  error?: Error | TelnyxError;
+  /**
+   * Connection state for connectionStateChange events
+   */
+  state?: string;
+  /**
+   * Reconnection information for connection-related notifications
+   */
+  reconnectionInfo?: {
+    attempts: number;
+    maxAttempts: number;
+    nextRetryIn: number;
+    lastConnectedAt?: string;
+  };
 }
