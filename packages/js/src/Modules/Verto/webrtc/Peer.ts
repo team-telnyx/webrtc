@@ -27,7 +27,6 @@ import { IVertoCallOptions } from './interfaces';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-  public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo: boolean;
@@ -49,7 +48,6 @@ export default class Peer {
       offerToReceiveVideo: true,
     };
 
-    this._sdpReady = this._sdpReady.bind(this);
     this.handleSignalingStateChangeEvent =
       this.handleSignalingStateChangeEvent.bind(this);
     this.handleNegotiationNeededEvent =
@@ -325,7 +323,6 @@ export default class Peer {
     await this.instance
       .createOffer(this._constraints)
       .then(this._setLocalDescription.bind(this))
-      .then(this._sdpReady)
       .catch((error) => logger.error('Peer _createOffer error:', error));
   }
 
@@ -381,12 +378,6 @@ export default class Peer {
       return transceiver.setCodecPreferences(this.options.preferred_codecs);
     }
   };
-  /** Workaround for ReactNative: first time SDP has no candidates */
-  private _sdpReady(): void {
-    if (isFunction(this.onSdpReadyTwice)) {
-      this.onSdpReadyTwice(this.instance.localDescription);
-    }
-  }
 
   private async _retrieveLocalStream() {
     if (streamIsValid(this.options.localStream)) {

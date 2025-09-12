@@ -15,6 +15,8 @@ export enum VertoMethod {
   Attach = 'telnyx_rtc.attach',
   Answer = 'telnyx_rtc.answer',
   Info = 'telnyx_rtc.info',
+  Candidate = 'telnyx_rtc.candidate',
+  EndOfCandidates = 'telnyx_rtc.endOfCandidates',
   Display = 'telnyx_rtc.display',
   Media = 'telnyx_rtc.media',
   Event = 'telnyx_rtc.event',

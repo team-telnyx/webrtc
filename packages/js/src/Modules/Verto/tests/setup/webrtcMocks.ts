@@ -96,6 +96,8 @@ class RTCRtpSenderMock implements RTCRtpSender {
   rtcpTransport: RTCDtlsTransport;
   track: MediaStreamTrack;
   transport: RTCDtlsTransport;
+  //@ts-ignore
+  transform: RTCRtpScriptTransform;
   getParameters(): RTCRtpSendParameters;
   getParameters(): RTCRtpParameters;
   getParameters(): any {}
@@ -169,8 +171,12 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   createAnswer(
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<RTCSessionDescriptionInit | void> {}
+  ): Promise<RTCSessionDescriptionInit | void> {
+    return Promise.resolve({
+      type: 'answer',
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1 192.168.1.1 54400 typ host'
+    });
+  }
   createDataChannel(
     label: string,
     dataChannelDict?: RTCDataChannelInit
@@ -192,8 +198,12 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     successCallback?: any,
     failureCallback?: any,
     options?: any
-    //@ts-ignore
-  ): Promise<RTCSessionDescriptionInit | void> {}
+  ): Promise<RTCSessionDescriptionInit | void> {
+    return Promise.resolve({
+      type: 'offer',
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1 192.168.1.1 54400 typ host'
+    });
+  }
   //@ts-ignore
   getConfiguration(): RTCConfiguration {}
   //@ts-ignore
@@ -215,8 +225,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     failureCallback?: any
     //@ts-ignore
   ): Promise<RTCStatsReport | void> {}
-  //@ts-ignore
-  getTransceivers(): RTCRtpTransceiver[] {}
+  getTransceivers(): RTCRtpTransceiver[] {
+    return [];
+  }
   removeTrack(sender: RTCRtpSender): void;
   removeTrack(sender: RTCRtpSender): void;
   removeTrack(sender: any) {}
@@ -235,8 +246,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<void> {}
+  ): Promise<void> {
+    return Promise.resolve();
+  }
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(
@@ -248,8 +260,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<void> {}
+  ): Promise<void> {
+    return Promise.resolve();
+  }
   addEventListener<
     K extends
       | 'connectionstatechange'
