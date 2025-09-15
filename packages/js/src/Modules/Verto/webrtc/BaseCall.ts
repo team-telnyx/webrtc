@@ -1459,14 +1459,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._onIceSdp(instance.localDescription);
       }
 
-      if (event.candidate.type === 'host' && event.candidate.candidate !== '')
-        return;
-
       logger.debug('RTCPeer Candidate:', event.candidate);
 
       // Handle end-of-candidates indication (empty string per RFC8838)
       if (event.candidate.candidate === '') {
         logger.debug('End-of-candidates received (empty string candidate)');
+        return;
       }
 
       this._sendIceCandidate(event.candidate);
@@ -1515,9 +1513,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     const { instance } = this.peer;
     this._initialSdpSent = false;
     instance.onicecandidate = (event) => {
-      if (this._initialSdpSent) {
-        return;
-      }
       this._onIce(event);
     };
 
@@ -1539,7 +1534,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     instance.onicecandidateerror = (event) => {
-      logger.error('ICE candidate error:', event);
+      // if a candidate fails this is not fatal as long as other candidates succeed
+      logger.debug('ICE candidate error:', event);
     };
 
     //@ts-ignore

@@ -420,6 +420,96 @@ describe('Call Trickle ICE', () => {
       );
     });
 
+    it('should handle multiple onicecandidate events sequentially', () => {
+      // Mock session execute to capture outgoing messages
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({});
+
+      // Mock the localDescription to indicate SDP was sent
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({
+          type: 'offer',
+          sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+        }),
+        configurable: true,
+      });
+
+      // Create multiple mock ICE candidates
+      const candidates = [
+        {
+          candidate: 'candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test1',
+        },
+        {
+          candidate: 'candidate:2 1 UDP 1694498815 203.0.113.1 54401 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test2',
+        },
+        {
+          candidate: 'candidate:3 1 TCP 1006632447 198.51.100.1 9 typ relay',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test3',
+        },
+      ] as RTCIceCandidate[];
+
+      // First trigger SDP sending with initial candidate
+      const initialCandidateEvent = {
+        type: 'icecandidate',
+        candidate: candidates[0],
+        target: call.peer.instance,
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      call.peer.instance.onicecandidate(initialCandidateEvent);
+
+      // Clear the spy to focus on subsequent candidates
+      sessionExecuteSpy.mockClear();
+
+      // Set _initialSdpSent to true to simulate that SDP was sent
+      (call as any)._initialSdpSent = true;
+
+      // Update the event handler to allow candidates through
+      call.peer.instance.onicecandidate = (event) => {
+        (call as any)._onIce(event);
+      };
+
+      // Trigger multiple ICE candidate events
+      candidates.slice(1).forEach((candidate) => {
+        const candidateEvent = {
+          type: 'icecandidate',
+          candidate,
+          target: call.peer.instance,
+        } as unknown as RTCPeerConnectionIceEvent;
+
+        call.peer.instance.onicecandidate(candidateEvent);
+      });
+
+      // Should have sent all remaining candidates (2 in this case)
+      expect(sessionExecuteSpy).toHaveBeenCalledTimes(2);
+
+      // Verify each candidate was sent with correct structure
+      candidates.slice(1).forEach((expectedCandidate, index) => {
+        expect(sessionExecuteSpy).toHaveBeenNthCalledWith(
+          index + 1,
+          expect.objectContaining({
+            request: expect.objectContaining({
+              method: VertoMethod.Candidate,
+              params: expect.objectContaining({
+                candidate: expectedCandidate.candidate,
+                sdpMLineIndex: expectedCandidate.sdpMLineIndex,
+                sdpMid: expectedCandidate.sdpMid,
+                usernameFragment: expectedCandidate.usernameFragment,
+              }),
+            }),
+          })
+        );
+      });
+    });
+
     it('should handle ICE gathering completion', () => {
       // Mock session execute to capture messages
       const sessionExecuteSpy = jest
