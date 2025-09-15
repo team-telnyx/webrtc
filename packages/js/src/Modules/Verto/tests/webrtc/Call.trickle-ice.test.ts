@@ -196,7 +196,7 @@ describe('Call Trickle ICE', () => {
 
       const mockSdpWithCandidates = {
         type: 'offer' as RTCSdpType,
-        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1 192.168.1.1 54400 typ host',
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
       };
 
       Object.defineProperty(call.peer.instance, 'localDescription', {
