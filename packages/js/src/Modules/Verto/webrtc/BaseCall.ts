@@ -138,6 +138,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _initialSdpSent: boolean = false;
 
+  private _pendingRemoteCandidates: RTCIceCandidateInit[] = [];
+
+  private _endOfCandidatesSent: boolean = false;
+
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -194,43 +198,54 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private get performanceMetrics() {
-    const peerCreation = performance.measure(
+    const hasMark = (name: string) =>
+      performance.getEntriesByName(name, 'mark').length > 0;
+
+    const measureSafe = (name: string, start: string, end: string) => {
+      try {
+        if (!hasMark(start) || !hasMark(end)) {
+          return null;
+        }
+        return performance.measure(name, start, end);
+      } catch (_) {
+        return null;
+      }
+    };
+
+    const peerCreation = measureSafe(
       'peer-creation',
       'peer-creation-start',
       'peer-creation-end'
     );
 
-    const iceGathering = performance.measure(
+    const iceGathering = measureSafe(
       'ice-gathering',
       'ice-gathering-start',
       'ice-gathering-end'
     );
 
-    const sdpSend = performance.measure(
-      'sdp-send',
-      'sdp-send-start',
-      'sdp-send-end'
-    );
+    const sdpSend = measureSafe('sdp-send', 'sdp-send-start', 'sdp-send-end');
 
-    const totalDuration = performance.measure(
+    const totalDuration = measureSafe(
       'total-duration',
       'peer-creation-start',
       'sdp-send-end'
     );
 
-    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    const formatDuration = (entry: PerformanceMeasure | null) =>
+      entry ? `${entry.duration.toFixed(2)}ms` : 'pending';
     return {
       'Peer Creation': {
-        duration: formatDuration(peerCreation.duration),
+        duration: formatDuration(peerCreation),
       },
       'ICE Gathering': {
-        duration: formatDuration(iceGathering.duration),
+        duration: formatDuration(iceGathering),
       },
       'SDP Send': {
-        duration: formatDuration(sdpSend.duration),
+        duration: formatDuration(sdpSend),
       },
       'Total Duration': {
-        duration: formatDuration(totalDuration.duration),
+        duration: formatDuration(totalDuration),
       },
     };
   }
@@ -1372,6 +1387,16 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
+    try {
+      const audioLine = remoteSdp.split('\n').find((l) => l.startsWith('m=audio')) || '';
+      const direction = (remoteSdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/) || [])[1] || 'unknown';
+      const iceUfrag = (remoteSdp.match(/a=ice-ufrag:(.+)/) || [])[1] || 'missing';
+      const icePwd = (remoteSdp.match(/a=ice-pwd:(.+)/) || [])[1] || 'missing';
+      const mid = (remoteSdp.match(/a=mid:(.+)/) || [])[1] || 'missing';
+      console.log('Applying remote SDP', { audioLine, direction, iceUfrag, icePwdPresent: icePwd !== 'missing', mid });
+    } catch (e) {
+      console.warn('Failed to parse remote SDP for diagnostics');
+    }
     const sdp = new RTCSessionDescription({ sdp: remoteSdp, type: 'answer' });
 
     await this.peer.instance
@@ -1383,6 +1408,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotAnswer) {
           this.setState(State.Active);
         }
+        this._flushPendingRemoteCandidates();
       })
       .catch((error) => {
         logger.error('Call setRemoteDescription Error: ', error);
@@ -1464,6 +1490,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       // Handle end-of-candidates indication (empty string per RFC8838)
       if (event.candidate.candidate === '') {
         logger.debug('End-of-candidates received (empty string candidate)');
+        this._sendEndOfCandidates();
         return;
       }
 
@@ -1472,34 +1499,119 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _sendIceCandidate(candidate: RTCIceCandidate) {
+    const normalized = this._normalizeLocalCandidate(candidate);
+    console.log('Sending ICE candidate', {
+      candidate: normalized.candidate,
+      sdpMid: normalized.sdpMid,
+      sdpMLineIndex: normalized.sdpMLineIndex,
+      hasUsernameFragment: Boolean(normalized.usernameFragment),
+    });
     const msg = new Candidate({
       sessid: this.session.sessionid,
       // https://www.w3.org/TR/webrtc/#dom-peerconnection-addicecandidate
-      candidate: candidate.candidate,
-      sdpMLineIndex: candidate.sdpMLineIndex,
-      sdpMid: candidate.sdpMid,
-      usernameFragment: candidate.usernameFragment,
-      dialogParams: this.options,
+      candidate: normalized.candidate,
+      sdpMLineIndex: normalized.sdpMLineIndex,
+      sdpMid: normalized.sdpMid,
+      dialogParams: { callID: this.options?.id || this.id },
     });
     this._execute(msg);
   }
 
-  private _addIceCandidate(candidate: RTCIceCandidate) {
+  private _addIceCandidate(candidate: RTCIceCandidateInit) {
     try {
-      this.peer.instance
-        .addIceCandidate(candidate)
+      if (!this.peer || !this.peer.instance) {
+        logger.error('Failed to add ICE candidate (no peer instance):', candidate);
+        console.error('Failed to add ICE candidate (no peer instance):', candidate);
+        return;
+      }
+      const pc = this.peer.instance;
+      const normalized = this._normalizeRemoteCandidate(candidate);
+      if (!pc.remoteDescription || !pc.remoteDescription.type) {
+        this._pendingRemoteCandidates.push(normalized);
+        logger.debug('Queued remote ICE candidate (remoteDescription not set yet):', normalized);
+        console.log('Queued remote ICE candidate (remoteDescription not set yet):', normalized);
+        return;
+      }
+
+      if (this._pendingRemoteCandidates.length) {
+        this._flushPendingRemoteCandidates();
+      }
+
+      pc
+        .addIceCandidate(normalized)
         .then(() => {
-          logger.debug('Successfully added ICE candidate:', candidate);
+           logger.debug('Successfully added ICE candidate:', normalized);
+           console.log('Successfully added ICE candidate:', normalized);
         })
         .catch((error) => {
-          logger.error('Failed to add ICE candidate:', error, candidate);
+          logger.error('Failed to add ICE candidate:', error, normalized);
+          console.error('Failed to add ICE candidate:', error, normalized);
         });
     } catch (error) {
       logger.error('Invalid ICE candidate format:', error, candidate);
+      console.error('Invalid ICE candidate format:', error, candidate);
     }
   }
 
+  private _flushPendingRemoteCandidates() {
+    if (!this._pendingRemoteCandidates.length || !this.peer || !this.peer.instance) {
+      console.log('No pending remote ICE candidates to flush or peer missing');
+      return;
+    }
+    const pc = this.peer.instance;
+    const pending = this._pendingRemoteCandidates.splice(0);
+    console.log('Flushing pending remote ICE candidates', { count: pending.length });
+    pending.forEach((c, idx) => {
+      pc
+        .addIceCandidate(c)
+        .then(() => {
+          logger.debug('Flushed ICE candidate:', c);
+          console.log('Flushed ICE candidate OK', { index: idx, candidate: c });
+        })
+        .catch((error) => {
+          logger.error('Failed to flush ICE candidate:', error, c);
+          console.error('Failed to flush ICE candidate', error, { index: idx, candidate: c });
+        });
+    });
+  }
+
+  private _normalizeRemoteCandidate(candidate: RTCIceCandidateInit): RTCIceCandidateInit {
+    if (!candidate || typeof candidate.candidate !== 'string') {
+      return candidate;
+    }
+    let cand = candidate.candidate.trim();
+    if (cand.startsWith('a=')) {
+      cand = cand.substring(2).trim();
+    }
+    return { ...candidate, candidate: cand };
+  }
+
+  private _normalizeLocalCandidate(candidate: RTCIceCandidate): RTCIceCandidateInit {
+    if (!candidate || typeof candidate.candidate !== 'string') {
+      return candidate as unknown as RTCIceCandidateInit;
+    }
+    let cand = candidate.candidate.trim();
+    if (cand.startsWith('a=')) {
+      cand = cand.substring(2).trim();
+    }
+    if (!cand.startsWith('candidate:')) {
+      cand = `candidate:${cand}`;
+    }
+    // Collapse multiple spaces
+    cand = cand.replace(/\s+/g, ' ');
+    return {
+      candidate: cand,
+      sdpMLineIndex: candidate.sdpMLineIndex,
+      sdpMid: candidate.sdpMid,
+      usernameFragment: candidate.usernameFragment,
+    } as RTCIceCandidateInit;
+  }
+
   private _sendEndOfCandidates() {
+    if (this._endOfCandidatesSent) {
+      return;
+    }
+    console.log('Sending EndOfCandidates');
     const msg = new EndOfCandidates({
       sessid: this.session.sessionid,
       endOfCandidates: true,
@@ -1507,11 +1619,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
     this._execute(msg);
     performance.mark('ice-gathering-end');
+    this._endOfCandidatesSent = true;
   }
 
   private _registerPeerEvents() {
     const { instance } = this.peer;
     this._initialSdpSent = false;
+    this._endOfCandidatesSent = false;
     instance.onicecandidate = (event) => {
       this._onIce(event);
     };
