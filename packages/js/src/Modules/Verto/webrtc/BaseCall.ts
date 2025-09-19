@@ -142,6 +142,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _endOfCandidatesSent: boolean = false;
 
+  private _remoteIceParameters: { ufrag?: string; pwd?: string; generation: number } = null;
+
+  private _endOfCandidatesTimer: any = null;
+
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -313,6 +317,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   invite() {
+    console.log('NEW VERSION TRICKLE ICE 14');
     this.direction = Direction.Outbound;
     performance.mark(`peer-creation-start`);
     this.peer = new Peer(PeerType.Offer, this.options, this.session);
@@ -1397,6 +1402,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     } catch (e) {
       console.warn('Failed to parse remote SDP for diagnostics');
     }
+    // Extract ICE parameters (audio m-section preferred) for candidate enhancement
+    this._remoteIceParameters = this._extractIceParametersFromSdp(remoteSdp);
+    console.log('Extracted remote ICE parameters', this._remoteIceParameters);
     const sdp = new RTCSessionDescription({ sdp: remoteSdp, type: 'answer' });
 
     await this.peer.instance
@@ -1423,6 +1431,58 @@ export default abstract class BaseCall implements IWebRTCCall {
       .join('\n');
   }
 
+  private _prepareInitialSdpForTrickle(sdp: string): string {
+    try {
+      const lines = sdp.split(/\r?\n/);
+      const out: string[] = [];
+      let inAudio = false;
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i];
+        if (line.startsWith('m=audio')) {
+          // force port 9 per trickle style
+          const parts = line.split(' ');
+          if (parts.length > 1) {
+            parts[1] = '9';
+            line = parts.join(' ');
+          }
+          inAudio = true;
+        } else if (line.startsWith('m=')) {
+          inAudio = false;
+        }
+        if (line.startsWith('c=IN ') && inAudio) {
+          // neutralize c-line during initial offer
+          line = 'c=IN IP4 0.0.0.0';
+        }
+        if (line.startsWith('a=rtcp:') && inAudio) {
+          // keep rtcp line but neutralize to 9/0.0.0.0
+          line = 'a=rtcp:9 IN IP4 0.0.0.0';
+        }
+        out.push(line);
+      }
+      const munged = out.join('\r\n');
+      console.log('Prepared initial SDP for trickle', { before: sdp, after: munged });
+      return munged;
+    } catch (_) {
+      return sdp;
+    }
+  }
+
+  private _scheduleEndOfCandidatesTimeout(ms: number) {
+    if (this._endOfCandidatesSent) {
+      return;
+    }
+    if (this._endOfCandidatesTimer) {
+      clearTimeout(this._endOfCandidatesTimer);
+    }
+    this._endOfCandidatesTimer = setTimeout(() => {
+      // Only send if we still haven't sent it
+      if (!this._endOfCandidatesSent) {
+        console.log('EndOfCandidates timeout reached, sending now');
+        this._sendEndOfCandidates();
+      }
+    }, ms);
+  }
+
   private _onIceSdp(data: RTCSessionDescription) {
     this._initialSdpSent = true;
     const { sdp, type } = data;
@@ -1431,7 +1491,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const tmpParams = {
       sessid: this.session.sessionid,
-      sdp: this._removeCandidatesFromIceSdp(sdp),
+      sdp: this._prepareInitialSdpForTrickle(this._removeCandidatesFromIceSdp(sdp)),
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
@@ -1494,12 +1554,21 @@ export default abstract class BaseCall implements IWebRTCCall {
         return;
       }
 
+      // Reset/send fallback timer to ensure EOC is sent even if gathering 'complete' isn't fired
+      this._scheduleEndOfCandidatesTimeout(3000);
+
       this._sendIceCandidate(event.candidate);
     }
   }
 
   private _sendIceCandidate(candidate: RTCIceCandidate) {
     const normalized = this._normalizeLocalCandidate(candidate);
+    // Filter: only send srflx/relay to server for this test
+    const candLower = normalized.candidate.toLowerCase();
+    if (candLower.includes(' host')) {
+      console.log('Skipping host candidate send', normalized.candidate);
+      return;
+    }
     console.log('Sending ICE candidate', {
       candidate: normalized.candidate,
       sdpMid: normalized.sdpMid,
@@ -1583,6 +1652,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (cand.startsWith('a=')) {
       cand = cand.substring(2).trim();
     }
+    cand = this._enhanceCandidateString(cand);
     return { ...candidate, candidate: cand };
   }
 
@@ -1594,17 +1664,134 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (cand.startsWith('a=')) {
       cand = cand.substring(2).trim();
     }
+    // Ensure prefix and collapse spacing before cleaning
     if (!cand.startsWith('candidate:')) {
       cand = `candidate:${cand}`;
     }
-    // Collapse multiple spaces
     cand = cand.replace(/\s+/g, ' ');
+    cand = this._cleanLocalCandidateString(cand);
     return {
       candidate: cand,
       sdpMLineIndex: candidate.sdpMLineIndex,
       sdpMid: candidate.sdpMid,
-      usernameFragment: candidate.usernameFragment,
     } as RTCIceCandidateInit;
+  }
+
+  private _cleanLocalCandidateString(cand: string): string {
+    try {
+      const parts = cand.trim().split(/\s+/);
+      // Expect at least: candidate:<foundation> <component> <transport> <priority> <ip> <port>
+      if (parts.length < 7 || !parts[0].startsWith('candidate:')) {
+        return cand;
+      }
+      const foundation = parts[0].substring('candidate:'.length);
+      const component = parts[1];
+      const transport = parts[2];
+      const priority = parts[3];
+      const ip = parts[4];
+      const port = parts[5];
+
+      // Find candidate type after 'typ'
+      let ctype = '';
+      for (let i = 6; i < parts.length; i++) {
+        if (parts[i] === 'typ' && i + 1 < parts.length) {
+          ctype = parts[i + 1];
+          break;
+        }
+      }
+
+      // Related address/port (browser uses raddr/rport)
+      let raddr: string | undefined;
+      let rport: string | undefined;
+      for (let i = 6; i < parts.length; i++) {
+        const key = parts[i];
+        if (key === 'raddr' && i + 1 < parts.length) {
+          raddr = parts[i + 1];
+          i++;
+          continue;
+        }
+        if (key === 'rport' && i + 1 < parts.length) {
+          rport = parts[i + 1];
+          i++;
+          continue;
+        }
+      }
+
+      // Rebuild in desired minimal format
+      const cleaned: string[] = [];
+      cleaned.push(`candidate:${foundation}`);
+      cleaned.push(component);
+      cleaned.push(transport);
+      cleaned.push(priority);
+      cleaned.push(ip);
+      cleaned.push(port);
+      if (ctype) {
+        cleaned.push(ctype);
+      }
+      if (raddr) {
+        cleaned.push('rel-addr');
+        cleaned.push(raddr);
+      }
+      if (rport) {
+        cleaned.push('rel-port');
+        cleaned.push(rport);
+      }
+      const cleanedStr = cleaned.join(' ');
+      console.log('Cleaned local ICE candidate', { before: cand, after: cleanedStr });
+      return cleanedStr;
+    } catch (_) {
+      return cand;
+    }
+  }
+
+  private _extractIceParametersFromSdp(sdp: string): { ufrag?: string; pwd?: string; generation: number } {
+    try {
+      const lines = sdp.split(/\r?\n/);
+      let ufrag: string = null;
+      let pwd: string = null;
+      let inAudio = false;
+      for (const line of lines) {
+        if (line.startsWith('m=audio')) {
+          inAudio = true;
+          continue;
+        }
+        if (line.startsWith('m=') && !line.startsWith('m=audio')) {
+          // if we were in audio section and got both, stop
+          if (inAudio && (ufrag || pwd)) break;
+          inAudio = false;
+        }
+        if (line.startsWith('a=ice-ufrag:')) {
+          const val = line.substring('a=ice-ufrag:'.length).trim();
+          if (inAudio && !ufrag) ufrag = val;
+          else if (!ufrag) ufrag = val;
+        }
+        if (line.startsWith('a=ice-pwd:')) {
+          const val = line.substring('a=ice-pwd:'.length).trim();
+          if (inAudio && !pwd) pwd = val;
+          else if (!pwd) pwd = val;
+        }
+      }
+      return { ufrag: ufrag || undefined, pwd: pwd || undefined, generation: 0 };
+    } catch (e) {
+      return { generation: 0 } as any;
+    }
+  }
+
+  private _enhanceCandidateString(cand: string): string {
+    // If already contains ufrag or generation, do nothing
+    const lower = cand.toLowerCase();
+    if (lower.includes(' ufrag ') || lower.includes(' generation ')) {
+      return cand;
+    }
+    const { ufrag, generation = 0 } = this._remoteIceParameters || { generation: 0 };
+    let enhanced = cand;
+    enhanced += ` generation ${generation}`;
+    if (ufrag) {
+      enhanced += ` ufrag ${ufrag}`;
+    }
+    enhanced += ` network-id 1 network-cost 10`;
+    console.log('Enhanced remote ICE candidate', { before: cand, after: enhanced });
+    return enhanced;
   }
 
   private _sendEndOfCandidates() {
@@ -1613,19 +1800,25 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
     console.log('Sending EndOfCandidates');
     const msg = new EndOfCandidates({
-      sessid: this.session.sessionid,
-      endOfCandidates: true,
-      dialogParams: this.options,
+      dialogParams: { callID: this.options?.id || this.id },
     });
     this._execute(msg);
     performance.mark('ice-gathering-end');
     this._endOfCandidatesSent = true;
+    if (this._endOfCandidatesTimer) {
+      clearTimeout(this._endOfCandidatesTimer);
+      this._endOfCandidatesTimer = null;
+    }
   }
 
   private _registerPeerEvents() {
     const { instance } = this.peer;
     this._initialSdpSent = false;
     this._endOfCandidatesSent = false;
+    if (this._endOfCandidatesTimer) {
+      clearTimeout(this._endOfCandidatesTimer);
+      this._endOfCandidatesTimer = null;
+    }
     instance.onicecandidate = (event) => {
       this._onIce(event);
     };

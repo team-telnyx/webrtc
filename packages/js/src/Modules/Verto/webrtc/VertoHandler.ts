@@ -65,7 +65,10 @@ class VertoHandler {
         session.calls[callID].hangup({}, false);
       } else {
         session.calls[callID].handleMessage(msg);
-        this._ack(id, method);
+        // Skip ACK for telnyx_rtc.candidate and telnyx_rtc.endOfCandidates to avoid empty result frames
+        if (method !== VertoMethod.Candidate && method !== VertoMethod.EndOfCandidates) {
+          this._ack(id, method);
+        }
         return;
       }
     }
