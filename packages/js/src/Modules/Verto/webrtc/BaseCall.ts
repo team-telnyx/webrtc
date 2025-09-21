@@ -134,8 +134,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _targetNodeId: string = null;
 
-  private _iceTimeout = null;
-
   private _initialSdpSent: boolean = false;
 
   private _ringtone: IAudio;
@@ -1459,20 +1457,15 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
 
-    if (event.candidate) {
+    if (event.candidate && event.candidate.candidate) {
       if (!this._initialSdpSent) {
         this._onIceSdp(instance.localDescription);
       }
 
       logger.debug('RTCPeer Candidate:', event.candidate);
-
-      // Handle end-of-candidates indication (empty string per RFC8838)
-      if (event.candidate.candidate === '') {
-        logger.debug('End-of-candidates received (empty string candidate)');
-        return;
-      }
-
       this._sendIceCandidate(event.candidate);
+    } else {
+      this._sendEndOfCandidates();
     }
   }
 
@@ -1507,8 +1500,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _addIceCandidateToPeer(
     candidate: RTCIceCandidate | RTCIceCandidateInit | null
   ) {
-    this.peer.instance
-      .addIceCandidate(candidate)
+    const addCandidateResult = this.peer.instance.addIceCandidate(candidate);
+
+    Promise.resolve(addCandidateResult)
       .then(() => {
         logger.debug('Successfully added ICE candidate:', candidate);
       })
@@ -1567,9 +1561,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         } else {
           logger.debug('Finished gathering candidates');
         }
-
-        this._sendEndOfCandidates();
-        instance.removeEventListener('icecandidate', this._onIce);
       }
     };
 

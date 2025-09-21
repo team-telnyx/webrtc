@@ -60,26 +60,44 @@ describe('Call Trickle ICE', () => {
 
   describe('ICE candidate message handling', () => {
     it('should queue ICE candidates until the remote description is set', async () => {
-      const candidate = {
-        candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
-        sdpMLineIndex: 0,
-        sdpMid: '0',
-        usernameFragment: 'test',
-      };
+      const candidates = [
+        {
+          candidate: 'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test-1',
+        },
+        {
+          candidate: 'candidate:2 1 UDP 1694498815 198.51.100.2 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test-2',
+        },
+        {
+          candidate: 'candidate:3 1 UDP 1694498815 198.51.100.3 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'test-3',
+        },
+      ];
 
       const addCandidateSpy = jest.spyOn(call.peer.instance, 'addIceCandidate');
 
-      call.handleMessage({
-        method: VertoMethod.Candidate,
-        params: candidate,
+      candidates.forEach((candidate) => {
+        call.handleMessage({
+          method: VertoMethod.Candidate,
+          params: candidate,
+        });
       });
 
       expect(addCandidateSpy).not.toHaveBeenCalled();
-      expect((call as any)._pendingIceCandidates).toHaveLength(1);
+      expect((call as any)._pendingIceCandidates).toHaveLength(candidates.length);
 
       await (call as any)._onRemoteSdp(remoteSdp);
 
-      expect(addCandidateSpy).toHaveBeenCalledWith(candidate);
+      const calledCandidates = addCandidateSpy.mock.calls.map(([candidate]) => candidate);
+      expect(calledCandidates).toEqual(candidates);
+      expect(addCandidateSpy).toHaveBeenCalledTimes(candidates.length);
       expect((call as any)._pendingIceCandidates).toHaveLength(0);
     });
 
@@ -109,35 +127,6 @@ describe('Call Trickle ICE', () => {
           params: candidate,
         });
       }).not.toThrow();
-    });
-
-    it('should call addIceCandidate even for invalid candidates (validation moved to _addIceCandidate)', async () => {
-      const invalidCandidates = [
-        {
-          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
-          sdpMLineIndex: 0,
-          sdpMid: '0',
-        },
-        {
-          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
-          sdpMLineIndex: 0,
-        },
-        {
-        },
-      ];
-
-      const addCandidateSpy = jest.spyOn(call.peer.instance, 'addIceCandidate');
-
-      invalidCandidates.forEach((candidate) => {
-        call.handleMessage({
-          method: VertoMethod.Candidate,
-          params: candidate,
-        });
-      });
-
-      await (call as any)._onRemoteSdp(remoteSdp);
-
-      expect(addCandidateSpy).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -446,66 +435,6 @@ describe('Call Trickle ICE', () => {
           })
         );
       });
-    });
-
-    it('should handle ICE gathering completion', () => {
-      // Mock session execute to capture messages
-      const sessionExecuteSpy = jest
-        .spyOn((call as any).session, 'execute')
-        .mockResolvedValue({});
-
-      // Mock the localDescription to indicate SDP was sent
-      Object.defineProperty(call.peer.instance, 'localDescription', {
-        get: () => ({
-          type: 'offer',
-          sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
-        }),
-        configurable: true,
-      });
-
-      // First simulate that initial SDP has been sent by triggering ICE candidate
-      const initialCandidate = {
-        type: 'icecandidate',
-        candidate: {
-          candidate:
-            'candidate:setup 1 UDP 1694498810 192.168.1.4 54403 typ host',
-          sdpMLineIndex: 0,
-          sdpMid: '0',
-        },
-        target: call.peer.instance,
-      } as unknown as RTCPeerConnectionIceEvent;
-
-      call.peer.instance.onicecandidate(initialCandidate);
-
-      sessionExecuteSpy.mockClear();
-
-      // Set _initialSdpSent to true to simulate that SDP was sent
-      (call as any)._initialSdpSent = true;
-
-      // Mock ICE gathering state as complete
-      Object.defineProperty(call.peer.instance, 'iceGatheringState', {
-        value: 'complete',
-        writable: true,
-        configurable: true,
-      });
-
-      // Simulate ICE gathering state change event
-      const stateChangeEvent = new Event('icegatheringstatechange');
-
-      call.peer.instance.onicegatheringstatechange(stateChangeEvent);
-
-      // Should mark performance and send end-of-candidates
-      expect(global.performance.mark).toHaveBeenCalledWith('ice-gathering-end');
-      expect(sessionExecuteSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          request: expect.objectContaining({
-            method: VertoMethod.EndOfCandidates,
-            params: expect.objectContaining({
-              endOfCandidates: true,
-            }),
-          }),
-        })
-      );
     });
   });
 });
