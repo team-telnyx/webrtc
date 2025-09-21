@@ -278,7 +278,6 @@ export default class Peer {
       }
 
       if (screenShare === false) {
-        muteMediaElement(localElement);
         attachMediaStream(localElement, localStream);
       }
     }
