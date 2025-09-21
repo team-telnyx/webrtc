@@ -146,6 +146,12 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _statsIntervalId: any = null;
 
+  private _pendingIceCandidates: Array<
+    RTCIceCandidateInit | RTCIceCandidate | null
+  > = [];
+
+  private _isRemoteDescriptionSet: boolean = false;
+
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
       iceServers,
@@ -300,6 +306,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   invite() {
     this.direction = Direction.Outbound;
     performance.mark(`peer-creation-start`);
+    this._resetIceCandidateState();
     this.peer = new Peer(PeerType.Offer, this.options, this.session);
     this._registerPeerEvents();
   }
@@ -329,6 +336,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.preferred_codecs = params.preferred_codecs;
     }
 
+    this._resetIceCandidateState();
     this.peer = new Peer(PeerType.Answer, this.options, this.session);
     this._registerPeerEvents();
   }
@@ -1377,6 +1385,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
+        this._isRemoteDescriptionSet = true;
+        this._flushPendingIceCandidates();
         if (this.gotEarly) {
           this.setState(State.Early);
         }
@@ -1443,11 +1453,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .finally(() => {
         performance.mark('sdp-send-end');
-        console.group('Performance Metrics');
-        console.table(this.performanceMetrics);
-        console.groupEnd();
-
-        performance.clearMarks();
       });
   }
 
@@ -1484,19 +1489,32 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._execute(msg);
   }
 
-  private _addIceCandidate(candidate: RTCIceCandidate) {
-    try {
-      this.peer.instance
-        .addIceCandidate(candidate)
-        .then(() => {
-          logger.debug('Successfully added ICE candidate:', candidate);
-        })
-        .catch((error) => {
-          logger.error('Failed to add ICE candidate:', error, candidate);
-        });
-    } catch (error) {
-      logger.error('Invalid ICE candidate format:', error, candidate);
+  private _addIceCandidate(
+    candidate: RTCIceCandidate | RTCIceCandidateInit | null
+  ) {
+    if (!this._isRemoteDescriptionSet) {
+      logger.debug(
+        'Remote description not set. Queued ICE candidate.',
+        candidate
+      );
+      this._pendingIceCandidates.push(candidate);
+      return;
     }
+
+    this._addIceCandidateToPeer(candidate);
+  }
+
+  private _addIceCandidateToPeer(
+    candidate: RTCIceCandidate | RTCIceCandidateInit | null
+  ) {
+    this.peer.instance
+      .addIceCandidate(candidate)
+      .then(() => {
+        logger.debug('Successfully added ICE candidate:', candidate);
+      })
+      .catch((error) => {
+        logger.error('Failed to add ICE candidate:', error, candidate);
+      });
   }
 
   private _sendEndOfCandidates() {
@@ -1507,6 +1525,28 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
     this._execute(msg);
     performance.mark('ice-gathering-end');
+    console.group('Performance Metrics');
+    console.table(this.performanceMetrics);
+    console.groupEnd();
+    performance.clearMarks();
+  }
+
+  private _resetIceCandidateState() {
+    this._pendingIceCandidates = [];
+    this._isRemoteDescriptionSet = false;
+  }
+
+  private _flushPendingIceCandidates() {
+    if (!this._pendingIceCandidates.length) {
+      return;
+    }
+
+    const queuedCandidates = [...this._pendingIceCandidates];
+    this._pendingIceCandidates = [];
+
+    queuedCandidates.forEach((queuedCandidate) => {
+      this._addIceCandidateToPeer(queuedCandidate);
+    });
   }
 
   private _registerPeerEvents() {

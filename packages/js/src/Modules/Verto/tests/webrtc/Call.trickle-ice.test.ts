@@ -41,6 +41,7 @@ describe('Call Trickle ICE', () => {
     callerName: 'Jest Client',
     callerNumber: '5678',
   };
+  const remoteSdp = 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-';
 
   beforeEach(async (done) => {
     session = new Verto({
@@ -58,7 +59,7 @@ describe('Call Trickle ICE', () => {
   });
 
   describe('ICE candidate message handling', () => {
-    it('should call _addIceCandidate when receiving Candidate message with valid candidate', () => {
+    it('should queue ICE candidates until the remote description is set', async () => {
       const candidate = {
         candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
         sdpMLineIndex: 0,
@@ -73,7 +74,13 @@ describe('Call Trickle ICE', () => {
         params: candidate,
       });
 
+      expect(addCandidateSpy).not.toHaveBeenCalled();
+      expect((call as any)._pendingIceCandidates).toHaveLength(1);
+
+      await (call as any)._onRemoteSdp(remoteSdp);
+
       expect(addCandidateSpy).toHaveBeenCalledWith(candidate);
+      expect((call as any)._pendingIceCandidates).toHaveLength(0);
     });
 
     it('should handle candidate addition errors gracefully', async () => {
@@ -93,6 +100,8 @@ describe('Call Trickle ICE', () => {
         .spyOn(call.peer.instance, 'addIceCandidate')
         .mockRejectedValue(new Error('Invalid candidate'));
 
+      await (call as any)._onRemoteSdp(remoteSdp);
+
       // Should not throw
       expect(() => {
         call.handleMessage({
@@ -102,7 +111,7 @@ describe('Call Trickle ICE', () => {
       }).not.toThrow();
     });
 
-    it('should call addIceCandidate even for invalid candidates (validation moved to _addIceCandidate)', () => {
+    it('should call addIceCandidate even for invalid candidates (validation moved to _addIceCandidate)', async () => {
       const invalidCandidates = [
         {
           candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
@@ -125,6 +134,8 @@ describe('Call Trickle ICE', () => {
           params: candidate,
         });
       });
+
+      await (call as any)._onRemoteSdp(remoteSdp);
 
       expect(addCandidateSpy).toHaveBeenCalledTimes(3);
     });
