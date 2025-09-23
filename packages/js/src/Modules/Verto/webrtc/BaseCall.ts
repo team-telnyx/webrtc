@@ -197,74 +197,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  private get performanceMetrics() {
-    const peerCreation = performance.measure(
-      'peer-creation',
-      'peer-creation-start',
-      'peer-creation-end'
-    );
-
-    const iceGathering = performance.measure(
-      'ice-gathering',
-      'ice-gathering-start',
-      'ice-gathering-end'
-    );
-
-    const peerConnection = performance.measure(
-      'peer-connection',
-      'peer-connection-new',
-      'peer-connection-connected'
-    );
-
-    const sdpSend = performance.measure(
-      'sdp-send',
-      'sdp-send-start',
-      'sdp-send-end'
-    );
-
-    const inviteSend = performance.measure(
-      'invite-send',
-      'peer-creation-start',
-      'sdp-send-start'
-    );
-
-    const newCall = performance.measure(
-      'new-call',
-      'peer-creation-start',
-      'peer-connection-connected'
-    );
-
-    const totalDuration = performance.measure(
-      'total-duration',
-      'peer-creation-start',
-      'sdp-send-end'
-    );
-
-    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
-    return {
-      'Peer Creation': {
-        duration: formatDuration(peerCreation.duration),
-      },
-      'Peer Connection': {
-        duration: formatDuration(peerConnection.duration),
-      },
-      'ICE Gathering': {
-        duration: formatDuration(iceGathering.duration),
-      },
-      'Invite Send': {
-        duration: formatDuration(inviteSend.duration),
-      },
-      'SDP Send': {
-        duration: formatDuration(sdpSend.duration),
-      },
-      'New Call': {
-        duration: formatDuration(newCall.duration),
-      },
-      'Total Duration': {
-        duration: formatDuration(totalDuration.duration),
-      },
-    };
-  }
   get nodeId(): string {
     return this._targetNodeId;
   }
@@ -1546,10 +1478,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
     this._execute(msg);
     performance.mark('ice-gathering-end');
-    console.group('Performance Metrics');
-    console.table(this.performanceMetrics);
-    console.groupEnd();
-    performance.clearMarks();
   }
 
   private _resetIceCandidateState() {

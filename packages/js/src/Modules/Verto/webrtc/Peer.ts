@@ -35,6 +35,7 @@ export default class Peer {
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
+  private _performanceMetrics: Record<string, any> | null = null;
 
   constructor(
     public type: PeerType,
@@ -110,6 +111,75 @@ export default class Peer {
     });
   }
 
+  private get performanceMetrics() {
+    const peerCreation = performance.measure(
+      'peer-creation',
+      'peer-creation-start',
+      'peer-creation-end'
+    );
+
+    const iceGathering = performance.measure(
+      'ice-gathering',
+      'ice-gathering-start',
+      'ice-gathering-end'
+    );
+
+    const peerConnection = performance.measure(
+      'peer-connection',
+      'peer-connection-connecting',
+      'peer-connection-connected'
+    );
+
+    const sdpSend = performance.measure(
+      'sdp-send',
+      'sdp-send-start',
+      'sdp-send-end'
+    );
+
+    const inviteSend = performance.measure(
+      'invite-send',
+      'peer-creation-start',
+      'sdp-send-start'
+    );
+
+    const newCall = performance.measure(
+      'new-call',
+      'peer-creation-start',
+      'peer-connection-connected'
+    );
+
+    const totalDuration = performance.measure(
+      'total-duration',
+      'peer-creation-start',
+      'sdp-send-end'
+    );
+
+    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    return {
+      'Peer Creation': {
+        duration: formatDuration(peerCreation.duration),
+      },
+      'Peer Connection': {
+        duration: formatDuration(peerConnection.duration),
+      },
+      'ICE Gathering': {
+        duration: formatDuration(iceGathering.duration),
+      },
+      'Invite Send': {
+        duration: formatDuration(inviteSend.duration),
+      },
+      'SDP Send': {
+        duration: formatDuration(sdpSend.duration),
+      },
+      'New Call': {
+        duration: formatDuration(newCall.duration),
+      },
+      'Total Duration': {
+        duration: formatDuration(totalDuration.duration),
+      },
+    };
+  }
+
   private handleSignalingStateChangeEvent(event) {
     logger.info('signalingState:', this.instance.signalingState);
 
@@ -170,12 +240,16 @@ export default class Peer {
       window.addEventListener('online', onConnectionOnline);
     }
 
-    if (connectionState === 'new') {
-      performance.mark('peer-connection-new');
+    if (connectionState === 'connecting') {
+      performance.mark('peer-connection-connecting');
     }
 
     if (connectionState === 'connected') {
       performance.mark('peer-connection-connected');
+      console.group('Performance Metrics');
+      console.table(this.performanceMetrics);
+      console.groupEnd();
+      performance.clearMarks();
     }
   };
 
