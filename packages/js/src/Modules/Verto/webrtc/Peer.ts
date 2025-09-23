@@ -169,6 +169,14 @@ export default class Peer {
       }
       window.addEventListener('online', onConnectionOnline);
     }
+
+    if (connectionState === 'new') {
+      performance.mark('peer-connection-new');
+    }
+
+    if (connectionState === 'connected') {
+      performance.mark('peer-connection-connected');
+    }
   };
 
   private async createPeerConnection() {
