@@ -192,7 +192,7 @@ export default class Peer {
 
   private handleNegotiationNeededEvent() {
     logger.info('Negotiation needed event');
-    if (this.instance.signalingState !== 'stable') {
+    if (this.instance.signalingState !== 'stable' || this._negotiating) {
       return;
     }
     this.startNegotiation();
@@ -326,7 +326,7 @@ export default class Peer {
           this._setAudioCodec(transceiver);
         });
 
-        console.debug('Applying video transceiverParams', transceiverParams);
+        logger.debug('Applying video transceiverParams', transceiverParams);
         videoTracks.forEach((track) => {
           this.options.userVariables.cameraLabel = track.label;
           this.instance.addTransceiver(track, transceiverParams);
@@ -364,11 +364,9 @@ export default class Peer {
       if (this.options.negotiateVideo) {
         this._checkMediaToNegotiate('video');
       }
-    } else {
-      // only called here (not an offer) because onnegotiationneeded is being called twice right at the same time that an offer is sent
-      this.startNegotiation();
     }
 
+    this.startNegotiation();
     this._logTransceivers();
   }
 

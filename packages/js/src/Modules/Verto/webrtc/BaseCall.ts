@@ -261,8 +261,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   async invite() {
     this.direction = Direction.Outbound;
-    performance.mark(`peer-creation-start`);
     this._resetIceCandidateState();
+    performance.mark(`peer-creation-start`);
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
@@ -282,6 +282,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    performance.mark('new-call-start');
     this.stopRingtone();
 
     this.options.video = params.video ?? this.options.video ?? false;
@@ -298,6 +299,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     this._resetIceCandidateState();
+    performance.mark(`peer-creation-start`);
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
@@ -305,6 +307,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onIceSdp
     );
     this._registerPeerEvents();
+    performance.mark('new-call-end');
   }
 
   playRingtone() {
