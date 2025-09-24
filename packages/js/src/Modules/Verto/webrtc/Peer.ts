@@ -88,9 +88,9 @@ export default class Peer {
     this._negotiating = true;
 
     if (this._isOffer()) {
-      this._createOffer().then(this._sdpFn.bind(this));
+      await this._createOffer().then(this._sdpFn.bind(this));
     } else {
-      this._createAnswer().then(this._sdpFn.bind(this));
+      await this._createAnswer().then(this._sdpFn.bind(this));
     }
   }
 

@@ -62,22 +62,22 @@ describe('Call Trickle ICE', () => {
     it('should queue ICE candidates until the remote description is set', async () => {
       const candidates = [
         {
-          candidate: 'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+          candidate:
+            'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test-1',
         },
         {
-          candidate: 'candidate:2 1 UDP 1694498815 198.51.100.2 54400 typ srflx',
+          candidate:
+            'candidate:2 1 UDP 1694498815 198.51.100.2 54400 typ srflx',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test-2',
         },
         {
-          candidate: 'candidate:3 1 UDP 1694498815 198.51.100.3 54400 typ srflx',
+          candidate:
+            'candidate:3 1 UDP 1694498815 198.51.100.3 54400 typ srflx',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test-3',
         },
       ];
 
@@ -91,11 +91,15 @@ describe('Call Trickle ICE', () => {
       });
 
       expect(addCandidateSpy).not.toHaveBeenCalled();
-      expect((call as any)._pendingIceCandidates).toHaveLength(candidates.length);
+      expect((call as any)._pendingIceCandidates).toHaveLength(
+        candidates.length
+      );
 
       await (call as any)._onRemoteSdp(remoteSdp);
 
-      const calledCandidates = addCandidateSpy.mock.calls.map(([candidate]) => candidate);
+      const calledCandidates = addCandidateSpy.mock.calls.map(
+        ([candidate]) => candidate
+      );
       expect(calledCandidates).toEqual(candidates);
       expect(addCandidateSpy).toHaveBeenCalledTimes(candidates.length);
       expect((call as any)._pendingIceCandidates).toHaveLength(0);
@@ -106,7 +110,6 @@ describe('Call Trickle ICE', () => {
         candidate: 'invalid-candidate',
         sdpMLineIndex: 0,
         sdpMid: '0',
-        usernameFragment: 'test',
       };
 
       if (!call.peer || !call.peer.instance) {
@@ -145,7 +148,7 @@ describe('Call Trickle ICE', () => {
   });
 
   describe('SDP handling behavior', () => {
-    it('should send SDP immediately per RFC 8838 Trickle ICE requirements', () => {
+    it('should send SDP immediately per RFC 8838 Trickle ICE requirements', async () => {
       // Mock session execute to prevent actual WebSocket message sending
       const sessionExecuteSpy = jest
         .spyOn((call as any).session, 'execute')
@@ -156,109 +159,9 @@ describe('Call Trickle ICE', () => {
         sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-', // SDP without candidates
       };
 
-      // Override localDescription getter
-      Object.defineProperty(call.peer.instance, 'localDescription', {
-        get: () => mockSdp,
-        configurable: true,
-      });
-
-      // Simulate the actual flow: ICE candidate event triggers SDP sending when _initialSdpSent is false
-      // This is the Trickle ICE behavior where SDP is sent immediately
-      const candidateEvent = {
-        type: 'icecandidate',
-        candidate: {
-          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
-          sdpMLineIndex: 0,
-          sdpMid: '0',
-        },
-        target: call.peer.instance,
-      } as unknown as RTCPeerConnectionIceEvent;
-
-      call.peer.instance.onicecandidate(candidateEvent);
+      await call.peer.startNegotiation();
 
       // Should send SDP immediately without waiting for candidates (RFC 8838)
-      expect(sessionExecuteSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          request: expect.objectContaining({
-            method: VertoMethod.Invite,
-            params: expect.objectContaining({
-              sdp: mockSdp.sdp,
-            }),
-          }),
-        })
-      );
-    });
-
-    it('should send SDP with candidates immediately', () => {
-      const sessionExecuteSpy = jest
-        .spyOn((call as any).session, 'execute')
-        .mockResolvedValue({ node_id: 'test-node' });
-
-      const mockSdpWithCandidates = {
-        type: 'offer' as RTCSdpType,
-        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
-      };
-
-      Object.defineProperty(call.peer.instance, 'localDescription', {
-        get: () => mockSdpWithCandidates,
-        configurable: true,
-      });
-
-      // Simulate ICE candidate event that triggers SDP sending with candidates already in SDP
-      const candidateEventWithExistingCandidates = {
-        type: 'icecandidate',
-        candidate: {
-          candidate: 'candidate:2 1 UDP 1694498814 192.168.1.2 54401 typ host',
-          sdpMLineIndex: 0,
-          sdpMid: '0',
-        },
-        target: call.peer.instance,
-      } as unknown as RTCPeerConnectionIceEvent;
-
-      call.peer.instance.onicecandidate(candidateEventWithExistingCandidates);
-
-      // Should send SDP immediately regardless of candidate presence
-      expect(sessionExecuteSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          request: expect.objectContaining({
-            method: VertoMethod.Invite,
-            params: expect.objectContaining({
-              sdp: mockSdpWithCandidates.sdp,
-            }),
-          }),
-        })
-      );
-    });
-  });
-
-  describe('Trickle ICE parameter validation', () => {
-    it('should send Invite with trickle: true when onicecandidate fires', () => {
-      const sessionExecuteSpy = jest
-        .spyOn((call as any).session, 'execute')
-        .mockResolvedValue({ node_id: 'test-node' });
-
-      const mockSdp = {
-        type: 'offer' as RTCSdpType,
-        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
-      };
-
-      Object.defineProperty(call.peer.instance, 'localDescription', {
-        get: () => mockSdp,
-        configurable: true,
-      });
-
-      // Trigger onicecandidate event which should send Invite with trickle: true
-      const candidateEvent = {
-        candidate: {
-          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
-          sdpMLineIndex: 0,
-          sdpMid: '0',
-        }
-      } as RTCPeerConnectionIceEvent;
-
-      call.peer.instance.onicecandidate(candidateEvent);
-
-      // Verify that the Invite message was sent with trickle: true
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
@@ -285,7 +188,6 @@ describe('Call Trickle ICE', () => {
         candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
         sdpMLineIndex: 0,
         sdpMid: '0',
-        usernameFragment: 'test',
       } as RTCIceCandidate;
 
       // Create a proper RTCPeerConnectionIceEvent mock
@@ -340,7 +242,6 @@ describe('Call Trickle ICE', () => {
               candidate: mockCandidate.candidate,
               sdpMLineIndex: mockCandidate.sdpMLineIndex,
               sdpMid: mockCandidate.sdpMid,
-              usernameFragment: mockCandidate.usernameFragment,
             }),
           }),
         })
@@ -368,19 +269,16 @@ describe('Call Trickle ICE', () => {
           candidate: 'candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test1',
         },
         {
           candidate: 'candidate:2 1 UDP 1694498815 203.0.113.1 54401 typ srflx',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test2',
         },
         {
           candidate: 'candidate:3 1 TCP 1006632447 198.51.100.1 9 typ relay',
           sdpMLineIndex: 0,
           sdpMid: '0',
-          usernameFragment: 'test3',
         },
       ] as RTCIceCandidate[];
 
@@ -429,7 +327,6 @@ describe('Call Trickle ICE', () => {
                 candidate: expectedCandidate.candidate,
                 sdpMLineIndex: expectedCandidate.sdpMLineIndex,
                 sdpMid: expectedCandidate.sdpMid,
-                usernameFragment: expectedCandidate.usernameFragment,
               }),
             }),
           })

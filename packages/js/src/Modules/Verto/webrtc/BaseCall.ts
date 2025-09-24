@@ -1369,6 +1369,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
+  private _removeCandidatesFromIceSdp(sdp: string): string {
+    return sdp
+      .split('\n')
+      .filter((line) => !line.includes('a=candidate'))
+      .join('\n');
+  }
+
   private _onIceSdp(data: RTCSessionDescription) {
     if (!data) {
       logger.error('No SDP data provided');
@@ -1381,7 +1388,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const tmpParams = {
       sessid: this.session.sessionid,
-      sdp,
+      sdp: this._removeCandidatesFromIceSdp(sdp),
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
@@ -1438,7 +1445,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       candidate: candidate.candidate,
       sdpMLineIndex: candidate.sdpMLineIndex,
       sdpMid: candidate.sdpMid,
-      usernameFragment: candidate.usernameFragment,
       dialogParams: this.options,
     });
     this._execute(msg);
