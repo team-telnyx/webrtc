@@ -35,12 +35,13 @@ export default class Peer {
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
-  private _performanceMetrics: Record<string, any> | null = null;
+  private _sdpFn: (sdp: RTCSessionDescriptionInit) => void;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
-    session: BrowserSession
+    session: BrowserSession,
+    sdpFn: (sdp: RTCSessionDescriptionInit) => void
   ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -57,6 +58,7 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
     this._session = session;
+    this._sdpFn = sdpFn;
 
     this._init();
 
@@ -80,15 +82,15 @@ export default class Peer {
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
-  startNegotiation() {
+  async startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
     this._negotiating = true;
 
     if (this._isOffer()) {
-      this._createOffer();
+      this._createOffer().then(this._sdpFn.bind(this));
     } else {
-      this._createAnswer();
+      this._createAnswer().then(this._sdpFn.bind(this));
     }
   }
 
@@ -112,6 +114,12 @@ export default class Peer {
   }
 
   private get performanceMetrics() {
+    const newCall = performance.measure(
+      'new-call',
+      'new-call-start',
+      'new-call-end'
+    );
+
     const peerCreation = performance.measure(
       'peer-creation',
       'peer-creation-start',
@@ -124,12 +132,6 @@ export default class Peer {
       'ice-gathering-end'
     );
 
-    const peerConnection = performance.measure(
-      'peer-connection',
-      'peer-connection-connecting',
-      'peer-connection-connected'
-    );
-
     const sdpSend = performance.measure(
       'sdp-send',
       'sdp-send-start',
@@ -138,14 +140,8 @@ export default class Peer {
 
     const inviteSend = performance.measure(
       'invite-send',
-      'peer-creation-start',
+      'new-call-start',
       'sdp-send-start'
-    );
-
-    const newCall = performance.measure(
-      'new-call',
-      'peer-creation-start',
-      'peer-connection-connected'
     );
 
     const totalDuration = performance.measure(
@@ -156,11 +152,11 @@ export default class Peer {
 
     const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
     return {
+      'New Call': {
+        duration: formatDuration(newCall.duration),
+      },
       'Peer Creation': {
         duration: formatDuration(peerCreation.duration),
-      },
-      'Peer Connection': {
-        duration: formatDuration(peerConnection.duration),
       },
       'ICE Gathering': {
         duration: formatDuration(iceGathering.duration),
@@ -170,9 +166,6 @@ export default class Peer {
       },
       'SDP Send': {
         duration: formatDuration(sdpSend.duration),
-      },
-      'New Call': {
-        duration: formatDuration(newCall.duration),
       },
       'Total Duration': {
         duration: formatDuration(totalDuration.duration),
@@ -372,6 +365,7 @@ export default class Peer {
         this._checkMediaToNegotiate('video');
       }
     } else {
+      // only called here (not an offer) because onnegotiationneeded is being called twice right at the same time that an offer is sent
       this.startNegotiation();
     }
 
@@ -401,10 +395,15 @@ export default class Peer {
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
-    await this.instance
-      .createOffer(this._constraints)
-      .then(this._setLocalDescription.bind(this))
-      .catch((error) => logger.error('Peer _createOffer error:', error));
+
+    try {
+      const offer = await this.instance.createOffer(this._constraints);
+      await this._setLocalDescription(offer);
+
+      return offer;
+    } catch (error) {
+      logger.error('Peer _createOffer error:', error);
+    }
   }
 
   private async _setRemoteDescription(
@@ -438,14 +437,21 @@ export default class Peer {
       type: PeerType.Offer,
     });
     this._logTransceivers();
-    const answer = await this.instance.createAnswer();
-    await this._setLocalDescription(answer);
+
+    try {
+      const answer = await this.instance.createAnswer();
+      await this._setLocalDescription(answer);
+
+      return answer;
+    } catch (error) {
+      logger.error('Peer _createAnswer error:', error);
+    }
   }
 
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    await this.instance.setLocalDescription(sessionDescription);
+    return this.instance.setLocalDescription(sessionDescription);
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {

@@ -134,8 +134,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _targetNodeId: string = null;
 
-  private _initialSdpSent: boolean = false;
-
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -188,6 +186,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     this._onMediaError = this._onMediaError.bind(this);
+    this._onIceSdp = this._onIceSdp.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -260,11 +259,16 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  invite() {
+  async invite() {
     this.direction = Direction.Outbound;
     performance.mark(`peer-creation-start`);
     this._resetIceCandidateState();
-    this.peer = new Peer(PeerType.Offer, this.options, this.session);
+    this.peer = new Peer(
+      PeerType.Offer,
+      this.options,
+      this.session,
+      this._onIceSdp
+    );
     this._registerPeerEvents();
   }
 
@@ -277,7 +281,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer(params: AnswerParams = {}) {
+  async answer(params: AnswerParams = {}) {
     this.stopRingtone();
 
     this.options.video = params.video ?? this.options.video ?? false;
@@ -294,7 +298,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     this._resetIceCandidateState();
-    this.peer = new Peer(PeerType.Answer, this.options, this.session);
+    this.peer = new Peer(
+      PeerType.Answer,
+      this.options,
+      this.session,
+      this._onIceSdp
+    );
     this._registerPeerEvents();
   }
 
@@ -1357,22 +1366,19 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _removeCandidatesFromIceSdp(sdp: string): string {
-    return sdp
-      .split('\n')
-      .filter((line) => !line.includes('a=candidate'))
-      .join('\n');
-  }
-
   private _onIceSdp(data: RTCSessionDescription) {
-    this._initialSdpSent = true;
+    if (!data) {
+      logger.error('No SDP data provided');
+      return this.hangup({}, false);
+    }
+
     const { sdp, type } = data;
 
     let msg = null;
 
     const tmpParams = {
       sessid: this.session.sessionid,
-      sdp: this._removeCandidatesFromIceSdp(sdp),
+      sdp,
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
@@ -1414,13 +1420,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
-    const { instance } = this.peer;
-
     if (event.candidate && event.candidate.candidate) {
-      if (!this._initialSdpSent) {
-        this._onIceSdp(instance.localDescription);
-      }
-
       logger.debug('RTCPeer Candidate:', event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
@@ -1500,7 +1500,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _registerPeerEvents() {
     const { instance } = this.peer;
-    this._initialSdpSent = false;
     instance.onicecandidate = (event) => {
       this._onIce(event);
     };
@@ -1508,14 +1507,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     instance.onicegatheringstatechange = (event) => {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
-        if (!this._initialSdpSent) {
-          logger.warn(
-            'ICE gathering completed but no candidates were sent',
-            event
-          );
-        } else {
-          logger.debug('Finished gathering candidates');
-        }
+        logger.debug('Finished gathering candidates');
       }
     };
 
