@@ -185,6 +185,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         ringbackFile,
         debug: options.debug,
         debugOutput: options.debugOutput,
+        trickleIce: options.trickleIce,
+        prefetchIceCandidates: options.prefetchIceCandidates,
       },
       opts
     );
