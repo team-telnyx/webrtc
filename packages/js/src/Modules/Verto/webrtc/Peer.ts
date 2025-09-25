@@ -250,20 +250,18 @@ export default class Peer {
       window.addEventListener('online', onConnectionOnline);
     }
 
-    if (!this._isTrickleIce()) {
-      return;
-    }
+    if (this._isTrickleIce()) {
+      if (connectionState === 'connecting') {
+        performance.mark('peer-connection-connecting');
+      }
 
-    if (connectionState === 'connecting') {
-      performance.mark('peer-connection-connecting');
-    }
-
-    if (connectionState === 'connected') {
-      performance.mark('peer-connection-connected');
-      console.group('Performance Metrics');
-      console.table(this.trickleIcePerformanceMetrics);
-      console.groupEnd();
-      performance.clearMarks();
+      if (connectionState === 'connected') {
+        performance.mark('peer-connection-connected');
+        console.group('Performance Metrics');
+        console.table(this.trickleIcePerformanceMetrics);
+        console.groupEnd();
+        performance.clearMarks();
+      }
     }
   };
 
