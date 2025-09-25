@@ -208,7 +208,11 @@ export default class Peer {
     if (this.instance.signalingState !== 'stable' || this._negotiating) {
       return;
     }
-    this.startNegotiation();
+    if (this._isTrickleIce()) {
+      this.startTrickleIceNegotiation();
+    } else {
+      this.startNegotiation();
+    }
   }
 
   private handleTrackEvent(event) {
@@ -381,12 +385,12 @@ export default class Peer {
       if (this.options.negotiateVideo) {
         this._checkMediaToNegotiate('video');
       }
-    } else {
+    } else if (!this._isTrickleIce()) {
       this.startNegotiation();
     }
 
     if (this._isTrickleIce()) {
-      this.startNegotiation();
+      this.startTrickleIceNegotiation();
     }
 
     this._logTransceivers();
