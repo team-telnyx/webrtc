@@ -59,6 +59,11 @@ export interface IClientOptions {
   forceRelayCandidate?: boolean;
 
   /**
+   * Enable or disable Trickle ICE.
+   */
+  trickleIce?: boolean;
+
+  /**
    * Region to use for the connection.
    */
   region?: string;
@@ -210,6 +215,11 @@ export interface ICallOptions {
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;
+
+  /**
+   * Enable or disable Trickle ICE.
+   */
+  trickleIce?: boolean;
 }
 
 /**

@@ -27,6 +27,7 @@ import { IVertoCallOptions } from './interfaces';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
+  public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo: boolean;
@@ -35,13 +36,13 @@ export default class Peer {
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
-  private _sdpFn: (sdp: RTCSessionDescriptionInit) => void;
+  private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
-    sdpFn: (sdp: RTCSessionDescriptionInit) => void
+    trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void
   ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -50,6 +51,7 @@ export default class Peer {
       offerToReceiveVideo: true,
     };
 
+    this._sdpReady = this._sdpReady.bind(this);
     this.handleSignalingStateChangeEvent =
       this.handleSignalingStateChangeEvent.bind(this);
     this.handleNegotiationNeededEvent =
@@ -58,7 +60,7 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
     this._session = session;
-    this._sdpFn = sdpFn;
+    this._trickleIceSdpFn = trickleIceSdpFn;
 
     this._init();
 
@@ -82,15 +84,26 @@ export default class Peer {
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
-  async startNegotiation() {
+  startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
     this._negotiating = true;
 
     if (this._isOffer()) {
-      await this._createOffer().then(this._sdpFn.bind(this));
+      this._createOffer();
     } else {
-      await this._createAnswer().then(this._sdpFn.bind(this));
+      this._createAnswer();
+    }
+  }
+  async startTrickleIceNegotiation() {
+    performance.mark(`ice-gathering-start`);
+
+    this._negotiating = true;
+
+    if (this._isOffer()) {
+      await this._createOffer().then(this._trickleIceSdpFn.bind(this));
+    } else {
+      await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
     }
   }
 
@@ -113,7 +126,7 @@ export default class Peer {
     });
   }
 
-  private get performanceMetrics() {
+  private get trickleIcePerformanceMetrics() {
     const newCall = performance.measure(
       'new-call',
       'new-call-start',
@@ -233,6 +246,10 @@ export default class Peer {
       window.addEventListener('online', onConnectionOnline);
     }
 
+    if (!this._isTrickleIce()) {
+      return;
+    }
+
     if (connectionState === 'connecting') {
       performance.mark('peer-connection-connecting');
     }
@@ -240,7 +257,7 @@ export default class Peer {
     if (connectionState === 'connected') {
       performance.mark('peer-connection-connected');
       console.group('Performance Metrics');
-      console.table(this.performanceMetrics);
+      console.table(this.trickleIcePerformanceMetrics);
       console.groupEnd();
       performance.clearMarks();
     }
@@ -364,9 +381,14 @@ export default class Peer {
       if (this.options.negotiateVideo) {
         this._checkMediaToNegotiate('video');
       }
+    } else {
+      this.startNegotiation();
     }
 
-    this.startNegotiation();
+    if (this._isTrickleIce()) {
+      this.startNegotiation();
+    }
+
     this._logTransceivers();
   }
 
@@ -397,6 +419,10 @@ export default class Peer {
     try {
       const offer = await this.instance.createOffer(this._constraints);
       await this._setLocalDescription(offer);
+
+      if (!this._isTrickleIce()) {
+        this._sdpReady();
+      }
 
       return offer;
     } catch (error) {
@@ -449,7 +475,7 @@ export default class Peer {
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    return this.instance.setLocalDescription(sessionDescription);
+    await this.instance.setLocalDescription(sessionDescription);
   }
 
   private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
@@ -463,6 +489,12 @@ export default class Peer {
       return transceiver.setCodecPreferences(this.options.preferred_codecs);
     }
   };
+  /** Workaround for ReactNative: first time SDP has no candidates */
+  private _sdpReady(): void {
+    if (isFunction(this.onSdpReadyTwice)) {
+      this.onSdpReadyTwice(this.instance.localDescription);
+    }
+  }
 
   private async _retrieveLocalStream() {
     if (streamIsValid(this.options.localStream)) {
@@ -478,6 +510,10 @@ export default class Peer {
 
   private _isAnswer(): boolean {
     return this.type === PeerType.Answer;
+  }
+
+  private _isTrickleIce(): boolean {
+    return this.options.trickleIce === true;
   }
 
   private _config(): RTCConfiguration {

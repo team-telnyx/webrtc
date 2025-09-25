@@ -174,7 +174,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   ): Promise<RTCSessionDescriptionInit | void> {
     return Promise.resolve({
       type: 'answer',
-      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1 192.168.1.1 54400 typ host'
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-'
     });
   }
   createDataChannel(
@@ -201,7 +201,7 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   ): Promise<RTCSessionDescriptionInit | void> {
     return Promise.resolve({
       type: 'offer',
-      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1 192.168.1.1 54400 typ host'
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-'
     });
   }
   //@ts-ignore

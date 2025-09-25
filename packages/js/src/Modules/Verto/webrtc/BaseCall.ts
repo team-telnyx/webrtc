@@ -134,6 +134,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _targetNodeId: string = null;
 
+  private _iceTimeout = null;
+
+  private _iceDone: boolean = false;
+
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -186,7 +190,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     this._onMediaError = this._onMediaError.bind(this);
-    this._onIceSdp = this._onIceSdp.bind(this);
+    this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -194,6 +198,48 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
       this._ringback = createAudio(this.options.ringbackFile, '_ringback');
     }
+  }
+
+  private get performanceMetrics() {
+    const peerCreation = performance.measure(
+      'peer-creation',
+      'peer-creation-start',
+      'peer-creation-end'
+    );
+
+    const iceGathering = performance.measure(
+      'ice-gathering',
+      'ice-gathering-start',
+      'ice-gathering-end'
+    );
+
+    const sdpSend = performance.measure(
+      'sdp-send',
+      'sdp-send-start',
+      'sdp-send-end'
+    );
+
+    const totalDuration = performance.measure(
+      'total-duration',
+      'peer-creation-start',
+      'sdp-send-end'
+    );
+
+    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    return {
+      'Peer Creation': {
+        duration: formatDuration(peerCreation.duration),
+      },
+      'ICE Gathering': {
+        duration: formatDuration(iceGathering.duration),
+      },
+      'SDP Send': {
+        duration: formatDuration(sdpSend.duration),
+      },
+      'Total Duration': {
+        duration: formatDuration(totalDuration.duration),
+      },
+    };
   }
 
   get nodeId(): string {
@@ -259,19 +305,24 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  async invite() {
+  invite() {
     this.direction = Direction.Outbound;
-    this._resetIceCandidateState();
+    if (this.options.trickleIce) {
+      this._resetTrickleIceCandidateState();
+    }
     performance.mark(`peer-creation-start`);
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
       this.session,
-      this._onIceSdp
+      this._onTrickleIceSdp
     );
-    this._registerPeerEvents();
+    if (this.options.trickleIce) {
+      this._registerTrickleIcePeerEvents();
+    } else {
+      this._registerPeerEvents();
+    }
   }
-
   /**
    * Starts the process to answer the incoming call.
    *
@@ -281,7 +332,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  async answer(params: AnswerParams = {}) {
+  answer(params: AnswerParams = {}) {
     performance.mark('new-call-start');
     this.stopRingtone();
 
@@ -298,15 +349,21 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.preferred_codecs = params.preferred_codecs;
     }
 
-    this._resetIceCandidateState();
+    if (this.options.trickleIce) {
+      this._resetTrickleIceCandidateState();
+    }
     performance.mark(`peer-creation-start`);
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
       this.session,
-      this._onIceSdp
+      this._onTrickleIceSdp
     );
-    this._registerPeerEvents();
+    if (this.options.trickleIce) {
+      this._registerTrickleIcePeerEvents();
+    } else {
+      this._registerPeerEvents();
+    }
     performance.mark('new-call-end');
   }
 
@@ -1369,14 +1426,91 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _removeCandidatesFromIceSdp(sdp: string): string {
-    return sdp
-      .split('\n')
-      .filter((line) => !line.includes('a=candidate'))
-      .join('\n');
+  private _requestAnotherLocalDescription() {
+    if (isFunction(this.peer.onSdpReadyTwice)) {
+      trigger(
+        SwEvent.Error,
+        {
+          error: new Error('SDP without candidates for the second time!'),
+          sessionId: this.session.sessionid,
+        },
+        this.session.uuid
+      );
+      return;
+    }
+    Object.defineProperty(this.peer, 'onSdpReadyTwice', {
+      value: this._onIceSdp.bind(this),
+    });
+    this._iceDone = false;
+    this.peer.startNegotiation();
   }
 
   private _onIceSdp(data: RTCSessionDescription) {
+    if (this._iceTimeout) {
+      clearTimeout(this._iceTimeout);
+    }
+    this._iceTimeout = null;
+    this._iceDone = true;
+    const { sdp, type } = data;
+
+    if (sdp.indexOf('candidate') === -1) {
+      logger.info('No candidate - retry \n');
+      this._requestAnotherLocalDescription();
+      return;
+    }
+
+    this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
+
+    performance.mark('ice-gathering-end');
+    let msg = null;
+
+    const tmpParams = {
+      sessid: this.session.sessionid,
+      sdp,
+      dialogParams: this.options,
+      'User-Agent': `Web-${SDK_VERSION}`,
+    };
+
+    switch (type) {
+      case PeerType.Offer:
+        this.setState(State.Requesting);
+        msg = new Invite(tmpParams);
+        break;
+      case PeerType.Answer:
+        this.setState(State.Answering);
+        msg =
+          this.options.attach === true
+            ? new Attach(tmpParams)
+            : new Answer(tmpParams);
+        break;
+      default:
+        logger.error(`${this.id} - Unknown local SDP type:`, data);
+        return this.hangup({}, false);
+    }
+    performance.mark('sdp-send-start');
+    this._execute(msg)
+      .then((response) => {
+        const { node_id = null } = response;
+        this._targetNodeId = node_id;
+        type === PeerType.Offer
+          ? this.setState(State.Trying)
+          : this.setState(State.Active);
+      })
+      .catch((error) => {
+        logger.error(`${this.id} - Sending ${type} error:`, error);
+        this.hangup();
+      })
+      .finally(() => {
+        performance.mark('sdp-send-end');
+        console.group('Performance Metrics');
+        console.table(this.performanceMetrics);
+        console.groupEnd();
+
+        performance.clearMarks();
+      });
+  }
+
+  private _onTrickleIceSdp(data: RTCSessionDescription) {
     if (!data) {
       logger.error('No SDP data provided');
       return this.hangup({}, false);
@@ -1388,7 +1522,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const tmpParams = {
       sessid: this.session.sessionid,
-      sdp: this._removeCandidatesFromIceSdp(sdp),
+      sdp,
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
@@ -1430,6 +1564,22 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
+    const { instance } = this.peer;
+    if (this._iceTimeout === null) {
+      this._iceTimeout = setTimeout(
+        () => this._onIceSdp(instance.localDescription),
+        1000
+      );
+    }
+
+    if (event.candidate) {
+      logger.debug('RTCPeer Candidate:', event.candidate);
+    } else {
+      this._onIceSdp(instance.localDescription);
+    }
+  }
+
+  private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
       this._sendIceCandidate(event.candidate);
@@ -1489,7 +1639,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     performance.mark('ice-gathering-end');
   }
 
-  private _resetIceCandidateState() {
+  private _resetTrickleIceCandidateState() {
     this._pendingIceCandidates = [];
     this._isRemoteDescriptionSet = false;
   }
@@ -1509,8 +1659,31 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _registerPeerEvents() {
     const { instance } = this.peer;
+    this._iceDone = false;
     instance.onicecandidate = (event) => {
+      if (this._iceDone) {
+        return;
+      }
       this._onIce(event);
+    };
+
+    //@ts-ignore
+    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
+      this.options.remoteStream = event.stream;
+    });
+    instance.addEventListener('track', (event: RTCTrackEvent) => {
+      this.options.remoteStream = event.streams[0];
+      const { remoteElement, remoteStream, screenShare } = this.options;
+      if (screenShare === false) {
+        attachMediaStream(remoteElement, remoteStream);
+      }
+    });
+  }
+
+  private _registerTrickleIcePeerEvents() {
+    const { instance } = this.peer;
+    instance.onicecandidate = (event) => {
+      this._onTrickleIce(event);
     };
 
     instance.onicegatheringstatechange = (event) => {

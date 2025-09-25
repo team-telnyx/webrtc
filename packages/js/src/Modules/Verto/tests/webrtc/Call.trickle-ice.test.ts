@@ -1,6 +1,7 @@
 import { VertoMethod } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
+import type { IVertoCallOptions } from '../../webrtc/interfaces';
 
 const originalConsoleDebug = console.debug;
 const originalConsoleLog = console.log;
@@ -34,12 +35,13 @@ Object.defineProperty(global, 'performance', {
 describe('Call Trickle ICE', () => {
   let session: any;
   let call: Call;
-  const defaultParams = {
+  const defaultParams: IVertoCallOptions = {
     destinationNumber: 'x3599',
     remoteCallerName: 'Js Client Test',
     remoteCallerNumber: '1234',
     callerName: 'Jest Client',
     callerNumber: '5678',
+    trickleIce: true,
   };
   const remoteSdp = 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-';
 
@@ -159,7 +161,7 @@ describe('Call Trickle ICE', () => {
         sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-', // SDP without candidates
       };
 
-      await call.peer.startNegotiation();
+      await call.peer.startTrickleIceNegotiation();
 
       // Should send SDP immediately without waiting for candidates (RFC 8838)
       expect(sessionExecuteSpy).toHaveBeenCalledWith(
@@ -228,7 +230,7 @@ describe('Call Trickle ICE', () => {
 
       // Update the event handler to allow candidates through
       call.peer.instance.onicecandidate = (event) => {
-        (call as any)._onIce(event);
+        (call as any)._onTrickleIce(event);
       };
 
       call.peer.instance.onicecandidate(candidateEvent);
@@ -299,7 +301,7 @@ describe('Call Trickle ICE', () => {
 
       // Update the event handler to allow candidates through
       call.peer.instance.onicecandidate = (event) => {
-        (call as any)._onIce(event);
+        (call as any)._onTrickleIce(event);
       };
 
       // Trigger multiple ICE candidate events
