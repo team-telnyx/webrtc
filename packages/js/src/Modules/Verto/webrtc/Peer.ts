@@ -36,6 +36,7 @@ export default class Peer {
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
+  private _prevConnectionState: RTCPeerConnectionState = null;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
 
   constructor(
@@ -215,7 +216,7 @@ export default class Peer {
     }
   }
 
-  private handleTrackEvent(event) {
+  private handleTrackEvent(event: RTCTrackEvent) {
     const {
       streams: [first],
     } = event;
@@ -232,23 +233,43 @@ export default class Peer {
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     console.log(
-      `[${new Date().toISOString()}] Connection State`,
-      connectionState
+      `[${new Date().toISOString()}] Connection State changed: ${
+        this._prevConnectionState
+      } -> ${connectionState}`
     );
 
-    if (connectionState === 'failed' || connectionState === 'disconnected') {
-      const onConnectionOnline = () => {
-        this.instance.restartIce();
-        this._session._closeConnection();
-        this._session.connect();
-        window.removeEventListener('online', onConnectionOnline);
-      };
+    // Case 1: disconnected -> failed: Attempt ICE restart/renegotiation
+    if (
+      this._prevConnectionState === 'disconnected' &&
+      connectionState === 'failed'
+    ) {
+      this.instance.restartIce();
 
-      if (navigator.onLine) {
-        return onConnectionOnline();
+      if (this._isTrickleIce()) {
+        await this.startTrickleIceNegotiation();
+      } else {
+        this.startNegotiation();
       }
-      window.addEventListener('online', onConnectionOnline);
     }
+
+    // Case 2: connected -> disconnected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'connected' &&
+      connectionState === 'disconnected'
+    ) {
+      await this._resetJitterBufferOnConnectionStateChange();
+    }
+
+    // Case 3: disconnected -> connected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'disconnected' &&
+      connectionState === 'connected'
+    ) {
+      await this._resetJitterBufferOnConnectionStateChange();
+    }
+
+    // update previous state for the next transition
+    this._prevConnectionState = connectionState;
 
     if (this._isTrickleIce()) {
       if (connectionState === 'connecting') {
@@ -257,6 +278,7 @@ export default class Peer {
 
       if (connectionState === 'connected') {
         performance.mark('peer-connection-connected');
+        // Log Trickle ICE performance metrics
         console.group('Performance Metrics');
         console.table(this.trickleIcePerformanceMetrics);
         console.groupEnd();
@@ -286,6 +308,7 @@ export default class Peer {
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
+    this._prevConnectionState = this.instance.connectionState;
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
@@ -504,6 +527,43 @@ export default class Peer {
     }
     const constraints = await getMediaConstraints(this.options);
     return getUserMedia(constraints);
+  }
+
+  private async _resetJitterBufferOnConnectionStateChange() {
+    try {
+      const receiver = this.instance
+        .getReceivers()
+        .find((r) => r.track && r.track.kind === 'audio');
+      const sender = this._getSenderByKind('audio');
+
+      // https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+      if (receiver && 'jitterBufferTarget' in receiver) {
+        receiver.jitterBufferTarget = 20; // e.g., 20 ms
+        logger.debug(
+          '[jitter] target set to',
+          receiver.jitterBufferTarget,
+          'ms'
+        );
+      }
+
+      /**
+       * Workaround for hardware muting/unmuting audio
+       * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
+       * - https://github.com/Kurento/experiments/blob/master/WebRTC/mute-tracks/README.md#rtcrtpsenderreplacetrack
+       */
+      if (sender) {
+        const originalTrack = sender.track;
+        // replaceTrack() stops the sender. No negotiation is required in this case.
+        await sender.replaceTrack(null);
+        await new Promise((r) => setTimeout(r, 50)); // 50 ms pause
+        await sender.replaceTrack(originalTrack);
+      }
+    } catch (error) {
+      logger.error(
+        'Peer _resetJitterBufferOnConnectionStateChange error:',
+        error
+      );
+    }
   }
 
   private _isOffer(): boolean {

@@ -1504,6 +1504,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .finally(() => {
         performance.mark('sdp-send-end');
+        // Log performance metrics
         console.group('Performance Metrics');
         console.table(this.performanceMetrics);
         console.groupEnd();

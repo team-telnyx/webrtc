@@ -113,6 +113,26 @@ class RTCRtpSenderMock implements RTCRtpSender {
   setStreams(...streams: MediaStream[]): void {}
 }
 
+class RTCRtpReceiverMock implements RTCRtpReceiver {
+  jitterBufferTarget?: number;
+  getSynchronizationSources(): RTCRtpSynchronizationSource[] {
+    return [];
+  }
+  rtcpTransport: RTCDtlsTransport;
+  track: MediaStreamTrack;
+  transport: RTCDtlsTransport;
+  //@ts-ignore
+  transform: RTCRtpScriptTransform;
+  getContributingSources(): RTCRtpContributingSource[] {
+    return [];
+  }
+  getParameters(): RTCRtpReceiveParameters;
+  getParameters(): RTCRtpParameters;
+  getParameters(): any {}
+  //@ts-ignore
+  getStats(): Promise<RTCStatsReport> {}
+}
+
 class RTCPeerConnectionMock implements RTCPeerConnection {
   restartIce: () => void;
   canTrickleIceCandidates: boolean;
@@ -208,10 +228,12 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   getConfiguration(): RTCConfiguration {}
   //@ts-ignore
   getIdentityAssertion(): Promise<string> {}
-  //@ts-ignore
-  getReceivers(): RTCRtpReceiver[] {}
-  //@ts-ignore
-  getSenders(): RTCRtpSender[] {}
+  getReceivers(): RTCRtpReceiver[] {
+    return [new RTCRtpReceiverMock()];
+  }
+  getSenders(): RTCRtpSender[] {
+    return [new RTCRtpSenderMock()];
+  }
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(
