@@ -114,7 +114,7 @@ class RTCRtpSenderMock implements RTCRtpSender {
 }
 
 class RTCRtpReceiverMock implements RTCRtpReceiver {
-  jitterBufferTarget?: number;
+  jitterBufferTarget: number;
   getSynchronizationSources(): RTCRtpSynchronizationSource[] {
     return [];
   }

@@ -534,7 +534,6 @@ export default class Peer {
       const receiver = this.instance
         .getReceivers()
         .find((r) => r.track && r.track.kind === 'audio');
-      const sender = this._getSenderByKind('audio');
 
       // https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
       if (receiver && 'jitterBufferTarget' in receiver) {
@@ -546,6 +545,7 @@ export default class Peer {
         );
       }
 
+      const sender = this._getSenderByKind('audio');
       /**
        * Workaround for hardware muting/unmuting audio
        * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
