@@ -257,7 +257,7 @@ export default class Peer {
       this._prevConnectionState === 'connected' &&
       connectionState === 'disconnected'
     ) {
-      await this._resetJitterBufferOnConnectionStateChange();
+      await this._resetJitterBuffer();
     }
 
     // Case 3: disconnected -> connected: Reset audio buffers
@@ -265,7 +265,7 @@ export default class Peer {
       this._prevConnectionState === 'disconnected' &&
       connectionState === 'connected'
     ) {
-      await this._resetJitterBufferOnConnectionStateChange();
+      await this._resetJitterBuffer();
     }
 
     // update previous state for the next transition
@@ -529,7 +529,7 @@ export default class Peer {
     return getUserMedia(constraints);
   }
 
-  private async _resetJitterBufferOnConnectionStateChange() {
+  private async _resetJitterBuffer() {
     try {
       const receiver = this.instance
         .getReceivers()
@@ -560,7 +560,7 @@ export default class Peer {
       }
     } catch (error) {
       logger.error(
-        'Peer _resetJitterBufferOnConnectionStateChange error:',
+        'Peer _resetJitterBuffer error:',
         error
       );
     }
