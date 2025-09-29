@@ -6,6 +6,14 @@ if (typeof RTCPeerConnection === 'undefined') {
   global.RTCPeerConnection = webrtcMocks.RTCPeerConnectionMock;
 }
 
+if (typeof RTCRtpReceiver === 'undefined') {
+  global.RTCRtpReceiver = webrtcMocks.RTCRtpReceiverMock;
+}
+
+if (typeof RTCRtpSender === 'undefined') {
+  global.RTCRtpSender = webrtcMocks.RTCRtpSenderMock;
+}
+
 if (typeof MediaStream === 'undefined') {
   global.MediaStream = webrtcMocks.MediaStreamMock;
 }
