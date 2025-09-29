@@ -542,9 +542,11 @@ export default class Peer {
        * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
        */
       if (receiver && 'jitterBufferTarget' in receiver) {
+        // @ts-ignore
         receiver.jitterBufferTarget = 20; // e.g., 20 ms
         logger.debug(
           '[jitter] target set to',
+          // @ts-ignore
           receiver.jitterBufferTarget,
           'ms'
         );
