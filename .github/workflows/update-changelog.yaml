@@ -2,7 +2,7 @@ name: Update Changelog
 
 on:
   release:
-    types: [published]
+    types: [published, prereleased]
   workflow_dispatch:
     inputs:
       title:
@@ -13,6 +13,10 @@ on:
         description: "release description"
         required: false
         default: "description"
+      ref:
+        description: "Git ref (branch) to update"
+        required: false
+        default: "main"
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -20,12 +24,15 @@ jobs:
       contents: write
       pull-requests: write
 
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.release.target_commitish || 'main' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: "main"
+          ref: ${{ env.TARGET_BRANCH }}
           token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
 
       - name: Get release description
@@ -43,6 +50,6 @@ jobs:
           git config user.email integrations@telnyx.com
           git add CHANGELOG.md
           git commit --no-verify -m "Update CHANGELOG.md with release ${{ github.event.release.tag_name || github.event.inputs.title }}"
-          git push -u origin main
+          git push -u origin ${{ env.TARGET_BRANCH }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
