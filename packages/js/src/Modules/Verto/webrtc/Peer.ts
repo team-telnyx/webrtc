@@ -535,7 +535,11 @@ export default class Peer {
         .getReceivers()
         .find((r) => r.track && r.track.kind === 'audio');
 
-      // https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+      /**
+       * Set optimal buffer duration for real-time audio (20ms)
+       * This prevents iOS from using large buffers that cause delay
+       * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+       */
       if (receiver && 'jitterBufferTarget' in receiver) {
         receiver.jitterBufferTarget = 20; // e.g., 20 ms
         logger.debug(
