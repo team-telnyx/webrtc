@@ -88,6 +88,13 @@ export interface IClientOptions {
      */
     target_version_id?: string;
   };
+
+  /**
+   * RTC connection IP address to use instead of the default one.
+   * Useful when using a custom signaling server.
+   */
+  rtcIp?: string;
+  rtcPort?: number;
 }
 
 /**

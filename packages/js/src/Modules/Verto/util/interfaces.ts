@@ -35,6 +35,12 @@ export interface IVertoOptions {
     target_id: string;
     target_version_id?: string;
   };
+
+  /**
+   * rtcIp & rtcPort options
+   */
+  rtcIp?: string;
+  rtcPort?: number;
 }
 export interface SubscribeParams {
   channels?: string[];
