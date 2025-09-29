@@ -539,6 +539,7 @@ export default class Peer {
        * Set optimal buffer duration for real-time audio (20ms)
        * This prevents iOS from using large buffers that cause delay
        * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+       * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
        */
       if (receiver && 'jitterBufferTarget' in receiver) {
         receiver.jitterBufferTarget = 20; // e.g., 20 ms
