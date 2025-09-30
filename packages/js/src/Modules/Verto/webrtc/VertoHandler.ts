@@ -48,7 +48,7 @@ class VertoHandler {
 
   handleMessage(msg: any) {
     const { session } = this;
-    const { id, method, params = {} } = msg;
+    const { id, method, params = {}, voice_sdk_id } = msg;
 
     const callID = params?.callID;
     const eventChannel = params?.eventChannel;
@@ -117,7 +117,7 @@ class VertoHandler {
       return call;
     };
 
-    const messageToCheckRegisterState = new Gateway();
+    const messageToCheckRegisterState = new Gateway(voice_sdk_id);
     const messagePing = new Ping();
 
     switch (method) {
