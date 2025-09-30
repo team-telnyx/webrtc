@@ -78,6 +78,10 @@ export default abstract class BrowserSession extends BaseSession {
     return 1000;
   }
 
+  async getIsRegistered(): Promise<boolean> {
+    return super.getIsRegistered();
+  }
+
   /**
    * Creates a new connection for exchanging data with the WebRTC server
    *
