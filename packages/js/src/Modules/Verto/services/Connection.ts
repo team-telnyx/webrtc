@@ -8,7 +8,10 @@ import {
   safeParseJson,
 } from '../util/helpers';
 import logger from '../util/logger';
-import { getReconnectToken, setReconnectToken } from '../util/reconnect';
+import {
+  getReconnectToken,
+  setReconnectToken,
+} from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 import { registerOnce, trigger } from './Handler';
 
@@ -76,7 +79,16 @@ export default class Connection {
 
   connect() {
     const websocketUrl = new URL(this._host);
-    const reconnectToken = getReconnectToken();
+    let reconnectToken = getReconnectToken();
+
+    if (this.session.options.rtcIp && this.session.options.rtcPort) {
+      reconnectToken = null;
+      websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
+      websocketUrl.searchParams.set(
+        'rtc_port',
+        this.session.options.rtcPort.toString()
+      );
+    }
 
     if (reconnectToken) {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
