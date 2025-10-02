@@ -1,3 +1,29 @@
+## [2.22.17](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.16...webrtc/v2.22.17) (2025-08-04)
+
+chore: add detailed performance measuring for invite (#438)
+
+
+## [2.22.16](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.15...webrtc/v2.22.16) (2025-08-04)
+
+feat: add support for image attachments (#436)
+
+## [2.22.15](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.14...webrtc/v2.22.15) (2025-07-24)
+
+feat: pass target_version_id for anonymous login (#434)
+
+## [2.22.14](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.13...webrtc/v2.22.14) (2025-07-09)
+
+feat: send messages to AI agents (#432)
+
+## [2.22.13](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.12...webrtc/v2.22.13) (2025-07-04)
+
+fix: improve p2p connection establishment time (#431)
+fix: export Call via relative path (#429)
+
+## [2.22.12](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.11...webrtc/v2.22.12) (2025-05-20)
+
+chore: Tidy up exposed interfaces in entrypoint (#428)
+
 ## [2.22.11](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.10...webrtc/v2.22.11) (2025-05-14)
 
 ### Bug fixes
@@ -30,6 +56,7 @@ feat: implement real time call quality metrics (#414)
 feat: implement pre-call diagnosis (#407)
 
 ### Bug fixes
+
 fix: disable automatic video response in favor of answer option (#413)
 
 ## [2.22.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.5...webrtc/v2.22.6) (2025-02-20)
@@ -40,7 +67,7 @@ fix: attach with video when receiving m=video sdp (#409)
 
 ## [2.22.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.4...webrtc/v2.22.5) (2025-01-17)
 
-### Bug Fixes 
+### Bug Fixes
 
 fix(webrtc): Stop ringback tone when call is hung up (#406)
 
@@ -63,9 +90,11 @@ feat: add option to force usage of relay candidate (#400)
 ## [2.22.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.1...webrtc/v2.22.2) (2024-11-14)
 
 ### Enhancement
-- WebRTC Debug Report:  Enhance collected data.  
+
+- WebRTC Debug Report: Enhance collected data.
 
 ### Features
+
 - add an option to allow ice candidate prefetching (#396)
 
 ## [2.22.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.0...webrtc/v2.22.1) (2024-10-14)
@@ -361,3 +390,6 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 ## [2.0.1] - 2020-05-12
 
 ## First Release!
+## Release: WebRTC SDK V2.22.17
+feat: add call initialization metrics
+

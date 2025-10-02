@@ -1,32 +1,32 @@
-name: "Publish release"
+name: "@telnyx/webrtc Publish prerelease"
 
 on:
   release:
-    types: [published]
+    types: [prereleased]
   workflow_dispatch:
     inputs:
-      package:
-        description: "Package to publish"
-        required: true
-        default: "webrtc"
-      version:
-        description: "Version"
-        required: true
-        default: "0.0.0"
+      ref:
+        description: "Git ref (branch or tag) to checkout"
+        required: false
+        default: "main"
 
 jobs:
   publish-js:
-    if: (github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')) && (github.event_name != 'release' || github.event.release.prerelease != true)
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name || '', 'webrtc')
 
-    name: "@telnyx/webrtc Publish release"
+    name: "@telnyx/webrtc Publish prerelease"
 
     runs-on: ubuntu-latest
+
+    env:
+      PACKAGE_DIR: js
+      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.release.tag_name || github.ref || 'main' }}
 
     steps:
       - uses: actions/checkout@v2
         with:
           # https://github.com/peter-evans/create-pull-request/issues/122
-          ref: "main"
+          ref: ${{ env.TARGET_REF }}
           # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
           token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
@@ -69,42 +69,4 @@ jobs:
           webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
           title: ${{ steps.latest_commit.outputs.TITLE }}
           body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
-          context: "New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"
-
-  publish-react-client:
-    if: (github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')) && (github.event_name != 'release' || github.event.release.prerelease != true)
-
-    name: "@telnyx/react-client Publish release"
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          # https://github.com/peter-evans/create-pull-request/issues/122
-          ref: "main"
-          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
-          fetch-depth: 0
-          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
-      - name: Setup Git user
-        # https://github.com/actions/checkout/issues/13
-        run: |
-          git config user.name TelnyxIntegrations
-          git config user.email integrations@telnyx.com
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18.x"
-          cache: "yarn"
-          registry-url: https://registry.npmjs.org/
-      - name: Install shared dependencies
-        run: yarn install --immutable
-      - name: Install package dependencies
-        working-directory: packages/react-client
-        run: yarn install --immutable
-      - name: Publish package
-        working-directory: packages/react-client
-        run: npm publish --access public
-        env:
-          CI: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          context: "[Pre-release] New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"

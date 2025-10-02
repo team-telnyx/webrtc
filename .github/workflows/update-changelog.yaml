@@ -3,24 +3,46 @@ name: Update Changelog
 on:
   release:
     types: [published]
-
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "release title"
+        required: false
+        default: "WebRTC SDK Vx.x.x"
+      description:
+        description: "release description"
+        required: false
+        default: "description"
+      ref:
+        description: "Git ref (branch) to update"
+        required: false
+        default: "main"
 jobs:
   publish:
+    if: github.event_name != 'release' || github.event.release.prerelease != true
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
 
+    env:
+      TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.release.target_commitish || 'main' }}
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ env.TARGET_BRANCH }}
+          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
 
       - name: Get release description
         working-directory: packages/js
         run: |
-          echo "## Release: ${{ github.event.release.name }}" >> CHANGELOG.md
-          echo "${{ github.event.release.body }}" >> CHANGELOG.md
-          echo "" >> CHANGELOG.md
+          sed -i '' '1i\
+          ## [${{github.event.release.tag_name}}](${{github.event.release.html_url}}) (${{github.event.release.created_at}})\
+          \
+          ${{github.event.release.body}}\' CHANGELOG.md
 
       - name: Commit and push changes
         working-directory: packages/js
@@ -28,7 +50,7 @@ jobs:
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
           git add CHANGELOG.md
-          git commit --no-verify -m "Update CHANGELOG with release ${{ github.event.release.tag_name }}"
-          git push origin HEAD:main
+          git commit --no-verify -m "Update CHANGELOG.md with release ${{ github.event.release.tag_name || github.event.inputs.title }}"
+          git push -u origin ${{ env.TARGET_BRANCH }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
