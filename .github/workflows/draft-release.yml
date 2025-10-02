@@ -45,7 +45,7 @@ jobs:
     env:
       TARGET_REF: ${{ github.event.inputs.ref || 'main' }}
       PRERELEASE_ARGS: ${{ github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && format(' --preRelease={0} --github.preRelease', github.event.inputs.prerelease) || '' }}
-      INCREMENT_ARG: ${{ github.event.inputs.increment && format(' --increment={0}', github.event.inputs.increment) || '' }}
+      INCREMENT_ARG: ${{ github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && ' --increment=prerelease' || github.event.inputs.increment && format(' --increment={0}', github.event.inputs.increment) || '' }}
 
     steps:
       - uses: actions/checkout@v2
