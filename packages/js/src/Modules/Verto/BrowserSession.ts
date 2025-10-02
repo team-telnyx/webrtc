@@ -28,6 +28,9 @@ import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
+import { ErrorHandler } from './util/ErrorHandler';
+import { TelnyxError } from './util/TelnyxError';
+import { NOTIFICATION_TYPE } from './webrtc/constants';
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
@@ -65,6 +68,9 @@ export default abstract class BrowserSession extends BaseSession {
     this.iceServers = options.iceServers;
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;
+    
+    // Initialize error handler with session context
+    ErrorHandler.initialize(this.sessionid, (options as any).userId);
   }
 
   get reconnectDelay() {
@@ -216,11 +222,26 @@ export default abstract class BrowserSession extends BaseSession {
    * });
    * ```
    */
-  getDevices(): Promise<MediaDeviceInfo[]> {
-    return getDevices().catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
-      return [];
-    });
+  async getDevices(): Promise<MediaDeviceInfo[]> {
+    try {
+      const devices = await getDevices();
+      return devices;
+    } catch (error) {
+      const telnyxError = ErrorHandler.handleMediaError(
+        error as Error,
+        'BrowserSession.getDevices',
+        { requestedAt: new Date().toISOString() }
+      );
+      
+      // Trigger enhanced notification
+      trigger(SwEvent.Notification, {
+        type: NOTIFICATION_TYPE.userMediaError,
+        error: telnyxError
+      }, this.uuid);
+      
+      // Re-throw for caller to handle
+      throw telnyxError;
+    }
   }
 
   /**
@@ -249,11 +270,24 @@ export default abstract class BrowserSession extends BaseSession {
    * @returns Promise with an array of MediaDeviceInfo
    * @deprecated
    */
-  getVideoDevices(): Promise<MediaDeviceInfo[]> {
-    return getDevices(DeviceType.Video).catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
-      return [];
-    });
+  async getVideoDevices(): Promise<MediaDeviceInfo[]> {
+    try {
+      const devices = await getDevices(DeviceType.Video);
+      return devices;
+    } catch (error) {
+      const telnyxError = ErrorHandler.handleMediaError(
+        error as Error,
+        'BrowserSession.getVideoDevices',
+        { deviceType: DeviceType.Video }
+      );
+      
+      trigger(SwEvent.Notification, {
+        type: NOTIFICATION_TYPE.userMediaError,
+        error: telnyxError
+      }, this.uuid);
+      
+      throw telnyxError;
+    }
   }
 
   /**
@@ -283,11 +317,24 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @returns Promise with an array of MediaDeviceInfo
    */
-  getAudioInDevices(): Promise<MediaDeviceInfo[]> {
-    return getDevices(DeviceType.AudioIn).catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
-      return [];
-    });
+  async getAudioInDevices(): Promise<MediaDeviceInfo[]> {
+    try {
+      const devices = await getDevices(DeviceType.AudioIn);
+      return devices;
+    } catch (error) {
+      const telnyxError = ErrorHandler.handleMediaError(
+        error as Error,
+        'BrowserSession.getAudioInDevices',
+        { deviceType: DeviceType.AudioIn }
+      );
+      
+      trigger(SwEvent.Notification, {
+        type: NOTIFICATION_TYPE.userMediaError,
+        error: telnyxError
+      }, this.uuid);
+      
+      throw telnyxError;
+    }
   }
 
   /**
