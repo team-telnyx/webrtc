@@ -930,6 +930,17 @@ client.newCall({
 });
 ```
 
+### Trickle ICE
+
+Trickle ICE can be enabled by passing `trickleIce` to the `newCall` method.
+example:
+```js
+client.newCall({
+ destinationNumber: 'xxx',
+ trickleIce: true,
+});
+```
+
 #### Overrides
 
 TelnyxRTCClient.newCall
