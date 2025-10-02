@@ -19,7 +19,7 @@ on:
         default: "main"
 jobs:
   publish:
-    if: github.event_name != 'release' || github.event.release.prerelease != true
+    if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     permissions:
       contents: write

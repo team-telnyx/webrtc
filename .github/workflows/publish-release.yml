@@ -16,7 +16,7 @@ on:
 
 jobs:
   publish-js:
-    if: (github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')) && (github.event_name != 'release' || github.event.release.prerelease != true)
+    if: (github.event.inputs.package == 'webrtc' || startsWith(github.ref, 'refs/tags/webrtc')) && github.event.release.prerelease == false
 
     name: "@telnyx/webrtc Publish release"
 
@@ -72,7 +72,7 @@ jobs:
           context: "New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"
 
   publish-react-client:
-    if: (github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')) && (github.event_name != 'release' || github.event.release.prerelease != true)
+    if: (github.event.inputs.package == 'react-client' || startsWith(github.ref, 'refs/tags/react-client')) && github.event.release.prerelease == false
 
     name: "@telnyx/react-client Publish release"
 
