@@ -94,6 +94,10 @@ export interface IClientOptions {
    * Useful when using a custom signaling server.
    */
   rtcIp?: string;
+  /**
+   * RTC connection port to use instead of the default one.
+   * Useful when using a custom signaling server.
+   */
   rtcPort?: number;
 }
 
