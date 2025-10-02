@@ -96,6 +96,8 @@ class RTCRtpSenderMock implements RTCRtpSender {
   rtcpTransport: RTCDtlsTransport;
   track: MediaStreamTrack;
   transport: RTCDtlsTransport;
+  //@ts-ignore
+  transform: RTCRtpScriptTransform;
   getParameters(): RTCRtpSendParameters;
   getParameters(): RTCRtpParameters;
   getParameters(): any {}
@@ -109,6 +111,26 @@ class RTCRtpSenderMock implements RTCRtpSender {
   //@ts-ignore
   setParameters(parameters?: any): Promise<void> {}
   setStreams(...streams: MediaStream[]): void {}
+}
+
+class RTCRtpReceiverMock implements RTCRtpReceiver {
+  jitterBufferTarget: number;
+  getSynchronizationSources(): RTCRtpSynchronizationSource[] {
+    return [];
+  }
+  rtcpTransport: RTCDtlsTransport;
+  track: MediaStreamTrack;
+  transport: RTCDtlsTransport;
+  //@ts-ignore
+  transform: RTCRtpScriptTransform;
+  getContributingSources(): RTCRtpContributingSource[] {
+    return [];
+  }
+  getParameters(): RTCRtpReceiveParameters;
+  getParameters(): RTCRtpParameters;
+  getParameters(): any {}
+  //@ts-ignore
+  getStats(): Promise<RTCStatsReport> {}
 }
 
 class RTCPeerConnectionMock implements RTCPeerConnection {
@@ -169,8 +191,12 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   createAnswer(
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<RTCSessionDescriptionInit | void> {}
+  ): Promise<RTCSessionDescriptionInit | void> {
+    return Promise.resolve({
+      type: 'answer',
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+    });
+  }
   createDataChannel(
     label: string,
     dataChannelDict?: RTCDataChannelInit
@@ -192,16 +218,22 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     successCallback?: any,
     failureCallback?: any,
     options?: any
-    //@ts-ignore
-  ): Promise<RTCSessionDescriptionInit | void> {}
+  ): Promise<RTCSessionDescriptionInit | void> {
+    return Promise.resolve({
+      type: 'offer',
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+    });
+  }
   //@ts-ignore
   getConfiguration(): RTCConfiguration {}
   //@ts-ignore
   getIdentityAssertion(): Promise<string> {}
-  //@ts-ignore
-  getReceivers(): RTCRtpReceiver[] {}
-  //@ts-ignore
-  getSenders(): RTCRtpSender[] {}
+  getReceivers(): RTCRtpReceiver[] {
+    return [new RTCRtpReceiverMock()];
+  }
+  getSenders(): RTCRtpSender[] {
+    return [new RTCRtpSenderMock()];
+  }
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(selector?: MediaStreamTrack): Promise<RTCStatsReport>;
   getStats(
@@ -215,8 +247,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     failureCallback?: any
     //@ts-ignore
   ): Promise<RTCStatsReport | void> {}
-  //@ts-ignore
-  getTransceivers(): RTCRtpTransceiver[] {}
+  getTransceivers(): RTCRtpTransceiver[] {
+    return [];
+  }
   removeTrack(sender: RTCRtpSender): void;
   removeTrack(sender: RTCRtpSender): void;
   removeTrack(sender: any) {}
@@ -235,8 +268,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<void> {}
+  ): Promise<void> {
+    return Promise.resolve();
+  }
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(description: RTCSessionDescriptionInit): Promise<void>;
   setRemoteDescription(
@@ -248,8 +282,9 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
     description: any,
     successCallback?: any,
     failureCallback?: any
-    //@ts-ignore
-  ): Promise<void> {}
+  ): Promise<void> {
+    return Promise.resolve();
+  }
   addEventListener<
     K extends
       | 'connectionstatechange'
@@ -300,4 +335,10 @@ class RTCPeerConnectionMock implements RTCPeerConnection {
   dispatchEvent(event: Event): boolean {}
 }
 
-export { MediaStreamMock, MediaStreamTrackMock, RTCPeerConnectionMock };
+export {
+  MediaStreamMock,
+  MediaStreamTrackMock,
+  RTCRtpReceiverMock,
+  RTCRtpSenderMock,
+  RTCPeerConnectionMock,
+};

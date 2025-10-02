@@ -194,6 +194,16 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Trickle ICE
+   * 
+   * Trickle ICE can be enabled by passing `trickleIce` to the `newCall` method.
+   * example:
+   * ```js
+   * client.newCall({
+   *  destinationNumber: 'xxx',
+   *  trickleIce: true,
+   * });
+   * ```
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);

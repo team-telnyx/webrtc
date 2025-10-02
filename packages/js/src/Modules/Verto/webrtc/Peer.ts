@@ -36,11 +36,14 @@ export default class Peer {
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
+  private _prevConnectionState: RTCPeerConnectionState = null;
+  private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
-    session: BrowserSession
+    session: BrowserSession,
+    trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void
   ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -58,6 +61,7 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
     this._session = session;
+    this._trickleIceSdpFn = trickleIceSdpFn;
 
     this._init();
 
@@ -92,6 +96,17 @@ export default class Peer {
       this._createAnswer();
     }
   }
+  async startTrickleIceNegotiation() {
+    performance.mark(`ice-gathering-start`);
+
+    this._negotiating = true;
+
+    if (this._isOffer()) {
+      await this._createOffer().then(this._trickleIceSdpFn.bind(this));
+    } else {
+      await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
+    }
+  }
 
   private _logTransceivers() {
     logger.info(
@@ -110,6 +125,66 @@ export default class Peer {
         JSON.stringify(tr.sender.getParameters(), null, 2)
       );
     });
+  }
+
+  private get trickleIcePerformanceMetrics() {
+    const newCall = performance.measure(
+      'new-call',
+      'new-call-start',
+      'new-call-end'
+    );
+
+    const peerCreation = performance.measure(
+      'peer-creation',
+      'peer-creation-start',
+      'peer-creation-end'
+    );
+
+    const iceGathering = performance.measure(
+      'ice-gathering',
+      'ice-gathering-start',
+      'ice-gathering-end'
+    );
+
+    const sdpSend = performance.measure(
+      'sdp-send',
+      'sdp-send-start',
+      'sdp-send-end'
+    );
+
+    const inviteSend = performance.measure(
+      'invite-send',
+      'new-call-start',
+      'sdp-send-start'
+    );
+
+    const totalDuration = performance.measure(
+      'total-duration',
+      'peer-creation-start',
+      'sdp-send-end'
+    );
+
+    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    return {
+      'New Call': {
+        duration: formatDuration(newCall.duration),
+      },
+      'Peer Creation': {
+        duration: formatDuration(peerCreation.duration),
+      },
+      'ICE Gathering': {
+        duration: formatDuration(iceGathering.duration),
+      },
+      [this._isOffer() ? 'Invite Send' : 'Answer Send']: {
+        duration: formatDuration(inviteSend.duration),
+      },
+      'SDP Send': {
+        duration: formatDuration(sdpSend.duration),
+      },
+      'Total Duration': {
+        duration: formatDuration(totalDuration.duration),
+      },
+    };
   }
 
   private handleSignalingStateChangeEvent(event) {
@@ -131,13 +206,17 @@ export default class Peer {
 
   private handleNegotiationNeededEvent() {
     logger.info('Negotiation needed event');
-    if (this.instance.signalingState !== 'stable') {
+    if (this.instance.signalingState !== 'stable' || this._negotiating) {
       return;
     }
-    this.startNegotiation();
+    if (this._isTrickleIce()) {
+      this.startTrickleIceNegotiation();
+    } else {
+      this.startNegotiation();
+    }
   }
 
-  private handleTrackEvent(event) {
+  private handleTrackEvent(event: RTCTrackEvent) {
     const {
       streams: [first],
     } = event;
@@ -154,22 +233,57 @@ export default class Peer {
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     console.log(
-      `[${new Date().toISOString()}] Connection State`,
-      connectionState
+      `[${new Date().toISOString()}] Connection State changed: ${
+        this._prevConnectionState
+      } -> ${connectionState}`
     );
 
-    if (connectionState === 'failed' || connectionState === 'disconnected') {
-      const onConnectionOnline = () => {
-        this.instance.restartIce();
-        this._session._closeConnection();
-        this._session.connect();
-        window.removeEventListener('online', onConnectionOnline);
-      };
+    // Case 1: disconnected -> failed: Attempt ICE restart/renegotiation
+    if (
+      this._prevConnectionState === 'disconnected' &&
+      connectionState === 'failed'
+    ) {
+      this.instance.restartIce();
 
-      if (navigator.onLine) {
-        return onConnectionOnline();
+      if (this._isTrickleIce()) {
+        await this.startTrickleIceNegotiation();
+      } else {
+        this.startNegotiation();
       }
-      window.addEventListener('online', onConnectionOnline);
+    }
+
+    // Case 2: connected -> disconnected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'connected' &&
+      connectionState === 'disconnected'
+    ) {
+      await this._resetJitterBuffer();
+    }
+
+    // Case 3: disconnected -> connected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'disconnected' &&
+      connectionState === 'connected'
+    ) {
+      await this._resetJitterBuffer();
+    }
+
+    // update previous state for the next transition
+    this._prevConnectionState = connectionState;
+
+    if (this._isTrickleIce()) {
+      if (connectionState === 'connecting') {
+        performance.mark('peer-connection-connecting');
+      }
+
+      if (connectionState === 'connected') {
+        performance.mark('peer-connection-connected');
+        // Log Trickle ICE performance metrics
+        console.group('Performance Metrics');
+        console.table(this.trickleIcePerformanceMetrics);
+        console.groupEnd();
+        performance.clearMarks();
+      }
     }
   };
 
@@ -194,6 +308,7 @@ export default class Peer {
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
+    this._prevConnectionState = this.instance.connectionState;
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
@@ -253,7 +368,7 @@ export default class Peer {
           this._setAudioCodec(transceiver);
         });
 
-        console.debug('Applying video transceiverParams', transceiverParams);
+        logger.debug('Applying video transceiverParams', transceiverParams);
         videoTracks.forEach((track) => {
           this.options.userVariables.cameraLabel = track.label;
           this.instance.addTransceiver(track, transceiverParams);
@@ -280,7 +395,6 @@ export default class Peer {
       }
 
       if (screenShare === false) {
-        muteMediaElement(localElement);
         attachMediaStream(localElement, localStream);
       }
     }
@@ -292,8 +406,12 @@ export default class Peer {
       if (this.options.negotiateVideo) {
         this._checkMediaToNegotiate('video');
       }
-    } else {
+    } else if (!this._isTrickleIce()) {
       this.startNegotiation();
+    }
+
+    if (this._isTrickleIce()) {
+      this.startTrickleIceNegotiation();
     }
 
     this._logTransceivers();
@@ -322,11 +440,19 @@ export default class Peer {
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
-    await this.instance
-      .createOffer(this._constraints)
-      .then(this._setLocalDescription.bind(this))
-      .then(this._sdpReady)
-      .catch((error) => logger.error('Peer _createOffer error:', error));
+
+    try {
+      const offer = await this.instance.createOffer(this._constraints);
+      await this._setLocalDescription(offer);
+
+      if (!this._isTrickleIce()) {
+        this._sdpReady();
+      }
+
+      return offer;
+    } catch (error) {
+      logger.error('Peer _createOffer error:', error);
+    }
   }
 
   private async _setRemoteDescription(
@@ -360,8 +486,15 @@ export default class Peer {
       type: PeerType.Offer,
     });
     this._logTransceivers();
-    const answer = await this.instance.createAnswer();
-    await this._setLocalDescription(answer);
+
+    try {
+      const answer = await this.instance.createAnswer();
+      await this._setLocalDescription(answer);
+
+      return answer;
+    } catch (error) {
+      logger.error('Peer _createAnswer error:', error);
+    }
   }
 
   private async _setLocalDescription(
@@ -396,12 +529,60 @@ export default class Peer {
     return getUserMedia(constraints);
   }
 
+  private async _resetJitterBuffer() {
+    try {
+      const receiver = this.instance
+        .getReceivers()
+        .find((r) => r.track && r.track.kind === 'audio');
+
+      /**
+       * Set optimal buffer duration for real-time audio (20ms)
+       * This prevents iOS from using large buffers that cause delay
+       * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+       * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
+       */
+      if (receiver && 'jitterBufferTarget' in receiver) {
+        // @ts-ignore
+        receiver.jitterBufferTarget = 20; // e.g., 20 ms
+        logger.debug(
+          '[jitter] target set to',
+          // @ts-ignore
+          receiver.jitterBufferTarget,
+          'ms'
+        );
+      }
+
+      const sender = this._getSenderByKind('audio');
+      /**
+       * Workaround for hardware muting/unmuting audio
+       * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
+       * - https://github.com/Kurento/experiments/blob/master/WebRTC/mute-tracks/README.md#rtcrtpsenderreplacetrack
+       */
+      if (sender) {
+        const originalTrack = sender.track;
+        // replaceTrack() stops the sender. No negotiation is required in this case.
+        await sender.replaceTrack(null);
+        await new Promise((r) => setTimeout(r, 50)); // 50 ms pause
+        await sender.replaceTrack(originalTrack);
+      }
+    } catch (error) {
+      logger.error(
+        'Peer _resetJitterBuffer error:',
+        error
+      );
+    }
+  }
+
   private _isOffer(): boolean {
     return this.type === PeerType.Offer;
   }
 
   private _isAnswer(): boolean {
     return this.type === PeerType.Answer;
+  }
+
+  private _isTrickleIce(): boolean {
+    return this.options.trickleIce === true;
   }
 
   private _config(): RTCConfiguration {
