@@ -17,6 +17,7 @@ IClientOptions
 - [ringbackFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringbackfile)
 - [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
 - [rtcIp](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcip)
+- [rtcPort](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcport)
 - [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#trickleice)
 
 ## Properties
@@ -127,6 +128,15 @@ ___
 • `Optional` **rtcIp**: `string`
 
 RTC connection IP address to use instead of the default one.
+Useful when using a custom signaling server.
+
+___
+
+### rtcPort
+
+• `Optional` **rtcPort**: `number`
+
+RTC connection port to use instead of the default one.
 Useful when using a custom signaling server.
 
 ___
