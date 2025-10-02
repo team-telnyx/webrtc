@@ -175,7 +175,7 @@ export default class Peer {
       'ICE Gathering': {
         duration: formatDuration(iceGathering.duration),
       },
-      'Invite Send': {
+      [this._isOffer() ? 'Invite Send' : 'Answer Send']: {
         duration: formatDuration(inviteSend.duration),
       },
       'SDP Send': {
