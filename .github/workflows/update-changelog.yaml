@@ -2,7 +2,7 @@ name: Update Changelog
 
 on:
   release:
-    types: [published, prereleased]
+    types: [published]
   workflow_dispatch:
     inputs:
       title:
@@ -19,6 +19,7 @@ on:
         default: "main"
 jobs:
   publish:
+    if: github.event_name != 'release' || github.event.release.prerelease != true
     runs-on: ubuntu-latest
     permissions:
       contents: write
