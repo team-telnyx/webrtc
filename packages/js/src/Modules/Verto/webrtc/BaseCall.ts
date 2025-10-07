@@ -428,6 +428,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.stopRingback();
     if (execute) {
       const bye = new Bye({
+        sipCode: this.sipCode,
+        sip_call_id: this.sipCallId,
         sessid: this.session.sessionid,
         dialogParams: this.options,
         cause: 'USER_BUSY',
