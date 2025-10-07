@@ -1413,8 +1413,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
-        this._isRemoteDescriptionSet = true;
-        this._flushPendingIceCandidates();
+        if (this.options.trickleIce) {
+          this._isRemoteDescriptionSet = true;
+          this._flushPendingTrickleIceCandidates();
+        }
         if (this.gotEarly) {
           this.setState(State.Early);
         }
@@ -1647,7 +1649,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._isRemoteDescriptionSet = false;
   }
 
-  private _flushPendingIceCandidates() {
+  private _flushPendingTrickleIceCandidates() {
     if (!this._pendingIceCandidates.length) {
       return;
     }
