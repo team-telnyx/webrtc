@@ -193,6 +193,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this._onMediaError = this._onMediaError.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
+    this._registerPeerEvents = this._registerPeerEvents.bind(this);
+    this._registerTrickleIcePeerEvents =
+      this._registerTrickleIcePeerEvents.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -317,13 +320,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       PeerType.Offer,
       this.options,
       this.session,
-      this._onTrickleIceSdp
+      this._onTrickleIceSdp,
+      this.options.trickleIce
+        ? this._registerTrickleIcePeerEvents
+        : this._registerPeerEvents
     );
-    if (this.options.trickleIce) {
-      this._registerTrickleIcePeerEvents();
-    } else {
-      this._registerPeerEvents();
-    }
   }
   /**
    * Starts the process to answer the incoming call.
@@ -359,13 +360,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       PeerType.Answer,
       this.options,
       this.session,
-      this._onTrickleIceSdp
+      this._onTrickleIceSdp,
+      this.options.trickleIce
+        ? this._registerTrickleIcePeerEvents
+        : this._registerPeerEvents
     );
-    if (this.options.trickleIce) {
-      this._registerTrickleIcePeerEvents();
-    } else {
-      this._registerPeerEvents();
-    }
     performance.mark('new-call-end');
   }
 
@@ -1410,7 +1409,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
-    const sdp = new RTCSessionDescription({ sdp: remoteSdp, type: 'answer' });
+    const sdp = new RTCSessionDescription({
+      sdp: remoteSdp,
+      type: PeerType.Answer,
+    });
 
     await this.peer.instance
       .setRemoteDescription(sdp)
@@ -1664,8 +1666,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _registerPeerEvents() {
-    const { instance } = this.peer;
+  private _registerPeerEvents(instance: RTCPeerConnection) {
     this._iceDone = false;
     instance.onicecandidate = (event) => {
       if (this._iceDone) {
@@ -1687,8 +1688,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _registerTrickleIcePeerEvents() {
-    const { instance } = this.peer;
+  private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
     instance.onicecandidate = (event) => {
       this._onTrickleIce(event);
     };

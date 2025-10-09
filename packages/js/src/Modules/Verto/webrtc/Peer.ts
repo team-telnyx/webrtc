@@ -38,12 +38,14 @@ export default class Peer {
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
+  private _registerPeerEvents: (instance: RTCPeerConnection) => void;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
-    trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void
+    trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
+    registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -62,6 +64,7 @@ export default class Peer {
 
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
+    this._registerPeerEvents = registerPeerEvents;
 
     this._init();
 
@@ -207,6 +210,12 @@ export default class Peer {
   private handleNegotiationNeededEvent() {
     logger.info('Negotiation needed event');
     if (this.instance.signalingState !== 'stable' || this._negotiating) {
+      logger.debug(
+        'Skipping negotiation, state:',
+        this.instance.signalingState,
+        'negotiating:',
+        this._negotiating
+      );
       return;
     }
     if (this._isTrickleIce()) {
@@ -250,6 +259,16 @@ export default class Peer {
       } else {
         this.startNegotiation();
       }
+    }
+
+    // Case 2: connecting -> failed: Attempt ICE restart/renegotiation as call never connected. Trickle ICE only
+    if (
+      this._prevConnectionState === 'connecting' &&
+      connectionState === 'failed' &&
+      this._isTrickleIce()
+    ) {
+      this.instance.restartIce();
+      await this.startTrickleIceNegotiation();
     }
 
     // Case 2: connected -> disconnected: Reset audio buffers
@@ -308,7 +327,16 @@ export default class Peer {
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
+    this._registerPeerEvents(this.instance);
     this._prevConnectionState = this.instance.connectionState;
+
+    // Set ASAP, for applying mid correctly
+    if (this.isAnswer) {
+      await this._setRemoteDescription({
+        sdp: this.options.remoteSdp,
+        type: PeerType.Offer,
+      });
+    }
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
@@ -458,6 +486,7 @@ export default class Peer {
   private async _setRemoteDescription(
     remoteDescription: RTCSessionDescriptionInit
   ) {
+    logger.debug('Setting remote description', remoteDescription);
     await this.instance.setRemoteDescription(remoteDescription);
   }
 
@@ -465,7 +494,11 @@ export default class Peer {
     if (!this._isAnswer()) {
       return;
     }
-    if (this.instance.signalingState !== 'stable') {
+    if (this.instance.signalingState !== 'stable' && this.instance.signalingState !== 'have-remote-offer') {
+      logger.debug(
+        'Skipping negotiation, state:',
+        this.instance.signalingState
+      );
       console.log(
         "  - But the signaling state isn't stable, so triggering rollback"
       );
@@ -481,10 +514,7 @@ export default class Peer {
       ]);
       return;
     }
-    await this._setRemoteDescription({
-      sdp: this.options.remoteSdp,
-      type: PeerType.Offer,
-    });
+
     this._logTransceivers();
 
     try {
@@ -566,10 +596,7 @@ export default class Peer {
         await sender.replaceTrack(originalTrack);
       }
     } catch (error) {
-      logger.error(
-        'Peer _resetJitterBuffer error:',
-        error
-      );
+      logger.error('Peer _resetJitterBuffer error:', error);
     }
   }
 
