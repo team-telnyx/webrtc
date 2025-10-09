@@ -50,7 +50,6 @@ export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   callerName: '',
   callerNumber: '',
   audio: true,
-  video: false,
   useStereo: false,
   debug: false,
   debugOutput: 'socket',

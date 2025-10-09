@@ -30,7 +30,6 @@ export default class Peer {
   public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
-    offerToReceiveVideo: boolean;
   };
 
   private statsReporter: WebRTCStatsReporter | null = null;
@@ -51,7 +50,6 @@ export default class Peer {
 
     this._constraints = {
       offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
     };
 
     this._sdpReady = this._sdpReady.bind(this);
@@ -65,12 +63,6 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
-
-    this._init();
-
-    if (this.isDebugEnabled) {
-      this.statsReporter = createWebRTCStatsReporter(session);
-    }
   }
 
   get isOffer() {
@@ -261,16 +253,6 @@ export default class Peer {
       }
     }
 
-    // Case 2: connecting -> failed: Attempt ICE restart/renegotiation as call never connected. Trickle ICE only
-    if (
-      this._prevConnectionState === 'connecting' &&
-      connectionState === 'failed' &&
-      this._isTrickleIce()
-    ) {
-      this.instance.restartIce();
-      await this.startTrickleIceNegotiation();
-    }
-
     // Case 2: connected -> disconnected: Reset audio buffers
     if (
       this._prevConnectionState === 'connected' &&
@@ -360,7 +342,7 @@ export default class Peer {
       this.instance.iceGatheringState
     );
   };
-  private async _init() {
+  async init() {
     await this.createPeerConnection();
     await this.statsReporter?.start(
       this.instance,
@@ -377,9 +359,6 @@ export default class Peer {
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
       logger.info('Local audio tracks: ', audioTracks);
-      const videoTracks = localStream.getVideoTracks();
-      logger.info('Local video tracks: ', videoTracks);
-      // FIXME: use transceivers way only for offer - when answer gotta match mid from the ones from SRD
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {
@@ -395,12 +374,6 @@ export default class Peer {
           );
           this._setAudioCodec(transceiver);
         });
-
-        logger.debug('Applying video transceiverParams', transceiverParams);
-        videoTracks.forEach((track) => {
-          this.options.userVariables.cameraLabel = track.label;
-          this.instance.addTransceiver(track, transceiverParams);
-        });
       } else if (typeof this.instance.addTrack === 'function') {
         // Use addTrack
 
@@ -411,11 +384,6 @@ export default class Peer {
         this.instance
           .getTransceivers()
           .forEach((trans) => this._setAudioCodec(trans));
-
-        videoTracks.forEach((track) => {
-          this.options.userVariables.cameraLabel = track.label;
-          this.instance.addTrack(track, localStream);
-        });
       } else {
         // Fallback to legacy addStream ..
         // @ts-ignore
@@ -431,9 +399,6 @@ export default class Peer {
       if (this.options.negotiateAudio) {
         this._checkMediaToNegotiate('audio');
       }
-      if (this.options.negotiateVideo) {
-        this._checkMediaToNegotiate('video');
-      }
     } else if (!this._isTrickleIce()) {
       this.startNegotiation();
     }
@@ -443,6 +408,10 @@ export default class Peer {
     }
 
     this._logTransceivers();
+    
+    if (this.isDebugEnabled) {
+      this.statsReporter = createWebRTCStatsReporter(this._session);
+    }
   }
 
   private _getSenderByKind(kind: string) {
@@ -465,7 +434,6 @@ export default class Peer {
       return;
     }
     this._constraints.offerToReceiveAudio = Boolean(this.options.audio);
-    this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
 
@@ -494,7 +462,10 @@ export default class Peer {
     if (!this._isAnswer()) {
       return;
     }
-    if (this.instance.signalingState !== 'stable' && this.instance.signalingState !== 'have-remote-offer') {
+    if (
+      this.instance.signalingState !== 'stable' &&
+      this.instance.signalingState !== 'have-remote-offer'
+    ) {
       logger.debug(
         'Skipping negotiation, state:',
         this.instance.signalingState

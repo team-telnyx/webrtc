@@ -163,7 +163,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       localElement,
       remoteElement,
       options,
-      mediaConstraints: { audio, video },
+      mediaConstraints: { audio },
       ringtoneFile,
       ringbackFile,
     } = session;
@@ -172,7 +172,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       DEFAULT_CALL_OPTIONS,
       {
         audio,
-        video,
         iceServers,
         localElement,
         remoteElement,
@@ -310,7 +309,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  invite() {
+  async invite() {
     this.direction = Direction.Outbound;
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
@@ -325,6 +324,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
+    await this.peer.init();
   }
   /**
    * Starts the process to answer the incoming call.
@@ -335,11 +335,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer(params: AnswerParams = {}) {
+  async answer(params: AnswerParams = {}) {
     performance.mark('new-call-start');
     this.stopRingtone();
 
-    this.options.video = params.video ?? this.options.video ?? false;
     this.direction = Direction.Inbound;
 
     if (params?.customHeaders?.length > 0) {
@@ -365,6 +364,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
+    await this.peer.init();
     performance.mark('new-call-end');
   }
 
@@ -1066,9 +1066,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (infoChannel) {
           await this._subscribeConferenceInfo(infoChannel);
         }
-        if (modChannel && role === Role.Moderator) {
-          await this._subscribeConferenceModerator(modChannel);
-        }
         const participants = [];
         for (const i in data) {
           participants.push({
@@ -1210,191 +1207,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.vertoBroadcast({ nodeId: this.nodeId, channel, data });
   }
 
-  private async _subscribeConferenceModerator(channel: string) {
-    const _modCommand = (
-      command: string,
-      memberID: any = null,
-      value: any = null
-    ): void => {
-      const id = parseInt(memberID) || null;
-      this._confControl(channel, { command, id, value });
-    };
-
-    const _videoRequired = (): void => {
-      const { video } = this.options;
-      if (
-        (typeof video === 'boolean' && !video) ||
-        (typeof video === 'object' && objEmpty(video))
-      ) {
-        throw `Conference ${this.id} has no video!`;
-      }
-    };
-
-    const tmp = {
-      nodeId: this.nodeId,
-      channels: [channel],
-      handler: (params: any) => {
-        const { data } = params;
-        switch (data['conf-command']) {
-          case 'list-videoLayouts':
-            if (data.responseData) {
-              const tmp = JSON.stringify(data.responseData).replace(
-                /IDS"/g,
-                'Ids"'
-              );
-              // TODO: revert layouts JSON structure
-              this._dispatchConferenceUpdate({
-                action: ConferenceAction.LayoutList,
-                layouts: JSON.parse(tmp),
-              });
-            }
-            break;
-          default:
-            this._dispatchConferenceUpdate({
-              action: ConferenceAction.ModCmdResponse,
-              command: data['conf-command'],
-              response: data.response,
-            });
-        }
-      },
-    };
-    const response = await this.session.vertoSubscribe(tmp).catch((error) => {
-      logger.error('ConfMod subscription error:', error);
-    });
-    if (checkSubscribeResponse(response, channel)) {
-      this.role = Role.Moderator;
-      this._addChannel(channel);
-      Object.defineProperties(this, {
-        listVideoLayouts: {
-          configurable: true,
-          value: () => {
-            _modCommand('list-videoLayouts');
-          },
-        },
-        playMedia: {
-          configurable: true,
-          value: (file: string) => {
-            _modCommand('play', null, file);
-          },
-        },
-        stopMedia: {
-          configurable: true,
-          value: () => {
-            _modCommand('stop', null, 'all');
-          },
-        },
-        deaf: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('deaf', memberID);
-          },
-        },
-        undeaf: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('undeaf', memberID);
-          },
-        },
-        startRecord: {
-          configurable: true,
-          value: (file: string) => {
-            _modCommand('recording', null, ['start', file]);
-          },
-        },
-        stopRecord: {
-          configurable: true,
-          value: () => {
-            _modCommand('recording', null, ['stop', 'all']);
-          },
-        },
-        snapshot: {
-          configurable: true,
-          value: (file: string) => {
-            _videoRequired();
-            _modCommand('vid-write-png', null, file);
-          },
-        },
-        setVideoLayout: {
-          configurable: true,
-          value: (layout: string, canvasID: number) => {
-            _videoRequired();
-            const value = canvasID ? [layout, canvasID] : layout;
-            _modCommand('vid-layout', null, value);
-          },
-        },
-        kick: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('kick', memberID);
-          },
-        },
-        muteMic: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('tmute', memberID);
-          },
-        },
-        muteVideo: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('tvmute', memberID);
-          },
-        },
-        presenter: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('vid-res-id', memberID, 'presenter');
-          },
-        },
-        videoFloor: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('vid-floor', memberID, 'force');
-          },
-        },
-        banner: {
-          configurable: true,
-          value: (memberID: number | string, text: string) => {
-            _videoRequired();
-            _modCommand('vid-banner', memberID, encodeURI(text));
-          },
-        },
-        volumeDown: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_out', memberID, 'down');
-          },
-        },
-        volumeUp: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_out', memberID, 'up');
-          },
-        },
-        gainDown: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_in', memberID, 'down');
-          },
-        },
-        gainUp: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_in', memberID, 'up');
-          },
-        },
-        transfer: {
-          configurable: true,
-          value: (memberID: number | string, exten: string) => {
-            _modCommand('transfer', memberID, exten);
-          },
-        },
-      });
-    }
-  }
 
   private _handleChangeHoldStateSuccess(response) {
     response.holdState === 'active'
