@@ -146,7 +146,6 @@ export interface IWebRTCCall {
   stopScreenShare?: () => void;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
   // RN
-  switchCamera?: () => void;
   setSpeakerPhone?: (flag: boolean) => void;
 }
 export interface IWebRTCInfo {
