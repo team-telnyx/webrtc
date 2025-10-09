@@ -21,7 +21,7 @@ export default class Call extends BaseCall {
     switch (state) {
       case State.Active:
         InCallManager.start({
-          media: Boolean(this.options.video) ? 'video' : 'audio',
+          media: 'audio',
         });
         break;
       case State.Destroy:
