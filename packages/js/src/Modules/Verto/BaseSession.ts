@@ -76,6 +76,10 @@ export default abstract class BaseSession {
     return this.connection && this.connection.connected;
   }
 
+  public async getIsRegistered(): Promise<boolean> {
+    return this.registerAgent.getIsRegistered();
+  }
+
   get reconnectDelay() {
     return randomInt(2, 6) * 1000;
   }
@@ -416,14 +420,5 @@ export default abstract class BaseSession {
 
   public hasAutoReconnect() {
     return this._autoReconnect;
-  }
-
-  /**
-   * Get the registration state of the client
-   * @private
-   * @return Promise<boolean>
-   */
-  private getIsRegistered() {
-    return this.registerAgent.getIsRegistered();
   }
 }
