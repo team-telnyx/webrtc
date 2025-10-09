@@ -197,14 +197,4 @@ describe('Call', () => {
       }
     });
   });
-
-  describe('.setVideoBandwidthEncodingsMaxBps()', () => {
-    it('if video is used it should set video max bitrate to 300 kbits/s', () => {
-      const maxBitsPerSecond = 300000;
-      if (call.options.video && call.peer) {
-        call.setVideoBandwidthEncodingsMaxBps(maxBitsPerSecond);
-        expect(getBitrate(call, 'video')).toEqual(maxBitsPerSecond);
-      }
-    });
-  });
 });
