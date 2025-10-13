@@ -1,8 +1,8 @@
 import { VertoMethod } from '../../webrtc/constants';
 import BaseRequest from './BaseRequest';
 
-class Ping extends BaseRequest {
-  method: string = VertoMethod.Ping;
+class Pong extends BaseRequest {
+  method: string = VertoMethod.Pong;
 
   constructor(voice_sdk_id?: string | null) {
     super();
@@ -13,4 +13,4 @@ class Ping extends BaseRequest {
   }
 }
 
-export { Ping };
+export { Pong };

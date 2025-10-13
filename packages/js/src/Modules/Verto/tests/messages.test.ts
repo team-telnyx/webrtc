@@ -1,5 +1,6 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
 import { Ping } from '../messages/verto/Ping';
+import { Pong } from '../messages/verto/Pong';
 import { version } from '../../../../package.json';
 
 const userAgent = JSON.stringify({
@@ -139,6 +140,16 @@ describe('Messages', function () {
         const message = new Ping().request;
         const res = JSON.parse(
           `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.ping","params":{}}`
+        );
+        expect(message).toEqual(res);
+      });
+    });
+
+    describe('Pong', function () {
+      it('should match struct', function () {
+        const message = new Pong().request;
+        const res = JSON.parse(
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.pong","params":{}}`
         );
         expect(message).toEqual(res);
       });
