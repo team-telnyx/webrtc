@@ -144,15 +144,5 @@ describe('Messages', function () {
         expect(message).toEqual(res);
       });
     });
-
-    describe('Pong', function () {
-      it('should match struct', function () {
-        const message = new Pong().request;
-        const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.pong","params":{}}`
-        );
-        expect(message).toEqual(res);
-      });
-    });
   });
 });

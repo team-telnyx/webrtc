@@ -19,7 +19,8 @@ import {
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
 
-const KEEPALIVE_INTERVAL = 30 * 1000;
+// ping interval is 30 seconds, timeout in VSP is 60 seconds. We use an interval here that's in between to make sure we don't let the session expire
+const KEEPALIVE_INTERVAL = 35 * 1000;
 
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
@@ -34,7 +35,6 @@ export default abstract class BaseSession {
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;
-  protected _doKeepAlive: boolean = false;
   protected _keepAliveTimeout: any;
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
@@ -390,16 +390,28 @@ export default abstract class BaseSession {
     }
   }
 
-  private _keepAlive() {
-    if (this._doKeepAlive !== true) {
-      return;
+  private _resetKeepAlive() {
+    if (this._pong === false) {
+      logger.warn('No ping/pong received, reconnecting');
+      this._closeConnection();
+      this.connect();
     }
 
+    clearTimeout(this._keepAliveTimeout);
+    this.triggerKeepAliveCheck();
+  }
+
+  public triggerKeepAliveCheck() {
     this._pong = false;
     this._keepAliveTimeout = setTimeout(
-      () => this._keepAlive(),
+      () => this._resetKeepAlive(),
       KEEPALIVE_INTERVAL
     );
+  }
+
+  public setPingReceived() {
+    logger.debug('Ping received');
+    this._pong = true;
   }
 
   static on(eventName: string, callback: any) {
