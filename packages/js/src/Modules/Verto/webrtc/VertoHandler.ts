@@ -193,7 +193,7 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.REGISTER
               ) {
-                this.session.triggerKeepAliveCheck();
+                this.session.triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);

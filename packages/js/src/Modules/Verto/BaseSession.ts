@@ -18,8 +18,13 @@ import {
 } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
+import { getReconnectToken } from './util/reconnect';
+import { Ping } from './messages/verto/Ping';
 
-// ping interval is 30 seconds, timeout in VSP is 60 seconds. We use an interval here that's in between to make sure we don't let the session expire
+/**
+ * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
+ * Using intervals here that are in between both to make sure we don't let the session expire without acting first.
+ */
 const KEEPALIVE_INTERVAL = 35 * 1000;
 
 export default abstract class BaseSession {
@@ -392,16 +397,15 @@ export default abstract class BaseSession {
 
   private _resetKeepAlive() {
     if (this._pong === false) {
-      logger.warn('No ping/pong received, reconnecting');
-      this._closeConnection();
-      this.connect();
+      logger.warn('No ping/pong received, forcing PING ACK to keep alive');
+      this.execute(new Ping(getReconnectToken()));
     }
 
     clearTimeout(this._keepAliveTimeout);
-    this.triggerKeepAliveCheck();
+    this.triggerKeepAliveTimeoutCheck();
   }
 
-  public triggerKeepAliveCheck() {
+  public triggerKeepAliveTimeoutCheck() {
     this._pong = false;
     this._keepAliveTimeout = setTimeout(
       () => this._resetKeepAlive(),
