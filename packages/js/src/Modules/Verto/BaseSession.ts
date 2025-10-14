@@ -275,6 +275,7 @@ export default abstract class BaseSession {
     }
     this.subscriptions = {};
     this.contexts = [];
+    clearTimeout(this._keepAliveTimeout);
 
     if (this._autoReconnect) {
       this._reconnectTimeout = setTimeout(
@@ -402,10 +403,13 @@ export default abstract class BaseSession {
     }
 
     clearTimeout(this._keepAliveTimeout);
-    this.triggerKeepAliveTimeoutCheck();
+    this._triggerKeepAliveTimeoutCheck();
   }
 
-  public triggerKeepAliveTimeoutCheck() {
+  /**
+   * @private
+   */
+  public _triggerKeepAliveTimeoutCheck() {
     this._pong = false;
     this._keepAliveTimeout = setTimeout(
       () => this._resetKeepAlive(),

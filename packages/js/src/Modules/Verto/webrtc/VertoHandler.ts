@@ -62,7 +62,7 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        session.calls[callID].hangup({}, false);
+        logger.info('Recovering call with ATTACH. callID:', callID);
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -193,7 +193,7 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.REGISTER
               ) {
-                this.session.triggerKeepAliveTimeoutCheck();
+                this.session._triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
