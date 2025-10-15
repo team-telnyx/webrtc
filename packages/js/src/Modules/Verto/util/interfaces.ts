@@ -25,6 +25,7 @@ export interface IVertoOptions {
   debugOutput?: 'socket' | 'file';
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  keepConnectionAliveOnSocketClose?: boolean;
   region?: string;
   /**
    * anonymous_login login options

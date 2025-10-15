@@ -210,6 +210,11 @@ export interface ICallOptions {
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;
+
+  /**
+   * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received. 
+   */
+  keepConnectionAliveOnSocketClose?: boolean;
 }
 
 /**

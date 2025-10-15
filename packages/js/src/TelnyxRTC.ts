@@ -194,6 +194,17 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Keep Connection Alive on Socket Close
+   * 
+   * By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause. To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose` to the `newCall` method.
+   * 
+   * example:
+   * ```js
+   * client.newCall({
+   *  destinationNumber: 'xxx',
+   *  keepConnectionAliveOnSocketClose: true,
+   * });
+   * ```
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);

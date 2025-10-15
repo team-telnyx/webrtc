@@ -62,7 +62,12 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        logger.info('Recovering call with ATTACH. callID:', callID);
+        if (session.options.keepConnectionAliveOnSocketClose || session.calls[callID].options.keepConnectionAliveOnSocketClose) {
+          logger.info('Recovering peer connection and call with ATTACH. callID:', callID);
+        } else {
+          session.calls[callID].hangup({}, false);
+          logger.info('Hanging up the call due to ATTACH. callID:', callID);
+        }
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -85,6 +90,7 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
+        keepConnectionAliveOnSocketClose: session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
       if (params.telnyx_call_control_id) {
