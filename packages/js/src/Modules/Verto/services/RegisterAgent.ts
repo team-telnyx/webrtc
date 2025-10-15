@@ -5,6 +5,7 @@ import {
   DeferredPromise,
   getGatewayState,
 } from '../util/helpers';
+import { getReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 
 /**
@@ -28,7 +29,7 @@ export class RegisterAgent {
   };
 
   public getIsRegistered = async () => {
-    const message = new Gateway();
+    const message = new Gateway(getReconnectToken());
     this.pendingRequestId = message.request.id;
     this.gatewayStateTask = deferredPromise<GatewayStateType>({});
 

@@ -49,6 +49,7 @@ export interface IVertoCallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  keepConnectionAliveOnSocketClose?: boolean;
 }
 
 export interface IStatsBinding {

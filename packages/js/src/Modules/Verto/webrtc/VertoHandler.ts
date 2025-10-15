@@ -48,7 +48,7 @@ class VertoHandler {
 
   handleMessage(msg: any) {
     const { session } = this;
-    const { id, method, params = {} } = msg;
+    const { id, method, params = {}, voice_sdk_id } = msg;
 
     const callID = params?.callID;
     const eventChannel = params?.eventChannel;
@@ -62,7 +62,12 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        session.calls[callID].hangup({}, false);
+        if (session.options.keepConnectionAliveOnSocketClose || session.calls[callID].options.keepConnectionAliveOnSocketClose) {
+          logger.info('Recovering peer connection and call with ATTACH. callID:', callID);
+        } else {
+          session.calls[callID].hangup({}, false);
+          logger.info('Hanging up the call due to ATTACH. callID:', callID);
+        }
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -85,6 +90,7 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
+        keepConnectionAliveOnSocketClose: session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
       if (params.telnyx_call_control_id) {
@@ -116,12 +122,13 @@ class VertoHandler {
       return call;
     };
 
-    const messageToCheckRegisterState = new Gateway();
-    const messagePing = new Ping();
+    const messageToCheckRegisterState = new Gateway(voice_sdk_id);
+    const messagePing = new Ping(voice_sdk_id);
 
     switch (method) {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
+        this.session.setPingReceived();
         this.session.execute(messagePing);
         break;
       }
@@ -192,6 +199,7 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.REGISTER
               ) {
+                this.session._triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);

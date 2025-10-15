@@ -18,8 +18,14 @@ import {
 } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
+import { getReconnectToken } from './util/reconnect';
+import { Ping } from './messages/verto/Ping';
 
-const KEEPALIVE_INTERVAL = 30 * 1000;
+/**
+ * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
+ * Using intervals here that are in between both to make sure we don't let the session expire without acting first.
+ */
+const KEEPALIVE_INTERVAL = 35 * 1000;
 
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
@@ -34,7 +40,6 @@ export default abstract class BaseSession {
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;
-  protected _doKeepAlive: boolean = false;
   protected _keepAliveTimeout: any;
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
@@ -74,6 +79,10 @@ export default abstract class BaseSession {
    */
   get connected() {
     return this.connection && this.connection.connected;
+  }
+
+  public async getIsRegistered(): Promise<boolean> {
+    return this.registerAgent.getIsRegistered();
   }
 
   get reconnectDelay() {
@@ -266,6 +275,7 @@ export default abstract class BaseSession {
     }
     this.subscriptions = {};
     this.contexts = [];
+    clearTimeout(this._keepAliveTimeout);
 
     if (this._autoReconnect) {
       this._reconnectTimeout = setTimeout(
@@ -386,16 +396,30 @@ export default abstract class BaseSession {
     }
   }
 
-  private _keepAlive() {
-    if (this._doKeepAlive !== true) {
-      return;
+  private _resetKeepAlive() {
+    if (this._pong === false) {
+      logger.warn('No ping/pong received, forcing PING ACK to keep alive');
+      this.execute(new Ping(getReconnectToken()));
     }
 
+    clearTimeout(this._keepAliveTimeout);
+    this._triggerKeepAliveTimeoutCheck();
+  }
+
+  /**
+   * @private
+   */
+  public _triggerKeepAliveTimeoutCheck() {
     this._pong = false;
     this._keepAliveTimeout = setTimeout(
-      () => this._keepAlive(),
+      () => this._resetKeepAlive(),
       KEEPALIVE_INTERVAL
     );
+  }
+
+  public setPingReceived() {
+    logger.debug('Ping received');
+    this._pong = true;
   }
 
   static on(eventName: string, callback: any) {
@@ -416,14 +440,5 @@ export default abstract class BaseSession {
 
   public hasAutoReconnect() {
     return this._autoReconnect;
-  }
-
-  /**
-   * Get the registration state of the client
-   * @private
-   * @return Promise<boolean>
-   */
-  private getIsRegistered() {
-    return this.registerAgent.getIsRegistered();
   }
 }
