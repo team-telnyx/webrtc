@@ -160,7 +160,10 @@ class VertoHandler {
           this.session.execute(
             new Attach({
               sessid: this.session.sessionid,
-              dialogParams: session.calls[callID].options,
+              // reuse the same sdp to re-attach
+              sdp: this.session.calls[callID].peer.instance.localDescription
+                .sdp,
+              dialogParams: this.session.calls[callID].options,
               'User-Agent': `Web-${SDK_VERSION}`,
             })
           );
