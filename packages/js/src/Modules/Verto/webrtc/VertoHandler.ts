@@ -70,12 +70,14 @@ class VertoHandler {
           session.calls[callID].options.keepConnectionAliveOnSocketClose;
 
         if (keepConnectionOnAttach) {
-          console.log(
+          logger.info(
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH`
           );
         } else {
           session.calls[callID].hangup({}, false);
-          logger.info(`[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`);
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
+          );
         }
       } else {
         session.calls[callID].handleMessage(msg);
@@ -154,18 +156,26 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        if (keepConnectionOnAttach) {
+        if (
+          keepConnectionOnAttach &&
+          this.session.calls[callID].peer?.instance
+        ) {
           // If we are keeping the connection alive on attach, we need to re-attach first.
           this.session.execute(
             new Attach({
               sessid: this.session.sessionid,
               // reuse the same sdp to re-attach
-              sdp: this.session.callsPeerConnectionLocalDescriptionSdps[callID],
+              sdp: this.session.calls[callID].peer.instance.localDescription
+                .sdp,
               dialogParams: this.session.calls[callID].options,
               'User-Agent': `Web-${SDK_VERSION}`,
             })
           );
           return;
+        } else {
+          logger.error(
+            `[${new Date().toISOString()}][${callID}] Cannot re-attach call, peer connection does not exist.`
+          );
         }
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
