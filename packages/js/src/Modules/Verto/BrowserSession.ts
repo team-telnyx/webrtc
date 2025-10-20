@@ -34,6 +34,8 @@ const SDK_VERSION = pkg.version;
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
 
+  public callsPeerConnectionLocalDescriptionSdps: { [callId: string]: string } = {};
+
   public micId: string;
 
   public micLabel: string;
@@ -176,6 +178,7 @@ export default abstract class BrowserSession extends BaseSession {
   async disconnect() {
     Object.keys(this.calls).forEach((k) => this.calls[k].setState(State.Purge));
     this.calls = {};
+    this.callsPeerConnectionLocalDescriptionSdps = {};
 
     this._cleanupNetworkListeners();
     await super.disconnect();
@@ -840,19 +843,19 @@ export default abstract class BrowserSession extends BaseSession {
     };
 
     this._onWakeHandler = (elapsed: number) => {
-      console.warn(`💤 System sleep/wake detected after ${elapsed} ms`);
+      console.warn(`System sleep/wake detected after ${elapsed} ms`);
 
       if (this.connected) {
         Object.keys(this.calls).forEach((callID) => {
           if (this.calls[callID].options.keepConnectionAliveOnSocketClose) {
-            console.debug(
-              `For call ${callID}, re-attaching after network online`
+            console.log(
+              `[${new Date().toISOString()}][${callID}] re-attaching after network online`
             );
             this.execute(
               new Attach({
                 sessid: this.sessionid,
                 // reuse the same sdp to re-attach
-                sdp: this.calls[callID].peer?.instance?.localDescription.sdp,
+                sdp: this.callsPeerConnectionLocalDescriptionSdps[callID],
                 dialogParams: this.calls[callID].options,
                 'User-Agent': `Web-${SDK_VERSION}`,
               })

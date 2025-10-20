@@ -106,9 +106,6 @@ export interface IWebRTCCall {
   state: string;
   prevState: string;
   direction: string;
-  peer?: {
-    instance?: RTCPeerConnection | null;
-  } | null;
   options: IVertoCallOptions;
   cause: string;
   causeCode: number;

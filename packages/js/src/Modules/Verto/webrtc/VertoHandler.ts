@@ -70,13 +70,12 @@ class VertoHandler {
           session.calls[callID].options.keepConnectionAliveOnSocketClose;
 
         if (keepConnectionOnAttach) {
-          logger.info(
-            'Recovering peer connection and call with ATTACH. callID:',
-            callID
+          console.log(
+            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH`
           );
         } else {
           session.calls[callID].hangup({}, false);
-          logger.info('Hanging up the call due to ATTACH. callID:', callID);
+          logger.info(`[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`);
         }
       } else {
         session.calls[callID].handleMessage(msg);
@@ -161,8 +160,7 @@ class VertoHandler {
             new Attach({
               sessid: this.session.sessionid,
               // reuse the same sdp to re-attach
-              sdp: this.session.calls[callID].peer?.instance?.localDescription
-                .sdp,
+              sdp: this.session.callsPeerConnectionLocalDescriptionSdps[callID],
               dialogParams: this.session.calls[callID].options,
               'User-Agent': `Web-${SDK_VERSION}`,
             })
