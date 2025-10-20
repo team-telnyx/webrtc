@@ -370,10 +370,11 @@ export default abstract class BaseSession {
   }
 
   /**
+   * @private
    * Execute all the queued messages during the idle period.
    * @return void
    */
-  private _emptyExecuteQueues() {
+  public _emptyExecuteQueues() {
     this._executeQueue.forEach(({ resolve, msg }) => {
       if (typeof msg === 'string') {
         this.executeRaw(msg);

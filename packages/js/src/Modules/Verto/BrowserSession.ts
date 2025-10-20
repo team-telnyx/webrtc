@@ -819,6 +819,18 @@ export default abstract class BrowserSession extends BaseSession {
       if (this._wasOffline && this.connected) {
         this._closeConnection();
         this.connect();
+
+        Object.keys(this.calls).forEach((k) => {
+          if (
+            this.options.keepConnectionAliveOnSocketClose ||
+            this.calls[k].options.keepConnectionAliveOnSocketClose
+          ) {
+            console.debug(
+              `For call ${k}, re-sending messages after network online`
+            );
+            this._emptyExecuteQueues();
+          }
+        });
       }
       this._wasOffline = false;
     };
@@ -832,7 +844,11 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   private _cleanupNetworkListeners() {
-    if (typeof window === 'undefined' || !this._onlineHandler || !this._offlineHandler) {
+    if (
+      typeof window === 'undefined' ||
+      !this._onlineHandler ||
+      !this._offlineHandler
+    ) {
       return;
     }
 
