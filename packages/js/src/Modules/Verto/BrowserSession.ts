@@ -6,6 +6,7 @@ import {
   SubscribeParams,
   IVertoOptions,
 } from './util/interfaces';
+import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
 import {
   SwEvent,
@@ -24,10 +25,11 @@ import {
   assureDeviceId,
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
-import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
+import { Unsubscribe, Subscribe, Broadcast, Attach } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
+const SDK_VERSION = pkg.version;
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
@@ -64,6 +66,8 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _offlineHandler: (() => void) | null = null;
 
+  private _onWakeHandler: ((elapsed: number) => void) | null = null;
+
   private _wasOffline: boolean = false;
 
   constructor(options: IVertoOptions) {
@@ -76,6 +80,14 @@ export default abstract class BrowserSession extends BaseSession {
 
   get reconnectDelay() {
     return 1000;
+  }
+
+  get systemSleepCheckInterval() {
+    return 1000;
+  }
+
+  get systemSleepThreshold() {
+    return 1500;
   }
 
   async getIsRegistered(): Promise<boolean> {
@@ -819,18 +831,6 @@ export default abstract class BrowserSession extends BaseSession {
       if (this._wasOffline && this.connected) {
         this._closeConnection();
         this.connect();
-
-        Object.keys(this.calls).forEach((k) => {
-          if (
-            this.options.keepConnectionAliveOnSocketClose ||
-            this.calls[k].options.keepConnectionAliveOnSocketClose
-          ) {
-            console.debug(
-              `For call ${k}, re-sending messages after network online`
-            );
-            this._emptyExecuteQueues();
-          }
-        });
       }
       this._wasOffline = false;
     };
@@ -839,8 +839,54 @@ export default abstract class BrowserSession extends BaseSession {
       this._wasOffline = true;
     };
 
+    this._onWakeHandler = (elapsed: number) => {
+      console.warn(`💤 System sleep/wake detected after ${elapsed} ms`);
+
+      if (this.connected) {
+        Object.keys(this.calls).forEach((callID) => {
+          if (this.calls[callID].options.keepConnectionAliveOnSocketClose) {
+            console.debug(
+              `For call ${callID}, re-attaching after network online`
+            );
+            this.execute(
+              new Attach({
+                sessid: this.sessionid,
+                // reuse the same sdp to re-attach
+                sdp: this.calls[callID].peer.instance.localDescription.sdp,
+                dialogParams: this.calls[callID].options,
+                'User-Agent': `Web-${SDK_VERSION}`,
+              })
+            );
+          }
+        });
+      }
+    };
+
     window.addEventListener('online', this._onlineHandler);
     window.addEventListener('offline', this._offlineHandler);
+
+    if (this.options.keepConnectionAliveOnSocketClose) {
+      this._detectSystemSleep();
+    }
+  }
+
+  private _detectSystemSleep() {
+    let last = Date.now();
+
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const delta = now - last;
+
+      // If time jumped forward significantly, assume system slept
+      if (delta > this.systemSleepCheckInterval + this.systemSleepThreshold) {
+        this._onWakeHandler(delta);
+      }
+
+      last = now;
+    }, this.systemSleepCheckInterval);
+
+    // Return cleanup function
+    return () => clearInterval(timer);
   }
 
   private _cleanupNetworkListeners() {
