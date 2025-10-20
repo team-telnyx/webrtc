@@ -831,15 +831,6 @@ export default abstract class BrowserSession extends BaseSession {
       if (this._wasOffline && this.connected) {
         this._closeConnection();
         this.connect();
-
-        Object.keys(this.calls).forEach((k) => {
-          if (this.calls[k].options.keepConnectionAliveOnSocketClose) {
-            console.debug(
-              `For call ${k}, re-sending messages after network online`
-            );
-            this._emptyExecuteQueues();
-          }
-        });
       }
       this._wasOffline = false;
     };
@@ -861,7 +852,7 @@ export default abstract class BrowserSession extends BaseSession {
               new Attach({
                 sessid: this.sessionid,
                 // reuse the same sdp to re-attach
-                sdp: this.calls[callID].peer.instance.localDescription.sdp,
+                sdp: this.calls[callID].peer?.instance?.localDescription.sdp,
                 dialogParams: this.calls[callID].options,
                 'User-Agent': `Web-${SDK_VERSION}`,
               })

@@ -259,7 +259,11 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {}
+  protected async _onSocketOpen() {
+    if (this.options.keepConnectionAliveOnSocketClose) {
+      this._emptyExecuteQueues();
+    }
+  }
 
   /**
    * Callback when the ws connection is going to close or get an error
@@ -370,11 +374,10 @@ export default abstract class BaseSession {
   }
 
   /**
-   * @private
    * Execute all the queued messages during the idle period.
    * @return void
    */
-  public _emptyExecuteQueues() {
+  private _emptyExecuteQueues() {
     this._executeQueue.forEach(({ resolve, msg }) => {
       if (typeof msg === 'string') {
         this.executeRaw(msg);

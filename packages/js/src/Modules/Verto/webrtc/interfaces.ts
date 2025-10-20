@@ -107,8 +107,8 @@ export interface IWebRTCCall {
   prevState: string;
   direction: string;
   peer?: {
-    instance: RTCPeerConnection;
-  };
+    instance?: RTCPeerConnection | null;
+  } | null;
   options: IVertoCallOptions;
   cause: string;
   causeCode: number;
