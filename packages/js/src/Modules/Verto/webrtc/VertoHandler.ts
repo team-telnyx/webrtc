@@ -1,8 +1,9 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
+import pkg from '../../../../package.json';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Result } from '../messages/Verto';
+import { Attach, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -18,6 +19,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
+const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
@@ -55,6 +57,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const attach = method === VertoMethod.Attach;
+    let keepConnectionOnAttach = false;
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
@@ -62,8 +65,15 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        if (session.options.keepConnectionAliveOnSocketClose || session.calls[callID].options.keepConnectionAliveOnSocketClose) {
-          logger.info('Recovering peer connection and call with ATTACH. callID:', callID);
+        keepConnectionOnAttach =
+          session.options.keepConnectionAliveOnSocketClose ||
+          session.calls[callID].options.keepConnectionAliveOnSocketClose;
+
+        if (keepConnectionOnAttach) {
+          logger.info(
+            'Recovering peer connection and call with ATTACH. callID:',
+            callID
+          );
         } else {
           session.calls[callID].hangup({}, false);
           logger.info('Hanging up the call due to ATTACH. callID:', callID);
@@ -90,7 +100,8 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
-        keepConnectionAliveOnSocketClose: session.options.keepConnectionAliveOnSocketClose ?? false,
+        keepConnectionAliveOnSocketClose:
+          session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
       if (params.telnyx_call_control_id) {
@@ -144,6 +155,17 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
+        if (keepConnectionOnAttach) {
+          // If we are keeping the connection alive on attach, we need to re-attach first.
+          this.session.execute(
+            new Attach({
+              sessid: this.session.sessionid,
+              dialogParams: session.calls[callID].options,
+              'User-Agent': `Web-${SDK_VERSION}`,
+            })
+          );
+          return;
+        }
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
           call.answer();

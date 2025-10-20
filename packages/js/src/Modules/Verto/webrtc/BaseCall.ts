@@ -170,6 +170,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         ringbackFile,
         debug: options.debug,
         debugOutput: options.debugOutput,
+        keepConnectionAliveOnSocketClose:
+          options.keepConnectionAliveOnSocketClose,
       },
       opts
     );
