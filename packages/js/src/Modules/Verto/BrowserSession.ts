@@ -831,6 +831,15 @@ export default abstract class BrowserSession extends BaseSession {
       if (this._wasOffline && this.connected) {
         this._closeConnection();
         this.connect();
+
+        Object.keys(this.calls).forEach((k) => {
+          if (this.calls[k].options.keepConnectionAliveOnSocketClose) {
+            console.debug(
+              `For call ${k}, re-sending messages after network online`
+            );
+            this._emptyExecuteQueues();
+          }
+        });
       }
       this._wasOffline = false;
     };
