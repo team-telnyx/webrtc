@@ -18,7 +18,7 @@ declare module '*.svg' {
 }
 
 declare module '@telnyx/webrtc' {
-  type TelnyxEventHandler = (...args: unknown[]) => void;
+  type TelnyxEventHandler = (...args: any[]) => void;
 
   export interface IClientOptions {
     login_token?: string;
