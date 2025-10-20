@@ -81,6 +81,10 @@ export default class Peer {
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
+
+  get keepConnectionAliveOnSocketClose() {
+    return this._session.options.keepConnectionAliveOnSocketClose;
+  }
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
@@ -158,7 +162,7 @@ export default class Peer {
       connectionState
     );
 
-    if (connectionState === 'failed' || connectionState === 'disconnected') {
+    if (connectionState === 'failed' || (!this.keepConnectionAliveOnSocketClose && connectionState === 'disconnected')) {
       const onConnectionOnline = () => {
         this.instance.restartIce();
         this._session._closeConnection();
