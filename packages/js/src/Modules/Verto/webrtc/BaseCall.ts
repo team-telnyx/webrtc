@@ -40,6 +40,7 @@ import {
   toggleAudioTracks,
   toggleVideoTracks,
 } from './helpers';
+import { TelnyxCallError } from '../../../utils/TelnyxError';
 import {
   AnswerParams,
   IAudio,
@@ -1176,7 +1177,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         (typeof video === 'boolean' && !video) ||
         (typeof video === 'object' && objEmpty(video))
       ) {
-        throw `Conference ${this.id} has no video!`;
+        throw new TelnyxCallError(`Conference ${this.id} has no video!`, {
+          code: 'CONFERENCE_NO_VIDEO',
+          context: {
+            method: 'conferenceMethod',
+            callId: this.id,
+            video: video,
+            sessionId: this.session.sessionid,
+          },
+        });
       }
     };
 

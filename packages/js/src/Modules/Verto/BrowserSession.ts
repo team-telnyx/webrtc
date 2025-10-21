@@ -28,6 +28,11 @@ import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
+import {
+  TelnyxValidationError,
+  TelnyxDeviceError,
+  TelnyxConfigError,
+} from '../../utils/TelnyxError';
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
@@ -398,7 +403,18 @@ export default abstract class BrowserSession extends BaseSession {
     try {
       return await scanResolutions(deviceId);
     } catch (error) {
-      throw error;
+      if (error instanceof TelnyxDeviceError) {
+        throw error;
+      }
+      throw new TelnyxDeviceError('Failed to get device resolutions', {
+        code: 'DEVICE_RESOLUTION_ERROR',
+        context: {
+          method: 'getDeviceResolutions',
+          deviceId: deviceId,
+          sessionId: this.sessionid,
+          originalError: error instanceof Error ? error.message : String(error),
+        },
+      });
     }
   }
 
@@ -453,7 +469,16 @@ export default abstract class BrowserSession extends BaseSession {
    */
   async setAudioSettings(settings: IAudioSettings) {
     if (!settings) {
-      throw new Error('You need to provide the settings object');
+      throw new TelnyxValidationError(
+        'You need to provide the settings object',
+        {
+          code: 'SETTINGS_REQUIRED',
+          context: {
+            method: 'setAudioSettings',
+            sessionId: this.sessionid,
+          },
+        }
+      );
     }
     const { micId, micLabel, ...constraints } = settings;
 
@@ -551,7 +576,16 @@ export default abstract class BrowserSession extends BaseSession {
    */
   async setVideoSettings(settings: IVideoSettings) {
     if (!settings) {
-      throw new Error('You need to provide the settings object');
+      throw new TelnyxValidationError(
+        'You need to provide the settings object',
+        {
+          code: 'SETTINGS_REQUIRED',
+          context: {
+            method: 'setVideoSettings',
+            sessionId: this.sessionid,
+          },
+        }
+      );
     }
 
     const { camId, camLabel, ...constraints } = settings;
@@ -732,7 +766,17 @@ export default abstract class BrowserSession extends BaseSession {
     data,
   }: BroadcastParams) {
     if (!eventChannel) {
-      throw new Error(`Invalid channel for broadcast: ${eventChannel}`);
+      throw new TelnyxValidationError(
+        `Invalid channel for broadcast: ${eventChannel}`,
+        {
+          code: 'INVALID_BROADCAST_CHANNEL',
+          context: {
+            method: 'vertoBroadcast',
+            channel: eventChannel,
+            sessionId: this.sessionid,
+          },
+        }
+      );
     }
     const msg = new Broadcast({ sessid: this.sessionid, eventChannel, data });
     if (nodeId) {
