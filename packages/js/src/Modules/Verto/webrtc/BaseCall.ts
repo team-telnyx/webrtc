@@ -40,7 +40,7 @@ import {
   toggleAudioTracks,
   toggleVideoTracks,
 } from './helpers';
-import { TelnyxCallError } from '../../../utils/TelnyxError';
+import { TelnyxCallError, TelnyxSipError } from '../../../utils/TelnyxError';
 import {
   AnswerParams,
   IAudio,
@@ -857,6 +857,36 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.info(
       `Call ${this.id} state change from ${this.prevState} to ${this.state}`
     );
+
+    // Create enhanced SIP error if call is ending with error conditions
+    if (state === State.Hangup && this.cause !== 'NORMAL_CLEARING') {
+      const sipError = new TelnyxSipError(
+        `Call ended: ${this.cause || this.sipReason || 'Unknown reason'}`,
+        {
+          code: 'SIP_CALL_FAILED',
+          sipCode: this.sipCode,
+          sipReason: this.sipReason,
+          cause: this.cause,
+          causeCode: this.causeCode,
+          context: {
+            callId: this.id,
+            sessionId: this.session.sessionid,
+            direction: this.direction,
+            destinationNumber: this.options.destinationNumber,
+            callerNumber: this.options.callerNumber,
+          },
+        }
+      );
+
+      // Log the enhanced error for debugging
+      logger.error('Call SIP Error:', sipError.toJSON());
+
+      // Trigger enhanced error event
+      trigger(SwEvent.Error, { 
+        error: sipError, 
+        sessionId: this.session.sessionid 
+      }, this.session.uuid);
+    }
 
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.callUpdate,
