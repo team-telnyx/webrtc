@@ -316,6 +316,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         customHeaders: params.customHeaders,
       };
     }
+    if (params.preferred_codecs?.length > 0) {
+      this.options.preferred_codecs = params.preferred_codecs;
+    }
 
     this.peer = new Peer(PeerType.Answer, this.options, this.session);
     this._registerPeerEvents();

@@ -75,6 +75,26 @@ export interface AnswerParams {
   customHeaders?: Array<{ name: string; value: string }>;
 
   /**
+   *
+   * ### Setting Preferred Codec
+   *
+   * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
+   *
+   * `preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs)
+   *
+   * ```js
+   * const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
+   *
+   * const PCMACodec = allCodecs.find((c) => c.mimeType.toLowerCase().includes('pcma'));
+   *
+   * client.newCall({
+   * destinationNumber: '123',
+   * preferred_codecs: [PCMACodec],
+   * });
+   */
+  preferred_codecs?: Array<RTCRtpCodecCapability>;
+
+  /**
    * ### Setting Media Constraints
    */
   video?: boolean;
