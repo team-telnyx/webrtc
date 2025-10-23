@@ -49,6 +49,7 @@ export interface IVertoCallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  keepConnectionAliveOnSocketClose?: boolean;
 }
 
 export interface IStatsBinding {
@@ -86,6 +87,9 @@ export interface IWebRTCCall {
   state: string;
   prevState: string;
   direction: string;
+  peer?: {
+    instance?: RTCPeerConnection | null;
+  } | null;
   options: IVertoCallOptions;
   cause: string;
   causeCode: number;

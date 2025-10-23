@@ -81,6 +81,10 @@ export default class Peer {
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
+
+  get keepConnectionAliveOnSocketClose() {
+    return this._session.options.keepConnectionAliveOnSocketClose;
+  }
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
@@ -158,7 +162,11 @@ export default class Peer {
       connectionState
     );
 
-    if (connectionState === 'failed' || connectionState === 'disconnected') {
+    if (
+      connectionState === 'failed' ||
+      (!this.keepConnectionAliveOnSocketClose &&
+        connectionState === 'disconnected')
+    ) {
       const onConnectionOnline = () => {
         this.instance.restartIce();
         this._session._closeConnection();
@@ -327,6 +335,7 @@ export default class Peer {
       .then(this._setLocalDescription.bind(this))
       .then(this._sdpReady)
       .catch((error) => logger.error('Peer _createOffer error:', error));
+    this._setLocalDescriptionSdpInSession();
   }
 
   private async _setRemoteDescription(
@@ -353,6 +362,7 @@ export default class Peer {
           type: PeerType.Offer,
         }),
       ]);
+      this._setLocalDescriptionSdpInSession();
       return;
     }
     await this._setRemoteDescription({
@@ -362,6 +372,7 @@ export default class Peer {
     this._logTransceivers();
     const answer = await this.instance.createAnswer();
     await this._setLocalDescription(answer);
+    this._setLocalDescriptionSdpInSession();
   }
 
   private async _setLocalDescription(
@@ -394,6 +405,11 @@ export default class Peer {
     }
     const constraints = await getMediaConstraints(this.options);
     return getUserMedia(constraints);
+  }
+
+  private _setLocalDescriptionSdpInSession() {
+    this._session.callsPeerConnectionLocalDescriptionSdps[this.options.id] =
+      this.instance.localDescription.sdp;
   }
 
   private _isOffer(): boolean {

@@ -17,13 +17,28 @@ declare module '*.svg' {
   export { svgComponent as ReactComponent };
 }
 
-import '@telnyx/webrtc';
 declare module '@telnyx/webrtc' {
-  export interface TelnyxRTC {
-    on(eventName: string, callback: any): void;
-  }
-  export interface IClientOptions {}
-  export interface INotification {}
-}
+  type TelnyxEventHandler = (...args: any[]) => void;
 
-export * from '@telnyx/webrtc';
+  export interface IClientOptions {
+    login_token?: string;
+    login?: string;
+    password?: string;
+    debug?: boolean;
+    [key: string]: unknown;
+  }
+
+  export interface INotification {
+    call?: unknown;
+    [key: string]: unknown;
+  }
+
+  export class TelnyxRTC {
+    constructor(options: IClientOptions);
+    readonly connected: boolean;
+    connect(): Promise<void> | void;
+    disconnect(): Promise<void> | void;
+    on(eventName: string, callback: TelnyxEventHandler): this;
+    off(eventName: string, callback?: TelnyxEventHandler): this;
+  }
+}
