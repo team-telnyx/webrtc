@@ -48,7 +48,7 @@ class VertoHandler {
 
   handleMessage(msg: any) {
     const { session } = this;
-    const { id, method, params = {} } = msg;
+    const { id, method, params = {}, voice_sdk_id } = msg;
 
     const callID = params?.callID;
     const eventChannel = params?.eventChannel;
@@ -83,6 +83,7 @@ class VertoHandler {
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
+        trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
       };
@@ -116,7 +117,7 @@ class VertoHandler {
       return call;
     };
 
-    const messageToCheckRegisterState = new Gateway();
+    const messageToCheckRegisterState = new Gateway(voice_sdk_id);
     const messagePing = new Ping();
 
     switch (method) {

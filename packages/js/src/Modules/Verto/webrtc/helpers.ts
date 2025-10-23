@@ -13,8 +13,8 @@ const getUserMedia = async (
   constraints: MediaStreamConstraints
 ): Promise<MediaStream | null> => {
   logger.info('RTCService.getUserMedia', constraints);
-  const { audio, video } = constraints;
-  if (!audio && !video) {
+  const { audio } = constraints;
+  if (!audio) {
     return null;
   }
   try {
@@ -132,23 +132,7 @@ const getMediaConstraints = async (
     }
   }
 
-  let { camId } = options;
-  let video = options.video;
-
-  const { camLabel = '' } = options;
-  if (camId) {
-    camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
-      (error) => null
-    );
-    if (camId) {
-      if (typeof video === 'boolean') {
-        video = {};
-      }
-      video.deviceId = { exact: camId };
-    }
-  }
-
-  return { audio, video };
+  return { audio };
 };
 
 function hasVideo(sdp) {
