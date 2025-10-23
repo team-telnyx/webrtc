@@ -15,6 +15,7 @@ import {
 } from './util/helpers';
 import { getReconnectToken } from './util/reconnect';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
+import logger from './util/logger';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -30,6 +31,7 @@ export default class Verto extends BrowserSession {
       if (this.calls) {
         Object.keys(this.calls).forEach((callId) => {
           if (this.calls[callId]) {
+            logger.info(`Hanging up call due to page unload: ${callId}`);
             this.calls[callId].hangup({}, true);
           }
         });
