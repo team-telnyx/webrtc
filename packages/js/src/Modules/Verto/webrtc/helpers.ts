@@ -8,6 +8,7 @@ import {
   IWebRTCInfo,
   IAudio,
 } from './interfaces';
+import { TelnyxConfigError, TelnyxNetworkError } from '../../../utils/TelnyxError';
 
 const getUserMedia = async (
   constraints: MediaStreamConstraints
@@ -21,6 +22,17 @@ const getUserMedia = async (
     return await WebRTC.getUserMedia(constraints);
   } catch (error) {
     logger.error('getUserMedia error: ', error);
+    if (error instanceof Error) {
+      throw new TelnyxNetworkError('Failed to get user media', {
+        code: 'USER_MEDIA_ERROR',
+        context: {
+          method: 'getUserMedia',
+          constraints: constraints,
+          errorName: error.name,
+          originalMessage: error.message
+        }
+      });
+    }
     throw error;
   }
 };
@@ -427,8 +439,17 @@ const sdpBitrateASHack = (sdp: string, bandwidthKbps: number) => {
 
 function getBrowserInfo() {
   if (!window || !window.navigator || !window.navigator.userAgent) {
-    throw new Error(
-      'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari'
+    throw new TelnyxConfigError(
+      'You should use @telnyx/webrtc in a web browser such as Chrome|Firefox|Safari',
+      {
+        code: 'BROWSER_NOT_SUPPORTED',
+        context: {
+          method: 'getBrowserInfo',
+          hasWindow: !!window,
+          hasNavigator: !!window?.navigator,
+          hasUserAgent: !!window?.navigator?.userAgent
+        }
+      }
     );
   }
 
@@ -508,8 +529,16 @@ function getBrowserInfo() {
       supportVideo: true,
     };
   }
-  throw new Error(
-    'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()`'
+  throw new TelnyxConfigError(
+    'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()`',
+    {
+      code: 'UNSUPPORTED_BROWSER',
+      context: {
+        method: 'getBrowserInfo',
+        userAgent: navigator.userAgent,
+        supportedBrowsers: 'Use TelnyxRTC.webRTCSupportedBrowserList() to see supported browsers'
+      }
+    }
   );
 }
 

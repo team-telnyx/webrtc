@@ -15,6 +15,7 @@ import {
 } from './util/helpers';
 import { getReconnectToken } from './util/reconnect';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
+import { TelnyxValidationError } from '../../utils/TelnyxError';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -46,7 +47,17 @@ export default class Verto extends BrowserSession {
 
   newCall(options: IVertoCallOptions) {
     if (!this.validateCallOptions(options)) {
-      throw new Error('Verto.newCall() error: destinationNumber is required.');
+      throw new TelnyxValidationError(
+        'Verto.newCall() error: destinationNumber is required.',
+        {
+          code: 'DESTINATION_NUMBER_REQUIRED',
+          context: {
+            method: 'newCall',
+            providedOptions: options,
+            sessionId: this.sessionid,
+          },
+        }
+      );
     }
 
     const call = new Call(this, options);
