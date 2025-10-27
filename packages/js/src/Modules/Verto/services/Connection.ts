@@ -80,9 +80,11 @@ export default class Connection {
   connect() {
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
+    let trickleIceCanaryEnabled = this.session.options.trickleIce;
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
+      trickleIceCanaryEnabled = false;
       websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
       websocketUrl.searchParams.set(
         'rtc_port',
@@ -92,6 +94,10 @@ export default class Connection {
 
     if (reconnectToken) {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
+    }
+
+    if (trickleIceCanaryEnabled) {
+      websocketUrl.searchParams.set('canary', 'true');
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
