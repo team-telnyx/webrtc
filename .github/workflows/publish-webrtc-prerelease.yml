@@ -1,18 +1,19 @@
 name: "@telnyx/webrtc Publish prerelease"
 
 on:
-  release:
-    types: [prereleased]
   workflow_dispatch:
     inputs:
       ref:
         description: "Git ref (branch or tag) to checkout"
         required: false
         default: "main"
+      npm_dist_tag:
+        description: "NPM dist-tag to use for publishing (e.g. beta, alpha, next)"
+        required: true
 
 jobs:
   publish-js:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name || '', 'webrtc')
+    if: startsWith(github.event.release.tag_name || '', 'webrtc')
 
     name: "@telnyx/webrtc Publish prerelease"
 
@@ -20,7 +21,8 @@ jobs:
 
     env:
       PACKAGE_DIR: js
-      TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.release.tag_name || github.ref || 'main' }}
+      TARGET_REF: ${{ github.event.inputs.ref || github.event.release.tag_name || github.ref || 'main' }}
+      NPM_DIST_TAG: ${{ github.event.inputs.npm_dist_tag }}
 
     steps:
       - uses: actions/checkout@v2
@@ -48,7 +50,7 @@ jobs:
         run: yarn install --immutable
       - name: Publish package
         working-directory: packages/js
-        run: npm publish --access public
+        run: npm publish --access public --tag ${{ env.NPM_DIST_TAG }}
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
