@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Result } from '../messages/Verto';
+import { Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -196,6 +196,43 @@ class VertoHandler {
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
+
+                if (session.options.trickleIce) {
+                  logger.debug(
+                    'Trickle ICE is enabled. Checking Gateway support'
+                  );
+                  /**
+                   * If lack of support, this will yield an error response in format:
+                   * `"code" => -32601, "message" => "Invalid Method, Missing Method or Permission Denied"`
+                   */
+                  this.session
+                    .execute(
+                      new Candidate({
+                        candidate: '',
+                        dialogParams: {
+                          ...this.session.options,
+                          callID: `${this.session.uuid}-trickle-ice`,
+                        },
+                      })
+                    )
+                    .catch((error) => {
+                      if (error.code === this.session.invalidMethodErrorCode) {
+                        console.warn(
+                          'Trickle ICE is not supported by the server, disabling it.'
+                        );
+                        logger.debug(
+                          'Trickle ICE check error:',
+                          JSON.stringify(error, null, 2)
+                        );
+                        session.options.trickleIce = false;
+                      } else {
+                        logger.debug(
+                          'Trickle ICE check:',
+                          JSON.stringify(error, null, 2)
+                        );
+                      }
+                    });
+                }
               }
               break;
             }
