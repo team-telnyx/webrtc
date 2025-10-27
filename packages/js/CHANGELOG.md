@@ -1,3 +1,8 @@
+## [2.22.18](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.17...webrtc/v2.22.18) (2025-10-23)
+
+fix: expose getIsRegistered (#448)
+fix: preferred codecs should only be enforced on INVITE, not on ANSWER (#452)
+
 ## [2.22.17](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.16...webrtc/v2.22.17) (2025-08-04)
 
 chore: add detailed performance measuring for invite (#438)

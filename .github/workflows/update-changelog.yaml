@@ -19,7 +19,7 @@ on:
         default: "main"
 jobs:
   publish:
-    if: github.event_name != 'release' || github.event.release.prerelease != true
+    if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -39,10 +39,13 @@ jobs:
       - name: Get release description
         working-directory: packages/js
         run: |
+          body_escaped=$(printf '%s\n' "${{ github.event.release.body }}" | sed 's/$/\\/')
+
           sed -i '' '1i\
-          ## [${{github.event.release.tag_name}}](${{github.event.release.html_url}}) (${{github.event.release.created_at}})\
-          \
-          ${{github.event.release.body}}\' CHANGELOG.md
+          ## [${{ github.event.release.tag_name }}](${{ github.event.release.html_url }}) (${{ github.event.release.created_at }})\
+          \\
+          $body_escaped
+          ' CHANGELOG.md
 
       - name: Commit and push changes
         working-directory: packages/js
