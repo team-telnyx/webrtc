@@ -13,15 +13,13 @@ on:
 
 jobs:
   publish-js:
-    if: startsWith(github.event.release.tag_name || '', 'webrtc')
-
     name: "@telnyx/webrtc Publish prerelease"
 
     runs-on: ubuntu-latest
 
     env:
       PACKAGE_DIR: js
-      TARGET_REF: ${{ github.event.inputs.ref || github.event.release.tag_name || github.ref || 'main' }}
+      TARGET_REF: ${{ github.event.inputs.ref || github.ref || 'main' }}
       NPM_DIST_TAG: ${{ github.event.inputs.npm_dist_tag }}
 
     steps:
