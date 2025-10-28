@@ -75,14 +75,12 @@ class VertoHandler {
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH`
           );
         } else {
-          session.calls[callID].hangup({}, false);
+          logger.debug(`Session Options: ${session.options}`);
+          logger.debug(`Call: ${session.calls[callID]}`);
           logger.info(
             `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
           );
-          logger.info(`Session Options: ${session.options}`);
-          logger.info(`Call Options: ${this.session.calls[callID].options}`);
-          logger.info(`Peer: ${this.session.calls[callID].peer}`);
-          logger.info(`Peer Connection: ${this.session.calls[callID].peer?.instance}`);
+          session.calls[callID].hangup({}, false);
         }
       } else {
         session.calls[callID].handleMessage(msg);
@@ -150,6 +148,12 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
+        if (keepConnectionOnAttach) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Ignoring PUNT due to keepConnectionAliveOnSocketClose`
+          );
+          return;
+        }
         session.disconnect();
         break;
       case VertoMethod.Invite: {
