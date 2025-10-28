@@ -11,6 +11,7 @@ import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 import { registerOnce, trigger } from './Handler';
+import { TelnyxWebSocketError } from '../../../utils/TelnyxError';
 
 let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
 export const setWebSocket = (websocket: any): void => {
@@ -85,14 +86,45 @@ export default class Connection {
     this._wsClient = new WebSocketClass(websocketUrl.toString());
     this._wsClient.onopen = (event): boolean =>
       trigger(SwEvent.SocketOpen, event, this.session.uuid);
-    this._wsClient.onclose = (event): boolean =>
+    this._wsClient.onclose = (event): boolean => {
+      // Create enhanced WebSocket error for close events
+      const wsError = new TelnyxWebSocketError('WebSocket connection closed', {
+        code: 'WEBSOCKET_CLOSED',
+        wsCode: event.code,
+        wsReason: event.reason,
+        wsReadyState: this._wsClient?.readyState,
+        context: {
+          sessionId: this.session.sessionid,
+          url: websocketUrl.toString(),
+          wasClean: event.wasClean,
+        },
+      });
+      
+      // Trigger both the original close event and enhanced error
       trigger(SwEvent.SocketClose, event, this.session.uuid);
-    this._wsClient.onerror = (event): boolean =>
-      trigger(
+      if (event.code !== 1000) { // Don't trigger error for normal closure
+        trigger(SwEvent.SocketError, { error: wsError, sessionId: this.session.sessionid }, this.session.uuid);
+      }
+      return true;
+    };
+    this._wsClient.onerror = (event): boolean => {
+      // Create enhanced WebSocket error for error events
+      const wsError = new TelnyxWebSocketError('WebSocket connection error', {
+        code: 'WEBSOCKET_ERROR',
+        wsReadyState: this._wsClient?.readyState,
+        context: {
+          sessionId: this.session.sessionid,
+          url: websocketUrl.toString(),
+          event: event,
+        },
+      });
+      
+      return trigger(
         SwEvent.SocketError,
-        { error: event, sessionId: this.session.sessionid },
+        { error: wsError, sessionId: this.session.sessionid },
         this.session.uuid
       );
+    };
     this._wsClient.onmessage = (event): void => {
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {

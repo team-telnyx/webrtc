@@ -3,6 +3,7 @@ import { SwEvent } from './Modules/Verto/util/constants';
 import { deferredPromise } from './Modules/Verto/util/helpers';
 import TelnyxRTC from './TelnyxRTC';
 import { calculateMOS, getQuality, Quality } from './utils/mos';
+import { TelnyxSipError } from './utils/TelnyxError';
 /**
  * Interface representing the Telnyx identifiers.
  * @inline

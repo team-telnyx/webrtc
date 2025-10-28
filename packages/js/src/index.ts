@@ -18,4 +18,14 @@ export {
   SwEvent,
 };
 
+// Export custom error classes for advanced error handling
+export {
+  TelnyxError,
+  TelnyxConfigError,
+  TelnyxValidationError,
+  TelnyxDeviceError,
+  TelnyxNetworkError,
+  TelnyxCallError,
+} from './utils/TelnyxError';
+
 export * from './PreCallDiagnosis';

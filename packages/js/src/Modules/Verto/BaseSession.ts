@@ -18,6 +18,7 @@ import {
 } from './util/helpers';
 import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
+import { TelnyxConfigError } from '../../utils/TelnyxError';
 
 const KEEPALIVE_INTERVAL = 30 * 1000;
 
@@ -46,7 +47,14 @@ export default abstract class BaseSession {
 
   constructor(public options: IVertoOptions) {
     if (!this.validateOptions()) {
-      throw new Error('Invalid init options');
+      throw new TelnyxConfigError('Invalid init options', {
+        code: 'INVALID_INIT_OPTIONS',
+        context: {
+          method: 'BaseSession.constructor',
+          providedOptions: options,
+          uuid: this.uuid,
+        },
+      });
     }
     this._onSocketOpen = this._onSocketOpen.bind(this);
     this.onNetworkClose = this.onNetworkClose.bind(this);
