@@ -3,7 +3,16 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import { Answer, Attach, Bye, Info, Invite, Modify } from '../messages/Verto';
+import {
+  Answer,
+  Attach,
+  Bye,
+  Candidate,
+  EndOfCandidates,
+  Info,
+  Invite,
+  Modify,
+} from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
@@ -137,6 +146,12 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _statsIntervalId: any = null;
 
+  private _pendingIceCandidates: Array<
+    RTCIceCandidateInit | RTCIceCandidate | null
+  > = [];
+
+  private _isRemoteDescriptionSet: boolean = false;
+
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
       iceServers,
@@ -148,7 +163,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       localElement,
       remoteElement,
       options,
-      mediaConstraints: { audio, video },
+      mediaConstraints: { audio },
       ringtoneFile,
       ringbackFile,
     } = session;
@@ -157,7 +172,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       DEFAULT_CALL_OPTIONS,
       {
         audio,
-        video,
         iceServers,
         localElement,
         remoteElement,
@@ -170,11 +184,17 @@ export default abstract class BaseCall implements IWebRTCCall {
         ringbackFile,
         debug: options.debug,
         debugOutput: options.debugOutput,
+        trickleIce: options.trickleIce,
+        prefetchIceCandidates: options.prefetchIceCandidates,
       },
       opts
     );
 
     this._onMediaError = this._onMediaError.bind(this);
+    this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
+    this._registerPeerEvents = this._registerPeerEvents.bind(this);
+    this._registerTrickleIcePeerEvents =
+      this._registerTrickleIcePeerEvents.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -225,6 +245,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       },
     };
   }
+
   get nodeId(): string {
     return this._targetNodeId;
   }
@@ -288,13 +309,23 @@ export default abstract class BaseCall implements IWebRTCCall {
     return `conference-member.${this.id}`;
   }
 
-  invite() {
+  async invite() {
     this.direction = Direction.Outbound;
+    if (this.options.trickleIce) {
+      this._resetTrickleIceCandidateState();
+    }
     performance.mark(`peer-creation-start`);
-    this.peer = new Peer(PeerType.Offer, this.options, this.session);
-    this._registerPeerEvents();
+    this.peer = new Peer(
+      PeerType.Offer,
+      this.options,
+      this.session,
+      this._onTrickleIceSdp,
+      this.options.trickleIce
+        ? this._registerTrickleIcePeerEvents
+        : this._registerPeerEvents
+    );
+    await this.peer.init();
   }
-
   /**
    * Starts the process to answer the incoming call.
    *
@@ -304,10 +335,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.answer()
    * ```
    */
-  answer(params: AnswerParams = {}) {
+  async answer(params: AnswerParams = {}) {
+    performance.mark('new-call-start');
     this.stopRingtone();
 
-    this.options.video = params.video ?? this.options.video ?? false;
     this.direction = Direction.Inbound;
 
     if (params?.customHeaders?.length > 0) {
@@ -317,8 +348,21 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
-    this.peer = new Peer(PeerType.Answer, this.options, this.session);
-    this._registerPeerEvents();
+    if (this.options.trickleIce) {
+      this._resetTrickleIceCandidateState();
+    }
+    performance.mark(`peer-creation-start`);
+    this.peer = new Peer(
+      PeerType.Answer,
+      this.options,
+      this.session,
+      this._onTrickleIceSdp,
+      this.options.trickleIce
+        ? this._registerTrickleIcePeerEvents
+        : this._registerPeerEvents
+    );
+    await this.peer.init();
+    performance.mark('new-call-end');
   }
 
   playRingtone() {
@@ -380,6 +424,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.stopRingback();
     if (execute) {
       const bye = new Bye({
+        sipCode: this.sipCode,
+        sip_call_id: this.sipCallId,
         sessid: this.session.sessionid,
         dialogParams: this.options,
         cause: 'USER_BUSY',
@@ -931,6 +977,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         break;
       }
+      case VertoMethod.Candidate: {
+        this._addIceCandidate(params);
+        break;
+      }
       case VertoMethod.Info:
       case VertoMethod.Event: {
         const notification: INotificationEventData = {
@@ -1012,9 +1062,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         if (infoChannel) {
           await this._subscribeConferenceInfo(infoChannel);
-        }
-        if (modChannel && role === Role.Moderator) {
-          await this._subscribeConferenceModerator(modChannel);
         }
         const participants = [];
         for (const i in data) {
@@ -1157,191 +1204,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.vertoBroadcast({ nodeId: this.nodeId, channel, data });
   }
 
-  private async _subscribeConferenceModerator(channel: string) {
-    const _modCommand = (
-      command: string,
-      memberID: any = null,
-      value: any = null
-    ): void => {
-      const id = parseInt(memberID) || null;
-      this._confControl(channel, { command, id, value });
-    };
-
-    const _videoRequired = (): void => {
-      const { video } = this.options;
-      if (
-        (typeof video === 'boolean' && !video) ||
-        (typeof video === 'object' && objEmpty(video))
-      ) {
-        throw `Conference ${this.id} has no video!`;
-      }
-    };
-
-    const tmp = {
-      nodeId: this.nodeId,
-      channels: [channel],
-      handler: (params: any) => {
-        const { data } = params;
-        switch (data['conf-command']) {
-          case 'list-videoLayouts':
-            if (data.responseData) {
-              const tmp = JSON.stringify(data.responseData).replace(
-                /IDS"/g,
-                'Ids"'
-              );
-              // TODO: revert layouts JSON structure
-              this._dispatchConferenceUpdate({
-                action: ConferenceAction.LayoutList,
-                layouts: JSON.parse(tmp),
-              });
-            }
-            break;
-          default:
-            this._dispatchConferenceUpdate({
-              action: ConferenceAction.ModCmdResponse,
-              command: data['conf-command'],
-              response: data.response,
-            });
-        }
-      },
-    };
-    const response = await this.session.vertoSubscribe(tmp).catch((error) => {
-      logger.error('ConfMod subscription error:', error);
-    });
-    if (checkSubscribeResponse(response, channel)) {
-      this.role = Role.Moderator;
-      this._addChannel(channel);
-      Object.defineProperties(this, {
-        listVideoLayouts: {
-          configurable: true,
-          value: () => {
-            _modCommand('list-videoLayouts');
-          },
-        },
-        playMedia: {
-          configurable: true,
-          value: (file: string) => {
-            _modCommand('play', null, file);
-          },
-        },
-        stopMedia: {
-          configurable: true,
-          value: () => {
-            _modCommand('stop', null, 'all');
-          },
-        },
-        deaf: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('deaf', memberID);
-          },
-        },
-        undeaf: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('undeaf', memberID);
-          },
-        },
-        startRecord: {
-          configurable: true,
-          value: (file: string) => {
-            _modCommand('recording', null, ['start', file]);
-          },
-        },
-        stopRecord: {
-          configurable: true,
-          value: () => {
-            _modCommand('recording', null, ['stop', 'all']);
-          },
-        },
-        snapshot: {
-          configurable: true,
-          value: (file: string) => {
-            _videoRequired();
-            _modCommand('vid-write-png', null, file);
-          },
-        },
-        setVideoLayout: {
-          configurable: true,
-          value: (layout: string, canvasID: number) => {
-            _videoRequired();
-            const value = canvasID ? [layout, canvasID] : layout;
-            _modCommand('vid-layout', null, value);
-          },
-        },
-        kick: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('kick', memberID);
-          },
-        },
-        muteMic: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('tmute', memberID);
-          },
-        },
-        muteVideo: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('tvmute', memberID);
-          },
-        },
-        presenter: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('vid-res-id', memberID, 'presenter');
-          },
-        },
-        videoFloor: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _videoRequired();
-            _modCommand('vid-floor', memberID, 'force');
-          },
-        },
-        banner: {
-          configurable: true,
-          value: (memberID: number | string, text: string) => {
-            _videoRequired();
-            _modCommand('vid-banner', memberID, encodeURI(text));
-          },
-        },
-        volumeDown: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_out', memberID, 'down');
-          },
-        },
-        volumeUp: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_out', memberID, 'up');
-          },
-        },
-        gainDown: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_in', memberID, 'down');
-          },
-        },
-        gainUp: {
-          configurable: true,
-          value: (memberID: number | string) => {
-            _modCommand('volume_in', memberID, 'up');
-          },
-        },
-        transfer: {
-          configurable: true,
-          value: (memberID: number | string, exten: string) => {
-            _modCommand('transfer', memberID, exten);
-          },
-        },
-      });
-    }
-  }
 
   private _handleChangeHoldStateSuccess(response) {
     response.holdState === 'active'
@@ -1356,11 +1218,18 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
-    const sdp = new RTCSessionDescription({ sdp: remoteSdp, type: 'answer' });
+    const sdp = new RTCSessionDescription({
+      sdp: remoteSdp,
+      type: PeerType.Answer,
+    });
 
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
+        if (this.options.trickleIce) {
+          this._isRemoteDescriptionSet = true;
+          this._flushPendingTrickleIceCandidates();
+        }
         if (this.gotEarly) {
           this.setState(State.Early);
         }
@@ -1435,6 +1304,64 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error(`${this.id} - Unknown local SDP type:`, data);
         return this.hangup({}, false);
     }
+    performance.mark('sdp-send-start');
+    this._execute(msg)
+      .then((response) => {
+        const { node_id = null } = response;
+        this._targetNodeId = node_id;
+        type === PeerType.Offer
+          ? this.setState(State.Trying)
+          : this.setState(State.Active);
+      })
+      .catch((error) => {
+        logger.error(`${this.id} - Sending ${type} error:`, error);
+        this.hangup();
+      })
+      .finally(() => {
+        performance.mark('sdp-send-end');
+        // Log performance metrics
+        console.group('Performance Metrics');
+        console.table(this.performanceMetrics);
+        console.groupEnd();
+
+        performance.clearMarks();
+      });
+  }
+
+  private _onTrickleIceSdp(data: RTCSessionDescription) {
+    if (!data) {
+      logger.error('No SDP data provided');
+      return this.hangup({}, false);
+    }
+
+    const { sdp, type } = data;
+
+    let msg = null;
+
+    const tmpParams = {
+      sessid: this.session.sessionid,
+      sdp,
+      dialogParams: this.options,
+      trickle: true,
+      'User-Agent': `Web-${SDK_VERSION}`,
+    };
+
+    switch (type) {
+      case PeerType.Offer:
+        this.setState(State.Requesting);
+        msg = new Invite(tmpParams);
+        break;
+      case PeerType.Answer:
+        this.setState(State.Answering);
+        msg =
+          this.options.attach === true
+            ? new Attach(tmpParams)
+            : new Answer(tmpParams);
+        break;
+      default:
+        logger.error(`${this.id} - Unknown local SDP type:`, data);
+        return this.hangup({}, false);
+    }
 
     performance.mark('sdp-send-start');
     this._execute(msg)
@@ -1451,11 +1378,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .finally(() => {
         performance.mark('sdp-send-end');
-        console.group('Performance Metrics');
-        console.table(this.performanceMetrics);
-        console.groupEnd();
-
-        performance.clearMarks();
       });
   }
 
@@ -1475,14 +1397,121 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  private _registerPeerEvents() {
-    const { instance } = this.peer;
+  private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
+    if (event.candidate && event.candidate.candidate) {
+      logger.debug('RTCPeer Candidate:', event.candidate);
+      this._sendIceCandidate(event.candidate);
+    } else {
+      this._sendEndOfCandidates();
+    }
+  }
+
+  private _sendIceCandidate(candidate: RTCIceCandidate) {
+    const msg = new Candidate({
+      sessid: this.session.sessionid,
+      // https://www.w3.org/TR/webrtc/#dom-peerconnection-addicecandidate
+      candidate: candidate.candidate,
+      sdpMLineIndex: candidate.sdpMLineIndex,
+      sdpMid: candidate.sdpMid,
+      dialogParams: this.options,
+    });
+    this._execute(msg);
+  }
+
+  private _addIceCandidate(
+    candidate: RTCIceCandidate | RTCIceCandidateInit | null
+  ) {
+    if (!this._isRemoteDescriptionSet) {
+      logger.debug(
+        'Remote description not set. Queued ICE candidate.',
+        candidate
+      );
+      this._pendingIceCandidates.push(candidate);
+      return;
+    }
+
+    this._addIceCandidateToPeer(candidate);
+  }
+
+  private _addIceCandidateToPeer(
+    candidate: RTCIceCandidate | RTCIceCandidateInit | null
+  ) {
+    const addCandidateResult = this.peer.instance.addIceCandidate(candidate);
+
+    Promise.resolve(addCandidateResult)
+      .then(() => {
+        logger.debug('Successfully added ICE candidate:', candidate);
+      })
+      .catch((error) => {
+        logger.error('Failed to add ICE candidate:', error, candidate);
+      });
+  }
+
+  private _sendEndOfCandidates() {
+    const msg = new EndOfCandidates({
+      sessid: this.session.sessionid,
+      endOfCandidates: true,
+      dialogParams: this.options,
+    });
+    this._execute(msg);
+    performance.mark('ice-gathering-end');
+  }
+
+  private _resetTrickleIceCandidateState() {
+    this._pendingIceCandidates = [];
+    this._isRemoteDescriptionSet = false;
+  }
+
+  private _flushPendingTrickleIceCandidates() {
+    if (!this._pendingIceCandidates.length) {
+      return;
+    }
+
+    const queuedCandidates = [...this._pendingIceCandidates];
+    this._pendingIceCandidates = [];
+
+    queuedCandidates.forEach((queuedCandidate) => {
+      this._addIceCandidateToPeer(queuedCandidate);
+    });
+  }
+
+  private _registerPeerEvents(instance: RTCPeerConnection) {
     this._iceDone = false;
     instance.onicecandidate = (event) => {
       if (this._iceDone) {
         return;
       }
       this._onIce(event);
+    };
+
+    //@ts-ignore
+    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
+      this.options.remoteStream = event.stream;
+    });
+    instance.addEventListener('track', (event: RTCTrackEvent) => {
+      this.options.remoteStream = event.streams[0];
+      const { remoteElement, remoteStream, screenShare } = this.options;
+      if (screenShare === false) {
+        attachMediaStream(remoteElement, remoteStream);
+      }
+    });
+  }
+
+  private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
+    instance.onicecandidate = (event) => {
+      this._onTrickleIce(event);
+    };
+
+    instance.onicegatheringstatechange = (event) => {
+      logger.debug('ICE gathering state changed:', instance.iceGatheringState);
+      if (instance.iceGatheringState === 'complete') {
+        logger.debug('Finished gathering candidates');
+      }
+    };
+
+    instance.onicecandidateerror = (event) => {
+      // if a candidate fails this is not fatal as long as other candidates succeed
+      logger.debug('ICE candidate error:', event);
     };
 
     //@ts-ignore

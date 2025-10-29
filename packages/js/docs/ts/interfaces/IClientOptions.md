@@ -16,6 +16,9 @@ IClientOptions
 - [region](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#region)
 - [ringbackFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringbackfile)
 - [ringtoneFile](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#ringtonefile)
+- [rtcIp](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcip)
+- [rtcPort](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcport)
+- [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#trickleice)
 
 ## Properties
 
@@ -117,3 +120,29 @@ ___
 • `Optional` **ringtoneFile**: `string`
 
 A URL to a wav/mp3 ringtone file.
+
+___
+
+### rtcIp
+
+• `Optional` **rtcIp**: `string`
+
+RTC connection IP address to use instead of the default one.
+Useful when using a custom signaling server.
+
+___
+
+### rtcPort
+
+• `Optional` **rtcPort**: `number`
+
+RTC connection port to use instead of the default one.
+Useful when using a custom signaling server.
+
+___
+
+### trickleIce
+
+• `Optional` **trickleIce**: `boolean`
+
+Enable or disable Trickle ICE.

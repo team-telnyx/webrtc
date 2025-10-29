@@ -6,8 +6,37 @@ if (typeof RTCPeerConnection === 'undefined') {
   global.RTCPeerConnection = webrtcMocks.RTCPeerConnectionMock;
 }
 
+if (typeof RTCRtpReceiver === 'undefined') {
+  global.RTCRtpReceiver = webrtcMocks.RTCRtpReceiverMock;
+}
+
+if (typeof RTCRtpSender === 'undefined') {
+  global.RTCRtpSender = webrtcMocks.RTCRtpSenderMock;
+}
+
 if (typeof MediaStream === 'undefined') {
   global.MediaStream = webrtcMocks.MediaStreamMock;
+}
+
+if (typeof RTCSessionDescription === 'undefined') {
+  class RTCSessionDescriptionMock implements RTCSessionDescription {
+    type: RTCSdpType;
+    sdp: string;
+
+    constructor(init: RTCSessionDescriptionInit) {
+      this.type = init.type;
+      this.sdp = init.sdp;
+    }
+
+    toJSON() {
+      return {
+        type: this.type,
+        sdp: this.sdp,
+      };
+    }
+  }
+
+  global.RTCSessionDescription = RTCSessionDescriptionMock;
 }
 
 if (typeof navigator === 'undefined') {
