@@ -1,3 +1,7 @@
+## [2.22.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.18...webrtc/v2.22.19) (2025-10-29)
+
+fix: enforce callID from call options to be string (#456)
+
 ## [2.22.18](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.17...webrtc/v2.22.18) (2025-10-23)
 
 fix: expose getIsRegistered (#448)
