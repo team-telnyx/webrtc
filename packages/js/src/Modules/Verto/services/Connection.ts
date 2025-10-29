@@ -39,7 +39,7 @@ export default class Connection {
   public downDur: number = null;
 
   constructor(public session: BaseSession) {
-    const { host, env, region } = session.options;
+    const { host, env, region, trickleIce } = session.options;
 
     if (env) {
       this._host = env === 'development' ? DEV_HOST : PROD_HOST;
@@ -52,7 +52,11 @@ export default class Connection {
     if (region) {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
-  }
+
+    if (trickleIce) {
+      this._trickleIceCanaryEnabled = true;
+    }
+   }
 
   get connected(): boolean {
     return this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
@@ -81,7 +85,6 @@ export default class Connection {
   connect() {
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
-    this._trickleIceCanaryEnabled = this.session.options.trickleIce;
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
