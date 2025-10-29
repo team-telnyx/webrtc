@@ -33,6 +33,7 @@ export default class Connection {
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
+  private _trickleIceCanaryEnabled: boolean = false;
 
   public upDur: number = null;
   public downDur: number = null;
@@ -80,11 +81,11 @@ export default class Connection {
   connect() {
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
-    let trickleIceCanaryEnabled = this.session.options.trickleIce;
+    this._trickleIceCanaryEnabled = this.session.options.trickleIce;
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
-      trickleIceCanaryEnabled = false;
+      this._trickleIceCanaryEnabled = false;
       websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
       websocketUrl.searchParams.set(
         'rtc_port',
@@ -96,7 +97,7 @@ export default class Connection {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
     }
 
-    if (trickleIceCanaryEnabled) {
+    if (this._trickleIceCanaryEnabled) {
       websocketUrl.searchParams.set('canary', 'true');
     }
 
