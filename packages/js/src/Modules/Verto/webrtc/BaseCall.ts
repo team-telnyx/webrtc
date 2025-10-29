@@ -1545,7 +1545,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _init() {
     const { id, userVariables, remoteCallerNumber, onNotification } =
       this.options;
-    if (!id) {
+    if (id) {
+      this.options.id = id.toString();
+    } else {
       this.options.id = uuidv4();
     }
     this.id = this.options.id;
