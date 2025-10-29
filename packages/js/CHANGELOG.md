@@ -1,3 +1,16 @@
+## [2.24.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.19...webrtc/v2.24.0) (2025-10-29)
+
+### Features
+
+ - true trickle ice implementation (#439)
+
+### Enhancements
+
+ - check for gateway trickle ice support and add fallback
+ - improve logging on connection state changes
+ - add trickle ice performance metrics
+ - remove legacy video code
+
 ## [2.22.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.18...webrtc/v2.22.19) (2025-10-29)
 
 fix: enforce callID from call options to be string (#456)
