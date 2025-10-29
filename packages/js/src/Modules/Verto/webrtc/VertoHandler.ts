@@ -206,16 +206,9 @@ class VertoHandler {
                    * `"code" => -32601, "message" => "Invalid Method, Missing Method or Permission Denied"`
                    */
                   this.session
-                    .execute(
-                      new Candidate({
-                        candidate: '',
-                        dialogParams: {
-                          ...this.session.options,
-                          callID: `${this.session.uuid}-trickle-ice`,
-                        },
-                      })
-                    )
+                    .execute(new Candidate({ candidate: '' }))
                     .catch((error) => {
+                      // if error is related to call not found or session, ignore it. This is expected as we're sending a candidate before a call as a support check
                       if (error.code === this.session.invalidMethodErrorCode) {
                         console.warn(
                           'Trickle ICE is not supported by the server, disabling it.'
