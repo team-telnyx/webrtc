@@ -8,10 +8,7 @@ import {
   safeParseJson,
 } from '../util/helpers';
 import logger from '../util/logger';
-import {
-  getReconnectToken,
-  setReconnectToken,
-} from '../util/reconnect';
+import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 import { registerOnce, trigger } from './Handler';
 
@@ -33,6 +30,7 @@ export default class Connection {
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
+  private _hasTrickleIceCanaryBeenUsed: boolean = false;
   private _trickleIceCanaryEnabled: boolean = false;
 
   public upDur: number = null;
@@ -56,7 +54,7 @@ export default class Connection {
     if (trickleIce) {
       this._trickleIceCanaryEnabled = true;
     }
-   }
+  }
 
   get connected(): boolean {
     return this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
@@ -102,6 +100,16 @@ export default class Connection {
 
     if (this._trickleIceCanaryEnabled) {
       websocketUrl.searchParams.set('canary', 'true');
+
+      if (reconnectToken && !this._hasTrickleIceCanaryBeenUsed) {
+        websocketUrl.searchParams.delete('voice_sdk_id');
+        logger.debug(
+          'first trickle ice canary connection. Refreshing voice_sdk_id'
+        );
+      }
+
+      this.session.options.trickleIce = true;
+      this._hasTrickleIceCanaryBeenUsed = true;
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
