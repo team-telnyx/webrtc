@@ -1,3 +1,7 @@
+## [2.24.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.19...webrtc/v2.24.0) (2025-10-30)
+
+- fix: update inner `voice_sdk_id` state on first trickle ice canary use (#459)
+
 ## [2.24.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.19...webrtc/v2.24.0) (2025-10-29)
 
 ### Features
