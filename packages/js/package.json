@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "2.24.2-beta.1",
+  "version": "2.24.1",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",
