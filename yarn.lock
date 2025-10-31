@@ -2820,7 +2820,7 @@ __metadata:
     "@babel/preset-env": "npm:^7.22.20"
     "@babel/preset-react": "npm:^7.23.3"
     "@babel/preset-typescript": "npm:^7.23.3"
-    "@telnyx/webrtc": "npm:>=2.24.1-0 <3.0.0-0"
+    "@telnyx/webrtc": "npm:>=2.25.1-0 <3.0.0-0"
     "@types/react": "npm:^18.2.37"
     "@typescript-eslint/eslint-plugin": "npm:^6.11.0"
     "@typescript-eslint/parser": "npm:^6.11.0"
@@ -2841,7 +2841,7 @@ __metadata:
     react-dom: "npm:^16.8"
     release-it: "npm:^14.14.2"
   peerDependencies:
-    "@telnyx/webrtc": ">=2.24.1-0 <3.0.0-0"
+    "@telnyx/webrtc": ">=2.25.1-0 <3.0.0-0"
     react: ">=16.8"
     react-dom: ">=16.8"
   languageName: unknown
@@ -2853,7 +2853,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@telnyx/webrtc@npm:>=2.24.1-0 <3.0.0-0, @telnyx/webrtc@workspace:packages/js":
+"@telnyx/webrtc@npm:>=2.25.1-0 <3.0.0-0, @telnyx/webrtc@workspace:packages/js":
   version: 0.0.0-use.local
   resolution: "@telnyx/webrtc@workspace:packages/js"
   dependencies:
