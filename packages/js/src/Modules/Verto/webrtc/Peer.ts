@@ -249,8 +249,6 @@ export default class Peer {
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
-        this.instance.restartIce();
-
         if (
           connectionState === 'failed' ||
           !this.keepConnectionAliveOnSocketClose // maintain default behavior of reconnecting socket on connection failure if flag is not set
@@ -260,10 +258,12 @@ export default class Peer {
         }
 
         /**
-         * after ice restart, send offer again as ice credentials might have changed
-         * only negotiate if we are the offerer to avoid using old ice negotiation
+         * restart ice and send offer again as ice credentials might have changed
+         * only do it if peer is the offerer to avoid using old ice creds when back online
          */
         if (this._isOffer()) {
+          this.instance.restartIce();
+
           if (this._isTrickleIce()) {
             await this.startTrickleIceNegotiation();
           } else {
