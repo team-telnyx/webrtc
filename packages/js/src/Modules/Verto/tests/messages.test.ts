@@ -1,6 +1,5 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
 import { Ping } from '../messages/verto/Ping';
-import { Pong } from '../messages/verto/Pong';
 import { version } from '../../../../package.json';
 
 const userAgent = JSON.stringify({
