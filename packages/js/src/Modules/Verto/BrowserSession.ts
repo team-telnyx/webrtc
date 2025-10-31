@@ -78,14 +78,6 @@ export default abstract class BrowserSession extends BaseSession {
     return 1000;
   }
 
-  get systemSleepCheckInterval() {
-    return 1000;
-  }
-
-  get systemSleepThreshold() {
-    return 1500;
-  }
-
   async getIsRegistered(): Promise<boolean> {
     return super.getIsRegistered();
   }
@@ -728,7 +720,11 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this._onlineHandler = () => {
-      if (this._wasOffline && this.connected) {
+      if (
+        this._wasOffline &&
+        this.connected &&
+        !this.options.keepConnectionAliveOnSocketClose
+      ) {
         this._closeConnection();
         this.connect();
       }
