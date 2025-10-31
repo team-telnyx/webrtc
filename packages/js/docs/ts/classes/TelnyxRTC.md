@@ -860,7 +860,6 @@ client.newCall({
 });
 ```
 
-
 ### Trickle ICE
 
 Trickle ICE can be enabled by passing `trickleIce` to the `newCall` method.
@@ -871,6 +870,7 @@ client.newCall({
  trickleIce: true,
 });
 ```
+
 ### Keep Connection Alive on Socket Close
 
 By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause. To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose` to the `newCall` method.
@@ -880,7 +880,6 @@ client.newCall({
  destinationNumber: 'xxx',
  keepConnectionAliveOnSocketClose: true,
 });
-```
 
 #### Overrides
 
