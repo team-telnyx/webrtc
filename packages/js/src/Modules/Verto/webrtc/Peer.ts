@@ -80,6 +80,13 @@ export default class Peer {
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
+
+  get keepConnectionAliveOnSocketClose() {
+    return (
+      this.options.keepConnectionAliveOnSocketClose ||
+      this._session.options.keepConnectionAliveOnSocketClose
+    );
+  }
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
@@ -239,18 +246,38 @@ export default class Peer {
       } -> ${connectionState}`
     );
 
-    // Case 1: disconnected -> failed: Attempt ICE restart/renegotiation
-    if (
-      this._prevConnectionState === 'disconnected' &&
-      connectionState === 'failed'
-    ) {
-      this.instance.restartIce();
+    // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
+    if (connectionState === 'failed' || connectionState === 'disconnected') {
+      const onConnectionOnline = async () => {
+        if (
+          connectionState === 'failed' ||
+          !this.keepConnectionAliveOnSocketClose // maintain default behavior of reconnecting socket on connection failure if flag is not set
+        ) {
+          this._session._closeConnection();
+          this._session.connect();
+        }
 
-      if (this._isTrickleIce()) {
-        await this.startTrickleIceNegotiation();
-      } else {
-        this.startNegotiation();
+        /**
+         * restart ice and send offer again as ice credentials might have changed
+         * only do it if peer is the offerer to avoid using old ice creds when back online
+         */
+        if (this._isOffer()) {
+          this.instance.restartIce();
+
+          if (this._isTrickleIce()) {
+            await this.startTrickleIceNegotiation();
+          } else {
+            this.startNegotiation();
+          }
+        }
+
+        window.removeEventListener('online', onConnectionOnline);
+      };
+
+      if (navigator.onLine) {
+        return onConnectionOnline();
       }
+      window.addEventListener('online', onConnectionOnline);
     }
 
     // Case 2: connected -> disconnected: Reset audio buffers
@@ -408,7 +435,7 @@ export default class Peer {
     }
 
     this._logTransceivers();
-    
+
     if (this.isDebugEnabled) {
       this.statsReporter = createWebRTCStatsReporter(this._session);
     }

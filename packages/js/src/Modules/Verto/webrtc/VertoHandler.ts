@@ -1,8 +1,9 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
+import pkg from '../../../../package.json';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Candidate, Result } from '../messages/Verto';
+import { Attach, Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -18,6 +19,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
+const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
@@ -55,6 +57,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const attach = method === VertoMethod.Attach;
+    let keepConnectionOnAttach = false;
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
@@ -62,7 +65,23 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        session.calls[callID].hangup({}, false);
+        keepConnectionOnAttach =
+          (session.calls[callID].options.keepConnectionAliveOnSocketClose ||
+            session.options.keepConnectionAliveOnSocketClose) &&
+          Boolean(this.session.calls[callID].peer?.instance);
+
+        if (keepConnectionOnAttach) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH`
+          );
+        } else {
+          logger.debug(`Session Options: ${session.options}`);
+          logger.debug(`Call: ${session.calls[callID]}`);
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
+          );
+          session.calls[callID].hangup({}, false);
+        }
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -86,6 +105,8 @@ class VertoHandler {
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
+        keepConnectionAliveOnSocketClose:
+          session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
       if (params.telnyx_call_control_id) {
@@ -118,15 +139,22 @@ class VertoHandler {
     };
 
     const messageToCheckRegisterState = new Gateway(voice_sdk_id);
-    const messagePing = new Ping();
+    const messagePing = new Ping(voice_sdk_id);
 
     switch (method) {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
+        this.session.setPingReceived();
         this.session.execute(messagePing);
         break;
       }
       case VertoMethod.Punt:
+        if (keepConnectionOnAttach) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Ignoring PUNT due to keepConnectionAliveOnSocketClose`
+          );
+          return;
+        }
         session.disconnect();
         break;
       case VertoMethod.Invite: {
@@ -138,6 +166,24 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
+        if (keepConnectionOnAttach) {
+          // If we are keeping the connection alive on attach, we need to re-attach first.
+          this.session.execute(
+            new Attach({
+              sessid: this.session.sessionid,
+              // reuse the same sdp to re-attach
+              sdp: this.session.calls[callID].peer.instance.localDescription
+                .sdp,
+              dialogParams: this.session.calls[callID].options,
+              'User-Agent': `Web-${SDK_VERSION}`,
+            })
+          );
+          return;
+        } else {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Re-creating call instance.`
+          );
+        }
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
           call.answer();
@@ -193,6 +239,7 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.REGISTER
               ) {
+                this.session._triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);

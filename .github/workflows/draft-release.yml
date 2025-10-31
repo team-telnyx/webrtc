@@ -22,7 +22,7 @@ on:
           - beta
           - rc
       increment:
-        description: "Version bump"
+        description: "Version bump (only if prerelease is 'none')"
         required: false
         default: "patch"
         type: choice
