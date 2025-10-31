@@ -57,10 +57,8 @@ client.off('telnyx.notification');
 - [checkPermissions](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#checkpermissions)
 - [connect](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#connect)
 - [disableMicrophone](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#disablemicrophone)
-- [disableWebcam](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#disablewebcam)
 - [disconnect](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#disconnect)
 - [enableMicrophone](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#enablemicrophone)
-- [enableWebcam](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#enablewebcam)
 - [getAudioInDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getaudioindevices)
 - [getAudioOutDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getaudiooutdevices)
 - [getDeviceResolutions](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdeviceresolutions)
@@ -71,7 +69,6 @@ client.off('telnyx.notification');
 - [off](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#off)
 - [on](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#on)
 - [setAudioSettings](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#setaudiosettings)
-- [setVideoSettings](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#setvideosettings)
 - [webRTCInfo](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#webrtcinfo)
 - [webRTCSupportedBrowserList](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#webrtcsupportedbrowserlist)
 
@@ -231,7 +228,6 @@ Audio and video constraints currently used by the client.
 | Name | Type |
 | :------ | :------ |
 | `audio` | `boolean` \| `MediaTrackConstraints` |
-| `video` | `boolean` \| `MediaTrackConstraints` |
 
 **`Examples`**
 
@@ -465,43 +461,6 @@ TelnyxRTCClient.disableMicrophone
 
 ___
 
-### disableWebcam
-
-▸ **disableWebcam**(): `void`
-
-Disables use of the webcam in subsequent calls.
-
-Note: This method will disable the video even if `video: true` is specified.
-
-#### Returns
-
-`void`
-
-**`Examples`**
-
-```js
-const client = new TelnyxRTC(options);
-
-client.disableWebcam();
-```
-
-```js
-const client = new TelnyxRTC({
-  ...options,
-  video: true
-});
-
-client.disableWebcam();
-```
-
-**`Deprecated`**
-
-#### Inherited from
-
-TelnyxRTCClient.disableWebcam
-
-___
-
 ### disconnect
 
 ▸ **disconnect**(): `Promise`\<`void`\>
@@ -550,35 +509,6 @@ client.enableMicrophone();
 #### Inherited from
 
 TelnyxRTCClient.enableMicrophone
-
-___
-
-### enableWebcam
-
-▸ **enableWebcam**(): `void`
-
-Enables use of the webcam in subsequent calls.
-
-Note: This setting will be ignored if `video: false` is
-specified when creating a new call.
-
-#### Returns
-
-`void`
-
-**`Examples`**
-
-```js
-const client = new TelnyxRTC(options);
-
-client.enableWebcam();
-```
-
-**`Deprecated`**
-
-#### Inherited from
-
-TelnyxRTCClient.enableWebcam
 
 ___
 
@@ -930,10 +860,20 @@ client.newCall({
 });
 ```
 
+
+### Trickle ICE
+
+Trickle ICE can be enabled by passing `trickleIce` to the `newCall` method.
+example:
+```js
+client.newCall({
+ destinationNumber: 'xxx',
+ trickleIce: true,
+});
+```
 ### Keep Connection Alive on Socket Close
 
 By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause. To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose` to the `newCall` method.
-
 example:
 ```js
 client.newCall({
@@ -1086,54 +1026,6 @@ const constraints = await client.setAudioSettings({
 #### Inherited from
 
 TelnyxRTCClient.setAudioSettings
-
-___
-
-### setVideoSettings
-
-▸ **setVideoSettings**(`settings`): `Promise`\<`MediaTrackConstraints`\>
-
-Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
-
-Note: It's a common behaviour, in WebRTC applications,
-to persist devices user's selection to then reuse them across visits.
-Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
-To avoid this issue you can specify two additional properties
-`camId` and `camLabel` in the constraints input parameter.
-The client will use these values to assure the webcam you want to use is available
-by matching both `id` and `label` with the device list retrieved from the browser.
-
-#### Parameters
-
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `settings` | `IVideoSettings` | [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`. |
-
-#### Returns
-
-`Promise`\<`MediaTrackConstraints`\>
-
-`Promise<MediaTrackConstraints>` Video constraints applied to the client.
-
-**`Examples`**
-
-Set webcam by `id` and `label` with 720p resolution.
-
-```js
-// within an async function
-const constraints = await client.setVideoSettings({
- camId: '882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
- camLabel: 'Default WebCam (Built-in)',
- width: 1080,
- height: 720
-})
-```
-
-**`Deprecated`**
-
-#### Inherited from
-
-TelnyxRTCClient.setVideoSettings
 
 ___
 

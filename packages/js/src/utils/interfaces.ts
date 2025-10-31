@@ -59,6 +59,11 @@ export interface IClientOptions {
   forceRelayCandidate?: boolean;
 
   /**
+   * Enable or disable Trickle ICE.
+   */
+  trickleIce?: boolean;
+
+  /**
    * Region to use for the connection.
    */
   region?: string;
@@ -83,6 +88,17 @@ export interface IClientOptions {
      */
     target_version_id?: string;
   };
+
+  /**
+   * RTC connection IP address to use instead of the default one.
+   * Useful when using a custom signaling server.
+   */
+  rtcIp?: string;
+  /**
+   * RTC connection port to use instead of the default one.
+   * Useful when using a custom signaling server.
+   */
+  rtcPort?: number;
 }
 
 /**
@@ -210,6 +226,11 @@ export interface ICallOptions {
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;
+
+  /**
+   * Enable or disable Trickle ICE.
+   */
+  trickleIce?: boolean;
 
   /**
    * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received. 

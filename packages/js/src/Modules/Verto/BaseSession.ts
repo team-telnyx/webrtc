@@ -37,6 +37,7 @@ export default abstract class BaseSession {
   public relayProtocol: string = null;
   public contexts: string[] = [];
   public timeoutErrorCode = -32000;
+  public invalidMethodErrorCode = -32601;
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;
@@ -94,7 +95,7 @@ export default abstract class BaseSession {
    * @return Promise that will resolve/reject depending on the server response
    * @ignore
    */
-  execute(msg: BaseMessage): any {
+  execute(msg: BaseMessage): Promise<any> {
     if (this._idle) {
       return new Promise((resolve) =>
         this._executeQueue.push({ resolve, msg })

@@ -30,23 +30,26 @@ export default class Peer {
   public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
-    offerToReceiveVideo: boolean;
   };
 
   private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
+  private _prevConnectionState: RTCPeerConnectionState = null;
+  private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
+  private _registerPeerEvents: (instance: RTCPeerConnection) => void;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
-    session: BrowserSession
+    session: BrowserSession,
+    trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
+    registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
     logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
       offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
     };
 
     this._sdpReady = this._sdpReady.bind(this);
@@ -58,12 +61,8 @@ export default class Peer {
     this.createPeerConnection = this.createPeerConnection.bind(this);
 
     this._session = session;
-
-    this._init();
-
-    if (this.isDebugEnabled) {
-      this.statsReporter = createWebRTCStatsReporter(session);
-    }
+    this._trickleIceSdpFn = trickleIceSdpFn;
+    this._registerPeerEvents = registerPeerEvents;
   }
 
   get isOffer() {
@@ -96,6 +95,17 @@ export default class Peer {
       this._createAnswer();
     }
   }
+  async startTrickleIceNegotiation() {
+    performance.mark(`ice-gathering-start`);
+
+    this._negotiating = true;
+
+    if (this._isOffer()) {
+      await this._createOffer().then(this._trickleIceSdpFn.bind(this));
+    } else {
+      await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
+    }
+  }
 
   private _logTransceivers() {
     logger.info(
@@ -114,6 +124,66 @@ export default class Peer {
         JSON.stringify(tr.sender.getParameters(), null, 2)
       );
     });
+  }
+
+  private get trickleIcePerformanceMetrics() {
+    const newCall = performance.measure(
+      'new-call',
+      'new-call-start',
+      'new-call-end'
+    );
+
+    const peerCreation = performance.measure(
+      'peer-creation',
+      'peer-creation-start',
+      'peer-creation-end'
+    );
+
+    const iceGathering = performance.measure(
+      'ice-gathering',
+      'ice-gathering-start',
+      'ice-gathering-end'
+    );
+
+    const sdpSend = performance.measure(
+      'sdp-send',
+      'sdp-send-start',
+      'sdp-send-end'
+    );
+
+    const inviteSend = performance.measure(
+      'invite-send',
+      'new-call-start',
+      'sdp-send-start'
+    );
+
+    const totalDuration = performance.measure(
+      'total-duration',
+      'peer-creation-start',
+      'sdp-send-end'
+    );
+
+    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
+    return {
+      'New Call': {
+        duration: formatDuration(newCall.duration),
+      },
+      'Peer Creation': {
+        duration: formatDuration(peerCreation.duration),
+      },
+      'ICE Gathering': {
+        duration: formatDuration(iceGathering.duration),
+      },
+      [this._isOffer() ? 'Invite Send' : 'Answer Send']: {
+        duration: formatDuration(inviteSend.duration),
+      },
+      'SDP Send': {
+        duration: formatDuration(sdpSend.duration),
+      },
+      'Total Duration': {
+        duration: formatDuration(totalDuration.duration),
+      },
+    };
   }
 
   private handleSignalingStateChangeEvent(event) {
@@ -135,13 +205,23 @@ export default class Peer {
 
   private handleNegotiationNeededEvent() {
     logger.info('Negotiation needed event');
-    if (this.instance.signalingState !== 'stable') {
+    if (this.instance.signalingState !== 'stable' || this._negotiating) {
+      logger.debug(
+        'Skipping negotiation, state:',
+        this.instance.signalingState,
+        'negotiating:',
+        this._negotiating
+      );
       return;
     }
-    this.startNegotiation();
+    if (this._isTrickleIce()) {
+      this.startTrickleIceNegotiation();
+    } else {
+      this.startNegotiation();
+    }
   }
 
-  private handleTrackEvent(event) {
+  private handleTrackEvent(event: RTCTrackEvent) {
     const {
       streams: [first],
     } = event;
@@ -158,19 +238,36 @@ export default class Peer {
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     console.log(
-      `[${new Date().toISOString()}] Connection State`,
-      connectionState
+      `[${new Date().toISOString()}] Connection State changed: ${
+        this._prevConnectionState
+      } -> ${connectionState}`
     );
 
-    if (
-      connectionState === 'failed' ||
-      (!this.keepConnectionAliveOnSocketClose &&
-        connectionState === 'disconnected')
-    ) {
-      const onConnectionOnline = () => {
+    // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
+    if (connectionState === 'failed' || connectionState === 'disconnected') {
+      const onConnectionOnline = async () => {
         this.instance.restartIce();
-        this._session._closeConnection();
-        this._session.connect();
+
+        if (
+          connectionState === 'failed' ||
+          !this.keepConnectionAliveOnSocketClose // maintain default behavior of reconnecting socket on connection failure if flag is not set
+        ) {
+          this._session._closeConnection();
+          this._session.connect();
+        }
+
+        /**
+         * after ice restart, send offer again as ice credentials might have changed
+         * only negotiate if we are the offerer to avoid using old ice negotiation
+         */
+        if (this._isOffer()) {
+          if (this._isTrickleIce()) {
+            await this.startTrickleIceNegotiation();
+          } else {
+            this.startNegotiation();
+          }
+        }
+
         window.removeEventListener('online', onConnectionOnline);
       };
 
@@ -178,6 +275,40 @@ export default class Peer {
         return onConnectionOnline();
       }
       window.addEventListener('online', onConnectionOnline);
+    }
+
+    // Case 2: connected -> disconnected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'connected' &&
+      connectionState === 'disconnected'
+    ) {
+      await this._resetJitterBuffer();
+    }
+
+    // Case 3: disconnected -> connected: Reset audio buffers
+    if (
+      this._prevConnectionState === 'disconnected' &&
+      connectionState === 'connected'
+    ) {
+      await this._resetJitterBuffer();
+    }
+
+    // update previous state for the next transition
+    this._prevConnectionState = connectionState;
+
+    if (this._isTrickleIce()) {
+      if (connectionState === 'connecting') {
+        performance.mark('peer-connection-connecting');
+      }
+
+      if (connectionState === 'connected') {
+        performance.mark('peer-connection-connected');
+        // Log Trickle ICE performance metrics
+        console.group('Performance Metrics');
+        console.table(this.trickleIcePerformanceMetrics);
+        console.groupEnd();
+        performance.clearMarks();
+      }
     }
   };
 
@@ -202,6 +333,16 @@ export default class Peer {
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
+    this._registerPeerEvents(this.instance);
+    this._prevConnectionState = this.instance.connectionState;
+
+    // Set ASAP, for applying mid correctly
+    if (this.isAnswer) {
+      await this._setRemoteDescription({
+        sdp: this.options.remoteSdp,
+        type: PeerType.Offer,
+      });
+    }
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
@@ -225,7 +366,7 @@ export default class Peer {
       this.instance.iceGatheringState
     );
   };
-  private async _init() {
+  async init() {
     await this.createPeerConnection();
     await this.statsReporter?.start(
       this.instance,
@@ -242,9 +383,6 @@ export default class Peer {
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
       logger.info('Local audio tracks: ', audioTracks);
-      const videoTracks = localStream.getVideoTracks();
-      logger.info('Local video tracks: ', videoTracks);
-      // FIXME: use transceivers way only for offer - when answer gotta match mid from the ones from SRD
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {
@@ -260,12 +398,6 @@ export default class Peer {
           );
           this._setAudioCodec(transceiver);
         });
-
-        console.debug('Applying video transceiverParams', transceiverParams);
-        videoTracks.forEach((track) => {
-          this.options.userVariables.cameraLabel = track.label;
-          this.instance.addTransceiver(track, transceiverParams);
-        });
       } else if (typeof this.instance.addTrack === 'function') {
         // Use addTrack
 
@@ -276,11 +408,6 @@ export default class Peer {
         this.instance
           .getTransceivers()
           .forEach((trans) => this._setAudioCodec(trans));
-
-        videoTracks.forEach((track) => {
-          this.options.userVariables.cameraLabel = track.label;
-          this.instance.addTrack(track, localStream);
-        });
       } else {
         // Fallback to legacy addStream ..
         // @ts-ignore
@@ -288,7 +415,6 @@ export default class Peer {
       }
 
       if (screenShare === false) {
-        muteMediaElement(localElement);
         attachMediaStream(localElement, localStream);
       }
     }
@@ -297,14 +423,19 @@ export default class Peer {
       if (this.options.negotiateAudio) {
         this._checkMediaToNegotiate('audio');
       }
-      if (this.options.negotiateVideo) {
-        this._checkMediaToNegotiate('video');
-      }
-    } else {
+    } else if (!this._isTrickleIce()) {
       this.startNegotiation();
     }
 
+    if (this._isTrickleIce()) {
+      this.startTrickleIceNegotiation();
+    }
+
     this._logTransceivers();
+
+    if (this.isDebugEnabled) {
+      this.statsReporter = createWebRTCStatsReporter(this._session);
+    }
   }
 
   private _getSenderByKind(kind: string) {
@@ -327,20 +458,27 @@ export default class Peer {
       return;
     }
     this._constraints.offerToReceiveAudio = Boolean(this.options.audio);
-    this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
-    await this.instance
-      .createOffer(this._constraints)
-      .then(this._setLocalDescription.bind(this))
-      .then(this._sdpReady)
-      .catch((error) => logger.error('Peer _createOffer error:', error));
-    this._setLocalDescriptionSdpInSession();
+
+    try {
+      const offer = await this.instance.createOffer(this._constraints);
+      await this._setLocalDescription(offer);
+
+      if (!this._isTrickleIce()) {
+        this._sdpReady();
+      }
+
+      return offer;
+    } catch (error) {
+      logger.error('Peer _createOffer error:', error);
+    }
   }
 
   private async _setRemoteDescription(
     remoteDescription: RTCSessionDescriptionInit
   ) {
+    logger.debug('Setting remote description', remoteDescription);
     await this.instance.setRemoteDescription(remoteDescription);
   }
 
@@ -348,7 +486,14 @@ export default class Peer {
     if (!this._isAnswer()) {
       return;
     }
-    if (this.instance.signalingState !== 'stable') {
+    if (
+      this.instance.signalingState !== 'stable' &&
+      this.instance.signalingState !== 'have-remote-offer'
+    ) {
+      logger.debug(
+        'Skipping negotiation, state:',
+        this.instance.signalingState
+      );
       console.log(
         "  - But the signaling state isn't stable, so triggering rollback"
       );
@@ -362,17 +507,19 @@ export default class Peer {
           type: PeerType.Offer,
         }),
       ]);
-      this._setLocalDescriptionSdpInSession();
       return;
     }
-    await this._setRemoteDescription({
-      sdp: this.options.remoteSdp,
-      type: PeerType.Offer,
-    });
+
     this._logTransceivers();
-    const answer = await this.instance.createAnswer();
-    await this._setLocalDescription(answer);
-    this._setLocalDescriptionSdpInSession();
+
+    try {
+      const answer = await this.instance.createAnswer();
+      await this._setLocalDescription(answer);
+
+      return answer;
+    } catch (error) {
+      logger.error('Peer _createAnswer error:', error);
+    }
   }
 
   private async _setLocalDescription(
@@ -407,9 +554,45 @@ export default class Peer {
     return getUserMedia(constraints);
   }
 
-  private _setLocalDescriptionSdpInSession() {
-    this._session.callsPeerConnectionLocalDescriptionSdps[this.options.id] =
-      this.instance.localDescription.sdp;
+  private async _resetJitterBuffer() {
+    try {
+      const receiver = this.instance
+        .getReceivers()
+        .find((r) => r.track && r.track.kind === 'audio');
+
+      /**
+       * Set optimal buffer duration for real-time audio (20ms)
+       * This prevents iOS from using large buffers that cause delay
+       * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
+       * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
+       */
+      if (receiver && 'jitterBufferTarget' in receiver) {
+        // @ts-ignore
+        receiver.jitterBufferTarget = 20; // e.g., 20 ms
+        logger.debug(
+          '[jitter] target set to',
+          // @ts-ignore
+          receiver.jitterBufferTarget,
+          'ms'
+        );
+      }
+
+      const sender = this._getSenderByKind('audio');
+      /**
+       * Workaround for hardware muting/unmuting audio
+       * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
+       * - https://github.com/Kurento/experiments/blob/master/WebRTC/mute-tracks/README.md#rtcrtpsenderreplacetrack
+       */
+      if (sender) {
+        const originalTrack = sender.track;
+        // replaceTrack() stops the sender. No negotiation is required in this case.
+        await sender.replaceTrack(null);
+        await new Promise((r) => setTimeout(r, 50)); // 50 ms pause
+        await sender.replaceTrack(originalTrack);
+      }
+    } catch (error) {
+      logger.error('Peer _resetJitterBuffer error:', error);
+    }
   }
 
   private _isOffer(): boolean {
@@ -418,6 +601,10 @@ export default class Peer {
 
   private _isAnswer(): boolean {
     return this.type === PeerType.Answer;
+  }
+
+  private _isTrickleIce(): boolean {
+    return this.options.trickleIce === true;
   }
 
   private _config(): RTCConfiguration {

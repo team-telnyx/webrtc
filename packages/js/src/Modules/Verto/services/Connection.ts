@@ -30,12 +30,14 @@ export default class Connection {
   private _wsClient: any = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
+  private _hasTrickleIceCanaryBeenUsed: boolean = false;
+  private _trickleIceCanaryEnabled: boolean = false;
 
   public upDur: number = null;
   public downDur: number = null;
 
   constructor(public session: BaseSession) {
-    const { host, env, region } = session.options;
+    const { host, env, region, trickleIce } = session.options;
 
     if (env) {
       this._host = env === 'development' ? DEV_HOST : PROD_HOST;
@@ -47,6 +49,10 @@ export default class Connection {
 
     if (region) {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
+    }
+
+    if (trickleIce) {
+      this._trickleIceCanaryEnabled = true;
     }
   }
 
@@ -76,10 +82,34 @@ export default class Connection {
 
   connect() {
     const websocketUrl = new URL(this._host);
-    const reconnectToken = getReconnectToken();
+    let reconnectToken = getReconnectToken();
+
+    if (this.session.options.rtcIp && this.session.options.rtcPort) {
+      reconnectToken = null;
+      this._trickleIceCanaryEnabled = false;
+      websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
+      websocketUrl.searchParams.set(
+        'rtc_port',
+        this.session.options.rtcPort.toString()
+      );
+    }
 
     if (reconnectToken) {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
+    }
+
+    if (this._trickleIceCanaryEnabled) {
+      websocketUrl.searchParams.set('canary', 'true');
+
+      if (reconnectToken && !this._hasTrickleIceCanaryBeenUsed) {
+        websocketUrl.searchParams.delete('voice_sdk_id');
+        logger.debug(
+          'first trickle ice canary connection. Refreshing voice_sdk_id'
+        );
+      }
+
+      this.session.options.trickleIce = true;
+      this._hasTrickleIceCanaryBeenUsed = true;
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());

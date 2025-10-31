@@ -34,9 +34,6 @@ const SDK_VERSION = pkg.version;
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
 
-  public callsPeerConnectionLocalDescriptionSdps: { [callId: string]: string } =
-    {};
-
   public micId: string;
 
   public micLabel: string;
@@ -60,8 +57,6 @@ export default abstract class BrowserSession extends BaseSession {
   protected _jwtAuth: boolean = true;
 
   protected _audioConstraints: boolean | MediaTrackConstraints = true;
-
-  protected _videoConstraints: boolean | MediaTrackConstraints = false;
 
   protected _speaker: string = null;
 
@@ -177,7 +172,6 @@ export default abstract class BrowserSession extends BaseSession {
   async disconnect() {
     Object.keys(this.calls).forEach((k) => this.calls[k].setState(State.Purge));
     this.calls = {};
-    this.callsPeerConnectionLocalDescriptionSdps = {};
 
     this._cleanupNetworkListeners();
     await super.disconnect();
@@ -444,9 +438,8 @@ export default abstract class BrowserSession extends BaseSession {
    */
   get mediaConstraints(): {
     audio: boolean | MediaTrackConstraints;
-    video: boolean | MediaTrackConstraints;
   } {
-    return { audio: this._audioConstraints, video: this._videoConstraints };
+    return { audio: this._audioConstraints };
   }
 
   /**
@@ -543,101 +536,6 @@ export default abstract class BrowserSession extends BaseSession {
    */
   enableMicrophone() {
     this._audioConstraints = true;
-  }
-
-  /**
-   * Sets the default `video` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_video_tracks) for further details.
-   *
-   * Note: It's a common behaviour, in WebRTC applications,
-   * to persist devices user's selection to then reuse them across visits.
-   * Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
-   * To avoid this issue you can specify two additional properties
-   * `camId` and `camLabel` in the constraints input parameter.
-   * The client will use these values to assure the webcam you want to use is available
-   * by matching both `id` and `label` with the device list retrieved from the browser.
-   *
-   * @param settings [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `camId` and `camLabel`.
-   *
-   * @return `Promise<MediaTrackConstraints>` Video constraints applied to the client.
-   *
-   * @examples
-   *
-   * Set webcam by `id` and `label` with 720p resolution.
-   *
-   * ```js
-   * // within an async function
-   * const constraints = await client.setVideoSettings({
-   *  camId: '882e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
-   *  camLabel: 'Default WebCam (Built-in)',
-   *  width: 1080,
-   *  height: 720
-   * })
-   * ```
-   * @deprecated
-   */
-  async setVideoSettings(settings: IVideoSettings) {
-    if (!settings) {
-      throw new Error('You need to provide the settings object');
-    }
-
-    const { camId, camLabel, ...constraints } = settings;
-
-    removeUnsupportedConstraints(constraints);
-    this._videoConstraints = await checkDeviceIdConstraints(
-      camId,
-      camLabel,
-      'videoinput',
-      constraints
-    );
-    this.camId = camId;
-    this.camLabel = camLabel;
-    return this._videoConstraints;
-  }
-
-  /**
-   * Disables use of the webcam in subsequent calls.
-   *
-   * Note: This method will disable the video even if `video: true` is specified.
-   *
-   * @examples
-   *
-   * ```js
-   * const client = new TelnyxRTC(options);
-   *
-   * client.disableWebcam();
-   * ```
-   *
-   * ```js
-   * const client = new TelnyxRTC({
-   *   ...options,
-   *   video: true
-   * });
-   *
-   * client.disableWebcam();
-   * ```
-   * @deprecated
-   */
-  disableWebcam() {
-    this._videoConstraints = false;
-  }
-
-  /**
-   * Enables use of the webcam in subsequent calls.
-   *
-   * Note: This setting will be ignored if `video: false` is
-   * specified when creating a new call.
-   *
-   * @examples
-   *
-   * ```js
-   * const client = new TelnyxRTC(options);
-   *
-   * client.enableWebcam();
-   * ```
-   * @deprecated
-   */
-  enableWebcam() {
-    this._videoConstraints = true;
   }
 
   set iceServers(servers: RTCIceServer[] | boolean) {

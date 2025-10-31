@@ -3,7 +3,7 @@ import BrowserSession from '../BrowserSession';
 import pkg from '../../../../package.json';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Attach, Result } from '../messages/Verto';
+import { Attach, Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -102,6 +102,7 @@ class VertoHandler {
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
+        trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
         keepConnectionAliveOnSocketClose:
@@ -242,6 +243,36 @@ class VertoHandler {
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
+
+                if (session.options.trickleIce) {
+                  logger.debug(
+                    'Trickle ICE is enabled. Checking Gateway support'
+                  );
+                  /**
+                   * If lack of support, this will yield an error response in format:
+                   * `"code" => -32601, "message" => "Invalid Method, Missing Method or Permission Denied"`
+                   */
+                  this.session
+                    .execute(new Candidate({ candidate: '' }))
+                    .catch((error) => {
+                      // if error is related to call not found or session, ignore it. This is expected as we're sending a candidate before a call as a support check
+                      if (error.code === this.session.invalidMethodErrorCode) {
+                        console.warn(
+                          'Trickle ICE is not supported by the server, disabling it.'
+                        );
+                        logger.debug(
+                          'Trickle ICE check error:',
+                          JSON.stringify(error, null, 2)
+                        );
+                        session.options.trickleIce = false;
+                      } else {
+                        logger.debug(
+                          'Trickle ICE check:',
+                          JSON.stringify(error, null, 2)
+                        );
+                      }
+                    });
+                }
               }
               break;
             }

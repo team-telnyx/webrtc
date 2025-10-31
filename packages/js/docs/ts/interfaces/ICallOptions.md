@@ -31,6 +31,7 @@ ICallOptions
 - [telnyxCallControlId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxcallcontrolid)
 - [telnyxLegId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxlegid)
 - [telnyxSessionId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxsessionid)
+- [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#trickleice)
 - [useStereo](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#usestereo)
 - [video](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#video)
 
@@ -249,6 +250,14 @@ ___
 • `Optional` **telnyxSessionId**: `string`
 
 Telnyx call session ID, if using Call Control services.
+
+___
+
+### trickleIce
+
+• `Optional` **trickleIce**: `boolean`
+
+Enable or disable Trickle ICE.
 
 ___
 

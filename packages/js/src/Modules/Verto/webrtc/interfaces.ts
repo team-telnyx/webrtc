@@ -18,7 +18,6 @@ export interface IVertoCallOptions {
   remoteElement?: HTMLMediaElement | string | Function;
   iceServers?: RTCIceServer[];
   audio?: boolean | MediaTrackConstraints;
-  video?: boolean | MediaTrackConstraints;
   attach?: boolean;
   useStereo?: boolean;
   micId?: string;
@@ -49,6 +48,7 @@ export interface IVertoCallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
+  trickleIce?: boolean;
   keepConnectionAliveOnSocketClose?: boolean;
 }
 
@@ -131,7 +131,6 @@ export interface IWebRTCCall {
   stopScreenShare?: () => void;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
   // RN
-  switchCamera?: () => void;
   setSpeakerPhone?: (flag: boolean) => void;
 }
 export interface IWebRTCInfo {
