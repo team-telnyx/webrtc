@@ -64,6 +64,11 @@ export interface IClientOptions {
   trickleIce?: boolean;
 
   /**
+   * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
+   */
+  keepConnectionAliveOnSocketClose?: boolean;
+
+  /**
    * Region to use for the connection.
    */
   region?: string;
@@ -233,7 +238,7 @@ export interface ICallOptions {
   trickleIce?: boolean;
 
   /**
-   * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received. 
+   * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
    */
   keepConnectionAliveOnSocketClose?: boolean;
 }

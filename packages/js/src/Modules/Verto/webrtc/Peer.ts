@@ -82,7 +82,10 @@ export default class Peer {
   }
 
   get keepConnectionAliveOnSocketClose() {
-    return this._session.options.keepConnectionAliveOnSocketClose;
+    return (
+      this.options.keepConnectionAliveOnSocketClose ||
+      this._session.options.keepConnectionAliveOnSocketClose
+    );
   }
   startNegotiation() {
     performance.mark(`ice-gathering-start`);

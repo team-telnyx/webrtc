@@ -66,8 +66,8 @@ class VertoHandler {
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
         keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
-            session.calls[callID].options.keepConnectionAliveOnSocketClose) &&
+          (session.calls[callID].options.keepConnectionAliveOnSocketClose ||
+            session.options.keepConnectionAliveOnSocketClose) &&
           Boolean(this.session.calls[callID].peer?.instance);
 
         if (keepConnectionOnAttach) {
