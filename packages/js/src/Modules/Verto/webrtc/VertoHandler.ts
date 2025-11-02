@@ -3,7 +3,7 @@ import BrowserSession from '../BrowserSession';
 import pkg from '../../../../package.json';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Attach, Candidate, Result } from '../messages/Verto';
+import { Attach, Candidate, Login, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -17,8 +17,15 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
-import { getGatewayState, randomInt } from '../util/helpers';
+import {
+  getGatewayState,
+  isValidAnonymousLoginOptions,
+  isValidLoginOptions,
+  randomInt,
+} from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
+import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
+import { getReconnectToken } from '../util/reconnect';
 const SDK_VERSION = pkg.version;
 
 /**
@@ -34,6 +41,8 @@ class VertoHandler {
 
   static retriedRegister = 0;
 
+  static receivedAuthenticationRequired = 0;
+
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -47,6 +56,46 @@ class VertoHandler {
   private reconnectDelay() {
     return randomInt(2, 6) * 1000;
   }
+
+  private handleLogin = async () => {
+    const { login, password, passwd, login_token, userVariables } =
+      this.session.options;
+
+    const msg = new Login(
+      login,
+      password || passwd,
+      login_token,
+      this.session.sessionid,
+      userVariables,
+      !!getReconnectToken()
+    );
+    const response = await this.session
+      .execute(msg)
+      .catch(this.session.handleLoginError);
+    if (response) {
+      this.session.sessionid = response.sessid;
+    }
+  };
+
+  private handleAnonymousLogin = async () => {
+    const { anonymous_login } = this.session.options;
+
+    const msg = new AnonymousLogin({
+      target_id: anonymous_login.target_id,
+      target_type: anonymous_login.target_type,
+      target_version_id: anonymous_login.target_version_id,
+      sessionId: this.session.sessionid,
+      userVariables: this.session.options.userVariables,
+      reconnection: !!getReconnectToken(),
+    });
+
+    const response = await this.session
+      .execute(msg)
+      .catch(this.session.handleLoginError);
+    if (response) {
+      this.session.sessionid = response.sessid;
+    }
+  };
 
   handleMessage(msg: any) {
     const { session } = this;
@@ -145,7 +194,31 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session.execute(messagePing);
+        this.session
+          .execute(messagePing)
+          .then(() => {
+            VertoHandler.receivedAuthenticationRequired = 0;
+          })
+          .catch(async (error) => {
+            if (error.code === this.session.authenticationRequiredErrorCode) {
+              VertoHandler.receivedAuthenticationRequired += 1;
+
+              if (
+                VertoHandler.receivedAuthenticationRequired > 1 &&
+                this.session.hasAutoReconnect()
+              ) {
+                logger.warn(
+                  'Ping failed twice with Authentication Required. Re-logging in...'
+                );
+
+                if (isValidLoginOptions(this.session.options)) {
+                  this.handleLogin();
+                } else if (isValidAnonymousLoginOptions(this.session.options)) {
+                  this.handleAnonymousLogin();
+                }
+              }
+            }
+          });
         break;
       }
       case VertoMethod.Punt:

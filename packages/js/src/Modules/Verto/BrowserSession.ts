@@ -169,6 +169,15 @@ export default abstract class BrowserSession extends BaseSession {
     await super.disconnect();
   }
 
+    /**
+   * Handle login error
+   * @return void
+   */
+  handleLoginError(error: any) {
+    super._handleLoginError(error);
+  }
+
+
   speedTest(bytes: number) {
     return new Promise((resolve, reject) => {
       registerOnce(
