@@ -64,6 +64,7 @@ client.off('telnyx.notification');
 - [getDeviceResolutions](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdeviceresolutions)
 - [getDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdevices)
 - [getVideoDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getvideodevices)
+- [handleLoginError](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#handleloginerror)
 - [logout](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#logout)
 - [newCall](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#newcall)
 - [off](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#off)
@@ -744,6 +745,30 @@ client.getVideoDevices().then((result) => {
 #### Inherited from
 
 TelnyxRTCClient.getVideoDevices
+
+___
+
+### handleLoginError
+
+▸ **handleLoginError**(`error`): `void`
+
+Handle login error
+
+#### Parameters
+
+| Name | Type |
+| :------ | :------ |
+| `error` | `any` |
+
+#### Returns
+
+`void`
+
+void
+
+#### Inherited from
+
+TelnyxRTCClient.handleLoginError
 
 ___
 
