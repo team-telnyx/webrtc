@@ -12,8 +12,9 @@ import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
 import { registerOnce, trigger } from './Handler';
 
-let WebSocketClass: any = typeof WebSocket !== 'undefined' ? WebSocket : null;
-export const setWebSocket = (websocket: any): void => {
+let WebSocketClass: typeof WebSocket | null =
+  typeof WebSocket !== 'undefined' ? WebSocket : null;
+export const setWebSocket = (websocket: typeof WebSocket): void => {
   WebSocketClass = websocket;
 };
 
@@ -23,11 +24,10 @@ const WS_STATE = {
   CLOSING: 2,
   CLOSED: 3,
 };
-const TIMEOUT_MS = 10 * 1000;
 
 export default class Connection {
   public previousGatewayState = '';
-  private _wsClient: any = null;
+  private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
   private _hasTrickleIceCanaryBeenUsed: boolean = false;
@@ -181,8 +181,10 @@ export default class Connection {
 
   close() {
     if (this._wsClient) {
+      // @ts-expect-error polyfill
       isFunction(this._wsClient._beginClose)
-        ? this._wsClient._beginClose()
+        ? // @ts-expect-error polyfill
+          this._wsClient._beginClose()
         : this._wsClient.close();
     }
     this._wsClient = null;

@@ -1,4 +1,8 @@
-## [2.24.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.19...webrtc/v2.24.0) (2025-10-30)
+## [2.24.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.1...webrtc/v2.24.2) (2025-11-04)
+
+- chore: socket connection error handling documentation (#460)
+
+## [2.24.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.0...webrtc/v2.24.1) (2025-10-30)
 
 - fix: update inner `voice_sdk_id` state on first trickle ice canary use (#459)
 
