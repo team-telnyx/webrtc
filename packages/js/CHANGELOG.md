@@ -1,3 +1,28 @@
+
+## [2.25.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.2...webrtc/v2.25.1) (2025-11-05)
+
+
+## Features
+
+- add `keepConnectionAliveOnSocketClose` to client options
+
+### Enhancements
+
+- improve logs on peer connection failure
+- remove legacy code
+- account for `keepConnectionAliveOnSocketClose` on session online handler
+- keep alive check on ping messages
+
+### Fixes
+
+- correct method scope in browser session
+- clear call and peer connection on unrecoverable state
+- add cleanup to network listeners
+- reconnect on false positive reged state from gateway
+- restart ice on offer peer only
+- do not disconnect session on punt if `keepConnectionAliveOnSocketClose` is set
+- hangup and recreate call if peer connection instance is destroyed
+
 ## [2.24.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.1...webrtc/v2.24.2) (2025-11-04)
 
 - chore: socket connection error handling documentation (#460)
