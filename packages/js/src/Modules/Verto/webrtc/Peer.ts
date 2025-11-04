@@ -254,28 +254,15 @@ export default class Peer {
          * restart ice and send offer again as ice credentials might have changed
          * only do it if peer is the offerer to avoid using old ice creds when back online
          */
-        if (this._isOffer()) {
+        if (this._isOffer() && !this._restartedIceOnConnectionStateFailed) {
           this.instance.restartIce();
+          logger.debug(
+            `Peer Connection ${connectionState}. Restarting ICE gathering.`
+          );
 
           if (connectionState === 'failed') {
-            if (this._restartedIceOnConnectionStateFailed) {
-              logger.debug(
-                'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
-              );
-              trigger(
-                SwEvent.PeerConnectionFailureError,
-                {
-                  error: new Error(
-                    `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
-                  ),
-                  sessionId: this._session.sessionid,
-                },
-                this.options.id
-              );
-            } else {
-              logger.debug('Peer Connection failed. Restarting ICE gathering.');
-              this._restartedIceOnConnectionStateFailed = true;
-            }
+            this._restartedIceOnConnectionStateFailed = true;
+            logger.debug('ICE has been restarted on connection state failed.');
           }
 
           if (this._isTrickleIce()) {
@@ -283,6 +270,20 @@ export default class Peer {
           } else {
             this.startNegotiation();
           }
+        } else if (this._restartedIceOnConnectionStateFailed) {
+          logger.debug(
+            'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
+          );
+          trigger(
+            SwEvent.PeerConnectionFailureError,
+            {
+              error: new Error(
+                `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
+              ),
+              sessionId: this._session.sessionid,
+            },
+            this.options.id
+          );
         }
 
         window.removeEventListener('online', onConnectionOnline);
