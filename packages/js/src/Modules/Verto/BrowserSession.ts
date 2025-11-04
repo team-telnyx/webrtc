@@ -747,10 +747,7 @@ export default abstract class BrowserSession extends BaseSession {
     window.addEventListener('offline', this._offlineHandler);
   }
 
-  /**
-   * @private
-   */
-  public _cleanupNetworkListeners() {
+  private _cleanupNetworkListeners() {
     if (
       typeof window === 'undefined' ||
       !this._onlineHandler ||
