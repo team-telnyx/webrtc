@@ -169,14 +169,13 @@ export default abstract class BrowserSession extends BaseSession {
     await super.disconnect();
   }
 
-    /**
+  /**
    * Handle login error
    * @return void
    */
   handleLoginError(error: any) {
     super._handleLoginError(error);
   }
-
 
   speedTest(bytes: number) {
     return new Promise((resolve, reject) => {
@@ -734,7 +733,7 @@ export default abstract class BrowserSession extends BaseSession {
         this.connected &&
         !this.options.keepConnectionAliveOnSocketClose
       ) {
-        this._closeConnection();
+        this._closeConnection(true);
         this.connect();
       }
       this._wasOffline = false;
@@ -748,7 +747,10 @@ export default abstract class BrowserSession extends BaseSession {
     window.addEventListener('offline', this._offlineHandler);
   }
 
-  private _cleanupNetworkListeners() {
+  /**
+   * @private
+   */
+  public _cleanupNetworkListeners() {
     if (
       typeof window === 'undefined' ||
       !this._onlineHandler ||
