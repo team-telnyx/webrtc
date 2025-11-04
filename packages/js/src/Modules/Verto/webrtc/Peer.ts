@@ -257,25 +257,24 @@ export default class Peer {
         if (this._isOffer()) {
           this.instance.restartIce();
 
-          if (
-            connectionState === 'failed' &&
-            this._restartedIceOnConnectionStateFailed
-          ) {
-            if (!this._restartedIceOnConnectionStateFailed) {
-              logger.debug('Peer Connection failed. Attempting ICE restart.');
-              this._restartedIceOnConnectionStateFailed = true;
-            } else {
+          if (connectionState === 'failed') {
+            if (this._restartedIceOnConnectionStateFailed) {
               logger.debug(
                 'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
               );
               trigger(
                 SwEvent.PeerConnectionFailureError,
                 {
-                  error: new Error('Connection Retry Failed'),
+                  error: new Error(
+                    `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
+                  ),
                   sessionId: this._session.sessionid,
                 },
                 this.options.id
               );
+            } else {
+              logger.debug('Peer Connection failed. Restarting ICE gathering.');
+              this._restartedIceOnConnectionStateFailed = true;
             }
           }
 
