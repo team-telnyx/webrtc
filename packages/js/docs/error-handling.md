@@ -4,16 +4,41 @@ This document provides a comprehensive overview of error handling in the Telnyx 
 
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Error Constants Reference](#error-constants-reference)
-3. [Call Termination Reasons](#call-termination-reasons)
-4. [The telnyx.notification Event Handler](#the-telnyxnotification-event-handler)
-5. [Error Types](#error-types)
-   - [User Media Errors](#user-media-errors)
-   - [Call State Errors](#call-state-errors)
-   - [Connection Errors](#connection-errors)
-6. [Reconnection Process](#reconnection-process)
-7. [Best Practices](#best-practices)
+- [WebRTC JS SDK Error Handling](#webrtc-js-sdk-error-handling)
+  - [Table of Contents](#table-of-contents)
+  - [Introduction](#introduction)
+  - [Error Constants Reference](#error-constants-reference)
+  - [Call Termination Reasons](#call-termination-reasons)
+    - [Call Termination Fields](#call-termination-fields)
+    - [Common Cause Values](#common-cause-values)
+    - [Example Usage](#example-usage)
+  - [The telnyx.notification Event Handler](#the-telnyxnotification-event-handler)
+    - [Event Structure](#event-structure)
+    - [When is telnyx.notification Triggered?](#when-is-telnyxnotification-triggered)
+    - [Example Implementation](#example-implementation)
+  - [Error Types](#error-types)
+    - [User Media Errors](#user-media-errors)
+    - [Call State Errors](#call-state-errors)
+    - [Connection Errors](#connection-errors)
+  - [Socket Connection Close and Error Handling](#socket-connection-close-and-error-handling)
+    - [Event delivery to TelnyxRTC consumers](#event-delivery-to-telnyxrtc-consumers)
+    - [`telnyx.socket.close` payload](#telnyxsocketclose-payload)
+    - [`telnyx.socket.error` payload](#telnyxsocketerror-payload)
+    - [Monitoring WebSocket ready states](#monitoring-websocket-ready-states)
+    - [CloseEvent Reference](#closeevent-reference)
+    - [Recommended Handling Strategies](#recommended-handling-strategies)
+    - [Code Examples for Common Scenarios](#code-examples-for-common-scenarios)
+  - [Reconnection Process](#reconnection-process)
+    - [Automatic Reconnection](#automatic-reconnection)
+    - [Manual Reconnection](#manual-reconnection)
+  - [Best Practices](#best-practices)
+    - [1. Always Implement the telnyx.notification Event Handler](#1-always-implement-the-telnyxnotification-event-handler)
+    - [2. Handle User Media Permissions Gracefully](#2-handle-user-media-permissions-gracefully)
+    - [3. Implement Proper Error UI Feedback](#3-implement-proper-error-ui-feedback)
+    - [4. Handle Call Failures Appropriately](#4-handle-call-failures-appropriately)
+    - [5. Monitor Connection State](#5-monitor-connection-state)
+    - [6. Log Errors for Debugging](#6-log-errors-for-debugging)
+    - [7. Implement Graceful Degradation](#7-implement-graceful-degradation)
 
 ## Introduction
 
@@ -295,8 +320,8 @@ client.on('telnyx.socket.close', () => {
   }, 5000);
 });
 
-client.on('telnyx.socket.error', (error) => {
-  console.error('WebSocket error:', error);
+client.on('telnyx.socket.error', ({ error, sessionId }) => {
+  console.error(`WebSocket error on session ${sessionId}:`, error);
   showErrorMessage('Connection error. Please check your internet connection.');
 });
 
@@ -304,6 +329,163 @@ client.on('telnyx.ready', () => {
   console.log('Client connected and ready');
   showConnectionStatus('connected');
 });
+```
+
+## Socket Connection Close and Error Handling
+
+The Telnyx WebRTC JS SDK forwards those events directly to your application without modification. The WebSocket is used strictly for signaling—media keeps flowing over the underlying WebRTC peer connection—so transient socket interruptions do not require you to drop active calls. The SDK automatically re-establishes signaling when the socket returns, restoring subscriptions and resuming message delivery.
+
+### Event delivery to TelnyxRTC consumers
+
+```javascript
+client.on('telnyx.socket.close', onSocketClose);
+client.on('telnyx.socket.error', onSocketError);
+```
+
+- `telnyx.socket.close` is fired when the underlying WebSocket transitions into the `CLOSING`/`CLOSED` states and the browser emits a [`CloseEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent). The SDK does not mutate the event.
+- `telnyx.socket.error` is fired on from the WebSocket implementation (for example, TLS handshake issues, DNS failures, or rejected frames). The SDK wraps the error along with the Telnyx session identifier.
+
+Both events invoke the internal network-close handler. If `autoReconnect` is enabled (the default), the SDK clears subscriptions and schedules a reconnect using the configured delay.
+
+### `telnyx.socket.close` payload
+
+Your handler receives the raw `CloseEvent`. Key fields you can rely on:
+
+- `event.code` - numeric close code set by Cowboy. Common codes include:
+  - `1000`: Normal closure (intentional disconnect or logout).
+  - `1001`: Endpoint is going away (browser has navigated away or lost network).
+  - `1002`: Protocol error (unexpected or malformed frame).
+  - `1003`: Unsupported data (frame contained an unsupported type).
+  - `1005`: No status code present. Browsers surface it when the peer omits a status code entirely or the connection drops unexpectedly.
+  - `1006`: Abnormal closure observed by the browser when the TCP socket drops without a close frame.
+  - `1011`: Internal error raised by the voice proxy.
+- `event.reason` - string provided by Cowboy when additional context is available.
+- `event.wasClean` - `true` when the browser confirms the close handshake completed cleanly.
+
+```javascript
+const onSocketClose = (event) => {
+  if (!event.wasClean) {
+    console.warn('Socket closed unexpectedly', {
+      code: event.code,
+      reason: event.reason,
+    });
+  }
+
+  showConnectionStatus('disconnected');
+};
+```
+
+You can map application-specific behaviour by inspecting the close codes as defined in RFC 6455. The server will continue to use registered status codes.
+
+### `telnyx.socket.error` payload
+
+The SDK provides an object with the signature `{ error, sessionId }`:
+
+- `error` - the original `ErrorEvent` (or the WebSocket polyfill equivalent) supplied by the browser. WebSocket APIs intentionally keep this opaque; you typically only get `error.type` and `error.message`.
+- `sessionId` - the Telnyx session identifier associated with the current socket.
+
+```javascript
+const onSocketError = ({ error, sessionId }) => {
+  notifyMonitoringTool({
+    sessionId,
+    message: error?.message ?? 'Unknown WebSocket error',
+    type: error?.type,
+  });
+};
+```
+
+### Monitoring WebSocket ready states
+
+The browser exposes the WebSocket `readyState` as an integer (`0-3`). The SDK mirrors these values through convenience getters on `client.connection` so you can check the state without touching the underlying socket:
+
+| `readyState` label | Numeric value | SDK getter | Description |
+|---|---|---|---|
+| `CONNECTING` | `0` | `client.connection.connecting` | Handshake in progress; no frames exchanged yet. |
+| `OPEN` | `1` | `client.connection.connected` | Socket is open and ready for signaling. |
+| `CLOSING` | `2` | `client.connection.closing` | Close frame has been sent or received; waiting for completion. |
+| `CLOSED` | `3` | `client.connection.closed` | Socket is fully closed. |
+
+Additional helpers provide aggregate checks: `client.connection.isAlive` is `true` when the socket is `CONNECTING` or `OPEN`, while `client.connection.isDead` is `true` during `CLOSING` or `CLOSED`.
+
+### CloseEvent Reference
+
+The SDK exposes the browser-native [`CloseEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent) object so you can inspect the details that originated from the Cowboy proxy or from the browser itself.
+
+- `code` (`number`) - Close status code described earlier in this section.
+- `reason` (`string`) - Optional human-readable message supplied by the server. Cowboy sends concise reasons when available.
+- `wasClean` (`boolean`) - Indicates whether both peers completed the close handshake.
+- `type` (`string`) - Always `"close"` for this event, useful when sharing logging infrastructure with other event types.
+- `target.url` (`string`) - The WebSocket URL that closed. This helps verify the environment/region the client was connected to.
+- `timeStamp` (`number`) - Epoch timestamp (DOMHighResTimeStamp) of when the event fired, which is helpful when correlating with other telemetry.
+
+Polyfills (such as the `ws` package used in Jest tests) expose the same surface area, though some optional fields (like `target.url`) may be undefined. Guard your logging to cope with those differences.
+
+### Recommended Handling Strategies
+
+- Treat `code === 1000` (normal closure) as a controlled shutdown (for example, when the user signs out). If the closure was not user initiated, allow the SDK's reconnection logic to create a fresh session instead of forcing a call hangup.
+- For `1001`, `1005`, or `1006`, surface a transient connectivity message and trigger a retry if your workflow can recover gracefully.
+- Log and alert on `1002`, `1003`, or any value greater than `1011`; these usually indicate protocol or payload defects that need developer attention.
+- Use `telnyx.socket.error` events for observability: capture the `sessionId`, timestamp, and user context so failures can be correlated with server-side logs.
+- Gate privileged actions (placing calls, sending DTMF, subscribing to streams) on `client.connection.connected` to prevent user operations from failing while the socket is reconnecting.
+- Keep call objects alive while the SDK reconnects; WebRTC media continues despite a signaling outage, and the SDK will reattach once the socket is back.
+
+### Code Examples for Common Scenarios
+
+**Normal closure (user logout)**
+
+```javascript
+const onSocketClose = (event) => {
+  if (event.code === 1000) {
+    showConnectionStatus('signed-out');
+    return;
+  }
+
+  handleAbnormalClose(event);
+};
+```
+
+**Abnormal closure with retry**
+
+```javascript
+const handleAbnormalClose = (event) => {
+  if (event.code === 1001 || event.code === 1005 || event.code === 1006) {
+    showConnectionStatus('reconnecting');
+    // attemptReconnection is defined in the Reconnection Process section.
+    // Active calls remain alive; the SDK restores signaling once the socket returns.
+    attemptReconnection();
+    return;
+  }
+};
+```
+
+**Socket-level error logging**
+
+```javascript
+const onSocketError = ({ error, sessionId }) => {
+  console.error('WebSocket error', {
+    message: error?.message,
+    type: error?.type,
+    sessionId,
+  });
+
+  // Media continues over the peer connection; reconnect signaling.
+  if (!client.connection.isAlive) {
+    attemptReconnection();
+  }
+};
+```
+
+**Guarding user actions while reconnecting**
+
+```javascript
+const placeCall = (destinationNumber) => {
+  if (!client.connection.connected) {
+    showErrorMessage('Still connecting to Telnyx. Please try again shortly.');
+    return;
+  }
+
+  client.newCall({ destinationNumber });
+};
 ```
 
 ## Reconnection Process
@@ -315,7 +497,7 @@ The SDK includes automatic reconnection mechanisms to handle temporary network i
 1. **Connection Monitoring**: The SDK monitors the WebSocket connection status
 2. **Automatic Retry**: When a connection is lost, the SDK attempts to reconnect automatically
 3. **Exponential Backoff**: Retry intervals increase progressively to avoid overwhelming the server
-4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly
+4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. If `keepConnectionAliveOnSocketClose` client option is enabled, the SDK will maintain call state during brief disconnections.
 
 ### Manual Reconnection
 
