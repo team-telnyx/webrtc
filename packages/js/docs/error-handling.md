@@ -20,7 +20,7 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [User Media Errors](#user-media-errors)
     - [Call State Errors](#call-state-errors)
     - [Connection Errors](#connection-errors)
-  - [Socket Connection Close and Error Handling](#socket-connection-close-and-error-handling)
+  - [Socket Connection Close and Socket Connection Error Handling](#socket-connection-close-and-socket-connection-error-handling)
     - [Event delivery to TelnyxRTC consumers](#event-delivery-to-telnyxrtc-consumers)
     - [`telnyx.socket.close` payload](#telnyxsocketclose-payload)
     - [`telnyx.socket.error` payload](#telnyxsocketerror-payload)
@@ -331,7 +331,7 @@ client.on('telnyx.ready', () => {
 });
 ```
 
-## Socket Connection Close and Error Handling
+## Socket Connection Close and Socket Connection Error Handling
 
 The Telnyx WebRTC JS SDK forwards those events directly to your application without modification. The WebSocket is used strictly for signaling—media keeps flowing over the underlying WebRTC peer connection—so transient socket interruptions do not require you to drop active calls. The SDK automatically re-establishes signaling when the socket returns, restoring subscriptions and resuming message delivery.
 
