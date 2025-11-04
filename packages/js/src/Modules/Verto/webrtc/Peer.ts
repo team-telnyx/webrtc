@@ -36,6 +36,7 @@ export default class Peer {
   private _session: BrowserSession;
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
+  private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
 
@@ -249,20 +250,34 @@ export default class Peer {
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
-        if (
-          connectionState === 'failed' ||
-          !this.keepConnectionAliveOnSocketClose // maintain default behavior of reconnecting socket on connection failure if flag is not set
-        ) {
-          this._session._closeConnection();
-          this._session.connect();
-        }
-
         /**
          * restart ice and send offer again as ice credentials might have changed
          * only do it if peer is the offerer to avoid using old ice creds when back online
          */
         if (this._isOffer()) {
           this.instance.restartIce();
+
+          if (
+            connectionState === 'failed' &&
+            this._restartedIceOnConnectionStateFailed
+          ) {
+            if (!this._restartedIceOnConnectionStateFailed) {
+              logger.debug('Peer Connection failed. Attempting ICE restart.');
+              this._restartedIceOnConnectionStateFailed = true;
+            } else {
+              logger.debug(
+                'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
+              );
+              trigger(
+                SwEvent.PeerConnectionFailureError,
+                {
+                  error: new Error('Connection Retry Failed'),
+                  sessionId: this._session.sessionid,
+                },
+                this.options.id
+              );
+            }
+          }
 
           if (this._isTrickleIce()) {
             await this.startTrickleIceNegotiation();
@@ -275,9 +290,10 @@ export default class Peer {
       };
 
       if (navigator.onLine) {
-        return onConnectionOnline();
+        onConnectionOnline();
+      } else {
+        window.addEventListener('online', onConnectionOnline);
       }
-      window.addEventListener('online', onConnectionOnline);
     }
 
     // Case 2: connected -> disconnected: Reset audio buffers
@@ -578,20 +594,6 @@ export default class Peer {
           receiver.jitterBufferTarget,
           'ms'
         );
-      }
-
-      const sender = this._getSenderByKind('audio');
-      /**
-       * Workaround for hardware muting/unmuting audio
-       * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
-       * - https://github.com/Kurento/experiments/blob/master/WebRTC/mute-tracks/README.md#rtcrtpsenderreplacetrack
-       */
-      if (sender) {
-        const originalTrack = sender.track;
-        // replaceTrack() stops the sender. No negotiation is required in this case.
-        await sender.replaceTrack(null);
-        await new Promise((r) => setTimeout(r, 50)); // 50 ms pause
-        await sender.replaceTrack(originalTrack);
       }
     } catch (error) {
       logger.error('Peer _resetJitterBuffer error:', error);

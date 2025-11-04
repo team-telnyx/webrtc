@@ -41,6 +41,7 @@ export const NOTIFICATION_TYPE = {
   callUpdate: 'callUpdate',
   vertoClientReady: 'vertoClientReady',
   userMediaError: 'userMediaError',
+  peerConnectionFailureError: 'peerConnectionFailureError',
 };
 
 export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {

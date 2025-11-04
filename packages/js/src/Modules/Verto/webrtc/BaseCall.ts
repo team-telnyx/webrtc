@@ -193,6 +193,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     this._onMediaError = this._onMediaError.bind(this);
+    this._onPeerConnectionFailureError = this._onPeerConnectionFailureError.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
     this._registerTrickleIcePeerEvents =
@@ -1549,6 +1550,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.hangup({}, false);
   }
 
+  private _onPeerConnectionFailureError(error: any) {
+    this._dispatchNotification({
+      type: NOTIFICATION_TYPE.peerConnectionFailureError,
+      error,
+    });
+    this.hangup({}, false);
+  }
+
   private _dispatchConferenceUpdate(params: any) {
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.conferenceUpdate,
@@ -1592,6 +1601,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = this;
 
     register(SwEvent.MediaError, this._onMediaError, this.id);
+    register(SwEvent.PeerConnectionFailureError, this._onPeerConnectionFailureError, this.id);
     if (isFunction(onNotification)) {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
@@ -1610,6 +1620,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     stopStream(remoteStream);
     stopStream(localStream);
     deRegister(SwEvent.MediaError, null, this.id);
+    deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
   }
