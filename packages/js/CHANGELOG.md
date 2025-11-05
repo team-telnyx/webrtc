@@ -1,7 +1,6 @@
 
 ## [2.25.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.2...webrtc/v2.25.1) (2025-11-05)
 
-
 ## Features
 
 - add `keepConnectionAliveOnSocketClose` to client options
@@ -10,7 +9,6 @@
 
 - improve logs on peer connection failure
 - remove legacy code
-- account for `keepConnectionAliveOnSocketClose` on session online handler
 - keep alive check on ping messages
 
 ### Fixes
