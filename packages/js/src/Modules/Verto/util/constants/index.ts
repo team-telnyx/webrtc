@@ -36,4 +36,5 @@ export enum SwEvent {
 
   // RTC Events
   MediaError = 'telnyx.rtc.mediaError',
+  PeerConnectionFailureError = 'telnyx.rtc.peerConnectionFailureError',
 }

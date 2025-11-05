@@ -64,6 +64,7 @@ client.off('telnyx.notification');
 - [getDeviceResolutions](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdeviceresolutions)
 - [getDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getdevices)
 - [getVideoDevices](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#getvideodevices)
+- [handleLoginError](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#handleloginerror)
 - [logout](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#logout)
 - [newCall](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#newcall)
 - [off](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md#off)
@@ -747,6 +748,30 @@ TelnyxRTCClient.getVideoDevices
 
 ___
 
+### handleLoginError
+
+▸ **handleLoginError**(`error`): `void`
+
+Handle login error
+
+#### Parameters
+
+| Name | Type |
+| :------ | :------ |
+| `error` | `any` |
+
+#### Returns
+
+`void`
+
+void
+
+#### Inherited from
+
+TelnyxRTCClient.handleLoginError
+
+___
+
 ### logout
 
 ▸ **logout**(): `void`
@@ -870,6 +895,16 @@ client.newCall({
  trickleIce: true,
 });
 ```
+
+### Keep Connection Alive on Socket Close
+
+By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause. To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose` to the `newCall` method.
+example:
+```js
+client.newCall({
+ destinationNumber: 'xxx',
+ keepConnectionAliveOnSocketClose: true,
+});
 
 #### Overrides
 

@@ -26,6 +26,7 @@ export interface IVertoOptions {
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
+  keepConnectionAliveOnSocketClose?: boolean;
   region?: string;
   /**
    * anonymous_login login options

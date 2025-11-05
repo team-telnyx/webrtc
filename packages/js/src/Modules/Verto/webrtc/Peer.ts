@@ -36,6 +36,7 @@ export default class Peer {
   private _session: BrowserSession;
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
+  private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
 
@@ -79,6 +80,13 @@ export default class Peer {
 
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
+  }
+
+  get keepConnectionAliveOnSocketClose() {
+    return (
+      this.options.keepConnectionAliveOnSocketClose ||
+      this._session.options.keepConnectionAliveOnSocketClose
+    );
   }
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
@@ -239,17 +247,52 @@ export default class Peer {
       } -> ${connectionState}`
     );
 
-    // Case 1: disconnected -> failed: Attempt ICE restart/renegotiation
-    if (
-      this._prevConnectionState === 'disconnected' &&
-      connectionState === 'failed'
-    ) {
-      this.instance.restartIce();
+    // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
+    if (connectionState === 'failed' || connectionState === 'disconnected') {
+      const onConnectionOnline = async () => {
+        /**
+         * restart ice and send offer again as ice credentials might have changed
+         * only do it if peer is the offerer to avoid using old ice creds when back online
+         */
+        if (this._isOffer() && !this._restartedIceOnConnectionStateFailed) {
+          this.instance.restartIce();
+          logger.debug(
+            `Peer Connection ${connectionState}. Restarting ICE gathering.`
+          );
 
-      if (this._isTrickleIce()) {
-        await this.startTrickleIceNegotiation();
+          if (connectionState === 'failed') {
+            this._restartedIceOnConnectionStateFailed = true;
+            logger.debug('ICE has been restarted on connection state failed.');
+          }
+
+          if (this._isTrickleIce()) {
+            await this.startTrickleIceNegotiation();
+          } else {
+            this.startNegotiation();
+          }
+        } else if (this._restartedIceOnConnectionStateFailed) {
+          logger.debug(
+            'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
+          );
+          trigger(
+            SwEvent.PeerConnectionFailureError,
+            {
+              error: new Error(
+                `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
+              ),
+              sessionId: this._session.sessionid,
+            },
+            this.options.id
+          );
+        }
+
+        window.removeEventListener('online', onConnectionOnline);
+      };
+
+      if (navigator.onLine) {
+        onConnectionOnline();
       } else {
-        this.startNegotiation();
+        window.addEventListener('online', onConnectionOnline);
       }
     }
 
@@ -408,7 +451,7 @@ export default class Peer {
     }
 
     this._logTransceivers();
-    
+
     if (this.isDebugEnabled) {
       this.statsReporter = createWebRTCStatsReporter(this._session);
     }
@@ -551,20 +594,6 @@ export default class Peer {
           receiver.jitterBufferTarget,
           'ms'
         );
-      }
-
-      const sender = this._getSenderByKind('audio');
-      /**
-       * Workaround for hardware muting/unmuting audio
-       * - https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpSender/replaceTrack#return_value
-       * - https://github.com/Kurento/experiments/blob/master/WebRTC/mute-tracks/README.md#rtcrtpsenderreplacetrack
-       */
-      if (sender) {
-        const originalTrack = sender.track;
-        // replaceTrack() stops the sender. No negotiation is required in this case.
-        await sender.replaceTrack(null);
-        await new Promise((r) => setTimeout(r, 50)); // 50 ms pause
-        await sender.replaceTrack(originalTrack);
       }
     } catch (error) {
       logger.error('Peer _resetJitterBuffer error:', error);

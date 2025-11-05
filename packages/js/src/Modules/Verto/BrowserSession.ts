@@ -6,6 +6,7 @@ import {
   SubscribeParams,
   IVertoOptions,
 } from './util/interfaces';
+import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
 import {
   SwEvent,
@@ -24,10 +25,11 @@ import {
   assureDeviceId,
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
-import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
+import { Unsubscribe, Subscribe, Broadcast, Attach } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
+const SDK_VERSION = pkg.version;
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
@@ -58,11 +60,18 @@ export default abstract class BrowserSession extends BaseSession {
 
   protected _speaker: string = null;
 
+  private _onlineHandler: (() => void) | null = null;
+
+  private _offlineHandler: (() => void) | null = null;
+
+  private _wasOffline: boolean = false;
+
   constructor(options: IVertoOptions) {
     super(options);
     this.iceServers = options.iceServers;
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;
+    this._setupNetworkListeners();
   }
 
   get reconnectDelay() {
@@ -156,7 +165,16 @@ export default abstract class BrowserSession extends BaseSession {
     Object.keys(this.calls).forEach((k) => this.calls[k].setState(State.Purge));
     this.calls = {};
 
+    this._cleanupNetworkListeners();
     await super.disconnect();
+  }
+
+  /**
+   * Handle login error
+   * @return void
+   */
+  handleLoginError(error: any) {
+    super._handleLoginError(error);
   }
 
   speedTest(bytes: number) {
@@ -702,6 +720,42 @@ export default abstract class BrowserSession extends BaseSession {
       this._removeSubscription(this.relayProtocol, channel)
     );
     return response;
+  }
+
+  private _setupNetworkListeners() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this._onlineHandler = () => {
+      if (this._wasOffline && this.connected) {
+        this._closeConnection();
+        this.connect();
+      }
+      this._wasOffline = false;
+    };
+
+    this._offlineHandler = () => {
+      this._wasOffline = true;
+    };
+
+    window.addEventListener('online', this._onlineHandler);
+    window.addEventListener('offline', this._offlineHandler);
+  }
+
+  private _cleanupNetworkListeners() {
+    if (
+      typeof window === 'undefined' ||
+      !this._onlineHandler ||
+      !this._offlineHandler
+    ) {
+      return;
+    }
+
+    window.removeEventListener('online', this._onlineHandler);
+    window.removeEventListener('offline', this._offlineHandler);
+    this._onlineHandler = null;
+    this._offlineHandler = null;
   }
 
   static telnyxStateCall(call: Call) {

@@ -9,6 +9,7 @@ IClientOptions
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
 - [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#forcerelaycandidate)
+- [keepConnectionAliveOnSocketClose](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#keepconnectionaliveonsocketclose)
 - [login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login)
 - [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
 - [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
@@ -60,6 +61,14 @@ ___
 • `Optional` **forceRelayCandidate**: `boolean`
 
 Force the use of a relay ICE candidate.
+
+___
+
+### keepConnectionAliveOnSocketClose
+
+• `Optional` **keepConnectionAliveOnSocketClose**: `boolean`
+
+Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
 
 ___
 
