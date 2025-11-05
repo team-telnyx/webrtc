@@ -394,12 +394,9 @@ export default abstract class BaseSession {
    * Close and remove the current connection.
    * @return void
    */
-  public _closeConnection(detachListeners: boolean = false) {
+  public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
-    if (detachListeners) {
-      this._detachListeners();
-    }
     if (this.connection) {
       this.connection.close();
     }

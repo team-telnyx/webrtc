@@ -728,12 +728,8 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this._onlineHandler = () => {
-      if (
-        this._wasOffline &&
-        this.connected &&
-        !this.options.keepConnectionAliveOnSocketClose
-      ) {
-        this._closeConnection(true);
+      if (this._wasOffline && this.connected) {
+        this._closeConnection();
         this.connect();
       }
       this._wasOffline = false;
