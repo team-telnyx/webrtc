@@ -58,6 +58,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#getDeviceResolutions" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Device<wbr/>Resolutions</span></a>
 <a href="TelnyxRTC.html#getDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Devices</span></a>
 <a href="TelnyxRTC.html#getVideoDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Video<wbr/>Devices</span></a>
+<a href="TelnyxRTC.html#handleLoginError" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>handle<wbr/>Login<wbr/>Error</span></a>
 <a href="TelnyxRTC.html#logout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>logout</span></a>
 <a href="TelnyxRTC.html#newCall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a>
 <a href="TelnyxRTC.html#off" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a>
@@ -436,6 +437,22 @@ it will return a list of resolutions from the default device set up in your oper
 
 <h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.getVideoDevices</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="handleLoginError" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>handle<wbr/>Login<wbr/>Error</span><a href="#handleLoginError" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature tsd-anchor-link" id="handleLoginError.handleLoginError-1"><span class="tsd-kind-call-signature">handle<wbr/>Login<wbr/>Error</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#handleLoginError.handleLoginError-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Handle login error</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">error</span>: <span class="tsd-signature-type">any</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><p>void</p>
+
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.handleLoginError</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="logout" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>logout</span><a href="#logout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -490,6 +507,10 @@ example:</p>
 <a id="md:trickle-ice" class="tsd-anchor"></a><h3><a href="#md:trickle-ice">Trickle ICE</a></h3><p>Trickle ICE can be enabled by passing <code>trickleIce</code> to the <code>newCall</code> method.
 example:</p>
 <pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;xxx&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">trickleIce:</span><span class="hl-1"> </span><span class="hl-0">true</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+<a id="md:keep-connection-alive-on-socket-close" class="tsd-anchor"></a><h3><a href="#md:keep-connection-alive-on-socket-close">Keep Connection Alive on Socket Close</a></h3><p>By default, when the websocket connection is closed and an <code>attach</code> message is received, the call will be hung up with a default cause. To keep the call alive when an <code>attach</code> message is received, pass <code>keepConnectionAliveOnSocketClose</code> to the <code>newCall</code> method.
+example:</p>
+<pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;xxx&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">keepConnectionAliveOnSocketClose:</span><span class="hl-1"> </span><span class="hl-0">true</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Overrides TelnyxRTCClient.newCall</p></aside></li></ul></section>
@@ -737,6 +758,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#getDeviceResolutions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Device<wbr/>Resolutions</span></a></li>
 <li><a href="#getDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Devices</span></a></li>
 <li><a href="#getVideoDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Video<wbr/>Devices</span></a></li>
+<li><a href="#handleLoginError" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>handle<wbr/>Login<wbr/>Error</span></a></li>
 <li><a href="#logout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>logout</span></a></li>
 <li><a href="#newCall" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a></li>
 <li>
@@ -749,7 +771,8 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <ul>
 <li><a href="#md:setting-preferred-codec"><span>Setting <wbr/>Preferred <wbr/>Codec</span></a></li>
 <li><a href="#md:ice-candidate-prefetching"><span>ICE <wbr/>Candidate <wbr/>Prefetching</span></a></li>
-<li><a href="#md:trickle-ice"><span>Trickle ICE</span></a></li></ul></li></ul></li></ul></li>
+<li><a href="#md:trickle-ice"><span>Trickle ICE</span></a></li>
+<li><a href="#md:keep-connection-alive-on-socket-close"><span>Keep <wbr/>Connection <wbr/>Alive on <wbr/>Socket <wbr/>Close</span></a></li></ul></li></ul></li></ul></li>
 <li><a href="#off" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a></li>
 <li><a href="#on" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on</span></a></li>
 <li>
