@@ -906,6 +906,21 @@ client.newCall({
  keepConnectionAliveOnSocketClose: true,
 });
 
+### Voice Isolation
+
+Voice isolation options can be set by passing an `audio` object to the `newCall` method. This property controls the settings of a MediaStreamTrack object. For reference on available audio constraints, see [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints).
+example:
+```js
+client.newCall({
+ destinationNumber: 'xxx',
+ audio: {
+   echoCancellation: true,
+   noiseSuppression: true,
+   autoGainControl: true
+ },
+});
+```
+
 #### Overrides
 
 TelnyxRTCClient.newCall

@@ -7,6 +7,7 @@ import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
 import {
   attachMediaStream,
+  audioIsMediaTrackConstraints,
   muteMediaElement,
   RTCPeerConnection,
   sdpToJsonHack,
@@ -402,6 +403,14 @@ export default class Peer {
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
       logger.info('Local audio tracks: ', audioTracks);
+
+      if (audioIsMediaTrackConstraints(this.options.audio)) {
+        // tells whether the constraints used to get the audio track took effect. Browsers may ignore unsupported constraints silently
+        audioTracks.forEach((track) => {
+          logger.info('Local audio tracks constraints: ', track.getConstraints());
+        });
+      }
+
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {

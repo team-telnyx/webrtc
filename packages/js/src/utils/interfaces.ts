@@ -168,7 +168,7 @@ export interface ICallOptions {
   /**
    * Overrides client's default audio constraints. Defaults to `true`
    */
-  audio?: boolean;
+  audio?: boolean | MediaTrackConstraints;
   /**
    * Overrides client's default video constraints. Defaults to `false`
    */

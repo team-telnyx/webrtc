@@ -8,7 +8,8 @@ const getUserMedia = (constraints: MediaStreamConstraints) =>
   navigator.mediaDevices.getUserMedia(constraints);
 
 // @ts-ignore
-const getDisplayMedia = (constraints: MediaStreamConstraints) => navigator.mediaDevices.getDisplayMedia(constraints)
+const getDisplayMedia = (constraints: MediaStreamConstraints) =>
+  navigator.mediaDevices.getDisplayMedia(constraints);
 
 const enumerateDevices = () => navigator.mediaDevices.enumerateDevices();
 
@@ -27,6 +28,9 @@ const getSupportedConstraints = () =>
 
 const streamIsValid = (stream: MediaStream) =>
   stream && stream instanceof MediaStream;
+
+const audioIsMediaTrackConstraints = (audio: boolean | MediaTrackConstraints) =>
+  typeof audio === 'object';
 
 const attachMediaStream = (tag: any, stream: MediaStream) => {
   const element = findElementByType(tag);
@@ -115,6 +119,7 @@ export {
   enumerateDevicesByKind,
   getSupportedConstraints,
   streamIsValid,
+  audioIsMediaTrackConstraints,
   attachMediaStream,
   detachMediaStream,
   sdpToJsonHack,
