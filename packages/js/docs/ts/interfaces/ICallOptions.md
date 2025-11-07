@@ -39,7 +39,7 @@ ICallOptions
 
 ### audio
 
-• `Optional` **audio**: `boolean`
+• `Optional` **audio**: `boolean` \| `MediaTrackConstraints`
 
 Overrides client's default audio constraints. Defaults to `true`
 
