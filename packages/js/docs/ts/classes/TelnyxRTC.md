@@ -905,6 +905,7 @@ client.newCall({
  destinationNumber: 'xxx',
  keepConnectionAliveOnSocketClose: true,
 });
+```
 
 ### Voice Isolation
 
