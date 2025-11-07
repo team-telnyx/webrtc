@@ -1,4 +1,16 @@
 
+## [2.25.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.1...webrtc/v2.25.2) (2025-11-07)
+
+### Enhancements
+
+- update audio constraints types in call options
+- update ts docs
+- log audio constraints applied to peer connection
+
+### Fixes
+
+- correct typings declaration file export
+
 ## [2.25.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.2...webrtc/v2.25.1) (2025-11-05)
 
 ## Features
