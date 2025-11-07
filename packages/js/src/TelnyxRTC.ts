@@ -214,6 +214,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *  destinationNumber: 'xxx',
    *  keepConnectionAliveOnSocketClose: true,
    * });
+   * ```
    * 
    * ### Voice Isolation
    *
