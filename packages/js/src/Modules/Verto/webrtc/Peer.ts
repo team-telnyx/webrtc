@@ -388,6 +388,11 @@ export default class Peer {
   };
   async init() {
     await this.createPeerConnection();
+
+    if (this.isDebugEnabled) {
+      this.statsReporter = createWebRTCStatsReporter(this._session);
+    }
+
     await this.statsReporter?.start(
       this.instance,
       this._session.sessionid,
@@ -460,10 +465,6 @@ export default class Peer {
     }
 
     this._logTransceivers();
-
-    if (this.isDebugEnabled) {
-      this.statsReporter = createWebRTCStatsReporter(this._session);
-    }
   }
 
   private _getSenderByKind(kind: string) {
