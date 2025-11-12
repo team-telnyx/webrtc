@@ -1,4 +1,8 @@
 
+## [2.25.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.2...webrtc/v2.25.3) (2025-11-12)
+
+- fix: called createWebRTCStatsReporter before use statsReporter
+
 ## [2.25.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.1...webrtc/v2.25.2) (2025-11-07)
 
 ### Enhancements
