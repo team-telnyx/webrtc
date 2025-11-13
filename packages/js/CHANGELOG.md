@@ -1,3 +1,14 @@
+## [2.25.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.4...webrtc/v2.25.5) (2025-11-13)
+
+### Fixes
+
+- punt message handling logic on `keepConnectionAliveOnSocketClose` option set
+
+### Enhancements
+
+- add SwEvent handling reference with session readiness, notifications, diagnostics, and telemetry docs
+- add SwEvent error reference to error handling docs
+
 ## [2.25.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.3...webrtc/v2.25.4) (2025-11-12)
 
 - fix: ws connection down case on reconnection
@@ -21,7 +32,7 @@
 
 ## [2.25.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.24.2...webrtc/v2.25.1) (2025-11-05)
 
-## Features
+### Features
 
 - add `keepConnectionAliveOnSocketClose` to client options
 
