@@ -222,7 +222,7 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
-        if (keepConnectionOnAttach) {
+        if (this.session.options.keepConnectionAliveOnSocketClose) {
           logger.info(
             `[${new Date().toISOString()}][${callID}] Ignoring PUNT due to keepConnectionAliveOnSocketClose`
           );
