@@ -8,6 +8,11 @@ This document provides a comprehensive overview of error handling in the Telnyx 
   - [Table of Contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Error Constants Reference](#error-constants-reference)
+  - [SwEvent Error Reference](#swevent-error-reference)
+    - [Summary Table](#summary-table)
+    - [Handling Details](#handling-details)
+      - [`telnyx.rtc.mediaError`](#telnyxrtcmediaerror)
+      - [`telnyx.rtc.peerConnectionFailureError`](#telnyxrtcpeerconnectionfailureerror)
   - [Call Termination Reasons](#call-termination-reasons)
     - [Call Termination Fields](#call-termination-fields)
     - [Common Cause Values](#common-cause-values)
@@ -58,6 +63,28 @@ The following table lists all error constants and codes used in the Telnyx WebRT
 | Call not found | N/A | The specified call cannot be found |
 | User media error | N/A | Browser does not have permission to access media devices |
 | Connection timeout | -329990 | Fake verto timeout error code |
+
+## SwEvent Error Reference
+
+The SDK exposes every recoverable failure through specific `SwEvent` constants. Listening to each event provides clear separation between transport issues, session-level failures, and media-layer errors.
+
+### Summary Table
+
+| **EVENT** | **TRIGGER** | **PAYLOAD** | **RECOMMENDED HANDLING** |
+|---|---|---|---|
+| `telnyx.error` | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.) | `{ error: Error | ErrorResponse, sessionId: string }` | Surface actionable message, decide whether to retry or prompt the user to re-authenticate |
+| `telnyx.rtc.mediaError` | Browser media APIs fail (device enumeration, permission denials, track issues) | Browser `DOMException`/`Error` instance | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only |
+| `telnyx.rtc.peerConnectionFailureError` | ICE restart cannot recover the peer connection (e.g., repeated `failed` state) | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope | Tear down the affected call, notify the user, optionally auto-redial once connectivity stabilizes |
+
+### Handling Details
+
+#### `telnyx.rtc.mediaError`
+
+Triggered whenever media-device related promises reject (enumerating devices, opening a microphone/camera, setting tracks). Inspect the DOMException `name` to differentiate between `NotAllowedError` (prompt the user to grant permissions), `NotFoundError` (show “no devices” guidance), and transient issues (allow retries). Pair this with feature detection and fallbacks described in [Handle User Media Permissions Gracefully](#2-handle-user-media-permissions-gracefully).
+
+#### `telnyx.rtc.peerConnectionFailureError`
+
+Raised by the peer connection monitor when an ICE restart still results in a `failed` state. The event (`SwEvent.RtcPeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: immediately hang up the affected call if silent audio is detected. If `autoReconnect` is enabled (the default), WebRTC JS SDK will reconnect right away.
 
 ## Call Termination Reasons
 
