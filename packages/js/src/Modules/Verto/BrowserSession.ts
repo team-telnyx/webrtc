@@ -728,7 +728,11 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this._onlineHandler = () => {
-      if (this._wasOffline && this.connected) {
+      /**
+       * Once offline, there's no guarantee the connection across client and server both ways is still alive as PINGs from server may be missed.
+       * Therefore, reconnect to be safe.
+       */
+      if (this._wasOffline) {
         this._closeConnection();
         this.connect();
       }

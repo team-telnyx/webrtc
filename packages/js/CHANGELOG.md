@@ -1,3 +1,7 @@
+## [2.25.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.3...webrtc/v2.25.4) (2025-11-12)
+
+- fix: ws connection down case on reconnection
+- chore: update `keepConnectionAliveOnSocketClose` docs to point users to client options usage
 
 ## [2.25.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.2...webrtc/v2.25.3) (2025-11-12)
 
