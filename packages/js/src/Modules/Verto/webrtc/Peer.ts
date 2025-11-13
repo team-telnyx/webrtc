@@ -273,7 +273,7 @@ export default class Peer {
           }
         } else if (this._restartedIceOnConnectionStateFailed) {
           logger.debug(
-            'Peer Connection failed again after ICE restart. Closing unrecoverable call.'
+            'Peer Connection failed again after ICE restart. Recreating unrecoverable call.'
           );
           trigger(
             SwEvent.PeerConnectionFailureError,
