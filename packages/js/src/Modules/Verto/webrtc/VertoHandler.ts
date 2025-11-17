@@ -200,7 +200,10 @@ class VertoHandler {
             VertoHandler.receivedAuthenticationRequired = 0;
           })
           .catch(async (error) => {
-            if (error.code === this.session.authenticationRequiredErrorCode) {
+            if (
+              error.code === this.session.authenticationRequiredErrorCode &&
+              VertoHandler.receivedAuthenticationRequired >= 0
+            ) {
               VertoHandler.receivedAuthenticationRequired += 1;
 
               if (
@@ -216,6 +219,8 @@ class VertoHandler {
                 } else if (isValidAnonymousLoginOptions(this.session.options)) {
                   this.handleAnonymousLogin();
                 }
+
+                VertoHandler.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
               }
             }
           });
