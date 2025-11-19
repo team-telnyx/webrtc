@@ -50,6 +50,7 @@ export interface IVertoCallOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   keepConnectionAliveOnSocketClose?: boolean;
+  useCanaryRtcServer?: boolean;
 }
 
 export interface IStatsBinding {

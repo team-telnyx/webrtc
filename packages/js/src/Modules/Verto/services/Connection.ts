@@ -30,6 +30,7 @@ export default class Connection {
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
+  private _useCanaryRtcServer: boolean = false;
   private _hasTrickleIceCanaryBeenUsed: boolean = false;
   private _trickleIceCanaryEnabled: boolean = false;
 
@@ -37,7 +38,7 @@ export default class Connection {
   public downDur: number = null;
 
   constructor(public session: BaseSession) {
-    const { host, env, region, trickleIce } = session.options;
+    const { host, env, region, trickleIce, useCanaryRtcServer } = session.options;
 
     if (env) {
       this._host = env === 'development' ? DEV_HOST : PROD_HOST;
@@ -53,6 +54,10 @@ export default class Connection {
 
     if (trickleIce) {
       this._trickleIceCanaryEnabled = true;
+    }
+
+    if (useCanaryRtcServer) {
+      this._useCanaryRtcServer = true;
     }
   }
 
@@ -96,6 +101,10 @@ export default class Connection {
 
     if (reconnectToken) {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
+    }
+
+    if (this._useCanaryRtcServer) {
+      websocketUrl.searchParams.set('canary', 'true');
     }
 
     if (this._trickleIceCanaryEnabled) {
