@@ -32,6 +32,7 @@ ICallOptions
 - [telnyxLegId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxlegid)
 - [telnyxSessionId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxsessionid)
 - [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#trickleice)
+- [useCanaryRtcServer](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#useCanaryRtcServer)
 - [useStereo](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#usestereo)
 - [video](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#video)
 
@@ -258,6 +259,14 @@ ___
 • `Optional` **trickleIce**: `boolean`
 
 Enable or disable Trickle ICE.
+
+___
+
+### useCanaryRtcServer
+
+• `Optional` **useCanaryRtcServer**: `boolean`
+
+Use Telnyx's canary RTC server.
 
 ___
 
