@@ -116,6 +116,16 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Telnyx's Canary RTC Server
+   * 
+   * Use Telnyx's canary RTC server by passing `useCanaryRtcServer`.
+   * example:
+   * ```js
+   * const client = new TelnyxRTC({
+   *  useCanaryRtcServer: true,
+   * });
+   * ```
+   * 
    * > Note: If client using this option is switching networks and there are new network restrictions, combine this option with `iceServers` overrides and `forceRelayCandidate` to ensure connectivity on signaling.
    */
   constructor(options: IClientOptions) {
@@ -217,17 +227,6 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *  trickleIce: true,
    * });
    * ```
-   * 
-   * ### Telnyx's Canary RTC Server
-   * 
-   * Use Telnyx's canary RTC server by passing `useCanaryRtcServer` to the `newCall` method.
-   * example:
-   * ```js
-   * client.newCall({
-   *   destinationNumber: 'xxx',
-   *   useCanaryRtcServer: true,
-   * });
-   * ``` 
    * 
    * ### Voice Isolation
    *
