@@ -1,3 +1,9 @@
+## [2.25.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.5...webrtc/v2.25.6) (2025-11-21)
+
+### Features
+
+- add `useCanaryRtcServer` to client options
+
 ## [2.25.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.4...webrtc/v2.25.5) (2025-11-13)
 
 ### Fixes

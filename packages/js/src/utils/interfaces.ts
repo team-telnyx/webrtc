@@ -104,6 +104,11 @@ export interface IClientOptions {
    * Useful when using a custom signaling server.
    */
   rtcPort?: number;
+
+  /**
+   *  Use Telnyx's Canary RTC server
+   */
+  useCanaryRtcServer?: boolean;
 }
 
 /**

@@ -27,6 +27,7 @@ export interface IVertoOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   keepConnectionAliveOnSocketClose?: boolean;
+  useCanaryRtcServer?: boolean;
   region?: string;
   /**
    * anonymous_login login options
