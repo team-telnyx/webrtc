@@ -31,8 +31,7 @@ export default class Connection {
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: any } = {};
   private _useCanaryRtcServer: boolean = false;
-  private _hasTrickleIceCanaryBeenUsed: boolean = false;
-  private _trickleIceCanaryEnabled: boolean = false;
+  private _hasCanaryBeenUsed: boolean = false;
 
   public upDur: number = null;
   public downDur: number = null;
@@ -52,11 +51,7 @@ export default class Connection {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
 
-    if (trickleIce) {
-      this._trickleIceCanaryEnabled = true;
-    }
-
-    if (useCanaryRtcServer) {
+    if (trickleIce || useCanaryRtcServer) {
       this._useCanaryRtcServer = true;
     }
   }
@@ -91,7 +86,7 @@ export default class Connection {
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
-      this._trickleIceCanaryEnabled = false;
+      this._useCanaryRtcServer = false;
       websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
       websocketUrl.searchParams.set(
         'rtc_port',
@@ -105,20 +100,13 @@ export default class Connection {
 
     if (this._useCanaryRtcServer) {
       websocketUrl.searchParams.set('canary', 'true');
-    }
 
-    if (this._trickleIceCanaryEnabled) {
-      websocketUrl.searchParams.set('canary', 'true');
-
-      if (reconnectToken && !this._hasTrickleIceCanaryBeenUsed) {
+      if (reconnectToken && !this._hasCanaryBeenUsed) {
         websocketUrl.searchParams.delete('voice_sdk_id');
-        logger.debug(
-          'first trickle ice canary connection. Refreshing voice_sdk_id'
-        );
+        logger.debug('first canary connection. Refreshing voice_sdk_id');
       }
 
-      this.session.options.trickleIce = true;
-      this._hasTrickleIceCanaryBeenUsed = true;
+      this._hasCanaryBeenUsed = true;
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
