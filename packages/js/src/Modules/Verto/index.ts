@@ -24,13 +24,8 @@ export default class Verto extends BrowserSession {
 
   public timeoutErrorCode = -329990; // fake verto timeout error code.
 
-  private _handler: VertoHandler;
-
   constructor(options: IVertoOptions) {
     super(options);
-
-    this._handler = new VertoHandler(this);
-
     // hang up current call when browser closes or refreshes.
     window.addEventListener('beforeunload', (e) => {
       if (this.calls) {
@@ -136,6 +131,7 @@ export default class Verto extends BrowserSession {
   }
 
   protected _onSocketMessage(msg: any) {
-    this._handler.handleMessage(msg);
+    const handler = new VertoHandler(this);
+    handler.handleMessage(msg);
   }
 }
