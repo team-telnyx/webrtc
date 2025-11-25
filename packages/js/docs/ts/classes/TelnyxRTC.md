@@ -150,16 +150,6 @@ const client = new TelnyxRTC({
 
 > Note: If client using this option is switching networks and there are new network restrictions, combine this option with `iceServers` overrides and `forceRelayCandidate` to ensure connectivity on signaling.
 
-#### Telnyx's Canary RTC Server
-
-Use Telnyx's canary RTC server by passing `useCanaryRtcServer`.
-
-```js
-const client = new TelnyxRTC({
- useCanaryRtcServer: true,
-});
-``` 
-
 #### Overrides
 
 TelnyxRTCClient.constructor

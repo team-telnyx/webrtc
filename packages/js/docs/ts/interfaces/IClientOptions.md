@@ -156,11 +156,3 @@ ___
 • `Optional` **trickleIce**: `boolean`
 
 Enable or disable Trickle ICE.
-
-___
-
-### useCanaryRtcServer
-
-• `Optional` **useCanaryRtcServer**: `boolean`
-
-Use Telnyx's canary RTC server.
