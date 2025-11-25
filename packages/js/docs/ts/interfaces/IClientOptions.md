@@ -20,6 +20,7 @@ IClientOptions
 - [rtcIp](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcip)
 - [rtcPort](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#rtcport)
 - [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#trickleice)
+- [useCanaryRtcServer](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#usecanaryrtcserver)
 
 ## Properties
 
@@ -155,3 +156,11 @@ ___
 • `Optional` **trickleIce**: `boolean`
 
 Enable or disable Trickle ICE.
+
+___
+
+### useCanaryRtcServer
+
+• `Optional` **useCanaryRtcServer**: `boolean`
+
+Use Telnyx's Canary RTC server
