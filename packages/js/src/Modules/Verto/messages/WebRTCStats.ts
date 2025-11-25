@@ -3,23 +3,25 @@ import BaseMessage from './BaseMessage';
 const DEBUG_REPORT_VERSION = 1;
 
 export class DebugReportStartMessage extends BaseMessage {
-  constructor(id: string) {
+  constructor(id: string, callID: string) {
     super();
     this.buildRequest({
       type: 'debug_report_start',
       debug_report_id: id,
       debug_report_version: DEBUG_REPORT_VERSION,
+      call_id: callID,
     });
   }
 }
 
 export class DebugReportStopMessage extends BaseMessage {
-  constructor(id: string) {
+  constructor(id: string, callID: string) {
     super();
     this.buildRequest({
       type: 'debug_report_stop',
       debug_report_id: id,
       debug_report_version: DEBUG_REPORT_VERSION,
+      call_id: callID,
     });
   }
 }

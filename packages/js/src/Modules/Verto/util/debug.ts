@@ -33,7 +33,8 @@ export type WebRTCStatsReporter = {
 };
 
 export function createWebRTCStatsReporter(
-  session: BrowserSession
+  session: BrowserSession,
+  callID: string
 ): WebRTCStatsReporter {
   const reportId = uuid();
 
@@ -59,7 +60,7 @@ export function createWebRTCStatsReporter(
     peerId: string,
     connectionId: string
   ) => {
-    await session.execute(new DebugReportStartMessage(reportId));
+    await session.execute(new DebugReportStartMessage(reportId, callID));
     stats.on('timeline', onTimelineMessage);
     await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -77,7 +78,7 @@ export function createWebRTCStatsReporter(
       const filename = `webrtc-stats-${reportId}-${Date.now()}`;
       saveToFile(timeline, filename);
     }
-    await session.execute(new DebugReportStopMessage(reportId));
+    await session.execute(new DebugReportStopMessage(reportId, callID));
     stats.removeAllPeers();
     stats.destroy();
   };
