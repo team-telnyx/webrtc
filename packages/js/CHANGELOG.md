@@ -1,3 +1,19 @@
+## [2.25.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.6...webrtc/v2.25.7) (2025-11-25)
+
+### Features
+
+- add `useCanaryRtcServer` to client options
+
+### Enhancements
+
+- add `call_id` for debug_report_start and debug_report_stop messages
+
+## [2.25.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.5...webrtc/v2.25.6) (2025-11-18)
+
+### Fixes
+
+- received authentication required counter cleanup
+
 ## [2.25.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.4...webrtc/v2.25.5) (2025-11-13)
 
 ### Fixes
@@ -64,14 +80,14 @@
 
 ### Features
 
- - true trickle ice implementation (#439)
+- true trickle ice implementation (#439)
 
 ### Enhancements
 
- - check for gateway trickle ice support and add fallback
- - improve logging on connection state changes
- - add trickle ice performance metrics
- - remove legacy video code
+- check for gateway trickle ice support and add fallback
+- improve logging on connection state changes
+- add trickle ice performance metrics
+- remove legacy video code
 
 ## [2.22.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.18...webrtc/v2.22.19) (2025-10-29)
 
@@ -85,7 +101,6 @@ fix: preferred codecs should only be enforced on INVITE, not on ANSWER (#452)
 ## [2.22.17](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.16...webrtc/v2.22.17) (2025-08-04)
 
 chore: add detailed performance measuring for invite (#438)
-
 
 ## [2.22.16](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.22.15...webrtc/v2.22.16) (2025-08-04)
 
@@ -474,6 +489,7 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 ## [2.0.1] - 2020-05-12
 
 ## First Release!
-## Release: WebRTC SDK V2.22.17
-feat: add call initialization metrics
 
+## Release: WebRTC SDK V2.22.17
+
+feat: add call initialization metrics
