@@ -1,4 +1,4 @@
-## [2.25.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.5...webrtc/v2.25.6) (2025-11-25)
+## [2.25.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.6...webrtc/v2.25.7) (2025-11-25)
 
 ### Features
 
@@ -7,6 +7,12 @@
 ### Enhancements
 
 - add `call_id` for debug_report_start and debug_report_stop messages
+
+## [2.25.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.5...webrtc/v2.25.6) (2025-11-18)
+
+### Fixes
+
+- received authentication required counter cleanup
 
 ## [2.25.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.4...webrtc/v2.25.5) (2025-11-13)
 
