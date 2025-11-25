@@ -390,14 +390,17 @@ export default class Peer {
     await this.createPeerConnection();
 
     if (this.isDebugEnabled) {
-      this.statsReporter = createWebRTCStatsReporter(this._session);
-    }
+      this.statsReporter = createWebRTCStatsReporter(
+        this._session,
+        this.options.id
+      );
 
-    await this.statsReporter?.start(
-      this.instance,
-      this._session.sessionid,
-      this._session.sessionid
-    );
+      await this.statsReporter?.start(
+        this.instance,
+        this._session.sessionid,
+        this._session.sessionid
+      );
+    }
 
     const {
       localElement,
@@ -412,7 +415,10 @@ export default class Peer {
       if (audioIsMediaTrackConstraints(this.options.audio)) {
         // tells whether the constraints used to get the audio track took effect. Browsers may ignore unsupported constraints silently
         audioTracks.forEach((track) => {
-          logger.info('Local audio tracks constraints: ', track.getConstraints());
+          logger.info(
+            'Local audio tracks constraints: ',
+            track.getConstraints()
+          );
         });
       }
 
