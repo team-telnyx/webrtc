@@ -110,7 +110,7 @@ export interface IWebRTCCall {
   muteAudio: () => void;
   unmuteAudio: () => void;
   toggleAudioMute: () => void;
-  setAudioInDevice: (deviceId: string) => Promise<void>;
+  setAudioInDevice: (deviceId: string, muted?: boolean) => Promise<void>;
   muteVideo: () => void;
   unmuteVideo: () => void;
   toggleVideoMute: () => void;

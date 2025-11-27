@@ -193,7 +193,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     this._onMediaError = this._onMediaError.bind(this);
-    this._onPeerConnectionFailureError = this._onPeerConnectionFailureError.bind(this);
+    this._onPeerConnectionFailureError =
+      this._onPeerConnectionFailureError.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
     this._registerTrickleIcePeerEvents =
@@ -647,9 +648,13 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
+   * @param enabled Whether the audio track should be enabled. Defaults to `mutedMicOnStart` call option.
    * @returns Promise that resolves if the audio input device has been updated
    */
-  async setAudioInDevice(deviceId: string): Promise<void> {
+  async setAudioInDevice(
+    deviceId: string,
+    muted = this.options.mutedMicOnStart
+  ): Promise<void> {
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
@@ -659,6 +664,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         audio: { deviceId: { exact: deviceId } },
       });
       const audioTrack = newStream.getAudioTracks()[0];
+      audioTrack.enabled = !muted;
       sender.replaceTrack(audioTrack);
       this.options.micId = deviceId;
 
@@ -1207,7 +1213,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.vertoBroadcast({ nodeId: this.nodeId, channel, data });
   }
 
-
   private _handleChangeHoldStateSuccess(response) {
     response.holdState === 'active'
       ? this.setState(State.Active)
@@ -1601,7 +1606,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = this;
 
     register(SwEvent.MediaError, this._onMediaError, this.id);
-    register(SwEvent.PeerConnectionFailureError, this._onPeerConnectionFailureError, this.id);
+    register(
+      SwEvent.PeerConnectionFailureError,
+      this._onPeerConnectionFailureError,
+      this.id
+    );
     if (isFunction(onNotification)) {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
