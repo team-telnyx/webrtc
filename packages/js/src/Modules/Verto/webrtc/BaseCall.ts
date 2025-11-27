@@ -648,7 +648,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
-   * @param enabled Whether the audio track should be enabled. Defaults to `mutedMicOnStart` call option.
+   * @param muted Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option.
    * @returns Promise that resolves if the audio input device has been updated
    */
   async setAudioInDevice(
