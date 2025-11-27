@@ -246,6 +246,11 @@ export interface ICallOptions {
    * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
    */
   keepConnectionAliveOnSocketClose?: boolean;
+
+  /**
+   * Disabled microphone by default when the call starts or adding a new audio source.
+   */
+  mutedMicOnStart?: boolean;
 }
 
 /**

@@ -50,6 +50,7 @@ export interface IVertoCallOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   keepConnectionAliveOnSocketClose?: boolean;
+  mutedMicOnStart?: boolean;
 }
 
 export interface IStatsBinding {
@@ -74,7 +75,6 @@ export interface AnswerParams {
    * ```
    */
   customHeaders?: Array<{ name: string; value: string }>;
-
 
   /**
    * ### Setting Media Constraints

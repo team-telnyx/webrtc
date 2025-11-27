@@ -371,6 +371,17 @@ export default class Peer {
       }
     );
 
+    if (
+      this.options.mutedMicOnStart &&
+      streamIsValid(this.options.localStream)
+    ) {
+      logger.info('Muting local audio tracks on start');
+
+      this.options.localStream.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
+    }
+
     performance.mark(`peer-creation-end`);
   }
 
