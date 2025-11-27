@@ -15,12 +15,9 @@ import {
 } from '../util/webrtc';
 import { PeerType } from './constants';
 import {
+  disableAudioTracks,
   getMediaConstraints,
   getUserMedia,
-  sdpBitrateASHack,
-  sdpBitrateHack,
-  sdpMediaOrderHack,
-  sdpStereoHack,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 /**
@@ -376,10 +373,7 @@ export default class Peer {
       streamIsValid(this.options.localStream)
     ) {
       logger.info('Muting local audio tracks on start');
-
-      this.options.localStream.getAudioTracks().forEach((track) => {
-        track.enabled = false;
-      });
+      disableAudioTracks(this.options.localStream);
     }
 
     performance.mark(`peer-creation-end`);
