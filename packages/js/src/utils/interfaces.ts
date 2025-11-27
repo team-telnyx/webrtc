@@ -1,5 +1,8 @@
 import Call from '../Modules/Verto/webrtc/Call';
-import { INotificationEventData } from '../Modules/Verto/util/interfaces';
+import {
+  Environment,
+  INotificationEventData,
+} from '../Modules/Verto/util/interfaces';
 
 export interface ICredentials {
   username?: string;
@@ -109,6 +112,16 @@ export interface IClientOptions {
    *  Use Telnyx's Canary RTC server
    */
   useCanaryRtcServer?: boolean;
+
+  /**
+   *  Environment to use for the connection.
+   */
+  env?: Environment;
+
+  /**
+   * ICE Servers to use for all calls within the client connection. Overrides the default ones.
+   */
+  iceServers?: RTCIceServer[];
 }
 
 /**
@@ -167,7 +180,7 @@ export interface ICallOptions {
    */
   remoteElement?: HTMLMediaElement | string;
   /**
-   * Overrides client's default `iceServers`.
+   * Overrides client's default `iceServers` to use for certain call.
    */
   iceServers?: RTCIceServer[];
   /**

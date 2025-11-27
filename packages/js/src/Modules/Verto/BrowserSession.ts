@@ -10,9 +10,8 @@ import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
 import {
   SwEvent,
-  SESSION_ID,
-  TURN_SERVER,
-  STUN_SERVER,
+  DEFAULT_PROD_ICE_SERVERS,
+  DEFAULT_DEV_ICE_SERVERS,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
@@ -538,12 +537,14 @@ export default abstract class BrowserSession extends BaseSession {
     this._audioConstraints = true;
   }
 
-  set iceServers(servers: RTCIceServer[] | boolean) {
-    const googleStun = { urls: ['stun:stun.l.google.com:19302'] };
-    if (typeof servers === 'boolean') {
-      this._iceServers = servers ? [googleStun] : [];
+  set iceServers(servers: RTCIceServer[]) {
+    if (servers && Array.isArray(servers)) {
+      this._iceServers = servers;
     } else {
-      this._iceServers = servers || [TURN_SERVER, STUN_SERVER, googleStun];
+      const isDev = this.options.env === 'development';
+      this._iceServers = isDev
+        ? DEFAULT_DEV_ICE_SERVERS
+        : DEFAULT_PROD_ICE_SERVERS;
     }
   }
 
