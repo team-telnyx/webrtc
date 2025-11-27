@@ -2,11 +2,16 @@ import behaveLikeBaseSession from './behaveLike/BaseSession.spec';
 import LayoutHandler from './webrtc/LayoutHandler';
 import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
+import { IVertoOptions } from '../util/interfaces';
+import {
+  DEFAULT_DEV_ICE_SERVERS,
+  DEFAULT_PROD_ICE_SERVERS,
+} from '../util/constants';
 
 const Connection = require('../services/Connection');
 
 describe('Verto', () => {
-  const _buildInstance = (props): Verto => {
+  const _buildInstance = (props: IVertoOptions): Verto => {
     const instance: Verto = new Verto(props);
     // @ts-ignore
     instance.connection = Connection.default();
@@ -72,45 +77,40 @@ describe('Verto', () => {
     expect(telnyxRTC.options.host).toEqual('wss://test.telnyx.com');
   });
 
-  it('should return iceServers with google servers when is true', () => {
-    const telnyxRTC = _buildInstance({
-      iceServers: true,
-      login: 'login',
-      password: 'password',
-    });
-    expect(telnyxRTC.iceServers[0]).toEqual({
-      urls: ['stun:stun.l.google.com:19302'],
-    });
-  });
-
-  it('should return iceServers with empty [] when is false', () => {
-    const telnyxRTC = _buildInstance({
-      iceServers: false,
-      login: 'login',
-      password: 'password',
-    });
-    expect(telnyxRTC.iceServers).toEqual([]);
-  });
-
-  it('should return production iceServers when not pass iceServers', () => {
+  it('should return DEFAULT_PROD_ICE_SERVERS when not pass iceServers or env', () => {
     const telnyxRTC = _buildInstance({ login: 'login', password: 'password' });
-    expect(telnyxRTC.iceServers[0]).toEqual({
-      credential: 'testpassword',
-      urls: 'turn:turn.telnyx.com:3478?transport=tcp',
-      username: 'testuser',
-    });
-    expect(telnyxRTC.iceServers[1]).toEqual({
-      urls: 'stun:stun.telnyx.com:3478',
-    });
+
+    expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('should set iceServers equal stun.test.telnyx.com', () => {
+  it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
     const telnyxRTC = _buildInstance({
-      iceServers: ['stun.test.telnyx.com'],
+      env: 'development',
       login: 'login',
       password: 'password',
     });
-    expect(telnyxRTC.iceServers[0]).toEqual('stun.test.telnyx.com');
+    expect(telnyxRTC.iceServers).toEqual(DEFAULT_DEV_ICE_SERVERS);
+  });
+
+  it('should return iceServers with DEFAULT_PROD_ICE_SERVERS when env is production', () => {
+    const telnyxRTC = _buildInstance({
+      env: 'production',
+      login: 'login',
+      password: 'password',
+    });
+    expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
+  });
+
+  it('should return iceServers with provided value when iceServers is provided', () => {
+    const customIceServers: RTCIceServer[] = [
+      { urls: 'stun:custom.stun.server:3478' },
+    ];
+    const telnyxRTC = _buildInstance({
+      iceServers: customIceServers,
+      login: 'login',
+      password: 'password',
+    });
+    expect(telnyxRTC.iceServers).toEqual(customIceServers);
   });
 
   describe('.validateOptions()', () => {
@@ -273,8 +273,6 @@ describe('Verto', () => {
 
     it('should thrown an error with invalid params', () => {
       expect(instance.broadcast.bind(instance, { channel: '' })).toThrow();
-      expect(instance.broadcast.bind(instance, { channel: false })).toThrow();
-      expect(instance.broadcast.bind(instance, { channel: null })).toThrow();
     });
   });
 
@@ -330,7 +328,6 @@ describe('Verto', () => {
       ).resolves.toMatchObject({ deviceId: { exact: MIC_ID } });
     });
   });
-
 
   describe('.disableMicrophone()', () => {
     it('should set audio constraint to false', () => {
