@@ -44,6 +44,7 @@ import {
   disableVideoTracks,
   enableAudioTracks,
   enableVideoTracks,
+  isAudioTrackEnabled,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -311,6 +312,19 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   get memberChannel() {
     return `conference-member.${this.id}`;
+  }
+
+  /**
+   * Checks whether the microphone is muted.
+   *
+   * @examples
+   *
+   * ```js
+   * call.isAudioMuted();
+   * ```
+   */
+  get isAudioMuted(): boolean {
+    return !isAudioTrackEnabled(this.options.localStream);
   }
 
   async invite() {

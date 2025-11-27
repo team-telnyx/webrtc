@@ -98,6 +98,7 @@ export interface IWebRTCCall {
   extension: string;
   localStream: MediaStream;
   remoteStream: MediaStream;
+  isAudioMuted: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params: any, execute: boolean) => void;

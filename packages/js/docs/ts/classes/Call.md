@@ -56,6 +56,7 @@ call.muteAudio();
 - [id](/docs/voice/webrtc/js-sdk/classes/Call.md#id)
 - [prevState](/docs/voice/webrtc/js-sdk/classes/Call.md#prevstate)
 - [state](/docs/voice/webrtc/js-sdk/classes/Call.md#state)
+- [isAudioMuted](/docs/voice/webrtc/js-sdk/classes/Call.md#isaudiomuted)
 
 ### Accessors
 
@@ -148,6 +149,18 @@ The `state` of the call.
 #### Inherited from
 
 BaseCall.state
+
+---
+
+### isAudioMuted
+
+• **isAudioMuted**: `boolean`
+
+Checks whether the microphone is muted.
+
+#### Inherited from
+
+BaseCall.isAudioMuted
 
 ## Accessors
 
