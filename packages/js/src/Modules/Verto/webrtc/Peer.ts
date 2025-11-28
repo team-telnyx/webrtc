@@ -629,12 +629,13 @@ export default class Peer {
   }
 
   private _config(): RTCConfiguration {
-    const { prefetchIceCandidates, forceRelayCandidate } = this.options;
+    const { prefetchIceCandidates, forceRelayCandidate, iceServers } =
+      this.options;
 
     const config: RTCConfiguration = {
       bundlePolicy: 'balanced',
       iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
-      iceServers: [GOOGLE_STUN_SERVER, TURN_SERVER],
+      iceServers,
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
     };
 
