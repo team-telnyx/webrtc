@@ -173,7 +173,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       DEFAULT_CALL_OPTIONS,
       {
         audio,
-        iceServers,
+        iceServers:
+          opts?.iceServers && Array.isArray(opts.iceServers)
+            ? opts.iceServers
+            : iceServers,
         localElement,
         remoteElement,
         micId,

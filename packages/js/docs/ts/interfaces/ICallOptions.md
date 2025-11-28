@@ -123,7 +123,7 @@ Force the use of a relay ICE candidate.
 
 • `Optional` **iceServers**: `RTCIceServer`[]
 
-Overrides client's default `iceServers`.
+Overrides client's default `iceServers` to use for certain call.
 
 ---
 
