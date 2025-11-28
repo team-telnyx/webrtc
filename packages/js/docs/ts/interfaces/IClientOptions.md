@@ -8,7 +8,6 @@ IClientOptions
 - [anonymous_login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#anonymous_login)
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
-- [env](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#env)
 - [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#forcerelaycandidate)
 - [iceServers](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#iceservers)
 - [keepConnectionAliveOnSocketClose](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#keepconnectionaliveonsocketclose)
@@ -56,14 +55,6 @@ This will gather WebRTC debugging information.
 • `Optional` **debugOutput**: `"file"` \| `"socket"`
 
 Debug output option
-
----
-
-### env
-
-• `Optional` **env**: `"production"` \| `"development"` `
-
-Environment to use for the connection.
 
 ---
 

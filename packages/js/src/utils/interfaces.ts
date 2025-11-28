@@ -115,6 +115,7 @@ export interface IClientOptions {
 
   /**
    *  Environment to use for the connection.
+   *  So far this property is only for internal purposes.
    */
   env?: Environment;
 
