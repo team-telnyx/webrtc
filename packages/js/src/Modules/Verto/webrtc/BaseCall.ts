@@ -44,6 +44,7 @@ import {
   disableVideoTracks,
   enableAudioTracks,
   enableVideoTracks,
+  isAudioTrackEnabled,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -314,6 +315,19 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   get memberChannel() {
     return `conference-member.${this.id}`;
+  }
+
+  /**
+   * Checks whether the microphone is muted.
+   *
+   * @examples
+   *
+   * ```js
+   * call.isAudioMuted();
+   * ```
+   */
+  get isAudioMuted(): boolean {
+    return !isAudioTrackEnabled(this.options.localStream);
   }
 
   async invite() {
@@ -651,9 +665,13 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
+   * @param muted Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option.
    * @returns Promise that resolves if the audio input device has been updated
    */
-  async setAudioInDevice(deviceId: string): Promise<void> {
+  async setAudioInDevice(
+    deviceId: string,
+    muted = this.options.mutedMicOnStart
+  ): Promise<void> {
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
@@ -663,6 +681,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         audio: { deviceId: { exact: deviceId } },
       });
       const audioTrack = newStream.getAudioTracks()[0];
+      audioTrack.enabled = !muted;
       sender.replaceTrack(audioTrack);
       this.options.micId = deviceId;
 

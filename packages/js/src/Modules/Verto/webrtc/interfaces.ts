@@ -50,6 +50,7 @@ export interface IVertoCallOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   keepConnectionAliveOnSocketClose?: boolean;
+  mutedMicOnStart?: boolean;
 }
 
 export interface IStatsBinding {
@@ -75,7 +76,6 @@ export interface AnswerParams {
    */
   customHeaders?: Array<{ name: string; value: string }>;
 
-
   /**
    * ### Setting Media Constraints
    */
@@ -98,6 +98,7 @@ export interface IWebRTCCall {
   extension: string;
   localStream: MediaStream;
   remoteStream: MediaStream;
+  isAudioMuted: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params: any, execute: boolean) => void;
@@ -110,7 +111,7 @@ export interface IWebRTCCall {
   muteAudio: () => void;
   unmuteAudio: () => void;
   toggleAudioMute: () => void;
-  setAudioInDevice: (deviceId: string) => Promise<void>;
+  setAudioInDevice: (deviceId: string, muted?: boolean) => Promise<void>;
   muteVideo: () => void;
   unmuteVideo: () => void;
   toggleVideoMute: () => void;

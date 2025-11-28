@@ -22,6 +22,7 @@ ICallOptions
 - [localStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localstream)
 - [mediaSettings](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#mediasettings)
 - [micId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#micid)
+- [mutedMicOnStart](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#mutedmiconstart)
 - [onNotification](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#onnotification)
 - [preferred_codecs](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#preferred_codecs)
 - [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#prefetchicecandidates)
@@ -178,6 +179,14 @@ Configures media (audio/video) in a call.
 • `Optional` **micId**: `string`
 
 `deviceId` to use as microphone. Overrides the client's default one.
+
+---
+
+### mutedMicOnStart
+
+• `Optional` **mutedMicOnStart**: `boolean`
+
+Whether the microphone should be muted when the call starts or audio source was changed by `setAudioInDevice` method. Defaults to `false`.
 
 ---
 

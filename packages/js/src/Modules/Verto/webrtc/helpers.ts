@@ -330,6 +330,28 @@ const _updateMediaStreamTracks = (
   });
 };
 
+const _isMediaStreamTrackEnabled = (
+  stream: MediaStream,
+  kind: string = null
+): boolean => {
+  if (!WebRTC.streamIsValid(stream)) {
+    return null;
+  }
+  let tracks: MediaStreamTrack[] = [];
+  switch (kind) {
+    case 'audio':
+      tracks = stream.getAudioTracks();
+      break;
+    case 'video':
+      tracks = stream.getVideoTracks();
+      break;
+    default:
+      tracks = stream.getTracks();
+      break;
+  }
+  return tracks.some((track: MediaStreamTrack) => track.enabled);
+};
+
 const enableAudioTracks = (stream: MediaStream) => {
   _updateMediaStreamTracks(stream, 'audio', true);
 };
@@ -340,6 +362,10 @@ const disableAudioTracks = (stream: MediaStream) => {
 
 const toggleAudioTracks = (stream: MediaStream) => {
   _updateMediaStreamTracks(stream, 'audio', null);
+};
+
+const isAudioTrackEnabled = (stream: MediaStream): boolean => {
+  return _isMediaStreamTrackEnabled(stream, 'audio');
 };
 
 const enableVideoTracks = (stream: MediaStream) => {
@@ -717,6 +743,7 @@ export {
   enableAudioTracks,
   disableAudioTracks,
   toggleAudioTracks,
+  isAudioTrackEnabled,
   enableVideoTracks,
   disableVideoTracks,
   toggleVideoTracks,
