@@ -1,3 +1,10 @@
+## [2.25.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.7...webrtc/v2.25.8) (2025-11-28)
+
+### Features
+
+- add `iceServers` to client options
+- add `mutedMicOnStart` to call options
+
 ## [2.25.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.6...webrtc/v2.25.7) (2025-11-25)
 
 ### Features
