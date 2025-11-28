@@ -56,10 +56,10 @@ call.muteAudio();
 - [id](/docs/voice/webrtc/js-sdk/classes/Call.md#id)
 - [prevState](/docs/voice/webrtc/js-sdk/classes/Call.md#prevstate)
 - [state](/docs/voice/webrtc/js-sdk/classes/Call.md#state)
-- [isAudioMuted](/docs/voice/webrtc/js-sdk/classes/Call.md#isaudiomuted)
 
 ### Accessors
 
+- [isAudioMuted](/docs/voice/webrtc/js-sdk/classes/Call.md#isaudiomuted)
 - [localStream](/docs/voice/webrtc/js-sdk/classes/Call.md#localstream)
 - [remoteStream](/docs/voice/webrtc/js-sdk/classes/Call.md#remotestream)
 - [telnyxIDs](/docs/voice/webrtc/js-sdk/classes/Call.md#telnyxids)
@@ -98,7 +98,7 @@ Can be either `inbound` or `outbound`.
 
 BaseCall.direction
 
----
+___
 
 ### id
 
@@ -110,7 +110,7 @@ The call identifier.
 
 BaseCall.id
 
----
+___
 
 ### prevState
 
@@ -123,7 +123,7 @@ See `Call.state` for all possible values.
 
 BaseCall.prevState
 
----
+___
 
 ### state
 
@@ -131,38 +131,48 @@ BaseCall.prevState
 
 The `state` of the call.
 
-| Value        | Description                                                                                                                                         |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `new`        | New call has been created in the client.                                                                                                            |
-| `trying`     | It's attempting to call someone.                                                                                                                    |
-| `requesting` | The outbound call is being sent to the server.                                                                                                      |
+| Value | Description |
+|---|---|
+| `new` | New call has been created in the client. |
+| `trying` | It's attempting to call someone. |
+| `requesting` | The outbound call is being sent to the server. |
 | `recovering` | The previous call is recovering after the page refreshes. If the user refreshes the page during a call, it will automatically join the latest call. |
-| `ringing`    | Someone is attempting to call you.                                                                                                                  |
-| `answering`  | You are attempting to answer this inbound call.                                                                                                     |
-| `early`      | It receives the media before the call has been answered.                                                                                            |
-| `active`     | Call has become active.                                                                                                                             |
-| `held`       | Call has been held.                                                                                                                                 |
-| `hangup`     | Call has ended.                                                                                                                                     |
-| `destroy`    | Call has been destroyed.                                                                                                                            |
-| `purge`      | Call has been purged.                                                                                                                               |
+| `ringing` | Someone is attempting to call you. |
+| `answering` | You are attempting to answer this inbound call. |
+| `early` | It receives the media before the call has been answered. |
+| `active` | Call has become active. |
+| `held` | Call has been held. |
+| `hangup` | Call has ended. |
+| `destroy` | Call has been destroyed. |
+| `purge` | Call has been purged. |
 
 #### Inherited from
 
 BaseCall.state
 
----
+## Accessors
 
 ### isAudioMuted
 
-• **isAudioMuted**: `boolean`
+• `get` **isAudioMuted**(): `boolean`
 
 Checks whether the microphone is muted.
+
+#### Returns
+
+`boolean`
+
+**`Examples`**
+
+```js
+call.isAudioMuted();
+```
 
 #### Inherited from
 
 BaseCall.isAudioMuted
 
-## Accessors
+___
 
 ### localStream
 
@@ -187,7 +197,7 @@ document.querySelector('audio').srcObject = stream;
 
 BaseCall.localStream
 
----
+___
 
 ### remoteStream
 
@@ -212,7 +222,7 @@ document.querySelector('audio').srcObject = stream;
 
 BaseCall.remoteStream
 
----
+___
 
 ### telnyxIDs
 
@@ -225,11 +235,11 @@ You can use these IDs to identify specific calls in your application code.
 
 `Object`
 
-| Name                  | Type     |
-| :-------------------- | :------- |
+| Name | Type |
+| :------ | :------ |
 | `telnyxCallControlId` | `string` |
-| `telnyxLegId`         | `string` |
-| `telnyxSessionId`     | `string` |
+| `telnyxLegId` | `string` |
+| `telnyxSessionId` | `string` |
 
 **`Examples`**
 
@@ -251,8 +261,8 @@ Starts the process to answer the incoming call.
 
 #### Parameters
 
-| Name     | Type           |
-| :------- | :------------- |
+| Name | Type |
+| :------ | :------ |
 | `params` | `AnswerParams` |
 
 #### Returns
@@ -262,14 +272,14 @@ Starts the process to answer the incoming call.
 **`Examples`**
 
 ```js
-call.answer();
+call.answer()
 ```
 
 #### Inherited from
 
 BaseCall.answer
 
----
+___
 
 ### deaf
 
@@ -284,14 +294,14 @@ Turns off the remote stream audio.
 **`Examples`**
 
 ```js
-call.deaf();
+call.deaf()
 ```
 
 #### Inherited from
 
 BaseCall.deaf
 
----
+___
 
 ### dtmf
 
@@ -301,8 +311,8 @@ Sends dual-tone multi-frequency (DTMF) signal
 
 #### Parameters
 
-| Name   | Type     | Description     |
-| :----- | :------- | :-------------- |
+| Name | Type | Description |
+| :------ | :------ | :------ |
 | `dtmf` | `string` | Single DTMF key |
 
 #### Returns
@@ -322,7 +332,7 @@ call.dtmf('#');
 
 BaseCall.dtmf
 
----
+___
 
 ### getStats
 
@@ -332,10 +342,10 @@ Registers callback for stats.
 
 #### Parameters
 
-| Name          | Type       |
-| :------------ | :--------- |
-| `callback`    | `Function` |
-| `constraints` | `any`      |
+| Name | Type |
+| :------ | :------ |
+| `callback` | `Function` |
+| `constraints` | `any` |
 
 #### Returns
 
@@ -345,7 +355,7 @@ Registers callback for stats.
 
 BaseCall.getStats
 
----
+___
 
 ### hold
 
@@ -364,15 +374,15 @@ Promise that resolves or rejects based on server response
 Using async/await:
 
 ```js
-await call.hold();
-console.log(call.state); // => 'held'
+await call.hold()
+console.log(call.state) // => 'held'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.hold().then(() => {
-  console.log(call.state); // => 'held'
+  console.log(call.state) // => 'held'
 });
 ```
 
@@ -380,7 +390,7 @@ call.hold().then(() => {
 
 BaseCall.hold
 
----
+___
 
 ### muteAudio
 
@@ -403,7 +413,7 @@ call.muteAudio();
 
 BaseCall.muteAudio
 
----
+___
 
 ### muteVideo
 
@@ -428,7 +438,7 @@ call.muteVideo();
 
 BaseCall.muteVideo
 
----
+___
 
 ### setAudioInDevice
 
@@ -438,10 +448,10 @@ Changes the audio input device (i.e. microphone) used for the call.
 
 #### Parameters
 
-| Name       | Type      | Description                                                                           |
-| :--------- | :-------- | :------------------------------------------------------------------------------------ |
-| `deviceId` | `string`  | The target audio input device ID                                                      |
-| `muted`    | `boolean` | Whether the audio track should be enabled. Defaults to `mutedMicOnStart` call option. |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `deviceId` | `string` | The target audio input device ID |
+| `muted` | `boolean` | Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option. |
 
 #### Returns
 
@@ -454,7 +464,7 @@ Promise that resolves if the audio input device has been updated
 Using async/await:
 
 ```js
-await call.setAudioInDevice('abc123');
+await call.setAudioInDevice('abc123')
 ```
 
 Using ES6 `Promises`:
@@ -479,7 +489,7 @@ if (result.length) {
 
 BaseCall.setAudioInDevice
 
----
+___
 
 ### setAudioOutDevice
 
@@ -489,8 +499,8 @@ Changes the audio output device (i.e. speaker) used for the call.
 
 #### Parameters
 
-| Name       | Type     | Description                       |
-| :--------- | :------- | :-------------------------------- |
+| Name | Type | Description |
+| :------ | :------ | :------ |
 | `deviceId` | `string` | The target audio output device ID |
 
 #### Returns
@@ -504,7 +514,7 @@ Promise that returns a boolean
 Using async/await:
 
 ```js
-await call.setAudioOutDevice('abc123');
+await call.setAudioOutDevice('abc123')
 ```
 
 Using ES6 `Promises`:
@@ -525,7 +535,7 @@ if (result.length) {
 }
 ```
 
----
+___
 
 ### setVideoDevice
 
@@ -535,8 +545,8 @@ Changes the video device (i.e. webcam) used for the call.
 
 #### Parameters
 
-| Name       | Type     | Description                |
-| :--------- | :------- | :------------------------- |
+| Name | Type | Description |
+| :------ | :------ | :------ |
 | `deviceId` | `string` | the target video device ID |
 
 #### Returns
@@ -550,7 +560,7 @@ Promise that resolves if the video device has been updated
 Using async/await:
 
 ```js
-await call.setVideoDevice('abc123');
+await call.setVideoDevice('abc123')
 ```
 
 Using ES6 `Promises`:
@@ -577,7 +587,7 @@ if (result.length) {
 
 BaseCall.setVideoDevice
 
----
+___
 
 ### toggleAudioMute
 
@@ -599,7 +609,7 @@ call.toggleAudioMute();
 
 BaseCall.toggleAudioMute
 
----
+___
 
 ### toggleDeaf
 
@@ -614,14 +624,14 @@ Toggles the remote stream audio.
 **`Examples`**
 
 ```js
-call.toggleDeaf();
+call.toggleDeaf()
 ```
 
 #### Inherited from
 
 BaseCall.toggleDeaf
 
----
+___
 
 ### toggleHold
 
@@ -640,18 +650,18 @@ Promise that resolves or rejects based on server response
 Using async/await:
 
 ```js
-await call.toggleHold();
-console.log(call.state); // => 'held'
+await call.toggleHold()
+console.log(call.state) // => 'held'
 
-await call.toggleHold();
-console.log(call.state); // => 'active'
+await call.toggleHold()
+console.log(call.state) // => 'active'
 ```
 
 #### Inherited from
 
 BaseCall.toggleHold
 
----
+___
 
 ### toggleVideoMute
 
@@ -675,7 +685,7 @@ call.toggleVideoMute();
 
 BaseCall.toggleVideoMute
 
----
+___
 
 ### undeaf
 
@@ -690,14 +700,14 @@ Turns on the remote stream audio.
 **`Examples`**
 
 ```js
-call.undeaf();
+call.undeaf()
 ```
 
 #### Inherited from
 
 BaseCall.undeaf
 
----
+___
 
 ### unhold
 
@@ -716,15 +726,15 @@ Promise that resolves or rejects based on server response
 Using async/await:
 
 ```js
-await call.unhold();
-console.log(call.state); // => 'active'
+await call.unhold()
+console.log(call.state) // => 'active'
 ```
 
 Using ES6 `Promises`:
 
 ```js
 call.unhold().then(() => {
-  console.log(call.state); // => 'active'
+  console.log(call.state) // => 'active'
 });
 ```
 
@@ -732,7 +742,7 @@ call.unhold().then(() => {
 
 BaseCall.unhold
 
----
+___
 
 ### unmuteAudio
 
@@ -755,7 +765,7 @@ call.unmuteAudio();
 
 BaseCall.unmuteAudio
 
----
+___
 
 ### unmuteVideo
 

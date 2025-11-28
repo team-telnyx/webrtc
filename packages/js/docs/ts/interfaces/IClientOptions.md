@@ -1,18 +1,19 @@
 IClientOptions
-IClientOptions
+ IClientOptions
 
 ## Table of contents
 
 ### Properties
 
-- [anonymous_login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#anonymous_login)
+- [anonymous\_login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#anonymous_login)
 - [debug](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debug)
 - [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#debugoutput)
+- [env](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#env)
 - [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#forcerelaycandidate)
 - [iceServers](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#iceservers)
 - [keepConnectionAliveOnSocketClose](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#keepconnectionaliveonsocketclose)
 - [login](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login)
-- [login_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
+- [login\_token](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#login_token)
 - [password](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#password)
 - [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#prefetchicecandidates)
 - [region](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md#region)
@@ -25,21 +26,21 @@ IClientOptions
 
 ## Properties
 
-### anonymous_login
+### anonymous\_login
 
-• `Optional` **anonymous_login**: `Object`
+• `Optional` **anonymous\_login**: `Object`
 
 anonymous_login login options
 
 #### Type declaration
 
-| Name                 | Type     | Description                                                                                                                                 |
-| :------------------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target_id`          | `string` | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to.                          |
-| `target_type`        | `string` | A string indicating the target type, for now only `ai_assistant` is supported.                                                              |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `target_id` | `string` | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to. |
+| `target_type` | `string` | A string indicating the target type, for now only `ai_assistant` is supported. |
 | `target_version_id?` | `string` | The target version ID to use for the anonymous login. This is optional and can be used to specify a particular version of the AI assistant. |
 
----
+___
 
 ### debug
 
@@ -48,15 +49,24 @@ anonymous_login login options
 Enable debug mode for this client.
 This will gather WebRTC debugging information.
 
----
+___
 
 ### debugOutput
 
-• `Optional` **debugOutput**: `"file"` \| `"socket"`
+• `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
 
 Debug output option
 
----
+___
+
+### env
+
+• `Optional` **env**: `Environment`
+
+Environment to use for the connection.
+ So far this property is only for internal purposes.
+
+___
 
 ### forceRelayCandidate
 
@@ -64,15 +74,15 @@ Debug output option
 
 Force the use of a relay ICE candidate.
 
----
+___
 
 ### iceServers
 
 • `Optional` **iceServers**: `RTCIceServer`[]
 
-An array of ICE servers to use for all calls.
+ICE Servers to use for all calls within the client connection. Overrides the default ones.
 
----
+___
 
 ### keepConnectionAliveOnSocketClose
 
@@ -80,7 +90,7 @@ An array of ICE servers to use for all calls.
 
 Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
 
----
+___
 
 ### login
 
@@ -90,16 +100,16 @@ The `username` to authenticate with your SIP Connection.
 `login` and `password` will take precedence over
 `login_token` for authentication.
 
----
+___
 
-### login_token
+### login\_token
 
-• `Optional` **login_token**: `string`
+• `Optional` **login\_token**: `string`
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
 
----
+___
 
 ### password
 
@@ -107,7 +117,7 @@ This is the recommended authentication strategy. [See how to create one](https:/
 
 The `password` to authenticate with your SIP Connection.
 
----
+___
 
 ### prefetchIceCandidates
 
@@ -115,7 +125,7 @@ The `password` to authenticate with your SIP Connection.
 
 Enable or disable prefetching ICE candidates.
 
----
+___
 
 ### region
 
@@ -123,7 +133,7 @@ Enable or disable prefetching ICE candidates.
 
 Region to use for the connection.
 
----
+___
 
 ### ringbackFile
 
@@ -132,7 +142,7 @@ Region to use for the connection.
 A URL to a wav/mp3 ringback file that will be used when you disable
 "Generate Ringback Tone" in your SIP Connection.
 
----
+___
 
 ### ringtoneFile
 
@@ -140,7 +150,7 @@ A URL to a wav/mp3 ringback file that will be used when you disable
 
 A URL to a wav/mp3 ringtone file.
 
----
+___
 
 ### rtcIp
 
@@ -149,7 +159,7 @@ A URL to a wav/mp3 ringtone file.
 RTC connection IP address to use instead of the default one.
 Useful when using a custom signaling server.
 
----
+___
 
 ### rtcPort
 
@@ -158,7 +168,7 @@ Useful when using a custom signaling server.
 RTC connection port to use instead of the default one.
 Useful when using a custom signaling server.
 
----
+___
 
 ### trickleIce
 
@@ -166,7 +176,7 @@ Useful when using a custom signaling server.
 
 Enable or disable Trickle ICE.
 
----
+___
 
 ### useCanaryRtcServer
 
