@@ -1,3 +1,9 @@
+## [2.25.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.8...webrtc/v2.25.9) (2025-12-02)
+
+### Enhancements
+
+- move `mutedMicOnStart` from call to client options
+
 ## [2.25.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.7...webrtc/v2.25.8) (2025-11-28)
 
 ### Features
