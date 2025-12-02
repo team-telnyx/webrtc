@@ -43,6 +43,7 @@ export interface IVertoOptions {
    */
   rtcIp?: string;
   rtcPort?: number;
+  mutedMicOnStart?: boolean;
 }
 export interface SubscribeParams {
   channels?: string[];
