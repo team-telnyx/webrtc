@@ -123,6 +123,11 @@ export interface IClientOptions {
    * ICE Servers to use for all calls within the client connection. Overrides the default ones.
    */
   iceServers?: RTCIceServer[];
+
+  /**
+   * Disabled microphone by default when the call starts or adding a new audio source.
+   */
+  mutedMicOnStart?: boolean;
 }
 
 /**
@@ -260,11 +265,6 @@ export interface ICallOptions {
    * Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
    */
   keepConnectionAliveOnSocketClose?: boolean;
-
-  /**
-   * Disabled microphone by default when the call starts or adding a new audio source.
-   */
-  mutedMicOnStart?: boolean;
 }
 
 /**

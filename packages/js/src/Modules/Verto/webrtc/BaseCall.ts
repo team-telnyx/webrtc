@@ -192,6 +192,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         prefetchIceCandidates: options.prefetchIceCandidates,
         keepConnectionAliveOnSocketClose:
           options.keepConnectionAliveOnSocketClose,
+        mutedMicOnStart: options.mutedMicOnStart,
       },
       opts
     );
