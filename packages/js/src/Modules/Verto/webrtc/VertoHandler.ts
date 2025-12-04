@@ -124,6 +124,7 @@ class VertoHandler {
           logger.info(
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
+          this.session.calls[callID].peer?.startStatsReporting();
         } else {
           logger.debug(`Session Options: ${session.options}`);
           logger.debug(`Call: ${session.calls[callID]}`);
@@ -134,8 +135,9 @@ class VertoHandler {
         }
       } else if (punt) {
         logger.info(
-          `[${new Date().toISOString()}][${callID}] keeping call  alive due to PUNT and keepConnectionAliveOnSocketClose`
+          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose`
         );
+        this.session.calls[callID].peer?.stopStatsReporting();
         this._ack(id, method);
         return;
       } else {
