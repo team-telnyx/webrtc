@@ -1,3 +1,8 @@
+## [2.25.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.8...webrtc/v2.25.9) (2025-12-04)
+
+- fix: consider `keepConnectionAliveOnSocketClose` in session call for Punt
+- fix: do not empty execution queue on `keepConnectionAliveOnSocketClose` to avoid old refs
+
 ## [2.25.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.8...webrtc/v2.25.9) (2025-12-02)
 
 ### Enhancements
