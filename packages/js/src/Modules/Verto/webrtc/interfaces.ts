@@ -1,3 +1,5 @@
+import { WebRTCStatsReporter } from "../util/debug";
+
 export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
@@ -89,6 +91,8 @@ export interface IWebRTCCall {
   direction: string;
   peer?: {
     instance?: RTCPeerConnection | null;
+    startStatsReporting: () => Promise<void>;
+    stopStatsReporting: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;
   cause: string;
