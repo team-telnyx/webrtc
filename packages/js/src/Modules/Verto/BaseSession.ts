@@ -261,11 +261,7 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {
-    if (this.options.keepConnectionAliveOnSocketClose) {
-      this._emptyExecuteQueues();
-    }
-  }
+  protected async _onSocketOpen() {}
 
   /**
    * Callback when the ws connection is going to close or get an error

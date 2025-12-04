@@ -106,6 +106,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const attach = method === VertoMethod.Attach;
+    const punt = method === VertoMethod.Punt;
     let keepConnectionOnAttach = false;
 
     if (eventType === 'channelPvtData') {
@@ -121,7 +122,7 @@ class VertoHandler {
 
         if (keepConnectionOnAttach) {
           logger.info(
-            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH`
+            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
         } else {
           logger.debug(`Session Options: ${session.options}`);
@@ -131,6 +132,12 @@ class VertoHandler {
           );
           session.calls[callID].hangup({}, false);
         }
+      } else if (punt) {
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] keeping call  alive due to PUNT and keepConnectionAliveOnSocketClose`
+        );
+        this._ack(id, method);
+        return;
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -227,12 +234,6 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
-        if (this.session.options.keepConnectionAliveOnSocketClose) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Ignoring PUNT due to keepConnectionAliveOnSocketClose`
-          );
-          return;
-        }
         session.disconnect();
         break;
       case VertoMethod.Invite: {
