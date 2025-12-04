@@ -114,10 +114,13 @@ class VertoHandler {
     }
 
     if (callID && session.calls.hasOwnProperty(callID)) {
+      const keepConnectionAliveOnSocketClose =
+        session.options.keepConnectionAliveOnSocketClose ||
+        session.calls[callID].options.keepConnectionAliveOnSocketClose;
+
       if (attach) {
         keepConnectionOnAttach =
-          (session.calls[callID].options.keepConnectionAliveOnSocketClose ||
-            session.options.keepConnectionAliveOnSocketClose) &&
+          keepConnectionAliveOnSocketClose &&
           Boolean(this.session.calls[callID].peer?.instance);
 
         if (keepConnectionOnAttach) {
@@ -132,9 +135,9 @@ class VertoHandler {
           );
           session.calls[callID].hangup({}, false);
         }
-      } else if (punt) {
+      } else if (punt && keepConnectionAliveOnSocketClose) {
         logger.info(
-          `[${new Date().toISOString()}][${callID}] keeping call  alive due to PUNT and keepConnectionAliveOnSocketClose`
+          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose`
         );
         this._ack(id, method);
         return;
