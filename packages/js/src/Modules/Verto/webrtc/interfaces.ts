@@ -18,6 +18,7 @@ export interface IVertoCallOptions {
   remoteElement?: HTMLMediaElement | string | Function;
   iceServers?: RTCIceServer[];
   audio?: boolean | MediaTrackConstraints;
+  video?: boolean | MediaTrackConstraints;
   attach?: boolean;
   useStereo?: boolean;
   micId?: string;

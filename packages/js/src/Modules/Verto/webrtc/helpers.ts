@@ -13,8 +13,8 @@ const getUserMedia = async (
   constraints: MediaStreamConstraints
 ): Promise<MediaStream | null> => {
   logger.info('RTCService.getUserMedia', constraints);
-  const { audio } = constraints;
-  if (!audio) {
+  const { audio, video } = constraints;
+  if (!audio && !video) {
     return null;
   }
   try {
@@ -118,8 +118,8 @@ const scanResolutions = async (deviceId: string) => {
 const getMediaConstraints = async (
   options: IVertoCallOptions
 ): Promise<MediaStreamConstraints> => {
-  let { audio = true, micId } = options;
-  const { micLabel = '' } = options;
+  let { audio = true, micId, video = true, camId } = options;
+  const { micLabel = '', camLabel = '' } = options;
   if (micId) {
     micId = await assureDeviceId(micId, micLabel, DeviceType.AudioIn).catch(
       (error) => null
@@ -132,7 +132,19 @@ const getMediaConstraints = async (
     }
   }
 
-  return { audio };
+  if (video) {
+    camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
+      (error) => null
+    );
+    if (camId) {
+      if (typeof video === 'boolean') {
+        video = {};
+      }
+      video.deviceId = { exact: camId };
+    }
+  }
+
+  return { audio, video };
 };
 
 function hasVideo(sdp) {

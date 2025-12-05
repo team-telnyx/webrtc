@@ -57,6 +57,8 @@ export default abstract class BrowserSession extends BaseSession {
 
   protected _audioConstraints: boolean | MediaTrackConstraints = true;
 
+  protected _videoConstraints: boolean | MediaTrackConstraints = true;
+
   protected _speaker: string = null;
 
   private _onlineHandler: (() => void) | null = null;
@@ -437,8 +439,9 @@ export default abstract class BrowserSession extends BaseSession {
    */
   get mediaConstraints(): {
     audio: boolean | MediaTrackConstraints;
+    video: boolean | MediaTrackConstraints;
   } {
-    return { audio: this._audioConstraints };
+    return { audio: this._audioConstraints, video: this._videoConstraints };
   }
 
   /**
