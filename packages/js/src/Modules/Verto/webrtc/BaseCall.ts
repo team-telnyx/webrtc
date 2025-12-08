@@ -164,7 +164,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       localElement,
       remoteElement,
       options,
-      mediaConstraints: { audio, video },
+      mediaConstraints: { audio },
       ringtoneFile,
       ringbackFile,
     } = session;
@@ -173,7 +173,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       DEFAULT_CALL_OPTIONS,
       {
         audio,
-        video,
         iceServers:
           opts?.iceServers && Array.isArray(opts.iceServers)
             ? opts.iceServers
@@ -262,6 +261,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   set nodeId(what: string) {
     this._targetNodeId = what;
+  }
+
+  get isVideoCall(): boolean {
+    return !!this.options.video;
   }
 
   /**

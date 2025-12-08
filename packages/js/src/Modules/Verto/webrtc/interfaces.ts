@@ -18,6 +18,7 @@ export interface IVertoCallOptions {
   remoteElement?: HTMLMediaElement | string | Function;
   iceServers?: RTCIceServer[];
   audio?: boolean | MediaTrackConstraints;
+  // So far video is only for internal use. Use only for debugging purposes.
   video?: boolean | MediaTrackConstraints;
   attach?: boolean;
   useStereo?: boolean;

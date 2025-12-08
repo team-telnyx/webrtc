@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
 import pkg from '../../../../package.json';
 import Call from './Call';
-import { checkSubscribeResponse } from './helpers';
+import { checkSubscribeResponse, hasVideo } from './helpers';
 import { Attach, Candidate, Login, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
@@ -104,6 +104,7 @@ class VertoHandler {
     const callID = params?.callID;
     const eventChannel = params?.eventChannel;
     const eventType = params?.eventType;
+    const isVideoCall = hasVideo(params?.sdp);
 
     const attach = method === VertoMethod.Attach;
     const punt = method === VertoMethod.Punt;
@@ -151,6 +152,8 @@ class VertoHandler {
     const _buildCall = () => {
       const callOptions: IVertoCallOptions = {
         id: callID,
+        audio: true,
+        video: isVideoCall,
         remoteSdp: params.sdp,
         destinationNumber: params.callee_id_number,
         remoteCallerName: params.caller_id_name,
