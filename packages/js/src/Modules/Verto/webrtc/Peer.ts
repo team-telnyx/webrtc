@@ -492,10 +492,10 @@ export default class Peer {
         });
 
         this.instance.getTransceivers().forEach((trans) => {
-          if (trans.sender.track.kind === 'audio' && audioCodecs.length > 0) {
+          if (trans.receiver.track.kind === 'audio' && audioCodecs.length > 0) {
             this._setCodecs(trans, audioCodecs);
           }
-          if (trans.sender.track.kind === 'video' && videoCodecs.length > 0) {
+          if (trans.receiver.track.kind === 'video' && videoCodecs.length > 0) {
             this._setCodecs(trans, videoCodecs);
           }
         });
