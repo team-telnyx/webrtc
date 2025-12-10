@@ -153,7 +153,7 @@ class VertoHandler {
         id: callID,
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
-        // So we will determine is video call or not based on "isVideoCallsEnabled" client option .
+        // So we will determine is video call or not based on "video" client option .
         video: session.options.video,
         remoteSdp: params.sdp,
         destinationNumber: params.callee_id_number,
