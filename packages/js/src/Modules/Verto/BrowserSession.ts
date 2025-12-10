@@ -69,7 +69,7 @@ export default abstract class BrowserSession extends BaseSession {
 
   constructor(options: IVertoOptions) {
     super(options);
-    this._videoConstraints = options.isVideoCallsEnabled || false;
+    this._videoConstraints = options.video || false;
     this.iceServers = options.iceServers;
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;

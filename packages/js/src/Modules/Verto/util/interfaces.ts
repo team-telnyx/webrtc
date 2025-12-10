@@ -15,7 +15,7 @@ export interface IVertoOptions {
   env?: Environment;
   iceServers?: RTCIceServer[];
   // Only for internal use
-  isVideoCallsEnabled?: boolean;
+  video?: boolean;
   /**
    * autoReconnect: Determine if the SDK has to re-connect automatically when detecting a gateway connection failure.
    * This is set to`true` as default

@@ -419,11 +419,9 @@ export default class Peer {
 
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
-      const videoTracks = localStream.getVideoTracks();
-      const tracks = [...audioTracks, ...videoTracks];
+      let tracks = [...audioTracks];
 
       logger.info('Local audio tracks: ', audioTracks);
-      logger.info('Local video tracks: ', videoTracks);
 
       if (audioIsMediaTrackConstraints(this.options.audio)) {
         // tells whether the constraints used to get the audio track took effect. Browsers may ignore unsupported constraints silently
@@ -435,14 +433,21 @@ export default class Peer {
         });
       }
 
-      if (videoIsMediaTrackConstraints(this.options.video)) {
-        // tells whether the constraints used to get the video track took effect. Browsers may ignore unsupported constraints silently
-        videoTracks.forEach((track) => {
-          logger.info(
-            'Local video tracks constraints: ',
-            track.getConstraints()
-          );
-        });
+      if (!!this.options.video) {
+        const videoTracks = localStream.getVideoTracks();
+        tracks = [...audioTracks, ...videoTracks];
+
+        logger.info('Local video tracks: ', videoTracks);
+
+        if (videoIsMediaTrackConstraints(this.options.video)) {
+          // tells whether the constraints used to get the video track took effect. Browsers may ignore unsupported constraints silently
+          videoTracks.forEach((track) => {
+            logger.info(
+              'Local video tracks constraints: ',
+              track.getConstraints()
+            );
+          });
+        }
       }
 
       const { audioCodecs, videoCodecs } = getPreferredCodecs(

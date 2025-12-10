@@ -104,8 +104,6 @@ class VertoHandler {
     const callID = params?.callID;
     const eventChannel = params?.eventChannel;
     const eventType = params?.eventType;
-    // So far useless to determine is video call or not based on SDP
-    // const isVideoCall = hasVideo(params?.sdp);
 
     const attach = method === VertoMethod.Attach;
     const punt = method === VertoMethod.Punt;
@@ -156,7 +154,7 @@ class VertoHandler {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
         // So we will determine is video call or not based on "isVideoCallsEnabled" client option .
-        video: session.options.isVideoCallsEnabled,
+        video: session.options.video,
         remoteSdp: params.sdp,
         destinationNumber: params.callee_id_number,
         remoteCallerName: params.caller_id_name,
