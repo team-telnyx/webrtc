@@ -279,8 +279,20 @@ describe('Verto', () => {
   describe('.mediaConstraints', () => {
     it('should match default constraints', () => {
       const tmp = instance.mediaConstraints;
-      expect(tmp).toMatchObject({ audio: true });
-      expect(Object.keys(tmp)).toEqual(['audio']);
+      expect(tmp).toMatchObject({ audio: true, video: false });
+      expect(Object.keys(tmp)).toEqual(['audio', 'video']);
+    });
+
+    it('should match media constraints with video enabled when video is true', () => {
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        video: true,
+      });
+      const tmp = telnyxRTC.mediaConstraints;
+      expect(tmp).toMatchObject({ audio: true, video: true });
+      expect(Object.keys(tmp)).toEqual(['audio', 'video']);
     });
   });
 

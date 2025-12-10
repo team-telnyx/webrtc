@@ -12,11 +12,13 @@ import {
   RTCPeerConnection,
   sdpToJsonHack,
   streamIsValid,
+  videoIsMediaTrackConstraints,
 } from '../util/webrtc';
 import { PeerType } from './constants';
 import {
   disableAudioTracks,
   getMediaConstraints,
+  getPreferredCodecs,
   getUserMedia,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
@@ -28,6 +30,7 @@ export default class Peer {
   public onSdpReadyTwice: Function = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
+    offerToReceiveVideo?: boolean;
   };
 
   private statsReporter: WebRTCStatsReporter | null = null;
@@ -49,6 +52,7 @@ export default class Peer {
 
     this._constraints = {
       offerToReceiveAudio: true,
+      offerToReceiveVideo: !!options.video,
     };
 
     this._sdpReady = this._sdpReady.bind(this);
@@ -415,6 +419,8 @@ export default class Peer {
 
     if (streamIsValid(localStream)) {
       const audioTracks = localStream.getAudioTracks();
+      let tracks = [...audioTracks];
+
       logger.info('Local audio tracks: ', audioTracks);
 
       if (audioIsMediaTrackConstraints(this.options.audio)) {
@@ -427,6 +433,27 @@ export default class Peer {
         });
       }
 
+      if (!!this.options.video) {
+        const videoTracks = localStream.getVideoTracks();
+        tracks = [...audioTracks, ...videoTracks];
+
+        logger.info('Local video tracks: ', videoTracks);
+
+        if (videoIsMediaTrackConstraints(this.options.video)) {
+          // tells whether the constraints used to get the video track took effect. Browsers may ignore unsupported constraints silently
+          videoTracks.forEach((track) => {
+            logger.info(
+              'Local video tracks constraints: ',
+              track.getConstraints()
+            );
+          });
+        }
+      }
+
+      const { audioCodecs, videoCodecs } = getPreferredCodecs(
+        this.options.preferred_codecs
+      );
+
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {
@@ -434,24 +461,49 @@ export default class Peer {
           streams: [localStream],
         };
 
-        audioTracks.forEach((track) => {
-          this.options.userVariables.microphoneLabel = track.label;
+        tracks.forEach((track) => {
+          if (track.kind === 'audio') {
+            this.options.userVariables.microphoneLabel = track.label;
+          }
+          if (track.kind === 'video') {
+            this.options.userVariables.cameraLabel = track.label;
+          }
+
           const transceiver = this.instance.addTransceiver(
             track,
             transceiverParams
           );
-          this._setAudioCodec(transceiver);
+
+          if (track.kind === 'audio' && audioCodecs.length > 0) {
+            this._setCodecs(transceiver, audioCodecs);
+          }
+
+          if (track.kind === 'video' && videoCodecs.length > 0) {
+            this._setCodecs(transceiver, videoCodecs);
+          }
         });
       } else if (typeof this.instance.addTrack === 'function') {
         // Use addTrack
 
-        audioTracks.forEach((track) => {
-          this.options.userVariables.microphoneLabel = track.label;
+        tracks.forEach((track) => {
+          if (track.kind === 'audio') {
+            this.options.userVariables.microphoneLabel = track.label;
+          }
+          if (track.kind === 'video') {
+            this.options.userVariables.cameraLabel = track.label;
+          }
+
           this.instance.addTrack(track, localStream);
         });
-        this.instance
-          .getTransceivers()
-          .forEach((trans) => this._setAudioCodec(trans));
+
+        this.instance.getTransceivers().forEach((trans) => {
+          if (trans.receiver.track.kind === 'audio' && audioCodecs.length > 0) {
+            this._setCodecs(trans, audioCodecs);
+          }
+          if (trans.receiver.track.kind === 'video' && videoCodecs.length > 0) {
+            this._setCodecs(trans, videoCodecs);
+          }
+        });
       } else {
         // Fallback to legacy addStream ..
         // @ts-ignore
@@ -466,6 +518,9 @@ export default class Peer {
     if (this.isOffer) {
       if (this.options.negotiateAudio) {
         this._checkMediaToNegotiate('audio');
+      }
+      if (this.options.negotiateVideo) {
+        this._checkMediaToNegotiate('video');
       }
     } else if (!this._isTrickleIce()) {
       this.startNegotiation();
@@ -497,7 +552,9 @@ export default class Peer {
     if (!this._isOffer()) {
       return;
     }
+
     this._constraints.offerToReceiveAudio = Boolean(this.options.audio);
+    this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
 
@@ -568,15 +625,12 @@ export default class Peer {
     await this.instance.setLocalDescription(sessionDescription);
   }
 
-  private _setAudioCodec = (transceiver: RTCRtpTransceiver) => {
-    if (
-      !this.options.preferred_codecs ||
-      this.options.preferred_codecs.length === 0
-    ) {
-      return;
-    }
+  private _setCodecs = (
+    transceiver: RTCRtpTransceiver,
+    codecs: RTCRtpCodecCapability[]
+  ) => {
     if (transceiver.setCodecPreferences) {
-      return transceiver.setCodecPreferences(this.options.preferred_codecs);
+      return transceiver.setCodecPreferences(codecs);
     }
   };
   /** Workaround for ReactNative: first time SDP has no candidates */
@@ -596,9 +650,14 @@ export default class Peer {
 
   private async _resetJitterBuffer() {
     try {
-      const receiver = this.instance
+      const jitterBufferTarget = 20; // e.g., 20 ms
+      const audioReceiver = this.instance
         .getReceivers()
         .find((r) => r.track && r.track.kind === 'audio');
+
+      const videoReceiver = this.instance
+        .getReceivers()
+        .find((r) => r.track && r.track.kind === 'video');
 
       /**
        * Set optimal buffer duration for real-time audio (20ms)
@@ -606,13 +665,24 @@ export default class Peer {
        * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
        * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
        */
-      if (receiver && 'jitterBufferTarget' in receiver) {
+      if (audioReceiver && 'jitterBufferTarget' in audioReceiver) {
         // @ts-ignore
-        receiver.jitterBufferTarget = 20; // e.g., 20 ms
+        audioReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
         logger.debug(
-          '[jitter] target set to',
+          'audio [jitter] target set to',
           // @ts-ignore
-          receiver.jitterBufferTarget,
+          audioReceiver.jitterBufferTarget,
+          'ms'
+        );
+      }
+
+      if (videoReceiver && 'jitterBufferTarget' in videoReceiver) {
+        // @ts-ignore
+        videoReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
+        logger.debug(
+          'video [jitter] target set to',
+          // @ts-ignore
+          videoReceiver.jitterBufferTarget,
           'ms'
         );
       }

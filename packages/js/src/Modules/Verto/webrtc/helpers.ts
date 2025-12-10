@@ -13,8 +13,8 @@ const getUserMedia = async (
   constraints: MediaStreamConstraints
 ): Promise<MediaStream | null> => {
   logger.info('RTCService.getUserMedia', constraints);
-  const { audio } = constraints;
-  if (!audio) {
+  const { audio, video } = constraints;
+  if (!audio && !video) {
     return null;
   }
   try {
@@ -118,8 +118,8 @@ const scanResolutions = async (deviceId: string) => {
 const getMediaConstraints = async (
   options: IVertoCallOptions
 ): Promise<MediaStreamConstraints> => {
-  let { audio = true, micId } = options;
-  const { micLabel = '' } = options;
+  let { audio = true, micId, video = false, camId } = options;
+  const { micLabel = '', camLabel = '' } = options;
   if (micId) {
     micId = await assureDeviceId(micId, micLabel, DeviceType.AudioIn).catch(
       (error) => null
@@ -132,10 +132,22 @@ const getMediaConstraints = async (
     }
   }
 
-  return { audio };
+  if (camId) {
+    camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
+      (error) => null
+    );
+    if (camId) {
+      if (typeof video === 'boolean') {
+        video = {};
+      }
+      video.deviceId = { exact: camId };
+    }
+  }
+
+  return { audio, video };
 };
 
-function hasVideo(sdp) {
+function hasVideo(sdp): boolean {
   // If no SDP provided, return false
   if (!sdp) return false;
 
@@ -726,6 +738,27 @@ function stopAudio(audioElement: IAudio): void {
   }
 }
 
+const getPreferredCodecs = (preferred_codecs?: RTCRtpCodecCapability[]) => {
+  const audioCodecs: RTCRtpCodecCapability[] = [];
+  const videoCodecs: RTCRtpCodecCapability[] = [];
+
+  if (!preferred_codecs || preferred_codecs.length === 0) {
+    return { audioCodecs, videoCodecs };
+  }
+
+  preferred_codecs.forEach((codec) => {
+    const mimeType = codec.mimeType.toLocaleLowerCase();
+
+    if (mimeType.startsWith('audio/')) {
+      audioCodecs.push(codec);
+    } else if (mimeType.startsWith('video/')) {
+      videoCodecs.push(codec);
+    }
+  });
+
+  return { audioCodecs, videoCodecs };
+};
+
 export {
   getUserMedia,
   getDevices,
@@ -753,4 +786,6 @@ export {
   createAudio,
   playAudio,
   stopAudio,
+  hasVideo,
+  getPreferredCodecs,
 };

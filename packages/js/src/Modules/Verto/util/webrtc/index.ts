@@ -32,6 +32,9 @@ const streamIsValid = (stream: MediaStream) =>
 const audioIsMediaTrackConstraints = (audio: boolean | MediaTrackConstraints) =>
   typeof audio === 'object';
 
+const videoIsMediaTrackConstraints = (video: boolean | MediaTrackConstraints) =>
+  typeof video === 'object';
+
 const attachMediaStream = (tag: any, stream: MediaStream) => {
   const element = findElementByType(tag);
   if (element === null) {
@@ -120,6 +123,7 @@ export {
   getSupportedConstraints,
   streamIsValid,
   audioIsMediaTrackConstraints,
+  videoIsMediaTrackConstraints,
   attachMediaStream,
   detachMediaStream,
   sdpToJsonHack,

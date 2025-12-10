@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
 import pkg from '../../../../package.json';
 import Call from './Call';
-import { checkSubscribeResponse } from './helpers';
+import { checkSubscribeResponse, hasVideo } from './helpers';
 import { Attach, Candidate, Login, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
@@ -151,6 +151,10 @@ class VertoHandler {
     const _buildCall = () => {
       const callOptions: IVertoCallOptions = {
         id: callID,
+        audio: true,
+        // So far, if SIP configuration supports video, then we will always get video section in SDP.
+        // So we will determine is video call or not based on "video" client option .
+        video: session.options.video,
         remoteSdp: params.sdp,
         destinationNumber: params.callee_id_number,
         remoteCallerName: params.caller_id_name,
