@@ -39,7 +39,7 @@
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
   "peerDependencies": {
-    "@telnyx/webrtc": ">=2.25.1-rc.0 <3.0.0-rc.0",
+    "@telnyx/webrtc": ">=2.25.10-rc.0 <3.0.0-rc.0",
     "react": ">=16.8",
     "react-dom": ">=16.8"
   },

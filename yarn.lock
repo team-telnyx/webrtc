@@ -2841,7 +2841,7 @@ __metadata:
     react-dom: "npm:^16.8"
     release-it: "npm:^14.14.2"
   peerDependencies:
-    "@telnyx/webrtc": ">=2.25.1-rc.0 <3.0.0-rc.0"
+    "@telnyx/webrtc": ">=2.25.10-rc.0 <3.0.0-rc.0"
     react: ">=16.8"
     react-dom: ">=16.8"
   languageName: unknown
@@ -2853,7 +2853,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@telnyx/webrtc@npm:>=2.25.1-rc.0 <3.0.0-rc.0, @telnyx/webrtc@workspace:packages/js":
+"@telnyx/webrtc@npm:>=2.25.1-rc.0 <3.0.0-rc.0":
+  version: 2.25.10
+  resolution: "@telnyx/webrtc@npm:2.25.10"
+  dependencies:
+    "@peermetrics/webrtc-stats": "npm:^5.7.1"
+    loglevel: "npm:^1.6.8"
+    uuid: "npm:^7.0.3"
+  checksum: 10c0/aa38c9c23c8350b1279cf66fe550b5e43dbafbdfa9712aea9827e5e4e01180fe04f20bddb5f083b543f0a9c2752b87af6debf1b06877622c7065b70f19bce318
+  languageName: node
+  linkType: hard
+
+"@telnyx/webrtc@workspace:packages/js":
   version: 0.0.0-use.local
   resolution: "@telnyx/webrtc@workspace:packages/js"
   dependencies:
