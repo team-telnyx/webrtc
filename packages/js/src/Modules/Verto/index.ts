@@ -31,13 +31,6 @@ export default class Verto extends BrowserSession {
       if (this.calls) {
         Object.keys(this.calls).forEach((callId) => {
           if (this.calls[callId]) {
-            if (this.options.keepConnectionAliveOnSocketClose) {
-              logger.info(
-                `Not hanging up call on window unload due to keepConnectionAliveOnSocketClose being enabled: ${callId}`
-              );
-              return;
-            }
-
             logger.info(`Hanging up call due to window unload: ${callId}`);
             this.calls[callId].hangup({}, true);
           }

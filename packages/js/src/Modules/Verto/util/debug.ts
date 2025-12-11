@@ -9,6 +9,7 @@ import {
 } from '../messages/WebRTCStats';
 import { trigger } from '../services/Handler';
 import { SwEvent } from './constants';
+import logger from './logger';
 
 const POLL_INTERVAL = 1000;
 
@@ -135,7 +136,7 @@ export async function getConnectionStateDetails(
       }
     });
   } catch (e) {
-    // getStats may fail if connection is already closed
+    logger.error('Error gathering connection state details:', e);
   }
 
   return details;

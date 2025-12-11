@@ -32,12 +32,12 @@ import { IVertoCallOptions } from './interfaces';
 export default class Peer {
   public instance: RTCPeerConnection;
   public onSdpReadyTwice: Function = null;
+  public statsReporter: WebRTCStatsReporter | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
   };
 
-  private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
@@ -82,10 +82,6 @@ export default class Peer {
 
   get isDebugEnabled() {
     return this.options.debug || this._session.options.debug;
-  }
-
-  get stats() {
-    return this.statsReporter;
   }
 
   get debugOutput() {
@@ -251,24 +247,24 @@ export default class Peer {
 
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
-    logger.debug(
+    logger.info(
       `[${new Date().toISOString()}] Connection State changed: ${
         this._prevConnectionState
       } -> ${connectionState}`
     );
 
-    // Report detailed connection state if debug is enabled
-    if (this.isDebugEnabled && this.statsReporter) {
-      const details = await getConnectionStateDetails(
-        this.instance,
-        this._prevConnectionState
-      );
-      this.statsReporter.reportConnectionStateChange(details);
-    }
-
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
+        // Report detailed connection state if debug is enabled
+        if (this.isDebugEnabled && this.statsReporter) {
+          const details = await getConnectionStateDetails(
+            this.instance,
+            this._prevConnectionState
+          );
+          this.statsReporter.reportConnectionStateChange(details);
+        }
+
         /**
          * restart ice as ice credentials might have changed
          */

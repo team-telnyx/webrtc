@@ -1518,9 +1518,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       logger.debug('ICE candidate error:', event);
-      if (this.peer?.stats) {
+      if (this.peer?.statsReporter) {
         const details = getIceCandidateErrorDetails(event, instance);
-        this.peer.stats.reportIceCandidateError(details);
+        this.peer.statsReporter.reportIceCandidateError(details);
       }
     };
 
@@ -1552,9 +1552,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       // if a candidate fails this is not fatal as long as other candidates succeed
       logger.debug('ICE candidate error:', event);
-      if (this.peer?.stats) {
+      if (this.peer?.statsReporter) {
         const details = getIceCandidateErrorDetails(event, instance);
-        this.peer.stats.reportIceCandidateError(details);
+        this.peer.statsReporter.reportIceCandidateError(details);
       }
     };
 
