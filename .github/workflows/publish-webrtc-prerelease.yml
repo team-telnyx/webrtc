@@ -23,7 +23,7 @@ jobs:
       NPM_DIST_TAG: ${{ github.event.inputs.npm_dist_tag }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           # https://github.com/peter-evans/create-pull-request/issues/122
           ref: ${{ env.TARGET_REF }}
