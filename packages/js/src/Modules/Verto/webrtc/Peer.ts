@@ -80,6 +80,10 @@ export default class Peer {
     return this.options.debug || this._session.options.debug;
   }
 
+  get stats() {
+    return this.statsReporter;
+  }
+
   get debugOutput() {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
@@ -243,7 +247,7 @@ export default class Peer {
 
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
-    console.log(
+    logger.debug(
       `[${new Date().toISOString()}] Connection State changed: ${
         this._prevConnectionState
       } -> ${connectionState}`
@@ -253,16 +257,18 @@ export default class Peer {
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
         /**
-         * restart ice and send offer again as ice credentials might have changed
-         * only do it if peer is the offerer to avoid using old ice creds when back online
+         * restart ice as ice credentials might have changed
          */
-        if (this._isOffer() && !this._restartedIceOnConnectionStateFailed) {
-          this.instance.restartIce();
-          logger.debug(
-            `Peer Connection ${connectionState}. Restarting ICE gathering.`
-          );
+        if (!this._restartedIceOnConnectionStateFailed) {
+          if (this._isOffer() && connectionState === 'disconnected') {
+            this.instance.restartIce();
+            logger.debug(
+              `Peer Connection ${connectionState}. Restarting ICE gathering.`
+            );
+          }
 
           if (connectionState === 'failed') {
+            this.instance.restartIce();
             this._restartedIceOnConnectionStateFailed = true;
             logger.debug('ICE has been restarted on connection state failed.');
           }
@@ -272,7 +278,7 @@ export default class Peer {
           } else {
             this.startNegotiation();
           }
-        } else if (this._restartedIceOnConnectionStateFailed) {
+        } else {
           logger.debug(
             'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
           );
@@ -384,13 +390,13 @@ export default class Peer {
   }
 
   private _handleIceConnectionStateChange = (event) => {
-    console.log(
+    logger.debug(
       `[${new Date().toISOString()}] ICE Connection State`,
       this.instance.iceConnectionState
     );
   };
   private _handleIceGatheringStateChange = (event) => {
-    console.log(
+    logger.debug(
       `[${new Date().toISOString()}] ICE Gathering State`,
       this.instance.iceGatheringState
     );
@@ -591,7 +597,7 @@ export default class Peer {
         'Skipping negotiation, state:',
         this.instance.signalingState
       );
-      console.log(
+      logger.debug(
         "  - But the signaling state isn't stable, so triggering rollback"
       );
 
