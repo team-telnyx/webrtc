@@ -54,7 +54,7 @@ jobs:
           ref: ${{ env.TARGET_REF }}
           # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
-          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Git user
         # https://github.com/actions/checkout/issues/13
         run: |
