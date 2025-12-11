@@ -48,7 +48,7 @@ jobs:
       INCREMENT_ARG: ${{ github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && ' --increment=prerelease' || github.event.inputs.increment && format(' --increment={0}', github.event.inputs.increment) || '' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # https://github.com/peter-evans/create-pull-request/issues/122
           ref: ${{ env.TARGET_REF }}
