@@ -172,6 +172,10 @@ export default abstract class BrowserSession extends BaseSession {
     await super.disconnect();
   }
 
+  socketDisconnect() {
+    this._closeConnection();
+  }
+
   /**
    * Handle login error
    * @return void
@@ -739,7 +743,7 @@ export default abstract class BrowserSession extends BaseSession {
        * Therefore, reconnect to be safe.
        */
       if (this._wasOffline) {
-        this._closeConnection();
+        this.socketDisconnect();
         this.connect();
       }
       this._wasOffline = false;

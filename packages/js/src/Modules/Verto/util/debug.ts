@@ -23,6 +23,157 @@ export function saveToFile(data: any, filename: string) {
   link.click();
   URL.revokeObjectURL(downloadUrl);
 }
+export interface ConnectionStateDetails {
+  connectionState: RTCPeerConnectionState;
+  previousConnectionState: RTCPeerConnectionState;
+  iceConnectionState: RTCIceConnectionState;
+  iceGatheringState: RTCIceGatheringState;
+  signalingState: RTCSignalingState;
+  dtlsState?: RTCDtlsTransportState;
+  dtlsCipher?: string;
+  srtpCipher?: string;
+  tlsVersion?: string;
+  sctpState?: RTCSctpTransportState;
+  localCandidateType?: string;
+  remoteCandidateType?: string;
+  candidatePairState?: RTCStatsIceCandidatePairState;
+  selectedCandidatePair?: {
+    local: {
+      address: string;
+      port: number;
+      protocol: string;
+      candidateType: string;
+    };
+    remote: {
+      address: string;
+      port: number;
+      protocol: string;
+      candidateType: string;
+    };
+  };
+}
+
+export async function getConnectionStateDetails(
+  pc: RTCPeerConnection,
+  previousConnectionState: RTCPeerConnectionState
+): Promise<ConnectionStateDetails> {
+  const details: ConnectionStateDetails = {
+    connectionState: pc.connectionState,
+    previousConnectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+    signalingState: pc.signalingState,
+  };
+
+  // Get DTLS state from transceivers
+  const transceivers = pc.getTransceivers();
+  if (transceivers.length > 0) {
+    const sender = transceivers[0].sender;
+    const dtlsTransport = sender?.transport;
+    if (dtlsTransport) {
+      details.dtlsState = dtlsTransport.state;
+    }
+  }
+
+  // Get SCTP state
+  if (pc.sctp) {
+    details.sctpState = pc.sctp.state;
+  }
+
+  // Get detailed stats including candidate pair and DTLS info
+  try {
+    const stats = await pc.getStats();
+    stats.forEach((report) => {
+      if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+        details.candidatePairState = report.state;
+
+        // Find local and remote candidates
+        stats.forEach((candidateReport) => {
+          if (
+            candidateReport.type === 'local-candidate' &&
+            candidateReport.id === report.localCandidateId
+          ) {
+            details.localCandidateType = candidateReport.candidateType;
+            details.selectedCandidatePair = details.selectedCandidatePair || {
+              local: {} as any,
+              remote: {} as any,
+            };
+            details.selectedCandidatePair.local = {
+              address: candidateReport.address,
+              port: candidateReport.port,
+              protocol: candidateReport.protocol,
+              candidateType: candidateReport.candidateType,
+            };
+          }
+          if (
+            candidateReport.type === 'remote-candidate' &&
+            candidateReport.id === report.remoteCandidateId
+          ) {
+            details.remoteCandidateType = candidateReport.candidateType;
+            details.selectedCandidatePair = details.selectedCandidatePair || {
+              local: {} as any,
+              remote: {} as any,
+            };
+            details.selectedCandidatePair.remote = {
+              address: candidateReport.address,
+              port: candidateReport.port,
+              protocol: candidateReport.protocol,
+              candidateType: candidateReport.candidateType,
+            };
+          }
+        });
+      }
+
+      // Get DTLS cipher info from transport stats
+      if (report.type === 'transport') {
+        details.dtlsCipher = report.dtlsCipher;
+        details.srtpCipher = report.srtpCipher;
+        details.tlsVersion = report.tlsVersion;
+        if (report.dtlsState) {
+          details.dtlsState = report.dtlsState;
+        }
+      }
+    });
+  } catch (e) {
+    // getStats may fail if connection is already closed
+  }
+
+  return details;
+}
+
+export interface IceCandidateErrorDetails {
+  errorCode: number;
+  errorText: string;
+  url: string;
+  address: string | null;
+  port: number | null;
+  connectionState: RTCPeerConnectionState;
+  iceConnectionState: RTCIceConnectionState;
+  iceGatheringState: RTCIceGatheringState;
+  signalingState: RTCSignalingState;
+  localDescriptionType?: RTCSdpType;
+  remoteDescriptionType?: RTCSdpType;
+}
+
+export function getIceCandidateErrorDetails(
+  event: RTCPeerConnectionIceErrorEvent,
+  pc: RTCPeerConnection
+): IceCandidateErrorDetails {
+  return {
+    errorCode: event.errorCode,
+    errorText: event.errorText,
+    url: event.url,
+    address: event.address,
+    port: event.port,
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+    signalingState: pc.signalingState,
+    localDescriptionType: pc.localDescription?.type,
+    remoteDescriptionType: pc.remoteDescription?.type,
+  };
+}
+
 export type WebRTCStatsReporter = {
   start: (
     peerConnection: RTCPeerConnection,
@@ -30,7 +181,8 @@ export type WebRTCStatsReporter = {
     connectionId: string
   ) => Promise<void>;
   stop: (debugOutput: string) => Promise<void>;
-  reportIceCandidateError: (event: RTCPeerConnectionIceErrorEvent) => void;
+  reportConnectionStateChange: (details: ConnectionStateDetails) => void;
+  reportIceCandidateError: (details: IceCandidateErrorDetails) => void;
 };
 
 export function createWebRTCStatsReporter(
@@ -84,17 +236,22 @@ export function createWebRTCStatsReporter(
     stats.destroy();
   };
 
-  const reportIceCandidateError = (event: RTCPeerConnectionIceErrorEvent) => {
+  const reportConnectionStateChange = (details: ConnectionStateDetails) => {
     const message = {
-      event: 'icecandidateerror',
+      event: 'connectionstatechange-detailed',
+      tag: 'connection',
       timestamp: new Date().toISOString(),
-      data: {
-        errorCode: event.errorCode,
-        errorText: event.errorText,
-        url: event.url,
-        address: event.address,
-        port: event.port,
-      },
+      data: details,
+    };
+    onTimelineMessage(message);
+  };
+
+  const reportIceCandidateError = (details: IceCandidateErrorDetails) => {
+    const message = {
+      event: 'icecandidateerror-detailed',
+      tag: 'connection',
+      timestamp: new Date().toISOString(),
+      data: details,
     };
     onTimelineMessage(message);
   };
@@ -102,6 +259,7 @@ export function createWebRTCStatsReporter(
   return {
     start,
     stop,
+    reportConnectionStateChange,
     reportIceCandidateError,
   };
 }

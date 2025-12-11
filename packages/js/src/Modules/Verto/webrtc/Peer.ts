@@ -1,7 +1,11 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { GOOGLE_STUN_SERVER, SwEvent, TURN_SERVER } from '../util/constants';
-import { createWebRTCStatsReporter, WebRTCStatsReporter } from '../util/debug';
+import {
+  createWebRTCStatsReporter,
+  getConnectionStateDetails,
+  WebRTCStatsReporter,
+} from '../util/debug';
 
 import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
@@ -252,6 +256,15 @@ export default class Peer {
         this._prevConnectionState
       } -> ${connectionState}`
     );
+
+    // Report detailed connection state if debug is enabled
+    if (this.isDebugEnabled && this.statsReporter) {
+      const details = await getConnectionStateDetails(
+        this.instance,
+        this._prevConnectionState
+      );
+      this.statsReporter.reportConnectionStateChange(details);
+    }
 
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {

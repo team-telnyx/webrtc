@@ -137,8 +137,9 @@ class VertoHandler {
         }
       } else if (punt && keepConnectionAliveOnSocketClose) {
         logger.info(
-          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose`
+          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
         );
+        this.session.socketDisconnect();
         this._ack(id, method);
         return;
       } else {
@@ -431,6 +432,19 @@ class VertoHandler {
                   break;
                 } else {
                   setTimeout(() => {
+                    logger.debug(
+                      `Reconnecting... Retry ${VertoHandler.retriedConnect} of ${RETRY_CONNECT_TIME}`
+                    );
+
+                    if (this.session.options.keepConnectionAliveOnSocketClose) {
+                      logger.debug(
+                        'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
+                      );
+                      this.session.socketDisconnect();
+                      this.session.connect();
+                      return;
+                    }
+
                     this.session.disconnect().then(() => {
                       this.session.clearConnection();
                       this.session.connect();
