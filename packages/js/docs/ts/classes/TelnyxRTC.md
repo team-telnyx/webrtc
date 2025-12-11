@@ -242,6 +242,7 @@ Audio and video constraints currently used by the client.
 | Name | Type |
 | :------ | :------ |
 | `audio` | `boolean` \| `MediaTrackConstraints` |
+| `video` | `boolean` \| `MediaTrackConstraints` |
 
 **`Examples`**
 
