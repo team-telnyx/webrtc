@@ -6,8 +6,8 @@ Interface representing the options for the pre-call diagnosis.
 
 ### Properties
 
-- [credentials](/docs/voice/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md#credentials)
-- [texMLApplicationNumber](/docs/voice/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md#texmlapplicationnumber)
+- [credentials](/development/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md#credentials)
+- [texMLApplicationNumber](/development/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md#texmlapplicationnumber)
 
 ## Properties
 
@@ -20,13 +20,13 @@ Can include either login and password or a login token.
 
 #### Type declaration
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `login?` | `string` | The login username. |
-| `loginToken?` | `string` | The login token. |
-| `password?` | `string` | The login password. |
+| Name          | Type     | Description         |
+| :------------ | :------- | :------------------ |
+| `login?`      | `string` | The login username. |
+| `loginToken?` | `string` | The login token.    |
+| `password?`   | `string` | The login password. |
 
-___
+---
 
 ### texMLApplicationNumber
 

@@ -1,39 +1,39 @@
 ICallOptions
- ICallOptions
+ICallOptions
 
 ## Table of contents
 
 ### Properties
 
-- [audio](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#audio)
-- [callerName](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#callername)
-- [callerNumber](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#callernumber)
-- [camId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#camid)
-- [clientState](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#clientstate)
-- [customHeaders](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#customheaders)
-- [debug](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debug)
-- [debugOutput](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#debugoutput)
-- [destinationNumber](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#destinationnumber)
-- [forceRelayCandidate](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#forcerelaycandidate)
-- [iceServers](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#iceservers)
-- [id](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#id)
-- [keepConnectionAliveOnSocketClose](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#keepconnectionaliveonsocketclose)
-- [localElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localelement)
-- [localStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#localstream)
-- [mediaSettings](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#mediasettings)
-- [micId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#micid)
-- [onNotification](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#onnotification)
-- [preferred\_codecs](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#preferred_codecs)
-- [prefetchIceCandidates](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#prefetchicecandidates)
-- [remoteElement](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remoteelement)
-- [remoteStream](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#remotestream)
-- [speakerId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#speakerid)
-- [telnyxCallControlId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxcallcontrolid)
-- [telnyxLegId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxlegid)
-- [telnyxSessionId](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxsessionid)
-- [trickleIce](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#trickleice)
-- [useStereo](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#usestereo)
-- [video](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md#video)
+- [audio](/development/webrtc/js-sdk/interfaces/ICallOptions.md#audio)
+- [callerName](/development/webrtc/js-sdk/interfaces/ICallOptions.md#callername)
+- [callerNumber](/development/webrtc/js-sdk/interfaces/ICallOptions.md#callernumber)
+- [camId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#camid)
+- [clientState](/development/webrtc/js-sdk/interfaces/ICallOptions.md#clientstate)
+- [customHeaders](/development/webrtc/js-sdk/interfaces/ICallOptions.md#customheaders)
+- [debug](/development/webrtc/js-sdk/interfaces/ICallOptions.md#debug)
+- [debugOutput](/development/webrtc/js-sdk/interfaces/ICallOptions.md#debugoutput)
+- [destinationNumber](/development/webrtc/js-sdk/interfaces/ICallOptions.md#destinationnumber)
+- [forceRelayCandidate](/development/webrtc/js-sdk/interfaces/ICallOptions.md#forcerelaycandidate)
+- [iceServers](/development/webrtc/js-sdk/interfaces/ICallOptions.md#iceservers)
+- [id](/development/webrtc/js-sdk/interfaces/ICallOptions.md#id)
+- [keepConnectionAliveOnSocketClose](/development/webrtc/js-sdk/interfaces/ICallOptions.md#keepconnectionaliveonsocketclose)
+- [localElement](/development/webrtc/js-sdk/interfaces/ICallOptions.md#localelement)
+- [localStream](/development/webrtc/js-sdk/interfaces/ICallOptions.md#localstream)
+- [mediaSettings](/development/webrtc/js-sdk/interfaces/ICallOptions.md#mediasettings)
+- [micId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#micid)
+- [onNotification](/development/webrtc/js-sdk/interfaces/ICallOptions.md#onnotification)
+- [preferred_codecs](/development/webrtc/js-sdk/interfaces/ICallOptions.md#preferred_codecs)
+- [prefetchIceCandidates](/development/webrtc/js-sdk/interfaces/ICallOptions.md#prefetchicecandidates)
+- [remoteElement](/development/webrtc/js-sdk/interfaces/ICallOptions.md#remoteelement)
+- [remoteStream](/development/webrtc/js-sdk/interfaces/ICallOptions.md#remotestream)
+- [speakerId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#speakerid)
+- [telnyxCallControlId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxcallcontrolid)
+- [telnyxLegId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxlegid)
+- [telnyxSessionId](/development/webrtc/js-sdk/interfaces/ICallOptions.md#telnyxsessionid)
+- [trickleIce](/development/webrtc/js-sdk/interfaces/ICallOptions.md#trickleice)
+- [useStereo](/development/webrtc/js-sdk/interfaces/ICallOptions.md#usestereo)
+- [video](/development/webrtc/js-sdk/interfaces/ICallOptions.md#video)
 
 ## Properties
 
@@ -43,7 +43,7 @@ ICallOptions
 
 Overrides client's default audio constraints. Defaults to `true`
 
-___
+---
 
 ### callerName
 
@@ -51,7 +51,7 @@ ___
 
 Name to use as the caller ID name when dialing out to a destination.
 
-___
+---
 
 ### callerNumber
 
@@ -59,7 +59,7 @@ ___
 
 Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.
 
-___
+---
 
 ### camId
 
@@ -67,7 +67,7 @@ ___
 
 `deviceId` to use as webcam. Overrides the client's default one.
 
-___
+---
 
 ### clientState
 
@@ -76,15 +76,15 @@ ___
 Telnyx's Call Control client_state. Can be used with Connections with Advanced -> Events enabled.
 `clientState` string should be base64 encoded.
 
-___
+---
 
 ### customHeaders
 
-• `Optional` **customHeaders**: \{ `name`: `string` ; `value`: `string`  }[]
+• `Optional` **customHeaders**: \{ `name`: `string` ; `value`: `string` }[]
 
 Add custom headers to the INVITE and ANSWER request.
 
-___
+---
 
 ### debug
 
@@ -92,15 +92,15 @@ ___
 
 Enable debug mode for this call.
 
-___
+---
 
 ### debugOutput
 
-• `Optional` **debugOutput**: ``"file"`` \| ``"socket"``
+• `Optional` **debugOutput**: `"file"` \| `"socket"`
 
 Output debug logs to a file.
 
-___
+---
 
 ### destinationNumber
 
@@ -108,7 +108,7 @@ ___
 
 Phone number or SIP URI to dial.
 
-___
+---
 
 ### forceRelayCandidate
 
@@ -116,7 +116,7 @@ ___
 
 Force the use of a relay ICE candidate.
 
-___
+---
 
 ### iceServers
 
@@ -124,7 +124,7 @@ ___
 
 Overrides client's default `iceServers` to use for certain call.
 
-___
+---
 
 ### id
 
@@ -132,7 +132,7 @@ ___
 
 Custom ID to identify the call. This will be used as the `callID` in place of the UUID generated by the client.
 
-___
+---
 
 ### keepConnectionAliveOnSocketClose
 
@@ -140,7 +140,7 @@ ___
 
 Keep the connection alive on socket connection close, i.e., do not hang up the call when `attach` message is received.
 
-___
+---
 
 ### localElement
 
@@ -148,7 +148,7 @@ ___
 
 Overrides client's default `localElement`.
 
-___
+---
 
 ### localStream
 
@@ -156,7 +156,7 @@ ___
 
 If set, the call will use this stream instead of retrieving a new one.
 
-___
+---
 
 ### mediaSettings
 
@@ -166,12 +166,12 @@ Configures media (audio/video) in a call.
 
 #### Type declaration
 
-| Name | Type |
-| :------ | :------ |
-| `sdpASBandwidthKbps?` | `number` |
+| Name                     | Type      |
+| :----------------------- | :-------- |
+| `sdpASBandwidthKbps?`    | `number`  |
 | `useSdpASBandwidthKbps?` | `boolean` |
 
-___
+---
 
 ### micId
 
@@ -179,7 +179,7 @@ ___
 
 `deviceId` to use as microphone. Overrides the client's default one.
 
-___
+---
 
 ### onNotification
 
@@ -187,15 +187,15 @@ ___
 
 Overrides client's default `telnyx.notification` handler for this call.
 
-___
+---
 
-### preferred\_codecs
+### preferred_codecs
 
-• `Optional` **preferred\_codecs**: `RTCRtpCodecCapability`[]
+• `Optional` **preferred_codecs**: `RTCRtpCodecCapability`[]
 
 Preferred codecs for the call.
 
-___
+---
 
 ### prefetchIceCandidates
 
@@ -203,7 +203,7 @@ ___
 
 Enable or disable ICE Candidate Prefetching.
 
-___
+---
 
 ### remoteElement
 
@@ -211,7 +211,7 @@ ___
 
 Overrides client's default `remoteElement`.
 
-___
+---
 
 ### remoteStream
 
@@ -219,7 +219,7 @@ ___
 
 If set, the call will use this stream instead of retrieving a new one.
 
-___
+---
 
 ### speakerId
 
@@ -227,7 +227,7 @@ ___
 
 `deviceId` to use as speaker. Overrides the client's default one.
 
-___
+---
 
 ### telnyxCallControlId
 
@@ -235,7 +235,7 @@ ___
 
 Telnyx Call Control ID, if using Call Control services.
 
-___
+---
 
 ### telnyxLegId
 
@@ -243,7 +243,7 @@ ___
 
 Telnyx call leg ID, if using Call Control services.
 
-___
+---
 
 ### telnyxSessionId
 
@@ -251,7 +251,7 @@ ___
 
 Telnyx call session ID, if using Call Control services.
 
-___
+---
 
 ### trickleIce
 
@@ -259,7 +259,7 @@ ___
 
 Enable or disable Trickle ICE.
 
-___
+---
 
 ### useStereo
 
@@ -267,7 +267,7 @@ ___
 
 Uses stereo audio instead of mono.
 
-___
+---
 
 ### video
 
