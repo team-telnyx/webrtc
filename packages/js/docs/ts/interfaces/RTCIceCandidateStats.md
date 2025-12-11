@@ -6,18 +6,18 @@ Interface representing the statistics of an RTC ICE candidate.
 
 ### Properties
 
-- [address](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#address)
-- [candidateType](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#candidatetype)
-- [deleted](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#deleted)
-- [id](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#id)
-- [port](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#port)
-- [priority](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#priority)
-- [protocol](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#protocol)
-- [relayProtocol](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#relayprotocol)
-- [timestamp](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#timestamp)
-- [transportId](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#transportid)
-- [type](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#type)
-- [url](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#url)
+- [address](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#address)
+- [candidateType](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#candidatetype)
+- [deleted](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#deleted)
+- [id](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#id)
+- [port](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#port)
+- [priority](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#priority)
+- [protocol](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#protocol)
+- [relayProtocol](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#relayprotocol)
+- [timestamp](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#timestamp)
+- [transportId](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#transportid)
+- [type](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#type)
+- [url](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md#url)
 
 ## Properties
 
@@ -27,7 +27,7 @@ Interface representing the statistics of an RTC ICE candidate.
 
 The address of the ICE candidate.
 
-___
+---
 
 ### candidateType
 
@@ -35,7 +35,7 @@ ___
 
 The type of the ICE candidate.
 
-___
+---
 
 ### deleted
 
@@ -43,7 +43,7 @@ ___
 
 Indicates whether the ICE candidate has been deleted.
 
-___
+---
 
 ### id
 
@@ -51,7 +51,7 @@ ___
 
 The unique identifier for the ICE candidate.
 
-___
+---
 
 ### port
 
@@ -59,7 +59,7 @@ ___
 
 The port number of the ICE candidate.
 
-___
+---
 
 ### priority
 
@@ -67,7 +67,7 @@ ___
 
 The priority of the ICE candidate.
 
-___
+---
 
 ### protocol
 
@@ -75,15 +75,15 @@ ___
 
 The protocol used by the ICE candidate.
 
-___
+---
 
 ### relayProtocol
 
-• `Optional` **relayProtocol**: ``"tcp"`` \| ``"udp"`` \| ``"tls"``
+• `Optional` **relayProtocol**: `"tcp"` \| `"udp"` \| `"tls"`
 
 The relay protocol used by the ICE candidate, if applicable.
 
-___
+---
 
 ### timestamp
 
@@ -91,7 +91,7 @@ ___
 
 The timestamp when the ICE candidate was generated.
 
-___
+---
 
 ### transportId
 
@@ -99,7 +99,7 @@ ___
 
 The transport identifier for the ICE candidate.
 
-___
+---
 
 ### type
 
@@ -107,7 +107,7 @@ ___
 
 The type of the ICE candidate, either local or remote.
 
-___
+---
 
 ### url
 

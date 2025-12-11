@@ -2,26 +2,26 @@
 
 ### Call Classes
 
-- [Call](/docs/voice/webrtc/js-sdk/classes/Call.md)
+- [Call](/development/webrtc/js-sdk/classes/Call.md)
 
 ### Client Classes
 
-- [TelnyxRTC](/docs/voice/webrtc/js-sdk/classes/TelnyxRTC.md)
+- [TelnyxRTC](/development/webrtc/js-sdk/classes/TelnyxRTC.md)
 
 ### Other Classes
 
-- [PreCallDiagnosis](/docs/voice/webrtc/js-sdk/classes/PreCallDiagnosis.md)
+- [PreCallDiagnosis](/development/webrtc/js-sdk/classes/PreCallDiagnosis.md)
 
 ### Notification Interfaces
 
-- [INotification](/docs/voice/webrtc/js-sdk/interfaces/INotification.md)
+- [INotification](/development/webrtc/js-sdk/interfaces/INotification.md)
 
 ### Other Interfaces
 
-- [ICallOptions](/docs/voice/webrtc/js-sdk/interfaces/ICallOptions.md)
-- [IClientOptions](/docs/voice/webrtc/js-sdk/interfaces/IClientOptions.md)
-- [MinMaxAverage](/docs/voice/webrtc/js-sdk/interfaces/MinMaxAverage.md)
-- [PreCallDiagnosisOptions](/docs/voice/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md)
-- [RTCIceCandidateStats](/docs/voice/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)
-- [Report](/docs/voice/webrtc/js-sdk/interfaces/Report.md)
-- [TelnyxIDs](/docs/voice/webrtc/js-sdk/interfaces/TelnyxIDs.md)
+- [ICallOptions](/development/webrtc/js-sdk/interfaces/ICallOptions.md)
+- [IClientOptions](/development/webrtc/js-sdk/interfaces/IClientOptions.md)
+- [MinMaxAverage](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md)
+- [PreCallDiagnosisOptions](/development/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md)
+- [RTCIceCandidateStats](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)
+- [Report](/development/webrtc/js-sdk/interfaces/Report.md)
+- [TelnyxIDs](/development/webrtc/js-sdk/interfaces/TelnyxIDs.md)
