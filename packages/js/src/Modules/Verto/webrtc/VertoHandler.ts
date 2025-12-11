@@ -343,7 +343,7 @@ class VertoHandler {
                     .catch((error) => {
                       // if error is related to call not found or session, ignore it. This is expected as we're sending a candidate before a call as a support check
                       if (error.code === this.session.invalidMethodErrorCode) {
-                        console.warn(
+                        logger.warn(
                           'Trickle ICE is not supported by the server, disabling it.'
                         );
                         logger.debug(

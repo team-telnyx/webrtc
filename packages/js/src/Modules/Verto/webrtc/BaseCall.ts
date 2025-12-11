@@ -882,7 +882,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             sender.getParameters()
           );
         })
-        .catch((e) => console.error(e));
+        .catch((e) => logger.error(e));
     } else {
       logger.error(
         'Could not set bandwidth (reason: no ' +
@@ -1515,6 +1515,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onIce(event);
     };
 
+    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
+      logger.debug('ICE candidate error:', event);
+      this.peer?.stats?.reportIceCandidateError(event);
+    };
+
     //@ts-ignore
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
@@ -1540,9 +1545,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    instance.onicecandidateerror = (event) => {
+    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       // if a candidate fails this is not fatal as long as other candidates succeed
       logger.debug('ICE candidate error:', event);
+      this.peer?.stats?.reportIceCandidateError(event);
     };
 
     //@ts-ignore

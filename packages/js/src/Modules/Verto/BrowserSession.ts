@@ -24,6 +24,7 @@ import {
   assureDeviceId,
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
+import logger from './util/logger';
 import { Unsubscribe, Subscribe, Broadcast, Attach } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
@@ -346,7 +347,7 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioOutDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioOut).catch((error) => {
-      console.error('getAudioOutDevices', error);
+      logger.error('getAudioOutDevices', error);
       trigger(SwEvent.MediaError, error, this.uuid);
       return [];
     });

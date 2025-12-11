@@ -30,6 +30,7 @@ export type WebRTCStatsReporter = {
     connectionId: string
   ) => Promise<void>;
   stop: (debugOutput: string) => Promise<void>;
+  reportIceCandidateError: (event: RTCPeerConnectionIceErrorEvent) => void;
 };
 
 export function createWebRTCStatsReporter(
@@ -83,9 +84,25 @@ export function createWebRTCStatsReporter(
     stats.destroy();
   };
 
+  const reportIceCandidateError = (event: RTCPeerConnectionIceErrorEvent) => {
+    const message = {
+      event: 'icecandidateerror',
+      timestamp: new Date().toISOString(),
+      data: {
+        errorCode: event.errorCode,
+        errorText: event.errorText,
+        url: event.url,
+        address: event.address,
+        port: event.port,
+      },
+    };
+    onTimelineMessage(message);
+  };
+
   return {
     start,
     stop,
+    reportIceCandidateError,
   };
 }
 

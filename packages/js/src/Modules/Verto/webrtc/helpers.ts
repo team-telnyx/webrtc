@@ -55,7 +55,7 @@ const getDevices = async (
   const stream = await navigator.mediaDevices
     .getUserMedia(_constraintsByKind(kind))
     .catch((error) => {
-      console.error(error);
+      logger.error(error);
       return null;
     });
 
@@ -709,7 +709,7 @@ function playAudio(audioElement: IAudio): void {
         audioElement._playFulfilled = true;
       })
       .catch((error) => {
-        console.error('playAudio', error);
+        logger.error('playAudio', error);
 
         audioElement._playFulfilled = true;
       });
