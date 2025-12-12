@@ -27,7 +27,6 @@ import {
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
-
 const DEVICE_SLEEP_DETECTION_INTERVAL = 1000; // in ms
 const DEVICE_SLEEP_DETECTION_THRESHOLD = 5000; // in ms
 
@@ -352,7 +351,7 @@ export default class Peer {
       }
     }
 
-    this._restartIceOnDeviceSleepWakeup();
+    this._restartNegotiationOnDeviceSleepWakeup();
   };
 
   private async createPeerConnection() {
@@ -714,16 +713,26 @@ export default class Peer {
   }
 
   /**
-   * Detect device sleep/wake up and restart ICE accordingly
+   * Detect device sleep/wake up, restart ICE and renegotiate
    */
-  private async _restartIceOnDeviceSleepWakeup() {
+  private async _restartNegotiationOnDeviceSleepWakeup() {
     let lastTime = Date.now();
-    setInterval(() => {
+    setInterval(async () => {
       const now = Date.now();
       if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
         // If time jumped more than 5s
-        logger.warn('Device sleep/wake detected. Restarting ICE...');
+        logger.warn('Device sleep/wake detected');
+
+        if (this.instance.connectionState === 'connected') {
+          logger.info('Restarting ICE and renegotiating due to device wakeup and connection state connected');
           this.instance.restartIce();
+
+          if (this._isTrickleIce()) {
+            await this.startTrickleIceNegotiation();
+          } else {
+            this.startNegotiation();
+          }
+        }
       }
       lastTime = now;
     }, DEVICE_SLEEP_DETECTION_INTERVAL);
