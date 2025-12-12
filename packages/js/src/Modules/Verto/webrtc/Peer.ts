@@ -206,6 +206,12 @@ export default class Peer {
         this._negotiating = false;
         break;
       case 'closed':
+        if (this.keepConnectionAliveOnSocketClose) {
+          logger.debug(
+            'Keeping peer connection alive due to keepConnectionAliveOnSocketClose option'
+          );
+          return;
+        }
         this.instance = null;
         break;
       default:

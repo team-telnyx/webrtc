@@ -940,6 +940,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (state) {
       case State.Purge:
+        logger.debug(`Call ${this.id} hangup call due to purge state`);
         this.hangup({ cause: 'PURGE', causeCode: '01' }, false);
         break;
       case State.Active: {

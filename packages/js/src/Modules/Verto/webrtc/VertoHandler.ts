@@ -114,13 +114,10 @@ class VertoHandler {
     }
 
     if (callID && session.calls.hasOwnProperty(callID)) {
-      const keepConnectionAliveOnSocketClose =
-        session.options.keepConnectionAliveOnSocketClose ||
-        session.calls[callID].options.keepConnectionAliveOnSocketClose;
-
       if (attach) {
         keepConnectionOnAttach =
-          keepConnectionAliveOnSocketClose &&
+          (session.options.keepConnectionAliveOnSocketClose ||
+            session.calls[callID].options.keepConnectionAliveOnSocketClose) &&
           Boolean(this.session.calls[callID].peer?.instance);
 
         if (keepConnectionOnAttach) {
@@ -128,25 +125,25 @@ class VertoHandler {
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
         } else {
-          logger.debug(`Session Options: ${session.options}`);
-          logger.debug(`Call: ${session.calls[callID]}`);
           logger.info(
             `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
           );
           session.calls[callID].hangup({}, false);
         }
-      } else if (punt && keepConnectionAliveOnSocketClose) {
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
-        );
-        this.session.socketDisconnect();
-        this._ack(id, method);
-        return;
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
         return;
       }
+    }
+
+    if (punt && session.options.keepConnectionAliveOnSocketClose) {
+      logger.info(
+        `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+      );
+      this.session.socketDisconnect();
+      this._ack(id, method);
+      return;
     }
 
     const _buildCall = () => {
