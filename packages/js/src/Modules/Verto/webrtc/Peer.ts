@@ -275,15 +275,9 @@ export default class Peer {
          * restart ice as ice credentials might have changed
          */
         if (!this._restartedIceOnConnectionStateFailed) {
-          if (this._isOffer() && connectionState === 'disconnected') {
-            this.instance.restartIce();
-            logger.debug(
-              `Peer Connection ${connectionState}. Restarting ICE gathering.`
-            );
-          }
+          this.instance.restartIce();
 
           if (connectionState === 'failed') {
-            this.instance.restartIce();
             this._restartedIceOnConnectionStateFailed = true;
             logger.debug('ICE has been restarted on connection state failed.');
           }

@@ -743,6 +743,9 @@ export default abstract class BrowserSession extends BaseSession {
        * Therefore, reconnect to be safe.
        */
       if (this._wasOffline) {
+        logger.debug(
+          `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
+        );
         this.socketDisconnect();
         this.connect();
       }
@@ -751,6 +754,7 @@ export default abstract class BrowserSession extends BaseSession {
 
     this._offlineHandler = () => {
       this._wasOffline = true;
+      logger.debug(`Network connectivity lost for session ${this.sessionid}`);
     };
 
     window.addEventListener('online', this._onlineHandler);
