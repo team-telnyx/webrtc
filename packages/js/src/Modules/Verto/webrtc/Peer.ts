@@ -26,6 +26,11 @@ import {
   getUserMedia,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
+
+
+const DEVICE_SLEEP_DETECTION_INTERVAL = 1000; // in ms
+const DEVICE_SLEEP_DETECTION_THRESHOLD = 5000; // in ms
+
 /**
  * @ignore Hide in docs output
  */
@@ -346,6 +351,8 @@ export default class Peer {
         performance.clearMarks();
       }
     }
+
+    this._restartIceOnDeviceSleepWakeup();
   };
 
   private async createPeerConnection() {
@@ -704,6 +711,22 @@ export default class Peer {
     } catch (error) {
       logger.error('Peer _resetJitterBuffer error:', error);
     }
+  }
+
+  /**
+   * Detect device sleep/wake up and restart ICE accordingly
+   */
+  private async _restartIceOnDeviceSleepWakeup() {
+    let lastTime = Date.now();
+    setInterval(() => {
+      const now = Date.now();
+      if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
+        // If time jumped more than 5s
+        logger.warn('Device sleep/wake detected. Restarting ICE...');
+          this.instance.restartIce();
+      }
+      lastTime = now;
+    }, DEVICE_SLEEP_DETECTION_INTERVAL);
   }
 
   private _isOffer(): boolean {
