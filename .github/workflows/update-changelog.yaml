@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.TARGET_BRANCH }}
-          token: ${{ secrets.DRAFT_RELEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get release description
         working-directory: packages/js

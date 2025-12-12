@@ -15,6 +15,6 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
     rawMethod.apply(undefined, messages);
   };
 };
-logger.setLevel(logger.getLevel());
+logger.setLevel('info');
 
 export default logger;

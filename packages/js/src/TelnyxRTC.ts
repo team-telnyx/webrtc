@@ -9,6 +9,7 @@ import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
+import logger from './Modules/Verto/util/logger';
 
 import * as pkg from '../package.json';
 
@@ -120,7 +121,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    */
   constructor(options: IClientOptions) {
     super(options);
-    console.log(`SDK version: ${pkg.version}`);
+    logger.info(`SDK version: ${pkg.version}`);
   }
 
   /**

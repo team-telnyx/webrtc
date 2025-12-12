@@ -114,13 +114,10 @@ class VertoHandler {
     }
 
     if (callID && session.calls.hasOwnProperty(callID)) {
-      const keepConnectionAliveOnSocketClose =
-        session.options.keepConnectionAliveOnSocketClose ||
-        session.calls[callID].options.keepConnectionAliveOnSocketClose;
-
       if (attach) {
         keepConnectionOnAttach =
-          keepConnectionAliveOnSocketClose &&
+          (session.options.keepConnectionAliveOnSocketClose ||
+            session.calls[callID].options.keepConnectionAliveOnSocketClose) &&
           Boolean(this.session.calls[callID].peer?.instance);
 
         if (keepConnectionOnAttach) {
@@ -128,24 +125,25 @@ class VertoHandler {
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
         } else {
-          logger.debug(`Session Options: ${session.options}`);
-          logger.debug(`Call: ${session.calls[callID]}`);
           logger.info(
             `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
           );
           session.calls[callID].hangup({}, false);
         }
-      } else if (punt && keepConnectionAliveOnSocketClose) {
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose`
-        );
-        this._ack(id, method);
-        return;
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
         return;
       }
+    }
+
+    if (punt && session.options.keepConnectionAliveOnSocketClose) {
+      logger.info(
+        `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+      );
+      this.session.socketDisconnect();
+      this._ack(id, method);
+      return;
     }
 
     const _buildCall = () => {
@@ -343,7 +341,7 @@ class VertoHandler {
                     .catch((error) => {
                       // if error is related to call not found or session, ignore it. This is expected as we're sending a candidate before a call as a support check
                       if (error.code === this.session.invalidMethodErrorCode) {
-                        console.warn(
+                        logger.warn(
                           'Trickle ICE is not supported by the server, disabling it.'
                         );
                         logger.debug(
@@ -431,6 +429,19 @@ class VertoHandler {
                   break;
                 } else {
                   setTimeout(() => {
+                    logger.debug(
+                      `Reconnecting... Retry ${VertoHandler.retriedConnect} of ${RETRY_CONNECT_TIME}`
+                    );
+
+                    if (this.session.options.keepConnectionAliveOnSocketClose) {
+                      logger.debug(
+                        'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
+                      );
+                      this.session.socketDisconnect();
+                      this.session.connect();
+                      return;
+                    }
+
                     this.session.disconnect().then(() => {
                       this.session.clearConnection();
                       this.session.connect();
