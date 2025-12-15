@@ -2,15 +2,14 @@ An event dispatched by Telnyx to notify the client of changes to the session or 
 
 The conditions of the event can be identified by the `type` property.
 
-| `type`           | Description                                                  | Additional properties |
-| ---------------- | ------------------------------------------------------------ | --------------------- |
-| `callUpdate`     | A call has changed state                                     | `call`                |
-| `userMediaError` | The browser does not have permission to access media devices | `error`               |
+| `type` | Description | Additional properties |
+|---|---|---|
+| `callUpdate` | A call has changed state | `call` |
+| `userMediaError` | The browser does not have permission to access media devices | `error` |
 
 **`Examples`**
 
 Usage with TelnyxRTC Client `.on`:
-
 ```js
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'callUpdate') {
@@ -53,7 +52,7 @@ Notification
 
 ## Hierarchy
 
-- `Omit`\<`INotificationEventData`, `"call"`\>
+- `Omit`\<`INotificationEventData`, ``"call"``\>
 
   ↳ **`INotification`**
 
@@ -74,7 +73,7 @@ Notification
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
 
----
+___
 
 ### error
 
@@ -87,7 +86,7 @@ Check your `audio` and `video` constraints for browser support.
 
 Omit.error
 
----
+___
 
 ### type
 

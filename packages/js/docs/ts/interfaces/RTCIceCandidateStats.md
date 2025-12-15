@@ -27,7 +27,7 @@ Interface representing the statistics of an RTC ICE candidate.
 
 The address of the ICE candidate.
 
----
+___
 
 ### candidateType
 
@@ -35,7 +35,7 @@ The address of the ICE candidate.
 
 The type of the ICE candidate.
 
----
+___
 
 ### deleted
 
@@ -43,7 +43,7 @@ The type of the ICE candidate.
 
 Indicates whether the ICE candidate has been deleted.
 
----
+___
 
 ### id
 
@@ -51,7 +51,7 @@ Indicates whether the ICE candidate has been deleted.
 
 The unique identifier for the ICE candidate.
 
----
+___
 
 ### port
 
@@ -59,7 +59,7 @@ The unique identifier for the ICE candidate.
 
 The port number of the ICE candidate.
 
----
+___
 
 ### priority
 
@@ -67,7 +67,7 @@ The port number of the ICE candidate.
 
 The priority of the ICE candidate.
 
----
+___
 
 ### protocol
 
@@ -75,15 +75,15 @@ The priority of the ICE candidate.
 
 The protocol used by the ICE candidate.
 
----
+___
 
 ### relayProtocol
 
-• `Optional` **relayProtocol**: `"tcp"` \| `"udp"` \| `"tls"`
+• `Optional` **relayProtocol**: ``"tcp"`` \| ``"udp"`` \| ``"tls"``
 
 The relay protocol used by the ICE candidate, if applicable.
 
----
+___
 
 ### timestamp
 
@@ -91,7 +91,7 @@ The relay protocol used by the ICE candidate, if applicable.
 
 The timestamp when the ICE candidate was generated.
 
----
+___
 
 ### transportId
 
@@ -99,7 +99,7 @@ The timestamp when the ICE candidate was generated.
 
 The transport identifier for the ICE candidate.
 
----
+___
 
 ### type
 
@@ -107,7 +107,7 @@ The transport identifier for the ICE candidate.
 
 The type of the ICE candidate, either local or remote.
 
----
+___
 
 ### url
 
