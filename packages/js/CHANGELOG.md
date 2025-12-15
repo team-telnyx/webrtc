@@ -1,4 +1,18 @@
-## [2.25.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.8...webrtc/v2.25.9) (2025-12-04)
+## [2.25.11](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.10...webrtc/v2.25.11) (2025-12-15)
+
+### Enhancements
+
+- normalize logging calls
+- improve debug logs and socket disconnect on retry
+- add device sleep mode detection code
+
+### Fixes
+
+- address connection state not transitioning
+- maintain call state on peer connection signaling state change
+
+
+## [2.25.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.9...webrtc/v2.25.10) (2025-12-04)
 
 - fix: consider `keepConnectionAliveOnSocketClose` in session call for Punt
 - fix: do not empty execution queue on `keepConnectionAliveOnSocketClose` to avoid old refs
