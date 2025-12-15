@@ -24,6 +24,7 @@ import {
   assureDeviceId,
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
+import logger from './util/logger';
 import { Unsubscribe, Subscribe, Broadcast, Attach } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
@@ -169,6 +170,10 @@ export default abstract class BrowserSession extends BaseSession {
 
     this._cleanupNetworkListeners();
     await super.disconnect();
+  }
+
+  socketDisconnect() {
+    this._closeConnection();
   }
 
   /**
@@ -346,7 +351,7 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioOutDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioOut).catch((error) => {
-      console.error('getAudioOutDevices', error);
+      logger.error('getAudioOutDevices', error);
       trigger(SwEvent.MediaError, error, this.uuid);
       return [];
     });
@@ -738,7 +743,10 @@ export default abstract class BrowserSession extends BaseSession {
        * Therefore, reconnect to be safe.
        */
       if (this._wasOffline) {
-        this._closeConnection();
+        logger.debug(
+          `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
+        );
+        this.socketDisconnect();
         this.connect();
       }
       this._wasOffline = false;
@@ -746,6 +754,7 @@ export default abstract class BrowserSession extends BaseSession {
 
     this._offlineHandler = () => {
       this._wasOffline = true;
+      logger.debug(`Network connectivity lost for session ${this.sessionid}`);
     };
 
     window.addEventListener('online', this._onlineHandler);

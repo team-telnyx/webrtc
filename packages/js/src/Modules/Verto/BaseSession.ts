@@ -55,6 +55,11 @@ export default abstract class BaseSession {
     if (!this.validateOptions()) {
       throw new Error('Invalid init options');
     }
+
+    if (options.debug) {
+      logger.setLevel('debug');
+    }
+
     this._onSocketOpen = this._onSocketOpen.bind(this);
     this.onNetworkClose = this.onNetworkClose.bind(this);
     this._onSocketMessage = this._onSocketMessage.bind(this);

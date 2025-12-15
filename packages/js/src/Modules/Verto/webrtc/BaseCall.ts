@@ -17,6 +17,7 @@ import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
+import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
 import {
   attachMediaStream,
@@ -882,7 +883,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             sender.getParameters()
           );
         })
-        .catch((e) => console.error(e));
+        .catch((e) => logger.error(e));
     } else {
       logger.error(
         'Could not set bandwidth (reason: no ' +
@@ -939,6 +940,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (state) {
       case State.Purge:
+        logger.debug(`Call ${this.id} hangup call due to purge state`);
         this.hangup({ cause: 'PURGE', causeCode: '01' }, false);
         break;
       case State.Active: {
@@ -1515,6 +1517,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onIce(event);
     };
 
+    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
+      logger.debug('ICE candidate error:', event);
+      if (this.peer?.statsReporter) {
+        const details = getIceCandidateErrorDetails(event, instance);
+        this.peer.statsReporter.reportIceCandidateError(details);
+      }
+    };
+
     //@ts-ignore
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
@@ -1540,9 +1550,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    instance.onicecandidateerror = (event) => {
+    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       // if a candidate fails this is not fatal as long as other candidates succeed
       logger.debug('ICE candidate error:', event);
+      if (this.peer?.statsReporter) {
+        const details = getIceCandidateErrorDetails(event, instance);
+        this.peer.statsReporter.reportIceCandidateError(details);
+      }
     };
 
     //@ts-ignore
@@ -1575,6 +1589,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.userMediaError,
       error,
     });
+    logger.error('Media error, hanging up call', error);
     this.hangup({}, false);
   }
 
@@ -1583,6 +1598,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
+    logger.error('Peer connection failure error, hanging up call', error);
     this.hangup({}, false);
   }
 
@@ -1644,10 +1660,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
-    if (this.peer && this.peer.instance) {
-      this.peer.instance.close();
-      this.peer = null;
-    }
+    this.peer?.close();
     const { remoteStream, localStream } = this.options;
     stopStream(remoteStream);
     stopStream(localStream);

@@ -1,7 +1,11 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { GOOGLE_STUN_SERVER, SwEvent, TURN_SERVER } from '../util/constants';
-import { createWebRTCStatsReporter, WebRTCStatsReporter } from '../util/debug';
+import {
+  createWebRTCStatsReporter,
+  getConnectionStateDetails,
+  WebRTCStatsReporter,
+} from '../util/debug';
 
 import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
@@ -22,18 +26,22 @@ import {
   getUserMedia,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
+
+const DEVICE_SLEEP_DETECTION_INTERVAL = 1000; // in ms
+const DEVICE_SLEEP_DETECTION_THRESHOLD = 5000; // in ms
+
 /**
  * @ignore Hide in docs output
  */
 export default class Peer {
   public instance: RTCPeerConnection;
   public onSdpReadyTwice: Function = null;
+  public statsReporter: WebRTCStatsReporter | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
   };
 
-  private statsReporter: WebRTCStatsReporter | null = null;
   private _session: BrowserSession;
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
@@ -202,6 +210,12 @@ export default class Peer {
         this._negotiating = false;
         break;
       case 'closed':
+        if (this.keepConnectionAliveOnSocketClose) {
+          logger.debug(
+            'Keeping peer connection alive due to keepConnectionAliveOnSocketClose option'
+          );
+          return;
+        }
         this.instance = null;
         break;
       default:
@@ -243,7 +257,7 @@ export default class Peer {
 
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
-    console.log(
+    logger.info(
       `[${new Date().toISOString()}] Connection State changed: ${
         this._prevConnectionState
       } -> ${connectionState}`
@@ -252,15 +266,20 @@ export default class Peer {
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
-        /**
-         * restart ice and send offer again as ice credentials might have changed
-         * only do it if peer is the offerer to avoid using old ice creds when back online
-         */
-        if (this._isOffer() && !this._restartedIceOnConnectionStateFailed) {
-          this.instance.restartIce();
-          logger.debug(
-            `Peer Connection ${connectionState}. Restarting ICE gathering.`
+        // Report detailed connection state if debug is enabled
+        if (this.isDebugEnabled && this.statsReporter) {
+          const details = await getConnectionStateDetails(
+            this.instance,
+            this._prevConnectionState
           );
+          this.statsReporter.reportConnectionStateChange(details);
+        }
+
+        /**
+         * restart ice as ice credentials might have changed
+         */
+        if (!this._restartedIceOnConnectionStateFailed) {
+          this.instance.restartIce();
 
           if (connectionState === 'failed') {
             this._restartedIceOnConnectionStateFailed = true;
@@ -272,7 +291,7 @@ export default class Peer {
           } else {
             this.startNegotiation();
           }
-        } else if (this._restartedIceOnConnectionStateFailed) {
+        } else {
           logger.debug(
             'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
           );
@@ -331,6 +350,8 @@ export default class Peer {
         performance.clearMarks();
       }
     }
+
+    this._restartNegotiationOnDeviceSleepWakeup();
   };
 
   private async createPeerConnection() {
@@ -384,13 +405,13 @@ export default class Peer {
   }
 
   private _handleIceConnectionStateChange = (event) => {
-    console.log(
+    logger.debug(
       `[${new Date().toISOString()}] ICE Connection State`,
       this.instance.iceConnectionState
     );
   };
   private _handleIceGatheringStateChange = (event) => {
-    console.log(
+    logger.debug(
       `[${new Date().toISOString()}] ICE Gathering State`,
       this.instance.iceGatheringState
     );
@@ -591,7 +612,7 @@ export default class Peer {
         'Skipping negotiation, state:',
         this.instance.signalingState
       );
-      console.log(
+      logger.debug(
         "  - But the signaling state isn't stable, so triggering rollback"
       );
 
@@ -689,6 +710,36 @@ export default class Peer {
     } catch (error) {
       logger.error('Peer _resetJitterBuffer error:', error);
     }
+  }
+
+  /**
+   * Detect device sleep/wake up, restart ICE and renegotiate
+   */
+  private async _restartNegotiationOnDeviceSleepWakeup() {
+    let lastTime = Date.now();
+    setInterval(async () => {
+      const now = Date.now();
+      if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
+        // If time jumped more than 5s
+        logger.warn(
+          `Device sleep/wake detected. Time jump: ${
+            now - lastTime
+          }ms, connectionState: ${this.instance.connectionState}`
+        );
+
+        logger.info(
+          'Restarting ICE and renegotiating due to device wakeup'
+        );
+        this.instance.restartIce();
+
+        if (this._isTrickleIce()) {
+          await this.startTrickleIceNegotiation();
+        } else {
+          this.startNegotiation();
+        }
+      }
+      lastTime = now;
+    }, DEVICE_SLEEP_DETECTION_INTERVAL);
   }
 
   private _isOffer(): boolean {
