@@ -425,11 +425,7 @@ export default class Peer {
         this.options.id
       );
 
-      await this.statsReporter?.start(
-        this.instance,
-        this._session.sessionid,
-        this._session.sessionid
-      );
+      await this.startStatsReporting();
     }
 
     const {
@@ -770,10 +766,21 @@ export default class Peer {
   }
 
   public async close() {
-    await this.statsReporter?.stop(this.debugOutput);
+    await this.stopStatsReporting();
     if (this.instance) {
       this.instance.close();
       this.instance = null;
     }
+  }
+
+  public async startStatsReporting() {
+    return this.statsReporter?.start(
+      this.instance,
+      this._session.sessionid,
+      this._session.sessionid
+    );
+  }
+  public async stopStatsReporting() {
+    return this.statsReporter?.stop(this.debugOutput);
   }
 }

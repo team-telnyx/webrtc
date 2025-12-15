@@ -124,12 +124,20 @@ class VertoHandler {
           logger.info(
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
+          this.session.calls[callID].peer?.startStatsReporting();
         } else {
           logger.info(
             `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
           );
           session.calls[callID].hangup({}, false);
         }
+      } else if (punt) {
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose`
+        );
+        this.session.calls[callID].peer?.stopStatsReporting();
+        this._ack(id, method);
+        return;
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
