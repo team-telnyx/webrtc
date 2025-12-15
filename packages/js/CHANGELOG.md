@@ -1,3 +1,7 @@
+## [2.25.12](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.11...webrtc/v2.25.12) (2025-12-15)
+
+- feat: feat: clear intervals setup on device sleep wake
+
 ## [2.25.11](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.10...webrtc/v2.25.11) (2025-12-15)
 
 ### Enhancements

@@ -48,6 +48,7 @@ export default class Peer {
   private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
+  private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     public type: PeerType,
@@ -716,16 +717,26 @@ export default class Peer {
    * Detect device sleep/wake up, restart ICE and renegotiate
    */
   private async _restartNegotiationOnDeviceSleepWakeup() {
+    if (this._sleepWakeupIntervalId !== null) {
+      clearInterval(this._sleepWakeupIntervalId);
+      this._sleepWakeupIntervalId = null;
+    }
+
     let lastTime = Date.now();
-    setInterval(async () => {
+    this._sleepWakeupIntervalId = setInterval(async () => {
       const now = Date.now();
       if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
         // If time jumped more than 5s
         logger.warn(
           `Device sleep/wake detected. Time jump: ${
             now - lastTime
-          }ms, connectionState: ${this.instance.connectionState}`
+          }ms, connectionState: ${this.instance?.connectionState}`
         );
+
+        if (!this.instance) {
+          logger.debug('Peer connection closed, skipping ICE restart');
+          return;
+        }
 
         logger.info(
           'Restarting ICE and renegotiating due to device wakeup'
@@ -770,6 +781,10 @@ export default class Peer {
   }
 
   public async close() {
+    if (this._sleepWakeupIntervalId !== null) {
+      clearInterval(this._sleepWakeupIntervalId);
+      this._sleepWakeupIntervalId = null;
+    }
     await this.statsReporter?.stop(this.debugOutput);
     if (this.instance) {
       this.instance.close();
