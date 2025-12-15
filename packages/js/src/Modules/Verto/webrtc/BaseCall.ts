@@ -929,7 +929,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._state = state;
     this.state = State[this._state].toLowerCase();
     this.prevState = State[this._prevState].toLowerCase();
-    logger.info(
+    logger.debug(
       `Call ${this.id} state change from ${this.prevState} to ${this.state}`
     );
 
@@ -1680,7 +1680,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearInterval(this._statsIntervalId);
       this._statsIntervalId = null;
     }
-    logger.info('Stats stopped');
+    logger.debug('Stats stopped');
   }
 
   private _doStats = () => {
