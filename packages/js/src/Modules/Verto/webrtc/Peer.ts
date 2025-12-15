@@ -721,17 +721,21 @@ export default class Peer {
       const now = Date.now();
       if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
         // If time jumped more than 5s
-        logger.warn('Device sleep/wake detected');
+        logger.warn(
+          `Device sleep/wake detected. Time jump: ${
+            now - lastTime
+          }ms, connectionState: ${this.instance.connectionState}`
+        );
 
-        if (this.instance.connectionState === 'connected') {
-          logger.info('Restarting ICE and renegotiating due to device wakeup and connection state connected');
-          this.instance.restartIce();
+        logger.info(
+          'Restarting ICE and renegotiating due to device wakeup'
+        );
+        this.instance.restartIce();
 
-          if (this._isTrickleIce()) {
-            await this.startTrickleIceNegotiation();
-          } else {
-            this.startNegotiation();
-          }
+        if (this._isTrickleIce()) {
+          await this.startTrickleIceNegotiation();
+        } else {
+          this.startNegotiation();
         }
       }
       lastTime = now;

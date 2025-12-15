@@ -1660,10 +1660,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
-    if (this.peer && this.peer.instance) {
-      this.peer.instance.close();
-      this.peer = null;
-    }
+    this.peer?.close();
     const { remoteStream, localStream } = this.options;
     stopStream(remoteStream);
     stopStream(localStream);
