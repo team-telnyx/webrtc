@@ -57,6 +57,7 @@ export default abstract class BrowserSession extends BaseSession {
   protected _jwtAuth: boolean = true;
 
   protected _audioConstraints: boolean | MediaTrackConstraints = true;
+  private _previousAudioConstraints: boolean | MediaTrackConstraints = true;
 
   protected _videoConstraints: boolean | MediaTrackConstraints = false;
 
@@ -525,6 +526,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   disableMicrophone() {
+    this._previousAudioConstraints = this._audioConstraints;
     this._audioConstraints = false;
   }
 
@@ -543,7 +545,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   enableMicrophone() {
-    this._audioConstraints = true;
+    this._audioConstraints = this._previousAudioConstraints || true;
   }
 
   set iceServers(servers: RTCIceServer[]) {
