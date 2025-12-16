@@ -574,8 +574,8 @@ export default class Peer {
     if (!this._isOffer()) {
       return;
     }
-
-    this._constraints.offerToReceiveAudio = Boolean(this.options.audio);
+    // set default audio true, given value given in session mediaConstraints and call options is may be undefined
+    this._constraints.offerToReceiveAudio = this.options.audio !== false;
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)

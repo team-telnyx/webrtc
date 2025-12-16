@@ -1,7 +1,6 @@
-## [2.25.13](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.12...webrtc/v2.25.13) (2025-12-15)
+## [2.25.14](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.13...webrtc/v2.25.14) (2025-12-16)
 
-- fix: adjust log level on internal messages
-- fix: reset default log level
+- fix: make sure offerToReceiveAudio is set if call audio options is undefined
 
 ## [2.25.12](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.11...webrtc/v2.25.12) (2025-12-15)
 
