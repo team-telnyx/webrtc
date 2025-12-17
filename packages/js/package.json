@@ -24,6 +24,8 @@
     "watch": "rollup -c --watch",
     "prepare": "yarn build",
     "test": "jest",
+    "lint": "eslint .",
+    "lint:md": "eslint **/*.md",
     "docs": "typedoc --entryPointStrategy expand ./src",
     "docs:html": "typedoc --entryPointStrategy expand --options typedoc.html.json ./src",
     "release": "release-it",
@@ -100,8 +102,9 @@
     }
   },
   "lint-staged": {
-    "*.js, *.jsx, *.ts, *.tsx": [
-      "eslint --fix"
+    "**/*.{js,ts,md}": [
+      "eslint",
+      "prettier"
     ]
   }
 }
