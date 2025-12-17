@@ -103,8 +103,8 @@
   },
   "lint-staged": {
     "**/*.{js,ts,md}": [
-      "eslint",
-      "prettier"
+      "yarn eslint --fix",
+      "yarn prettier --write"
     ]
   }
 }
