@@ -41,10 +41,7 @@
     "nth-check": "2.0.1",
     "node-notifier": "8.0.1",
     "jsdom": "16.5.0",
-    "got": "11.8.5",
-    "@typescript-eslint/eslint-plugin": "3.6.1",
-    "@typescript-eslint/parser": "3.6.1",
-    "eslint": "8.3.0"
+    "got": "11.8.5"
   },
   "packageManager": "yarn@4.3.1"
 }
