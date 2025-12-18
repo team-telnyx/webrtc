@@ -1,2 +1,1 @@
-# So far apply pre-commit hooks only for js package
-cd packages/js && yarn lint-staged --config ./package.json
+yarn lint-staged --cwd packages/js
