@@ -213,11 +213,10 @@ export default class Peer {
       case 'closed':
         if (this.keepConnectionAliveOnSocketClose) {
           logger.debug(
-            'Keeping peer connection alive due to keepConnectionAliveOnSocketClose option'
+            'hanging up call. Peer connection not recoverable. Overriding keepConnectionAliveOnSocketClose option'
           );
-          return;
         }
-        this.instance = null;
+        this.close();
         break;
       default:
         this._negotiating = true;
