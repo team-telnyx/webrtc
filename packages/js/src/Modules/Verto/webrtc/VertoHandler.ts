@@ -115,20 +115,28 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
+        const call = session.calls[callID];
         keepConnectionOnAttach =
           (session.options.keepConnectionAliveOnSocketClose ||
-            session.calls[callID].options.keepConnectionAliveOnSocketClose) &&
-          Boolean(this.session.calls[callID].peer?.instance);
+            call.options.keepConnectionAliveOnSocketClose) &&
+          Boolean(call.peer?.instance) &&
+          !call.signalingStateClosed;
 
         if (keepConnectionOnAttach) {
           logger.info(
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
         } else {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
-          );
-          session.calls[callID].hangup({}, false);
+          if (call.signalingStateClosed) {
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - signalingState is closed, bypassing keepConnectionAliveOnSocketClose`
+            );
+          } else {
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
+            );
+          }
+          call.hangup({}, false);
         }
       } else {
         session.calls[callID].handleMessage(msg);
@@ -139,7 +147,7 @@ class VertoHandler {
 
     if (punt && session.options.keepConnectionAliveOnSocketClose) {
       logger.info(
-        `[${new Date().toISOString()}][${callID}] keeping call alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+        `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
       );
       this.session.socketDisconnect();
       this._ack(id, method);
@@ -262,6 +270,8 @@ class VertoHandler {
               'User-Agent': `Web-${SDK_VERSION}`,
             })
           );
+          // Restart stats reporter after reconnect
+          this.session.calls[callID].peer?.restartStatsReporter();
           return;
         } else {
           logger.info(
@@ -434,12 +444,26 @@ class VertoHandler {
                     );
 
                     if (this.session.options.keepConnectionAliveOnSocketClose) {
-                      logger.debug(
-                        'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
+                      // Check if any call has a recoverable peer connection (signalingStateClosed === false)
+                      const hasRecoverablePeer = Object.values(
+                        session.calls
+                      ).some(
+                        (call) =>
+                          call.peer?.instance && !call.signalingStateClosed
                       );
-                      this.session.socketDisconnect();
-                      this.session.connect();
-                      return;
+
+                      if (hasRecoverablePeer) {
+                        logger.debug(
+                          'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
+                        );
+                        this.session.socketDisconnect();
+                        this.session.connect();
+                        return;
+                      } else {
+                        logger.debug(
+                          'keepConnectionAliveOnSocketClose is set but all peer connections have signalingState closed, doing full reconnect'
+                        );
+                      }
                     }
 
                     this.session.disconnect().then(() => {

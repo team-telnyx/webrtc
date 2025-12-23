@@ -211,12 +211,20 @@ export default class Peer {
         this._negotiating = false;
         break;
       case 'closed':
-        if (this.keepConnectionAliveOnSocketClose) {
+        trigger(
+          SwEvent.PeerConnectionSignalingStateClosed,
+          {
+            sessionId: this._session.sessionid,
+          },
+          this.options.id
+        );
+
+        if (this.instance) {
           logger.debug(
-            'hanging up call. Peer connection not recoverable. Overriding keepConnectionAliveOnSocketClose option'
+            `[${this.options.id}] Closing peer due to signalingState closed`
           );
+          this.close();
         }
-        this.close();
         break;
       default:
         this._negotiating = true;
@@ -737,9 +745,7 @@ export default class Peer {
           return;
         }
 
-        logger.info(
-          'Restarting ICE and renegotiating due to device wakeup'
-        );
+        logger.info('Restarting ICE and renegotiating due to device wakeup');
         this.instance.restartIce();
 
         if (this._isTrickleIce()) {
@@ -779,12 +785,44 @@ export default class Peer {
     return config;
   }
 
+  /**
+   * Only restarts if a stats reporter was previously created (debug was enabled).
+   */
+  public async restartStatsReporter() {
+    if (!this.isDebugEnabled || !this.statsReporter) {
+      return;
+    }
+
+    if (!this.instance) {
+      logger.debug(
+        `[${this.options.id}] Cannot restart stats reporter - no peer connection instance`
+      );
+      return;
+    }
+
+    if (this.statsReporter.isRunning) {
+      logger.debug(
+        `[${this.options.id}] Stats reporter already running, skipping restart`
+      );
+      return;
+    }
+
+    logger.debug(`[${this.options.id}] Restarting stats reporter after reconnect`);
+    await this.statsReporter.start(
+      this.instance,
+      this._session.sessionid,
+      this._session.sessionid
+    );
+  }
+
   public async close() {
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;
     }
-    await this.statsReporter?.stop(this.debugOutput);
+    if (this.isDebugEnabled && this.statsReporter) {
+      await this.statsReporter.stop(this.debugOutput);
+    }
     if (this.instance) {
       this.instance.close();
       this.instance = null;
