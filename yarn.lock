@@ -2853,7 +2853,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@telnyx/webrtc@npm:>=2.25.10-rc.0 <3.0.0-rc.0, @telnyx/webrtc@workspace:packages/js":
+"@telnyx/webrtc@npm:>=2.25.10-rc.0 <3.0.0-rc.0":
+  version: 2.25.14
+  resolution: "@telnyx/webrtc@npm:2.25.14"
+  dependencies:
+    "@peermetrics/webrtc-stats": "npm:^5.7.1"
+    loglevel: "npm:^1.6.8"
+    uuid: "npm:^7.0.3"
+  checksum: 10c0/5400bb57200369d855d0a6f61a880db7cb952fead5626682093b1f0f8b46ab61694020d9203836be33576bf632dfabf51b0b1c6fb5a639f8000faf789ea3410e
+  languageName: node
+  linkType: hard
+
+"@telnyx/webrtc@workspace:packages/js":
   version: 0.0.0-use.local
   resolution: "@telnyx/webrtc@workspace:packages/js"
   dependencies:

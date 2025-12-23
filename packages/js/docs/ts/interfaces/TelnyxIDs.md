@@ -18,7 +18,7 @@ Interface representing the Telnyx identifiers.
 
 The Telnyx call control identifier.
 
----
+___
 
 ### telnyxLegId
 
@@ -26,7 +26,7 @@ The Telnyx call control identifier.
 
 The Telnyx leg identifier.
 
----
+___
 
 ### telnyxSessionId
 

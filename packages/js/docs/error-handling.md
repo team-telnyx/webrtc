@@ -13,6 +13,7 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [Handling Details](#handling-details)
       - [`telnyx.rtc.mediaError`](#telnyxrtcmediaerror)
       - [`telnyx.rtc.peerConnectionFailureError`](#telnyxrtcpeerconnectionfailureerror)
+      - [`telnyx.rtc.peerConnectionSignalingStateClosed`](#telnyxrtcpeerconnectionsignalingstateclosed)
   - [Call Termination Reasons](#call-termination-reasons)
     - [Call Termination Fields](#call-termination-fields)
     - [Common Cause Values](#common-cause-values)
@@ -75,6 +76,7 @@ The SDK exposes every recoverable failure through specific `SwEvent` constants. 
 | `telnyx.error` | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.) | `{ error: Error | ErrorResponse, sessionId: string }` | Surface actionable message, decide whether to retry or prompt the user to re-authenticate |
 | `telnyx.rtc.mediaError` | Browser media APIs fail (device enumeration, permission denials, track issues) | Browser `DOMException`/`Error` instance | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only |
 | `telnyx.rtc.peerConnectionFailureError` | ICE restart cannot recover the peer connection (e.g., repeated `failed` state) | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope | Tear down the affected call, notify the user, optionally auto-redial once connectivity stabilizes |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call is not recoverable |
 
 ### Handling Details
 
@@ -84,7 +86,11 @@ Triggered whenever media-device related promises reject (enumerating devices, op
 
 #### `telnyx.rtc.peerConnectionFailureError`
 
-Raised by the peer connection monitor when an ICE restart still results in a `failed` state. The event (`SwEvent.RtcPeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: immediately hang up the affected call if silent audio is detected. If `autoReconnect` is enabled (the default), WebRTC JS SDK will reconnect right away.
+Raised by the peer connection monitor when an ICE restart still results in a `failed` state. The event (`SwEvent.PeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: immediately hang up the affected call if silent audio is detected. If `autoReconnect` is enabled (the default), WebRTC JS SDK will reconnect right away.
+
+#### `telnyx.rtc.peerConnectionSignalingStateClosed`
+
+Raised when the peer connection's signaling state transitions to `closed`. This event (`SwEvent.PeerConnectionSignalingStateClosed`) is scoped to the call id. When this event fires, the peer connection is not recoverable. The call's `signalingStateClosed` property will be set to `true`, which can be used to check if a call is recoverable. When using `keepConnectionAliveOnSocketClose`, calls with closed signaling state will be hung up on ATTACH because recovery is not possible.
 
 ## Call Termination Reasons
 

@@ -20,13 +20,13 @@ Can include either login and password or a login token.
 
 #### Type declaration
 
-| Name          | Type     | Description         |
-| :------------ | :------- | :------------------ |
-| `login?`      | `string` | The login username. |
-| `loginToken?` | `string` | The login token.    |
-| `password?`   | `string` | The login password. |
+| Name | Type | Description |
+| :------ | :------ | :------ |
+| `login?` | `string` | The login username. |
+| `loginToken?` | `string` | The login token. |
+| `password?` | `string` | The login password. |
 
----
+___
 
 ### texMLApplicationNumber
 

@@ -18,7 +18,7 @@ Interface representing the minimum, maximum, and average values.
 
 The average value.
 
----
+___
 
 ### max
 
@@ -26,7 +26,7 @@ The average value.
 
 The maximum value.
 
----
+___
 
 ### min
 

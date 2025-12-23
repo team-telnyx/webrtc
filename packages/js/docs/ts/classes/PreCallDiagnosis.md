@@ -23,7 +23,7 @@ Gets the Telnyx identifiers for the pre-call diagnosis.
 
 {@type TelnyxIDs} The Telnyx identifiers for the pre-call diagnosis.
 
----
+___
 
 ### run
 
@@ -33,8 +33,8 @@ Executes the pre-call diagnosis and returns a report.
 
 #### Parameters
 
-| Name      | Type                                                                                          | Description                                                             |
-| :-------- | :-------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| Name | Type | Description |
+| :------ | :------ | :------ |
 | `options` | [`PreCallDiagnosisOptions`](/development/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md) | {@type PreCallDiagnosisOptions} - The options to use for the diagnosis. |
 
 #### Returns
