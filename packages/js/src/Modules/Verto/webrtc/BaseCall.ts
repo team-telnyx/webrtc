@@ -124,6 +124,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   public extension: string = null;
 
+  get creatingPeer(): boolean {
+    return this._creatingPeer;
+  }
+
   /**
    * Indicates if the peer connection's signaling state has transitioned to 'closed'
    * while the connection was previously active. Used to determine if the call
@@ -164,6 +168,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _isRemoteDescriptionSet: boolean = false;
 
   private _signalingStateClosed: boolean = false;
+
+  private _creatingPeer: boolean = false;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -351,6 +357,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   async invite() {
+    this._creatingPeer = true;
     this.direction = Direction.Outbound;
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
@@ -366,6 +373,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         : this._registerPeerEvents
     );
     await this.peer.init();
+    this._creatingPeer = false;
   }
   /**
    * Starts the process to answer the incoming call.
@@ -377,6 +385,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    this._creatingPeer = true;
     performance.mark('new-call-start');
     this.stopRingtone();
 
@@ -404,6 +413,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     await this.peer.init();
     performance.mark('new-call-end');
+    this._creatingPeer = false;
   }
 
   playRingtone() {

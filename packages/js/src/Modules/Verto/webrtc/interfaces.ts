@@ -102,6 +102,7 @@ export interface IWebRTCCall {
   localStream: MediaStream;
   remoteStream: MediaStream;
   isAudioMuted: boolean;
+  creatingPeer: boolean;
   signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;

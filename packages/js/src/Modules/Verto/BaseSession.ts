@@ -162,6 +162,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+    logger.debug('Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.');
   }
 
   /**

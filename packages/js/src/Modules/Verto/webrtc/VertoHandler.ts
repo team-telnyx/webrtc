@@ -278,6 +278,14 @@ class VertoHandler {
             `[${new Date().toISOString()}][${callID}] Re-creating call instance.`
           );
         }
+
+        if (this.session.calls[callID].creatingPeer) {
+          logger.debug(
+            `[${new Date().toISOString()}][${callID}] Call is already answering and creating a peer, skip recreating call instance.`
+          );
+          return;
+        }
+
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
           call.answer();

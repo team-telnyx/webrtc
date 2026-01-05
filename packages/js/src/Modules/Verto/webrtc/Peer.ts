@@ -27,9 +27,6 @@ import {
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
-const DEVICE_SLEEP_DETECTION_INTERVAL = 1000; // in ms
-const DEVICE_SLEEP_DETECTION_THRESHOLD = 5000; // in ms
-
 /**
  * @ignore Hide in docs output
  */
@@ -57,7 +54,7 @@ export default class Peer {
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
     registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
-    logger.info('New Peer with type:', this.type, 'Options:', this.options);
+    logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
       offerToReceiveAudio: true,
@@ -283,19 +280,18 @@ export default class Peer {
 
         /**
          * restart ice as ice credentials might have changed
+         * Per WebRTC spec, ICE restart requires creating a new offer
+         * (regardless of whether we were originally the offerer or answerer)
          */
         if (!this._restartedIceOnConnectionStateFailed) {
-          this.instance.restartIce();
-
           if (connectionState === 'failed') {
             this._restartedIceOnConnectionStateFailed = true;
             logger.debug('ICE has been restarted on connection state failed.');
           }
 
-          if (this._isTrickleIce()) {
-            await this.startTrickleIceNegotiation();
-          } else {
-            this.startNegotiation();
+          if (this._session.hasAutoReconnect()) {
+            // ICE restart always requires creating an offer, not an answer
+            await this._createIceRestartOffer();
           }
         } else {
           logger.debug(
@@ -356,8 +352,6 @@ export default class Peer {
         performance.clearMarks();
       }
     }
-
-    this._restartNegotiationOnDeviceSleepWakeup();
   };
 
   private async createPeerConnection() {
@@ -599,6 +593,35 @@ export default class Peer {
     }
   }
 
+  /**
+   * Creates an offer specifically for ICE restart.
+   * Per WebRTC spec, ICE restart always requires creating an offer,
+   * regardless of whether we were originally the offerer or answerer.
+   */
+  private async _createIceRestartOffer() {
+    this._constraints.offerToReceiveAudio = this.options.audio !== false;
+    this._constraints.offerToReceiveVideo = Boolean(this.options.video);
+    logger.info('_createIceRestartOffer - creating offer for ICE restart');
+
+    try {
+      const offer = await this.instance.createOffer({
+        ...this._constraints,
+        iceRestart: true,
+      });
+      await this._setLocalDescription(offer);
+
+      if (this._isTrickleIce()) {
+        this._trickleIceSdpFn(offer);
+      } else {
+        this._sdpReady();
+      }
+
+      return offer;
+    } catch (error) {
+      logger.error('Peer _createIceRestartOffer error:', error);
+    }
+  }
+
   private async _setRemoteDescription(
     remoteDescription: RTCSessionDescriptionInit
   ) {
@@ -716,44 +739,6 @@ export default class Peer {
     } catch (error) {
       logger.error('Peer _resetJitterBuffer error:', error);
     }
-  }
-
-  /**
-   * Detect device sleep/wake up, restart ICE and renegotiate
-   */
-  private async _restartNegotiationOnDeviceSleepWakeup() {
-    if (this._sleepWakeupIntervalId !== null) {
-      clearInterval(this._sleepWakeupIntervalId);
-      this._sleepWakeupIntervalId = null;
-    }
-
-    let lastTime = Date.now();
-    this._sleepWakeupIntervalId = setInterval(async () => {
-      const now = Date.now();
-      if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
-        // If time jumped more than 5s
-        logger.warn(
-          `Device sleep/wake detected. Time jump: ${
-            now - lastTime
-          }ms, connectionState: ${this.instance?.connectionState}`
-        );
-
-        if (!this.instance) {
-          logger.debug('Peer connection closed, skipping ICE restart');
-          return;
-        }
-
-        logger.info('Restarting ICE and renegotiating due to device wakeup');
-        this.instance.restartIce();
-
-        if (this._isTrickleIce()) {
-          await this.startTrickleIceNegotiation();
-        } else {
-          this.startNegotiation();
-        }
-      }
-      lastTime = now;
-    }, DEVICE_SLEEP_DETECTION_INTERVAL);
   }
 
   private _isOffer(): boolean {
