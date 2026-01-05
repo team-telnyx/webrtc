@@ -115,15 +115,52 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
+        const peerInstance = this.session.calls[callID].peer?.instance;
+        const peerConnectionState = peerInstance?.connectionState;
+        const signalingState = peerInstance?.signalingState;
+
+        const isConnectionWorking = peerConnectionState === 'connected';
+        const isConnectionRecovering =
+          peerConnectionState === 'connecting' ||
+          signalingState === 'have-local-offer';
+
         keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
+          ((session.options.keepConnectionAliveOnSocketClose ||
             session.calls[callID].options.keepConnectionAliveOnSocketClose) &&
-          Boolean(this.session.calls[callID].peer?.instance);
+            Boolean(peerInstance)) ||
+          isConnectionWorking ||
+          isConnectionRecovering;
 
         if (keepConnectionOnAttach) {
           logger.info(
             `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
           );
+          if (signalingState === 'have-local-offer' && params.sdp) {
+            const call = session.calls[callID];
+            const peer = call.peer?.instance;
+
+            if (peer) {
+              peer
+                .setLocalDescription({ type: 'rollback' })
+                .then(() =>
+                  peer.setRemoteDescription({ type: 'offer', sdp: params.sdp })
+                )
+                .then(() => peer.createAnswer())
+                .then((answer) => peer.setLocalDescription(answer))
+                .then(() => {
+                  const peerObj = call.peer as any;
+                  if (peerObj?.onSdpReadyTwice) {
+                    peerObj.onSdpReadyTwice(peer.localDescription);
+                  }
+                })
+                .catch((error) => {
+                  logger.error('Failed to sync media path:', error);
+                });
+            }
+          }
+
+          this._ack(id, method);
+          return;
         } else {
           logger.info(
             `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`

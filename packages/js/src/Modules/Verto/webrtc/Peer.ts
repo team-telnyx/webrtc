@@ -247,12 +247,11 @@ export default class Peer {
       streams: [first],
     } = event;
     const { remoteElement, screenShare } = this.options;
-    let { remoteStream } = this.options;
 
-    remoteStream = first;
+    this.options.remoteStream = first;
 
     if (screenShare === false) {
-      attachMediaStream(remoteElement, remoteStream);
+      attachMediaStream(remoteElement, this.options.remoteStream);
     }
   }
 
