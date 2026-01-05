@@ -54,16 +54,16 @@ The Telnyx WebRTC JS SDK provides robust error handling mechanisms to help devel
 
 The following table lists all error constants and codes used in the Telnyx WebRTC JS SDK:
 
-| **ERROR MESSAGE** | **ERROR CODE** | **DESCRIPTION** |
-|---|---|---|
-| Token registration error | -32000 | Error during token registration |
-| Credential registration error | -32001 | Error during credential registration |
-| Codec error | -32002 | Error related to codec operation |
-| Gateway registration timeout | -32003 | Gateway registration timed out |
-| Gateway registration failed | -32004 | Gateway registration failed |
-| Call not found | N/A | The specified call cannot be found |
-| User media error | N/A | Browser does not have permission to access media devices |
-| Connection timeout | -329990 | Fake verto timeout error code |
+| **ERROR MESSAGE**             | **ERROR CODE** | **DESCRIPTION**                                          |
+| ----------------------------- | -------------- | -------------------------------------------------------- |
+| Token registration error      | -32000         | Error during token registration                          |
+| Credential registration error | -32001         | Error during credential registration                     |
+| Codec error                   | -32002         | Error related to codec operation                         |
+| Gateway registration timeout  | -32003         | Gateway registration timed out                           |
+| Gateway registration failed   | -32004         | Gateway registration failed                              |
+| Call not found                | N/A            | The specified call cannot be found                       |
+| User media error              | N/A            | Browser does not have permission to access media devices |
+| Connection timeout            | -329990        | Fake verto timeout error code                            |
 
 ## SwEvent Error Reference
 
@@ -71,12 +71,12 @@ The SDK exposes every recoverable failure through specific `SwEvent` constants. 
 
 ### Summary Table
 
-| **EVENT** | **TRIGGER** | **PAYLOAD** | **RECOMMENDED HANDLING** |
-|---|---|---|---|
-| `telnyx.error` | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.) | `{ error: Error | ErrorResponse, sessionId: string }` | Surface actionable message, decide whether to retry or prompt the user to re-authenticate |
-| `telnyx.rtc.mediaError` | Browser media APIs fail (device enumeration, permission denials, track issues) | Browser `DOMException`/`Error` instance | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only |
-| `telnyx.rtc.peerConnectionFailureError` | ICE restart cannot recover the peer connection (e.g., repeated `failed` state) | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope | Tear down the affected call, notify the user, optionally auto-redial once connectivity stabilizes |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call is not recoverable |
+| **EVENT**                                       | **TRIGGER**                                                                                        | **PAYLOAD**                                                                                             | **RECOMMENDED HANDLING**                                                                          |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `telnyx.error`                                  | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.)          | `{ error: Error \| ErrorResponse, sessionId: string }`                                                  | Surface actionable message, decide whether to retry or prompt the user to re-authenticate         |
+| `telnyx.rtc.mediaError`                         | Browser media APIs fail (device enumeration, permission denials, track issues)                     | Browser `DOMException`/`Error` instance                                                                 | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only            |
+| `telnyx.rtc.peerConnectionFailureError`         | ICE restart cannot recover the peer connection (e.g., repeated `failed` state)                     | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope                    | Tear down the affected call, notify the user, optionally auto-redial once connectivity stabilizes |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call is not recoverable                                                                       |
 
 ### Handling Details
 
@@ -98,23 +98,23 @@ The SDK provides detailed information about why a call has ended through the cal
 
 ### Call Termination Fields
 
-| **FIELD** | **TYPE** | **DESCRIPTION** |
-|---|---|---|
-| `cause` | `string` | General cause description (e.g., "CALL_REJECTED", "USER_BUSY") |
-| `causeCode` | `number` | Numerical code for the cause (e.g., 21 for CALL_REJECTED) |
-| `sipCode` | `number` | SIP response code (e.g., 403, 404) |
-| `sipReason` | `string` | SIP reason phrase (e.g., "Forbidden", "Not Found") |
+| **FIELD**   | **TYPE** | **DESCRIPTION**                                                |
+| ----------- | -------- | -------------------------------------------------------------- |
+| `cause`     | `string` | General cause description (e.g., "CALL_REJECTED", "USER_BUSY") |
+| `causeCode` | `number` | Numerical code for the cause (e.g., 21 for CALL_REJECTED)      |
+| `sipCode`   | `number` | SIP response code (e.g., 403, 404)                             |
+| `sipReason` | `string` | SIP reason phrase (e.g., "Forbidden", "Not Found")             |
 
 ### Common Cause Values
 
-| **CAUSE** | **DESCRIPTION** |
-|---|---|
-| `NORMAL_CLEARING` | Normal call termination |
-| `USER_BUSY` | The remote user is busy |
-| `CALL_REJECTED` | The call was rejected by the remote party |
+| **CAUSE**            | **DESCRIPTION**                                |
+| -------------------- | ---------------------------------------------- |
+| `NORMAL_CLEARING`    | Normal call termination                        |
+| `USER_BUSY`          | The remote user is busy                        |
+| `CALL_REJECTED`      | The call was rejected by the remote party      |
 | `UNALLOCATED_NUMBER` | The dialed number is invalid or does not exist |
-| `NO_ANSWER` | The call was not answered |
-| `PURGE` | Call was purged from the system |
+| `NO_ANSWER`          | The call was not answered                      |
+| `PURGE`              | Call was purged from the system                |
 
 ### Example Usage
 
@@ -122,12 +122,12 @@ The SDK provides detailed information about why a call has ended through the cal
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'callUpdate') {
     const call = notification.call;
-    
+
     if (call.state === 'hangup') {
       // Check termination reason
       if (call.cause && call.causeCode) {
         console.log(`Call ended: ${call.cause} (Code: ${call.causeCode})`);
-        
+
         // Handle specific termination reasons
         switch (call.cause) {
           case 'CALL_REJECTED':
@@ -146,11 +146,11 @@ client.on('telnyx.notification', (notification) => {
             showMessage(`Call ended: ${call.cause}`);
         }
       }
-      
+
       // Check SIP error codes
       if (call.sipCode && call.sipReason) {
         console.log(`SIP Error: ${call.sipCode} - ${call.sipReason}`);
-        
+
         switch (call.sipCode) {
           case 403:
             showMessage('Call forbidden - check your permissions');
@@ -221,7 +221,7 @@ client.on('telnyx.notification', (notification) => {
 
 function handleCallUpdate(call) {
   console.log(`Call ${call.id} state: ${call.state}`);
-  
+
   switch (call.state) {
     case 'ringing':
       showIncomingCallUI(call);
@@ -240,7 +240,9 @@ function handleCallUpdate(call) {
 
 function handleUserMediaError(error) {
   console.error('User media error:', error);
-  showErrorMessage('Cannot access microphone or camera. Please check your browser permissions.');
+  showErrorMessage(
+    'Cannot access microphone or camera. Please check your browser permissions.'
+  );
 }
 
 function handleClientReady() {
@@ -258,6 +260,7 @@ The SDK encounters different types of errors that require different handling app
 User media errors occur when the browser cannot access the user's microphone or camera.
 
 **Common Causes:**
+
 - User denied permission to access media devices
 - Media devices are not available or in use by another application
 - Browser security restrictions (HTTPS required for media access)
@@ -269,14 +272,16 @@ User media errors occur when the browser cannot access the user's microphone or 
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'userMediaError') {
     const error = notification.error;
-    
+
     // Check specific error types
     if (error.name === 'NotAllowedError') {
       showMessage('Please allow access to your microphone and camera');
     } else if (error.name === 'NotFoundError') {
       showMessage('No microphone or camera found');
     } else if (error.name === 'NotReadableError') {
-      showMessage('Your microphone or camera is being used by another application');
+      showMessage(
+        'Your microphone or camera is being used by another application'
+      );
     } else {
       showMessage('Cannot access media devices: ' + error.message);
     }
@@ -289,6 +294,7 @@ client.on('telnyx.notification', (notification) => {
 Call state errors are indicated through the call's state transitions and termination reasons.
 
 **Call States:**
+
 - `new`: New call has been created
 - `trying`: Attempting to establish the call
 - `requesting`: The outbound call is being sent to the server
@@ -332,6 +338,7 @@ function handleCallStateError(call) {
 Connection errors occur when there are issues with the WebSocket connection to the Telnyx servers.
 
 **Common Connection Issues:**
+
 - Network connectivity problems
 - Authentication failures
 - Server-side issues
@@ -431,12 +438,12 @@ const onSocketError = ({ error, sessionId }) => {
 
 The browser exposes the WebSocket `readyState` as an integer (`0-3`). The SDK mirrors these values through convenience getters on `client.connection` so you can check the state without touching the underlying socket:
 
-| `readyState` label | Numeric value | SDK getter | Description |
-|---|---|---|---|
-| `CONNECTING` | `0` | `client.connection.connecting` | Handshake in progress; no frames exchanged yet. |
-| `OPEN` | `1` | `client.connection.connected` | Socket is open and ready for signaling. |
-| `CLOSING` | `2` | `client.connection.closing` | Close frame has been sent or received; waiting for completion. |
-| `CLOSED` | `3` | `client.connection.closed` | Socket is fully closed. |
+| `readyState` label | Numeric value | SDK getter                     | Description                                                    |
+| ------------------ | ------------- | ------------------------------ | -------------------------------------------------------------- |
+| `CONNECTING`       | `0`           | `client.connection.connecting` | Handshake in progress; no frames exchanged yet.                |
+| `OPEN`             | `1`           | `client.connection.connected`  | Socket is open and ready for signaling.                        |
+| `CLOSING`          | `2`           | `client.connection.closing`    | Close frame has been sent or received; waiting for completion. |
+| `CLOSED`           | `3`           | `client.connection.closed`     | Socket is fully closed.                                        |
 
 Additional helpers provide aggregate checks: `client.connection.isAlive` is `true` when the socket is `CONNECTING` or `OPEN`, while `client.connection.isDead` is `true` during `CLOSING` or `CLOSED`.
 
@@ -546,12 +553,14 @@ function attemptReconnection() {
     showErrorMessage('Unable to reconnect. Please refresh the page.');
     return;
   }
-  
+
   const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts);
   reconnectAttempts++;
-  
-  console.log(`Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`);
-  
+
+  console.log(
+    `Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`
+  );
+
   setTimeout(() => {
     try {
       client.connect();
@@ -608,12 +617,12 @@ client.on('telnyx.notification', (notification) => {
 // Request permissions before making calls
 async function requestMediaPermissions() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: true, 
-      video: false 
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
     });
     // Stop the stream immediately, we just needed to request permission
-    stream.getTracks().forEach(track => track.stop());
+    stream.getTracks().forEach((track) => track.stop());
     return true;
   } catch (error) {
     console.error('Media permission denied:', error);
@@ -628,10 +637,10 @@ async function makeCall(destinationNumber) {
   if (!hasPermission) {
     return;
   }
-  
+
   const call = client.newCall({
     destinationNumber: destinationNumber,
-    callerNumber: '1234567890'
+    callerNumber: '1234567890',
   });
 }
 ```
@@ -643,10 +652,10 @@ function showErrorMessage(message, type = 'error') {
   const errorDiv = document.createElement('div');
   errorDiv.className = `error-message ${type}`;
   errorDiv.textContent = message;
-  
+
   // Add to UI
   document.getElementById('error-container').appendChild(errorDiv);
-  
+
   // Auto-remove after 5 seconds
   setTimeout(() => {
     errorDiv.remove();
@@ -656,7 +665,8 @@ function showErrorMessage(message, type = 'error') {
 function updateConnectionStatus(status) {
   const statusElement = document.getElementById('connection-status');
   statusElement.className = `status ${status}`;
-  statusElement.textContent = status === 'connected' ? 'Connected' : 'Disconnected';
+  statusElement.textContent =
+    status === 'connected' ? 'Connected' : 'Disconnected';
 }
 ```
 
@@ -670,16 +680,17 @@ function handleCallFailure(call) {
     cause: call.cause,
     causeCode: call.causeCode,
     sipCode: call.sipCode,
-    sipReason: call.sipReason
+    sipReason: call.sipReason,
   });
-  
+
   // Provide user-friendly messages
   let userMessage = 'Call failed';
-  
+
   if (call.sipCode) {
     switch (call.sipCode) {
       case 403:
-        userMessage = 'Call not allowed. Please check your account permissions.';
+        userMessage =
+          'Call not allowed. Please check your account permissions.';
         break;
       case 404:
         userMessage = 'Number not found. Please check the phone number.';
@@ -688,7 +699,8 @@ function handleCallFailure(call) {
         userMessage = 'The person you are calling is busy.';
         break;
       case 503:
-        userMessage = 'Service temporarily unavailable. Please try again later.';
+        userMessage =
+          'Service temporarily unavailable. Please try again later.';
         break;
       default:
         userMessage = `Call failed: ${call.sipReason || 'Unknown error'}`;
@@ -709,7 +721,7 @@ function handleCallFailure(call) {
         break;
     }
   }
-  
+
   showErrorMessage(userMessage);
 }
 ```
@@ -737,13 +749,15 @@ client.on('telnyx.socket.close', () => {
 // Check connection before making calls
 function makeCall(destinationNumber) {
   if (connectionState !== 'connected') {
-    showErrorMessage('Not connected. Please wait for connection to be established.');
+    showErrorMessage(
+      'Not connected. Please wait for connection to be established.'
+    );
     return;
   }
-  
+
   // Proceed with call
   const call = client.newCall({
-    destinationNumber: destinationNumber
+    destinationNumber: destinationNumber,
   });
 }
 ```
@@ -758,15 +772,15 @@ function logError(context, error, additionalData = {}) {
     error: {
       name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
     },
     additionalData: additionalData,
     userAgent: navigator.userAgent,
-    url: window.location.href
+    url: window.location.href,
   };
-  
+
   console.error('TelnyxRTC Error:', errorLog);
-  
+
   // Send to your error tracking service
   // sendErrorToTrackingService(errorLog);
 }
@@ -775,7 +789,7 @@ function logError(context, error, additionalData = {}) {
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'userMediaError') {
     logError('UserMediaError', notification.error, {
-      notificationType: notification.type
+      notificationType: notification.type,
     });
   }
 });
@@ -786,7 +800,9 @@ client.on('telnyx.notification', (notification) => {
 ```javascript
 // Fallback for browsers without WebRTC support
 if (!window.RTCPeerConnection) {
-  showErrorMessage('Your browser does not support WebRTC. Please use a modern browser.');
+  showErrorMessage(
+    'Your browser does not support WebRTC. Please use a modern browser.'
+  );
   // Redirect to alternative communication method
   return;
 }
@@ -801,17 +817,21 @@ if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
 async function checkWebRTCSupport() {
   const checks = {
     webrtc: !!window.RTCPeerConnection,
-    getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
-    websockets: !!window.WebSocket
+    getUserMedia: !!(
+      navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+    ),
+    websockets: !!window.WebSocket,
   };
-  
-  const unsupported = Object.keys(checks).filter(key => !checks[key]);
-  
+
+  const unsupported = Object.keys(checks).filter((key) => !checks[key]);
+
   if (unsupported.length > 0) {
-    showErrorMessage(`Your browser does not support: ${unsupported.join(', ')}`);
+    showErrorMessage(
+      `Your browser does not support: ${unsupported.join(', ')}`
+    );
     return false;
   }
-  
+
   return true;
 }
 ```
