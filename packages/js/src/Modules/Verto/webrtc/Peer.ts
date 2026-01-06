@@ -96,6 +96,11 @@ export default class Peer {
       this._session.options.keepConnectionAliveOnSocketClose
     );
   }
+
+  get restartedIceOnConnectionStateFailed() {
+    return this._restartedIceOnConnectionStateFailed;
+  }
+
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
@@ -283,16 +288,14 @@ export default class Peer {
          * Per WebRTC spec, ICE restart requires creating a new offer
          * (regardless of whether we were originally the offerer or answerer)
          */
-        if (!this._restartedIceOnConnectionStateFailed) {
-          if (connectionState === 'failed') {
-            this._restartedIceOnConnectionStateFailed = true;
-            logger.debug('ICE has been restarted on connection state failed.');
-          }
-
-          if (this._session.hasAutoReconnect()) {
-            // ICE restart always requires creating an offer, not an answer
-            await this._createIceRestartOffer();
-          }
+        if (
+          !this._restartedIceOnConnectionStateFailed &&
+          connectionState === 'failed' &&
+          this._session.hasAutoReconnect()
+        ) {
+          await this.instance.restartIce();
+          this._restartedIceOnConnectionStateFailed = true;
+          logger.debug('ICE has been restarted on connection state failed.');
         } else if (connectionState === 'failed') {
           logger.debug(
             'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
@@ -593,35 +596,6 @@ export default class Peer {
     }
   }
 
-  /**
-   * Creates an offer specifically for ICE restart.
-   * Per WebRTC spec, ICE restart always requires creating an offer,
-   * regardless of whether we were originally the offerer or answerer.
-   */
-  private async _createIceRestartOffer() {
-    this._constraints.offerToReceiveAudio = this.options.audio !== false;
-    this._constraints.offerToReceiveVideo = Boolean(this.options.video);
-    logger.info('_createIceRestartOffer - creating offer for ICE restart');
-
-    try {
-      const offer = await this.instance.createOffer({
-        ...this._constraints,
-        iceRestart: true,
-      });
-      await this._setLocalDescription(offer);
-
-      if (this._isTrickleIce()) {
-        this._trickleIceSdpFn(offer);
-      } else {
-        this._sdpReady();
-      }
-
-      return offer;
-    } catch (error) {
-      logger.error('Peer _createIceRestartOffer error:', error);
-    }
-  }
-
   private async _setRemoteDescription(
     remoteDescription: RTCSessionDescriptionInit
   ) {
@@ -790,7 +764,9 @@ export default class Peer {
       return;
     }
 
-    logger.debug(`[${this.options.id}] Restarting stats reporter after reconnect`);
+    logger.debug(
+      `[${this.options.id}] Restarting stats reporter after reconnect`
+    );
     await this.statsReporter.start(
       this.instance,
       this._session.sessionid,

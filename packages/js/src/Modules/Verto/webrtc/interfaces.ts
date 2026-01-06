@@ -91,6 +91,7 @@ export interface IWebRTCCall {
   direction: string;
   peer?: {
     instance?: RTCPeerConnection | null;
+    restartedIceOnConnectionStateFailed?: boolean;
     restartStatsReporter?: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;

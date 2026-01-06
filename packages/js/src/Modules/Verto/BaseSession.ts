@@ -248,9 +248,11 @@ export default abstract class BaseSession {
     }
 
     this._attachListeners();
+    this._autoReconnect = true;
     if (!this.connection.isAlive) {
       this.connection.connect();
     }
+    logger.debug('Session connected. Connection initiated if not already alive. Auto-reconnect enabled.');
   }
 
   /**

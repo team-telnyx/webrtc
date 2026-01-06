@@ -288,7 +288,17 @@ class VertoHandler {
 
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
-          call.answer();
+          if (this.session.calls[callID]?.peer?.restartedIceOnConnectionStateFailed) {
+            logger.debug(
+              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed, actively inviting.`
+            );
+            call.invite();
+          } else {
+            logger.debug(
+              `[${new Date().toISOString()}][${callID}] Call is recovering, answering instead of inviting.`
+            );
+            call.answer();
+          }
         } else {
           call.setState(State.Recovering);
         }
