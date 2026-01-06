@@ -8,6 +8,7 @@
 - fix: propagate session forceRelayCandidate option to call
 - fix: address race condition on peer creation during reconnect
 - fix: active call leg on reconnection with ice restart
+- fix: send hangup msg before reconnectionOnAttach flag activation
 
 ## [2.25.14](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.13...webrtc/v2.25.14) (2025-12-16)
 

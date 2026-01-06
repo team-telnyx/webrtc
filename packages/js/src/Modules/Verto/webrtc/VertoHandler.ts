@@ -138,7 +138,7 @@ class VertoHandler {
               `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
             );
           }
-          call.hangup({}, false);
+          call.hangup({}, reconnectionOnAttach);
         }
       } else {
         session.calls[callID].handleMessage(msg);
