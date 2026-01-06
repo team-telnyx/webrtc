@@ -293,7 +293,7 @@ export default class Peer {
             // ICE restart always requires creating an offer, not an answer
             await this._createIceRestartOffer();
           }
-        } else {
+        } else if (connectionState === 'failed') {
           logger.debug(
             'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
           );

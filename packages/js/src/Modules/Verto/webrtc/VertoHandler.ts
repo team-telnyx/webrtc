@@ -279,7 +279,7 @@ class VertoHandler {
           );
         }
 
-        if (this.session.calls[callID].creatingPeer) {
+        if (this.session.calls[callID]?.creatingPeer) {
           logger.debug(
             `[${new Date().toISOString()}][${callID}] Call is already answering and creating a peer, skip recreating call instance.`
           );
