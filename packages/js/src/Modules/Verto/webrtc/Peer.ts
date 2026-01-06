@@ -295,7 +295,7 @@ export default class Peer {
         ) {
           await this.instance.restartIce();
           this._restartedIceOnConnectionStateFailed = true;
-          logger.debug('ICE has been restarted on connection state failed.');
+          logger.debug('Peer connection state failed. ICE restarted.');
         } else if (connectionState === 'failed') {
           logger.debug(
             'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'

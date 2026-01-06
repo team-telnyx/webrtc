@@ -108,6 +108,7 @@ class VertoHandler {
     const attach = method === VertoMethod.Attach;
     const punt = method === VertoMethod.Punt;
     let keepConnectionOnAttach = false;
+    let reconnectionOnAttach = false;
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
@@ -121,6 +122,7 @@ class VertoHandler {
             call.options.keepConnectionAliveOnSocketClose) &&
           Boolean(call.peer?.instance) &&
           !call.signalingStateClosed;
+        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
 
         if (keepConnectionOnAttach) {
           logger.info(
@@ -288,16 +290,13 @@ class VertoHandler {
 
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
-          if (this.session.calls[callID]?.peer?.restartedIceOnConnectionStateFailed) {
+          call.answer();
+
+          if (reconnectionOnAttach) {
             logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed, actively inviting.`
+              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed, inviting to become active leg.`
             );
             call.invite();
-          } else {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call is recovering, answering instead of inviting.`
-            );
-            call.answer();
           }
         } else {
           call.setState(State.Recovering);
