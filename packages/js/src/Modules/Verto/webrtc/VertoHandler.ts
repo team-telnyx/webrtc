@@ -283,20 +283,20 @@ class VertoHandler {
 
         if (this.session.calls[callID]?.creatingPeer) {
           logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call is already answering and creating a peer, skip recreating call instance.`
+            `[${new Date().toISOString()}][${callID}] Call is already creating a peer, skip recreating call instance.`
           );
           return;
         }
 
         const call = _buildCall();
         if (this.session.autoRecoverCalls) {
-          call.answer();
-
           if (reconnectionOnAttach) {
             logger.debug(
               `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed, inviting to become active leg.`
             );
             call.invite();
+          } else {
+            call.answer();
           }
         } else {
           call.setState(State.Recovering);
