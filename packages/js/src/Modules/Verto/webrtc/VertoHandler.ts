@@ -117,16 +117,13 @@ class VertoHandler {
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
         const call = session.calls[callID];
-        const keepConnectionAliveOnSocketClose =
-          session.options.keepConnectionAliveOnSocketClose ||
-          call.options.keepConnectionAliveOnSocketClose;
+        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
         keepConnectionOnAttach =
-          keepConnectionAliveOnSocketClose &&
+          (session.options.keepConnectionAliveOnSocketClose ||
+            call.options.keepConnectionAliveOnSocketClose) &&
           Boolean(call.peer?.instance) &&
-          !call.signalingStateClosed;
-        reconnectionOnAttach =
-          keepConnectionAliveOnSocketClose &&
-          call.peer?.restartedIceOnConnectionStateFailed;
+          !call.signalingStateClosed &&
+          !reconnectionOnAttach;
 
         if (keepConnectionOnAttach) {
           logger.info(
@@ -137,12 +134,12 @@ class VertoHandler {
             logger.info(
               `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
             );
-          } else {
+          } else if (reconnectionOnAttach) {
             logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH`
+              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
             );
           }
-          call.hangup({}, reconnectionOnAttach);
+          call.hangup({}, true);
         }
       } else {
         session.calls[callID].handleMessage(msg);
