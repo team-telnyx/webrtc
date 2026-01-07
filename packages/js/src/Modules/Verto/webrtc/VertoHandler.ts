@@ -117,12 +117,16 @@ class VertoHandler {
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
         const call = session.calls[callID];
+        const keepConnectionAliveOnSocketClose =
+          session.options.keepConnectionAliveOnSocketClose ||
+          call.options.keepConnectionAliveOnSocketClose;
         keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
-            call.options.keepConnectionAliveOnSocketClose) &&
+          keepConnectionAliveOnSocketClose &&
           Boolean(call.peer?.instance) &&
           !call.signalingStateClosed;
-        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
+        reconnectionOnAttach =
+          keepConnectionAliveOnSocketClose &&
+          call.peer?.restartedIceOnConnectionStateFailed;
 
         if (keepConnectionOnAttach) {
           logger.info(
@@ -131,7 +135,7 @@ class VertoHandler {
         } else {
           if (call.signalingStateClosed) {
             logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - signalingState is closed, bypassing keepConnectionAliveOnSocketClose`
+              `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
             );
           } else {
             logger.info(
@@ -156,9 +160,8 @@ class VertoHandler {
       return;
     }
 
-    const _buildCall = () => {
+    const _buildCall = (includeCallId = true) => {
       const callOptions: IVertoCallOptions = {
-        id: callID,
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
         // So we will determine is video call or not based on "video" client option .
@@ -179,6 +182,10 @@ class VertoHandler {
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
       };
+
+      if (includeCallId) {
+        callOptions.id = callID;
+      }
 
       if (params.telnyx_call_control_id) {
         callOptions.telnyxCallControlId = params.telnyx_call_control_id;
@@ -288,17 +295,20 @@ class VertoHandler {
           return;
         }
 
-        const call = _buildCall();
+        let call;
         if (this.session.autoRecoverCalls) {
           if (reconnectionOnAttach) {
             logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed, inviting to become active leg.`
+              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed. Re-inviting to become active leg. due to keepConnectionAliveOnSocketClose.`
             );
+            call = _buildCall(false);
             call.invite();
           } else {
+            call = _buildCall();
             call.answer();
           }
         } else {
+          call = _buildCall();
           call.setState(State.Recovering);
         }
         call.handleMessage(msg);
