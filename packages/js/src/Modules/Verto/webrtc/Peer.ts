@@ -266,8 +266,7 @@ export default class Peer {
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     logger.info(
-      `[${new Date().toISOString()}] Connection State changed: ${
-        this._prevConnectionState
+      `[${new Date().toISOString()}] Connection State changed: ${this._prevConnectionState
       } -> ${connectionState}`
     );
 
@@ -296,20 +295,6 @@ export default class Peer {
           await this.instance.restartIce();
           this._restartedIceOnConnectionStateFailed = true;
           logger.debug('Peer connection state failed. ICE restarted.');
-        } else if (connectionState === 'failed') {
-          logger.debug(
-            'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
-          );
-          trigger(
-            SwEvent.PeerConnectionFailureError,
-            {
-              error: new Error(
-                `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
-              ),
-              sessionId: this._session.sessionid,
-            },
-            this.options.id
-          );
         }
 
         window.removeEventListener('online', onConnectionOnline);
@@ -322,20 +307,18 @@ export default class Peer {
       }
     }
 
-    // Case 2: connected -> disconnected: Reset audio buffers
-    if (
-      this._prevConnectionState === 'connected' &&
-      connectionState === 'disconnected'
-    ) {
-      await this._resetJitterBuffer();
-    }
 
-    // Case 3: disconnected -> connected: Reset audio buffers
-    if (
-      this._prevConnectionState === 'disconnected' &&
-      connectionState === 'connected'
-    ) {
-      await this._resetJitterBuffer();
+    if (connectionState === 'failed') {
+      trigger(
+        SwEvent.PeerConnectionFailureError,
+        {
+          error: new Error(
+            `Peer Connection failed. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
+          ),
+          sessionId: this._session.sessionid,
+        },
+        this.options.id
+      );
     }
 
     // update previous state for the next transition
@@ -670,49 +653,6 @@ export default class Peer {
     }
     const constraints = await getMediaConstraints(this.options);
     return getUserMedia(constraints);
-  }
-
-  private async _resetJitterBuffer() {
-    try {
-      const jitterBufferTarget = 20; // e.g., 20 ms
-      const audioReceiver = this.instance
-        .getReceivers()
-        .find((r) => r.track && r.track.kind === 'audio');
-
-      const videoReceiver = this.instance
-        .getReceivers()
-        .find((r) => r.track && r.track.kind === 'video');
-
-      /**
-       * Set optimal buffer duration for real-time audio (20ms)
-       * This prevents iOS from using large buffers that cause delay
-       * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
-       * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
-       */
-      if (audioReceiver && 'jitterBufferTarget' in audioReceiver) {
-        // @ts-ignore
-        audioReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
-        logger.debug(
-          'audio [jitter] target set to',
-          // @ts-ignore
-          audioReceiver.jitterBufferTarget,
-          'ms'
-        );
-      }
-
-      if (videoReceiver && 'jitterBufferTarget' in videoReceiver) {
-        // @ts-ignore
-        videoReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
-        logger.debug(
-          'video [jitter] target set to',
-          // @ts-ignore
-          videoReceiver.jitterBufferTarget,
-          'ms'
-        );
-      }
-    } catch (error) {
-      logger.error('Peer _resetJitterBuffer error:', error);
-    }
   }
 
   private _isOffer(): boolean {

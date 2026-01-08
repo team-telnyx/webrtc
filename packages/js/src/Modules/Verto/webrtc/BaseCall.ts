@@ -1623,8 +1623,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
-    logger.error('Peer connection failure error, hanging up call', error);
-    this.hangup({}, false);
+    logger.error('Peer connection failure error, call is not recoverable. Handling reconnection according to keepConnectionAliveOnSocketClose option');
   }
 
   private _onPeerConnectionSignalingStateClosed(data: any) {

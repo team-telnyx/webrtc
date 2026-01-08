@@ -139,7 +139,11 @@ class VertoHandler {
               `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
             );
           }
-          call.hangup({}, true);
+
+          call.hangup({}, reconnectionOnAttach);
+          logger.debug(
+            `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
+          );
         }
       } else {
         session.calls[callID].handleMessage(msg);
@@ -301,6 +305,9 @@ class VertoHandler {
             call = _buildCall(false);
             call.invite();
           } else {
+            logger.debug(
+              `[${new Date().toISOString()}][${callID}] Call is not in an unrecoverable state. Answering.`
+            );
             call = _buildCall();
             call.answer();
           }
