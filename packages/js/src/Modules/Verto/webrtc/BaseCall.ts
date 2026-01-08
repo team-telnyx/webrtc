@@ -124,6 +124,19 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   public extension: string = null;
 
+  get creatingPeer(): boolean {
+    return this._creatingPeer;
+  }
+
+  /**
+   * Indicates if the peer connection's signaling state has transitioned to 'closed'
+   * while the connection was previously active. Used to determine if the call
+   * can be recovered on reconnection.
+   */
+  get signalingStateClosed(): boolean {
+    return this._signalingStateClosed;
+  }
+
   private _state: State = State.New;
 
   private _prevState: State = State.New;
@@ -153,6 +166,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   > = [];
 
   private _isRemoteDescriptionSet: boolean = false;
+
+  private _signalingStateClosed: boolean = false;
+
+  private _creatingPeer: boolean = false;
 
   constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
     const {
@@ -192,6 +209,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
         prefetchIceCandidates: options.prefetchIceCandidates,
+        forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
           options.keepConnectionAliveOnSocketClose,
         mutedMicOnStart: options.mutedMicOnStart,
@@ -202,6 +220,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._onMediaError = this._onMediaError.bind(this);
     this._onPeerConnectionFailureError =
       this._onPeerConnectionFailureError.bind(this);
+    this._onPeerConnectionSignalingStateClosed =
+      this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
     this._registerTrickleIcePeerEvents =
@@ -338,6 +358,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   async invite() {
+    this._creatingPeer = true;
     this.direction = Direction.Outbound;
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
@@ -353,6 +374,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         : this._registerPeerEvents
     );
     await this.peer.init();
+    this._creatingPeer = false;
   }
   /**
    * Starts the process to answer the incoming call.
@@ -364,6 +386,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    this._creatingPeer = true;
     performance.mark('new-call-start');
     this.stopRingtone();
 
@@ -391,6 +414,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     await this.peer.init();
     performance.mark('new-call-end');
+    this._creatingPeer = false;
   }
 
   playRingtone() {
@@ -444,6 +468,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.setState(State.Hangup);
 
     const _close = () => {
+      logger.debug(`[${this.id}] Closing peer from hangup`);
       this.peer?.close();
       return this.setState(State.Destroy);
     };
@@ -1598,8 +1623,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
-    logger.error('Peer connection failure error, hanging up call', error);
-    this.hangup({}, false);
+    logger.error('Peer connection failure error, call is not recoverable. Handling reconnection according to keepConnectionAliveOnSocketClose option');
+  }
+
+  private _onPeerConnectionSignalingStateClosed(data: any) {
+    this._signalingStateClosed = true;
+    this._dispatchNotification({
+      type: NOTIFICATION_TYPE.signalingStateClosed,
+      ...data,
+    });
+    logger.debug(
+      'Peer connection signaling state closed, call is not recoverable'
+    );
   }
 
   private _dispatchConferenceUpdate(params: any) {
@@ -1650,6 +1685,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionFailureError,
       this.id
     );
+    register(
+      SwEvent.PeerConnectionSignalingStateClosed,
+      this._onPeerConnectionSignalingStateClosed,
+      this.id
+    );
     if (isFunction(onNotification)) {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
@@ -1660,12 +1700,14 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+    logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
     const { remoteStream, localStream } = this.options;
     stopStream(remoteStream);
     stopStream(localStream);
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
+    deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
   }

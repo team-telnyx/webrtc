@@ -176,6 +176,7 @@ export function getIceCandidateErrorDetails(
 }
 
 export type WebRTCStatsReporter = {
+  isRunning: boolean;
   start: (
     peerConnection: RTCPeerConnection,
     peerId: string,
@@ -191,6 +192,7 @@ export function createWebRTCStatsReporter(
   callID: string
 ): WebRTCStatsReporter {
   const reportId = uuid();
+  let isRunning = false;
 
   const stats = new WebRTCStats({
     getStatsInterval: POLL_INTERVAL,
@@ -214,6 +216,10 @@ export function createWebRTCStatsReporter(
     peerId: string,
     connectionId: string
   ) => {
+    if (isRunning) {
+      logger.debug(`[${callID}] Stats reporter already running, skipping start`);
+      return;
+    }
     await session.execute(new DebugReportStartMessage(reportId, callID));
     stats.on('timeline', onTimelineMessage);
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -223,9 +229,14 @@ export function createWebRTCStatsReporter(
       peerId,
       connectionId,
     });
+    isRunning = true;
   };
 
   const stop = async (debugOutput: string) => {
+    if (!isRunning) {
+      logger.debug(`[${callID}] Stats reporter already stopped, skipping stop`);
+      return;
+    }
     const timeline = stats.getTimeline();
     trigger(SwEvent.StatsReport, timeline, session.uuid);
     if (debugOutput === 'file') {
@@ -235,6 +246,7 @@ export function createWebRTCStatsReporter(
     await session.execute(new DebugReportStopMessage(reportId, callID));
     stats.removeAllPeers();
     stats.destroy();
+    isRunning = false;
   };
 
   const reportConnectionStateChange = (details: ConnectionStateDetails) => {
@@ -258,6 +270,9 @@ export function createWebRTCStatsReporter(
   };
 
   return {
+    get isRunning() {
+      return isRunning;
+    },
     start,
     stop,
     reportConnectionStateChange,

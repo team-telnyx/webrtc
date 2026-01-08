@@ -42,6 +42,7 @@ export const NOTIFICATION_TYPE = {
   vertoClientReady: 'vertoClientReady',
   userMediaError: 'userMediaError',
   peerConnectionFailureError: 'peerConnectionFailureError',
+  signalingStateClosed: 'signalingStateClosed',
 };
 
 export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
