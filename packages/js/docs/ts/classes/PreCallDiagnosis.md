@@ -6,20 +6,20 @@ It can be used to detect potential issues that may affect the call quality.
 
 ### Methods
 
-- [getTelnyxIds](/development/webrtc/js-sdk/classes/precalldiagnosis#gettelnyxids)
-- [run](/development/webrtc/js-sdk/classes/precalldiagnosis#run)
+- [getTelnyxIds](#gettelnyxids)
+- [run](#run)
 
 ## Methods
 
 ### getTelnyxIds
 
-▸ **getTelnyxIds**(): [`TelnyxIDs`](/development/webrtc/js-sdk/interfaces/telnyxids)
+▸ **getTelnyxIds**(): [`TelnyxIDs`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TelnyxIDs.md)
 
 Gets the Telnyx identifiers for the pre-call diagnosis.
 
 #### Returns
 
-[`TelnyxIDs`](/development/webrtc/js-sdk/interfaces/telnyxids)
+[`TelnyxIDs`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TelnyxIDs.md)
 
 {@type TelnyxIDs} The Telnyx identifiers for the pre-call diagnosis.
 
@@ -27,18 +27,18 @@ Gets the Telnyx identifiers for the pre-call diagnosis.
 
 ### run
 
-▸ `Static` **run**(`options`): `Promise`\<[`Report`](/development/webrtc/js-sdk/interfaces/report)\>
+▸ `Static` **run**(`options`): `Promise`\<[`Report`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/Report.md)\>
 
 Executes the pre-call diagnosis and returns a report.
 
 #### Parameters
 
-| Name      | Type                                                                                       | Description                                                             |
-| :-------- | :----------------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
-| `options` | [`PreCallDiagnosisOptions`](/development/webrtc/js-sdk/interfaces/precalldiagnosisoptions) | {@type PreCallDiagnosisOptions} - The options to use for the diagnosis. |
+| Name      | Type                                                                                                                                   | Description                                                             |
+| :-------- | :------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| `options` | [`PreCallDiagnosisOptions`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md) | {@type PreCallDiagnosisOptions} - The options to use for the diagnosis. |
 
 #### Returns
 
-`Promise`\<[`Report`](/development/webrtc/js-sdk/interfaces/report)\>
+`Promise`\<[`Report`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/Report.md)\>
 
 A promise that resolves with the report.

@@ -6,8 +6,8 @@ Interface representing the options for the pre-call diagnosis.
 
 ### Properties
 
-- [credentials](/development/webrtc/js-sdk/interfaces/precalldiagnosisoptions#credentials)
-- [texMLApplicationNumber](/development/webrtc/js-sdk/interfaces/precalldiagnosisoptions#texmlapplicationnumber)
+- [credentials](#credentials)
+- [texMLApplicationNumber](#texmlapplicationnumber)
 
 ## Properties
 

@@ -6,10 +6,10 @@ Interface representing the pre-call diagnosis report.
 
 ### Properties
 
-- [iceCandidatePairStats](/development/webrtc/js-sdk/interfaces/report#icecandidatepairstats)
-- [iceCandidateStats](/development/webrtc/js-sdk/interfaces/report#icecandidatestats)
-- [sessionStats](/development/webrtc/js-sdk/interfaces/report#sessionstats)
-- [summaryStats](/development/webrtc/js-sdk/interfaces/report#summarystats)
+- [iceCandidatePairStats](#icecandidatepairstats)
+- [iceCandidateStats](#icecandidatestats)
+- [sessionStats](#sessionstats)
+- [summaryStats](#summarystats)
 
 ## Properties
 
@@ -23,10 +23,10 @@ The statistics of the selected ICE candidate pair.
 
 ### iceCandidateStats
 
-• **iceCandidateStats**: [`RTCIceCandidateStats`](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats)[]
+• **iceCandidateStats**: [`RTCIceCandidateStats`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)[]
 
 The statistics of the ICE candidates.
-[RTCIceCandidateStats](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats)
+[RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)
 
 ---
 
@@ -56,9 +56,9 @@ The summary statistics of the pre-call diagnosis.
 
 #### Type declaration
 
-| Name      | Type                                                                   | Description                                       |
-| :-------- | :--------------------------------------------------------------------- | :------------------------------------------------ |
-| `jitter`  | [`MinMaxAverage`](/development/webrtc/js-sdk/interfaces/minmaxaverage) | The jitter in milliseconds.                       |
-| `mos`     | `number`                                                               | The mean opinion score (MOS) of the call quality. |
-| `quality` | `Quality`                                                              | The quality of the call.                          |
-| `rtt`     | [`MinMaxAverage`](/development/webrtc/js-sdk/interfaces/minmaxaverage) | The round-trip time (RTT) in milliseconds.        |
+| Name      | Type                                                                                                               | Description                                       |
+| :-------- | :----------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ |
+| `jitter`  | [`MinMaxAverage`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md) | The jitter in milliseconds.                       |
+| `mos`     | `number`                                                                                                           | The mean opinion score (MOS) of the call quality. |
+| `quality` | `Quality`                                                                                                          | The quality of the call.                          |
+| `rtt`     | [`MinMaxAverage`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md) | The round-trip time (RTT) in milliseconds.        |

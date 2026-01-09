@@ -42,36 +42,36 @@ client.off('telnyx.notification');
 
 ### Constructors
 
-- [constructor](/development/webrtc/js-sdk/classes/telnyxrtc#constructor)
+- [constructor](#constructor)
 
 ### Accessors
 
-- [connected](/development/webrtc/js-sdk/classes/telnyxrtc#connected)
-- [localElement](/development/webrtc/js-sdk/classes/telnyxrtc#localelement)
-- [mediaConstraints](/development/webrtc/js-sdk/classes/telnyxrtc#mediaconstraints)
-- [remoteElement](/development/webrtc/js-sdk/classes/telnyxrtc#remoteelement)
-- [speaker](/development/webrtc/js-sdk/classes/telnyxrtc#speaker)
+- [connected](#connected)
+- [localElement](#localelement)
+- [mediaConstraints](#mediaconstraints)
+- [remoteElement](#remoteelement)
+- [speaker](#speaker)
 
 ### Methods
 
-- [checkPermissions](/development/webrtc/js-sdk/classes/telnyxrtc#checkpermissions)
-- [connect](/development/webrtc/js-sdk/classes/telnyxrtc#connect)
-- [disableMicrophone](/development/webrtc/js-sdk/classes/telnyxrtc#disablemicrophone)
-- [disconnect](/development/webrtc/js-sdk/classes/telnyxrtc#disconnect)
-- [enableMicrophone](/development/webrtc/js-sdk/classes/telnyxrtc#enablemicrophone)
-- [getAudioInDevices](/development/webrtc/js-sdk/classes/telnyxrtc#getaudioindevices)
-- [getAudioOutDevices](/development/webrtc/js-sdk/classes/telnyxrtc#getaudiooutdevices)
-- [getDeviceResolutions](/development/webrtc/js-sdk/classes/telnyxrtc#getdeviceresolutions)
-- [getDevices](/development/webrtc/js-sdk/classes/telnyxrtc#getdevices)
-- [getVideoDevices](/development/webrtc/js-sdk/classes/telnyxrtc#getvideodevices)
-- [handleLoginError](/development/webrtc/js-sdk/classes/telnyxrtc#handleloginerror)
-- [logout](/development/webrtc/js-sdk/classes/telnyxrtc#logout)
-- [newCall](/development/webrtc/js-sdk/classes/telnyxrtc#newcall)
-- [off](/development/webrtc/js-sdk/classes/telnyxrtc#off)
-- [on](/development/webrtc/js-sdk/classes/telnyxrtc#on)
-- [setAudioSettings](/development/webrtc/js-sdk/classes/telnyxrtc#setaudiosettings)
-- [webRTCInfo](/development/webrtc/js-sdk/classes/telnyxrtc#webrtcinfo)
-- [webRTCSupportedBrowserList](/development/webrtc/js-sdk/classes/telnyxrtc#webrtcsupportedbrowserlist)
+- [checkPermissions](#checkpermissions)
+- [connect](#connect)
+- [disableMicrophone](#disablemicrophone)
+- [disconnect](#disconnect)
+- [enableMicrophone](#enablemicrophone)
+- [getAudioInDevices](#getaudioindevices)
+- [getAudioOutDevices](#getaudiooutdevices)
+- [getDeviceResolutions](#getdeviceresolutions)
+- [getDevices](#getdevices)
+- [getVideoDevices](#getvideodevices)
+- [handleLoginError](#handleloginerror)
+- [logout](#logout)
+- [newCall](#newcall)
+- [off](#off)
+- [on](#on)
+- [setAudioSettings](#setaudiosettings)
+- [webRTCInfo](#webrtcinfo)
+- [webRTCSupportedBrowserList](#webrtcsupportedbrowserlist)
 
 ## Constructors
 
@@ -83,9 +83,9 @@ Creates a new `TelnyxRTC` instance with the provided options.
 
 #### Parameters
 
-| Name      | Type                                                                     | Description                       |
-| :-------- | :----------------------------------------------------------------------- | :-------------------------------- |
-| `options` | [`IClientOptions`](/development/webrtc/js-sdk/interfaces/iclientoptions) | Options for initializing a client |
+| Name      | Type                                                                                                  | Description                       |
+| :-------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------- |
+| `options` | [`IClientOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/iclientoptions) | Options for initializing a client |
 
 **`Examples`**
 
@@ -806,19 +806,19 @@ TelnyxRTCClient.logout
 
 ### newCall
 
-▸ **newCall**(`options`): [`Call`](/development/webrtc/js-sdk/classes/call)
+▸ **newCall**(`options`): [`Call`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/call)
 
 Makes a new outbound call.
 
 #### Parameters
 
-| Name      | Type                                                                 | Description                    |
-| :-------- | :------------------------------------------------------------------- | :----------------------------- |
-| `options` | [`ICallOptions`](/development/webrtc/js-sdk/interfaces/icalloptions) | Options object for a new call. |
+| Name      | Type                                                                                              | Description                    |
+| :-------- | :------------------------------------------------------------------------------------------------ | :----------------------------- |
+| `options` | [`ICallOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icalloptions) | Options object for a new call. |
 
 #### Returns
 
-[`Call`](/development/webrtc/js-sdk/classes/call)
+[`Call`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/call)
 
 The new outbound `Call` object.
 
@@ -937,7 +937,7 @@ TelnyxRTCClient.newCall
 
 ### off
 
-▸ **off**(`eventName`, `callback?`): [`TelnyxRTC`](/development/webrtc/js-sdk/classes/telnyxrtc)
+▸ **off**(`eventName`, `callback?`): [`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
 
 Removes an event handler that were attached with .on().
 If no handler parameter is passed, all listeners for that event will be removed.
@@ -951,7 +951,7 @@ If no handler parameter is passed, all listeners for that event will be removed.
 
 #### Returns
 
-[`TelnyxRTC`](/development/webrtc/js-sdk/classes/telnyxrtc)
+[`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
 
 The client object itself.
 
@@ -983,7 +983,7 @@ TelnyxRTCClient.off
 
 ### on
 
-▸ **on**(`eventName`, `callback`): [`TelnyxRTC`](/development/webrtc/js-sdk/classes/telnyxrtc)
+▸ **on**(`eventName`, `callback`): [`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
 
 Attaches an event handler for a specific type of event.
 
@@ -1008,7 +1008,7 @@ Attaches an event handler for a specific type of event.
 
 #### Returns
 
-[`TelnyxRTC`](/development/webrtc/js-sdk/classes/telnyxrtc)
+[`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
 
 The client object itself.
 

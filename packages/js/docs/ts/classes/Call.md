@@ -52,38 +52,38 @@ call.muteAudio();
 
 ### Properties
 
-- [direction](/development/webrtc/js-sdk/classes/call#direction)
-- [id](/development/webrtc/js-sdk/classes/call#id)
-- [prevState](/development/webrtc/js-sdk/classes/call#prevstate)
-- [state](/development/webrtc/js-sdk/classes/call#state)
+- [direction](#direction)
+- [id](#id)
+- [prevState](#prevstate)
+- [state](#state)
 
 ### Accessors
 
-- [isAudioMuted](/development/webrtc/js-sdk/classes/call#isaudiomuted)
-- [localStream](/development/webrtc/js-sdk/classes/call#localstream)
-- [remoteStream](/development/webrtc/js-sdk/classes/call#remotestream)
-- [telnyxIDs](/development/webrtc/js-sdk/classes/call#telnyxids)
+- [isAudioMuted](#isaudiomuted)
+- [localStream](#localstream)
+- [remoteStream](#remotestream)
+- [telnyxIDs](#telnyxids)
 
 ### Methods
 
-- [answer](/development/webrtc/js-sdk/classes/call#answer)
-- [deaf](/development/webrtc/js-sdk/classes/call#deaf)
-- [dtmf](/development/webrtc/js-sdk/classes/call#dtmf)
-- [getStats](/development/webrtc/js-sdk/classes/call#getstats)
-- [hold](/development/webrtc/js-sdk/classes/call#hold)
-- [muteAudio](/development/webrtc/js-sdk/classes/call#muteaudio)
-- [muteVideo](/development/webrtc/js-sdk/classes/call#mutevideo)
-- [setAudioInDevice](/development/webrtc/js-sdk/classes/call#setaudioindevice)
-- [setAudioOutDevice](/development/webrtc/js-sdk/classes/call#setaudiooutdevice)
-- [setVideoDevice](/development/webrtc/js-sdk/classes/call#setvideodevice)
-- [toggleAudioMute](/development/webrtc/js-sdk/classes/call#toggleaudiomute)
-- [toggleDeaf](/development/webrtc/js-sdk/classes/call#toggledeaf)
-- [toggleHold](/development/webrtc/js-sdk/classes/call#togglehold)
-- [toggleVideoMute](/development/webrtc/js-sdk/classes/call#togglevideomute)
-- [undeaf](/development/webrtc/js-sdk/classes/call#undeaf)
-- [unhold](/development/webrtc/js-sdk/classes/call#unhold)
-- [unmuteAudio](/development/webrtc/js-sdk/classes/call#unmuteaudio)
-- [unmuteVideo](/development/webrtc/js-sdk/classes/call#unmutevideo)
+- [answer](#answer)
+- [deaf](#deaf)
+- [dtmf](#dtmf)
+- [getStats](#getstats)
+- [hold](#hold)
+- [muteAudio](#muteaudio)
+- [muteVideo](#mutevideo)
+- [setAudioInDevice](#setaudioindevice)
+- [setAudioOutDevice](#setaudiooutdevice)
+- [setVideoDevice](#setvideodevice)
+- [toggleAudioMute](#toggleaudiomute)
+- [toggleDeaf](#toggledeaf)
+- [toggleHold](#togglehold)
+- [toggleVideoMute](#togglevideomute)
+- [undeaf](#undeaf)
+- [unhold](#unhold)
+- [unmuteAudio](#unmuteaudio)
+- [unmuteVideo](#unmutevideo)
 
 ## Properties
 

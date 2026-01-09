@@ -6,18 +6,18 @@ Interface representing the statistics of an RTC ICE candidate.
 
 ### Properties
 
-- [address](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#address)
-- [candidateType](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#candidatetype)
-- [deleted](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#deleted)
-- [id](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#id)
-- [port](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#port)
-- [priority](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#priority)
-- [protocol](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#protocol)
-- [relayProtocol](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#relayprotocol)
-- [timestamp](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#timestamp)
-- [transportId](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#transportid)
-- [type](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#type)
-- [url](/development/webrtc/js-sdk/interfaces/rtcicecandidatestats#url)
+- [address](#address)
+- [candidateType](#candidatetype)
+- [deleted](#deleted)
+- [id](#id)
+- [port](#port)
+- [priority](#priority)
+- [protocol](#protocol)
+- [relayProtocol](#relayprotocol)
+- [timestamp](#timestamp)
+- [transportId](#transportid)
+- [type](#type)
+- [url](#url)
 
 ## Properties
 
