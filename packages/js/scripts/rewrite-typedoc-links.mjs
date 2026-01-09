@@ -21,6 +21,9 @@ const PREFIX = '/development/webrtc/js-sdk';
 const DEV_DOCS_BASE = 'https://developers.telnyx.com/development/webrtc/js-sdk';
 const GITHUB_BASE =
   'https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts';
+
+// Dev docs currently rely on a hardcoded list of pages from their repo.
+// We keep these in sync to avoid dead links, until dev docs can derive the list by walking the project tree.
 const SPECIAL_FILES = new Set([
   'call',
   'telnyxrtc',
