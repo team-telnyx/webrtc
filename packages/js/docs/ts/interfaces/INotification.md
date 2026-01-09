@@ -61,15 +61,15 @@ Notification
 
 ### Properties
 
-- [call](/development/webrtc/js-sdk/interfaces/INotification.md#call)
-- [error](/development/webrtc/js-sdk/interfaces/INotification.md#error)
-- [type](/development/webrtc/js-sdk/interfaces/INotification.md#type)
+- [call](/development/webrtc/js-sdk/interfaces/inotification#call)
+- [error](/development/webrtc/js-sdk/interfaces/inotification#error)
+- [type](/development/webrtc/js-sdk/interfaces/inotification#type)
 
 ## Properties
 
 ### call
 
-• `Optional` **call**: [`Call`](/development/webrtc/js-sdk/classes/Call.md)
+• `Optional` **call**: [`Call`](/development/webrtc/js-sdk/classes/call)
 
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
