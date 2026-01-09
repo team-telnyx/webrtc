@@ -26,7 +26,7 @@
     "test": "jest",
     "lint": "eslint .",
     "lint:md": "eslint **/*.md",
-    "docs": "typedoc --entryPointStrategy expand ./src",
+    "docs": "typedoc --entryPointStrategy expand ./src && node scripts/rewrite-typedoc-links.mjs && prettier --write docs/ts",
     "docs:html": "typedoc --entryPointStrategy expand --options typedoc.html.json ./src",
     "release": "release-it",
     "compile": "../../node_modules/.bin/tsc -w",
@@ -101,8 +101,12 @@
     }
   },
   "lint-staged": {
-    "**/*.{js,ts,md}": [
+    "**/*.{js,ts}": [
       "yarn eslint --fix",
+      "yarn prettier --write"
+    ],
+    "**/*.{md}": [
+      "yarn eslint",
       "yarn prettier --write"
     ]
   }

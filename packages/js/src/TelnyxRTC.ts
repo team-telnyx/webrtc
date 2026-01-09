@@ -1,4 +1,3 @@
-/* eslint-disable no-useless-constructor */
 import TelnyxRTCClient from './Modules/Verto';
 import { ICallOptions, IClientOptions } from './utils/interfaces';
 import {
@@ -33,18 +32,18 @@ import * as pkg from '../package.json';
  * client
  *   .on('telnyx.ready', () => console.log('ready to call'))
  *   .on('telnyx.notification', (notification) => {
- *     console.log('notification:', notification)
+ *     console.log('notification:', notification);
  *   });
  *
  * // Connect and login
  * client.connect();
  *
  * // You can call client.disconnect() when you're done.
- * Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
+ * // Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
  *
  * // Disconnecting and Removing listeners.
  * client.disconnect();
- * client.off('telnyx.ready')
+ * client.off('telnyx.ready');
  * client.off('telnyx.notification');
  * ```
  *
@@ -107,7 +106,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *```
    *
    * #### Keep Connection Alive on Socket Close
-   * 
+   *
    * By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause.
    * To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose`:
    *
@@ -116,7 +115,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *   keepConnectionAliveOnSocketClose: true,
    * });
    * ```
-   * 
+   *
    * > Note: If client using this option is switching networks and there are new network restrictions, combine this option with `iceServers` overrides and `forceRelayCandidate` to ensure connectivity on signaling.
    */
   constructor(options: IClientOptions) {

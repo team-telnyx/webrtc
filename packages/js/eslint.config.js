@@ -32,6 +32,11 @@ export default defineConfig(
         markdown,
       },
       extends: ['markdown/recommended'],
+      rules: {
+        // Adjust markdown linting rules for typedoc generated docs
+        'markdown/no-missing-label-refs': 'warn',
+        'markdown/no-reversed-media-syntax': 'warn',
+      },
     },
   ]
 );

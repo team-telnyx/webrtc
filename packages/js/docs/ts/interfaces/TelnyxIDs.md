@@ -6,9 +6,9 @@ Interface representing the Telnyx identifiers.
 
 ### Properties
 
-- [telnyxCallControlId](/development/webrtc/js-sdk/interfaces/TelnyxIDs.md#telnyxcallcontrolid)
-- [telnyxLegId](/development/webrtc/js-sdk/interfaces/TelnyxIDs.md#telnyxlegid)
-- [telnyxSessionId](/development/webrtc/js-sdk/interfaces/TelnyxIDs.md#telnyxsessionid)
+- [telnyxCallControlId](#telnyxcallcontrolid)
+- [telnyxLegId](#telnyxlegid)
+- [telnyxSessionId](#telnyxsessionid)
 
 ## Properties
 
