@@ -36,6 +36,13 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [Code Examples for Common Scenarios](#code-examples-for-common-scenarios)
   - [Reconnection Process](#reconnection-process)
     - [Automatic Reconnection](#automatic-reconnection)
+    - [`keepConnectionAliveOnSocketClose` Behavior](#keepconnectionaliveonsocketclose-behavior)
+      - [When Recovery Succeeds](#when-recovery-succeeds)
+      - [When Recovery Fails](#when-recovery-fails)
+        - [Fallback Behavior](#fallback-behavior)
+        - [Automatic vs Manual Recovery](#automatic-vs-manual-recovery)
+      - [Detecting Unrecoverable Calls](#detecting-unrecoverable-calls)
+      - [Device Sleep Scenarios](#device-sleep-scenarios)
     - [Manual Reconnection](#manual-reconnection)
   - [Best Practices](#best-practices)
     - [1. Always Implement the telnyx.notification Event Handler](#1-always-implement-the-telnyxnotification-event-handler)
@@ -537,7 +544,45 @@ The SDK includes automatic reconnection mechanisms to handle temporary network i
 1. **Connection Monitoring**: The SDK monitors the WebSocket connection status
 2. **Automatic Retry**: When a connection is lost, the SDK attempts to reconnect automatically
 3. **Exponential Backoff**: Retry intervals increase progressively to avoid overwhelming the server
-4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. If `keepConnectionAliveOnSocketClose` client option is enabled, the SDK will maintain call state during brief disconnections.
+4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. If `keepConnectionAliveOnSocketClose` client option is enabled, the SDK will attempt to maintain call state during brief disconnections. See [keepConnectionAliveOnSocketClose Behavior](#keepconnectionaliveonsocketclose-behavior) for details.
+
+### `keepConnectionAliveOnSocketClose` Behavior
+
+The `keepConnectionAliveOnSocketClose` option is an **optimistic** setting, not a deterministic guarantee. When enabled, the SDK attempts to preserve active calls during network interruptions by re-attaching to the existing peer connection instead of hanging up when an `attach` message is received.
+
+#### Detecting Unrecoverable Calls
+
+You can detect when a call cannot be recovered by:
+
+1. **Listening for the event**:
+
+```javascript
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'peerConnectionSignalingStateClosed') {
+    console.log('Call is not recoverable, peer connection signaling state closed');
+    // The call will be hung up and recreated automatically
+  }
+});
+```
+
+2. **Checking the property**:
+
+```javascript
+if (call.signalingStateClosed) {
+  console.log('This call cannot be recovered');
+}
+```
+
+#### Device Sleep Scenarios
+
+When a device enters sleep mode (laptop lid closed, phone locked, etc.):
+
+1. The WebSocket connection times out (no PING response)
+2. The browser may close the RTCPeerConnection's signaling channel
+3. When the device wakes, `navigator.onLine` triggers reconnection
+4. If `signalingState` is `closed`, recovery is not possible
+
+For applications where users frequently put devices to sleep during calls, inform users that calls may need to be re-established after waking.
 
 ### Manual Reconnection
 

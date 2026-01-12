@@ -109,12 +109,46 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * #### Keep Connection Alive on Socket Close
    * 
    * By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause.
-   * To keep the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose`:
+   * To attempt keeping the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose`:
    *
    * ```js
    * const client = new TelnyxRTC({
    *   keepConnectionAliveOnSocketClose: true,
    * });
+   * ```
+   * 
+   * **Important**: This is an **optimistic** setting, not a deterministic guarantee. Call recovery depends on
+   * the state of the underlying WebRTC peer connection at the time of reconnection.
+   * 
+   * **When recovery succeeds**:
+   * - The peer connection's `signalingState` is NOT `closed`
+   * - The peer connection instance still exists
+   * - ICE restart was not triggered due to connection failure
+   * 
+   * **When recovery fails** (call will be hung up and recreated):
+   * - Device sleep caused the peer connection's `signalingState` to transition to `closed`
+   * - The peer connection instance was destroyed by the browser
+   * - ICE restart was attempted due to `connectionState` going to `failed`
+   * 
+   * **Fallback behavior**: When recovery is not possible, the SDK automatically recreates the call:
+   * - If ICE restart was attempted: sends a new INVITE with a new call ID
+   * - For other failures: answers the ATTACH with the same call ID
+   * - In both cases, a `callUpdate` notification is dispatched so your UI can update
+   * 
+   * To handle unrecoverable scenarios, listen for `telnyx.rtc.peerConnectionSignalingStateClosed` or check `call.signalingStateClosed`:
+   * 
+   * ```js
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'peerConnectionSignalingStateClosed') {
+   *     console.log('Call is not recoverable, peer connection signaling state closed');
+   *     // UI should indicate the call cannot be recovered
+   *   }
+   * });
+   * 
+   * // Or check the property directly
+   * if (call.signalingStateClosed) {
+   *   console.log('This call cannot be recovered');
+   * }
    * ```
    * 
    * > Note: If client using this option is switching networks and there are new network restrictions, combine this option with `iceServers` overrides and `forceRelayCandidate` to ensure connectivity on signaling.
