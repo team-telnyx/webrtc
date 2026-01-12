@@ -82,10 +82,9 @@ export interface IClientOptions {
    *   - ICE restart was not triggered due to connection failure
    *
    * - **Recovery fails** (call will be hung up and recreated) when:
+   *   - The peer connection's `connectionState` transitions to `failed`
    *   - The peer connection's `signalingState` transitions to `closed` (e.g., after device sleep)
    *   - The peer connection instance was destroyed
-   *   - ICE restart was attempted due to `connectionState` going to `failed`
-   *   - The `telnyx.rtc.peerConnectionSignalingStateClosed` event was fired
    *
    * **Fallback Behavior**: When recovery is not possible, the SDK automatically falls back to recreating
    * the call. The fallback process depends on the failure scenario:
@@ -100,8 +99,17 @@ export interface IClientOptions {
    *    - A new call instance is created with the **same call ID**
    *    - The SDK answers the incoming ATTACH to re-establish the call
    *
-   * Listen for the `telnyx.rtc.peerConnectionSignalingStateClosed` event or check `call.signalingStateClosed`
-   * to determine if a call is recoverable. When `signalingStateClosed` is `true`, recovery is not possible.
+   * **Monitoring Connection Health**: Subscribe to these events to detect connection issues:
+   *
+   * - `telnyx.rtc.peerConnectionFailureError` - **Primary event**. Fires when `connectionState` goes to `failed`.
+   *   This indicates the ICE/DTLS transport failed and recovery will be attempted via ICE restart.
+   *
+   * - `telnyx.rtc.peerConnectionSignalingStateClosed` - Fires when `signalingState` transitions to `closed`.
+   *   Check `call.signalingStateClosed` to verify recoverability.
+   *
+   * In both cases, if `autoRecoverCalls` is enabled (default: `true`), the fallback is automatic
+   * and seamless. The call's state transitions through the normal flow and a `callUpdate` notification
+   * is dispatched so your UI can update accordingly.
    *
    * @see {@link https://developers.telnyx.com/docs/voice/webrtc/js-sdk/error-handling Error Handling Documentation}
    */

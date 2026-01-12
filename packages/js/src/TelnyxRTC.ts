@@ -125,26 +125,30 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * - ICE restart was not triggered due to connection failure
    *
    * **When recovery fails** (call will be hung up and recreated):
+   * - The peer connection's `connectionState` transitions to `failed`
    * - Device sleep caused the peer connection's `signalingState` to transition to `closed`
    * - The peer connection instance was destroyed by the browser
-   * - ICE restart was attempted due to `connectionState` going to `failed`
    *
    * **Fallback behavior**: When recovery is not possible, the SDK automatically recreates the call:
    * - If ICE restart was attempted: sends a new INVITE with a new call ID
    * - For other failures: answers the ATTACH with the same call ID
    * - In both cases, a `callUpdate` notification is dispatched so your UI can update
    *
-   * To handle unrecoverable scenarios, listen for `telnyx.rtc.peerConnectionSignalingStateClosed` or check `call.signalingStateClosed`:
+   * **Monitoring connection health**: Subscribe to these events to detect and handle connection issues:
    *
    * ```js
-   * client.on('telnyx.notification', (notification) => {
-   *   if (notification.type === 'peerConnectionSignalingStateClosed') {
-   *     console.log('Call is not recoverable, peer connection signaling state closed');
-   *     // UI should indicate the call cannot be recovered
-   *   }
+   * // Primary event - fires when connectionState goes to 'failed'
+   * client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
+   *   console.log('Connection failed, ICE restart will be attempted');
+   *   // The SDK will attempt ICE restart automatically
    * });
    *
-   * // Or check the property directly
+   * // Fires when signalingState transitions to 'closed'
+   * client.on('telnyx.rtc.peerConnectionSignalingStateClosed', (data) => {
+   *   console.log('Signaling state closed, call will be recreated');
+   * });
+   *
+   * // You can also check the property directly on the call
    * if (call.signalingStateClosed) {
    *   console.log('This call cannot be recovered');
    * }

@@ -37,12 +37,7 @@ This document provides a comprehensive overview of error handling in the Telnyx 
   - [Reconnection Process](#reconnection-process)
     - [Automatic Reconnection](#automatic-reconnection)
     - [`keepConnectionAliveOnSocketClose` Behavior](#keepconnectionaliveonsocketclose-behavior)
-      - [When Recovery Succeeds](#when-recovery-succeeds)
-      - [When Recovery Fails](#when-recovery-fails)
-        - [Fallback Behavior](#fallback-behavior)
-        - [Automatic vs Manual Recovery](#automatic-vs-manual-recovery)
       - [Detecting Unrecoverable Calls](#detecting-unrecoverable-calls)
-      - [Device Sleep Scenarios](#device-sleep-scenarios)
     - [Manual Reconnection](#manual-reconnection)
   - [Best Practices](#best-practices)
     - [1. Always Implement the telnyx.notification Event Handler](#1-always-implement-the-telnyxnotification-event-handler)
@@ -552,20 +547,34 @@ The `keepConnectionAliveOnSocketClose` option is an **optimistic** setting, not 
 
 #### Detecting Unrecoverable Calls
 
-You can detect when a call cannot be recovered by:
+To monitor connection health and detect when calls become unrecoverable, subscribe to these events:
 
-1. **Listening for the event**:
+##### Primary Event: `telnyx.rtc.peerConnectionFailureError`
+
+This event fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
 
 ```javascript
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'peerConnectionSignalingStateClosed') {
-    console.log('Call is not recoverable, peer connection signaling state closed');
-    // The call will be hung up and recreated automatically
-  }
+client.on('telnyx.rtc.peerConnectionFailureError', (data) => {
+  console.log('Peer connection failed:', data.error.message);
+  // The SDK will attempt ICE restart automatically
+  // If ICE restart fails, the call will be recreated with a new ID
 });
 ```
 
-2. **Checking the property**:
+##### Secondary Event: `telnyx.rtc.peerConnectionSignalingStateClosed`
+
+This event fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
+
+```javascript
+client.on('telnyx.rtc.peerConnectionSignalingStateClosed', (data) => {
+  console.log('Signaling state closed for session:', data.sessionId);
+  // The call will be hung up and recreated automatically
+});
+```
+
+##### Checking the Property Directly
+
+You can also check the `signalingStateClosed` property on the call object:
 
 ```javascript
 if (call.signalingStateClosed) {
@@ -573,16 +582,12 @@ if (call.signalingStateClosed) {
 }
 ```
 
-#### Device Sleep Scenarios
+##### Event Comparison Table
 
-When a device enters sleep mode (laptop lid closed, phone locked, etc.):
-
-1. The WebSocket connection times out (no PING response)
-2. The browser may close the RTCPeerConnection's signaling channel
-3. When the device wakes, `navigator.onLine` triggers reconnection
-4. If `signalingState` is `closed`, recovery is not possible
-
-For applications where users frequently put devices to sleep during calls, inform users that calls may need to be re-established after waking.
+| Event | Trigger | Recovery Behavior |
+|-------|---------|-------------------|
+| `telnyx.rtc.peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | `signalingState` → `closed` | Call hung up and recreated with same call ID |
 
 ### Manual Reconnection
 
