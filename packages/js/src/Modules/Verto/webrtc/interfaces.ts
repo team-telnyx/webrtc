@@ -91,6 +91,8 @@ export interface IWebRTCCall {
   direction: string;
   peer?: {
     instance?: RTCPeerConnection | null;
+    restartedIceOnConnectionStateFailed?: boolean;
+    restartStatsReporter?: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;
   cause: string;
@@ -101,6 +103,8 @@ export interface IWebRTCCall {
   localStream: MediaStream;
   remoteStream: MediaStream;
   isAudioMuted: boolean;
+  creatingPeer: boolean;
+  signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params: any, execute: boolean) => void;

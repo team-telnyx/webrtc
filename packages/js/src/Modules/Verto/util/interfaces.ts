@@ -28,6 +28,11 @@ export interface IVertoOptions {
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
+  /**
+   * Optimistic flag to attempt keeping calls alive when the WebSocket connection closes.
+   * Recovery is not guaranteed - depends on peer connection signaling state.
+   * @see IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior
+   */
   keepConnectionAliveOnSocketClose?: boolean;
   useCanaryRtcServer?: boolean;
   region?: string;

@@ -1,3 +1,19 @@
+## [2.25.15](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.14...webrtc/v2.25.15) (2026-01-12)
+
+- fix: recreate call if peer connection signaling state is closed
+- chore: restart debug stats reporter on session reconnect
+- chore: expose PeerConnectionSignalingStateClosed event
+- chore: update documentation for event and error handling
+- fix: remote stream assignment to properly persist (@maiconpavi)
+- fix: propagate session forceRelayCandidate option to call
+- fix: address race condition on peer creation during reconnect
+- fix: active call leg on reconnection with ice restart
+- fix: send hangup msg before reconnectionOnAttach flag activation
+- fix: avoid creating multiple calls on reconnection
+- fix: flag usage on attach handler nested condition
+- fix: hangup bye execute logic and buffer manipulation
+- feat: update documentation on flag optimistic behavior
+
 ## [2.25.14](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.13...webrtc/v2.25.14) (2025-12-16)
 
 - fix: make sure offerToReceiveAudio is set if call audio options is undefined
@@ -18,7 +34,6 @@
 
 - address connection state not transitioning
 - maintain call state on peer connection signaling state change
-
 
 ## [2.25.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.9...webrtc/v2.25.10) (2025-12-04)
 
@@ -440,13 +455,13 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 
 - **ENGDESK-7173:** change the STUN_SERVER port from 3843 to 3478 ([#60](https://github.com/team-telnyx/webrtc/issues/60)) ([cc8f78f](https://github.com/team-telnyx/webrtc/commit/cc8f78f1454039efb55b921c0de54df5c1326e8f))
 
-## [2.1.6] - 2020-10-05
+## 2.1.6 - 2020-10-05
 
 ### Changed
 
 - Added cause and causeCode when hangup the call
 
-## [2.1.5] - 2020-08-26
+## 2.1.5 - 2020-08-26
 
 ### Changed
 
@@ -456,14 +471,14 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 
 - Added improvements in production bundle code.
 
-## [2.1.4] - 2020-08-26
+## 2.1.4 - 2020-08-26
 
 ### Changed
 
 - Enabled multiple connections in multiple devices (browsers, tabs, and etc)
 - Changed localStorage to use sessionStorage on Login class to save `sessid`
 
-## [2.1.3] - 2020-08-13
+## 2.1.3 - 2020-08-13
 
 ### Added
 
@@ -473,13 +488,13 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 
 - Changed the project structure to use monorepo yarn workspaces.
 
-## [2.1.2] - 2020-08-06
+## 2.1.2 - 2020-08-06
 
 ### Fixed
 
 - Fixed alert message about `Authentication required`
 
-## [2.1.1] - 2020-08-03
+## 2.1.1 - 2020-08-03
 
 ### Added
 
@@ -497,7 +512,7 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 
 - Fixed vulnerabilities in some dev dependencies.
 
-## [2.1.0] - 2020-07-09
+## 2.1.0 - 2020-07-09
 
 ### Added
 
@@ -514,19 +529,19 @@ Improve stability for ICE gathering process. (See [#391](https://github.com/team
 
 - Fixed vulnerabilities in some dev dependencies.
 
-## [2.0.3] - 2020-06-08
+## 2.0.3 - 2020-06-08
 
 ### Added
 
 - Added `setStateTelnyx` method to `BaseCall.ts`.
 
-## [2.0.2] - 2020-05-12
+## 2.0.2 - 2020-05-12
 
 ### Added
 
 - Added support to react-native
 
-## [2.0.1] - 2020-05-12
+## 2.0.1 - 2020-05-12
 
 ## First Release!
 

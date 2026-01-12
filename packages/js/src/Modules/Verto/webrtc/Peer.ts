@@ -27,9 +27,6 @@ import {
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
-const DEVICE_SLEEP_DETECTION_INTERVAL = 1000; // in ms
-const DEVICE_SLEEP_DETECTION_THRESHOLD = 5000; // in ms
-
 /**
  * @ignore Hide in docs output
  */
@@ -57,7 +54,7 @@ export default class Peer {
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
     registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
-    logger.info('New Peer with type:', this.type, 'Options:', this.options);
+    logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
       offerToReceiveAudio: true,
@@ -99,6 +96,11 @@ export default class Peer {
       this._session.options.keepConnectionAliveOnSocketClose
     );
   }
+
+  get restartedIceOnConnectionStateFailed() {
+    return this._restartedIceOnConnectionStateFailed;
+  }
+
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
@@ -211,13 +213,20 @@ export default class Peer {
         this._negotiating = false;
         break;
       case 'closed':
-        if (this.keepConnectionAliveOnSocketClose) {
+        trigger(
+          SwEvent.PeerConnectionSignalingStateClosed,
+          {
+            sessionId: this._session.sessionid,
+          },
+          this.options.id
+        );
+
+        if (this.instance) {
           logger.debug(
-            'Keeping peer connection alive due to keepConnectionAliveOnSocketClose option'
+            `[${this.options.id}] Closing peer due to signalingState closed`
           );
-          return;
+          this.close();
         }
-        this.instance = null;
         break;
       default:
         this._negotiating = true;
@@ -247,20 +256,17 @@ export default class Peer {
       streams: [first],
     } = event;
     const { remoteElement, screenShare } = this.options;
-    let { remoteStream } = this.options;
-
-    remoteStream = first;
+    this.options.remoteStream = first;
 
     if (screenShare === false) {
-      attachMediaStream(remoteElement, remoteStream);
+      attachMediaStream(remoteElement, this.options.remoteStream);
     }
   }
 
   private handleConnectionStateChange = async (event: Event) => {
     const { connectionState } = this.instance;
     logger.info(
-      `[${new Date().toISOString()}] Connection State changed: ${
-        this._prevConnectionState
+      `[${new Date().toISOString()}] Connection State changed: ${this._prevConnectionState
       } -> ${connectionState}`
     );
 
@@ -278,34 +284,17 @@ export default class Peer {
 
         /**
          * restart ice as ice credentials might have changed
+         * Per WebRTC spec, ICE restart requires creating a new offer
+         * (regardless of whether we were originally the offerer or answerer)
          */
-        if (!this._restartedIceOnConnectionStateFailed) {
-          this.instance.restartIce();
-
-          if (connectionState === 'failed') {
-            this._restartedIceOnConnectionStateFailed = true;
-            logger.debug('ICE has been restarted on connection state failed.');
-          }
-
-          if (this._isTrickleIce()) {
-            await this.startTrickleIceNegotiation();
-          } else {
-            this.startNegotiation();
-          }
-        } else {
-          logger.debug(
-            'Peer Connection failed again after ICE restart. Recovering call via peer reconnection through error handling.'
-          );
-          trigger(
-            SwEvent.PeerConnectionFailureError,
-            {
-              error: new Error(
-                `Peer Connection failed twice. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
-              ),
-              sessionId: this._session.sessionid,
-            },
-            this.options.id
-          );
+        if (
+          !this._restartedIceOnConnectionStateFailed &&
+          connectionState === 'failed' &&
+          this._session.hasAutoReconnect()
+        ) {
+          await this.instance.restartIce();
+          this._restartedIceOnConnectionStateFailed = true;
+          logger.debug('Peer connection state failed. ICE restarted.');
         }
 
         window.removeEventListener('online', onConnectionOnline);
@@ -318,20 +307,18 @@ export default class Peer {
       }
     }
 
-    // Case 2: connected -> disconnected: Reset audio buffers
-    if (
-      this._prevConnectionState === 'connected' &&
-      connectionState === 'disconnected'
-    ) {
-      await this._resetJitterBuffer();
-    }
 
-    // Case 3: disconnected -> connected: Reset audio buffers
-    if (
-      this._prevConnectionState === 'disconnected' &&
-      connectionState === 'connected'
-    ) {
-      await this._resetJitterBuffer();
+    if (connectionState === 'failed') {
+      trigger(
+        SwEvent.PeerConnectionFailureError,
+        {
+          error: new Error(
+            `Peer Connection failed. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
+          ),
+          sessionId: this._session.sessionid,
+        },
+        this.options.id
+      );
     }
 
     // update previous state for the next transition
@@ -351,8 +338,6 @@ export default class Peer {
         performance.clearMarks();
       }
     }
-
-    this._restartNegotiationOnDeviceSleepWakeup();
   };
 
   private async createPeerConnection() {
@@ -670,89 +655,6 @@ export default class Peer {
     return getUserMedia(constraints);
   }
 
-  private async _resetJitterBuffer() {
-    try {
-      const jitterBufferTarget = 20; // e.g., 20 ms
-      const audioReceiver = this.instance
-        .getReceivers()
-        .find((r) => r.track && r.track.kind === 'audio');
-
-      const videoReceiver = this.instance
-        .getReceivers()
-        .find((r) => r.track && r.track.kind === 'video');
-
-      /**
-       * Set optimal buffer duration for real-time audio (20ms)
-       * This prevents iOS from using large buffers that cause delay
-       * https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/jitterBufferTarget. Also, see support
-       * https://github.com/team-telnyx/telnyx-webrtc-ios/blob/main/TelnyxRTC/Telnyx/WebRTC/Peer.swift#L522
-       */
-      if (audioReceiver && 'jitterBufferTarget' in audioReceiver) {
-        // @ts-ignore
-        audioReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
-        logger.debug(
-          'audio [jitter] target set to',
-          // @ts-ignore
-          audioReceiver.jitterBufferTarget,
-          'ms'
-        );
-      }
-
-      if (videoReceiver && 'jitterBufferTarget' in videoReceiver) {
-        // @ts-ignore
-        videoReceiver.jitterBufferTarget = jitterBufferTarget; // e.g., 20 ms
-        logger.debug(
-          'video [jitter] target set to',
-          // @ts-ignore
-          videoReceiver.jitterBufferTarget,
-          'ms'
-        );
-      }
-    } catch (error) {
-      logger.error('Peer _resetJitterBuffer error:', error);
-    }
-  }
-
-  /**
-   * Detect device sleep/wake up, restart ICE and renegotiate
-   */
-  private async _restartNegotiationOnDeviceSleepWakeup() {
-    if (this._sleepWakeupIntervalId !== null) {
-      clearInterval(this._sleepWakeupIntervalId);
-      this._sleepWakeupIntervalId = null;
-    }
-
-    let lastTime = Date.now();
-    this._sleepWakeupIntervalId = setInterval(async () => {
-      const now = Date.now();
-      if (now - lastTime > DEVICE_SLEEP_DETECTION_THRESHOLD) {
-        // If time jumped more than 5s
-        logger.warn(
-          `Device sleep/wake detected. Time jump: ${
-            now - lastTime
-          }ms, connectionState: ${this.instance?.connectionState}`
-        );
-
-        if (!this.instance) {
-          logger.debug('Peer connection closed, skipping ICE restart');
-          return;
-        }
-
-        logger.info(
-          'Restarting ICE and renegotiating due to device wakeup'
-        );
-        this.instance.restartIce();
-
-        if (this._isTrickleIce()) {
-          await this.startTrickleIceNegotiation();
-        } else {
-          this.startNegotiation();
-        }
-      }
-      lastTime = now;
-    }, DEVICE_SLEEP_DETECTION_INTERVAL);
-  }
-
   private _isOffer(): boolean {
     return this.type === PeerType.Offer;
   }
@@ -780,12 +682,46 @@ export default class Peer {
     return config;
   }
 
+  /**
+   * Only restarts if a stats reporter was previously created (debug was enabled).
+   */
+  public async restartStatsReporter() {
+    if (!this.isDebugEnabled || !this.statsReporter) {
+      return;
+    }
+
+    if (!this.instance) {
+      logger.debug(
+        `[${this.options.id}] Cannot restart stats reporter - no peer connection instance`
+      );
+      return;
+    }
+
+    if (this.statsReporter.isRunning) {
+      logger.debug(
+        `[${this.options.id}] Stats reporter already running, skipping restart`
+      );
+      return;
+    }
+
+    logger.debug(
+      `[${this.options.id}] Restarting stats reporter after reconnect`
+    );
+    await this.statsReporter.start(
+      this.instance,
+      this._session.sessionid,
+      this._session.sessionid
+    );
+  }
+
   public async close() {
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;
     }
-    await this.statsReporter?.stop(this.debugOutput);
+    if (this.isDebugEnabled && this.statsReporter) {
+      await this.statsReporter.stop(this.debugOutput);
+    }
     if (this.instance) {
       this.instance.close();
       this.instance = null;

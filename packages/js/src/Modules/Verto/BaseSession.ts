@@ -162,6 +162,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+    logger.debug('Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.');
   }
 
   /**
@@ -247,9 +248,11 @@ export default abstract class BaseSession {
     }
 
     this._attachListeners();
+    this._autoReconnect = true;
     if (!this.connection.isAlive) {
       this.connection.connect();
     }
+    logger.debug('Session connected. Connection initiated if not already alive. Auto-reconnect enabled.');
   }
 
   /**

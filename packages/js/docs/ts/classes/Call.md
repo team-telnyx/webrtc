@@ -62,6 +62,7 @@ call.muteAudio();
 - [isAudioMuted](#isaudiomuted)
 - [localStream](#localstream)
 - [remoteStream](#remotestream)
+- [signalingStateClosed](#signalingstateclosed)
 - [telnyxIDs](#telnyxids)
 
 ### Methods
@@ -221,6 +222,24 @@ document.querySelector('audio').srcObject = stream;
 #### Inherited from
 
 BaseCall.remoteStream
+
+---
+
+### signalingStateClosed
+
+• `get` **signalingStateClosed**(): `boolean`
+
+Indicates if the peer connection's signaling state has transitioned to 'closed'
+while the connection was previously active. Used to determine if the call
+can be recovered on reconnection.
+
+#### Returns
+
+`boolean`
+
+#### Inherited from
+
+BaseCall.signalingStateClosed
 
 ---
 
