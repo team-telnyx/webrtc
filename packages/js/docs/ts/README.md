@@ -2,26 +2,26 @@
 
 ### Call Classes
 
-- [Call](/development/webrtc/js-sdk/classes/Call.md)
+- [Call](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/Call.md)
 
 ### Client Classes
 
-- [TelnyxRTC](/development/webrtc/js-sdk/classes/TelnyxRTC.md)
+- [TelnyxRTC](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/TelnyxRTC.md)
 
 ### Other Classes
 
-- [PreCallDiagnosis](/development/webrtc/js-sdk/classes/PreCallDiagnosis.md)
+- [PreCallDiagnosis](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/PreCallDiagnosis.md)
 
 ### Notification Interfaces
 
-- [INotification](/development/webrtc/js-sdk/interfaces/INotification.md)
+- [INotification](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/INotification.md)
 
 ### Other Interfaces
 
-- [ICallOptions](/development/webrtc/js-sdk/interfaces/ICallOptions.md)
-- [IClientOptions](/development/webrtc/js-sdk/interfaces/IClientOptions.md)
-- [MinMaxAverage](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md)
-- [PreCallDiagnosisOptions](/development/webrtc/js-sdk/interfaces/PreCallDiagnosisOptions.md)
-- [RTCIceCandidateStats](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)
-- [Report](/development/webrtc/js-sdk/interfaces/Report.md)
-- [TelnyxIDs](/development/webrtc/js-sdk/interfaces/TelnyxIDs.md)
+- [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
+- [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
+- [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
+- [PreCallDiagnosisOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md)
+- [RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)
+- [Report](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/Report.md)
+- [TelnyxIDs](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TelnyxIDs.md)

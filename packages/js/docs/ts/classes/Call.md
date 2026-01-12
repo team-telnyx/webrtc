@@ -20,7 +20,7 @@ To answer an incoming call:
 
 ```js
 client.on('telnyx.notification', (notification) => {
-  const { call } = notification;
+  const call = notification.call;
 
   if (notification.type === 'callUpdate' && call.state === 'ringing') {
     call.answer();
@@ -52,38 +52,38 @@ call.muteAudio();
 
 ### Properties
 
-- [direction](/development/webrtc/js-sdk/classes/Call.md#direction)
-- [id](/development/webrtc/js-sdk/classes/Call.md#id)
-- [prevState](/development/webrtc/js-sdk/classes/Call.md#prevstate)
-- [state](/development/webrtc/js-sdk/classes/Call.md#state)
+- [direction](#direction)
+- [id](#id)
+- [prevState](#prevstate)
+- [state](#state)
 
 ### Accessors
 
-- [isAudioMuted](/development/webrtc/js-sdk/classes/Call.md#isaudiomuted)
-- [localStream](/development/webrtc/js-sdk/classes/Call.md#localstream)
-- [remoteStream](/development/webrtc/js-sdk/classes/Call.md#remotestream)
-- [telnyxIDs](/development/webrtc/js-sdk/classes/Call.md#telnyxids)
+- [isAudioMuted](#isaudiomuted)
+- [localStream](#localstream)
+- [remoteStream](#remotestream)
+- [telnyxIDs](#telnyxids)
 
 ### Methods
 
-- [answer](/development/webrtc/js-sdk/classes/Call.md#answer)
-- [deaf](/development/webrtc/js-sdk/classes/Call.md#deaf)
-- [dtmf](/development/webrtc/js-sdk/classes/Call.md#dtmf)
-- [getStats](/development/webrtc/js-sdk/classes/Call.md#getstats)
-- [hold](/development/webrtc/js-sdk/classes/Call.md#hold)
-- [muteAudio](/development/webrtc/js-sdk/classes/Call.md#muteaudio)
-- [muteVideo](/development/webrtc/js-sdk/classes/Call.md#mutevideo)
-- [setAudioInDevice](/development/webrtc/js-sdk/classes/Call.md#setaudioindevice)
-- [setAudioOutDevice](/development/webrtc/js-sdk/classes/Call.md#setaudiooutdevice)
-- [setVideoDevice](/development/webrtc/js-sdk/classes/Call.md#setvideodevice)
-- [toggleAudioMute](/development/webrtc/js-sdk/classes/Call.md#toggleaudiomute)
-- [toggleDeaf](/development/webrtc/js-sdk/classes/Call.md#toggledeaf)
-- [toggleHold](/development/webrtc/js-sdk/classes/Call.md#togglehold)
-- [toggleVideoMute](/development/webrtc/js-sdk/classes/Call.md#togglevideomute)
-- [undeaf](/development/webrtc/js-sdk/classes/Call.md#undeaf)
-- [unhold](/development/webrtc/js-sdk/classes/Call.md#unhold)
-- [unmuteAudio](/development/webrtc/js-sdk/classes/Call.md#unmuteaudio)
-- [unmuteVideo](/development/webrtc/js-sdk/classes/Call.md#unmutevideo)
+- [answer](#answer)
+- [deaf](#deaf)
+- [dtmf](#dtmf)
+- [getStats](#getstats)
+- [hold](#hold)
+- [muteAudio](#muteaudio)
+- [muteVideo](#mutevideo)
+- [setAudioInDevice](#setaudioindevice)
+- [setAudioOutDevice](#setaudiooutdevice)
+- [setVideoDevice](#setvideodevice)
+- [toggleAudioMute](#toggleaudiomute)
+- [toggleDeaf](#toggledeaf)
+- [toggleHold](#togglehold)
+- [toggleVideoMute](#togglevideomute)
+- [undeaf](#undeaf)
+- [unhold](#unhold)
+- [unmuteAudio](#unmuteaudio)
+- [unmuteVideo](#unmutevideo)
 
 ## Properties
 
@@ -478,7 +478,7 @@ call.setAudioInDevice('abc123').then(() => {
 Usage with `.getAudioInDevices`:
 
 ```js
-const result = await client.getAudioInDevices();
+let result = await client.getAudioInDevices();
 
 if (result.length) {
   call.setAudioInDevice(result[1].deviceId);
@@ -528,7 +528,7 @@ call.setAudioOutDevice('abc123').then(() => {
 Usage with `.getAudioOutDevices`:
 
 ```js
-const result = await client.getAudioOutDevices();
+let result = await client.getAudioOutDevices();
 
 if (result.length) {
   await call.setAudioOutDevice(result[1].deviceId);
@@ -574,7 +574,7 @@ call.setVideoDevice('abc123').then(() => {
 Usage with `.getVideoDevices`:
 
 ```js
-const result = await client.getVideoDevices();
+let result = await client.getVideoDevices();
 
 if (result.length) {
   await call.setVideoDevice(result[1].deviceId);

@@ -61,15 +61,15 @@ Notification
 
 ### Properties
 
-- [call](/development/webrtc/js-sdk/interfaces/INotification.md#call)
-- [error](/development/webrtc/js-sdk/interfaces/INotification.md#error)
-- [type](/development/webrtc/js-sdk/interfaces/INotification.md#type)
+- [call](#call)
+- [error](#error)
+- [type](#type)
 
 ## Properties
 
 ### call
 
-• `Optional` **call**: [`Call`](/development/webrtc/js-sdk/classes/Call.md)
+• `Optional` **call**: [`Call`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/Call.md)
 
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
