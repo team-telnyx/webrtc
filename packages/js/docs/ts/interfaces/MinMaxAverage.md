@@ -6,9 +6,9 @@ Interface representing the minimum, maximum, and average values.
 
 ### Properties
 
-- [average](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md#average)
-- [max](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md#max)
-- [min](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md#min)
+- [average](#average)
+- [max](#max)
+- [min](#min)
 
 ## Properties
 
@@ -18,7 +18,7 @@ Interface representing the minimum, maximum, and average values.
 
 The average value.
 
-___
+---
 
 ### max
 
@@ -26,7 +26,7 @@ ___
 
 The maximum value.
 
-___
+---
 
 ### min
 

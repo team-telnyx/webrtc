@@ -2,14 +2,15 @@ An event dispatched by Telnyx to notify the client of changes to the session or 
 
 The conditions of the event can be identified by the `type` property.
 
-| `type` | Description | Additional properties |
-|---|---|---|
-| `callUpdate` | A call has changed state | `call` |
-| `userMediaError` | The browser does not have permission to access media devices | `error` |
+| `type`           | Description                                                  | Additional properties |
+| ---------------- | ------------------------------------------------------------ | --------------------- |
+| `callUpdate`     | A call has changed state                                     | `call`                |
+| `userMediaError` | The browser does not have permission to access media devices | `error`               |
 
 **`Examples`**
 
 Usage with TelnyxRTC Client `.on`:
+
 ```js
 client.on('telnyx.notification', (notification) => {
   if (notification.type === 'callUpdate') {
@@ -52,7 +53,7 @@ Notification
 
 ## Hierarchy
 
-- `Omit`\<`INotificationEventData`, ``"call"``\>
+- `Omit`\<`INotificationEventData`, `"call"`\>
 
   ↳ **`INotification`**
 
@@ -60,20 +61,20 @@ Notification
 
 ### Properties
 
-- [call](/development/webrtc/js-sdk/interfaces/INotification.md#call)
-- [error](/development/webrtc/js-sdk/interfaces/INotification.md#error)
-- [type](/development/webrtc/js-sdk/interfaces/INotification.md#type)
+- [call](#call)
+- [error](#error)
+- [type](#type)
 
 ## Properties
 
 ### call
 
-• `Optional` **call**: [`Call`](/development/webrtc/js-sdk/classes/Call.md)
+• `Optional` **call**: [`Call`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/Call.md)
 
 The current call. Reference this call state to update your UI.
 See `Call` documentation.
 
-___
+---
 
 ### error
 
@@ -86,7 +87,7 @@ Check your `audio` and `video` constraints for browser support.
 
 Omit.error
 
-___
+---
 
 ### type
 

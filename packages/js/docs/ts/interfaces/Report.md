@@ -6,10 +6,10 @@ Interface representing the pre-call diagnosis report.
 
 ### Properties
 
-- [iceCandidatePairStats](/development/webrtc/js-sdk/interfaces/Report.md#icecandidatepairstats)
-- [iceCandidateStats](/development/webrtc/js-sdk/interfaces/Report.md#icecandidatestats)
-- [sessionStats](/development/webrtc/js-sdk/interfaces/Report.md#sessionstats)
-- [summaryStats](/development/webrtc/js-sdk/interfaces/Report.md#summarystats)
+- [iceCandidatePairStats](#icecandidatepairstats)
+- [iceCandidateStats](#icecandidatestats)
+- [sessionStats](#sessionstats)
+- [summaryStats](#summarystats)
 
 ## Properties
 
@@ -19,16 +19,16 @@ Interface representing the pre-call diagnosis report.
 
 The statistics of the selected ICE candidate pair.
 
-___
+---
 
 ### iceCandidateStats
 
-• **iceCandidateStats**: [`RTCIceCandidateStats`](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)[]
+• **iceCandidateStats**: [`RTCIceCandidateStats`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)[]
 
 The statistics of the ICE candidates.
-[RTCIceCandidateStats](/development/webrtc/js-sdk/interfaces/RTCIceCandidateStats.md)
+[RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)
 
-___
+---
 
 ### sessionStats
 
@@ -38,15 +38,15 @@ The session statistics of the pre-call diagnosis.
 
 #### Type declaration
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `bytesReceived` | `number` | The number of bytes received. |
-| `bytesSent` | `number` | The number of bytes sent. |
-| `packetsLost` | `number` | The number of packets lost. |
+| Name              | Type     | Description                     |
+| :---------------- | :------- | :------------------------------ |
+| `bytesReceived`   | `number` | The number of bytes received.   |
+| `bytesSent`       | `number` | The number of bytes sent.       |
+| `packetsLost`     | `number` | The number of packets lost.     |
 | `packetsReceived` | `number` | The number of packets received. |
-| `packetsSent` | `number` | The number of packets sent. |
+| `packetsSent`     | `number` | The number of packets sent.     |
 
-___
+---
 
 ### summaryStats
 
@@ -56,9 +56,9 @@ The summary statistics of the pre-call diagnosis.
 
 #### Type declaration
 
-| Name | Type | Description |
-| :------ | :------ | :------ |
-| `jitter` | [`MinMaxAverage`](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md) | The jitter in milliseconds. |
-| `mos` | `number` | The mean opinion score (MOS) of the call quality. |
-| `quality` | `Quality` | The quality of the call. |
-| `rtt` | [`MinMaxAverage`](/development/webrtc/js-sdk/interfaces/MinMaxAverage.md) | The round-trip time (RTT) in milliseconds. |
+| Name      | Type                                                                                                               | Description                                       |
+| :-------- | :----------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ |
+| `jitter`  | [`MinMaxAverage`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md) | The jitter in milliseconds.                       |
+| `mos`     | `number`                                                                                                           | The mean opinion score (MOS) of the call quality. |
+| `quality` | `Quality`                                                                                                          | The quality of the call.                          |
+| `rtt`     | [`MinMaxAverage`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md) | The round-trip time (RTT) in milliseconds.        |
