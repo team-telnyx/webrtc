@@ -1,4 +1,4 @@
-## [2.25.15](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.14...webrtc/v2.25.15) (2026-01-06)
+## [2.25.15](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.14...webrtc/v2.25.15) (2026-01-12)
 
 - fix: recreate call if peer connection signaling state is closed
 - chore: restart debug stats reporter on session reconnect
@@ -10,6 +10,9 @@
 - fix: active call leg on reconnection with ice restart
 - fix: send hangup msg before reconnectionOnAttach flag activation
 - fix: avoid creating multiple calls on reconnection
+- fix: flag usage on attach handler nested condition
+- fix: hangup bye execute logic and buffer manipulation
+- feat: update documentation on flag optimistic behavior
 
 ## [2.25.14](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.13...webrtc/v2.25.14) (2025-12-16)
 
