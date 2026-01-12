@@ -56,6 +56,7 @@ a remote caller in a <code>telnyx.notification</code> event handler.</p>
 <div class="tsd-index-list"><a href="Call.html#isAudioMuted" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-262144"><rect fill="var(--color-icon-background)" stroke="#FF4D4D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M8.85 16L11.13 7.24H12.582L14.85 16H13.758L13.182 13.672H10.53L9.954 16H8.85ZM10.746 12.76H12.954L12.282 10.06C12.154 9.548 12.054 9.12 11.982 8.776C11.91 8.432 11.866 8.208 11.85 8.104C11.834 8.208 11.79 8.432 11.718 8.776C11.646 9.12 11.546 9.544 11.418 10.048L10.746 12.76Z" fill="var(--color-text)"></path></g></svg><span>is<wbr/>Audio<wbr/>Muted</span></a>
 <a href="Call.html#localStream" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Stream</span></a>
 <a href="Call.html#remoteStream" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Stream</span></a>
+<a href="Call.html#signalingStateClosed" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>signaling<wbr/>State<wbr/>Closed</span></a>
 <a href="Call.html#telnyxIDs" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>telnyxIDs</span></a>
 </div></section>
 <section class="tsd-index-section">
@@ -212,6 +213,18 @@ See <a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaStream">Media
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from BaseCall.remoteStream</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="signalingStateClosed" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>signaling<wbr/>State<wbr/>Closed</span><a href="#signalingStateClosed" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature" id="signalingStateClosed.signalingStateClosed-1"><span class="tsd-signature-symbol">get</span> signalingStateClosed<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Indicates if the peer connection&#39;s signaling state has transitioned to &#39;closed&#39;
+while the connection was previously active. Used to determine if the call
+can be recovered on reconnection.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from BaseCall.signalingStateClosed</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="telnyxIDs" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>telnyxIDs</span><a href="#telnyxIDs" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -583,6 +596,7 @@ video visible to other call participants.</p>
 <li><a href="#isAudioMuted" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>is<wbr/>Audio<wbr/>Muted</span></a></li>
 <li><a href="#localStream" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Stream</span></a></li>
 <li><a href="#remoteStream" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Stream</span></a></li>
+<li><a href="#signalingStateClosed" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>signaling<wbr/>State<wbr/>Closed</span></a></li>
 <li><a href="#telnyxIDs" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>telnyxIDs</span></a></li>
 <li><a href="#answer" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>answer</span></a></li>
 <li><a href="#deaf" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>deaf</span></a></li>
