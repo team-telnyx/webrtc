@@ -645,7 +645,7 @@ if (call.signalingStateClosed) {
 > });
 > ```
 >
-> **Important**: If a call-level `onNotification` listener is registered, it will receive the notification and the session-level listener will **also** receive it (notifications propagate to both levels). If no listeners are registered at either level, the notification is silently dropped.
+> **Important**: If a call-level `onNotification` listener is registered, it will receive the notification and the session-level listener will **not** receive it (call-level takes priority). The session-level listener only receives notifications as a fallback when no call-level listener is registered. If no listeners are registered at either level, the notification is silently dropped.
 
 ### Manual Reconnection
 
