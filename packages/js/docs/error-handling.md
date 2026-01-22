@@ -549,26 +549,30 @@ The `keepConnectionAliveOnSocketClose` option is an **optimistic** setting, not 
 
 To monitor connection health and detect when calls become unrecoverable, subscribe to these events:
 
-##### Primary Event: `telnyx.rtc.peerConnectionFailureError`
+##### Primary Event: `peerConnectionFailureError`
 
-This event fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
+This notification fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
 
 ```javascript
-client.on('telnyx.rtc.peerConnectionFailureError', (data) => {
-  console.log('Peer connection failed:', data.error.message);
-  // The SDK will attempt ICE restart automatically
-  // If ICE restart fails, the call will be recreated with a new ID
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'peerConnectionFailureError') {
+    console.log('Peer connection failed:', notification.error.message);
+    // The SDK will attempt ICE restart automatically
+    // If ICE restart fails, the call will be recreated with a new ID
+  }
 });
 ```
 
-##### Secondary Event: `telnyx.rtc.peerConnectionSignalingStateClosed`
+##### Secondary Event: `signalingStateClosed`
 
-This event fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
+This notification fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
 
 ```javascript
-client.on('telnyx.rtc.peerConnectionSignalingStateClosed', (data) => {
-  console.log('Signaling state closed for session:', data.sessionId);
-  // The call will be hung up and recreated automatically
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'signalingStateClosed') {
+    console.log('Signaling state closed for session:', notification.sessionId);
+    // The call will be hung up and recreated automatically
+  }
 });
 ```
 
@@ -582,12 +586,66 @@ if (call.signalingStateClosed) {
 }
 ```
 
-##### Event Comparison Table
+##### Notification Type Comparison Table
 
-| Event | Trigger | Recovery Behavior |
-|-------|---------|-------------------|
-| `telnyx.rtc.peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | `signalingState` → `closed` | Call hung up and recreated with same call ID |
+| Notification Type            | Trigger                      | Recovery Behavior                                       |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------- |
+| `peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
+| `signalingStateClosed`       | `signalingState` → `closed`  | Call hung up and recreated with same call ID            |
+
+> [!IMPORTANT]
+> **When Notifications Are Not Dispatched**
+>
+> These notifications are **suppressed for screen share calls** (when `screenShare: true` is set in call options). This is by design since screen share calls are typically secondary streams that don't require the same error handling as primary audio/video calls.
+>
+> If you need to monitor connection health for screen share calls, check the `signalingStateClosed` property directly on the call object instead:
+>
+> ```javascript
+> if (screenShareCall.signalingStateClosed) {
+>   console.log('Screen share connection cannot be recovered');
+> }
+> ```
+
+> [!NOTE]
+> **Notification Scoping: Call-Level vs Session-Level**
+>
+> Notifications are first dispatched to listeners registered for the specific **call ID**. If no call-level listeners exist, the SDK falls back to dispatching the notification to **session-level** listeners (registered on the client).
+>
+> **Session-Level Listener (Recommended)**
+>
+> Register on the client to receive notifications from all calls:
+>
+> ```javascript
+> client.on('telnyx.notification', (notification) => {
+>   if (notification.type === 'peerConnectionFailureError') {
+>     console.log('Connection failed for call:', notification.call?.id);
+>   }
+>   if (notification.type === 'signalingStateClosed') {
+>     console.log('Signaling closed for call:', notification.call?.id);
+>   }
+> });
+> ```
+>
+> **Call-Level Listener**
+>
+> Use the `onNotification` callback in call options to receive notifications only for that specific call:
+>
+> ```javascript
+> const call = client.newCall({
+>   destinationNumber: '+15551234567',
+>   onNotification: (notification) => {
+>     // Only receives notifications for this specific call
+>     if (notification.type === 'peerConnectionFailureError') {
+>       console.log('This call connection failed');
+>     }
+>     if (notification.type === 'signalingStateClosed') {
+>       console.log('This call signaling closed');
+>     }
+>   },
+> });
+> ```
+>
+> **Important**: If a call-level `onNotification` listener is registered, it will receive the notification and the session-level listener will **also** receive it (notifications propagate to both levels). If no listeners are registered at either level, the notification is silently dropped.
 
 ### Manual Reconnection
 
