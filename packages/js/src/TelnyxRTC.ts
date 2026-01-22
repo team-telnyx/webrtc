@@ -134,18 +134,20 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * - For other failures: answers the ATTACH with the same call ID
    * - In both cases, a `callUpdate` notification is dispatched so your UI can update
    *
-   * **Monitoring connection health**: Subscribe to these events to detect and handle connection issues:
+   * **Monitoring connection health**: Subscribe to `telnyx.notification` to detect and handle connection issues:
    *
    * ```js
-   * // Primary event - fires when connectionState goes to 'failed'
-   * client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
-   *   console.log('Connection failed, ICE restart will be attempted');
-   *   // The SDK will attempt ICE restart automatically
-   * });
+   * client.on('telnyx.notification', (notification) => {
+   *   // Primary event - fires when connectionState goes to 'failed'
+   *   if (notification.type === 'peerConnectionFailureError') {
+   *     console.log('Connection failed, ICE restart will be attempted');
+   *     // The SDK will attempt ICE restart automatically
+   *   }
    *
-   * // Fires when signalingState transitions to 'closed'
-   * client.on('telnyx.rtc.peerConnectionSignalingStateClosed', (data) => {
-   *   console.log('Signaling state closed, call will be recreated');
+   *   // Fires when signalingState transitions to 'closed'
+   *   if (notification.type === 'signalingStateClosed') {
+   *     console.log('Signaling state closed, call will be recreated');
+   *   }
    * });
    *
    * // You can also check the property directly on the call
