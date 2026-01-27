@@ -26,6 +26,7 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [User Media Errors](#user-media-errors)
     - [Call State Errors](#call-state-errors)
     - [Connection Errors](#connection-errors)
+    - [Authentication Errors](#authentication-errors)
   - [Socket Connection Close and Socket Connection Error Handling](#socket-connection-close-and-socket-connection-error-handling)
     - [Event delivery to TelnyxRTC consumers](#event-delivery-to-telnyxrtc-consumers)
     - [`telnyx.socket.close` payload](#telnyxsocketclose-payload)
@@ -56,16 +57,18 @@ The Telnyx WebRTC JS SDK provides robust error handling mechanisms to help devel
 
 The following table lists all error constants and codes used in the Telnyx WebRTC JS SDK:
 
-| **ERROR MESSAGE**             | **ERROR CODE** | **DESCRIPTION**                                          |
-| ----------------------------- | -------------- | -------------------------------------------------------- |
-| Token registration error      | -32000         | Error during token registration                          |
-| Credential registration error | -32001         | Error during credential registration                     |
-| Codec error                   | -32002         | Error related to codec operation                         |
-| Gateway registration timeout  | -32003         | Gateway registration timed out                           |
-| Gateway registration failed   | -32004         | Gateway registration failed                              |
-| Call not found                | N/A            | The specified call cannot be found                       |
-| User media error              | N/A            | Browser does not have permission to access media devices |
-| Connection timeout            | -329990        | Fake verto timeout error code                            |
+| **ERROR MESSAGE**               | **ERROR CODE** | **DESCRIPTION**                                          |
+| ------------------------------- | -------------- | -------------------------------------------------------- |
+| Authentication Required         | -32000         | Session requires re-authentication (ping auth failure)   |
+| Token registration error        | -32000         | Error during token registration                          |
+| JWT token authentication failed | -32001         | JWT login credentials are invalid or expired             |
+| Credential registration error   | -32001         | Error during credential registration                     |
+| Codec error                     | -32002         | Error related to codec operation                         |
+| Gateway registration timeout    | -32003         | Gateway registration timed out                           |
+| Gateway registration failed     | -32004         | Gateway registration failed                              |
+| Call not found                  | N/A            | The specified call cannot be found                       |
+| User media error                | N/A            | Browser does not have permission to access media devices |
+| Connection timeout              | -329990        | Fake verto timeout error code                            |
 
 ## SwEvent Error Reference
 
@@ -372,6 +375,68 @@ client.on('telnyx.ready', () => {
   showConnectionStatus('connected');
 });
 ```
+
+### Authentication Errors
+
+Authentication errors occur when the session credentials expire or become invalid. There are two types:
+
+**1. Login Authentication Failures (JWT/Credentials)**
+
+These occur during initial login or re-login and are emitted via `telnyx.error`:
+
+```javascript
+client.on('telnyx.error', (payload) => {
+  if (payload.error?.code === -32001) {
+    console.error('JWT authentication failed:', payload.error.message);
+    // Prompt user to refresh their token or re-authenticate
+    showErrorMessage('Session expired. Please log in again.');
+  }
+});
+```
+
+**2. Ping Authentication Failures**
+
+These occur when the server responds with "Authentication Required" (error code `-32000`) during keep-alive pings. This typically happens when the session has been invalidated server-side.
+
+When `autoReconnect` is enabled (default), the SDK automatically re-logs in after 2 consecutive ping auth failures using the existing credentials. However, if you need to detect these failures or provide a new token, you can listen to raw socket messages:
+
+```javascript
+client.on('telnyx.socket.message', (message) => {
+  if (
+    message?.error?.code === -32000 &&
+    message?.error?.message === 'Authentication Required'
+  ) {
+    console.warn('Ping authentication failure detected');
+    // The SDK will auto re-login if autoReconnect is enabled
+  }
+});
+```
+
+| Error Type                      | Error Code | Event                   | Auto-Recovery                      |
+| ------------------------------- | ---------- | ----------------------- | ---------------------------------- |
+| JWT token authentication failed | -32001     | `telnyx.error`          | No                                 |
+| Authentication Required (ping)  | -32000     | `telnyx.socket.message` | Yes, if `autoReconnect` is enabled |
+
+**Manual Re-authentication with a New Token**
+
+If you need to re-authenticate with a new JWT token (e.g., when the original token has expired), you can update the client options and reconnect:
+
+```javascript
+// 1. Disconnect the current session
+await client.disconnect();
+
+// 2. Update the login token
+client.options.login_token = newToken;
+
+// 3. Reconnect with the new token
+client.connect();
+```
+
+This approach is useful when:
+
+- The original JWT token has expired and you have obtained a fresh token
+- You need to switch to different credentials
+- The `telnyx.error` event indicates a `-32001` (JWT authentication failed) error
 
 ## Socket Connection Close and Socket Connection Error Handling
 
