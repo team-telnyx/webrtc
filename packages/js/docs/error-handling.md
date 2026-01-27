@@ -422,14 +422,57 @@ client.on('telnyx.socket.message', (message) => {
 If you need to re-authenticate with a new JWT token (e.g., when the original token has expired), you can update the client options and reconnect:
 
 ```javascript
-// 1. Disconnect the current session
-await client.disconnect();
+// Function to fetch a new token from your backend
+async function fetchNewToken() {
+  const response = await fetch('/api/telnyx/token');
+  const data = await response.json();
+  return data.token;
+}
 
-// 2. Update the login token
-client.options.login_token = newToken;
+// Function to re-authenticate with a new token
+async function reAuthenticate(client) {
+  try {
+    // 1. Disconnect the current session
+    await client.disconnect();
 
-// 3. Reconnect with the new token
-client.connect();
+    // 2. Fetch a new token from your backend
+    const newToken = await fetchNewToken();
+
+    // 3. Update the login token
+    client.options.login_token = newToken;
+
+    // 4. Reconnect with the new token
+    client.connect();
+  } catch (error) {
+    console.error('Re-authentication failed:', error);
+  }
+}
+
+// Listen for JWT authentication failures
+client.on('telnyx.error', async (payload) => {
+  if (payload.error?.code === -32001) {
+    console.warn('JWT authentication failed, attempting re-authentication...');
+    await reAuthenticate(client);
+  }
+});
+
+// Optional: Listen for ping authentication failures
+client.on('telnyx.socket.message', async (message) => {
+  if (
+    message?.error?.code === -32000 &&
+    message?.error?.message === 'Authentication Required'
+  ) {
+    console.warn('Ping auth failure detected');
+    // Note: The SDK will auto re-login if autoReconnect is enabled.
+    // Only manually re-authenticate if autoReconnect is disabled
+    // or if you need to provide a fresh token.
+  }
+});
+
+// Listen for successful reconnection
+client.on('telnyx.ready', () => {
+  console.log('Client reconnected and ready');
+});
 ```
 
 This approach is useful when:
