@@ -9,6 +9,9 @@ import {
   getWebRTCInfo,
   getWebRTCSupportedBrowserList,
   SUPPORTED_WEBRTC,
+  getUserMedia,
+  isDeviceNotFoundError,
+  getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
 
 describe('Helpers browser functions', () => {
@@ -651,5 +654,114 @@ describe('Helpers browser functions', () => {
       expect(resultFirefox.features).toHaveLength(1);
       expect(resultFirefox.features[0]).toEqual('audio');
     });
+  });
+
+  describe('isDeviceNotFoundError', () => {
+    it('should return true for NotReadableError', () => {
+      const error = new Error('Device not readable');
+      error.name = 'NotReadableError';
+      expect(isDeviceNotFoundError(error)).toBe(true);
+    });
+
+    it('should return true for NotFoundError', () => {
+      const error = new Error('Device not found');
+      error.name = 'NotFoundError';
+      expect(isDeviceNotFoundError(error)).toBe(true);
+    });
+
+    it('should return true for OverconstrainedError', () => {
+      const error = new Error('Constraints cannot be satisfied');
+      error.name = 'OverconstrainedError';
+      expect(isDeviceNotFoundError(error)).toBe(true);
+    });
+
+    it('should return false for other errors', () => {
+      const error = new Error('Some other error');
+      error.name = 'TypeError';
+      expect(isDeviceNotFoundError(error)).toBe(false);
+    });
+
+    it('should return false for generic Error', () => {
+      const error = new Error('Generic error');
+      expect(isDeviceNotFoundError(error)).toBe(false);
+    });
+  });
+
+  describe('getConstraintsWithoutDeviceId', () => {
+    it('should return null if no deviceId is specified', () => {
+      const constraints = { audio: true, video: false };
+      expect(getConstraintsWithoutDeviceId(constraints)).toBeNull();
+    });
+
+    it('should remove deviceId from audio constraints', () => {
+      const constraints = {
+        audio: { deviceId: { exact: 'mic-123' } },
+        video: false,
+      };
+      const result = getConstraintsWithoutDeviceId(constraints);
+      expect(result).toEqual({ audio: true, video: false });
+    });
+
+    it('should remove deviceId from video constraints', () => {
+      const constraints = {
+        audio: true,
+        video: { deviceId: { exact: 'cam-456' } },
+      };
+      const result = getConstraintsWithoutDeviceId(constraints);
+      expect(result).toEqual({ audio: true, video: true });
+    });
+
+    it('should remove deviceId from both audio and video constraints', () => {
+      const constraints = {
+        audio: { deviceId: { exact: 'mic-123' } },
+        video: { deviceId: { exact: 'cam-456' } },
+      };
+      const result = getConstraintsWithoutDeviceId(constraints);
+      expect(result).toEqual({ audio: true, video: true });
+    });
+
+    it('should preserve other audio constraints when removing deviceId', () => {
+      const constraints = {
+        audio: {
+          deviceId: { exact: 'mic-123' },
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+        video: false,
+      };
+      const result = getConstraintsWithoutDeviceId(constraints);
+      expect(result).toEqual({
+        audio: { echoCancellation: true, noiseSuppression: true },
+        video: false,
+      });
+    });
+
+    it('should preserve other video constraints when removing deviceId', () => {
+      const constraints = {
+        audio: true,
+        video: {
+          deviceId: { exact: 'cam-456' },
+          width: 1280,
+          height: 720,
+        },
+      };
+      const result = getConstraintsWithoutDeviceId(constraints);
+      expect(result).toEqual({
+        audio: true,
+        video: { width: 1280, height: 720 },
+      });
+    });
+  });
+
+  describe('getUserMedia with device fallback', () => {
+    it('should return null when no audio or video is requested', async () => {
+      const result = await getUserMedia({ audio: false, video: false });
+      expect(result).toBeNull();
+    });
+
+    // Note: Integration tests for fallback behavior are omitted because
+    // navigator.mediaDevices is reset between describe blocks in this test file.
+    // The fallback logic is tested via the isDeviceNotFoundError and
+    // getConstraintsWithoutDeviceId unit tests above.
   });
 });
