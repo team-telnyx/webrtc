@@ -23,12 +23,12 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 ## SwEvent Overview
 
-| **EVENT**             | **CATEGORY**      | **DESCRIPTION**                                                     | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                   |
-| --------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `telnyx.ready`        | Session readiness | SDK is authenticated and the gateway reports `REGED`                | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve “client ready” promises               |
-| `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events |
-| `telnyx.stats.frame`  | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter    | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                         |
-| `telnyx.stats.report` | Diagnostics       | Entire timeline returned when stats capture stops                   | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                 |
+| **EVENT** | **CATEGORY** | **DESCRIPTION** | **PAYLOAD SHAPE** | **TYPICAL USE** |
+|---|---|---|---|---|
+| `telnyx.ready` | Session readiness | SDK is authenticated and the gateway reports `REGED` | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises |
+| `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC | Drive call state machines, show call errors, react to chat events |
+| `telnyx.stats.frame` | Diagnostics | One-second slices of WebRTC stats captured by the debug reporter | `{ jitter, rtt, mos, ... }` | Plot live charts or compute health scores |
+| `telnyx.stats.report` | Diagnostics | Entire timeline returned when stats capture stops | `Array<WebRTCStatsTimelineEntry>` | Persist logs, attach diagnostics to support cases |
 
 ## Event Details
 
@@ -44,13 +44,13 @@ A catch-all event that delivers call updates, hangup reasons, DTMF indications, 
 
 **Notification Types:**
 
-| `type`                       | Description                           | Payload                       |
-| ---------------------------- | ------------------------------------- | ----------------------------- |
-| `callUpdate`                 | A call has changed state              | `{ call }`                    |
-| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   |
-| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          |
-| `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   |
-| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` |
+| `type` | Description | Payload |
+|---|---|---|
+| `callUpdate` | A call has changed state | `{ call }` |
+| `userMediaError` | Browser cannot access media devices | `{ error }` |
+| `vertoClientReady` | Client is ready to make/receive calls | `{}` |
+| `peerConnectionFailureError` | Peer connection failed | `{ error }` |
+| `signalingStateClosed` | Peer signaling state closed | `{ previousConnectionState }` |
 
 ### Diagnostics & Telemetry
 
