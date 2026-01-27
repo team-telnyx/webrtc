@@ -59,7 +59,6 @@ The following table lists all error constants and codes used in the Telnyx WebRT
 
 | **ERROR MESSAGE**               | **ERROR CODE** | **DESCRIPTION**                                          |
 | ------------------------------- | -------------- | -------------------------------------------------------- |
-| Authentication Required         | -32000         | Session requires re-authentication (ping auth failure)   |
 | Token registration error        | -32000         | Error during token registration                          |
 | JWT token authentication failed | -32001         | JWT login credentials are invalid or expired             |
 | Credential registration error   | -32001         | Error during credential registration                     |
@@ -378,11 +377,7 @@ client.on('telnyx.ready', () => {
 
 ### Authentication Errors
 
-Authentication errors occur when the session credentials expire or become invalid. There are two types:
-
-**1. Login Authentication Failures (JWT/Credentials)**
-
-These occur during initial login or re-login and are emitted via `telnyx.error`:
+Authentication errors occur when the session credentials expire or become invalid. These are emitted via `telnyx.error`:
 
 ```javascript
 client.on('telnyx.error', (payload) => {
@@ -393,29 +388,6 @@ client.on('telnyx.error', (payload) => {
   }
 });
 ```
-
-**2. Ping Authentication Failures**
-
-These occur when the server responds with "Authentication Required" (error code `-32000`) during keep-alive pings. This typically happens when the session has been invalidated server-side.
-
-When `autoReconnect` is enabled (default), the SDK automatically re-logs in after 2 consecutive ping auth failures using the existing credentials. However, if you need to detect these failures or provide a new token, you can listen to raw socket messages:
-
-```javascript
-client.on('telnyx.socket.message', (message) => {
-  if (
-    message?.error?.code === -32000 &&
-    message?.error?.message === 'Authentication Required'
-  ) {
-    console.warn('Ping authentication failure detected');
-    // The SDK will auto re-login if autoReconnect is enabled
-  }
-});
-```
-
-| Error Type                      | Error Code | Event                   | Auto-Recovery                      |
-| ------------------------------- | ---------- | ----------------------- | ---------------------------------- |
-| JWT token authentication failed | -32001     | `telnyx.error`          | No                                 |
-| Authentication Required (ping)  | -32000     | `telnyx.socket.message` | Yes, if `autoReconnect` is enabled |
 
 **Manual Re-authentication with a New Token**
 
@@ -453,19 +425,6 @@ client.on('telnyx.error', async (payload) => {
   if (payload.error?.code === -32001) {
     console.warn('JWT authentication failed, attempting re-authentication...');
     await reAuthenticate(client);
-  }
-});
-
-// Optional: Listen for ping authentication failures
-client.on('telnyx.socket.message', async (message) => {
-  if (
-    message?.error?.code === -32000 &&
-    message?.error?.message === 'Authentication Required'
-  ) {
-    console.warn('Ping auth failure detected');
-    // Note: The SDK will auto re-login if autoReconnect is enabled.
-    // Only manually re-authenticate if autoReconnect is disabled
-    // or if you need to provide a fresh token.
   }
 });
 
