@@ -93,6 +93,7 @@ export interface IWebRTCCall {
     instance?: RTCPeerConnection | null;
     restartedIceOnConnectionStateFailed?: boolean;
     restartStatsReporter?: () => Promise<void>;
+    close?: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;
   cause: string;
@@ -107,6 +108,7 @@ export interface IWebRTCCall {
   signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
+  renegotiateWithNewOffer: (remoteSdp: string) => Promise<void>;
   hangup: (params: any, execute: boolean) => void;
 
   hold: () => void;

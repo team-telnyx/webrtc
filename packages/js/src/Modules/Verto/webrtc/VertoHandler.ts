@@ -97,7 +97,7 @@ class VertoHandler {
     }
   };
 
-  handleMessage(msg: any) {
+  async handleMessage(msg: any) {
     const { session } = this;
     const { id, method, params = {}, voice_sdk_id } = msg;
 
@@ -116,35 +116,33 @@ class VertoHandler {
 
     if (callID && session.calls.hasOwnProperty(callID)) {
       if (attach) {
-        const call = session.calls[callID];
-        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
-        keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
-            call.options.keepConnectionAliveOnSocketClose) &&
-          Boolean(call.peer?.instance) &&
-          !call.signalingStateClosed &&
-          !reconnectionOnAttach;
-
-        if (keepConnectionOnAttach) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
-          );
-        } else {
-          if (call.signalingStateClosed) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
-            );
-          } else if (reconnectionOnAttach) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
-            );
-          }
-
-          call.hangup({}, reconnectionOnAttach);
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
-          );
-        }
+        // const call = session.calls[callID];
+        // reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
+        // keepConnectionOnAttach =
+        //   (session.options.keepConnectionAliveOnSocketClose ||
+        //     call.options.keepConnectionAliveOnSocketClose) &&
+        //   Boolean(call.peer?.instance) &&
+        //   !call.signalingStateClosed &&
+        //   !reconnectionOnAttach;
+        // if (keepConnectionOnAttach) {
+        //   logger.info(
+        //     `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
+        //   );
+        // } else {
+        //   if (call.signalingStateClosed) {
+        //     logger.info(
+        //       `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
+        //     );
+        //   } else if (reconnectionOnAttach) {
+        //     logger.info(
+        //       `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
+        //     );
+        //   }
+        //   call.hangup({}, false);
+        //   logger.debug(
+        //     `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
+        //   );
+        // }
       } else {
         session.calls[callID].handleMessage(msg);
         this._ack(id, method);
@@ -268,54 +266,44 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        if (keepConnectionOnAttach) {
-          // If we are keeping the connection alive on attach, we need to re-attach first.
-          this.session.execute(
-            new Attach({
-              sessid: this.session.sessionid,
-              // reuse the same sdp to re-attach
-              sdp: this.session.calls[callID].peer.instance.localDescription
-                .sdp,
-              dialogParams: this.session.calls[callID].options,
-              'User-Agent': `Web-${SDK_VERSION}`,
-            })
-          );
-          // Restart stats reporter after reconnect
-          this.session.calls[callID].peer?.restartStatsReporter();
-          return;
-        } else {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Re-creating call instance.`
-          );
-        }
+        const existingCall = this.session.calls[callID];
 
-        if (this.session.calls[callID]?.creatingPeer) {
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call is already creating a peer, skip recreating call instance.`
-          );
-          return;
-        }
-
-        let call;
-        if (this.session.autoRecoverCalls) {
-          if (reconnectionOnAttach) {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed. Re-inviting to become active leg. due to keepConnectionAliveOnSocketClose.`
+        if (existingCall) {
+          // Reuse existing PeerConnection - server keeps same ICE credentials
+          if (
+            existingCall.peer?.instance &&
+            existingCall.peer.instance.signalingState !== 'closed'
+          ) {
+            // existingCall.hangup({}, false);
+            // delete this.session.calls[callID];
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] Attach: Renegotiating with existing peer`
             );
-            call = _buildCall(false);
-            call.invite();
+            try {
+              await existingCall.renegotiateWithNewOffer(params.sdp);
+              this._ack(id, method);
+              break;
+            } catch (error) {
+              logger.warn(
+                `[${new Date().toISOString()}][${callID}] Renegotiation failed, creating new peer:`,
+                error
+              );
+              existingCall.peer.close();
+              delete this.session.calls[callID];
+            }
           } else {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call is not in an unrecoverable state. Answering.`
-            );
-            call = _buildCall();
-            call.answer();
+            // PC already closed, remove and recreate
+            delete this.session.calls[callID];
           }
-        } else {
-          call = _buildCall();
-          call.setState(State.Recovering);
         }
-        call.handleMessage(msg);
+
+        // Fallback: new peer (may fail with stale ICE)
+        // logger.info(
+        //   `[${new Date().toISOString()}][${callID}] Attach: Creating new call`
+        // );
+        // const call = _buildCall();
+        // call.answer();
+        // this._ack(id, method);
         break;
       }
       case VertoMethod.Event:
