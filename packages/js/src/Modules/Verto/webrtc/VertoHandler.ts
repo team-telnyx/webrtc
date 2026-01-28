@@ -1,9 +1,8 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
-import pkg from '../../../../package.json';
 import Call from './Call';
-import { checkSubscribeResponse, hasVideo } from './helpers';
-import { Attach, Candidate, Login, Result } from '../messages/Verto';
+import { checkSubscribeResponse } from './helpers';
+import { Candidate, Login, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -26,7 +25,6 @@ import {
 import { Ping } from '../messages/verto/Ping';
 import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
 import { getReconnectToken } from '../util/reconnect';
-const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
@@ -105,58 +103,12 @@ class VertoHandler {
     const eventChannel = params?.eventChannel;
     const eventType = params?.eventType;
 
-    const attach = method === VertoMethod.Attach;
-    const punt = method === VertoMethod.Punt;
-    let keepConnectionOnAttach = false;
-    let reconnectionOnAttach = false;
+    const existingCall = session.calls[callID];
+    const isPeerConnectionAlive =
+      existingCall?.peer?.instance?.connectionState === 'connected';
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
-    }
-
-    if (callID && session.calls.hasOwnProperty(callID)) {
-      if (attach) {
-        // const call = session.calls[callID];
-        // reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
-        // keepConnectionOnAttach =
-        //   (session.options.keepConnectionAliveOnSocketClose ||
-        //     call.options.keepConnectionAliveOnSocketClose) &&
-        //   Boolean(call.peer?.instance) &&
-        //   !call.signalingStateClosed &&
-        //   !reconnectionOnAttach;
-        // if (keepConnectionOnAttach) {
-        //   logger.info(
-        //     `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
-        //   );
-        // } else {
-        //   if (call.signalingStateClosed) {
-        //     logger.info(
-        //       `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
-        //     );
-        //   } else if (reconnectionOnAttach) {
-        //     logger.info(
-        //       `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
-        //     );
-        //   }
-        //   call.hangup({}, false);
-        //   logger.debug(
-        //     `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
-        //   );
-        // }
-      } else {
-        session.calls[callID].handleMessage(msg);
-        this._ack(id, method);
-        return;
-      }
-    }
-
-    if (punt && session.options.keepConnectionAliveOnSocketClose) {
-      logger.info(
-        `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
-      );
-      this.session.socketDisconnect();
-      this._ack(id, method);
-      return;
     }
 
     const _buildCall = (isRecovering: boolean = false) => {
@@ -171,7 +123,7 @@ class VertoHandler {
         remoteCallerNumber: params.caller_id_number,
         callerName: params.callee_id_name,
         callerNumber: params.callee_id_number,
-        attach,
+        attach: method === VertoMethod.Attach,
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
@@ -255,7 +207,18 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
-        session.disconnect();
+        if (
+          session.options.keepConnectionAliveOnSocketClose &&
+          isPeerConnectionAlive
+        ) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+          );
+          session.socketDisconnect();
+          this._ack(id, method);
+        } else {
+          session.disconnect();
+        }
         break;
       case VertoMethod.Invite: {
         const call = _buildCall();
@@ -266,25 +229,31 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        const existingCall = this.session.calls[callID];
+        const isRecovering = !!existingCall;
 
         if (existingCall) {
           if (
-            existingCall.peer?.instance &&
-            existingCall.peer.instance.signalingState !== 'closed'
+            session.options.keepConnectionAliveOnSocketClose &&
+            isPeerConnectionAlive
           ) {
-            // Close current call, no need to send BYE
-            existingCall.hangup({ isRecovering: true }, false);
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to keepConnectionAliveOnSocketClose.`
+            );
+            existingCall.handleMessage(msg);
+            this._ack(id, method);
+            return;
           } else {
-            // PC already closed, just remove
-            delete this.session.calls[callID];
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
+            );
+            existingCall.hangup({ isRecovering }, false);
           }
         }
 
         logger.info(
           `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
         );
-        const call = _buildCall(true);
+        const call = _buildCall(isRecovering);
         call.answer();
         this._ack(id, method);
         break;
@@ -321,6 +290,12 @@ class VertoHandler {
         break;
 
       default: {
+        if (callID && session.calls.hasOwnProperty(callID)) {
+          session.calls[callID].handleMessage(msg);
+          this._ack(id, method);
+          return;
+        }
+
         const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {

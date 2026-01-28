@@ -160,7 +160,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _statsBindings: IStatsBinding[] = [];
 
-  private _statsIntervalId: any = null;
+  private _statsIntervalId: NodeJS.Timeout | null = null;
 
   private _pendingIceCandidates: Array<
     RTCIceCandidateInit | RTCIceCandidate | null
@@ -899,7 +899,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     if (sender) {
-      let p = sender.getParameters();
+      const p = sender.getParameters();
       const parameters = p as RTCRtpSendParameters;
       if (!parameters.encodings) {
         parameters.encodings = [{ rid: 'h' }];
@@ -1030,6 +1030,28 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         this.gotEarly = true;
         this._onRemoteSdp(params.sdp);
+        break;
+      }
+      case VertoMethod.Attach: {
+        /**
+         * Guard that this is only for a case when we get Attach message while connectionState is connected
+         * Server expect the Attach message always to be answered with the Attach message with SDP
+         * In that case we can send Attach message with the same SDP
+         */
+        if (
+          this.session.options.keepConnectionAliveOnSocketClose &&
+          this.peer?.instance?.connectionState === 'connected'
+        ) {
+          const localDescription = this.peer?.instance?.localDescription;
+          const attach = new Attach({
+            sessid: this.session.sessionid,
+            sdp: localDescription,
+            dialogParams: this.options,
+            'User-Agent': `Web-${SDK_VERSION}`,
+          });
+          this.session.execute(attach);
+          return;
+        }
         break;
       }
       case VertoMethod.Display: {
@@ -1610,7 +1632,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    //@ts-ignore
+    // addstream and MediaStreamEvent are deprecated
+    //@ts-expect-error MediaStreamEvent is not defined
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -1649,9 +1672,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
-    logger.error(
-      'Peer connection failure error, call is not recoverable. Handling reconnection according to keepConnectionAliveOnSocketClose option'
-    );
+    logger.error('Peer connection failure error, call is not recoverable');
   }
 
   private _onPeerConnectionSignalingStateClosed(data: any) {
