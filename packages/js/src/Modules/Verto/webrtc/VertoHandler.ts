@@ -3,7 +3,7 @@ import BrowserSession from '../BrowserSession';
 import pkg from '../../../../package.json';
 import Call from './Call';
 import { checkSubscribeResponse, hasVideo } from './helpers';
-import { Attach, Candidate, Login, Result } from '../messages/Verto';
+import { Attach, Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -24,8 +24,7 @@ import {
   randomInt,
 } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
-import { getReconnectToken } from '../util/reconnect';
+
 const SDK_VERSION = pkg.version;
 
 /**
@@ -58,43 +57,13 @@ class VertoHandler {
   }
 
   private handleLogin = async () => {
-    const { login, password, passwd, login_token, userVariables } =
-      this.session.options;
-
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.session.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
+    // Call the shared login method from BaseSession
+    return this.session._performLogin();
   };
 
   private handleAnonymousLogin = async () => {
-    const { anonymous_login } = this.session.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.session.sessionid,
-      userVariables: this.session.options.userVariables,
-      reconnection: !!getReconnectToken(),
-    });
-
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
+    // Call the shared anonymous login method from BaseSession
+    return this.session._performAnonymousLogin();
   };
 
   handleMessage(msg: any) {

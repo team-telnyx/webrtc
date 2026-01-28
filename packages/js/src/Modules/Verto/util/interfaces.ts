@@ -52,6 +52,13 @@ export interface IVertoOptions {
   rtcPort?: number;
   mutedMicOnStart?: boolean;
 }
+export interface ILoginParams {
+  login?: string;
+  password?: string;
+  passwd?: string;
+  login_token?: string;
+  userVariables?: Object;
+}
 export interface SubscribeParams {
   channels?: string[];
   protocol?: string;

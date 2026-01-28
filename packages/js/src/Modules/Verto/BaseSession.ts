@@ -20,6 +20,8 @@ import { BroadcastParams, IVertoOptions } from './util/interfaces';
 import logger from './util/logger';
 import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
+import { Login } from './messages/Verto';
+import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -162,7 +164,9 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
-    logger.debug('Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.');
+    logger.debug(
+      'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
+    );
   }
 
   /**
@@ -252,7 +256,9 @@ export default abstract class BaseSession {
     if (!this.connection.isAlive) {
       this.connection.connect();
     }
-    logger.debug('Session connected. Connection initiated if not already alive. Auto-reconnect enabled.');
+    logger.debug(
+      'Session connected. Connection initiated if not already alive. Auto-reconnect enabled.'
+    );
   }
 
   /**
@@ -261,6 +267,53 @@ export default abstract class BaseSession {
    */
   protected _handleLoginError(error: any) {
     trigger(SwEvent.Error, { error, sessionId: this.sessionid }, this.uuid);
+  }
+
+  /**
+   * Internal method to perform login with current session options.
+   * Shared across all session types and handlers.
+   * @public
+   */
+  public async _performLogin(): Promise<void> {
+    const { login, password, passwd, login_token, userVariables } =
+      this.options;
+
+    const msg = new Login(
+      login,
+      password || passwd,
+      login_token,
+      this.sessionid,
+      userVariables,
+      !!getReconnectToken()
+    );
+
+    const response = await this.execute(msg).catch(this._handleLoginError);
+    if (response) {
+      this.sessionid = response.sessid;
+    }
+  }
+
+  /**
+   * Internal method to perform anonymous login with current session options.
+   * Shared across all session types and handlers.
+   * @public
+   */
+  public async _performAnonymousLogin(): Promise<void> {
+    const { anonymous_login } = this.options;
+
+    const msg = new AnonymousLogin({
+      target_id: anonymous_login.target_id,
+      target_type: anonymous_login.target_type,
+      target_version_id: anonymous_login.target_version_id,
+      sessionId: this.sessionid,
+      userVariables: this.options.userVariables,
+      reconnection: !!getReconnectToken(),
+    });
+
+    const response = await this.execute(msg).catch(this._handleLoginError);
+    if (response) {
+      this.sessionid = response.sessid;
+    }
   }
 
   /**

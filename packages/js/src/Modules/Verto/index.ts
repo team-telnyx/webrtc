@@ -3,18 +3,15 @@ import {
   SubscribeParams,
   BroadcastParams,
   IVertoOptions,
+  ILoginParams,
 } from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
-import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
-import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
 import {
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
 } from './util/helpers';
-import { getReconnectToken } from './util/reconnect';
-import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import logger from './util/logger';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
@@ -69,49 +66,77 @@ export default class Verto extends BrowserSession {
     return this.vertoUnsubscribe(params);
   }
 
+  /**
+   * Re-authenticate with new credentials within an active connection.
+   * Updates session options and re-authenticates immediately.
+   *
+   * @param params - New login credentials (login/password OR login_token)
+   * @returns Promise that resolves when authentication succeeds
+   *
+   * @example
+   * ```js
+   * // Refresh JWT token
+   * const newToken = await fetchNewJWT();
+   * await client.login({ login_token: newToken });
+   *
+   * // Update login/password
+   * await client.login({
+   *   login: 'newuser@example.com',
+   *   password: 'newpassword'
+   * });
+   * ```
+   */
+  async login(params: ILoginParams): Promise<void> {
+    // Validate connection state
+    if (!this.connection || !this.connection.isAlive) {
+      throw new Error(
+        'Cannot login: socket connection is not active. Call connect() first.'
+      );
+    }
+
+    // Update session options with new credentials
+    if (params.login !== undefined) {
+      this.options.login = params.login;
+    }
+    if (params.password !== undefined) {
+      this.options.password = params.password;
+    }
+    if (params.passwd !== undefined) {
+      this.options.passwd = params.passwd;
+    }
+    if (params.login_token !== undefined) {
+      this.options.login_token = params.login_token;
+    }
+    if (params.userVariables !== undefined) {
+      this.options.userVariables = params.userVariables;
+    }
+
+    // Validate that we have valid credentials
+    if (!this.validateOptions()) {
+      throw new Error(
+        'Invalid login parameters. Provide (login and password) OR login_token.'
+      );
+    }
+
+    // Re-authenticate using the inherited shared methods
+    if (isValidLoginOptions(this.options)) {
+      return this._performLogin();
+    } else if (isValidAnonymousLoginOptions(this.options)) {
+      return this._performAnonymousLogin();
+    }
+  }
+
   private handleLoginOnSocketOpen = async () => {
     this._idle = false;
-    const {
-      login,
-      password,
-      passwd,
-      login_token,
-      userVariables,
-      autoReconnect = true,
-    } = this.options;
+    const { autoReconnect = true } = this.options;
 
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-    const response = await this.execute(msg).catch(this._handleLoginError);
-    if (response) {
-      this._autoReconnect = autoReconnect;
-      this.sessionid = response.sessid;
-    }
+    await this._performLogin(); // Inherited from BaseSession
+    this._autoReconnect = autoReconnect;
   };
 
   private handleAnonymousLoginOnSocketOpen = async () => {
     this._idle = false;
-    const { anonymous_login } = this.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.sessionid,
-      userVariables: this.options.userVariables,
-      reconnection: !!getReconnectToken(),
-    });
-
-    const response = await this.execute(msg).catch(this._handleLoginError);
-    if (response) {
-      this.sessionid = response.sessid;
-    }
+    await this._performAnonymousLogin(); // Inherited from BaseSession
   };
 
   private validateCallOptions(options: IVertoCallOptions) {
