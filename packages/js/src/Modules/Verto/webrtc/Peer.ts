@@ -282,19 +282,28 @@ export default class Peer {
         }
 
         /**
-         * restart ice as ice credentials might have changed
-         * Per WebRTC spec, ICE restart requires creating a new offer
-         * (regardless of whether we were originally the offerer or answerer)
+         * TODO: implement proper ICE restart
+         *
+         * Restart ICE is not working since we do not handle SDP exchange after ICE restart.
+         * The proper way:
+         * 1. Create new offer
+         * 2. Set the local description to the offer
+         * 3. Send it to the remote peer
+         * 4. Wait for the remote peer to send us an answer
+         * 5. Set the remote description to the answer
+         *
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Session_lifetime#ice_restart
          */
-        if (
-          !this._restartedIceOnConnectionStateFailed &&
-          connectionState === 'failed' &&
-          this._session.hasAutoReconnect()
-        ) {
-          // await this.instance.restartIce();
-          this._restartedIceOnConnectionStateFailed = true;
-          logger.info('Peer connection state failed. ICE restarted.');
-        }
+        // if (
+        //   !this._restartedIceOnConnectionStateFailed &&
+        //   connectionState === 'failed' &&
+        //   this._session.hasAutoReconnect()
+        // ) {
+        // this.instance.restartIce();
+        // this._restartedIceOnConnectionStateFailed = true;
+        // logger.info('Peer connection state failed. ICE restarted.');
+        // }
 
         window.removeEventListener('online', onConnectionOnline);
       };
