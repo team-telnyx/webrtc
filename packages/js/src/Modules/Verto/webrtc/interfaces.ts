@@ -1,6 +1,31 @@
+import { State } from './constants';
+
 export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
+}
+
+/**
+ * Parameters for the hangup method.
+ * @internal
+ */
+export interface IHangupParams {
+  /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
+  cause?: string;
+  /** Custom hangup cause code */
+  causeCode?: number;
+  /** SIP response code */
+  sipCode?: number;
+  /** SIP reason phrase */
+  sipReason?: string;
+  /** SIP Call-ID header value */
+  sip_call_id?: string;
+  /** Dialog parameters including custom headers */
+  dialogParams?: {
+    customHeaders?: Array<{ name: string; value: string }>;
+  };
+  /** When true, sets call to Recovering state for reconnection flow */
+  isRecovering?: boolean;
 }
 
 export interface IVertoCallOptions {
@@ -93,6 +118,7 @@ export interface IWebRTCCall {
     instance?: RTCPeerConnection | null;
     restartedIceOnConnectionStateFailed?: boolean;
     restartStatsReporter?: () => Promise<void>;
+    close?: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;
   cause: string;
@@ -107,7 +133,7 @@ export interface IWebRTCCall {
   signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
-  hangup: (params: any, execute: boolean) => void;
+  hangup: (params: IHangupParams, execute: boolean) => void;
 
   hold: () => void;
   unhold: () => void;
@@ -128,7 +154,7 @@ export interface IWebRTCCall {
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   getStats: (callback: Function, constraints: any) => void;
-  setState: (state: any) => void;
+  setState: (state: State) => void;
   // Privates
   handleMessage: (msg: any) => void;
   _addChannel: (laChannel: any) => void;
