@@ -1,6 +1,6 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
-import { GOOGLE_STUN_SERVER, SwEvent, TURN_SERVER } from '../util/constants';
+import { SwEvent } from '../util/constants';
 import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
@@ -12,9 +12,7 @@ import logger from '../util/logger';
 import {
   attachMediaStream,
   audioIsMediaTrackConstraints,
-  muteMediaElement,
   RTCPeerConnection,
-  sdpToJsonHack,
   streamIsValid,
   videoIsMediaTrackConstraints,
 } from '../util/webrtc';
@@ -32,7 +30,7 @@ import { IVertoCallOptions } from './interfaces';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-  public onSdpReadyTwice: Function = null;
+  public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -54,7 +52,7 @@ export default class Peer {
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
     registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
-    logger.debug('New Peer with type:', this.type, 'Options:', this.options);
+    logger.info('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
       offerToReceiveAudio: true,
@@ -203,7 +201,7 @@ export default class Peer {
     };
   }
 
-  private handleSignalingStateChangeEvent(event) {
+  private handleSignalingStateChangeEvent() {
     logger.info('signalingState:', this.instance.signalingState);
 
     switch (this.instance.signalingState) {
@@ -263,10 +261,11 @@ export default class Peer {
     }
   }
 
-  private handleConnectionStateChange = async (event: Event) => {
+  private handleConnectionStateChange = async () => {
     const { connectionState } = this.instance;
     logger.info(
-      `[${new Date().toISOString()}] Connection State changed: ${this._prevConnectionState
+      `[${new Date().toISOString()}] Connection State changed: ${
+        this._prevConnectionState
       } -> ${connectionState}`
     );
 
@@ -292,9 +291,9 @@ export default class Peer {
           connectionState === 'failed' &&
           this._session.hasAutoReconnect()
         ) {
-          await this.instance.restartIce();
+          // await this.instance.restartIce();
           this._restartedIceOnConnectionStateFailed = true;
-          logger.debug('Peer connection state failed. ICE restarted.');
+          logger.info('Peer connection state failed. ICE restarted.');
         }
 
         window.removeEventListener('online', onConnectionOnline);
@@ -306,7 +305,6 @@ export default class Peer {
         window.addEventListener('online', onConnectionOnline);
       }
     }
-
 
     if (connectionState === 'failed') {
       trigger(
@@ -357,7 +355,9 @@ export default class Peer {
     this.instance.addEventListener(
       'icegatheringstatechange',
       this._handleIceGatheringStateChange
-    ); //@ts-ignore
+    );
+    // addstream and MediaStreamEvent are deprecated
+    //@ts-expect-error MediaStreamEvent is not defined
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -390,13 +390,13 @@ export default class Peer {
     performance.mark(`peer-creation-end`);
   }
 
-  private _handleIceConnectionStateChange = (event) => {
+  private _handleIceConnectionStateChange = () => {
     logger.debug(
       `[${new Date().toISOString()}] ICE Connection State`,
       this.instance.iceConnectionState
     );
   };
-  private _handleIceGatheringStateChange = (event) => {
+  private _handleIceGatheringStateChange = () => {
     logger.debug(
       `[${new Date().toISOString()}] ICE Gathering State`,
       this.instance.iceGatheringState
@@ -513,7 +513,8 @@ export default class Peer {
         });
       } else {
         // Fallback to legacy addStream ..
-        // @ts-ignore
+        // addStream is deprecated
+        // @ts-expect-error addStream does not exist on RTCPeerConnection
         this.instance.addStream(localStream);
       }
 
