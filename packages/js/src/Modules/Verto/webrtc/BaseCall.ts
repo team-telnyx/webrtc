@@ -54,6 +54,7 @@ import {
 import {
   AnswerParams,
   IAudio,
+  IHangupParams,
   IStatsBinding,
   IVertoCallOptions,
   IWebRTCCall,
@@ -173,7 +174,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   constructor(
     protected session: BrowserSession,
-    opts?: IVertoCallOptions
+    opts?: IVertoCallOptions,
+    private _isRecovering: boolean = false
   ) {
     const {
       iceServers,
@@ -420,143 +422,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._creatingPeer = false;
   }
 
-  /**
-   * Renegotiates existing PeerConnection with a new remote SDP offer.
-   * Used for attach (reconnection) flow where the server sends the same
-   * ICE credentials as the original connection.
-   *
-   * If ICE state indicates network change (failed/disconnected), performs
-   * ICE restart via updateMedia instead.
-   *
-   * @param remoteSdp The new SDP offer from the server
-   * @internal
-   */
-  async renegotiateWithNewOffer(remoteSdp: string): Promise<void> {
-    if (!this.peer?.instance) {
-      throw new Error('No peer connection to renegotiate');
-    }
-
-    const pc = this.peer.instance;
-    logger.info(
-      `[${this.id}] Attach renegotiation, signalingState: ${pc.signalingState}, iceConnectionState: ${pc.iceConnectionState}`
-    );
-
-    // Check if ICE restart is needed (network interface may have changed)
-    const needsIceRestart =
-      pc.iceConnectionState === 'failed' ||
-      pc.iceConnectionState === 'disconnected';
-
-    if (needsIceRestart) {
-      logger.info(
-        `[${this.id}] ICE state ${pc.iceConnectionState}, performing ICE restart`
-      );
-      await this._performIceRestart();
-      return;
-    }
-
-    // Simple renegotiation for same network
-    await pc.setRemoteDescription({ sdp: remoteSdp, type: 'offer' });
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    logger.debug(`[${this.id}] Sending attach answer`);
-
-    const msg = new Attach({
-      sessid: this.session.sessionid,
-      sdp: answer.sdp,
-      dialogParams: this.options,
-    });
-
-    if (this.nodeId) {
-      msg.targetNodeId = this.nodeId;
-    }
-
-    await this.session.execute(msg);
-    this.setState(State.Active);
-    logger.info(`[${this.id}] Attach renegotiation complete`);
-  }
-
-  /**
-   * Performs ICE restart by creating new offer with fresh ICE candidates
-   * and sending via telnyx_rtc.modify updateMedia.
-   * Waits for ICE gathering to complete so server gets full candidate list.
-   * @internal
-   */
-  private async _performIceRestart(): Promise<void> {
-    const pc = this.peer.instance;
-
-    // Create new offer with ICE restart flag
-    const offer = await pc.createOffer({ iceRestart: true });
-    await pc.setLocalDescription(offer);
-
-    // Wait for ICE gathering to complete (non-trickle style)
-    // This ensures server receives complete candidate list in SDP
-    logger.debug(`[${this.id}] Waiting for ICE gathering to complete`);
-    await this._waitForIceGatheringComplete(pc);
-
-    // Get final SDP with all candidates
-    const finalSdp = pc.localDescription?.sdp;
-    if (!finalSdp) {
-      throw new Error('No local description after ICE gathering');
-    }
-
-    logger.debug(`[${this.id}] Sending ICE restart via updateMedia`);
-
-    // Send via modify with updateMedia action
-    const msg = new Modify({
-      sessid: this.session.sessionid,
-      action: 'updateMedia',
-      sdp: finalSdp,
-      dialogParams: this.options,
-    });
-
-    if (this.nodeId) {
-      msg.targetNodeId = this.nodeId;
-    }
-
-    const response = await this.session.execute(msg);
-
-    // Set server's new SDP answer
-    if (response?.sdp) {
-      await pc.setRemoteDescription({ sdp: response.sdp, type: 'answer' });
-      this.setState(State.Active);
-      logger.info(`[${this.id}] ICE restart complete`);
-    } else {
-      throw new Error('No SDP in updateMedia response');
-    }
-  }
-
-  /**
-   * Waits for ICE gathering to complete with timeout.
-   * @internal
-   */
-  private _waitForIceGatheringComplete(
-    pc: RTCPeerConnection,
-    timeoutMs: number = 5000
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (pc.iceGatheringState === 'complete') {
-        resolve();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        pc.removeEventListener('icegatheringstatechange', checkState);
-        logger.warn(`[${this.id}] ICE gathering timeout, proceeding anyway`);
-        resolve(); // Proceed even on timeout
-      }, timeoutMs);
-
-      const checkState = () => {
-        if (pc.iceGatheringState === 'complete') {
-          clearTimeout(timeout);
-          pc.removeEventListener('icegatheringstatechange', checkState);
-          resolve();
-        }
-      };
-      pc.addEventListener('icegatheringstatechange', checkState);
-    });
-  }
-
   playRingtone() {
     playAudio(this._ringtone);
   }
@@ -586,15 +451,16 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * @internal
    */
-  hangup(hangupParams, hangupExecute): void;
+  hangup(hangupParams: IHangupParams, hangupExecute: boolean): void;
   /**
    * @internal
    * @param hangupParams _For internal use_ Specify custom hangup cause and call ID
    * @param hangupExecute _For internal use_ Allow or prevent execution of `Bye`
    */
-  hangup(hangupParams?: any, hangupExecute?: boolean): void {
-    let params = hangupParams || {};
-    let execute = hangupExecute === false ? false : true;
+  hangup(hangupParams?: IHangupParams, hangupExecute?: boolean): void {
+    const params = hangupParams || {};
+    const execute = hangupExecute === false ? false : true;
+    const isRecovering = params.isRecovering === true;
 
     this.cause = params.cause || 'NORMAL_CLEARING';
     this.causeCode = params.causeCode || 16;
@@ -605,12 +471,22 @@ export default abstract class BaseCall implements IWebRTCCall {
       ...(this.options.customHeaders ?? []),
       ...(params?.dialogParams?.customHeaders ?? []),
     ];
+
+    // If recovering from attach, set Recovering state and skip Bye
+    if (isRecovering) {
+      this._isRecovering = true;
+      this.setState(State.Recovering);
+      this._finalize();
+      return;
+    }
+
     this.setState(State.Hangup);
 
     const _close = () => {
       logger.debug(`[${this.id}] Closing peer from hangup`);
       this.peer?.close();
-      return this.setState(State.Destroy);
+      this.setState(State.Destroy);
+      return;
     };
 
     this.stopRingtone();
@@ -1106,9 +982,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     switch (state) {
       case State.Purge:
         logger.debug(`Call ${this.id} hangup call due to purge state`);
-        this.hangup({ cause: 'PURGE', causeCode: '01' }, false);
+        this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
         break;
       case State.Active: {
+        // Clear recovery flag when call becomes active again
+        if (this._isRecovering) {
+          this._isRecovering = false;
+          logger.debug(`[${this.id}] Recovery complete, call is active`);
+        }
         setTimeout(() => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
@@ -1151,8 +1032,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._onRemoteSdp(params.sdp);
         break;
       }
-      case VertoMethod.Display:
-      case VertoMethod.Attach: {
+      case VertoMethod.Display: {
         // TODO: manage caller_id_name, caller_id_number, callee_id_name, callee_id_number
         const {
           display_name: displayName,
@@ -1492,7 +1372,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        this.setState(State.Answering);
+        // Keep state as recovering to make sure that client can relay on it
+        if (!this._isRecovering) {
+          this.setState(State.Answering);
+        }
         msg =
           this.options.attach === true
             ? new Attach(tmpParams)
@@ -1550,7 +1433,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        this.setState(State.Answering);
+        // Keep state as recovering to make sure that client can relay on it
+        if (!this._isRecovering) {
+          this.setState(State.Answering);
+        }
         msg =
           this.options.attach === true
             ? new Attach(tmpParams)
@@ -1836,7 +1722,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
 
-    this.setState(State.New);
+    if (this._isRecovering) {
+      this.setState(State.Recovering);
+    } else {
+      this.setState(State.New);
+    }
     logger.info('New Call with Options:', this.options);
   }
 
@@ -1885,7 +1775,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             return;
           }
           if (binding.constraints) {
-            for (var key in binding.constraints) {
+            for (const key in binding.constraints) {
               if (
                 binding.constraints.hasOwnProperty(key) &&
                 binding.constraints[key] !== report[key]
@@ -1905,8 +1795,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
     switch (call._state) {
-      case State.Requesting:
       case State.Recovering:
+        call.state = 'recovering';
+        break;
+      case State.Requesting:
       case State.Trying:
       case State.Early:
         call.state = 'connecting';

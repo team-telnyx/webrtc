@@ -159,7 +159,7 @@ class VertoHandler {
       return;
     }
 
-    const _buildCall = (includeCallId = true) => {
+    const _buildCall = (isRecovering: boolean = false) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -182,7 +182,7 @@ class VertoHandler {
           session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
-      if (includeCallId) {
+      if (callID) {
         callOptions.id = callID;
       }
 
@@ -210,7 +210,7 @@ class VertoHandler {
         callOptions.customHeaders = params.dialogParams.custom_headers;
       }
 
-      const call = new Call(session, callOptions);
+      const call = new Call(session, callOptions, isRecovering);
       call.nodeId = this.nodeId;
       return call;
     };
@@ -269,41 +269,24 @@ class VertoHandler {
         const existingCall = this.session.calls[callID];
 
         if (existingCall) {
-          // Reuse existing PeerConnection - server keeps same ICE credentials
           if (
             existingCall.peer?.instance &&
             existingCall.peer.instance.signalingState !== 'closed'
           ) {
-            // existingCall.hangup({}, false);
-            // delete this.session.calls[callID];
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Attach: Renegotiating with existing peer`
-            );
-            try {
-              await existingCall.renegotiateWithNewOffer(params.sdp);
-              this._ack(id, method);
-              break;
-            } catch (error) {
-              logger.warn(
-                `[${new Date().toISOString()}][${callID}] Renegotiation failed, creating new peer:`,
-                error
-              );
-              existingCall.peer.close();
-              delete this.session.calls[callID];
-            }
+            // Close current call, no need to send BYE
+            existingCall.hangup({ isRecovering: true }, false);
           } else {
-            // PC already closed, remove and recreate
+            // PC already closed, just remove
             delete this.session.calls[callID];
           }
         }
 
-        // Fallback: new peer (may fail with stale ICE)
-        // logger.info(
-        //   `[${new Date().toISOString()}][${callID}] Attach: Creating new call`
-        // );
-        // const call = _buildCall();
-        // call.answer();
-        // this._ack(id, method);
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+        );
+        const call = _buildCall(true);
+        call.answer();
+        this._ack(id, method);
         break;
       }
       case VertoMethod.Event:
