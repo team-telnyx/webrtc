@@ -3,7 +3,7 @@ import { State } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 
-function getBitrate(call, kind) {
+function getBitrate(call: Call, trackKind: string) {
   if (!call || !call.peer) {
     return 0;
   }
@@ -15,11 +15,11 @@ function getBitrate(call, kind) {
   }
 
   const sender = senders.find(
-    ({ track: { kind } }: RTCRtpSender) => kind === kind
+    ({ track: { kind } }: RTCRtpSender) => kind === trackKind
   );
 
   if (sender) {
-    let p = sender.getParameters();
+    const p = sender.getParameters();
     const parameters = p as RTCRtpSendParameters;
     if (!parameters.encodings) {
       return 0;
@@ -152,7 +152,6 @@ describe('Call', () => {
 
   describe('setStateTelnyx', () => {
     it('should return null if call is null', () => {
-      // @ts-ignore
       const localCall = Call.setStateTelnyx(undefined);
       expect(localCall).toEqual(undefined);
     });
@@ -164,7 +163,7 @@ describe('Call', () => {
     it('set telnyx state call', () => {
       call.setState(State.Recovering);
       Call.setStateTelnyx(call);
-      expect(call.state).toEqual('connecting');
+      expect(call.state).toEqual('recovering');
 
       call.setState(State.Trying);
       Call.setStateTelnyx(call);
