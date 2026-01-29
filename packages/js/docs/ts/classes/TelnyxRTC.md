@@ -65,6 +65,7 @@ client.off('telnyx.notification');
 - [getDevices](#getdevices)
 - [getVideoDevices](#getvideodevices)
 - [handleLoginError](#handleloginerror)
+- [login](#login)
 - [logout](#logout)
 - [newCall](#newcall)
 - [off](#off)
@@ -826,6 +827,56 @@ void
 #### Inherited from
 
 TelnyxRTCClient.handleLoginError
+
+---
+
+### login
+
+▸ **login**(`params?`): `Promise`\<`void`\>
+
+Re-authenticate with old or new credentials within an active connection.
+Updates session options(login/password OR login_token OR anonymous_login) and re-authenticates immediately.
+
+#### Parameters
+
+| Name      | Type           | Description                                                                                                                                                                                                        |
+| :-------- | :------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `params?` | `ILoginParams` | `{ login?: string; password?: string; passwd?: string; login_token?: string; userVariables?: Record<string, string>; anonymous_login?: { target_type: string; target_id: string; target_version_id?: string; }; }` |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+Promise that resolves when authentication succeeds
+
+**`Example`**
+
+```js
+// Perform re-login with existed credentials
+await client.login();
+
+// Refresh JWT token
+await client.login({ login_token: newToken });
+
+// Update login/password
+await client.login({
+  login: 'newuser@example.com',
+  password: 'newpassword'
+});
+
+// Update anonymous_login
+await client.login({
+  anonymous_login: {
+    target_type: string;
+    target_id: string;
+    target_version_id?: string;
+  }
+})
+```
+
+#### Inherited from
+
+TelnyxRTCClient.login
 
 ---
 

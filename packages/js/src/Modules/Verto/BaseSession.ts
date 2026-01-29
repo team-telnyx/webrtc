@@ -275,9 +275,20 @@ export default abstract class BaseSession {
 
   /**
    * Re-authenticate with old or new credentials within an active connection.
-   * Updates session options and re-authenticates immediately.
+   * Updates session options(login/password OR login_token OR anonymous_login) and re-authenticates immediately.
    *
-   * @param params - New login credentials (login/password OR login_token)
+   * @param params - `{
+   *  login?: string;
+   *  password?: string;
+   *  passwd?: string;
+   *  login_token?: string;
+   *  userVariables?: Record<string, string>;
+   *  anonymous_login?: {
+   *    target_type: string;
+   *    target_id: string;
+   *    target_version_id?: string;
+   *  };
+   * }`
    * @returns Promise that resolves when authentication succeeds
    *
    * @example
