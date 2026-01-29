@@ -360,28 +360,28 @@ describe('Verto', () => {
 
     describe('when credentials are provided', () => {
       it('should update login when provided', async () => {
-        await instance.login({ login: 'newlogin' });
+        await instance.login({ creds: { login: 'newlogin' } });
         expect(instance.options.login).toEqual('newlogin');
       });
 
       it('should update password when provided', async () => {
-        await instance.login({ password: 'newpassword' });
+        await instance.login({ creds: { password: 'newpassword' } });
         expect(instance.options.password).toEqual('newpassword');
       });
 
       it('should update passwd when provided', async () => {
-        await instance.login({ passwd: 'newpasswd' });
+        await instance.login({ creds: { passwd: 'newpasswd' } });
         expect(instance.options.passwd).toEqual('newpasswd');
       });
 
       it('should update login_token when provided', async () => {
-        await instance.login({ login_token: 'new_jwt_token' });
+        await instance.login({ creds: { login_token: 'new_jwt_token' } });
         expect(instance.options.login_token).toEqual('new_jwt_token');
       });
 
       it('should update userVariables when provided', async () => {
         const newUserVariables = { key: 'value', custom: 'data' };
-        await instance.login({ userVariables: newUserVariables });
+        await instance.login({ creds: { userVariables: newUserVariables } });
         expect(instance.options.userVariables).toEqual(newUserVariables);
       });
 
@@ -391,16 +391,18 @@ describe('Verto', () => {
           target_id: '123',
           target_version_id: 'v1',
         };
-        await instance.login({ anonymous_login: anonymousLogin });
+        await instance.login({ creds: { anonymous_login: anonymousLogin } });
 
         expect(instance.options.anonymous_login).toEqual(anonymousLogin);
       });
 
       it('should update multiple credentials at once', async () => {
         await instance.login({
-          login: 'updatedlogin',
-          password: 'updatedpassword',
-          userVariables: { foo: 'bar' },
+          creds: {
+            login: 'updatedlogin',
+            password: 'updatedpassword',
+            userVariables: { foo: 'bar' },
+          },
         });
 
         expect(instance.options.login).toEqual('updatedlogin');
@@ -413,7 +415,7 @@ describe('Verto', () => {
       it('should not change login when not provided', async () => {
         const originalLogin = instance.options.login;
 
-        await instance.login({ password: 'newpassword' });
+        await instance.login({ creds: { password: 'newpassword' } });
 
         expect(instance.options.login).toEqual(originalLogin);
       });
@@ -421,7 +423,7 @@ describe('Verto', () => {
       it('should not change password when not provided', async () => {
         const originalPassword = instance.options.password;
 
-        await instance.login({ login: 'newlogin' });
+        await instance.login({ creds: { login: 'newlogin' } });
 
         expect(instance.options.password).toEqual(originalPassword);
       });
@@ -452,7 +454,7 @@ describe('Verto', () => {
         instance.connection = null;
         const originalLogin = instance.options.login;
 
-        await instance.login({ login: 'newlogin' });
+        await instance.login({ creds: { login: 'newlogin' } });
 
         // Credentials should NOT be updated because login returns early
         expect(instance.options.login).toEqual(originalLogin);
@@ -462,7 +464,7 @@ describe('Verto', () => {
         Connection.isAlive.mockReturnValue(false);
         const originalLogin = instance.options.login;
 
-        await instance.login({ login: 'newlogin' });
+        await instance.login({ creds: { login: 'newlogin' } });
 
         // Credentials should NOT be updated because login returns early
         expect(instance.options.login).toEqual(originalLogin);

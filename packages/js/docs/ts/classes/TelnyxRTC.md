@@ -832,46 +832,85 @@ TelnyxRTCClient.handleLoginError
 
 ### login
 
-▸ **login**(`params?`): `Promise`\<`void`\>
+▸ **login**(`options?`): `Promise`\<`void`\>
 
-Re-authenticate with old or new credentials within an active connection.
-Updates session options(login/password OR login_token OR anonymous_login) and re-authenticates immediately.
+Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
+
+This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+
+- Refreshing expired JWT tokens during an active session
+- Switching to different user credentials
+- Re-authenticating after token expiration errors
 
 #### Parameters
 
-| Name      | Type           | Description                                                                                                                                                                                                        |
-| :-------- | :------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `params?` | `ILoginParams` | `{ login?: string; password?: string; passwd?: string; login_token?: string; userVariables?: Record<string, string>; anonymous_login?: { target_type: string; target_id: string; target_version_id?: string; }; }` |
+| Name                 | Type                       | Description                                                                    |
+| :------------------- | :------------------------- | :----------------------------------------------------------------------------- |
+| `options`            | `Object`                   | Configuration object for the login operation                                   |
+| `options.creds?`     | `ILoginParams`             | Optional credential parameters to update before authentication                 |
+| `options.onError?`   | (`error`: `any`) => `void` | Callback function invoked when authentication fails, receives the error object |
+| `options.onSuccess?` | () => `void`               | Callback function invoked when authentication succeeds                         |
 
 #### Returns
 
 `Promise`\<`void`\>
 
-Promise that resolves when authentication succeeds
+Promise<void>
 
 **`Example`**
 
+**Re-authenticate with existing credentials:**
+
 ```js
-// Perform re-login with existed credentials
+// Uses the credentials already stored in session options
 await client.login();
+```
 
-// Refresh JWT token
-await client.login({ login_token: newToken });
+**`Example`**
 
-// Update login/password
+**Refresh an expired JWT token:**
+
+```js
+const newToken = await fetchNewJwtToken();
 await client.login({
-  login: 'newuser@example.com',
-  password: 'newpassword'
+  creds: { login_token: newToken },
 });
+```
 
-// Update anonymous_login
+**`Example`**
+
+**Update login credentials with callbacks:**
+
+```js
 await client.login({
-  anonymous_login: {
-    target_type: string;
-    target_id: string;
-    target_version_id?: string;
-  }
-})
+  creds: {
+    login: 'newuser@example.com',
+    password: 'newpassword',
+  },
+  onSuccess: () => {
+    console.log('Successfully re-authenticated!');
+  },
+  onError: (error) => {
+    console.error('Authentication failed:', error);
+  },
+});
+```
+
+**`Example`**
+
+**Switch to anonymous login:**
+
+```js
+await client.login({
+  creds: {
+    anonymous_login: {
+      target_type: 'ai_assistant',
+      target_id: 'asst_12345',
+      target_version_id: 'v1',
+    },
+  },
+});
 ```
 
 #### Inherited from

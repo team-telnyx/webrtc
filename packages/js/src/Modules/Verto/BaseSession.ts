@@ -274,122 +274,149 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Re-authenticate with old or new credentials within an active connection.
-   * Updates session options(login/password OR login_token OR anonymous_login) and re-authenticates immediately.
+   * Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
    *
-   * @param params - `{
-   *  login?: string;
-   *  password?: string;
-   *  passwd?: string;
-   *  login_token?: string;
-   *  userVariables?: Record<string, string>;
-   *  anonymous_login?: {
-   *    target_type: string;
-   *    target_id: string;
-   *    target_version_id?: string;
-   *  };
-   * }`
-   * @returns Promise that resolves when authentication succeeds
+   * This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+   * and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+   * - Refreshing expired JWT tokens during an active session
+   * - Switching to different user credentials
+   * - Re-authenticating after token expiration errors
+   *
+   * @param options - Configuration object for the login operation
+   * @param options.creds - Optional credential parameters to update before authentication
+   * @param options.onSuccess - Callback function invoked when authentication succeeds
+   * @param options.onError - Callback function invoked when authentication fails, receives the error object
+   *
+   * @returns Promise<void>
    *
    * @example
+   * **Re-authenticate with existing credentials:**
    * ```js
-   * // Perform re-login with existed credentials
+   * // Uses the credentials already stored in session options
    * await client.login();
+   * ```
    *
-   * // Refresh JWT token
-   * await client.login({ login_token: newToken });
-   *
-   * // Update login/password
+   * @example
+   * **Refresh an expired JWT token:**
+   * ```js
+   * const newToken = await fetchNewJwtToken();
    * await client.login({
-   *   login: 'newuser@example.com',
-   *   password: 'newpassword'
+   *   creds: { login_token: newToken }
    * });
+   * ```
    *
-   * // Update anonymous_login
+   * @example
+   * **Update login credentials with callbacks:**
+   * ```js
    * await client.login({
-   *   anonymous_login: {
-   *     target_type: string;
-   *     target_id: string;
-   *     target_version_id?: string;
+   *   creds: {
+   *     login: 'newuser@example.com',
+   *     password: 'newpassword'
+   *   },
+   *   onSuccess: () => {
+   *     console.log('Successfully re-authenticated!');
+   *   },
+   *   onError: (error) => {
+   *     console.error('Authentication failed:', error);
    *   }
-   * })
+   * });
+   * ```
+   *
+   * @example
+   * **Switch to anonymous login:**
+   * ```js
+   * await client.login({
+   *   creds: {
+   *     anonymous_login: {
+   *       target_type: 'ai_assistant',
+   *       target_id: 'asst_12345',
+   *       target_version_id: 'v1'
+   *     }
+   *   }
+   * });
    * ```
    */
-  async login(params?: ILoginParams): Promise<void> {
+  async login({
+    creds,
+    onSuccess,
+    onError,
+  }: {
+    creds?: ILoginParams;
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  } = {}): Promise<void> {
     // Validate connection state
     if (!this.connection || !this.connection.isAlive) {
       return;
     }
 
     // Update session options with new credentials
-    if (params) {
-      if (params.login !== undefined) {
-        this.options.login = params.login;
+    if (creds) {
+      if (creds.login !== undefined) {
+        this.options.login = creds.login;
       }
-      if (params.password !== undefined) {
-        this.options.password = params.password;
+      if (creds.password !== undefined) {
+        this.options.password = creds.password;
       }
-      if (params.passwd !== undefined) {
-        this.options.passwd = params.passwd;
+      if (creds.passwd !== undefined) {
+        this.options.passwd = creds.passwd;
       }
-      if (params.login_token !== undefined) {
-        this.options.login_token = params.login_token;
+      if (creds.login_token !== undefined) {
+        this.options.login_token = creds.login_token;
       }
-      if (params.userVariables !== undefined) {
-        this.options.userVariables = params.userVariables;
+      if (creds.userVariables !== undefined) {
+        this.options.userVariables = creds.userVariables;
       }
-      if (params.anonymous_login !== undefined) {
-        this.options.anonymous_login = params.anonymous_login;
+      if (creds.anonymous_login !== undefined) {
+        this.options.anonymous_login = creds.anonymous_login;
       }
     }
 
     if (isValidLoginOptions(this.options)) {
-      return this._performLogin();
+      return this._login({ type: 'login', onSuccess, onError });
     } else if (isValidAnonymousLoginOptions(this.options)) {
-      return this._performAnonymousLogin();
+      return this._login({ type: 'anonymous_login', onSuccess, onError });
     }
   }
 
-  /**
-   * Private method to perform login with current session options.
-   */
-  private async _performLogin(): Promise<void> {
-    const { login, password, passwd, login_token, userVariables } =
-      this.options;
-
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-
-    const response = await this.execute(msg).catch(this._handleLoginError);
-    if (response) {
-      this.sessionid = response.sessid;
+  private async _login({
+    type,
+    onSuccess,
+    onError,
+  }: {
+    type: 'login' | 'anonymous_login';
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }): Promise<void> {
+    let msg: Login | AnonymousLogin;
+    if (type === 'login') {
+      msg = new Login(
+        this.options.login,
+        this.options.password || this.options.passwd,
+        this.options.login_token,
+        this.sessionid,
+        this.options.userVariables,
+        !!getReconnectToken()
+      );
+    } else {
+      msg = new AnonymousLogin({
+        target_id: this.options.anonymous_login.target_id,
+        target_type: this.options.anonymous_login.target_type,
+        target_version_id: this.options.anonymous_login.target_version_id,
+        sessionId: this.sessionid,
+        userVariables: this.options.userVariables,
+        reconnection: !!getReconnectToken(),
+      });
     }
-  }
 
-  /**
-   * Private method to perform anonymous login with current session options.
-   */
-  private async _performAnonymousLogin(): Promise<void> {
-    const { anonymous_login } = this.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.sessionid,
-      userVariables: this.options.userVariables,
-      reconnection: !!getReconnectToken(),
+    const response = await this.execute(msg).catch((error) => {
+      this._handleLoginError(error);
+      if (onError) onError(error);
     });
 
-    const response = await this.execute(msg).catch(this._handleLoginError);
     if (response) {
       this.sessionid = response.sessid;
+      if (onSuccess) onSuccess();
     }
   }
 

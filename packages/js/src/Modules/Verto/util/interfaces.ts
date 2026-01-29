@@ -9,7 +9,7 @@ export interface IVertoOptions {
   passwd?: string;
   password?: string;
   login_token?: string;
-  userVariables?: Object;
+  userVariables?: Record<string, any>;
   ringtoneFile?: string;
   ringbackFile?: string;
   env?: Environment;
@@ -57,7 +57,7 @@ export interface ILoginParams {
   password?: string;
   passwd?: string;
   login_token?: string;
-  userVariables?: object;
+  userVariables?: Record<string, any>;
   anonymous_login?: {
     target_type: string;
     target_id: string;

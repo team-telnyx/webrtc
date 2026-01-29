@@ -6,7 +6,7 @@ type AnonymousLoginConstructorParams = {
   target_type: string;
   target_version_id?: string;
   sessionId?: string;
-  userVariables?: Object;
+  userVariables?: Record<string, any>;
   reconnection?: boolean;
 };
 

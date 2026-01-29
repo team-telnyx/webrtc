@@ -70,8 +70,11 @@ export default class Verto extends BrowserSession {
     this._idle = false;
     const { autoReconnect = true } = this.options;
 
-    await this.login();
-    this._autoReconnect = autoReconnect;
+    await this.login({
+      onSuccess: () => {
+        this._autoReconnect = autoReconnect;
+      },
+    });
   };
 
   private handleAnonymousLoginOnSocketOpen = async () => {
