@@ -52,7 +52,7 @@ export default class Peer {
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
     registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
-    logger.info('New Peer with type:', this.type, 'Options:', this.options);
+    logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
     this._constraints = {
       offerToReceiveAudio: true,

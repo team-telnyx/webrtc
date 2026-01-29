@@ -460,7 +460,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   hangup(hangupParams?: IHangupParams, hangupExecute?: boolean): void {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
-    const isRecovering = params.isRecovering === true;
 
     this.cause = params.cause || 'NORMAL_CLEARING';
     this.causeCode = params.causeCode || 16;
@@ -473,7 +472,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     ];
 
     // If recovering from attach, set Recovering state and skip Bye
-    if (isRecovering) {
+    if (params.isRecovering) {
       this._isRecovering = true;
       this.setState(State.Recovering);
       this._finalize();
@@ -1673,7 +1672,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
-    logger.error('Peer connection failure error, call is not recoverable');
+    logger.error('Peer connection failure error');
   }
 
   private _onPeerConnectionSignalingStateClosed(data: any) {
