@@ -269,7 +269,7 @@ class VertoHandler {
           );
           const call = _buildCall(isRecovering);
           call.answer();
-          existingCall.handleMessage(msg);
+          call.handleMessage(msg);
           this._ack(id, method);
           return;
         }
