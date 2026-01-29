@@ -1050,6 +1050,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             'User-Agent': `Web-${SDK_VERSION}`,
           });
           this.session.execute(attach);
+          this.peer?.restartStatsReporter();
           return;
         }
         break;

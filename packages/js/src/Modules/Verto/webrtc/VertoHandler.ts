@@ -229,33 +229,50 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        const isRecovering = !!existingCall;
-
-        if (existingCall) {
-          if (
-            session.options.keepConnectionAliveOnSocketClose &&
-            isPeerConnectionAlive
-          ) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to keepConnectionAliveOnSocketClose.`
-            );
-            existingCall.handleMessage(msg);
-            this._ack(id, method);
-            return;
-          } else {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
-            );
-            existingCall.hangup({ isRecovering }, false);
-          }
+        /**
+         * If there is no existing call, we need to create a new call.
+         * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
+         */
+        if (!existingCall) {
+          const call = _buildCall();
+          call.answer();
+          this._ack(id, method);
+          return;
         }
 
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
-        );
-        const call = _buildCall(isRecovering);
-        call.answer();
-        this._ack(id, method);
+        /**
+         * If there is existing call and peer connection is alive, we can reuse the existing call.
+         */
+        if (isPeerConnectionAlive) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to keepConnectionAliveOnSocketClose.`
+          );
+          existingCall.handleMessage(msg);
+          this._ack(id, method);
+          return;
+        }
+
+        /**
+         * If client use canary rtc server where the reconnection flow is fixed, then we can our new recovery flow with recovering call state during the call lifecycle.
+         * Our primary option and implementation
+         */
+        if (session.options.useCanaryRtcServer) {
+          const isRecovering = !!existingCall;
+
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
+          );
+          existingCall.hangup({ isRecovering }, false);
+
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+          );
+          const call = _buildCall(isRecovering);
+          call.answer();
+          existingCall.handleMessage(msg);
+          this._ack(id, method);
+          return;
+        }
         break;
       }
       case VertoMethod.Event:
