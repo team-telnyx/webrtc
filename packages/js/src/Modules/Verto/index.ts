@@ -75,8 +75,10 @@ export default class Verto extends BrowserSession {
    *
    * @example
    * ```js
+   * // Perform re-login with existed credentials
+   * await client.login();
+   *
    * // Refresh JWT token
-   * const newToken = await fetchNewJWT();
    * await client.login({ login_token: newToken });
    *
    * // Update login/password
@@ -84,41 +86,45 @@ export default class Verto extends BrowserSession {
    *   login: 'newuser@example.com',
    *   password: 'newpassword'
    * });
+   *
+   * // Update anonymous_login
+   * await client.login({
+   *   anonymous_login: {
+   *     target_type: string;
+   *     target_id: string;
+   *     target_version_id?: string;
+   *   }
+   * })
    * ```
    */
-  async login(params: ILoginParams): Promise<void> {
+  async login(params?: ILoginParams): Promise<void> {
     // Validate connection state
     if (!this.connection || !this.connection.isAlive) {
-      throw new Error(
-        'Cannot login: socket connection is not active. Call connect() first.'
-      );
+      return;
     }
 
     // Update session options with new credentials
-    if (params.login !== undefined) {
-      this.options.login = params.login;
-    }
-    if (params.password !== undefined) {
-      this.options.password = params.password;
-    }
-    if (params.passwd !== undefined) {
-      this.options.passwd = params.passwd;
-    }
-    if (params.login_token !== undefined) {
-      this.options.login_token = params.login_token;
-    }
-    if (params.userVariables !== undefined) {
-      this.options.userVariables = params.userVariables;
-    }
-
-    // Validate that we have valid credentials
-    if (!this.validateOptions()) {
-      throw new Error(
-        'Invalid login parameters. Provide (login and password) OR login_token.'
-      );
+    if (params) {
+      if (params.login !== undefined) {
+        this.options.login = params.login;
+      }
+      if (params.password !== undefined) {
+        this.options.password = params.password;
+      }
+      if (params.passwd !== undefined) {
+        this.options.passwd = params.passwd;
+      }
+      if (params.login_token !== undefined) {
+        this.options.login_token = params.login_token;
+      }
+      if (params.userVariables !== undefined) {
+        this.options.userVariables = params.userVariables;
+      }
+      if (params.anonymous_login !== undefined) {
+        this.options.anonymous_login = params.anonymous_login;
+      }
     }
 
-    // Re-authenticate using the inherited shared methods
     if (isValidLoginOptions(this.options)) {
       return this._performLogin();
     } else if (isValidAnonymousLoginOptions(this.options)) {
@@ -130,13 +136,13 @@ export default class Verto extends BrowserSession {
     this._idle = false;
     const { autoReconnect = true } = this.options;
 
-    await this._performLogin(); // Inherited from BaseSession
+    await this._performLogin();
     this._autoReconnect = autoReconnect;
   };
 
   private handleAnonymousLoginOnSocketOpen = async () => {
     this._idle = false;
-    await this._performAnonymousLogin(); // Inherited from BaseSession
+    await this._performAnonymousLogin();
   };
 
   private validateCallOptions(options: IVertoCallOptions) {

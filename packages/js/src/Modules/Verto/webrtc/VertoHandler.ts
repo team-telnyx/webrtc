@@ -57,12 +57,10 @@ class VertoHandler {
   }
 
   private handleLogin = async () => {
-    // Call the shared login method from BaseSession
     return this.session._performLogin();
   };
 
   private handleAnonymousLogin = async () => {
-    // Call the shared anonymous login method from BaseSession
     return this.session._performAnonymousLogin();
   };
 

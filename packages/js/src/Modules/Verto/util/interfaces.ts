@@ -57,7 +57,12 @@ export interface ILoginParams {
   password?: string;
   passwd?: string;
   login_token?: string;
-  userVariables?: Object;
+  userVariables?: object;
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+    target_version_id?: string;
+  };
 }
 export interface SubscribeParams {
   channels?: string[];
