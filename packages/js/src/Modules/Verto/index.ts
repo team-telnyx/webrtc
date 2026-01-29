@@ -66,83 +66,17 @@ export default class Verto extends BrowserSession {
     return this.vertoUnsubscribe(params);
   }
 
-  /**
-   * Re-authenticate with new credentials within an active connection.
-   * Updates session options and re-authenticates immediately.
-   *
-   * @param params - New login credentials (login/password OR login_token)
-   * @returns Promise that resolves when authentication succeeds
-   *
-   * @example
-   * ```js
-   * // Perform re-login with existed credentials
-   * await client.login();
-   *
-   * // Refresh JWT token
-   * await client.login({ login_token: newToken });
-   *
-   * // Update login/password
-   * await client.login({
-   *   login: 'newuser@example.com',
-   *   password: 'newpassword'
-   * });
-   *
-   * // Update anonymous_login
-   * await client.login({
-   *   anonymous_login: {
-   *     target_type: string;
-   *     target_id: string;
-   *     target_version_id?: string;
-   *   }
-   * })
-   * ```
-   */
-  async login(params?: ILoginParams): Promise<void> {
-    // Validate connection state
-    if (!this.connection || !this.connection.isAlive) {
-      return;
-    }
-
-    // Update session options with new credentials
-    if (params) {
-      if (params.login !== undefined) {
-        this.options.login = params.login;
-      }
-      if (params.password !== undefined) {
-        this.options.password = params.password;
-      }
-      if (params.passwd !== undefined) {
-        this.options.passwd = params.passwd;
-      }
-      if (params.login_token !== undefined) {
-        this.options.login_token = params.login_token;
-      }
-      if (params.userVariables !== undefined) {
-        this.options.userVariables = params.userVariables;
-      }
-      if (params.anonymous_login !== undefined) {
-        this.options.anonymous_login = params.anonymous_login;
-      }
-    }
-
-    if (isValidLoginOptions(this.options)) {
-      return this._performLogin();
-    } else if (isValidAnonymousLoginOptions(this.options)) {
-      return this._performAnonymousLogin();
-    }
-  }
-
   private handleLoginOnSocketOpen = async () => {
     this._idle = false;
     const { autoReconnect = true } = this.options;
 
-    await this._performLogin();
+    await this.login();
     this._autoReconnect = autoReconnect;
   };
 
   private handleAnonymousLoginOnSocketOpen = async () => {
     this._idle = false;
-    await this._performAnonymousLogin();
+    await this.login();
   };
 
   private validateCallOptions(options: IVertoCallOptions) {

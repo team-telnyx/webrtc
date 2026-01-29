@@ -56,14 +56,6 @@ class VertoHandler {
     return randomInt(2, 6) * 1000;
   }
 
-  private handleLogin = async () => {
-    return this.session._performLogin();
-  };
-
-  private handleAnonymousLogin = async () => {
-    return this.session._performAnonymousLogin();
-  };
-
   handleMessage(msg: any) {
     const { session } = this;
     const { id, method, params = {}, voice_sdk_id } = msg;
@@ -211,12 +203,7 @@ class VertoHandler {
                   'Ping failed twice with Authentication Required. Re-logging in...'
                 );
 
-                if (isValidLoginOptions(this.session.options)) {
-                  this.handleLogin();
-                } else if (isValidAnonymousLoginOptions(this.session.options)) {
-                  this.handleAnonymousLogin();
-                }
-
+                this.session.login();
                 VertoHandler.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
               }
             }

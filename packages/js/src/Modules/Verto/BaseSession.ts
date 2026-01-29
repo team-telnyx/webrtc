@@ -16,7 +16,11 @@ import {
   isValidLoginOptions,
   randomInt,
 } from './util/helpers';
-import { BroadcastParams, IVertoOptions } from './util/interfaces';
+import {
+  BroadcastParams,
+  ILoginParams,
+  IVertoOptions,
+} from './util/interfaces';
 import logger from './util/logger';
 import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
@@ -270,10 +274,76 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Re-authenticate with old or new credentials within an active connection.
+   * Updates session options and re-authenticates immediately.
+   *
+   * @param params - New login credentials (login/password OR login_token)
+   * @returns Promise that resolves when authentication succeeds
+   *
+   * @example
+   * ```js
+   * // Perform re-login with existed credentials
+   * await client.login();
+   *
+   * // Refresh JWT token
+   * await client.login({ login_token: newToken });
+   *
+   * // Update login/password
+   * await client.login({
+   *   login: 'newuser@example.com',
+   *   password: 'newpassword'
+   * });
+   *
+   * // Update anonymous_login
+   * await client.login({
+   *   anonymous_login: {
+   *     target_type: string;
+   *     target_id: string;
+   *     target_version_id?: string;
+   *   }
+   * })
+   * ```
+   */
+  async login(params?: ILoginParams): Promise<void> {
+    // Validate connection state
+    if (!this.connection || !this.connection.isAlive) {
+      return;
+    }
+
+    // Update session options with new credentials
+    if (params) {
+      if (params.login !== undefined) {
+        this.options.login = params.login;
+      }
+      if (params.password !== undefined) {
+        this.options.password = params.password;
+      }
+      if (params.passwd !== undefined) {
+        this.options.passwd = params.passwd;
+      }
+      if (params.login_token !== undefined) {
+        this.options.login_token = params.login_token;
+      }
+      if (params.userVariables !== undefined) {
+        this.options.userVariables = params.userVariables;
+      }
+      if (params.anonymous_login !== undefined) {
+        this.options.anonymous_login = params.anonymous_login;
+      }
+    }
+
+    if (isValidLoginOptions(this.options)) {
+      return this._performLogin();
+    } else if (isValidAnonymousLoginOptions(this.options)) {
+      return this._performAnonymousLogin();
+    }
+  }
+
+  /**
    * Internal method to perform login with current session options.
    * Shared across all session types and handlers.
    */
-  async _performLogin(): Promise<void> {
+  private async _performLogin(): Promise<void> {
     const { login, password, passwd, login_token, userVariables } =
       this.options;
 
@@ -296,7 +366,7 @@ export default abstract class BaseSession {
    * Internal method to perform anonymous login with current session options.
    * Shared across all session types and handlers.
    */
-  async _performAnonymousLogin(): Promise<void> {
+  private async _performAnonymousLogin(): Promise<void> {
     const { anonymous_login } = this.options;
 
     const msg = new AnonymousLogin({
