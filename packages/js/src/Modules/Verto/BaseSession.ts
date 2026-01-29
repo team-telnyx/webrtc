@@ -351,8 +351,7 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Internal method to perform login with current session options.
-   * Shared across all session types and handlers.
+   * Private method to perform login with current session options.
    */
   private async _performLogin(): Promise<void> {
     const { login, password, passwd, login_token, userVariables } =
@@ -374,8 +373,7 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Internal method to perform anonymous login with current session options.
-   * Shared across all session types and handlers.
+   * Private method to perform anonymous login with current session options.
    */
   private async _performAnonymousLogin(): Promise<void> {
     const { anonymous_login } = this.options;
