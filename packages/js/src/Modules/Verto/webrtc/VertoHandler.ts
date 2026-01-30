@@ -252,41 +252,21 @@ class VertoHandler {
         }
 
         /**
-         * If client use canary rtc server where the reconnection flow is fixed, then we can our new recovery flow with recovering call state during the call lifecycle.
-         * Our primary option and implementation
+         * We call our recovery flow with recovering call state during the call lifecycle.
          */
-        if (session.options.useCanaryRtcServer) {
-          const isRecovering = !!existingCall;
+        const isRecovering = !!existingCall;
 
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
-          );
-          existingCall.hangup({ isRecovering }, false);
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
+        );
+        existingCall.hangup({ isRecovering }, false);
 
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
-          );
-          const call = _buildCall(isRecovering);
-          call.answer();
-          this._ack(id, method);
-          return;
-        } else {
-          /**
-           * Since for non-canary rtc servers we don't have the reconnection flow fixed yet,
-           * we will give client the chance to decide how to handle such situation.
-           * Client can listen to SwEvent.Notification and decide what to do next.
-           */
-          const errorMessage = `[${new Date().toISOString()}][${callID}] Attach: Existing call found but peer connection is not alive. Unable to recover the call since useCanaryRtcServer is disabled.`;
-          logger.error(errorMessage);
-          trigger(
-            SwEvent.Notification,
-            {
-              type: NOTIFICATION_TYPE.unrecovarablePeerConnectionError,
-              message: errorMessage,
-            },
-            session.uuid
-          );
-        }
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+        );
+        const call = _buildCall(isRecovering);
+        call.answer();
+        this._ack(id, method);
         break;
       }
       case VertoMethod.Event:
