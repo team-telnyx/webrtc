@@ -1765,8 +1765,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     // Post report asynchronously (don't wait for it)
+    const host = this.session.connection?.host;
+    if (!host) {
+      logger.error('Cannot post call report: connection host not available');
+      return;
+    }
+
     this._callReportCollector
-      .postReport(summary, voiceSdkId, this.session.options.login)
+      .postReport(summary, voiceSdkId, host, this.session.userId)
       .catch((error) => {
         logger.error('Failed to post call report', { error });
       });

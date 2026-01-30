@@ -154,6 +154,7 @@ export class CallReportCollector {
   public async postReport(
     summary: ICallSummary,
     voiceSdkId: string,
+    host: string,
     userId?: string
   ): Promise<void> {
     if (!this.options.enabled || this.statsBuffer.length === 0) {
@@ -175,7 +176,8 @@ export class CallReportCollector {
     };
 
     try {
-      const endpoint = '/call_report';
+      const wsUrl = new URL(host);
+      const endpoint = `${wsUrl.protocol.replace('ws', 'http')}//${wsUrl.host}/call_report`;
 
       logger.info('CallReportCollector: Posting report', {
         endpoint,

@@ -39,6 +39,7 @@ export default abstract class BaseSession {
   public timeoutErrorCode = -32000;
   public invalidMethodErrorCode = -32601;
   public authenticationRequiredErrorCode = -32000;
+  public userId: string | null = null;
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;

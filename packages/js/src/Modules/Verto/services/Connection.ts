@@ -80,6 +80,10 @@ export default class Connection {
     return this.closing || this.closed;
   }
 
+  get host(): string {
+    return this._host;
+  }
+
   connect() {
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
