@@ -289,9 +289,8 @@ export default class Peer {
           this.statsReporter.reportConnectionStateChange(details);
         }
 
+        //FIXME: implement proper ICE restart flow
         /**
-         * TODO: implement proper ICE restart
-         *
          * Restart ICE is not working since we do not handle SDP exchange after ICE restart.
          * The proper way:
          * 1. Create new offer
