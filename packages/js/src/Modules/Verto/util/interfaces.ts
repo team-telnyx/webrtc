@@ -51,6 +51,16 @@ export interface IVertoOptions {
   rtcIp?: string;
   rtcPort?: number;
   mutedMicOnStart?: boolean;
+  /**
+   * Enable automatic call quality reporting to voice-sdk-proxy.
+   * @default true
+   */
+  enableCallReports?: boolean;
+  /**
+   * Interval in milliseconds for collecting call statistics.
+   * @default 5000 (5 seconds)
+   */
+  callReportInterval?: number;
 }
 export interface SubscribeParams {
   channels?: string[];

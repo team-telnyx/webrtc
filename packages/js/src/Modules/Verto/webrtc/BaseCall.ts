@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
+import { CallReportCollector } from './CallReportCollector';
+import { getReconnectToken } from '../util/reconnect';
 import {
   Answer,
   Attach,
@@ -65,6 +67,7 @@ const SDK_VERSION = pkg.version;
  */
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
+  private _callReportCollector: CallReportCollector | null = null;
 
   /**
    * The call identifier.
@@ -975,6 +978,11 @@ export default abstract class BaseCall implements IWebRTCCall {
             setMediaElementSinkId(remoteElement, speakerId);
           }
         }, 0);
+
+        // Start collecting call stats when call becomes active
+        if (this._callReportCollector && this.peer?.instance) {
+          this._callReportCollector.start(this.peer.instance);
+        }
         break;
       }
       case State.Destroy:
@@ -1694,12 +1702,26 @@ export default abstract class BaseCall implements IWebRTCCall {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
 
+    // Initialize call report collector
+    const enableCallReports =
+      this.session.options.enableCallReports !== false; // Default: true
+    const callReportInterval =
+      this.session.options.callReportInterval || 5000; // Default: 5 seconds
+
+    if (enableCallReports) {
+      this._callReportCollector = new CallReportCollector({
+        enabled: true,
+        interval: callReportInterval,
+      });
+    }
+
     this.setState(State.New);
     logger.info('New Call with Options:', this.options);
   }
 
   protected _finalize() {
     this._stopStats();
+
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
     const { remoteStream, localStream } = this.options;
@@ -1710,6 +1732,44 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
+
+    // Post call report after cleanup
+    this._postCallReport();
+  }
+
+  private _postCallReport() {
+    if (!this._callReportCollector) {
+      logger.warn('Call report collector not initialized');
+      return;
+    }
+
+    this._callReportCollector.stop();
+
+    const voiceSdkId = getReconnectToken();
+    if (!voiceSdkId) {
+      logger.error('Cannot post call report: voice_sdk_id not available');
+      return;
+    }
+
+    const summary = {
+      callId: this.id,
+      destinationNumber: this.options.destinationNumber,
+      callerNumber: this.options.callerNumber,
+      direction: (this.direction === Direction.Inbound
+        ? 'inbound'
+        : 'outbound') as 'inbound' | 'outbound',
+      state: this.state,
+      telnyxSessionId: this.options.telnyxSessionId,
+      telnyxLegId: this.options.telnyxLegId,
+      sdkVersion: SDK_VERSION,
+    };
+
+    // Post report asynchronously (don't wait for it)
+    this._callReportCollector
+      .postReport(summary, voiceSdkId, this.session.options.login)
+      .catch((error) => {
+        logger.error('Failed to post call report', { error });
+      });
   }
 
   private _startStats(interval: number) {
