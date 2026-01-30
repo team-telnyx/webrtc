@@ -88,13 +88,6 @@ export default class Peer {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
 
-  get keepConnectionAliveOnSocketClose() {
-    return (
-      this.options.keepConnectionAliveOnSocketClose ||
-      this._session.options.keepConnectionAliveOnSocketClose
-    );
-  }
-
   get restartedIceOnConnectionStateFailed() {
     return this._restartedIceOnConnectionStateFailed;
   }

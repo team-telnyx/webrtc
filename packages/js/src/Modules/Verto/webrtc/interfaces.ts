@@ -4,11 +4,6 @@ export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
 }
-
-/**
- * Parameters for the hangup method.
- * @internal
- */
 export interface IHangupParams {
   /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
   cause?: string;
@@ -76,6 +71,7 @@ export interface IVertoCallOptions {
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
+  // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;
 }

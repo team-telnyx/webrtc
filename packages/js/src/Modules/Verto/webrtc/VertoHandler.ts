@@ -244,7 +244,7 @@ class VertoHandler {
          */
         if (isPeerConnectionAlive) {
           logger.info(
-            `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to keepConnectionAliveOnSocketClose.`
+            `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to healthy peer connection.`
           );
           existingCall.handleMessage(msg);
           this._ack(id, method);
