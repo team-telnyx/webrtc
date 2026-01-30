@@ -172,6 +172,23 @@ export interface IClientOptions {
    * Disabled microphone by default when the call starts or adding a new audio source.
    */
   mutedMicOnStart?: boolean;
+
+  /**
+   * Enable automatic call quality reporting to voice-sdk-proxy.
+   * When enabled, WebRTC stats are collected periodically during calls
+   * and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+   *
+   * @default true
+   */
+  enableCallReports?: boolean;
+
+  /**
+   * Interval in milliseconds for collecting call statistics.
+   * Stats are aggregated over each interval and stored locally until call end.
+   *
+   * @default 5000 (5 seconds)
+   */
+  callReportInterval?: number;
 }
 
 /**
