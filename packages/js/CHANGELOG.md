@@ -1,6 +1,8 @@
 ## [2.25.16](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.15...webrtc/v2.25.16) (2026-01-22)
 
 - fix: documentation on event listening
+- docs: add authentication error handling documentation
+- docs: document manual re-authentication with new token
 
 ## [2.25.15](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.14...webrtc/v2.25.15) (2026-01-12)
 
