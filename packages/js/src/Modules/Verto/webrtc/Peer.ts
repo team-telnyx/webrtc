@@ -92,7 +92,7 @@ export default class Peer {
     return this._restartedIceOnConnectionStateFailed;
   }
 
-  isConnectionHealty() {
+  isConnectionHealthy() {
     return (
       this.instance.connectionState === 'connected' &&
       this.instance.iceConnectionState === 'connected' &&

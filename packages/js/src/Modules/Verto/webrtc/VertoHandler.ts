@@ -104,7 +104,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const existingCall = session.calls[callID];
-    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealty();
+    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);

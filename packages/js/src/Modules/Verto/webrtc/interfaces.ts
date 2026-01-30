@@ -114,7 +114,7 @@ export interface IWebRTCCall {
     instance?: RTCPeerConnection | null;
     restartedIceOnConnectionStateFailed?: boolean;
     restartStatsReporter?: () => Promise<void>;
-    isConnectionHealty?: () => boolean;
+    isConnectionHealthy?: () => boolean;
     close?: () => Promise<void>;
   } | null;
   options: IVertoCallOptions;
