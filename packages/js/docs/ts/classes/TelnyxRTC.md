@@ -65,6 +65,7 @@ client.off('telnyx.notification');
 - [getDevices](#getdevices)
 - [getVideoDevices](#getvideodevices)
 - [handleLoginError](#handleloginerror)
+- [login](#login)
 - [logout](#logout)
 - [newCall](#newcall)
 - [off](#off)
@@ -826,6 +827,95 @@ void
 #### Inherited from
 
 TelnyxRTCClient.handleLoginError
+
+---
+
+### login
+
+▸ **login**(`options?`): `Promise`\<`void`\>
+
+Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
+
+This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+
+- Refreshing expired JWT tokens during an active session
+- Switching to different user credentials
+- Re-authenticating after token expiration errors
+
+#### Parameters
+
+| Name                 | Type                       | Description                                                                    |
+| :------------------- | :------------------------- | :----------------------------------------------------------------------------- |
+| `options`            | `Object`                   | Configuration object for the login operation                                   |
+| `options.creds?`     | `ILoginParams`             | Optional credential parameters to update before authentication                 |
+| `options.onError?`   | (`error`: `any`) => `void` | Callback function invoked when authentication fails, receives the error object |
+| `options.onSuccess?` | () => `void`               | Callback function invoked when authentication succeeds                         |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+Promise<void>
+
+**`Example`**
+
+**Re-authenticate with existing credentials:**
+
+```js
+// Uses the credentials already stored in session options
+await client.login();
+```
+
+**`Example`**
+
+**Refresh an expired JWT token:**
+
+```js
+const newToken = await fetchNewJwtToken();
+await client.login({
+  creds: { login_token: newToken },
+});
+```
+
+**`Example`**
+
+**Update login credentials with callbacks:**
+
+```js
+await client.login({
+  creds: {
+    login: 'newuser@example.com',
+    password: 'newpassword',
+  },
+  onSuccess: () => {
+    console.log('Successfully re-authenticated!');
+  },
+  onError: (error) => {
+    console.error('Authentication failed:', error);
+  },
+});
+```
+
+**`Example`**
+
+**Switch to anonymous login:**
+
+```js
+await client.login({
+  creds: {
+    anonymous_login: {
+      target_type: 'ai_assistant',
+      target_id: 'asst_12345',
+      target_version_id: 'v1',
+    },
+  },
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.login
 
 ---
 

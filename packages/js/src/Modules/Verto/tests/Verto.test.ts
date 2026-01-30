@@ -1,5 +1,4 @@
 import behaveLikeBaseSession from './behaveLike/BaseSession.spec';
-import LayoutHandler from './webrtc/LayoutHandler';
 import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
@@ -13,7 +12,6 @@ const Connection = require('../services/Connection');
 describe('Verto', () => {
   const _buildInstance = (props: IVertoOptions): Verto => {
     const instance: Verto = new Verto(props);
-    // @ts-ignore
     instance.connection = Connection.default();
     return instance;
   };
@@ -330,7 +328,6 @@ describe('Verto', () => {
 
     it('should remove unsupported audio constraints', () => {
       expect(
-        // @ts-ignore
         instance.setAudioSettings({
           micId: MIC_ID,
           micLabel: 'Random Mic',
@@ -352,6 +349,126 @@ describe('Verto', () => {
     it('should set audio constraint to true', () => {
       instance.enableMicrophone();
       expect(instance.mediaConstraints.audio).toEqual(true);
+    });
+  });
+
+  describe('.login()', () => {
+    beforeEach(() => {
+      // Ensure connection is alive for login tests
+      Connection.isAlive.mockReturnValue(true);
+    });
+
+    describe('when credentials are provided', () => {
+      it('should update login when provided', async () => {
+        await instance.login({ creds: { login: 'newlogin' } });
+        expect(instance.options.login).toEqual('newlogin');
+      });
+
+      it('should update password when provided', async () => {
+        await instance.login({ creds: { password: 'newpassword' } });
+        expect(instance.options.password).toEqual('newpassword');
+      });
+
+      it('should update passwd when provided', async () => {
+        await instance.login({ creds: { passwd: 'newpasswd' } });
+        expect(instance.options.passwd).toEqual('newpasswd');
+      });
+
+      it('should update login_token when provided', async () => {
+        await instance.login({ creds: { login_token: 'new_jwt_token' } });
+        expect(instance.options.login_token).toEqual('new_jwt_token');
+      });
+
+      it('should update userVariables when provided', async () => {
+        const newUserVariables = { key: 'value', custom: 'data' };
+        await instance.login({ creds: { userVariables: newUserVariables } });
+        expect(instance.options.userVariables).toEqual(newUserVariables);
+      });
+
+      it('should update anonymous_login when provided', async () => {
+        const anonymousLogin = {
+          target_type: 'flow',
+          target_id: '123',
+          target_version_id: 'v1',
+        };
+        await instance.login({ creds: { anonymous_login: anonymousLogin } });
+
+        expect(instance.options.anonymous_login).toEqual(anonymousLogin);
+      });
+
+      it('should update multiple credentials at once', async () => {
+        await instance.login({
+          creds: {
+            login: 'updatedlogin',
+            password: 'updatedpassword',
+            userVariables: { foo: 'bar' },
+          },
+        });
+
+        expect(instance.options.login).toEqual('updatedlogin');
+        expect(instance.options.password).toEqual('updatedpassword');
+        expect(instance.options.userVariables).toEqual({ foo: 'bar' });
+      });
+    });
+
+    describe('when credentials are not provided', () => {
+      it('should not change login when not provided', async () => {
+        const originalLogin = instance.options.login;
+
+        await instance.login({ creds: { password: 'newpassword' } });
+
+        expect(instance.options.login).toEqual(originalLogin);
+      });
+
+      it('should not change password when not provided', async () => {
+        const originalPassword = instance.options.password;
+
+        await instance.login({ creds: { login: 'newlogin' } });
+
+        expect(instance.options.password).toEqual(originalPassword);
+      });
+
+      it('should not change any credentials when called with empty params', async () => {
+        const originalLogin = instance.options.login;
+        const originalPassword = instance.options.password;
+
+        await instance.login({});
+
+        expect(instance.options.login).toEqual(originalLogin);
+        expect(instance.options.password).toEqual(originalPassword);
+      });
+
+      it('should not change any credentials when called without params', async () => {
+        const originalLogin = instance.options.login;
+        const originalPassword = instance.options.password;
+
+        await instance.login();
+
+        expect(instance.options.login).toEqual(originalLogin);
+        expect(instance.options.password).toEqual(originalPassword);
+      });
+    });
+
+    describe('when connection is not active', () => {
+      it('should return early when connection is null', async () => {
+        instance.connection = null;
+        const originalLogin = instance.options.login;
+
+        await instance.login({ creds: { login: 'newlogin' } });
+
+        // Credentials should NOT be updated because login returns early
+        expect(instance.options.login).toEqual(originalLogin);
+      });
+
+      it('should return early when connection is not alive', async () => {
+        Connection.isAlive.mockReturnValue(false);
+        const originalLogin = instance.options.login;
+
+        await instance.login({ creds: { login: 'newlogin' } });
+
+        // Credentials should NOT be updated because login returns early
+        expect(instance.options.login).toEqual(originalLogin);
+      });
     });
   });
 });

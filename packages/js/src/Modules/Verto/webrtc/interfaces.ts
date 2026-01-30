@@ -27,7 +27,7 @@ export interface IVertoCallOptions {
   camId?: string;
   camLabel?: string;
   speakerId?: string;
-  userVariables?: { [key: string]: any };
+  userVariables?: Record<string, any>;
   screenShare?: boolean;
   onNotification?: Function;
   googleMaxBitrate?: number;

@@ -9,7 +9,7 @@ class Login extends BaseRequest {
     passwd: string,
     login_token: string,
     sessionid: string,
-    userVariables: Object = {},
+    userVariables: Record<string, any> = {},
     reconnection: boolean
   ) {
     super();
