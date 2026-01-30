@@ -43,6 +43,7 @@ export const NOTIFICATION_TYPE = {
   userMediaError: 'userMediaError',
   peerConnectionFailureError: 'peerConnectionFailureError',
   signalingStateClosed: 'signalingStateClosed',
+  unrecovarablePeerConnectionError: 'unrecovarablePeerConnectionError',
 };
 
 export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {

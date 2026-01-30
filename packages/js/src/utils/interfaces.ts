@@ -67,51 +67,8 @@ export interface IClientOptions {
   trickleIce?: boolean;
 
   /**
-   * **Optimistic** flag to attempt keeping the call alive when the WebSocket connection closes.
-   *
-   * When enabled, the SDK will attempt to preserve the active call during brief network interruptions
-   * (e.g., network offline, switching networks, device sleep/wake cycles) by re-attaching to the existing peer connection
-   * instead of hanging up when an `attach` message is received.
-   *
-   * **Important**: This is an *optimistic* setting, not a deterministic guarantee. Recovery depends on
-   * the state of the underlying WebRTC peer connection:
-   *
-   * - **Recovery succeeds** when:
-   *   - The peer connection's `signalingState` is NOT `closed`
-   *   - The peer connection instance still exists
-   *   - ICE restart was not triggered due to connection failure
-   *
-   * - **Recovery fails** (call will be hung up and recreated) when:
-   *   - The peer connection's `connectionState` transitions to `failed`
-   *   - The peer connection's `signalingState` transitions to `closed` (e.g., after device sleep)
-   *   - The peer connection instance was destroyed
-   *
-   * **Fallback Behavior**: When recovery is not possible, the SDK automatically falls back to recreating
-   * the call. The fallback process depends on the failure scenario:
-   *
-   * 1. **If ICE restart was attempted** (connectionState went to `failed`):
-   *    - The SDK hangs up the existing call and sends a BYE message
-   *    - A new call instance is created with a **new call ID**
-   *    - The SDK sends a new INVITE to re-establish the call as the active leg
-   *
-   * 2. **For all other unrecoverable states** (signalingState `closed`, peer destroyed):
-   *    - The SDK hangs up the existing call (no BYE sent since connection is dead)
-   *    - A new call instance is created with the **same call ID**
-   *    - The SDK answers the incoming ATTACH to re-establish the call
-   *
-   * **Monitoring Connection Health**: Subscribe to these events to detect connection issues:
-   *
-   * - `telnyx.rtc.peerConnectionFailureError` - **Primary event**. Fires when `connectionState` goes to `failed`.
-   *   This indicates the ICE/DTLS transport failed and recovery will be attempted via ICE restart.
-   *
-   * - `telnyx.rtc.peerConnectionSignalingStateClosed` - Fires when `signalingState` transitions to `closed`.
-   *   Check `call.signalingStateClosed` to verify recoverability.
-   *
-   * In both cases, if `autoRecoverCalls` is enabled (default: `true`), the fallback is automatic
-   * and seamless. The call's state transitions through the normal flow and a `callUpdate` notification
-   * is dispatched so your UI can update accordingly.
-   *
-   * @see {@link https://developers.telnyx.com/docs/voice/webrtc/js-sdk/error-handling Error Handling Documentation}
+   * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
+   * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
 
@@ -306,17 +263,9 @@ export interface ICallOptions {
   trickleIce?: boolean;
 
   /**
-   * **Optimistic** flag to attempt keeping the call alive when the WebSocket connection closes.
-   *
-   * When enabled, the SDK will attempt to preserve the active call during brief network interruptions
-   * by re-attaching to the existing peer connection instead of hanging up when an `attach` message is received.
-   *
-   * **Important**: This is an *optimistic* setting, not a deterministic guarantee.
-   * Recovery fails if the peer connection's `signalingState` transitions to `closed` (e.g., after device sleep),
-   * or if ICE restart was attempted due to connection failure. Check `call.signalingStateClosed` to determine
-   * if a call is recoverable.
-   *
-   * @see IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior documentation
+   * @deprecated Use only IClientOptions.keepConnectionAliveOnSocketClose
+   * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
+   * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
 }

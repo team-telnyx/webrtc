@@ -29,9 +29,8 @@ export interface IVertoOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
-   * Optimistic flag to attempt keeping calls alive when the WebSocket connection closes.
-   * Recovery is not guaranteed - depends on peer connection signaling state.
-   * @see IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior
+   * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
+   * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
   useCanaryRtcServer?: boolean;
