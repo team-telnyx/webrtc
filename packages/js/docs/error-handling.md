@@ -26,6 +26,7 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [User Media Errors](#user-media-errors)
     - [Call State Errors](#call-state-errors)
     - [Connection Errors](#connection-errors)
+    - [Authentication Errors](#authentication-errors)
   - [Socket Connection Close and Socket Connection Error Handling](#socket-connection-close-and-socket-connection-error-handling)
     - [Event delivery to TelnyxRTC consumers](#event-delivery-to-telnyxrtc-consumers)
     - [`telnyx.socket.close` payload](#telnyxsocketclose-payload)
@@ -56,16 +57,17 @@ The Telnyx WebRTC JS SDK provides robust error handling mechanisms to help devel
 
 The following table lists all error constants and codes used in the Telnyx WebRTC JS SDK:
 
-| **ERROR MESSAGE**             | **ERROR CODE** | **DESCRIPTION**                                          |
-| ----------------------------- | -------------- | -------------------------------------------------------- |
-| Token registration error      | -32000         | Error during token registration                          |
-| Credential registration error | -32001         | Error during credential registration                     |
-| Codec error                   | -32002         | Error related to codec operation                         |
-| Gateway registration timeout  | -32003         | Gateway registration timed out                           |
-| Gateway registration failed   | -32004         | Gateway registration failed                              |
-| Call not found                | N/A            | The specified call cannot be found                       |
-| User media error              | N/A            | Browser does not have permission to access media devices |
-| Connection timeout            | -329990        | Fake verto timeout error code                            |
+| **ERROR MESSAGE**               | **ERROR CODE** | **DESCRIPTION**                                          |
+| ------------------------------- | -------------- | -------------------------------------------------------- |
+| Token registration error        | -32000         | Error during token registration                          |
+| JWT token authentication failed | -32001         | JWT login credentials are invalid or expired             |
+| Credential registration error   | -32001         | Error during credential registration                     |
+| Codec error                     | -32002         | Error related to codec operation                         |
+| Gateway registration timeout    | -32003         | Gateway registration timed out                           |
+| Gateway registration failed     | -32004         | Gateway registration failed                              |
+| Call not found                  | N/A            | The specified call cannot be found                       |
+| User media error                | N/A            | Browser does not have permission to access media devices |
+| Connection timeout              | -329990        | Fake verto timeout error code                            |
 
 ## SwEvent Error Reference
 
@@ -373,6 +375,71 @@ client.on('telnyx.ready', () => {
 });
 ```
 
+### Authentication Errors
+
+Authentication errors occur when the session credentials expire or become invalid. These are emitted via `telnyx.error`:
+
+```javascript
+client.on('telnyx.error', (payload) => {
+  if (payload.error?.code === -32001) {
+    console.error('JWT authentication failed:', payload.error.message);
+    // Prompt user to refresh their token or re-authenticate
+    showErrorMessage('Session expired. Please log in again.');
+  }
+});
+```
+
+**Manual Re-authentication with a New Token**
+
+If you need to re-authenticate with a new JWT token (e.g., when the original token has expired), you can update the client options and reconnect:
+
+```javascript
+// Function to fetch a new token from your backend
+async function fetchNewToken() {
+  const response = await fetch('/api/telnyx/token');
+  const data = await response.json();
+  return data.token;
+}
+
+// Function to re-authenticate with a new token
+async function reAuthenticate(client) {
+  try {
+    // 1. Disconnect the current session
+    await client.disconnect();
+
+    // 2. Fetch a new token from your backend
+    const newToken = await fetchNewToken();
+
+    // 3. Update the login token
+    client.options.login_token = newToken;
+
+    // 4. Reconnect with the new token
+    client.connect();
+  } catch (error) {
+    console.error('Re-authentication failed:', error);
+  }
+}
+
+// Listen for JWT authentication failures
+client.on('telnyx.error', async (payload) => {
+  if (payload.error?.code === -32001) {
+    console.warn('JWT authentication failed, attempting re-authentication...');
+    await reAuthenticate(client);
+  }
+});
+
+// Listen for successful reconnection
+client.on('telnyx.ready', () => {
+  console.log('Client reconnected and ready');
+});
+```
+
+This approach is useful when:
+
+- The original JWT token has expired and you have obtained a fresh token
+- You need to switch to different credentials
+- The `telnyx.error` event indicates a `-32001` (JWT authentication failed) error
+
 ## Socket Connection Close and Socket Connection Error Handling
 
 The Telnyx WebRTC JS SDK forwards those events directly to your application without modification. The WebSocket is used strictly for signaling—media keeps flowing over the underlying WebRTC peer connection—so transient socket interruptions do not require you to drop active calls. The SDK automatically re-establishes signaling when the socket returns, restoring subscriptions and resuming message delivery.
@@ -549,26 +616,30 @@ The `keepConnectionAliveOnSocketClose` option is an **optimistic** setting, not 
 
 To monitor connection health and detect when calls become unrecoverable, subscribe to these events:
 
-##### Primary Event: `telnyx.rtc.peerConnectionFailureError`
+##### Primary Event: `peerConnectionFailureError`
 
-This event fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
+This notification fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
 
 ```javascript
-client.on('telnyx.rtc.peerConnectionFailureError', (data) => {
-  console.log('Peer connection failed:', data.error.message);
-  // The SDK will attempt ICE restart automatically
-  // If ICE restart fails, the call will be recreated with a new ID
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'peerConnectionFailureError') {
+    console.log('Peer connection failed:', notification.error.message);
+    // The SDK will attempt ICE restart automatically
+    // If ICE restart fails, the call will be recreated with a new ID
+  }
 });
 ```
 
-##### Secondary Event: `telnyx.rtc.peerConnectionSignalingStateClosed`
+##### Secondary Event: `signalingStateClosed`
 
-This event fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
+This notification fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
 
 ```javascript
-client.on('telnyx.rtc.peerConnectionSignalingStateClosed', (data) => {
-  console.log('Signaling state closed for session:', data.sessionId);
-  // The call will be hung up and recreated automatically
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'signalingStateClosed') {
+    console.log('Signaling state closed for session:', notification.sessionId);
+    // The call will be hung up and recreated automatically
+  }
 });
 ```
 
@@ -582,12 +653,66 @@ if (call.signalingStateClosed) {
 }
 ```
 
-##### Event Comparison Table
+##### Notification Type Comparison Table
 
-| Event | Trigger | Recovery Behavior |
-|-------|---------|-------------------|
-| `telnyx.rtc.peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | `signalingState` → `closed` | Call hung up and recreated with same call ID |
+| Notification Type            | Trigger                      | Recovery Behavior                                       |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------- |
+| `peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
+| `signalingStateClosed`       | `signalingState` → `closed`  | Call hung up and recreated with same call ID            |
+
+> [!IMPORTANT]
+> **When Notifications Are Not Dispatched**
+>
+> These notifications are **suppressed for screen share calls** (when `screenShare: true` is set in call options). This is by design since screen share calls are typically secondary streams that don't require the same error handling as primary audio/video calls.
+>
+> If you need to monitor connection health for screen share calls, check the `signalingStateClosed` property directly on the call object instead:
+>
+> ```javascript
+> if (screenShareCall.signalingStateClosed) {
+>   console.log('Screen share connection cannot be recovered');
+> }
+> ```
+
+> [!NOTE]
+> **Notification Scoping: Call-Level vs Session-Level**
+>
+> Notifications are first dispatched to listeners registered for the specific **call ID**. If no call-level listeners exist, the SDK falls back to dispatching the notification to **session-level** listeners (registered on the client).
+>
+> **Session-Level Listener (Recommended)**
+>
+> Register on the client to receive notifications from all calls:
+>
+> ```javascript
+> client.on('telnyx.notification', (notification) => {
+>   if (notification.type === 'peerConnectionFailureError') {
+>     console.log('Connection failed for call:', notification.call?.id);
+>   }
+>   if (notification.type === 'signalingStateClosed') {
+>     console.log('Signaling closed for call:', notification.call?.id);
+>   }
+> });
+> ```
+>
+> **Call-Level Listener**
+>
+> Use the `onNotification` callback in call options to receive notifications only for that specific call:
+>
+> ```javascript
+> const call = client.newCall({
+>   destinationNumber: '+15551234567',
+>   onNotification: (notification) => {
+>     // Only receives notifications for this specific call
+>     if (notification.type === 'peerConnectionFailureError') {
+>       console.log('This call connection failed');
+>     }
+>     if (notification.type === 'signalingStateClosed') {
+>       console.log('This call signaling closed');
+>     }
+>   },
+> });
+> ```
+>
+> **Important**: If a call-level `onNotification` listener is registered, it will receive the notification and the session-level listener will **not** receive it (call-level takes priority). The session-level listener only receives notifications as a fallback when no call-level listener is registered. If no listeners are registered at either level, the notification is silently dropped.
 
 ### Manual Reconnection
 
