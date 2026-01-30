@@ -99,6 +99,14 @@ export default class Peer {
     return this._restartedIceOnConnectionStateFailed;
   }
 
+  isConnectionHealty() {
+    return (
+      this.instance.connectionState === 'connected' &&
+      this.instance.iceConnectionState === 'connected' &&
+      this.instance.signalingState !== 'closed'
+    );
+  }
+
   startNegotiation() {
     performance.mark(`ice-gathering-start`);
 

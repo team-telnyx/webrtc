@@ -1037,10 +1037,7 @@ export default abstract class BaseCall implements IWebRTCCall {
          * Server expect the Attach message always to be answered with the Attach message with SDP
          * In that case we can send Attach message with the same SDP
          */
-        if (
-          this.session.options.keepConnectionAliveOnSocketClose &&
-          this.peer?.instance?.connectionState === 'connected'
-        ) {
+        if (this.peer?.isConnectionHealty()) {
           const localDescription = this.peer?.instance?.localDescription;
           const attach = new Attach({
             sessid: this.session.sessionid,

@@ -104,8 +104,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const existingCall = session.calls[callID];
-    const isPeerConnectionAlive =
-      existingCall?.peer?.instance?.connectionState === 'connected';
+    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealty();
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
@@ -269,9 +268,24 @@ class VertoHandler {
           );
           const call = _buildCall(isRecovering);
           call.answer();
-          call.handleMessage(msg);
           this._ack(id, method);
           return;
+        } else {
+          /**
+           * Since for non-canary rtc servers we don't have the reconnection flow fixed yet,
+           * we will give client the chance to decide how to handle such situation.
+           * Client can listen to SwEvent.Notification and decide what to do next.
+           */
+          const errorMessage = `[${new Date().toISOString()}][${callID}] Attach: Existing call found but peer connection is not alive. Unable to recover the call since useCanaryRtcServer is disabled.`;
+          logger.error(errorMessage);
+          trigger(
+            SwEvent.Notification,
+            {
+              type: NOTIFICATION_TYPE.unrecovarablePeerConnectionError,
+              message: errorMessage,
+            },
+            session.uuid
+          );
         }
         break;
       }
