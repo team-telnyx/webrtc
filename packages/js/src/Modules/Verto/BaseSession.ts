@@ -26,6 +26,7 @@ import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
+import { ERROR_TYPE } from './webrtc/constants';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -376,6 +377,19 @@ export default abstract class BaseSession {
       return this._login({ type: 'login', onSuccess, onError });
     } else if (isValidAnonymousLoginOptions(this.options)) {
       return this._login({ type: 'anonymous_login', onSuccess, onError });
+    } else {
+      const msg = 'Invalid login options provided for authentication.';
+      logger.error(msg);
+      trigger(
+        SwEvent.Error,
+        {
+          error: new Error(msg),
+          type: ERROR_TYPE.invalidCredentialsOptions,
+          sessionId: this.sessionid,
+        },
+        this.uuid
+      );
+      return;
     }
   }
 

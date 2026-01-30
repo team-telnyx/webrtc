@@ -373,6 +373,23 @@ client.on('telnyx.ready', () => {
 });
 ```
 
+### Login Errors
+
+Login errors occur when the `login()` method is called with invalid credentials configuration. When this happens, the SDK emits a `telnyx.error` event with an `InvalidCredentialsOptions` error type.
+
+**Example Handling:**
+
+```javascript
+client.on('telnyx.error', ({ error, type, sessionId }) => {
+  if (type === ERROR_TYPE.invalidCredentialsOptions) {
+    console.error('Invalid login credentials configuration:', error.message);
+    showErrorMessage(
+      'Invalid login credentials. Please check your configuration.'
+    );
+  }
+});
+```
+
 ## Socket Connection Close and Socket Connection Error Handling
 
 The Telnyx WebRTC JS SDK forwards those events directly to your application without modification. The WebSocket is used strictly for signaling—media keeps flowing over the underlying WebRTC peer connection—so transient socket interruptions do not require you to drop active calls. The SDK automatically re-establishes signaling when the socket returns, restoring subscriptions and resuming message delivery.
