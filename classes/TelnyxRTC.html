@@ -59,6 +59,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#getDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Devices</span></a>
 <a href="TelnyxRTC.html#getVideoDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Video<wbr/>Devices</span></a>
 <a href="TelnyxRTC.html#handleLoginError" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>handle<wbr/>Login<wbr/>Error</span></a>
+<a href="TelnyxRTC.html#login" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>login</span></a>
 <a href="TelnyxRTC.html#logout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>logout</span></a>
 <a href="TelnyxRTC.html#newCall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a>
 <a href="TelnyxRTC.html#off" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a>
@@ -485,6 +486,81 @@ it will return a list of resolutions from the default device set up in your oper
 
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.handleLoginError</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="login" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>login</span><a href="#login" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature tsd-anchor-link" id="login.login-1"><span class="tsd-kind-call-signature">login</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#login.login-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.</p>
+<p>This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:</p>
+<ul>
+<li>Refreshing expired JWT tokens during an active session</li>
+<li>Switching to different user credentials</li>
+<li>Re-authenticating after token expiration errors</li>
+</ul>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">creds</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type ">ILoginParams</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">onError</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">onSuccess</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol"> = {}</span></h5>
+<div class="tsd-comment tsd-typography"><p>Configuration object for the login operation</p>
+</div>
+<div class="tsd-comment tsd-typography"></div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">creds</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type ">ILoginParams</span></h5>
+<div class="tsd-comment tsd-typography"><p>Optional credential parameters to update before authentication</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li>
+<li class="tsd-parameter">
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">on<wbr/>Error</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+<ul class="tsd-parameters">
+<li class="tsd-parameter-signature">
+<ul class="tsd-signatures">
+<li class="tsd-signature"><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Callback function invoked when authentication fails, receives the error object</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">error</span>: <span class="tsd-signature-type">any</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography"></div></li></ul></li></ul></li>
+<li class="tsd-parameter">
+<h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">on<wbr/>Success</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span></h5>
+<ul class="tsd-parameters">
+<li class="tsd-parameter-signature">
+<ul class="tsd-signatures">
+<li class="tsd-signature"><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Callback function invoked when authentication succeeds</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography"></div></li></ul></li></ul></li></ul></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Promise<void></p>
+
+<div class="tsd-comment tsd-typography">
+<h4>Example</h4><p><strong>Re-authenticate with existing credentials:</strong></p>
+<pre><code class="language-js"><span class="hl-5">// Uses the credentials already stored in session options</span><br/><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">login</span><span class="hl-1">();</span>
+</code><button>Copy</button></pre>
+
+<h4>Example</h4><p><strong>Refresh an expired JWT token:</strong></p>
+<pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">newToken</span><span class="hl-1"> = </span><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-4">fetchNewJwtToken</span><span class="hl-1">();</span><br/><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">login</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-3">creds:</span><span class="hl-1"> { </span><span class="hl-3">login_token:</span><span class="hl-1"> </span><span class="hl-3">newToken</span><span class="hl-1"> }</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+
+<h4>Example</h4><p><strong>Update login credentials with callbacks:</strong></p>
+<pre><code class="language-js"><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">login</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-3">creds:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">login:</span><span class="hl-1"> </span><span class="hl-6">&#39;newuser@example.com&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-3">password:</span><span class="hl-1"> </span><span class="hl-6">&#39;newpassword&#39;</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">onSuccess</span><span class="hl-3">:</span><span class="hl-1"> () </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-6">&#39;Successfully re-authenticated!&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-4">onError</span><span class="hl-3">:</span><span class="hl-1"> (</span><span class="hl-3">error</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">error</span><span class="hl-1">(</span><span class="hl-6">&#39;Authentication failed:&#39;</span><span class="hl-1">, </span><span class="hl-3">error</span><span class="hl-1">);</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+
+<h4>Example</h4><p><strong>Switch to anonymous login:</strong></p>
+<pre><code class="language-js"><span class="hl-7">await</span><span class="hl-1"> </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">login</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-3">creds:</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-3">anonymous_login:</span><span class="hl-1"> {</span><br/><span class="hl-1">      </span><span class="hl-3">target_type:</span><span class="hl-1"> </span><span class="hl-6">&#39;ai_assistant&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-3">target_id:</span><span class="hl-1"> </span><span class="hl-6">&#39;asst_12345&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-3">target_version_id:</span><span class="hl-1"> </span><span class="hl-6">&#39;v1&#39;</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+</div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.login</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="logout" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>logout</span><a href="#logout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -794,6 +870,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#getDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Devices</span></a></li>
 <li><a href="#getVideoDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Video<wbr/>Devices</span></a></li>
 <li><a href="#handleLoginError" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>handle<wbr/>Login<wbr/>Error</span></a></li>
+<li><a href="#login" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>login</span></a></li>
 <li><a href="#logout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>logout</span></a></li>
 <li><a href="#newCall" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a></li>
 <li>
