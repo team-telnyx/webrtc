@@ -153,9 +153,8 @@ export class CallReportCollector {
    */
   public async postReport(
     summary: ICallSummary,
-    voiceSdkId: string,
-    host: string,
-    userId?: string
+    callReportId: string,
+    host: string
   ): Promise<void> {
     if (!this.options.enabled || this.statsBuffer.length === 0) {
       return;
@@ -189,9 +188,7 @@ export class CallReportCollector {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-voice-sdk-id': voiceSdkId,
-          ...(userId && { 'x-user-id': userId }),
-          ...(summary.callId && { 'x-call-id': summary.callId }),
+          'x-call-report-id': callReportId,
         },
         body: JSON.stringify(payload),
       });

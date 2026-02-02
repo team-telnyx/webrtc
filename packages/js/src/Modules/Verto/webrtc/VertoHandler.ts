@@ -358,11 +358,6 @@ class VertoHandler {
             // If the user is REGED tell the client that it is ready to make calls
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
-              // Capture user_id from REGED message for call reporting
-              if (msg?.result?.params?.user_id) {
-                session.userId = msg.result.params.user_id;
-              }
-
               if (
                 session.connection.previousGatewayState !==
                   GatewayStateType.REGED &&
@@ -371,6 +366,14 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
+
+                // Capture call_report_id for SDK call reporting
+                const callReportId = msg?.result?.params?.call_report_id;
+                if (callReportId) {
+                  session.callReportId = callReportId;
+                  logger.debug('Captured call_report_id from REGED:', callReportId);
+                }
+
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
 

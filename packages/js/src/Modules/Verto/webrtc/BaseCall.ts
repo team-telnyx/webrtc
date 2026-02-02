@@ -4,7 +4,6 @@ import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
 import { CallReportCollector } from './CallReportCollector';
-import { getReconnectToken } from '../util/reconnect';
 import {
   Answer,
   Attach,
@@ -1745,9 +1744,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this._callReportCollector.stop();
 
-    const voiceSdkId = getReconnectToken();
-    if (!voiceSdkId) {
-      logger.error('Cannot post call report: voice_sdk_id not available');
+    const callReportId = this.session.callReportId;
+    if (!callReportId) {
+      logger.debug('Cannot post call report: call_report_id not available');
       return;
     }
 
@@ -1772,7 +1771,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     this._callReportCollector
-      .postReport(summary, voiceSdkId, host, this.session.userId)
+      .postReport(summary, callReportId, host)
       .catch((error) => {
         logger.error('Failed to post call report', { error });
       });
