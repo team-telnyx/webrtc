@@ -154,7 +154,8 @@ export class CallReportCollector {
   public async postReport(
     summary: ICallSummary,
     callReportId: string,
-    host: string
+    host: string,
+    voiceSdkId?: string
   ): Promise<void> {
     if (!this.options.enabled || this.statsBuffer.length === 0) {
       return;
@@ -184,12 +185,19 @@ export class CallReportCollector {
         callId: summary.callId,
       });
 
+      // Build headers with required call_report_id and call_id, optional voice_sdk_id
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-call-report-id': callReportId,
+        'x-call-id': summary.callId,
+      };
+      if (voiceSdkId) {
+        headers['x-voice-sdk-id'] = voiceSdkId;
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-call-report-id': callReportId,
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 

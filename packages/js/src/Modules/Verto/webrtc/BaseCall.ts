@@ -20,6 +20,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { getReconnectToken } from '../util/reconnect';
 import {
   attachMediaStream,
   getUserMedia,
@@ -1770,8 +1771,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
+    // voice_sdk_id is stored as the reconnect token
+    const voiceSdkId = getReconnectToken() || undefined;
+
     this._callReportCollector
-      .postReport(summary, callReportId, host)
+      .postReport(summary, callReportId, host, voiceSdkId)
       .catch((error) => {
         logger.error('Failed to post call report', { error });
       });
