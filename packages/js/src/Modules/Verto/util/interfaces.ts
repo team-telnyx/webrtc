@@ -9,7 +9,7 @@ export interface IVertoOptions {
   passwd?: string;
   password?: string;
   login_token?: string;
-  userVariables?: Object;
+  userVariables?: Record<string, any>;
   ringtoneFile?: string;
   ringbackFile?: string;
   env?: Environment;
@@ -50,6 +50,18 @@ export interface IVertoOptions {
   rtcIp?: string;
   rtcPort?: number;
   mutedMicOnStart?: boolean;
+}
+export interface ILoginParams {
+  login?: string;
+  password?: string;
+  passwd?: string;
+  login_token?: string;
+  userVariables?: Record<string, any>;
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+    target_version_id?: string;
+  };
 }
 export interface SubscribeParams {
   channels?: string[];

@@ -2,7 +2,7 @@ import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
-import { Candidate, Login, Result } from '../messages/Verto';
+import { Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -16,15 +16,8 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
-import {
-  getGatewayState,
-  isValidAnonymousLoginOptions,
-  isValidLoginOptions,
-  randomInt,
-} from '../util/helpers';
+import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
-import { getReconnectToken } from '../util/reconnect';
 
 /**
  * @ignore Hide in docs output
@@ -55,47 +48,7 @@ class VertoHandler {
     return randomInt(2, 6) * 1000;
   }
 
-  private handleLogin = async () => {
-    const { login, password, passwd, login_token, userVariables } =
-      this.session.options;
-
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.session.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
-  };
-
-  private handleAnonymousLogin = async () => {
-    const { anonymous_login } = this.session.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.session.sessionid,
-      userVariables: this.session.options.userVariables,
-      reconnection: !!getReconnectToken(),
-    });
-
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
-  };
-
-  async handleMessage(msg: any) {
+  handleMessage(msg: any) {
     const { session } = this;
     const { id, method, params = {}, voice_sdk_id } = msg;
 
@@ -193,12 +146,7 @@ class VertoHandler {
                   'Ping failed twice with Authentication Required. Re-logging in...'
                 );
 
-                if (isValidLoginOptions(this.session.options)) {
-                  this.handleLogin();
-                } else if (isValidAnonymousLoginOptions(this.session.options)) {
-                  this.handleAnonymousLogin();
-                }
-
+                this.session.login();
                 VertoHandler.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
               }
             }

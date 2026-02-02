@@ -9,6 +9,50 @@ import {
   IAudio,
 } from './interfaces';
 
+/**
+ * Check if error is related to a specific device being unavailable
+ */
+const isDeviceNotFoundError = (error: Error): boolean => {
+  return (
+    error.name === 'NotReadableError' ||
+    error.name === 'NotFoundError' ||
+    error.name === 'OverconstrainedError'
+  );
+};
+
+/**
+ * Remove deviceId constraints from constraints to fallback to default device
+ * Returns null if no deviceId was specified (no fallback possible)
+ */
+const getConstraintsWithoutDeviceId = (
+  constraints: MediaStreamConstraints
+): MediaStreamConstraints | null => {
+  const { audio, video } = constraints;
+  let hasDeviceId = false;
+  let newAudio: boolean | MediaTrackConstraints = audio;
+  let newVideo: boolean | MediaTrackConstraints = video;
+
+  // Check and remove deviceId from audio constraints
+  if (typeof audio === 'object' && audio !== null && 'deviceId' in audio) {
+    hasDeviceId = true;
+    const { deviceId, ...restAudio } = audio;
+    newAudio = Object.keys(restAudio).length === 0 ? true : restAudio;
+  }
+
+  // Check and remove deviceId from video constraints
+  if (typeof video === 'object' && video !== null && 'deviceId' in video) {
+    hasDeviceId = true;
+    const { deviceId, ...restVideo } = video;
+    newVideo = Object.keys(restVideo).length === 0 ? true : restVideo;
+  }
+
+  if (!hasDeviceId) {
+    return null; // No fallback possible
+  }
+
+  return { audio: newAudio, video: newVideo };
+};
+
 const getUserMedia = async (
   constraints: MediaStreamConstraints
 ): Promise<MediaStream | null> => {
@@ -21,6 +65,23 @@ const getUserMedia = async (
     return await WebRTC.getUserMedia(constraints);
   } catch (error) {
     logger.error('getUserMedia error: ', error);
+
+    // Check if this is a device-specific error that might be recoverable
+    if (isDeviceNotFoundError(error)) {
+      const fallbackConstraints = getConstraintsWithoutDeviceId(constraints);
+      if (fallbackConstraints) {
+        logger.warn(
+          'Device not found or not readable, falling back to default device'
+        );
+        try {
+          return await WebRTC.getUserMedia(fallbackConstraints);
+        } catch (fallbackError) {
+          logger.error('Fallback getUserMedia also failed: ', fallbackError);
+          throw error; // Throw original error
+        }
+      }
+    }
+
     throw error;
   }
 };
@@ -788,4 +849,7 @@ export {
   stopAudio,
   hasVideo,
   getPreferredCodecs,
+  // Exported for testing
+  isDeviceNotFoundError,
+  getConstraintsWithoutDeviceId,
 };
