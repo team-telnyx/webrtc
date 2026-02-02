@@ -1,3 +1,9 @@
+## [2.25.17](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.16...webrtc/v2.25.17) (2026-02-02)
+
+- fix: reconnection flow
+- feat: implement manual Login function
+- feat: getUserMedia fallback for device-specific errors
+
 ## [2.25.16](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.15...webrtc/v2.25.16) (2026-01-22)
 
 - fix: documentation on event listening
