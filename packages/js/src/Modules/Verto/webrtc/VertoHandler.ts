@@ -1,9 +1,8 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
-import pkg from '../../../../package.json';
 import Call from './Call';
-import { checkSubscribeResponse, hasVideo } from './helpers';
-import { Attach, Candidate, Result } from '../messages/Verto';
+import { checkSubscribeResponse } from './helpers';
+import { Candidate, Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -17,15 +16,8 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
-import {
-  getGatewayState,
-  isValidAnonymousLoginOptions,
-  isValidLoginOptions,
-  randomInt,
-} from '../util/helpers';
+import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-
-const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
@@ -64,63 +56,14 @@ class VertoHandler {
     const eventChannel = params?.eventChannel;
     const eventType = params?.eventType;
 
-    const attach = method === VertoMethod.Attach;
-    const punt = method === VertoMethod.Punt;
-    let keepConnectionOnAttach = false;
-    let reconnectionOnAttach = false;
+    const existingCall = session.calls[callID];
+    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
     }
 
-    if (callID && session.calls.hasOwnProperty(callID)) {
-      if (attach) {
-        const call = session.calls[callID];
-        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
-        keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
-            call.options.keepConnectionAliveOnSocketClose) &&
-          Boolean(call.peer?.instance) &&
-          !call.signalingStateClosed &&
-          !reconnectionOnAttach;
-
-        if (keepConnectionOnAttach) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
-          );
-        } else {
-          if (call.signalingStateClosed) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
-            );
-          } else if (reconnectionOnAttach) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
-            );
-          }
-
-          call.hangup({}, reconnectionOnAttach);
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
-          );
-        }
-      } else {
-        session.calls[callID].handleMessage(msg);
-        this._ack(id, method);
-        return;
-      }
-    }
-
-    if (punt && session.options.keepConnectionAliveOnSocketClose) {
-      logger.info(
-        `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
-      );
-      this.session.socketDisconnect();
-      this._ack(id, method);
-      return;
-    }
-
-    const _buildCall = (includeCallId = true) => {
+    const _buildCall = (isRecovering: boolean = false) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -132,7 +75,7 @@ class VertoHandler {
         remoteCallerNumber: params.caller_id_number,
         callerName: params.callee_id_name,
         callerNumber: params.callee_id_number,
-        attach,
+        attach: method === VertoMethod.Attach,
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
@@ -143,7 +86,7 @@ class VertoHandler {
           session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
-      if (includeCallId) {
+      if (callID) {
         callOptions.id = callID;
       }
 
@@ -171,7 +114,7 @@ class VertoHandler {
         callOptions.customHeaders = params.dialogParams.custom_headers;
       }
 
-      const call = new Call(session, callOptions);
+      const call = new Call(session, callOptions, isRecovering);
       call.nodeId = this.nodeId;
       return call;
     };
@@ -211,7 +154,18 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
-        session.disconnect();
+        if (
+          session.options.keepConnectionAliveOnSocketClose &&
+          isPeerConnectionAlive
+        ) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+          );
+          session.socketDisconnect();
+          this._ack(id, method);
+        } else {
+          session.disconnect();
+        }
         break;
       case VertoMethod.Invite: {
         const call = _buildCall();
@@ -222,54 +176,45 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        if (keepConnectionOnAttach) {
-          // If we are keeping the connection alive on attach, we need to re-attach first.
-          this.session.execute(
-            new Attach({
-              sessid: this.session.sessionid,
-              // reuse the same sdp to re-attach
-              sdp: this.session.calls[callID].peer.instance.localDescription
-                .sdp,
-              dialogParams: this.session.calls[callID].options,
-              'User-Agent': `Web-${SDK_VERSION}`,
-            })
-          );
-          // Restart stats reporter after reconnect
-          this.session.calls[callID].peer?.restartStatsReporter();
+        /**
+         * If there is no existing call, we need to create a new call.
+         * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
+         */
+        if (!existingCall) {
+          const call = _buildCall();
+          call.answer();
+          this._ack(id, method);
           return;
-        } else {
+        }
+
+        /**
+         * If there is existing call and peer connection is alive, we can reuse the existing call.
+         */
+        if (isPeerConnectionAlive) {
           logger.info(
-            `[${new Date().toISOString()}][${callID}] Re-creating call instance.`
+            `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to healthy peer connection.`
           );
-        }
-
-        if (this.session.calls[callID]?.creatingPeer) {
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call is already creating a peer, skip recreating call instance.`
-          );
+          existingCall.handleMessage(msg);
+          this._ack(id, method);
           return;
         }
 
-        let call;
-        if (this.session.autoRecoverCalls) {
-          if (reconnectionOnAttach) {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed. Re-inviting to become active leg. due to keepConnectionAliveOnSocketClose.`
-            );
-            call = _buildCall(false);
-            call.invite();
-          } else {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call is not in an unrecoverable state. Answering.`
-            );
-            call = _buildCall();
-            call.answer();
-          }
-        } else {
-          call = _buildCall();
-          call.setState(State.Recovering);
-        }
-        call.handleMessage(msg);
+        /**
+         * We call our recovery flow with recovering call state during the call lifecycle.
+         */
+        const isRecovering = !!existingCall;
+
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
+        );
+        existingCall.hangup({ isRecovering }, false);
+
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+        );
+        const call = _buildCall(isRecovering);
+        call.answer();
+        this._ack(id, method);
         break;
       }
       case VertoMethod.Event:
@@ -304,6 +249,12 @@ class VertoHandler {
         break;
 
       default: {
+        if (callID && session.calls.hasOwnProperty(callID)) {
+          session.calls[callID].handleMessage(msg);
+          this._ack(id, method);
+          return;
+        }
+
         const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {

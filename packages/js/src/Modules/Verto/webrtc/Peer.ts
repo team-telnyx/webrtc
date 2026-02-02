@@ -1,6 +1,6 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
-import { GOOGLE_STUN_SERVER, SwEvent, TURN_SERVER } from '../util/constants';
+import { SwEvent } from '../util/constants';
 import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
@@ -12,9 +12,7 @@ import logger from '../util/logger';
 import {
   attachMediaStream,
   audioIsMediaTrackConstraints,
-  muteMediaElement,
   RTCPeerConnection,
-  sdpToJsonHack,
   streamIsValid,
   videoIsMediaTrackConstraints,
 } from '../util/webrtc';
@@ -32,7 +30,7 @@ import { IVertoCallOptions } from './interfaces';
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-  public onSdpReadyTwice: Function = null;
+  public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -90,15 +88,16 @@ export default class Peer {
     return this.options.debugOutput || this._session.options.debugOutput;
   }
 
-  get keepConnectionAliveOnSocketClose() {
-    return (
-      this.options.keepConnectionAliveOnSocketClose ||
-      this._session.options.keepConnectionAliveOnSocketClose
-    );
-  }
-
   get restartedIceOnConnectionStateFailed() {
     return this._restartedIceOnConnectionStateFailed;
+  }
+
+  isConnectionHealthy() {
+    return (
+      this.instance.connectionState === 'connected' &&
+      this.instance.iceConnectionState === 'connected' &&
+      this.instance.signalingState !== 'closed'
+    );
   }
 
   startNegotiation() {
@@ -203,7 +202,7 @@ export default class Peer {
     };
   }
 
-  private handleSignalingStateChangeEvent(event) {
+  private handleSignalingStateChangeEvent() {
     logger.info('signalingState:', this.instance.signalingState);
 
     switch (this.instance.signalingState) {
@@ -263,10 +262,11 @@ export default class Peer {
     }
   }
 
-  private handleConnectionStateChange = async (event: Event) => {
+  private handleConnectionStateChange = async () => {
     const { connectionState } = this.instance;
     logger.info(
-      `[${new Date().toISOString()}] Connection State changed: ${this._prevConnectionState
+      `[${new Date().toISOString()}] Connection State changed: ${
+        this._prevConnectionState
       } -> ${connectionState}`
     );
 
@@ -282,20 +282,28 @@ export default class Peer {
           this.statsReporter.reportConnectionStateChange(details);
         }
 
+        //FIXME: implement proper ICE restart flow
         /**
-         * restart ice as ice credentials might have changed
-         * Per WebRTC spec, ICE restart requires creating a new offer
-         * (regardless of whether we were originally the offerer or answerer)
+         * Restart ICE is not working since we do not handle SDP exchange after ICE restart.
+         * The proper way:
+         * 1. Create new offer
+         * 2. Set the local description to the offer
+         * 3. Send it to the remote peer
+         * 4. Wait for the remote peer to send us an answer
+         * 5. Set the remote description to the answer
+         *
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Session_lifetime#ice_restart
          */
-        if (
-          !this._restartedIceOnConnectionStateFailed &&
-          connectionState === 'failed' &&
-          this._session.hasAutoReconnect()
-        ) {
-          await this.instance.restartIce();
-          this._restartedIceOnConnectionStateFailed = true;
-          logger.debug('Peer connection state failed. ICE restarted.');
-        }
+        // if (
+        //   !this._restartedIceOnConnectionStateFailed &&
+        //   connectionState === 'failed' &&
+        //   this._session.hasAutoReconnect()
+        // ) {
+        // this.instance.restartIce();
+        // this._restartedIceOnConnectionStateFailed = true;
+        // logger.info('Peer connection state failed. ICE restarted.');
+        // }
 
         window.removeEventListener('online', onConnectionOnline);
       };
@@ -306,7 +314,6 @@ export default class Peer {
         window.addEventListener('online', onConnectionOnline);
       }
     }
-
 
     if (connectionState === 'failed') {
       trigger(
@@ -357,7 +364,9 @@ export default class Peer {
     this.instance.addEventListener(
       'icegatheringstatechange',
       this._handleIceGatheringStateChange
-    ); //@ts-ignore
+    );
+    // addstream and MediaStreamEvent are deprecated
+    //@ts-expect-error MediaStreamEvent is not defined
     this.instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -390,13 +399,13 @@ export default class Peer {
     performance.mark(`peer-creation-end`);
   }
 
-  private _handleIceConnectionStateChange = (event) => {
+  private _handleIceConnectionStateChange = () => {
     logger.debug(
       `[${new Date().toISOString()}] ICE Connection State`,
       this.instance.iceConnectionState
     );
   };
-  private _handleIceGatheringStateChange = (event) => {
+  private _handleIceGatheringStateChange = () => {
     logger.debug(
       `[${new Date().toISOString()}] ICE Gathering State`,
       this.instance.iceGatheringState
@@ -513,7 +522,8 @@ export default class Peer {
         });
       } else {
         // Fallback to legacy addStream ..
-        // @ts-ignore
+        // addStream is deprecated
+        // @ts-expect-error addStream does not exist on RTCPeerConnection
         this.instance.addStream(localStream);
       }
 

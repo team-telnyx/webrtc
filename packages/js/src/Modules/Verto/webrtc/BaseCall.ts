@@ -54,6 +54,7 @@ import {
 import {
   AnswerParams,
   IAudio,
+  IHangupParams,
   IStatsBinding,
   IVertoCallOptions,
   IWebRTCCall,
@@ -159,7 +160,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _statsBindings: IStatsBinding[] = [];
 
-  private _statsIntervalId: any = null;
+  private _statsIntervalId: NodeJS.Timeout | null = null;
 
   private _pendingIceCandidates: Array<
     RTCIceCandidateInit | RTCIceCandidate | null
@@ -171,7 +172,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
-  constructor(protected session: BrowserSession, opts?: IVertoCallOptions) {
+  constructor(
+    protected session: BrowserSession,
+    opts?: IVertoCallOptions,
+    private _isRecovering: boolean = false
+  ) {
     const {
       iceServers,
       speaker: speakerId,
@@ -446,15 +451,15 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * @internal
    */
-  hangup(hangupParams, hangupExecute): void;
+  hangup(hangupParams: IHangupParams, hangupExecute: boolean): void;
   /**
    * @internal
    * @param hangupParams _For internal use_ Specify custom hangup cause and call ID
    * @param hangupExecute _For internal use_ Allow or prevent execution of `Bye`
    */
-  hangup(hangupParams?: any, hangupExecute?: boolean): void {
-    let params = hangupParams || {};
-    let execute = hangupExecute === false ? false : true;
+  hangup(hangupParams?: IHangupParams, hangupExecute?: boolean): void {
+    const params = hangupParams || {};
+    const execute = hangupExecute === false ? false : true;
 
     this.cause = params.cause || 'NORMAL_CLEARING';
     this.causeCode = params.causeCode || 16;
@@ -465,12 +470,22 @@ export default abstract class BaseCall implements IWebRTCCall {
       ...(this.options.customHeaders ?? []),
       ...(params?.dialogParams?.customHeaders ?? []),
     ];
+
+    // If recovering from attach, set Recovering state and skip Bye
+    if (params.isRecovering) {
+      this._isRecovering = true;
+      this.setState(State.Recovering);
+      this._finalize();
+      return;
+    }
+
     this.setState(State.Hangup);
 
     const _close = () => {
       logger.debug(`[${this.id}] Closing peer from hangup`);
       this.peer?.close();
-      return this.setState(State.Destroy);
+      this.setState(State.Destroy);
+      return;
     };
 
     this.stopRingtone();
@@ -883,7 +898,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     if (sender) {
-      let p = sender.getParameters();
+      const p = sender.getParameters();
       const parameters = p as RTCRtpSendParameters;
       if (!parameters.encodings) {
         parameters.encodings = [{ rid: 'h' }];
@@ -966,9 +981,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     switch (state) {
       case State.Purge:
         logger.debug(`Call ${this.id} hangup call due to purge state`);
-        this.hangup({ cause: 'PURGE', causeCode: '01' }, false);
+        this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
         break;
       case State.Active: {
+        // Clear recovery flag when call becomes active again
+        if (this._isRecovering) {
+          this._isRecovering = false;
+          logger.debug(`[${this.id}] Recovery complete, call is active`);
+        }
         setTimeout(() => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
@@ -1011,8 +1031,27 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._onRemoteSdp(params.sdp);
         break;
       }
-      case VertoMethod.Display:
       case VertoMethod.Attach: {
+        /**
+         * Guard that this is only for a case when we get Attach message while connectionState is connected
+         * Server expect the Attach message always to be answered with the Attach message with SDP
+         * In that case we can send Attach message with the same SDP
+         */
+        if (this.peer?.isConnectionHealthy()) {
+          const localDescription = this.peer?.instance?.localDescription;
+          const attach = new Attach({
+            sessid: this.session.sessionid,
+            sdp: localDescription,
+            dialogParams: this.options,
+            'User-Agent': `Web-${SDK_VERSION}`,
+          });
+          this.session.execute(attach);
+          this.peer?.restartStatsReporter();
+          return;
+        }
+        break;
+      }
+      case VertoMethod.Display: {
         // TODO: manage caller_id_name, caller_id_number, callee_id_name, callee_id_number
         const {
           display_name: displayName,
@@ -1352,7 +1391,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        this.setState(State.Answering);
+        // Keep state as recovering to make sure that client can relay on it
+        if (!this._isRecovering) {
+          this.setState(State.Answering);
+        }
         msg =
           this.options.attach === true
             ? new Attach(tmpParams)
@@ -1410,7 +1452,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         msg = new Invite(tmpParams);
         break;
       case PeerType.Answer:
-        this.setState(State.Answering);
+        // Keep state as recovering to make sure that client can relay on it
+        if (!this._isRecovering) {
+          this.setState(State.Answering);
+        }
         msg =
           this.options.attach === true
             ? new Attach(tmpParams)
@@ -1584,7 +1629,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    //@ts-ignore
+    // addstream and MediaStreamEvent are deprecated
+    //@ts-expect-error MediaStreamEvent is not defined
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -1623,7 +1669,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
-    logger.error('Peer connection failure error, call is not recoverable. Handling reconnection according to keepConnectionAliveOnSocketClose option');
+    logger.error('Peer connection failure error');
   }
 
   private _onPeerConnectionSignalingStateClosed(data: any) {
@@ -1694,7 +1740,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
 
-    this.setState(State.New);
+    if (this._isRecovering) {
+      this.setState(State.Recovering);
+    } else {
+      this.setState(State.New);
+    }
     logger.info('New Call with Options:', this.options);
   }
 
@@ -1743,7 +1793,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             return;
           }
           if (binding.constraints) {
-            for (var key in binding.constraints) {
+            for (const key in binding.constraints) {
               if (
                 binding.constraints.hasOwnProperty(key) &&
                 binding.constraints[key] !== report[key]
@@ -1763,8 +1813,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
     switch (call._state) {
-      case State.Requesting:
       case State.Recovering:
+        call.state = 'recovering';
+        break;
+      case State.Requesting:
       case State.Trying:
       case State.Early:
         call.state = 'connecting';

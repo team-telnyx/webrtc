@@ -138,19 +138,11 @@ Custom ID to identify the call. This will be used as the `callID` in place of th
 
 • `Optional` **keepConnectionAliveOnSocketClose**: `boolean`
 
-**Optimistic** flag to attempt keeping the call alive when the WebSocket connection closes.
+**`Deprecated`**
 
-When enabled, the SDK will attempt to preserve the active call during brief network interruptions
-by re-attaching to the existing peer connection instead of hanging up when an `attach` message is received.
-
-**Important**: This is an _optimistic_ setting, not a deterministic guarantee.
-Recovery fails if the peer connection's `signalingState` transitions to `closed` (e.g., after device sleep),
-or if ICE restart was attempted due to connection failure. Check `call.signalingStateClosed` to determine
-if a call is recoverable.
-
-**`See`**
-
-IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior documentation
+Use only IClientOptions.keepConnectionAliveOnSocketClose
+By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
+when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
 
 ---
 
