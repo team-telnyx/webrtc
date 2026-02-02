@@ -45,6 +45,10 @@ export const NOTIFICATION_TYPE = {
   signalingStateClosed: 'signalingStateClosed',
 };
 
+export const ERROR_TYPE = {
+  invalidCredentialsOptions: 'InvalidCredentialsOptions',
+};
+
 export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   destinationNumber: '',
   remoteCallerName: 'Outbound Call',

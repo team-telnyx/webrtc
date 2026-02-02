@@ -379,12 +379,29 @@ client.on('telnyx.ready', () => {
 
 Authentication errors occur when the session credentials expire or become invalid. These are emitted via `telnyx.error`:
 
+**Example Handling:**
+
 ```javascript
 client.on('telnyx.error', (payload) => {
   if (payload.error?.code === -32001) {
     console.error('JWT authentication failed:', payload.error.message);
     // Prompt user to refresh their token or re-authenticate
     showErrorMessage('Session expired. Please log in again.');
+  }
+});
+```
+
+**Invalid Credentials Errors**
+
+Invalid credentials errors occur when the `login()` method is called with invalid credentials configuration. When this happens, the SDK emits a `telnyx.error` event with an `InvalidCredentialsOptions` error type.
+
+```javascript
+client.on('telnyx.error', ({ error, type, sessionId }) => {
+  if (type === ERROR_TYPE.invalidCredentialsOptions) {
+    console.error('Invalid login credentials configuration:', error.message);
+    showErrorMessage(
+      'Invalid login credentials. Please check your configuration.'
+    );
   }
 });
 ```
@@ -403,21 +420,21 @@ async function fetchNewToken() {
 
 // Function to re-authenticate with a new token
 async function reAuthenticate(client) {
-  try {
-    // 1. Disconnect the current session
-    await client.disconnect();
+  // 1. Fetch a new JWT token
+  const newToken = await fetchNewToken().catch(handleFetchError);
 
-    // 2. Fetch a new token from your backend
-    const newToken = await fetchNewToken();
-
-    // 3. Update the login token
-    client.options.login_token = newToken;
-
-    // 4. Reconnect with the new token
-    client.connect();
-  } catch (error) {
-    console.error('Re-authentication failed:', error);
-  }
+  // 2. Login with fresh JWT token
+  await client.login({
+    creds: {
+      login_token: newToken,
+    },
+    onSuccess: () => {
+      console.log('Re-authentication successful');
+    },
+    onError: (error) => {
+      console.error('Re-authentication error:', error);
+    },
+  });
 }
 
 // Listen for JWT authentication failures
