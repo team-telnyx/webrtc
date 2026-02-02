@@ -105,36 +105,6 @@ configuration (Inbound tab.)</p>
 <p>The corresponding HTML:</p>
 <pre><code class="language-html"><span class="hl-9">&lt;</span><span class="hl-10">audio</span><span class="hl-1"> </span><span class="hl-11">id</span><span class="hl-1">=</span><span class="hl-12">&quot;remoteMedia&quot;</span><span class="hl-1"> </span><span class="hl-11">autoplay</span><span class="hl-1">=</span><span class="hl-12">&quot;true&quot;</span><span class="hl-1"> </span><span class="hl-13">/</span><span class="hl-9">&gt;</span><br/><span class="hl-5">&lt;!-- or for video: --&gt;</span><br/><span class="hl-5">&lt;!-- &lt;video id=&quot;remoteMedia&quot; autoplay=&quot;true&quot; playsinline=&quot;true&quot; /&gt; --&gt;</span>
 </code><button>Copy</button></pre>
-<a id="md:keep-connection-alive-on-socket-close" class="tsd-anchor"></a><h4><a href="#md:keep-connection-alive-on-socket-close">Keep Connection Alive on Socket Close</a></h4><p>By default, when the websocket connection is closed and an <code>attach</code> message is received, the call will be hung up with a default cause.
-To attempt keeping the call alive when an <code>attach</code> message is received, pass <code>keepConnectionAliveOnSocketClose</code>:</p>
-<pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">client</span><span class="hl-1"> = </span><span class="hl-0">new</span><span class="hl-1"> </span><span class="hl-4">TelnyxRTC</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-3">keepConnectionAliveOnSocketClose:</span><span class="hl-1"> </span><span class="hl-0">true</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
-</code><button>Copy</button></pre>
-<p><strong>Important</strong>: This is an <strong>optimistic</strong> setting, not a deterministic guarantee. Call recovery depends on
-the state of the underlying WebRTC peer connection at the time of reconnection.</p>
-<p><strong>When recovery succeeds</strong>:</p>
-<ul>
-<li>The peer connection&#39;s <code>signalingState</code> is NOT <code>closed</code></li>
-<li>The peer connection instance still exists</li>
-<li>ICE restart was not triggered due to connection failure</li>
-</ul>
-<p><strong>When recovery fails</strong> (call will be hung up and recreated):</p>
-<ul>
-<li>The peer connection&#39;s <code>connectionState</code> transitions to <code>failed</code></li>
-<li>Device sleep caused the peer connection&#39;s <code>signalingState</code> to transition to <code>closed</code></li>
-<li>The peer connection instance was destroyed by the browser</li>
-</ul>
-<p><strong>Fallback behavior</strong>: When recovery is not possible, the SDK automatically recreates the call:</p>
-<ul>
-<li>If ICE restart was attempted: sends a new INVITE with a new call ID</li>
-<li>For other failures: answers the ATTACH with the same call ID</li>
-<li>In both cases, a <code>callUpdate</code> notification is dispatched so your UI can update</li>
-</ul>
-<p><strong>Monitoring connection health</strong>: Subscribe to <code>telnyx.notification</code> to detect and handle connection issues:</p>
-<pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">on</span><span class="hl-1">(</span><span class="hl-6">&#39;telnyx.notification&#39;</span><span class="hl-1">, (</span><span class="hl-3">notification</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">// Primary event - fires when connectionState goes to &#39;failed&#39;</span><br/><span class="hl-1">  </span><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">notification</span><span class="hl-1">.</span><span class="hl-3">type</span><span class="hl-1"> === </span><span class="hl-6">&#39;peerConnectionFailureError&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-6">&#39;Connection failed, ICE restart will be attempted&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">    </span><span class="hl-5">// The SDK will attempt ICE restart automatically</span><br/><span class="hl-1">  }</span><br/><br/><span class="hl-1">  </span><span class="hl-5">// Fires when signalingState transitions to &#39;closed&#39;</span><br/><span class="hl-1">  </span><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">notification</span><span class="hl-1">.</span><span class="hl-3">type</span><span class="hl-1"> === </span><span class="hl-6">&#39;signalingStateClosed&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-6">&#39;Signaling state closed, call will be recreated&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-5">// You can also check the property directly on the call</span><br/><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">call</span><span class="hl-1">.</span><span class="hl-3">signalingStateClosed</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-3">console</span><span class="hl-1">.</span><span class="hl-4">log</span><span class="hl-1">(</span><span class="hl-6">&#39;This call cannot be recovered&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">}</span>
-</code><button>Copy</button></pre>
-<blockquote>
-<p>Note: If client using this option is switching networks and there are new network restrictions, combine this option with <code>iceServers</code> overrides and <code>forceRelayCandidate</code> to ensure connectivity on signaling.</p>
-</blockquote>
 </div><aside class="tsd-sources">
 <p>Overrides TelnyxRTCClient.constructor</p></aside></li></ul></section></section>
 <section class="tsd-panel-group tsd-member-group">
@@ -850,10 +820,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#md:custom-ringtone-and-ringback"><span>Custom ringtone and ringback</span></a></li>
 <li>
 <ul>
-<li><a href="#md:to-hearview-calls-in-the-browser-you39ll-need-to-specify-an-html-media-element"><span>To hear/view calls in the browser, you&#39;ll need to specify an HTML media element:</span></a></li>
-<li>
-<ul>
-<li><a href="#md:keep-connection-alive-on-socket-close"><span>Keep <wbr/>Connection <wbr/>Alive on <wbr/>Socket <wbr/>Close</span></a></li></ul></li></ul></li></ul></li>
+<li><a href="#md:to-hearview-calls-in-the-browser-you39ll-need-to-specify-an-html-media-element"><span>To hear/view calls in the browser, you&#39;ll need to specify an HTML media element:</span></a></li></ul></li></ul></li>
 <li><a href="#connected" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>connected</span></a></li>
 <li><a href="#localElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a></li>
 <li><a href="#mediaConstraints" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a></li>

@@ -43,7 +43,7 @@
 <a href="ICallOptions.html#forceRelayCandidate" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>force<wbr/>Relay<wbr/>Candidate?</span></a>
 <a href="ICallOptions.html#iceServers" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ice<wbr/>Servers?</span></a>
 <a href="ICallOptions.html#id" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>id?</span></a>
-<a href="ICallOptions.html#keepConnectionAliveOnSocketClose" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close?</span></a>
+<a href="ICallOptions.html#keepConnectionAliveOnSocketClose" class="tsd-index-link deprecated"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close?</span></a>
 <a href="ICallOptions.html#localElement" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>local<wbr/>Element?</span></a>
 <a href="ICallOptions.html#localStream" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>local<wbr/>Stream?</span></a>
 <a href="ICallOptions.html#mediaSettings" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>media<wbr/>Settings?</span></a>
@@ -144,18 +144,12 @@
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
 <section class="tsd-panel tsd-member"><a id="keepConnectionAliveOnSocketClose" class="tsd-anchor"></a>
-<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span><a href="#keepConnectionAliveOnSocketClose" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span class="deprecated">keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span><a href="#keepConnectionAliveOnSocketClose" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
-<div class="tsd-comment tsd-typography"><p><strong>Optimistic</strong> flag to attempt keeping the call alive when the WebSocket connection closes.</p>
-<p>When enabled, the SDK will attempt to preserve the active call during brief network interruptions
-by re-attaching to the existing peer connection instead of hanging up when an <code>attach</code> message is received.</p>
-<p><strong>Important</strong>: This is an <em>optimistic</em> setting, not a deterministic guarantee.
-Recovery fails if the peer connection&#39;s <code>signalingState</code> transitions to <code>closed</code> (e.g., after device sleep),
-or if ICE restart was attempted due to connection failure. Check <code>call.signalingStateClosed</code> to determine
-if a call is recoverable.</p>
-</div>
 <div class="tsd-comment tsd-typography">
-<h4>See</h4><p>IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior documentation</p>
+<h4>Deprecated</h4><p>Use only IClientOptions.keepConnectionAliveOnSocketClose
+By passing <code>keepConnectionAliveOnSocketClose</code> as <code>true</code>, the SDK will attempt to keep Peer connection alive
+when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).</p>
 </div></section>
 <section class="tsd-panel tsd-member"><a id="localElement" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>local<wbr/>Element</span><a href="#localElement" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>

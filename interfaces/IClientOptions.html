@@ -114,62 +114,10 @@ This will gather WebRTC debugging information.</p>
 <section class="tsd-panel tsd-member"><a id="keepConnectionAliveOnSocketClose" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span><a href="#keepConnectionAliveOnSocketClose" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
-<div class="tsd-comment tsd-typography"><p><strong>Optimistic</strong> flag to attempt keeping the call alive when the WebSocket connection closes.</p>
-<p>When enabled, the SDK will attempt to preserve the active call during brief network interruptions
-(e.g., network offline, switching networks, device sleep/wake cycles) by re-attaching to the existing peer connection
-instead of hanging up when an <code>attach</code> message is received.</p>
-<p><strong>Important</strong>: This is an <em>optimistic</em> setting, not a deterministic guarantee. Recovery depends on
-the state of the underlying WebRTC peer connection:</p>
-<ul>
-<li><p><strong>Recovery succeeds</strong> when:</p>
-<ul>
-<li>The peer connection&#39;s <code>signalingState</code> is NOT <code>closed</code></li>
-<li>The peer connection instance still exists</li>
-<li>ICE restart was not triggered due to connection failure</li>
-</ul>
-</li>
-<li><p><strong>Recovery fails</strong> (call will be hung up and recreated) when:</p>
-<ul>
-<li>The peer connection&#39;s <code>connectionState</code> transitions to <code>failed</code></li>
-<li>The peer connection&#39;s <code>signalingState</code> transitions to <code>closed</code> (e.g., after device sleep)</li>
-<li>The peer connection instance was destroyed</li>
-</ul>
-</li>
-</ul>
-<p><strong>Fallback Behavior</strong>: When recovery is not possible, the SDK automatically falls back to recreating
-the call. The fallback process depends on the failure scenario:</p>
-<ol>
-<li><p><strong>If ICE restart was attempted</strong> (connectionState went to <code>failed</code>):</p>
-<ul>
-<li>The SDK hangs up the existing call and sends a BYE message</li>
-<li>A new call instance is created with a <strong>new call ID</strong></li>
-<li>The SDK sends a new INVITE to re-establish the call as the active leg</li>
-</ul>
-</li>
-<li><p><strong>For all other unrecoverable states</strong> (signalingState <code>closed</code>, peer destroyed):</p>
-<ul>
-<li>The SDK hangs up the existing call (no BYE sent since connection is dead)</li>
-<li>A new call instance is created with the <strong>same call ID</strong></li>
-<li>The SDK answers the incoming ATTACH to re-establish the call</li>
-</ul>
-</li>
-</ol>
-<p><strong>Monitoring Connection Health</strong>: Subscribe to these events to detect connection issues:</p>
-<ul>
-<li><p><code>telnyx.rtc.peerConnectionFailureError</code> - <strong>Primary event</strong>. Fires when <code>connectionState</code> goes to <code>failed</code>.
-This indicates the ICE/DTLS transport failed and recovery will be attempted via ICE restart.</p>
-</li>
-<li><p><code>telnyx.rtc.peerConnectionSignalingStateClosed</code> - Fires when <code>signalingState</code> transitions to <code>closed</code>.
-Check <code>call.signalingStateClosed</code> to verify recoverability.</p>
-</li>
-</ul>
-<p>In both cases, if <code>autoRecoverCalls</code> is enabled (default: <code>true</code>), the fallback is automatic
-and seamless. The call&#39;s state transitions through the normal flow and a <code>callUpdate</code> notification
-is dispatched so your UI can update accordingly.</p>
+<div class="tsd-comment tsd-typography"><p>By passing <code>keepConnectionAliveOnSocketClose</code> as <code>true</code>, the SDK will attempt to keep Peer connection alive
+when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).</p>
 </div>
-<div class="tsd-comment tsd-typography">
-<h4>See</h4><p><a href="https://developers.telnyx.com/docs/voice/webrtc/js-sdk/error-handling">Error Handling Documentation</a></p>
-</div></section>
+<div class="tsd-comment tsd-typography"></div></section>
 <section class="tsd-panel tsd-member"><a id="login" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>login</span><a href="#login" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">login</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
