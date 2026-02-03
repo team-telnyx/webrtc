@@ -285,6 +285,20 @@ export default class Peer {
       }
     }
 
+    // Restart debug reporter when connection is re-established after disconnection
+    if (connectionState === 'connected' && this._prevConnectionState !== 'connected') {
+      if (this.isDebugEnabled && this.statsReporter && !this.statsReporter.isRunning) {
+        logger.debug(
+          `[${this.options.id}] Restarting stats reporter after connection re-established`
+        );
+        await this.statsReporter.start(
+          this.instance,
+          this._session.sessionid,
+          this._session.sessionid
+        );
+      }
+    }
+
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
