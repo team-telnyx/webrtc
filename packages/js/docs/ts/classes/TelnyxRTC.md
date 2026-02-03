@@ -800,8 +800,6 @@ and immediately re-authenticates without requiring a full socket reconnection. T
 
 `Promise`\<`void`\>
 
-Promise<void>
-
 **`Example`**
 
 **Re-authenticate with existing credentials:**
