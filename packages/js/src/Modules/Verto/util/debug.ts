@@ -239,48 +239,31 @@ export function createWebRTCStatsReporter(
       isRunning = true;
     } catch (error) {
       logger.error(`[${callID}] Failed to start stats reporter:`, error);
-      // Attempt cleanup on failure
-      try {
-        stats.removeAllPeers();
-      } catch (cleanupError) {
-        logger.error(`[${callID}] Failed to cleanup after start error:`, cleanupError);
-      }
-      throw error;
+      stats.removeAllPeers();
+      stats.destroy();
     }
   };
 
   const stop = async (debugOutput: string) => {
-    const wasRunning = isRunning;
-
-    if (wasRunning) {
-      // Emit final report and save to file if needed
-      try {
-        const timeline = stats.getTimeline();
-        trigger(SwEvent.StatsReport, timeline, session.uuid);
-        if (debugOutput === 'file') {
-          const filename = `webrtc-stats-${reportId}-${Date.now()}`;
-          saveToFile(timeline, filename);
-        }
-      } catch (error) {
-        logger.error(`[${callID}] Error getting timeline:`, error);
-      }
-
-      await session.execute(new DebugReportStopMessage(reportId, callID));
+    // Emit final report
+    const timeline = stats.getTimeline();
+    trigger(SwEvent.StatsReport, timeline, session.uuid);
+    if (debugOutput === 'file') {
+      const filename = `webrtc-stats-${reportId}-${Date.now()}`;
+      saveToFile(timeline, filename);
     }
 
-    // Always cleanup library state to prevent orphaned intervals
-    try {
-      stats.removeAllPeers();
-      stats.destroy();
-    } catch (error) {
-      logger.error(`[${callID}] Error during stats cleanup:`, error);
+    await session.execute(new DebugReportStopMessage(reportId, callID));
+
+    // Remove listener and cleanup library state
+    if (listenerRegistered) {
+      stats.off('timeline', onTimelineMessage);
+      listenerRegistered = false;
     }
 
+    stats.removeAllPeers();
+    stats.destroy();
     isRunning = false;
-
-    if (!wasRunning) {
-      logger.debug(`[${callID}] Stats reporter was already stopped, forced cleanup performed`);
-    }
   };
 
   const reportConnectionStateChange = (details: ConnectionStateDetails) => {

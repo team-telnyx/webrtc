@@ -270,17 +270,6 @@ export default class Peer {
       } -> ${connectionState}`
     );
 
-    // Stop debug reporter only when peer connection is definitively closed
-    // Don't stop on 'disconnected' or 'failed' as these may recover
-    if (connectionState === 'closed') {
-      if (this.isDebugEnabled && this.statsReporter) {
-        logger.debug(
-          `[${this.options.id}] Stopping stats reporter due to connection closed`
-        );
-        await this.statsReporter.stop(this.debugOutput);
-      }
-    }
-
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       const onConnectionOnline = async () => {
