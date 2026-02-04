@@ -193,6 +193,7 @@ export function createWebRTCStatsReporter(
 ): WebRTCStatsReporter {
   const reportId = uuid();
   let isRunning = false;
+  let listenerRegistered = false;
 
   const stats = new WebRTCStats({
     getStatsInterval: POLL_INTERVAL,
@@ -220,33 +221,66 @@ export function createWebRTCStatsReporter(
       logger.debug(`[${callID}] Stats reporter already running, skipping start`);
       return;
     }
-    await session.execute(new DebugReportStartMessage(reportId, callID));
-    stats.on('timeline', onTimelineMessage);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    stats.addConnection({
-      pc: peerConnection,
-      peerId,
-      connectionId,
-    });
-    isRunning = true;
+    await session.execute(new DebugReportStartMessage(reportId, callID));
+
+    // Register listener only once per reporter instance
+    if (!listenerRegistered) {
+      stats.on('timeline', onTimelineMessage);
+      listenerRegistered = true;
+    }
+
+    try {
+      await stats.addConnection({
+        pc: peerConnection,
+        peerId,
+        connectionId,
+      });
+      isRunning = true;
+    } catch (error) {
+      logger.error(`[${callID}] Failed to start stats reporter:`, error);
+      // Attempt cleanup on failure
+      try {
+        stats.removeAllPeers();
+      } catch (cleanupError) {
+        logger.error(`[${callID}] Failed to cleanup after start error:`, cleanupError);
+      }
+      throw error;
+    }
   };
 
   const stop = async (debugOutput: string) => {
-    if (!isRunning) {
-      logger.debug(`[${callID}] Stats reporter already stopped, skipping stop`);
-      return;
+    const wasRunning = isRunning;
+
+    if (wasRunning) {
+      // Emit final report and save to file if needed
+      try {
+        const timeline = stats.getTimeline();
+        trigger(SwEvent.StatsReport, timeline, session.uuid);
+        if (debugOutput === 'file') {
+          const filename = `webrtc-stats-${reportId}-${Date.now()}`;
+          saveToFile(timeline, filename);
+        }
+      } catch (error) {
+        logger.error(`[${callID}] Error getting timeline:`, error);
+      }
+
+      await session.execute(new DebugReportStopMessage(reportId, callID));
     }
-    const timeline = stats.getTimeline();
-    trigger(SwEvent.StatsReport, timeline, session.uuid);
-    if (debugOutput === 'file') {
-      const filename = `webrtc-stats-${reportId}-${Date.now()}`;
-      saveToFile(timeline, filename);
+
+    // Always cleanup library state to prevent orphaned intervals
+    try {
+      stats.removeAllPeers();
+      stats.destroy();
+    } catch (error) {
+      logger.error(`[${callID}] Error during stats cleanup:`, error);
     }
-    await session.execute(new DebugReportStopMessage(reportId, callID));
-    stats.removeAllPeers();
-    stats.destroy();
+
     isRunning = false;
+
+    if (!wasRunning) {
+      logger.debug(`[${callID}] Stats reporter was already stopped, forced cleanup performed`);
+    }
   };
 
   const reportConnectionStateChange = (details: ConnectionStateDetails) => {
