@@ -485,7 +485,7 @@ Your handler receives the raw `CloseEvent`. Key fields you can rely on:
   - `1005`: No status code present. Browsers surface it when the peer omits a status code entirely or the connection drops unexpectedly.
   - `1006`: Abnormal closure observed by the browser when the TCP socket drops without a close frame.
   - `1011`: Internal error raised by the voice proxy.
-  - `4014`: Gateway down. The upstream gateway reported a `DOWN` state. The SDK will auto-reconnect, but you can use this code to show appropriate UI feedback (e.g., "Reconnecting...").
+  - `4014`: Gateway down. The upstream gateway reported a `DOWN` state. The SDK will auto-reconnect.
 - `event.reason` - string provided by Cowboy when additional context is available.
 - `event.wasClean` - `true` when the browser confirms the close handshake completed cleanly.
 
