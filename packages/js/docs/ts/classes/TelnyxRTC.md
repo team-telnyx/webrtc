@@ -63,6 +63,7 @@ client.off('telnyx.notification');
 - [getAudioOutDevices](#getaudiooutdevices)
 - [getDeviceResolutions](#getdeviceresolutions)
 - [getDevices](#getdevices)
+- [getIsRegistered](#getisregistered)
 - [getVideoDevices](#getvideodevices)
 - [handleLoginError](#handleloginerror)
 - [login](#login)
@@ -707,6 +708,52 @@ client.getDevices().then((result) => {
 #### Inherited from
 
 TelnyxRTCClient.getDevices
+
+---
+
+### getIsRegistered
+
+▸ **getIsRegistered**(): `Promise`\<`boolean`\>
+
+Checks if the client is currently registered with the Telnyx backend.
+
+This method queries the gateway state and returns `true` if the client is in a `REGISTER` or `REGED` state, meaning it can make and receive calls.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+Promise that resolves to `true` if registered, `false` otherwise
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function checkRegistration() {
+  const client = new TelnyxRTC(options);
+  client.connect();
+
+  const isRegistered = await client.getIsRegistered();
+  if (isRegistered) {
+    console.log('Client is registered and ready for calls');
+  } else {
+    console.log('Client is not registered');
+  }
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getIsRegistered().then((isRegistered) => {
+  console.log('Registration status:', isRegistered);
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.getIsRegistered
 
 ---
 
