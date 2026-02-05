@@ -1,0 +1,4 @@
+project:
+  squad: webrtc.squad
+  primary_maintainer: lucasassisrosa
+  secondary_maintainer: ArtemPapazian
