@@ -53,6 +53,7 @@ export interface IVertoOptions {
   mutedMicOnStart?: boolean;
   /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
+   * When enabled, collects WebRTC stats and debug logs during calls.
    * @default true
    */
   enableCallReports?: boolean;
@@ -61,6 +62,16 @@ export interface IVertoOptions {
    * @default 5000 (5 seconds)
    */
   callReportInterval?: number;
+  /**
+   * Minimum log level to capture for call reports.
+   * @default 'debug'
+   */
+  debugLogLevel?: 'debug' | 'info' | 'warn' | 'error';
+  /**
+   * Maximum number of log entries to buffer per call.
+   * @default 1000
+   */
+  debugLogMaxEntries?: number;
 }
 export interface SubscribeParams {
   channels?: string[];

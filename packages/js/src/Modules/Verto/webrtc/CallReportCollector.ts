@@ -13,10 +13,23 @@
  */
 
 import logger from '../../../Modules/Verto/util/logger';
+import { 
+  LogCollector, 
+  ILogEntry, 
+  createLogCollector,
+  setGlobalLogCollector,
+  getGlobalLogCollector 
+} from '../../../Modules/Verto/util/LogCollector';
 
 export interface ICallReportOptions {
   enabled: boolean;
   interval: number;
+}
+
+export interface ILogCollectorOptions {
+  enabled: boolean;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  maxEntries: number;
 }
 
 export interface IStatsInterval {
@@ -65,16 +78,19 @@ export interface ICallSummary {
 export interface ICallReportPayload {
   summary: ICallSummary;
   stats: IStatsInterval[];
+  logs?: ILogEntry[];
 }
 
 export class CallReportCollector {
   private options: ICallReportOptions;
+  private logCollectorOptions: ILogCollectorOptions;
   private peerConnection: RTCPeerConnection | null = null;
   private intervalId: any = null;
   private statsBuffer: IStatsInterval[] = [];
   private intervalStartTime: Date | null = null;
   private callStartTime: Date;
   private callEndTime: Date | null = null;
+  private logCollector: LogCollector | null = null;
 
   // Accumulated values for averaging within an interval
   private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
@@ -101,9 +117,20 @@ export class CallReportCollector {
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
 
-  constructor(options: ICallReportOptions) {
+  constructor(options: ICallReportOptions, logCollectorOptions?: ILogCollectorOptions) {
     this.options = options;
+    this.logCollectorOptions = logCollectorOptions || {
+      enabled: false,
+      level: 'debug',
+      maxEntries: 1000,
+    };
     this.callStartTime = new Date();
+
+    // Create log collector if enabled
+    if (this.logCollectorOptions.enabled) {
+      this.logCollector = createLogCollector(this.logCollectorOptions);
+      setGlobalLogCollector(this.logCollector);
+    }
   }
 
   /**
@@ -117,9 +144,19 @@ export class CallReportCollector {
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
 
-    logger.info('CallReportCollector: Starting stats collection', {
-      interval: this.options.interval,
-    });
+    // Start log collector if enabled
+    if (this.logCollector) {
+      this.logCollector.start();
+      logger.info('CallReportCollector: Starting stats and log collection', {
+        interval: this.options.interval,
+        logLevel: this.logCollectorOptions.level,
+        maxLogEntries: this.logCollectorOptions.maxEntries,
+      });
+    } else {
+      logger.info('CallReportCollector: Starting stats collection', {
+        interval: this.options.interval,
+      });
+    }
 
     this.intervalId = setInterval(() => {
       this._collectStats();
@@ -142,8 +179,15 @@ export class CallReportCollector {
       this._collectStats();
     }
 
+    // Stop log collector
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    if (this.logCollector) {
+      this.logCollector.stop();
+    }
+
     logger.info('CallReportCollector: Stopped stats collection', {
       totalIntervals: this.statsBuffer.length,
+      totalLogs: logCount,
       duration: this.callEndTime.getTime() - this.callStartTime.getTime(),
     });
   }
@@ -161,6 +205,9 @@ export class CallReportCollector {
       return;
     }
 
+    // Get collected logs
+    const logs = this.logCollector?.getLogs();
+
     // Build the report payload
     const payload: ICallReportPayload = {
       summary: {
@@ -173,6 +220,7 @@ export class CallReportCollector {
         endTimestamp: this.callEndTime?.toISOString(),
       },
       stats: this.statsBuffer,
+      ...(logs && logs.length > 0 ? { logs } : {}),
     };
 
     try {
@@ -182,6 +230,7 @@ export class CallReportCollector {
       logger.info('CallReportCollector: Posting report', {
         endpoint,
         intervals: this.statsBuffer.length,
+        logEntries: logs?.length ?? 0,
         callId: summary.callId,
       });
 
@@ -220,6 +269,27 @@ export class CallReportCollector {
    */
   public getStatsBuffer(): IStatsInterval[] {
     return this.statsBuffer;
+  }
+
+  /**
+   * Get the collected logs (for debugging)
+   */
+  public getLogs(): ILogEntry[] {
+    return this.logCollector?.getLogs() ?? [];
+  }
+
+  /**
+   * Clean up resources (call after postReport)
+   */
+  public cleanup(): void {
+    if (this.logCollector) {
+      this.logCollector.clear();
+      // Clear global reference if it points to this collector
+      if (getGlobalLogCollector() === this.logCollector) {
+        setGlobalLogCollector(null);
+      }
+      this.logCollector = null;
+    }
   }
 
   /**

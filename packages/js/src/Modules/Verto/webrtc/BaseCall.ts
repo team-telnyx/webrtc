@@ -1702,17 +1702,26 @@ export default abstract class BaseCall implements IWebRTCCall {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
 
-    // Initialize call report collector
+    // Initialize call report collector (stats + debug logs)
     const enableCallReports =
       this.session.options.enableCallReports !== false; // Default: true
     const callReportInterval =
       this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const debugLogLevel = this.session.options.debugLogLevel || 'debug';
+    const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
     if (enableCallReports) {
-      this._callReportCollector = new CallReportCollector({
-        enabled: true,
-        interval: callReportInterval,
-      });
+      this._callReportCollector = new CallReportCollector(
+        {
+          enabled: true,
+          interval: callReportInterval,
+        },
+        {
+          enabled: true, // Debug logs enabled when call reports are enabled
+          level: debugLogLevel,
+          maxEntries: debugLogMaxEntries,
+        }
+      );
     }
 
     this.setState(State.New);
@@ -1778,6 +1787,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       .postReport(summary, callReportId, host, voiceSdkId)
       .catch((error) => {
         logger.error('Failed to post call report', { error });
+      })
+      .finally(() => {
+        // Clean up log collector resources
+        this._callReportCollector?.cleanup();
       });
   }
 
