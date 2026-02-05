@@ -188,18 +188,6 @@ class VertoHandler {
         }
 
         /**
-         * If there is existing call and peer connection is alive, we can reuse the existing call.
-         */
-        if (isPeerConnectionAlive) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] keeping existing call alive on ATTACH due to healthy peer connection.`
-          );
-          existingCall.handleMessage(msg);
-          this._ack(id, method);
-          return;
-        }
-
-        /**
          * We call our recovery flow with recovering call state during the call lifecycle.
          */
         const isRecovering = !!existingCall;
