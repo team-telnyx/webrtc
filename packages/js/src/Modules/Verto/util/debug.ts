@@ -217,33 +217,40 @@ export function createWebRTCStatsReporter(
     connectionId: string
   ) => {
     if (isRunning) {
-      logger.debug(`[${callID}] Stats reporter already running, skipping start`);
+      logger.debug(
+        `[${callID}] Stats reporter already running, skipping start`
+      );
       return;
     }
+
     await session.execute(new DebugReportStartMessage(reportId, callID));
     stats.on('timeline', onTimelineMessage);
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    stats.addConnection({
-      pc: peerConnection,
-      peerId,
-      connectionId,
-    });
-    isRunning = true;
+    try {
+      await stats.addConnection({
+        pc: peerConnection,
+        peerId,
+        connectionId,
+      });
+      isRunning = true;
+    } catch (error) {
+      logger.error(`[${callID}] Failed to start stats reporter:`, error);
+      stats.removeAllPeers();
+      stats.destroy();
+    }
   };
 
   const stop = async (debugOutput: string) => {
-    if (!isRunning) {
-      logger.debug(`[${callID}] Stats reporter already stopped, skipping stop`);
-      return;
-    }
+    // Emit final report
     const timeline = stats.getTimeline();
     trigger(SwEvent.StatsReport, timeline, session.uuid);
     if (debugOutput === 'file') {
       const filename = `webrtc-stats-${reportId}-${Date.now()}`;
       saveToFile(timeline, filename);
     }
+
     await session.execute(new DebugReportStopMessage(reportId, callID));
+
     stats.removeAllPeers();
     stats.destroy();
     isRunning = false;

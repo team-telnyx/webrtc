@@ -115,6 +115,9 @@ export default abstract class BaseSession {
     if (!this.connected) {
       return new Promise((resolve) => {
         this._executeQueue.push({ resolve, msg });
+        logger.debug(
+          'Calling connect from execute since not currently connected.'
+        );
         this.connect();
       });
     }
@@ -253,17 +256,17 @@ export default abstract class BaseSession {
    */
   async connect(): Promise<void> {
     if (!this.connection) {
+      logger.debug('No existing connection found, creating a new one.');
       this.connection = new Connection(this);
     }
 
     this._attachListeners();
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
+      logger.debug('Initiating connection to the server...');
       this.connection.connect();
     }
-    logger.debug(
-      'Session connected. Connection initiated if not already alive. Auto-reconnect enabled.'
-    );
+    logger.debug('Connect method called. Connection initiated.');
   }
 
   /**
@@ -457,10 +460,12 @@ export default abstract class BaseSession {
     clearTimeout(this._keepAliveTimeout);
 
     if (this._autoReconnect) {
-      this._reconnectTimeout = setTimeout(
-        () => this.connect(),
-        this.reconnectDelay
-      );
+      this._reconnectTimeout = setTimeout(() => {
+        logger.debug(
+          'Calling connect due to network close and auto-reconnect enabled.'
+        );
+        this.connect();
+      }, this.reconnectDelay);
     }
   }
 

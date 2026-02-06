@@ -105,10 +105,10 @@ describe('VertoHandler', () => {
       done();
     });
 
-    describe('verto.media', () => {
+    describe('telnyx_rtc.media', () => {
       it('should pass the msg to the call and reply back to the server', () => {
         const msg = JSON.parse(
-          '{"jsonrpc":"2.0","id":4403,"method":"verto.media","params":{"callID":"e2fda6dc-fc9d-4d77-8096-53bb502443b6","sdp":"<REMOTE-SDP>"}}'
+          '{"jsonrpc":"2.0","id":4403,"method":"telnyx_rtc.media","params":{"callID":"e2fda6dc-fc9d-4d77-8096-53bb502443b6","sdp":"<REMOTE-SDP>"}}'
         );
         handler.handleMessage(msg);
         expect(call.handleMessage).toBeCalledTimes(1);
@@ -116,7 +116,7 @@ describe('VertoHandler', () => {
           request: {
             jsonrpc: '2.0',
             id: 4403,
-            result: { method: 'verto.media' },
+            result: { method: 'telnyx_rtc.media' },
           },
         });
       });
