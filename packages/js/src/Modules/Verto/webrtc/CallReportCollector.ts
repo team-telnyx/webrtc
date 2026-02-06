@@ -266,7 +266,7 @@ export class CallReportCollector {
 
     try {
       const wsUrl = new URL(host);
-      const endpoint = `${wsUrl.protocol.replace('ws', 'http')}//${wsUrl.host}/call_report`;
+      const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
       logger.info('CallReportCollector: Posting report', {
         endpoint,
