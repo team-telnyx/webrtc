@@ -1031,26 +1031,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._onRemoteSdp(params.sdp);
         break;
       }
-      case VertoMethod.Attach: {
-        /**
-         * Guard that this is only for a case when we get Attach message while connectionState is connected
-         * Server expect the Attach message always to be answered with the Attach message with SDP
-         * In that case we can send Attach message with the same SDP
-         */
-        if (this.peer?.isConnectionHealthy()) {
-          const localDescription = this.peer?.instance?.localDescription;
-          const attach = new Attach({
-            sessid: this.session.sessionid,
-            sdp: localDescription,
-            dialogParams: this.options,
-            'User-Agent': `Web-${SDK_VERSION}`,
-          });
-          this.session.execute(attach);
-          this.peer?.restartStatsReporter();
-          return;
-        }
-        break;
-      }
       case VertoMethod.Display: {
         // TODO: manage caller_id_name, caller_id_number, callee_id_name, callee_id_number
         const {
