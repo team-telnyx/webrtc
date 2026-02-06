@@ -13,13 +13,45 @@
  */
 
 import logger from '../../../Modules/Verto/util/logger';
-import { 
-  LogCollector, 
-  ILogEntry, 
+import {
+  LogCollector,
+  ILogEntry,
   createLogCollector,
   setGlobalLogCollector,
-  getGlobalLogCollector 
+  getGlobalLogCollector,
 } from '../../../Modules/Verto/util/LogCollector';
+
+/**
+ * Extended RTCInboundRtpStreamStats with additional audio quality metrics
+ * not yet in the standard TypeScript definitions
+ */
+interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
+  trackId?: string;
+  bytesReceived?: number;
+  packetsDiscarded?: number;
+  jitterBufferDelay?: number;
+  jitterBufferEmittedCount?: number;
+  totalSamplesReceived?: number;
+  concealedSamples?: number;
+  concealmentEvents?: number;
+}
+
+/**
+ * Extended RTCOutboundRtpStreamStats
+ */
+interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
+  trackId?: string;
+}
+
+/**
+ * Extended RTCIceCandidatePairStats
+ */
+interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
+  packetsSent?: number;
+  packetsReceived?: number;
+  bytesSent?: number;
+  bytesReceived?: number;
+}
 
 export interface ICallReportOptions {
   enabled: boolean;
@@ -46,6 +78,12 @@ export interface IStatsInterval {
       packetsReceived?: number;
       bytesReceived?: number;
       packetsLost?: number;
+      packetsDiscarded?: number;
+      jitterBufferDelay?: number;
+      jitterBufferEmittedCount?: number;
+      totalSamplesReceived?: number;
+      concealedSamples?: number;
+      concealmentEvents?: number;
       audioLevelAvg?: number;
       jitterAvg?: number;
       bitrateAvg?: number;
@@ -85,7 +123,7 @@ export class CallReportCollector {
   private options: ICallReportOptions;
   private logCollectorOptions: ILogCollectorOptions;
   private peerConnection: RTCPeerConnection | null = null;
-  private intervalId: any = null;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
   private statsBuffer: IStatsInterval[] = [];
   private intervalStartTime: Date | null = null;
   private callStartTime: Date;
@@ -117,7 +155,10 @@ export class CallReportCollector {
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
 
-  constructor(options: ICallReportOptions, logCollectorOptions?: ILogCollectorOptions) {
+  constructor(
+    options: ICallReportOptions,
+    logCollectorOptions?: ILogCollectorOptions
+  ) {
     this.options = options;
     this.logCollectorOptions = logCollectorOptions || {
       enabled: false,
@@ -305,25 +346,28 @@ export class CallReportCollector {
       const now = new Date();
 
       // Process stats reports
-      let outboundAudio: RTCOutboundRtpStreamStats | null = null;
-      let inboundAudio: RTCInboundRtpStreamStats | null = null;
-      let candidatePair: RTCIceCandidatePairStats | null = null;
+      let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
+      let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
+      let candidatePair: ExtendedCandidatePairStats | null = null;
 
       stats.forEach((report) => {
         switch (report.type) {
           case 'outbound-rtp':
             if (report.kind === 'audio' && report.mediaType === 'audio') {
-              outboundAudio = report as RTCOutboundRtpStreamStats;
+              outboundAudio = report as ExtendedOutboundRtpStreamStats;
             }
             break;
           case 'inbound-rtp':
             if (report.kind === 'audio' && report.mediaType === 'audio') {
-              inboundAudio = report as RTCInboundRtpStreamStats;
+              inboundAudio = report as ExtendedInboundRtpStreamStats;
             }
             break;
           case 'candidate-pair':
-            if ((report as any).nominated || (report as any).state === 'succeeded') {
-              candidatePair = report as RTCIceCandidatePairStats;
+            if (
+              (report as ExtendedCandidatePairStats).nominated ||
+              (report as ExtendedCandidatePairStats).state === 'succeeded'
+            ) {
+              candidatePair = report as ExtendedCandidatePairStats;
             }
             break;
         }
@@ -333,7 +377,7 @@ export class CallReportCollector {
       if (outboundAudio) {
         const audioLevel = this._getTrackAudioLevel(
           stats,
-          (outboundAudio as any).trackId
+          outboundAudio.trackId
         );
         if (audioLevel !== null) {
           this.intervalAudioLevels.outbound.push(audioLevel);
@@ -347,7 +391,7 @@ export class CallReportCollector {
           const bytesDelta =
             (outboundAudio.bytesSent || 0) - this.previousStats.outboundBytes;
           const timeDelta =
-            ((outboundAudio as any).timestamp || now.getTime()) -
+            (outboundAudio.timestamp || now.getTime()) -
             this.previousStats.timestamp;
           if (timeDelta > 0) {
             const bitrate = (bytesDelta * 8 * 1000) / timeDelta; // bps
@@ -358,7 +402,10 @@ export class CallReportCollector {
       }
 
       if (inboundAudio) {
-        const audioLevel = this._getTrackAudioLevel(stats, (inboundAudio as any).trackId);
+        const audioLevel = this._getTrackAudioLevel(
+          stats,
+          inboundAudio.trackId
+        );
         if (audioLevel !== null) {
           this.intervalAudioLevels.inbound.push(audioLevel);
         }
@@ -374,16 +421,16 @@ export class CallReportCollector {
           this.previousStats.timestamp !== undefined
         ) {
           const bytesDelta =
-            ((inboundAudio as any).bytesReceived || 0) - this.previousStats.inboundBytes;
+            (inboundAudio.bytesReceived || 0) - this.previousStats.inboundBytes;
           const timeDelta =
-            ((inboundAudio as any).timestamp || now.getTime()) -
+            (inboundAudio.timestamp || now.getTime()) -
             this.previousStats.timestamp;
           if (timeDelta > 0) {
             const bitrate = (bytesDelta * 8 * 1000) / timeDelta; // bps
             this.intervalBitrates.inbound.push(bitrate);
           }
         }
-        this.previousStats.inboundBytes = (inboundAudio as any).bytesReceived;
+        this.previousStats.inboundBytes = inboundAudio.bytesReceived;
       }
 
       if (candidatePair) {
@@ -431,9 +478,9 @@ export class CallReportCollector {
   private _createStatsEntry(
     start: Date,
     end: Date,
-    outboundAudio: RTCOutboundRtpStreamStats | null,
-    inboundAudio: RTCInboundRtpStreamStats | null,
-    candidatePair: RTCIceCandidatePairStats | null
+    outboundAudio: ExtendedOutboundRtpStreamStats | null,
+    inboundAudio: ExtendedInboundRtpStreamStats | null,
+    candidatePair: ExtendedCandidatePairStats | null
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -455,8 +502,14 @@ export class CallReportCollector {
     if (inboundAudio) {
       entry.audio.inbound = {
         packetsReceived: inboundAudio.packetsReceived,
-        bytesReceived: (inboundAudio as any).bytesReceived,
+        bytesReceived: inboundAudio.bytesReceived,
         packetsLost: inboundAudio.packetsLost,
+        packetsDiscarded: inboundAudio.packetsDiscarded,
+        jitterBufferDelay: inboundAudio.jitterBufferDelay,
+        jitterBufferEmittedCount: inboundAudio.jitterBufferEmittedCount,
+        totalSamplesReceived: inboundAudio.totalSamplesReceived,
+        concealedSamples: inboundAudio.concealedSamples,
+        concealmentEvents: inboundAudio.concealmentEvents,
         audioLevelAvg: this._average(this.intervalAudioLevels.inbound),
         jitterAvg: this._average(this.intervalJitters),
         bitrateAvg: this._average(this.intervalBitrates.inbound),
@@ -467,10 +520,10 @@ export class CallReportCollector {
     if (candidatePair) {
       entry.connection = {
         roundTripTimeAvg: this._average(this.intervalRTTs),
-        packetsSent: (candidatePair as any).packetsSent,
-        packetsReceived: (candidatePair as any).packetsReceived,
-        bytesSent: (candidatePair as any).bytesSent,
-        bytesReceived: (candidatePair as any).bytesReceived,
+        packetsSent: candidatePair.packetsSent,
+        packetsReceived: candidatePair.packetsReceived,
+        bytesSent: candidatePair.bytesSent,
+        bytesReceived: candidatePair.bytesReceived,
       };
     }
 
@@ -486,10 +539,13 @@ export class CallReportCollector {
   ): number | null {
     if (!trackId) return null;
 
+    // RTCStatsReport.get() returns RTCStats which doesn't include audioLevel in TS types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const trackStats = (stats as any).get(trackId);
     if (!trackStats) return null;
 
     // Chrome/Safari use 'audioLevel', Firefox might use different property
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (trackStats as any).audioLevel || null;
   }
 
