@@ -193,7 +193,6 @@ export function createWebRTCStatsReporter(
 ): WebRTCStatsReporter {
   const reportId = uuid();
   let isRunning = false;
-  let listenerRegistered = false;
 
   const stats = new WebRTCStats({
     getStatsInterval: POLL_INTERVAL,
@@ -218,17 +217,14 @@ export function createWebRTCStatsReporter(
     connectionId: string
   ) => {
     if (isRunning) {
-      logger.debug(`[${callID}] Stats reporter already running, skipping start`);
+      logger.debug(
+        `[${callID}] Stats reporter already running, skipping start`
+      );
       return;
     }
 
     await session.execute(new DebugReportStartMessage(reportId, callID));
-
-    // Register listener only once per reporter instance
-    if (!listenerRegistered) {
-      stats.on('timeline', onTimelineMessage);
-      listenerRegistered = true;
-    }
+    stats.on('timeline', onTimelineMessage);
 
     try {
       await stats.addConnection({
@@ -254,12 +250,6 @@ export function createWebRTCStatsReporter(
     }
 
     await session.execute(new DebugReportStopMessage(reportId, callID));
-
-    // Remove listener and cleanup library state
-    if (listenerRegistered) {
-      stats.off('timeline', onTimelineMessage);
-      listenerRegistered = false;
-    }
 
     stats.removeAllPeers();
     stats.destroy();
