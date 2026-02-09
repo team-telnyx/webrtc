@@ -129,7 +129,7 @@ class VertoHandler {
       case VertoMethod.Ringing:
       case VertoMethod.Bye:
       case VertoMethod.Media:
-        if (!existingCall) {
+        if (!callID || !existingCall) {
           logger.error(`Received ${method} for non existing call:`, params);
           return;
         }
