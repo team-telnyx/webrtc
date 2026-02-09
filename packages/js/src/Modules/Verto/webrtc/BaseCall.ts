@@ -208,8 +208,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         speakerId,
         ringtoneFile,
         ringbackFile,
-        debug: options.debug,
-        debugOutput: options.debugOutput,
+        ...(options.debug !== undefined && { debug: options.debug }),
+        ...(options.debugOutput !== undefined && {
+          debugOutput: options.debugOutput,
+        }),
         trickleIce: options.trickleIce,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,

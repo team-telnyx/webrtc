@@ -83,7 +83,11 @@ export default class Peer {
   }
 
   get isDebugEnabled() {
-    return this.options.debug || this._session.options.debug;
+    // Call-level debug takes precedence when explicitly set (including false)
+    if (typeof this.options.debug === 'boolean') {
+      return this.options.debug;
+    }
+    return this._session.options.debug === true;
   }
 
   get debugOutput() {
