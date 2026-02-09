@@ -167,9 +167,10 @@ export class CallReportCollector {
     };
     this.callStartTime = new Date();
 
-    // Create log collector if enabled
+    // Create log collector if enabled — start immediately to capture setup/negotiation logs
     if (this.logCollectorOptions.enabled) {
       this.logCollector = createLogCollector(this.logCollectorOptions);
+      this.logCollector.start();
       setGlobalLogCollector(this.logCollector);
     }
   }
@@ -185,19 +186,10 @@ export class CallReportCollector {
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
 
-    // Start log collector if enabled
-    if (this.logCollector) {
-      this.logCollector.start();
-      logger.info('CallReportCollector: Starting stats and log collection', {
-        interval: this.options.interval,
-        logLevel: this.logCollectorOptions.level,
-        maxLogEntries: this.logCollectorOptions.maxEntries,
-      });
-    } else {
-      logger.info('CallReportCollector: Starting stats collection', {
-        interval: this.options.interval,
-      });
-    }
+    logger.info('CallReportCollector: Starting stats collection', {
+      interval: this.options.interval,
+      logCollectorActive: this.logCollector?.isActive() ?? false,
+    });
 
     this.intervalId = setInterval(() => {
       this._collectStats();
