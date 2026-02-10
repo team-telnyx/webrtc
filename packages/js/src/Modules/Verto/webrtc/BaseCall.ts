@@ -980,7 +980,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         }, 0);
 
         // Start collecting call stats when call becomes active
-        if (this._callReportCollector && this.peer?.instance) {
+        // Only start if call_report_id is available (returned from voice-sdk-proxy)
+        if (this._callReportCollector && this.peer?.instance && this.session.callReportId) {
           this._callReportCollector.start(this.peer.instance);
         }
         break;
@@ -1810,6 +1811,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     const callReportId = this.session.callReportId;
     if (!callReportId) {
       logger.debug('Cannot post call report: call_report_id not available');
+      this._callReportCollector.cleanup();
       return;
     }
 
