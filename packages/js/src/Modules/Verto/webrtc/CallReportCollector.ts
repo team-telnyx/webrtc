@@ -119,8 +119,6 @@ export interface ICallReportPayload {
   logs?: ILogEntry[];
   /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
   segment?: number;
-  /** True only on the final segment of a multi-part report or on a single-part report. */
-  isFinal?: boolean;
 }
 
 export class CallReportCollector {
@@ -276,7 +274,6 @@ export class CallReportCollector {
         stats,
         ...(logs.length > 0 ? { logs } : {}),
         segment,
-        isFinal: false,
       };
 
       logger.info('CallReportCollector: Flushed intermediate segment', {
@@ -327,7 +324,7 @@ export class CallReportCollector {
       },
       stats: this.statsBuffer,
       ...(logs && logs.length > 0 ? { logs } : {}),
-      ...(isMultiSegment ? { segment, isFinal: true } : {}),
+      ...(isMultiSegment ? { segment } : {}),
     };
 
     await this._sendPayload(payload, callReportId, host, voiceSdkId);
@@ -359,7 +356,7 @@ export class CallReportCollector {
       const wsUrl = new URL(host);
       const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-      const isIntermediate = payload.isFinal === false;
+      const isIntermediate = payload.segment !== undefined && !payload.summary.endTimestamp;
       const label = isIntermediate
         ? `intermediate segment ${payload.segment}`
         : 'final report';
