@@ -51,7 +51,7 @@ export default class Connection {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
 
-    if (trickleIce || useCanaryRtcServer) {
+    if (useCanaryRtcServer) {
       this._useCanaryRtcServer = true;
     }
   }
