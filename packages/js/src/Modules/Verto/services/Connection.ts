@@ -37,7 +37,7 @@ export default class Connection {
   public downDur: number = null;
 
   constructor(public session: BaseSession) {
-    const { host, env, region, trickleIce, useCanaryRtcServer } = session.options;
+    const { host, env, region, useCanaryRtcServer } = session.options;
 
     if (env) {
       this._host = env === 'development' ? DEV_HOST : PROD_HOST;
