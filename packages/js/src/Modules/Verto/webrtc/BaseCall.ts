@@ -496,8 +496,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         sip_call_id: this.sipCallId,
         sessid: this.session.sessionid,
         dialogParams: this.options,
-        cause: 'USER_BUSY',
-        causeCode: 17,
+        cause: this.cause,
+        causeCode: this.causeCode,
       });
       this._execute(bye)
         .catch((error) => {
