@@ -496,8 +496,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         sip_call_id: this.sipCallId,
         sessid: this.session.sessionid,
         dialogParams: this.options,
-        cause: 'USER_BUSY',
-        causeCode: 17,
+        cause: this.cause,
+        causeCode: this.causeCode,
       });
       this._execute(bye)
         .catch((error) => {
@@ -1316,7 +1316,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error('Call setRemoteDescription Error: ', error);
-        this.hangup();
+        // Temporarily use USER_BUSY for setRemoteDescription failure
+        this.hangup(
+          {
+            cause: 'USER_BUSY',
+            causeCode: 17,
+          },
+          true
+        );
       });
   }
 
@@ -1395,7 +1402,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        this.hangup();
+        // Temporarily use USER_BUSY for any SDP send failure
+        this.hangup(
+          {
+            cause: 'USER_BUSY',
+            causeCode: 17,
+          },
+          true
+        );
       })
       .finally(() => {
         performance.mark('sdp-send-end');
@@ -1457,7 +1471,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        this.hangup();
+        // Temporarily use USER_BUSY for any SDP send failure
+        this.hangup(
+          {
+            cause: 'USER_BUSY',
+            causeCode: 17,
+          },
+          true
+        );
       })
       .finally(() => {
         performance.mark('sdp-send-end');
