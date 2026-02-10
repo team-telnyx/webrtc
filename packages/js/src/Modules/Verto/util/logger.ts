@@ -5,59 +5,79 @@ const datetime = () =>
   new Date().toISOString().replace('T', ' ').replace('Z', '');
 const logger = log.getLogger('telnyx');
 
-// Console output threshold — only info and above go to console
-const CONSOLE_LEVEL_PRIORITY: Record<string, number> = {
-  trace: 0,
-  debug: 1,
-  info: 2,
-  warn: 3,
-  error: 4,
-};
-const CONSOLE_MIN_LEVEL = CONSOLE_LEVEL_PRIORITY['info'];
-
+// ── Console output (unchanged from main) ────────────────────────
+// methodFactory adds datetime prefix; loglevel controls which levels
+// reach the console via setLevel (respects options.debug).
 const originalFactory = logger.methodFactory;
 logger.methodFactory = (methodName, logLevel, loggerName) => {
   const rawMethod = originalFactory(methodName, logLevel, loggerName);
-  return function (...logArgs: unknown[]) {
-    // Only write to console for info and above (preserves original behavior)
-    if (CONSOLE_LEVEL_PRIORITY[methodName] >= CONSOLE_MIN_LEVEL) {
-      const messages: unknown[] = [datetime(), '-'];
-      for (const arg of logArgs) {
-        messages.push(arg);
-      }
-      rawMethod(...messages);
+  // tslint:disable-next-line
+  return function () {
+    const messages = [datetime(), '-'];
+    for (let i = 0; i < arguments.length; i++) {
+      messages.push(arguments[i]);
     }
-
-    // Forward ALL levels to log collector if active
-    const collector = getGlobalLogCollector();
-    if (collector?.isActive()) {
-      // Extract message and context from arguments
-      const [firstArg, ...restArgs] = logArgs;
-      const message =
-        typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
-
-      // If there's a second argument and it's an object, use it as context
-      let context: Record<string, unknown> | undefined;
-      if (restArgs.length > 0) {
-        if (
-          restArgs.length === 1 &&
-          typeof restArgs[0] === 'object' &&
-          restArgs[0] !== null
-        ) {
-          context = restArgs[0] as Record<string, unknown>;
-        } else {
-          // Multiple extra args, wrap them
-          context = { args: restArgs };
-        }
-      }
-
-      collector.addEntry(methodName as LogLevel, message, context);
-    }
+    rawMethod.apply(undefined, messages);
   };
 };
+logger.setLevel('info');
 
-// Set to debug so all levels flow through methodFactory (collector captures everything)
-// Console output is filtered to info+ inside the factory above
-logger.setLevel('debug');
+// ── LogCollector integration ────────────────────────────────────
+// Captures ALL log levels to memory for call reports, regardless of
+// the current loglevel setting. This works by wrapping the logger
+// methods after each setLevel call so that even noop'd methods
+// (e.g. debug when level is info) still forward to the collector.
+
+const LOG_METHODS: LogLevel[] = ['debug', 'info', 'warn', 'error'];
+
+function forwardToLogCollector(level: LogLevel, ...args: unknown[]): void {
+  const collector = getGlobalLogCollector();
+  if (!collector?.isActive()) return;
+
+  const [firstArg, ...restArgs] = args;
+  const message =
+    typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
+
+  let context: Record<string, unknown> | undefined;
+  if (restArgs.length > 0) {
+    if (
+      restArgs.length === 1 &&
+      typeof restArgs[0] === 'object' &&
+      restArgs[0] !== null
+    ) {
+      context = restArgs[0] as Record<string, unknown>;
+    } else {
+      context = { args: restArgs };
+    }
+  }
+
+  collector.addEntry(level, message, context);
+}
+
+/**
+ * Wrap each logger method so it forwards to the LogCollector before
+ * calling whatever loglevel assigned (real method or noop).
+ */
+function wrapLoggerMethods(): void {
+  for (const level of LOG_METHODS) {
+    const currentMethod = logger[level].bind(logger);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (logger as any)[level] = (...args: unknown[]) => {
+      forwardToLogCollector(level, ...args);
+      currentMethod(...args);
+    };
+  }
+}
+
+// Apply wrappers after the initial setLevel
+wrapLoggerMethods();
+
+// Re-apply wrappers whenever setLevel is called, because loglevel
+// replaces methods with noops for filtered-out levels.
+const originalSetLevel = logger.setLevel.bind(logger);
+logger.setLevel = ((level: log.LogLevelDesc, persist?: boolean) => {
+  originalSetLevel(level, persist);
+  wrapLoggerMethods();
+}) as typeof logger.setLevel;
 
 export default logger;
