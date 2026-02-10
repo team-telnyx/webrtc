@@ -269,6 +269,7 @@ export class CallReportCollector {
           ...summary,
           durationSeconds: (now.getTime() - this.callStartTime.getTime()) / 1000,
           startTimestamp: this.callStartTime.toISOString(),
+          endTimestamp: now.toISOString(),
         },
         stats,
         ...(logs.length > 0 ? { logs } : {}),
