@@ -107,6 +107,54 @@ export class LogCollector {
   }
 
   /**
+   * Drain the buffer — returns all collected logs and clears the internal buffer.
+   * Used for intermediate flushes when approaching payload size limits.
+   */
+  public drain(): ILogEntry[] {
+    const logs = this.buffer;
+    this.buffer = [];
+    return logs;
+  }
+
+  /**
+   * Estimate the serialized JSON byte size of the current log buffer.
+   * Uses sampling to avoid expensive full serialization on every check.
+   */
+  public estimateByteSize(): number {
+    if (this.buffer.length === 0) return 0;
+
+    // Sample up to 3 entries for a representative average
+    const indices = [
+      0,
+      Math.floor(this.buffer.length / 2),
+      this.buffer.length - 1,
+    ];
+    const unique = [...new Set(indices)];
+    const sampleEntries = unique.map((i) => this.buffer[i]);
+
+    let sampleTotal = 0;
+    for (const entry of sampleEntries) {
+      // Base JSON overhead: {"timestamp":"","level":"","message":""}
+      let size = 60;
+      size += entry.timestamp?.length ?? 24;
+      size += entry.level?.length ?? 5;
+      size += entry.message?.length ?? 0;
+      if (entry.context) {
+        try {
+          size += JSON.stringify(entry.context).length;
+        } catch {
+          size += 100;
+        }
+      }
+      sampleTotal += size;
+    }
+
+    const avgEntrySize = sampleTotal / sampleEntries.length;
+    // Array overhead: brackets + commas between entries
+    return Math.ceil(avgEntrySize * this.buffer.length) + 2 + Math.max(0, this.buffer.length - 1);
+  }
+
+  /**
    * Clear the buffer
    */
   public clear(): void {

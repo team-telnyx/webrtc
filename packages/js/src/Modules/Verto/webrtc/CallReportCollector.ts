@@ -117,6 +117,10 @@ export interface ICallReportPayload {
   summary: ICallSummary;
   stats: IStatsInterval[];
   logs?: ILogEntry[];
+  /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
+  segment?: number;
+  /** True only on the final segment of a multi-part report or on a single-part report. */
+  isFinal?: boolean;
 }
 
 export class CallReportCollector {
@@ -154,6 +158,22 @@ export class CallReportCollector {
 
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
+
+  // ── Size-aware flush ──────────────────────────────────────────────
+  // Server limit is 2 MB. We flush at 1.5 MB to leave headroom for
+  // the final segment's summary/headers and JSON serialization overhead.
+  private static readonly SERVER_MAX_BYTES = 2 * 1024 * 1024;        // 2 MB
+  private static readonly FLUSH_THRESHOLD_BYTES = 1.5 * 1024 * 1024;  // 1.5 MB
+  private static readonly ESTIMATED_SUMMARY_BYTES = 2048;              // ~2 KB
+
+  /** Callback invoked when estimated payload size crosses the flush threshold. */
+  public onFlushNeeded: (() => void) | null = null;
+
+  /** Running segment counter for multi-part reports. */
+  private _segmentIndex: number = 0;
+
+  /** Whether a flush is already in progress (prevents re-entrant flushes). */
+  private _flushing: boolean = false;
 
   constructor(
     options: ICallReportOptions,
@@ -226,7 +246,57 @@ export class CallReportCollector {
   }
 
   /**
-   * Post the collected stats to voice-sdk-proxy
+   * Flush the current stats and logs as an intermediate segment.
+   * Returns the flushed payload (stats + logs) and resets the internal
+   * buffers so collection can continue for the next segment.
+   *
+   * The caller is responsible for posting the returned payload.
+   */
+  public flush(summary: ICallSummary): ICallReportPayload | null {
+    if (this._flushing || this.statsBuffer.length === 0) {
+      return null;
+    }
+
+    this._flushing = true;
+    try {
+      const segment = this._segmentIndex++;
+      const stats = this.statsBuffer;
+      this.statsBuffer = [];
+
+      // Drain logs accumulated since last flush
+      const logs = this.logCollector?.drain() ?? [];
+
+      const now = new Date();
+      const payload: ICallReportPayload = {
+        summary: {
+          ...summary,
+          durationSeconds: (now.getTime() - this.callStartTime.getTime()) / 1000,
+          startTimestamp: this.callStartTime.toISOString(),
+        },
+        stats,
+        ...(logs.length > 0 ? { logs } : {}),
+        segment,
+        isFinal: false,
+      };
+
+      logger.info('CallReportCollector: Flushed intermediate segment', {
+        segment,
+        intervals: stats.length,
+        logEntries: logs.length,
+        callId: summary.callId,
+      });
+
+      return payload;
+    } finally {
+      this._flushing = false;
+    }
+  }
+
+  /**
+   * Post the collected stats to voice-sdk-proxy.
+   *
+   * When called after one or more `flush()` calls, this posts the final
+   * segment. Otherwise it posts the entire report as a single segment.
    */
   public async postReport(
     summary: ICallSummary,
@@ -238,8 +308,11 @@ export class CallReportCollector {
       return;
     }
 
-    // Get collected logs
+    // Get remaining logs (getLogs for final, drain was used for intermediates)
     const logs = this.logCollector?.getLogs();
+
+    const isMultiSegment = this._segmentIndex > 0;
+    const segment = this._segmentIndex;
 
     // Build the report payload
     const payload: ICallReportPayload = {
@@ -254,24 +327,56 @@ export class CallReportCollector {
       },
       stats: this.statsBuffer,
       ...(logs && logs.length > 0 ? { logs } : {}),
+      ...(isMultiSegment ? { segment, isFinal: true } : {}),
     };
 
+    await this._sendPayload(payload, callReportId, host, voiceSdkId);
+  }
+
+  /**
+   * Post an arbitrary call report payload to voice-sdk-proxy.
+   * Used both for intermediate flushes and the final report.
+   */
+  public async sendPayload(
+    payload: ICallReportPayload,
+    callReportId: string,
+    host: string,
+    voiceSdkId?: string
+  ): Promise<void> {
+    await this._sendPayload(payload, callReportId, host, voiceSdkId);
+  }
+
+  /**
+   * Internal: send a payload to the call_report endpoint.
+   */
+  private async _sendPayload(
+    payload: ICallReportPayload,
+    callReportId: string,
+    host: string,
+    voiceSdkId?: string
+  ): Promise<void> {
     try {
       const wsUrl = new URL(host);
       const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-      logger.info('CallReportCollector: Posting report', {
+      const isIntermediate = payload.isFinal === false;
+      const label = isIntermediate
+        ? `intermediate segment ${payload.segment}`
+        : 'final report';
+
+      logger.info(`CallReportCollector: Posting ${label}`, {
         endpoint,
-        intervals: this.statsBuffer.length,
-        logEntries: logs?.length ?? 0,
-        callId: summary.callId,
+        intervals: payload.stats.length,
+        logEntries: payload.logs?.length ?? 0,
+        callId: payload.summary.callId,
+        segment: payload.segment,
       });
 
-      // Build headers with required call_report_id and call_id, optional voice_sdk_id
+      // Build headers
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'x-call-report-id': callReportId,
-        'x-call-id': summary.callId,
+        'x-call-id': payload.summary.callId,
       };
       if (voiceSdkId) {
         headers['x-voice-sdk-id'] = voiceSdkId;
@@ -285,12 +390,12 @@ export class CallReportCollector {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('CallReportCollector: Failed to post report', {
+        logger.error(`CallReportCollector: Failed to post ${label}`, {
           status: response.status,
           error: errorText,
         });
       } else {
-        logger.info('CallReportCollector: Successfully posted report');
+        logger.info(`CallReportCollector: Successfully posted ${label}`);
       }
     } catch (error) {
       logger.error('CallReportCollector: Error posting report', { error });
@@ -455,6 +560,27 @@ export class CallReportCollector {
           );
         }
 
+        // Check estimated payload size and trigger flush if approaching server limit
+        if (this.onFlushNeeded && !this._flushing) {
+          const estimatedSize = this._estimatePayloadSize();
+          if (estimatedSize >= CallReportCollector.FLUSH_THRESHOLD_BYTES) {
+            logger.info(
+              'CallReportCollector: Payload approaching size limit, requesting flush',
+              {
+                estimatedBytes: estimatedSize,
+                thresholdBytes: CallReportCollector.FLUSH_THRESHOLD_BYTES,
+                statsIntervals: this.statsBuffer.length,
+                logEntries: this.logCollector?.getLogCount() ?? 0,
+              }
+            );
+            try {
+              this.onFlushNeeded();
+            } catch (err) {
+              logger.error('CallReportCollector: onFlushNeeded callback error', { error: err });
+            }
+          }
+        }
+
         // Reset interval
         this.intervalStartTime = now;
         this._resetIntervalAccumulators();
@@ -558,5 +684,64 @@ export class CallReportCollector {
     this.intervalJitters = [];
     this.intervalRTTs = [];
     this.intervalBitrates = { outbound: [], inbound: [] };
+  }
+
+  // ── Payload size estimation ─────────────────────────────────────
+
+  /**
+   * Estimate the total JSON byte size of the payload that would be sent.
+   * Avoids full serialization by using per-entry estimates.
+   *
+   * Typical stats entry ≈ 400-700 bytes JSON. We sample a few entries to
+   * get a representative average rather than serializing all of them.
+   */
+  private _estimatePayloadSize(): number {
+    let total = CallReportCollector.ESTIMATED_SUMMARY_BYTES;
+
+    // Stats size
+    total += this._estimateStatsSize();
+
+    // Logs size
+    if (this.logCollector) {
+      total += this.logCollector.estimateByteSize();
+    }
+
+    // JSON wrapper overhead (keys, braces, commas)
+    total += 128;
+
+    return total;
+  }
+
+  /**
+   * Estimate the serialized size of the stats buffer.
+   */
+  private _estimateStatsSize(): number {
+    const count = this.statsBuffer.length;
+    if (count === 0) return 2; // "[]"
+
+    // Sample up to 3 entries at start, middle, end
+    const indices = [0, Math.floor(count / 2), count - 1];
+    const unique = [...new Set(indices)];
+
+    let sampleTotal = 0;
+    for (const i of unique) {
+      // Quick estimate per entry without full JSON.stringify
+      const entry = this.statsBuffer[i];
+      let size = 80; // timestamps + keys overhead
+      if (entry.audio?.outbound) size += 120;
+      if (entry.audio?.inbound) size += 280;
+      if (entry.connection) size += 140;
+      sampleTotal += size;
+    }
+
+    const avgEntrySize = sampleTotal / unique.length;
+    return Math.ceil(avgEntrySize * count) + 2 + Math.max(0, count - 1);
+  }
+
+  /**
+   * Get the current estimated payload size in bytes (for external monitoring/debugging).
+   */
+  public getEstimatedPayloadSize(): number {
+    return this._estimatePayloadSize();
   }
 }

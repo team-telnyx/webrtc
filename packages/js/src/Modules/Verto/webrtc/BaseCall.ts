@@ -1722,6 +1722,13 @@ export default abstract class BaseCall implements IWebRTCCall {
           maxEntries: debugLogMaxEntries,
         }
       );
+
+      // Wire up size-aware early flush: when the payload approaches the
+      // server's 2 MB limit, send an intermediate segment immediately
+      // so the buffer can keep collecting for the rest of the call.
+      this._callReportCollector.onFlushNeeded = () => {
+        this._flushIntermediateReport();
+      };
     }
 
     this.setState(State.New);
@@ -1744,6 +1751,52 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     // Post call report after cleanup
     this._postCallReport();
+  }
+
+  /**
+   * Flush an intermediate call report segment mid-call.
+   * Called by the CallReportCollector when the estimated payload size
+   * approaches the server's 2 MB limit.
+   */
+  private _flushIntermediateReport() {
+    if (!this._callReportCollector) return;
+
+    const callReportId = this.session.callReportId;
+    if (!callReportId) {
+      logger.debug('Cannot flush intermediate report: call_report_id not available');
+      return;
+    }
+
+    const host = this.session.connection?.host;
+    if (!host) {
+      logger.debug('Cannot flush intermediate report: connection host not available');
+      return;
+    }
+
+    const summary = {
+      callId: this.id,
+      destinationNumber: this.options.destinationNumber,
+      callerNumber: this.options.callerNumber,
+      direction: (this.direction === Direction.Inbound
+        ? 'inbound'
+        : 'outbound') as 'inbound' | 'outbound',
+      state: this.state,
+      telnyxSessionId: this.options.telnyxSessionId,
+      telnyxLegId: this.options.telnyxLegId,
+      sdkVersion: SDK_VERSION,
+    };
+
+    const payload = this._callReportCollector.flush(summary);
+    if (!payload) return;
+
+    const voiceSdkId = getReconnectToken() || undefined;
+
+    // Fire-and-forget — don't block the stats collection interval
+    this._callReportCollector
+      .sendPayload(payload, callReportId, host, voiceSdkId)
+      .catch((error) => {
+        logger.error('Failed to post intermediate call report segment', { error });
+      });
   }
 
   private _postCallReport() {
