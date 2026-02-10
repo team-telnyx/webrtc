@@ -158,13 +158,12 @@ export class CallReportCollector {
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
 
   // ── Size-aware flush ──────────────────────────────────────────────
-  // Server limit is 2 MB. We flush at 1.5 MB to leave headroom for
-  // the final segment's summary/headers and JSON serialization overhead.
-  private static readonly SERVER_MAX_BYTES = 2 * 1024 * 1024;        // 2 MB
-  private static readonly FLUSH_THRESHOLD_BYTES = 1.5 * 1024 * 1024;  // 1.5 MB
-  private static readonly ESTIMATED_SUMMARY_BYTES = 2048;              // ~2 KB
+  // Flush when stats or logs approach their buffer limits to avoid
+  // hitting the server's 2 MB body limit or dropping oldest entries.
+  private static readonly STATS_FLUSH_THRESHOLD = 300;  // flush before 360 max
+  private static readonly LOGS_FLUSH_THRESHOLD = 800;   // flush before 1000 max
 
-  /** Callback invoked when estimated payload size crosses the flush threshold. */
+  /** Callback invoked when stats or logs approach their buffer limits. */
   public onFlushNeeded: (() => void) | null = null;
 
   /** Running segment counter for multi-part reports. */
@@ -557,18 +556,17 @@ export class CallReportCollector {
           );
         }
 
-        // Check estimated payload size and trigger flush if approaching server limit
+        // Check if stats or logs are approaching buffer limits and flush early
         if (this.onFlushNeeded && !this._flushing) {
-          const estimatedSize = this._estimatePayloadSize();
-          if (estimatedSize >= CallReportCollector.FLUSH_THRESHOLD_BYTES) {
+          const statsCount = this.statsBuffer.length;
+          const logCount = this.logCollector?.getLogCount() ?? 0;
+          if (
+            statsCount >= CallReportCollector.STATS_FLUSH_THRESHOLD ||
+            logCount >= CallReportCollector.LOGS_FLUSH_THRESHOLD
+          ) {
             logger.info(
-              'CallReportCollector: Payload approaching size limit, requesting flush',
-              {
-                estimatedBytes: estimatedSize,
-                thresholdBytes: CallReportCollector.FLUSH_THRESHOLD_BYTES,
-                statsIntervals: this.statsBuffer.length,
-                logEntries: this.logCollector?.getLogCount() ?? 0,
-              }
+              'CallReportCollector: Approaching buffer limits, requesting flush',
+              { statsIntervals: statsCount, logEntries: logCount }
             );
             try {
               this.onFlushNeeded();
@@ -683,62 +681,4 @@ export class CallReportCollector {
     this.intervalBitrates = { outbound: [], inbound: [] };
   }
 
-  // ── Payload size estimation ─────────────────────────────────────
-
-  /**
-   * Estimate the total JSON byte size of the payload that would be sent.
-   * Avoids full serialization by using per-entry estimates.
-   *
-   * Typical stats entry ≈ 400-700 bytes JSON. We sample a few entries to
-   * get a representative average rather than serializing all of them.
-   */
-  private _estimatePayloadSize(): number {
-    let total = CallReportCollector.ESTIMATED_SUMMARY_BYTES;
-
-    // Stats size
-    total += this._estimateStatsSize();
-
-    // Logs size
-    if (this.logCollector) {
-      total += this.logCollector.estimateByteSize();
-    }
-
-    // JSON wrapper overhead (keys, braces, commas)
-    total += 128;
-
-    return total;
-  }
-
-  /**
-   * Estimate the serialized size of the stats buffer.
-   */
-  private _estimateStatsSize(): number {
-    const count = this.statsBuffer.length;
-    if (count === 0) return 2; // "[]"
-
-    // Sample up to 3 entries at start, middle, end
-    const indices = [0, Math.floor(count / 2), count - 1];
-    const unique = [...new Set(indices)];
-
-    let sampleTotal = 0;
-    for (const i of unique) {
-      // Quick estimate per entry without full JSON.stringify
-      const entry = this.statsBuffer[i];
-      let size = 80; // timestamps + keys overhead
-      if (entry.audio?.outbound) size += 120;
-      if (entry.audio?.inbound) size += 280;
-      if (entry.connection) size += 140;
-      sampleTotal += size;
-    }
-
-    const avgEntrySize = sampleTotal / unique.length;
-    return Math.ceil(avgEntrySize * count) + 2 + Math.max(0, count - 1);
-  }
-
-  /**
-   * Get the current estimated payload size in bytes (for external monitoring/debugging).
-   */
-  public getEstimatedPayloadSize(): number {
-    return this._estimatePayloadSize();
-  }
 }
