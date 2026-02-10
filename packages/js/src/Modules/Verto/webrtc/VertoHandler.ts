@@ -123,6 +123,20 @@ class VertoHandler {
     const messagePing = new Ping(voice_sdk_id);
 
     switch (method) {
+      case VertoMethod.Answer:
+      case VertoMethod.Display:
+      case VertoMethod.Candidate:
+      case VertoMethod.Ringing:
+      case VertoMethod.Bye:
+      case VertoMethod.Media:
+        if (!callID || !existingCall) {
+          logger.error(`Received ${method} for non existing call:`, params);
+          return;
+        }
+        existingCall.handleMessage(msg);
+        this._ack(id, method);
+        break;
+
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
@@ -237,12 +251,6 @@ class VertoHandler {
         break;
 
       default: {
-        if (callID && session.calls.hasOwnProperty(callID)) {
-          session.calls[callID].handleMessage(msg);
-          this._ack(id, method);
-          return;
-        }
-
         const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {
