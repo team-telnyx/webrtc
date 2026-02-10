@@ -1,3 +1,15 @@
+## [2.25.18](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.17...webrtc/v2.25.18) (2026-02-10)
+
+- fix: use correct hangup code (16) instead of hardcoded USER_BUSY (17)
+- fix: stop debug reporter when peer connection is closing
+- fix: remove canary flag requirement for trickleIce
+- fix: remove trickle ICE support check that sends empty candidate on login
+- fix: set TURN transport to udp as default and tcp as fallback
+- fix: if we get attach always run reconnection flow
+- docs: add 4014 gateway down close code to error handling
+- chore: fix TelnyxRTC.md
+- chore: add meta-dev.yml for GitHub access control
+
 ## [2.25.17](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.16...webrtc/v2.25.17) (2026-02-02)
 
 - fix: reconnection flow
