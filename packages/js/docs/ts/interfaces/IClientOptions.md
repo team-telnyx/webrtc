@@ -6,8 +6,10 @@ IClientOptions
 ### Properties
 
 - [anonymous_login](#anonymous_login)
+- [callReportInterval](#callreportinterval)
 - [debug](#debug)
 - [debugOutput](#debugoutput)
+- [enableCallReports](#enablecallreports)
 - [env](#env)
 - [forceRelayCandidate](#forcerelaycandidate)
 - [iceServers](#iceservers)
@@ -43,6 +45,21 @@ anonymous_login login options
 
 ---
 
+### callReportInterval
+
+• `Optional` **callReportInterval**: `number`
+
+Interval in milliseconds for collecting call statistics.
+Stats are aggregated over each interval and stored locally until call end.
+
+**`Default`**
+
+```ts
+5000 (5 seconds)
+```
+
+---
+
 ### debug
 
 • `Optional` **debug**: `boolean`
@@ -57,6 +74,22 @@ This will gather WebRTC debugging information.
 • `Optional` **debugOutput**: `"file"` \| `"socket"`
 
 Debug output option
+
+---
+
+### enableCallReports
+
+• `Optional` **enableCallReports**: `boolean`
+
+Enable automatic call quality reporting to voice-sdk-proxy.
+When enabled, WebRTC stats are collected periodically during calls
+and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+
+**`Default`**
+
+```ts
+true;
+```
 
 ---
 
