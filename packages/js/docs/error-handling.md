@@ -37,8 +37,6 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [Code Examples for Common Scenarios](#code-examples-for-common-scenarios)
   - [Reconnection Process](#reconnection-process)
     - [Automatic Reconnection](#automatic-reconnection)
-    - [`keepConnectionAliveOnSocketClose` Behavior](#keepconnectionaliveonsocketclose-behavior)
-      - [Detecting Unrecoverable Calls](#detecting-unrecoverable-calls)
     - [Manual Reconnection](#manual-reconnection)
   - [Best Practices](#best-practices)
     - [1. Always Implement the telnyx.notification Event Handler](#1-always-implement-the-telnyxnotification-event-handler)
@@ -75,12 +73,12 @@ The SDK exposes every recoverable failure through specific `SwEvent` constants. 
 
 ### Summary Table
 
-| **EVENT**                                       | **TRIGGER**                                                                                        | **PAYLOAD**                                                                                             | **RECOMMENDED HANDLING**                                                                          |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `telnyx.error`                                  | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.)          | `{ error: Error \| ErrorResponse, sessionId: string }`                                                  | Surface actionable message, decide whether to retry or prompt the user to re-authenticate         |
-| `telnyx.rtc.mediaError`                         | Browser media APIs fail (device enumeration, permission denials, track issues)                     | Browser `DOMException`/`Error` instance                                                                 | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only            |
-| `telnyx.rtc.peerConnectionFailureError`         | ICE restart cannot recover the peer connection (e.g., repeated `failed` state)                     | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope                    | Tear down the affected call, notify the user, optionally auto-redial once connectivity stabilizes |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call is not recoverable                                                                       |
+| **EVENT**                                       | **TRIGGER**                                                                                        | **PAYLOAD**                                                                                             | **RECOMMENDED HANDLING**                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `telnyx.error`                                  | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.)          | `{ error: Error \| ErrorResponse, sessionId: string }`                                                  | Surface actionable message, decide whether to retry or prompt the user to re-authenticate    |
+| `telnyx.rtc.mediaError`                         | Browser media APIs fail (device enumeration, permission denials, track issues)                     | Browser `DOMException`/`Error` instance                                                                 | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only       |
+| `telnyx.rtc.peerConnectionFailureError`         | The peer connection failed, could be recovered on attach method from server.                       | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope                    | The call would be restored automaticlly if it's possible                                     |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call could be recoverable only through auto creating the new call with reconvering state |
 
 ### Handling Details
 
@@ -90,11 +88,13 @@ Triggered whenever media-device related promises reject (enumerating devices, op
 
 #### `telnyx.rtc.peerConnectionFailureError`
 
-Raised by the peer connection monitor when an ICE restart still results in a `failed` state. The event (`SwEvent.PeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: immediately hang up the affected call if silent audio is detected. If `autoReconnect` is enabled (the default), WebRTC JS SDK will reconnect right away.
+Raised by the peer connection monitor when peer connection failed due to some reasons, mostlikely losing network connection. The event (`SwEvent.PeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: The call should be recovered automaticlly, so it's more warning event to give opportunity UI react on problems with a call.
 
 #### `telnyx.rtc.peerConnectionSignalingStateClosed`
 
-Raised when the peer connection's signaling state transitions to `closed`. This event (`SwEvent.PeerConnectionSignalingStateClosed`) is scoped to the call id. When this event fires, the peer connection is not recoverable. The call's `signalingStateClosed` property will be set to `true`, which can be used to check if a call is recoverable. When using `keepConnectionAliveOnSocketClose`, calls with closed signaling state will be hung up on ATTACH because recovery is not possible.
+Raised when the peer connection's signaling state transitions to `closed`. This event (`SwEvent.PeerConnectionSignalingStateClosed`) is scoped to the call id. When this event fires, the peer connection is not recoverable. In that case on attach method from server SDK will recreate call with recovering state and the same call_id.
+
+**Important**: For more details on recovering process, see the [Reconnection Process](#reconnection-process) section.
 
 ## Call Termination Reasons
 
@@ -379,12 +379,29 @@ client.on('telnyx.ready', () => {
 
 Authentication errors occur when the session credentials expire or become invalid. These are emitted via `telnyx.error`:
 
+**Example Handling:**
+
 ```javascript
 client.on('telnyx.error', (payload) => {
   if (payload.error?.code === -32001) {
     console.error('JWT authentication failed:', payload.error.message);
     // Prompt user to refresh their token or re-authenticate
     showErrorMessage('Session expired. Please log in again.');
+  }
+});
+```
+
+**Invalid Credentials Errors**
+
+Invalid credentials errors occur when the `login()` method is called with invalid credentials configuration. When this happens, the SDK emits a `telnyx.error` event with an `InvalidCredentialsOptions` error type.
+
+```javascript
+client.on('telnyx.error', ({ error, type, sessionId }) => {
+  if (type === ERROR_TYPE.invalidCredentialsOptions) {
+    console.error('Invalid login credentials configuration:', error.message);
+    showErrorMessage(
+      'Invalid login credentials. Please check your configuration.'
+    );
   }
 });
 ```
@@ -403,21 +420,21 @@ async function fetchNewToken() {
 
 // Function to re-authenticate with a new token
 async function reAuthenticate(client) {
-  try {
-    // 1. Disconnect the current session
-    await client.disconnect();
+  // 1. Fetch a new JWT token
+  const newToken = await fetchNewToken().catch(handleFetchError);
 
-    // 2. Fetch a new token from your backend
-    const newToken = await fetchNewToken();
-
-    // 3. Update the login token
-    client.options.login_token = newToken;
-
-    // 4. Reconnect with the new token
-    client.connect();
-  } catch (error) {
-    console.error('Re-authentication failed:', error);
-  }
+  // 2. Login with fresh JWT token
+  await client.login({
+    creds: {
+      login_token: newToken,
+    },
+    onSuccess: () => {
+      console.log('Re-authentication successful');
+    },
+    onError: (error) => {
+      console.error('Re-authentication error:', error);
+    },
+  });
 }
 
 // Listen for JWT authentication failures
@@ -468,11 +485,19 @@ Your handler receives the raw `CloseEvent`. Key fields you can rely on:
   - `1005`: No status code present. Browsers surface it when the peer omits a status code entirely or the connection drops unexpectedly.
   - `1006`: Abnormal closure observed by the browser when the TCP socket drops without a close frame.
   - `1011`: Internal error raised by the voice proxy.
+  - `4014`: Gateway down. The upstream gateway reported a `DOWN` state. The SDK will auto-reconnect.
 - `event.reason` - string provided by Cowboy when additional context is available.
 - `event.wasClean` - `true` when the browser confirms the close handshake completed cleanly.
 
 ```javascript
 const onSocketClose = (event) => {
+  if (event.code === 4014) {
+    // Gateway down - SDK will auto-reconnect
+    console.warn('Gateway down, reconnecting...', { reason: event.reason });
+    showConnectionStatus('reconnecting');
+    return;
+  }
+
   if (!event.wasClean) {
     console.warn('Socket closed unexpectedly', {
       code: event.code,
@@ -606,54 +631,11 @@ The SDK includes automatic reconnection mechanisms to handle temporary network i
 1. **Connection Monitoring**: The SDK monitors the WebSocket connection status
 2. **Automatic Retry**: When a connection is lost, the SDK attempts to reconnect automatically
 3. **Exponential Backoff**: Retry intervals increase progressively to avoid overwhelming the server
-4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. If `keepConnectionAliveOnSocketClose` client option is enabled, the SDK will attempt to maintain call state during brief disconnections. See [keepConnectionAliveOnSocketClose Behavior](#keepconnectionaliveonsocketclose-behavior) for details.
+4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. The SDK will keep current call alive if peer connection state is connected and signaling state is not closed. If existing call is unrecoverable, then SDK will recreate the call with recoverable state and the same call_id.
 
-### `keepConnectionAliveOnSocketClose` Behavior
+**Important**: When sdk recreate the call in recovering state, client application could listen call state changes and treat recovering state as needed. Throughout the recovering process, the call will keep recovering state and once the call is active again, the call state will transition from recovering to active. There is no middle state like ringing or early during the recovering process.
 
-The `keepConnectionAliveOnSocketClose` option is an **optimistic** setting, not a deterministic guarantee. When enabled, the SDK attempts to preserve active calls during network interruptions by re-attaching to the existing peer connection instead of hanging up when an `attach` message is received.
-
-#### Detecting Unrecoverable Calls
-
-To monitor connection health and detect when calls become unrecoverable, subscribe to these events:
-
-##### Primary Event: `peerConnectionFailureError`
-
-This notification fires when the peer connection's `connectionState` transitions to `failed`. This is the **primary indicator** that the ICE/DTLS transport has failed.
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'peerConnectionFailureError') {
-    console.log('Peer connection failed:', notification.error.message);
-    // The SDK will attempt ICE restart automatically
-    // If ICE restart fails, the call will be recreated with a new ID
-  }
-});
-```
-
-##### Secondary Event: `signalingStateClosed`
-
-This notification fires when the peer connection's `signalingState` transitions to `closed`. This typically occurs after device sleep/wake cycles.
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'signalingStateClosed') {
-    console.log('Signaling state closed for session:', notification.sessionId);
-    // The call will be hung up and recreated automatically
-  }
-});
-```
-
-##### Checking the Property Directly
-
-You can also check the `signalingStateClosed` property on the call object:
-
-```javascript
-if (call.signalingStateClosed) {
-  console.log('This call cannot be recovered');
-}
-```
-
-##### Notification Type Comparison Table
+#### Notification Type Comparison Table
 
 | Notification Type            | Trigger                      | Recovery Behavior                                       |
 | ---------------------------- | ---------------------------- | ------------------------------------------------------- |

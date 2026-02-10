@@ -63,8 +63,10 @@ client.off('telnyx.notification');
 - [getAudioOutDevices](#getaudiooutdevices)
 - [getDeviceResolutions](#getdeviceresolutions)
 - [getDevices](#getdevices)
+- [getIsRegistered](#getisregistered)
 - [getVideoDevices](#getvideodevices)
 - [handleLoginError](#handleloginerror)
+- [login](#login)
 - [logout](#logout)
 - [newCall](#newcall)
 - [off](#off)
@@ -136,62 +138,6 @@ The corresponding HTML:
 <!-- or for video: -->
 <!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
 ```
-
-#### Keep Connection Alive on Socket Close
-
-By default, when the websocket connection is closed and an `attach` message is received, the call will be hung up with a default cause.
-To attempt keeping the call alive when an `attach` message is received, pass `keepConnectionAliveOnSocketClose`:
-
-```js
-const client = new TelnyxRTC({
-  keepConnectionAliveOnSocketClose: true,
-});
-```
-
-**Important**: This is an **optimistic** setting, not a deterministic guarantee. Call recovery depends on
-the state of the underlying WebRTC peer connection at the time of reconnection.
-
-**When recovery succeeds**:
-
-- The peer connection's `signalingState` is NOT `closed`
-- The peer connection instance still exists
-- ICE restart was not triggered due to connection failure
-
-**When recovery fails** (call will be hung up and recreated):
-
-- The peer connection's `connectionState` transitions to `failed`
-- Device sleep caused the peer connection's `signalingState` to transition to `closed`
-- The peer connection instance was destroyed by the browser
-
-**Fallback behavior**: When recovery is not possible, the SDK automatically recreates the call:
-
-- If ICE restart was attempted: sends a new INVITE with a new call ID
-- For other failures: answers the ATTACH with the same call ID
-- In both cases, a `callUpdate` notification is dispatched so your UI can update
-
-**Monitoring connection health**: Subscribe to `telnyx.notification` to detect and handle connection issues:
-
-```js
-client.on('telnyx.notification', (notification) => {
-  // Primary event - fires when connectionState goes to 'failed'
-  if (notification.type === 'peerConnectionFailureError') {
-    console.log('Connection failed, ICE restart will be attempted');
-    // The SDK will attempt ICE restart automatically
-  }
-
-  // Fires when signalingState transitions to 'closed'
-  if (notification.type === 'signalingStateClosed') {
-    console.log('Signaling state closed, call will be recreated');
-  }
-});
-
-// You can also check the property directly on the call
-if (call.signalingStateClosed) {
-  console.log('This call cannot be recovered');
-}
-```
-
-> Note: If client using this option is switching networks and there are new network restrictions, combine this option with `iceServers` overrides and `forceRelayCandidate` to ensure connectivity on signaling.
 
 #### Overrides
 
@@ -765,6 +711,52 @@ TelnyxRTCClient.getDevices
 
 ---
 
+### getIsRegistered
+
+▸ **getIsRegistered**(): `Promise`\<`boolean`\>
+
+Checks if the client is currently registered with the Telnyx backend.
+
+This method queries the gateway state and returns `true` if the client is in a `REGISTER` or `REGED` state, meaning it can make and receive calls.
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+Promise that resolves to `true` if registered, `false` otherwise
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function checkRegistration() {
+  const client = new TelnyxRTC(options);
+  client.connect();
+
+  const isRegistered = await client.getIsRegistered();
+  if (isRegistered) {
+    console.log('Client is registered and ready for calls');
+  } else {
+    console.log('Client is not registered');
+  }
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getIsRegistered().then((isRegistered) => {
+  console.log('Registration status:', isRegistered);
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.getIsRegistered
+
+---
+
 ### getVideoDevices
 
 ▸ **getVideoDevices**(): `Promise`\<`MediaDeviceInfo`[]\>
@@ -826,6 +818,93 @@ void
 #### Inherited from
 
 TelnyxRTCClient.handleLoginError
+
+---
+
+### login
+
+▸ **login**(`options?`): `Promise`\<`void`\>
+
+Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
+
+This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+
+- Refreshing expired JWT tokens during an active session
+- Switching to different user credentials
+- Re-authenticating after token expiration errors
+
+#### Parameters
+
+| Name                 | Type                       | Description                                                                    |
+| :------------------- | :------------------------- | :----------------------------------------------------------------------------- |
+| `options`            | `Object`                   | Configuration object for the login operation                                   |
+| `options.creds?`     | `ILoginParams`             | Optional credential parameters to update before authentication                 |
+| `options.onError?`   | (`error`: `any`) => `void` | Callback function invoked when authentication fails, receives the error object |
+| `options.onSuccess?` | () => `void`               | Callback function invoked when authentication succeeds                         |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+**`Example`**
+
+**Re-authenticate with existing credentials:**
+
+```js
+// Uses the credentials already stored in session options
+await client.login();
+```
+
+**`Example`**
+
+**Refresh an expired JWT token:**
+
+```js
+const newToken = await fetchNewJwtToken();
+await client.login({
+  creds: { login_token: newToken },
+});
+```
+
+**`Example`**
+
+**Update login credentials with callbacks:**
+
+```js
+await client.login({
+  creds: {
+    login: 'newuser@example.com',
+    password: 'newpassword',
+  },
+  onSuccess: () => {
+    console.log('Successfully re-authenticated!');
+  },
+  onError: (error) => {
+    console.error('Authentication failed:', error);
+  },
+});
+```
+
+**`Example`**
+
+**Switch to anonymous login:**
+
+```js
+await client.login({
+  creds: {
+    anonymous_login: {
+      target_type: 'ai_assistant',
+      target_id: 'asst_12345',
+      target_version_id: 'v1',
+    },
+  },
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.login
 
 ---
 

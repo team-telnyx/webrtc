@@ -8,27 +8,42 @@ export const DEV_HOST = 'wss://rtcdev.telnyx.com';
 export const GOOGLE_STUN_SERVER = { urls: 'stun:stun.l.google.com:19302' };
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const STUN_DEV_SERVER = { urls: 'stun:stundev.telnyx.com:3478' };
-export const TURN_SERVER = {
-  urls: 'turn:turn.telnyx.com:3478?transport=tcp',
-  username: 'testuser',
-  credential: 'testpassword',
-};
-export const TURN_DEV_SERVER = {
-  urls: 'turn:turndev.telnyx.com:3478?transport=tcp',
-  username: 'testuser',
-  credential: 'testpassword',
-};
+// UDP preferred for lower latency, TCP as fallback for restrictive firewalls
+export const TURN_SERVER = [
+  {
+    urls: 'turn:turn.telnyx.com:3478?transport=udp',
+    username: 'testuser',
+    credential: 'testpassword',
+  },
+  {
+    urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+    username: 'testuser',
+    credential: 'testpassword',
+  },
+];
+export const TURN_DEV_SERVER = [
+  {
+    urls: 'turn:turndev.telnyx.com:3478?transport=udp',
+    username: 'testuser',
+    credential: 'testpassword',
+  },
+  {
+    urls: 'turn:turndev.telnyx.com:3478?transport=tcp',
+    username: 'testuser',
+    credential: 'testpassword',
+  },
+];
 
 export const DEFAULT_PROD_ICE_SERVERS: RTCIceServer[] = [
   STUN_SERVER,
   GOOGLE_STUN_SERVER,
-  TURN_SERVER,
+  ...TURN_SERVER,
 ];
 
 export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   STUN_DEV_SERVER,
   GOOGLE_STUN_SERVER,
-  TURN_DEV_SERVER,
+  ...TURN_DEV_SERVER,
 ];
 
 export enum SwEvent {

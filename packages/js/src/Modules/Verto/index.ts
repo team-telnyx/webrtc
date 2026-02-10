@@ -3,18 +3,15 @@ import {
   SubscribeParams,
   BroadcastParams,
   IVertoOptions,
+  ILoginParams,
 } from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
-import { Login } from './messages/Verto';
 import Call from './webrtc/Call';
-import { TIME_CALL_INVITE } from './util/constants';
 import VertoHandler from './webrtc/VertoHandler';
 import {
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
 } from './util/helpers';
-import { getReconnectToken } from './util/reconnect';
-import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import logger from './util/logger';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
@@ -71,47 +68,18 @@ export default class Verto extends BrowserSession {
 
   private handleLoginOnSocketOpen = async () => {
     this._idle = false;
-    const {
-      login,
-      password,
-      passwd,
-      login_token,
-      userVariables,
-      autoReconnect = true,
-    } = this.options;
+    const { autoReconnect = true } = this.options;
 
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-    const response = await this.execute(msg).catch(this._handleLoginError);
-    if (response) {
-      this._autoReconnect = autoReconnect;
-      this.sessionid = response.sessid;
-    }
+    await this.login({
+      onSuccess: () => {
+        this._autoReconnect = autoReconnect;
+      },
+    });
   };
 
   private handleAnonymousLoginOnSocketOpen = async () => {
     this._idle = false;
-    const { anonymous_login } = this.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.sessionid,
-      userVariables: this.options.userVariables,
-      reconnection: !!getReconnectToken(),
-    });
-
-    const response = await this.execute(msg).catch(this._handleLoginError);
-    if (response) {
-      this.sessionid = response.sessid;
-    }
+    await this.login();
   };
 
   private validateCallOptions(options: IVertoCallOptions) {

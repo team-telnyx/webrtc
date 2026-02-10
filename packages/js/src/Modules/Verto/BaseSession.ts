@@ -16,10 +16,17 @@ import {
   isValidLoginOptions,
   randomInt,
 } from './util/helpers';
-import { BroadcastParams, IVertoOptions } from './util/interfaces';
+import {
+  BroadcastParams,
+  ILoginParams,
+  IVertoOptions,
+} from './util/interfaces';
 import logger from './util/logger';
 import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
+import { Login } from './messages/Verto';
+import { AnonymousLogin } from './messages/verto/AnonymousLogin';
+import { ERROR_TYPE } from './webrtc/constants';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -109,6 +116,9 @@ export default abstract class BaseSession {
     if (!this.connected) {
       return new Promise((resolve) => {
         this._executeQueue.push({ resolve, msg });
+        logger.debug(
+          'Calling connect from execute since not currently connected.'
+        );
         this.connect();
       });
     }
@@ -163,7 +173,9 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
-    logger.debug('Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.');
+    logger.debug(
+      'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
+    );
   }
 
   /**
@@ -245,15 +257,17 @@ export default abstract class BaseSession {
    */
   async connect(): Promise<void> {
     if (!this.connection) {
+      logger.debug('No existing connection found, creating a new one.');
       this.connection = new Connection(this);
     }
 
     this._attachListeners();
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
+      logger.debug('Initiating connection to the server...');
       this.connection.connect();
     }
-    logger.debug('Session connected. Connection initiated if not already alive. Auto-reconnect enabled.');
+    logger.debug('Connect method called. Connection initiated.');
   }
 
   /**
@@ -262,6 +276,166 @@ export default abstract class BaseSession {
    */
   protected _handleLoginError(error: any) {
     trigger(SwEvent.Error, { error, sessionId: this.sessionid }, this.uuid);
+  }
+
+  /**
+   * Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
+   *
+   * This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+   * and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+   * - Refreshing expired JWT tokens during an active session
+   * - Switching to different user credentials
+   * - Re-authenticating after token expiration errors
+   *
+   * @param options - Configuration object for the login operation
+   * @param options.creds - Optional credential parameters to update before authentication
+   * @param options.onSuccess - Callback function invoked when authentication succeeds
+   * @param options.onError - Callback function invoked when authentication fails, receives the error object
+   *
+   * @returns Promise<void>
+   *
+   * @example
+   * **Re-authenticate with existing credentials:**
+   * ```js
+   * // Uses the credentials already stored in session options
+   * await client.login();
+   * ```
+   *
+   * @example
+   * **Refresh an expired JWT token:**
+   * ```js
+   * const newToken = await fetchNewJwtToken();
+   * await client.login({
+   *   creds: { login_token: newToken }
+   * });
+   * ```
+   *
+   * @example
+   * **Update login credentials with callbacks:**
+   * ```js
+   * await client.login({
+   *   creds: {
+   *     login: 'newuser@example.com',
+   *     password: 'newpassword'
+   *   },
+   *   onSuccess: () => {
+   *     console.log('Successfully re-authenticated!');
+   *   },
+   *   onError: (error) => {
+   *     console.error('Authentication failed:', error);
+   *   }
+   * });
+   * ```
+   *
+   * @example
+   * **Switch to anonymous login:**
+   * ```js
+   * await client.login({
+   *   creds: {
+   *     anonymous_login: {
+   *       target_type: 'ai_assistant',
+   *       target_id: 'asst_12345',
+   *       target_version_id: 'v1'
+   *     }
+   *   }
+   * });
+   * ```
+   */
+  async login({
+    creds,
+    onSuccess,
+    onError,
+  }: {
+    creds?: ILoginParams;
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  } = {}): Promise<void> {
+    // Validate connection state
+    if (!this.connection || !this.connection.isAlive) {
+      return;
+    }
+
+    // Update session options with new credentials
+    if (creds) {
+      if (creds.login !== undefined) {
+        this.options.login = creds.login;
+      }
+      if (creds.password !== undefined) {
+        this.options.password = creds.password;
+      }
+      if (creds.passwd !== undefined) {
+        this.options.passwd = creds.passwd;
+      }
+      if (creds.login_token !== undefined) {
+        this.options.login_token = creds.login_token;
+      }
+      if (creds.userVariables !== undefined) {
+        this.options.userVariables = creds.userVariables;
+      }
+      if (creds.anonymous_login !== undefined) {
+        this.options.anonymous_login = creds.anonymous_login;
+      }
+    }
+
+    if (isValidLoginOptions(this.options)) {
+      return this._login({ type: 'login', onSuccess, onError });
+    } else if (isValidAnonymousLoginOptions(this.options)) {
+      return this._login({ type: 'anonymous_login', onSuccess, onError });
+    } else {
+      const msg = 'Invalid login options provided for authentication.';
+      logger.error(msg);
+      trigger(
+        SwEvent.Error,
+        {
+          error: new Error(msg),
+          type: ERROR_TYPE.invalidCredentialsOptions,
+          sessionId: this.sessionid,
+        },
+        this.uuid
+      );
+      return;
+    }
+  }
+
+  private async _login({
+    type,
+    onSuccess,
+    onError,
+  }: {
+    type: 'login' | 'anonymous_login';
+    onSuccess?: () => void;
+    onError?: (error: any) => void;
+  }): Promise<void> {
+    let msg: Login | AnonymousLogin;
+    if (type === 'login') {
+      msg = new Login(
+        this.options.login,
+        this.options.password || this.options.passwd,
+        this.options.login_token,
+        this.sessionid,
+        this.options.userVariables,
+        !!getReconnectToken()
+      );
+    } else {
+      msg = new AnonymousLogin({
+        target_id: this.options.anonymous_login.target_id,
+        target_type: this.options.anonymous_login.target_type,
+        target_version_id: this.options.anonymous_login.target_version_id,
+        sessionId: this.sessionid,
+        userVariables: this.options.userVariables,
+        reconnection: !!getReconnectToken(),
+      });
+    }
+
+    const response = await this.execute(msg).catch((error) => {
+      this._handleLoginError(error);
+      if (onError) onError(error);
+    });
+
+    if (response) {
+      this.sessionid = response.sessid;
+      if (onSuccess) onSuccess();
+    }
   }
 
   /**
@@ -287,10 +461,12 @@ export default abstract class BaseSession {
     clearTimeout(this._keepAliveTimeout);
 
     if (this._autoReconnect) {
-      this._reconnectTimeout = setTimeout(
-        () => this.connect(),
-        this.reconnectDelay
-      );
+      this._reconnectTimeout = setTimeout(() => {
+        logger.debug(
+          'Calling connect due to network close and auto-reconnect enabled.'
+        );
+        this.connect();
+      }, this.reconnectDelay);
     }
   }
 

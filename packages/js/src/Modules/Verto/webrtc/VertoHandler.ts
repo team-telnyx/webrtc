@@ -1,9 +1,8 @@
 import logger from '../util/logger';
 import BrowserSession from '../BrowserSession';
-import pkg from '../../../../package.json';
 import Call from './Call';
-import { checkSubscribeResponse, hasVideo } from './helpers';
-import { Attach, Candidate, Login, Result } from '../messages/Verto';
+import { checkSubscribeResponse } from './helpers';
+import { Result } from '../messages/Verto';
 import { SwEvent } from '../util/constants';
 import {
   VertoMethod,
@@ -17,16 +16,8 @@ import { MCULayoutEventHandler } from './LayoutHandler';
 import { IWebRTCCall, IVertoCallOptions } from './interfaces';
 import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
-import {
-  getGatewayState,
-  isValidAnonymousLoginOptions,
-  isValidLoginOptions,
-  randomInt,
-} from '../util/helpers';
+import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
-import { getReconnectToken } from '../util/reconnect';
-const SDK_VERSION = pkg.version;
 
 /**
  * @ignore Hide in docs output
@@ -57,46 +48,6 @@ class VertoHandler {
     return randomInt(2, 6) * 1000;
   }
 
-  private handleLogin = async () => {
-    const { login, password, passwd, login_token, userVariables } =
-      this.session.options;
-
-    const msg = new Login(
-      login,
-      password || passwd,
-      login_token,
-      this.session.sessionid,
-      userVariables,
-      !!getReconnectToken()
-    );
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
-  };
-
-  private handleAnonymousLogin = async () => {
-    const { anonymous_login } = this.session.options;
-
-    const msg = new AnonymousLogin({
-      target_id: anonymous_login.target_id,
-      target_type: anonymous_login.target_type,
-      target_version_id: anonymous_login.target_version_id,
-      sessionId: this.session.sessionid,
-      userVariables: this.session.options.userVariables,
-      reconnection: !!getReconnectToken(),
-    });
-
-    const response = await this.session
-      .execute(msg)
-      .catch(this.session.handleLoginError);
-    if (response) {
-      this.session.sessionid = response.sessid;
-    }
-  };
-
   handleMessage(msg: any) {
     const { session } = this;
     const { id, method, params = {}, voice_sdk_id } = msg;
@@ -105,63 +56,14 @@ class VertoHandler {
     const eventChannel = params?.eventChannel;
     const eventType = params?.eventType;
 
-    const attach = method === VertoMethod.Attach;
-    const punt = method === VertoMethod.Punt;
-    let keepConnectionOnAttach = false;
-    let reconnectionOnAttach = false;
+    const existingCall = session.calls[callID];
+    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
     }
 
-    if (callID && session.calls.hasOwnProperty(callID)) {
-      if (attach) {
-        const call = session.calls[callID];
-        reconnectionOnAttach = call.peer?.restartedIceOnConnectionStateFailed;
-        keepConnectionOnAttach =
-          (session.options.keepConnectionAliveOnSocketClose ||
-            call.options.keepConnectionAliveOnSocketClose) &&
-          Boolean(call.peer?.instance) &&
-          !call.signalingStateClosed &&
-          !reconnectionOnAttach;
-
-        if (keepConnectionOnAttach) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] re-attaching call due to ATTACH and keepConnectionAliveOnSocketClose`
-          );
-        } else {
-          if (call.signalingStateClosed) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the and recreating call due to ATTACH - signalingState is closed`
-            );
-          } else if (reconnectionOnAttach) {
-            logger.info(
-              `[${new Date().toISOString()}][${callID}] Hanging up the call due to ATTACH - connection had restarted ICE on connection state failed`
-            );
-          }
-
-          call.hangup({}, reconnectionOnAttach);
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call hangup bye message ${reconnectionOnAttach ? 'executed' : 'not executed'}`
-          );
-        }
-      } else {
-        session.calls[callID].handleMessage(msg);
-        this._ack(id, method);
-        return;
-      }
-    }
-
-    if (punt && session.options.keepConnectionAliveOnSocketClose) {
-      logger.info(
-        `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
-      );
-      this.session.socketDisconnect();
-      this._ack(id, method);
-      return;
-    }
-
-    const _buildCall = (includeCallId = true) => {
+    const _buildCall = (isRecovering: boolean = false) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -173,7 +75,7 @@ class VertoHandler {
         remoteCallerNumber: params.caller_id_number,
         callerName: params.callee_id_name,
         callerNumber: params.callee_id_number,
-        attach,
+        attach: method === VertoMethod.Attach,
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
@@ -184,7 +86,7 @@ class VertoHandler {
           session.options.keepConnectionAliveOnSocketClose ?? false,
       };
 
-      if (includeCallId) {
+      if (callID) {
         callOptions.id = callID;
       }
 
@@ -212,7 +114,7 @@ class VertoHandler {
         callOptions.customHeaders = params.dialogParams.custom_headers;
       }
 
-      const call = new Call(session, callOptions);
+      const call = new Call(session, callOptions, isRecovering);
       call.nodeId = this.nodeId;
       return call;
     };
@@ -221,6 +123,20 @@ class VertoHandler {
     const messagePing = new Ping(voice_sdk_id);
 
     switch (method) {
+      case VertoMethod.Answer:
+      case VertoMethod.Display:
+      case VertoMethod.Candidate:
+      case VertoMethod.Ringing:
+      case VertoMethod.Bye:
+      case VertoMethod.Media:
+        if (!callID || !existingCall) {
+          logger.error(`Received ${method} for non existing call:`, params);
+          return;
+        }
+        existingCall.handleMessage(msg);
+        this._ack(id, method);
+        break;
+
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
@@ -244,12 +160,7 @@ class VertoHandler {
                   'Ping failed twice with Authentication Required. Re-logging in...'
                 );
 
-                if (isValidLoginOptions(this.session.options)) {
-                  this.handleLogin();
-                } else if (isValidAnonymousLoginOptions(this.session.options)) {
-                  this.handleAnonymousLogin();
-                }
-
+                this.session.login();
                 VertoHandler.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
               }
             }
@@ -257,7 +168,18 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Punt:
-        session.disconnect();
+        if (
+          session.options.keepConnectionAliveOnSocketClose &&
+          isPeerConnectionAlive
+        ) {
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
+          );
+          session.socketDisconnect();
+          this._ack(id, method);
+        } else {
+          session.disconnect();
+        }
         break;
       case VertoMethod.Invite: {
         const call = _buildCall();
@@ -268,54 +190,33 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        if (keepConnectionOnAttach) {
-          // If we are keeping the connection alive on attach, we need to re-attach first.
-          this.session.execute(
-            new Attach({
-              sessid: this.session.sessionid,
-              // reuse the same sdp to re-attach
-              sdp: this.session.calls[callID].peer.instance.localDescription
-                .sdp,
-              dialogParams: this.session.calls[callID].options,
-              'User-Agent': `Web-${SDK_VERSION}`,
-            })
-          );
-          // Restart stats reporter after reconnect
-          this.session.calls[callID].peer?.restartStatsReporter();
-          return;
-        } else {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Re-creating call instance.`
-          );
-        }
-
-        if (this.session.calls[callID]?.creatingPeer) {
-          logger.debug(
-            `[${new Date().toISOString()}][${callID}] Call is already creating a peer, skip recreating call instance.`
-          );
+        /**
+         * If there is no existing call, we need to create a new call.
+         * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
+         */
+        if (!existingCall) {
+          const call = _buildCall();
+          call.answer();
+          this._ack(id, method);
           return;
         }
 
-        let call;
-        if (this.session.autoRecoverCalls) {
-          if (reconnectionOnAttach) {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call had restarted ICE on connection state failed. Re-inviting to become active leg. due to keepConnectionAliveOnSocketClose.`
-            );
-            call = _buildCall(false);
-            call.invite();
-          } else {
-            logger.debug(
-              `[${new Date().toISOString()}][${callID}] Call is not in an unrecoverable state. Answering.`
-            );
-            call = _buildCall();
-            call.answer();
-          }
-        } else {
-          call = _buildCall();
-          call.setState(State.Recovering);
-        }
-        call.handleMessage(msg);
+        /**
+         * We call our recovery flow with recovering call state during the call lifecycle.
+         */
+        const isRecovering = !!existingCall;
+
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
+        );
+        existingCall.hangup({ isRecovering }, false);
+
+        logger.info(
+          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+        );
+        const call = _buildCall(isRecovering);
+        call.answer();
+        this._ack(id, method);
         break;
       }
       case VertoMethod.Event:
@@ -377,35 +278,6 @@ class VertoHandler {
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
 
-                if (session.options.trickleIce) {
-                  logger.debug(
-                    'Trickle ICE is enabled. Checking Gateway support'
-                  );
-                  /**
-                   * If lack of support, this will yield an error response in format:
-                   * `"code" => -32601, "message" => "Invalid Method, Missing Method or Permission Denied"`
-                   */
-                  this.session
-                    .execute(new Candidate({ candidate: '' }))
-                    .catch((error) => {
-                      // if error is related to call not found or session, ignore it. This is expected as we're sending a candidate before a call as a support check
-                      if (error.code === this.session.invalidMethodErrorCode) {
-                        logger.warn(
-                          'Trickle ICE is not supported by the server, disabling it.'
-                        );
-                        logger.debug(
-                          'Trickle ICE check error:',
-                          JSON.stringify(error, null, 2)
-                        );
-                        session.options.trickleIce = false;
-                      } else {
-                        logger.debug(
-                          'Trickle ICE check:',
-                          JSON.stringify(error, null, 2)
-                        );
-                      }
-                    });
-                }
               }
               break;
             }

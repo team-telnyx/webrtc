@@ -9,7 +9,7 @@ export interface IVertoOptions {
   passwd?: string;
   password?: string;
   login_token?: string;
-  userVariables?: Object;
+  userVariables?: Record<string, any>;
   ringtoneFile?: string;
   ringbackFile?: string;
   env?: Environment;
@@ -29,9 +29,8 @@ export interface IVertoOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
-   * Optimistic flag to attempt keeping calls alive when the WebSocket connection closes.
-   * Recovery is not guaranteed - depends on peer connection signaling state.
-   * @see IClientOptions.keepConnectionAliveOnSocketClose for detailed behavior
+   * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
+   * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
   useCanaryRtcServer?: boolean;
@@ -72,6 +71,18 @@ export interface IVertoOptions {
    * @default 1000
    */
   debugLogMaxEntries?: number;
+}
+export interface ILoginParams {
+  login?: string;
+  password?: string;
+  passwd?: string;
+  login_token?: string;
+  userVariables?: Record<string, any>;
+  anonymous_login?: {
+    target_type: string;
+    target_id: string;
+    target_version_id?: string;
+  };
 }
 export interface SubscribeParams {
   channels?: string[];
