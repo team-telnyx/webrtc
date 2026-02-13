@@ -28,11 +28,11 @@ const RETRY_CONNECT_TIME = 5;
 class VertoHandler {
   public nodeId: string;
 
-  static retriedConnect = 0;
+  retriedConnect = 0;
 
-  static retriedRegister = 0;
+  retriedRegister = 0;
 
-  static receivedAuthenticationRequired = 0;
+  receivedAuthenticationRequired = 0;
 
   constructor(public session: BrowserSession) {}
 
@@ -143,17 +143,17 @@ class VertoHandler {
         this.session
           .execute(messagePing)
           .then(() => {
-            VertoHandler.receivedAuthenticationRequired = 0;
+            this.receivedAuthenticationRequired = 0;
           })
           .catch(async (error) => {
             if (
               error.code === this.session.authenticationRequiredErrorCode &&
-              VertoHandler.receivedAuthenticationRequired >= 0
+              this.receivedAuthenticationRequired >= 0
             ) {
-              VertoHandler.receivedAuthenticationRequired += 1;
+              this.receivedAuthenticationRequired += 1;
 
               if (
-                VertoHandler.receivedAuthenticationRequired > 1 &&
+                this.receivedAuthenticationRequired > 1 &&
                 this.session.hasAutoReconnect()
               ) {
                 logger.warn(
@@ -161,7 +161,7 @@ class VertoHandler {
                 );
 
                 this.session.login();
-                VertoHandler.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
+                this.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
               }
             }
           });
@@ -266,7 +266,7 @@ class VertoHandler {
                   GatewayStateType.REGISTER
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
-                VertoHandler.retriedRegister = 0;
+                this.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
 
@@ -282,10 +282,10 @@ class VertoHandler {
             */
             case GatewayStateType.UNREGED:
             case GatewayStateType.NOREG:
-              VertoHandler.retriedRegister += 1;
+              this.retriedRegister += 1;
 
-              if (VertoHandler.retriedRegister === RETRY_REGISTER_TIME) {
-                VertoHandler.retriedRegister = 0;
+              if (this.retriedRegister === RETRY_REGISTER_TIME) {
+                this.retriedRegister = 0;
                 trigger(
                   SwEvent.Error,
                   {
@@ -313,7 +313,7 @@ class VertoHandler {
                   GatewayStateType.FAIL_WAIT
               ) {
                 if (!this.session.hasAutoReconnect()) {
-                  VertoHandler.retriedConnect = 0;
+                  this.retriedConnect = 0;
                   trigger(
                     SwEvent.Error,
                     {
@@ -328,9 +328,9 @@ class VertoHandler {
                   break;
                 }
 
-                VertoHandler.retriedConnect += 1;
-                if (VertoHandler.retriedConnect === RETRY_CONNECT_TIME) {
-                  VertoHandler.retriedConnect = 0;
+                this.retriedConnect += 1;
+                if (this.retriedConnect === RETRY_CONNECT_TIME) {
+                  this.retriedConnect = 0;
                   trigger(
                     SwEvent.Error,
                     {
@@ -343,7 +343,7 @@ class VertoHandler {
                 } else {
                   setTimeout(() => {
                     logger.debug(
-                      `Reconnecting... Retry ${VertoHandler.retriedConnect} of ${RETRY_CONNECT_TIME}`
+                      `Reconnecting... Retry ${this.retriedConnect} of ${RETRY_CONNECT_TIME}`
                     );
 
                     if (this.session.options.keepConnectionAliveOnSocketClose) {
