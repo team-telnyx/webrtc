@@ -110,10 +110,18 @@ export default class Connection {
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
-    this._wsClient.onopen = (event): boolean =>
-      trigger(SwEvent.SocketOpen, event, this.session.uuid);
-    this._wsClient.onclose = (event): boolean =>
-      trigger(SwEvent.SocketClose, event, this.session.uuid);
+    this._wsClient.onopen = (event): boolean => {
+      logger.debug(
+        `[WEBRTC-3266] Socket OPEN event fired for session ${this.session.sessionid}`
+      );
+      return trigger(SwEvent.SocketOpen, event, this.session.uuid);
+    };
+    this._wsClient.onclose = (event): boolean => {
+      logger.debug(
+        `[WEBRTC-3266] Socket CLOSE event fired for session ${this.session.sessionid} with code ${event.code}`
+      );
+      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+    };
     this._wsClient.onerror = (event): boolean =>
       trigger(
         SwEvent.SocketError,

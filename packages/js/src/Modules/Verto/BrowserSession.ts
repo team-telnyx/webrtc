@@ -69,6 +69,8 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _wasOffline: boolean = false;
 
+  private _isReconnecting: boolean = false;
+
   constructor(options: IVertoOptions) {
     super(options);
     this._videoConstraints = options.video || false;
@@ -744,12 +746,37 @@ export default abstract class BrowserSession extends BaseSession {
        * Once offline, there's no guarantee the connection across client and server both ways is still alive as PINGs from server may be missed.
        * Therefore, reconnect to be safe.
        */
-      if (this._wasOffline) {
+      if (this._wasOffline && !this._isReconnecting) {
         logger.debug(
           `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
         );
+        this._isReconnecting = true;
+        
+        // Close the old connection first
         this.socketDisconnect();
-        this.connect();
+        
+        // Wait for socket.close event before opening new connection
+        // This ensures proper event ordering (close -> open)
+        const closeTimeout = setTimeout(() => {
+          logger.warn(
+            `Socket close event timeout for session ${this.sessionid}. Proceeding with reconnect.`
+          );
+          this._isReconnecting = false;
+          this.connect();
+        }, 5000); // 5 second fallback timeout
+        
+        registerOnce(
+          SwEvent.SocketClose,
+          () => {
+            clearTimeout(closeTimeout);
+            logger.debug(
+              `Socket closed for session ${this.sessionid}. Opening new connection...`
+            );
+            this._isReconnecting = false;
+            this.connect();
+          },
+          this.uuid
+        );
       }
       this._wasOffline = false;
     };
