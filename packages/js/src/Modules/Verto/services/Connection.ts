@@ -103,7 +103,6 @@ export default class Connection {
 
       if (reconnectToken && !this._hasCanaryBeenUsed) {
         websocketUrl.searchParams.delete('voice_sdk_id');
-        logger.debug('first canary connection. Refreshing voice_sdk_id');
       }
 
       this._hasCanaryBeenUsed = true;
@@ -111,15 +110,9 @@ export default class Connection {
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
     this._wsClient.onopen = (event): boolean => {
-      logger.debug(
-        `[WEBRTC-3266] Socket OPEN event fired for session ${this.session.sessionid}`
-      );
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
     this._wsClient.onclose = (event): boolean => {
-      logger.debug(
-        `[WEBRTC-3266] Socket CLOSE event fired for session ${this.session.sessionid} with code ${event.code}`
-      );
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
     this._wsClient.onerror = (event): boolean =>
@@ -139,7 +132,6 @@ export default class Connection {
         setReconnectToken(msg.voice_sdk_id);
       }
       this._unsetTimer(msg.id);
-      logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
 
       /**
        * GatewayStateType
@@ -178,7 +170,6 @@ export default class Connection {
         return error ? reject(error) : resolve(result);
       });
     });
-    logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     this._wsClient.send(JSON.stringify(request));
 
     return promise;
