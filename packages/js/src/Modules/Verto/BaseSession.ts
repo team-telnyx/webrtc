@@ -183,7 +183,7 @@ export default abstract class BaseSession {
    * ### Events
    * |   |   |
    * |---|---|
-   * | `telnyx.ready` | The client is authenticated and available to use |
+   * | `telnyx.ready` | The client is authenticated and available to use. Fires on initial connection and after reconnection. Event includes `reconnection: boolean` to distinguish initial connection (false) from reconnection (true). |
    * | `telnyx.error` | An error occurred at the session level |
    * | `telnyx.notification` | An update to the call or session |
    * | `telnyx.socket.open` | The WebSocket connection has been made |
@@ -458,6 +458,11 @@ export default abstract class BaseSession {
     this.subscriptions = {};
     this.contexts = [];
     clearTimeout(this._keepAliveTimeout);
+
+    // Reset gateway state on socket close so telnyx.ready fires again on reconnection
+    if (this.connection) {
+      this.connection.previousGatewayState = '';
+    }
 
     if (this._autoReconnect) {
       this._reconnectTimeout = setTimeout(() => {

@@ -174,6 +174,7 @@ describe('VertoHandler', () => {
       expect(onNotification).toBeCalledWith({
         state: 'REGED',
         type: 'vertoClientReady',
+        reconnection: expect.any(Boolean),
       });
 
       handler.handleMessage(
@@ -185,6 +186,7 @@ describe('VertoHandler', () => {
       expect(onNotification).toBeCalledWith({
         state: 'REGED',
         type: 'vertoClientReady',
+        reconnection: expect.any(Boolean),
       });
     });
   });
@@ -199,7 +201,74 @@ describe('VertoHandler', () => {
 
       expect(onNotification).toBeCalledWith({
         type: 'vertoClientReady',
+        reconnection: expect.any(Boolean),
       });
+    });
+  });
+
+  describe('Reconnection behavior', () => {
+    it('should fire telnyx.ready again after socket reconnection', () => {
+      // First connection - should fire with reconnection=false
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+        )
+      );
+
+      expect(onNotification).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          state: 'REGED',
+          type: 'vertoClientReady',
+          reconnection: expect.any(Boolean),
+        })
+      );
+
+      const firstCallCount = onNotification.mock.calls.length;
+
+      // Simulate socket close - reset previousGatewayState
+      instance.connection.previousGatewayState = '';
+
+      // Reconnection - should fire again with reconnection flag
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":2,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+        )
+      );
+
+      // Verify the event fired again
+      expect(onNotification.mock.calls.length).toBe(firstCallCount + 1);
+      expect(onNotification).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          state: 'REGED',
+          type: 'vertoClientReady',
+          reconnection: expect.any(Boolean),
+        })
+      );
+    });
+
+    it('should not fire telnyx.ready multiple times for duplicate REGED messages in same connection', () => {
+      // First REGED message
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+        )
+      );
+
+      const callCountAfterFirst = onNotification.mock.calls.length;
+
+      // Simulate the Connection updating previousGatewayState after first REGED
+      // (in real code, Connection.onmessage does this after triggering the message)
+      instance.connection.previousGatewayState = 'REGED';
+
+      // Duplicate REGED message (previousGatewayState is now REGED)
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":2,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+        )
+      );
+
+      // Should not fire again
+      expect(onNotification.mock.calls.length).toBe(callCountAfterFirst);
     });
   });
 });
