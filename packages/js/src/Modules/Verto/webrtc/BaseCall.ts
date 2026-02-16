@@ -152,6 +152,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceTimeout = null;
 
+  private _iceGatheringTimerId: NodeJS.Timeout | null = null;
+
+  private _iceGatheringTimeout: number = 10000; // 10 seconds safety timeout
+
   private _iceDone: boolean = false;
 
   private _ringtone: IAudio;
@@ -1351,6 +1355,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
+    
+    if (this._iceGatheringTimerId) {
+      clearTimeout(this._iceGatheringTimerId);
+      this._iceGatheringTimerId = null;
+    }
+    
     this._iceDone = true;
     const { sdp, type } = data;
 
@@ -1487,17 +1497,22 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
-    if (this._iceTimeout === null) {
-      this._iceTimeout = setTimeout(
-        () => this._onIceSdp(instance.localDescription),
-        1000
-      );
-    }
 
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
-    } else {
+    } else if (instance.iceGatheringState === 'complete') {
+      // ICE gathering is complete, clear safety timeout and send SDP
+      logger.info('ICE gathering complete, sending SDP');
+      if (this._iceGatheringTimerId) {
+        clearTimeout(this._iceGatheringTimerId);
+        this._iceGatheringTimerId = null;
+      }
       this._onIceSdp(instance.localDescription);
+    } else {
+      logger.warn(
+        'Received null candidate but gathering state is:',
+        instance.iceGatheringState
+      );
     }
   }
 
@@ -1581,11 +1596,36 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _registerPeerEvents(instance: RTCPeerConnection) {
     this._iceDone = false;
+    
     instance.onicecandidate = (event) => {
       if (this._iceDone) {
         return;
       }
       this._onIce(event);
+    };
+
+    // Start safety timeout when gathering begins
+    // This prevents calls from hanging indefinitely if ICE gathering hangs
+    this._iceGatheringTimerId = setTimeout(() => {
+      if (!this._iceDone) {
+        logger.warn(
+          'ICE gathering timeout reached after',
+          this._iceGatheringTimeout,
+          'ms, forcing SDP send'
+        );
+        this._onIceSdp(instance.localDescription);
+      }
+    }, this._iceGatheringTimeout);
+
+    instance.onicegatheringstatechange = () => {
+      logger.debug('ICE gathering state:', instance.iceGatheringState);
+      if (instance.iceGatheringState === 'complete') {
+        logger.info('ICE gathering complete');
+        if (this._iceGatheringTimerId) {
+          clearTimeout(this._iceGatheringTimerId);
+          this._iceGatheringTimerId = null;
+        }
+      }
     };
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
