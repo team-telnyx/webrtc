@@ -205,12 +205,12 @@ describe('VertoHandler', () => {
 
   describe('should fire telnyx.ready again after socket reconnection', () => {
     it('fires telnyx.ready again when previousGatewayState is reset after socket close', () => {
-      // First connection - fires telnyx.ready
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-        )
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
       );
+
+      // Step 1: First REGED — should fire telnyx.ready
+      handler.handleMessage(regedMsg);
 
       expect(onNotification).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -219,20 +219,24 @@ describe('VertoHandler', () => {
         })
       );
 
-      const firstCallCount = onNotification.mock.calls.length;
+      const countAfterFirst = onNotification.mock.calls.length;
 
-      // Simulate socket close - reset previousGatewayState
+      // Step 2: Simulate what Connection.onmessage does (line 152 of Connection.ts):
+      // it sets previousGatewayState = current state after processing
+      instance.connection.previousGatewayState = 'REGED';
+
+      // Step 3: Second REGED — duplicate guard should BLOCK it
+      handler.handleMessage(regedMsg);
+
+      expect(onNotification.mock.calls.length).toBe(countAfterFirst);
+
+      // Step 4: Simulate socket close — onNetworkClose() resets previousGatewayState
       instance.connection.previousGatewayState = '';
 
-      // Reconnection - should fire again
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":2,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-        )
-      );
+      // Step 5: Third REGED — should fire again after reconnection
+      handler.handleMessage(regedMsg);
 
-      // Verify the event fired again
-      expect(onNotification.mock.calls.length).toBe(firstCallCount + 1);
+      expect(onNotification.mock.calls.length).toBe(countAfterFirst + 1);
       expect(onNotification).toHaveBeenLastCalledWith(
         expect.objectContaining({
           state: 'REGED',
