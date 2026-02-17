@@ -1480,18 +1480,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
-    const { instance } = this.peer;
-
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
-    } else if (instance.iceGatheringState === 'complete') {
-      // ICE gathering is complete, send SDP
-      this._onIceSdp(instance.localDescription);
     } else {
-      logger.warn(
-        'Received null candidate but gathering state is:',
-        instance.iceGatheringState
-      );
+      logger.debug('RTCPeer null candidate received (ICE gathering may be complete)');
     }
   }
 
@@ -1586,7 +1578,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     instance.onicegatheringstatechange = () => {
       logger.debug('ICE gathering state:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
-        logger.info('ICE gathering complete');
+        logger.info('ICE gathering complete, sending SDP');
+        this._onIceSdp(instance.localDescription);
       }
     };
 
