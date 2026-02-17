@@ -87,11 +87,7 @@ let activeCall;
 
 // Attach event listeners
 client
-  .on('telnyx.ready', (event) => {
-    // Fires on initial connection and after reconnection
-    console.log('ready to call');
-    console.log('is reconnection:', event.reconnection); // false on initial, true after reconnect
-  })
+  .on('telnyx.ready', () => console.log('ready to call'))
   .on('telnyx.error', () => console.log('error'))
   // Events are fired on both session and call updates
   // ex: when the session has been established

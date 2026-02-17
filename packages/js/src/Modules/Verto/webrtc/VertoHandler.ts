@@ -34,8 +34,6 @@ class VertoHandler {
 
   static receivedAuthenticationRequired = 0;
 
-  static hasBeenReady = false;
-
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -270,9 +268,6 @@ class VertoHandler {
                 this.session._triggerKeepAliveTimeoutCheck();
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
-                // Add reconnection flag - true if we've been ready before (indicates reconnection)
-                params.reconnection = VertoHandler.hasBeenReady;
-                VertoHandler.hasBeenReady = true;
                 trigger(SwEvent.Ready, params, session.uuid);
               }
               break;
