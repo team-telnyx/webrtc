@@ -59,6 +59,10 @@ export default abstract class BaseSession {
   private _pong: boolean;
   private registerAgent: RegisterAgent;
 
+  public set immediateReconnect(value: boolean) {
+    this._immediateReconnect = value;
+  }
+
   constructor(public options: IVertoOptions) {
     if (!this.validateOptions()) {
       throw new Error('Invalid init options');

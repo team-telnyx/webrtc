@@ -359,8 +359,9 @@ class VertoHandler {
                         logger.debug(
                           'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
                         );
-                        this.session.socketDisconnect();
-                        this.session.connect();
+                        this.session.immediateReconnect = true; // Signal onNetworkClose to reconnect immediately
+                        this.session.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
+                        // onNetworkClose handles the actual connect() call
                         return;
                       } else {
                         logger.debug(
