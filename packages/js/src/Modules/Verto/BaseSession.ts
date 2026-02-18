@@ -463,8 +463,12 @@ export default abstract class BaseSession {
     this.subscriptions = {};
     this.contexts = [];
     clearTimeout(this._keepAliveTimeout);
-
     clearTimeout(this._reconnectTimeout);
+
+    // Reset gateway state on socket close so telnyx.ready fires again on reconnection
+    if (this.connection) {
+      this.connection.previousGatewayState = '';
+    }
 
     if (this._autoReconnect) {
       if (this._immediateReconnect) {

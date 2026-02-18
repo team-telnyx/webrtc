@@ -269,7 +269,6 @@ class VertoHandler {
                 VertoHandler.retriedRegister = 0;
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
-
               }
               break;
             }
