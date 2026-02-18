@@ -1,8 +1,8 @@
 ## [2.25.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.18...webrtc/v2.25.19) (2026-02-18)
 
 - fix: reuse single VertoHandler instance and convert static state to instance state
-- fix(WEBRTC-3267): fire telnyx.ready event on reconnection
-- fix(WEBRTC-3266): prevent race condition in network reconnection by deferring \_wasOffline reset
+- fix: fire telnyx.ready event on reconnection
+- fix: prevent race condition in network reconnection by deferring \_wasOffline reset
 
 ## [2.25.18](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.17...webrtc/v2.25.18) (2026-02-10)
 
