@@ -752,12 +752,6 @@ export default abstract class BrowserSession extends BaseSession {
         this.immediateReconnect = true; // Signal onNetworkClose to reconnect immediately
         this._autoReconnect = true; // Ensure auto-reconnect is enabled
 
-        // Flag the connection as a network switch so close() applies
-        // a safety timeout (Chrome can delay onclose by up to 60s).
-        if (this.connection) {
-          this.connection.setNetworkSwitch(true);
-        }
-
         this.socketDisconnect(); // This triggers SocketClose → onNetworkClose
         // onNetworkClose handles the actual connect() call
       }
