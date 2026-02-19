@@ -1,24 +1,31 @@
 name: "@telnyx/webrtc Publish prerelease"
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (branch or tag) to checkout"
+        required: false
+        default: "main"
+      npm_dist_tag:
+        description: "NPM dist-tag to use for publishing (e.g. beta, alpha, next)"
+        required: true
 
 jobs:
   publish-js:
-    if: startsWith(github.event.release.tag_name, 'webrtc/v') && github.event.release.prerelease == true
-
     name: "@telnyx/webrtc Publish prerelease"
 
     runs-on: ubuntu-latest
 
     env:
       PACKAGE_DIR: js
+      TARGET_REF: ${{ github.event.inputs.ref || github.ref || 'main' }}
+      NPM_DIST_TAG: ${{ github.event.inputs.npm_dist_tag }}
 
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "main"
+          ref: ${{ env.TARGET_REF }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -26,18 +33,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Determine npm dist-tag from release tag
-        id: dist-tag
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          # Extract prerelease identifier (e.g., webrtc/v2.0.0-beta.1 → beta)
-          PRERELEASE=$(echo "$TAG" | sed -n 's/.*-\([a-zA-Z]*\)\..*/\1/p')
-          if [ -z "$PRERELEASE" ]; then
-            echo "::error::Could not extract prerelease identifier from tag $TAG"
-            exit 1
-          fi
-          echo "tag=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Use Node.js 18.x
         uses: actions/setup-node@v4
@@ -55,7 +50,7 @@ jobs:
 
       - name: Publish package
         working-directory: packages/js
-        run: npm publish --access public --tag ${{ steps.dist-tag.outputs.tag }}
+        run: npm publish --access public --tag ${{ env.NPM_DIST_TAG }}
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
