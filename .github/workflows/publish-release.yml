@@ -4,6 +4,9 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: read
+
 jobs:
   publish-js:
     if: startsWith(github.event.release.tag_name, 'webrtc/v') && github.event.release.prerelease == false

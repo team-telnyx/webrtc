@@ -11,6 +11,9 @@ on:
         description: "NPM dist-tag to use for publishing (e.g. beta, alpha, next)"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   publish-js:
     name: "@telnyx/webrtc Publish prerelease"

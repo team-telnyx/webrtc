@@ -31,6 +31,10 @@ on:
           - minor
           - major
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
 
