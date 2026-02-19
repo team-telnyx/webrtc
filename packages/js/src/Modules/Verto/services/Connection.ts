@@ -25,6 +25,14 @@ const WS_STATE = {
   CLOSED: 3,
 };
 
+/**
+ * Safety timeout (ms) for forcing socket cleanup when ws.close()
+ * gets stuck in CLOSING state during a network switch scenario.
+ * Chrome can wait up to 60s before firing onclose after a network
+ * interface change (e.g. WiFi → Mobile Hotspot).
+ */
+const CLOSE_SAFETY_TIMEOUT_MS = 5000;
+
 export default class Connection {
   public previousGatewayState = '';
   private _wsClient: WebSocket | null = null;
@@ -32,6 +40,10 @@ export default class Connection {
   private _timers: { [id: string]: any } = {};
   private _useCanaryRtcServer: boolean = false;
   private _hasCanaryBeenUsed: boolean = false;
+
+  private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private _isNetworkSwitch: boolean = false;
+  private _reconnecting: boolean = false;
 
   public upDur: number = null;
   public downDur: number = null;
@@ -80,6 +92,14 @@ export default class Connection {
     return this.closing || this.closed;
   }
 
+  /**
+   * Mark the connection as undergoing a network switch.
+   * Called by BrowserSession when offline/online events fire.
+   */
+  setNetworkSwitch(value: boolean): void {
+    this._isNetworkSwitch = value;
+  }
+
   connect() {
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
@@ -110,17 +130,79 @@ export default class Connection {
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
-    this._wsClient.onopen = (event): boolean =>
-      trigger(SwEvent.SocketOpen, event, this.session.uuid);
-    this._wsClient.onclose = (event): boolean =>
-      trigger(SwEvent.SocketClose, event, this.session.uuid);
-    this._wsClient.onerror = (event): boolean =>
+    this._registerSocketEvents(this._wsClient);
+  }
+
+  sendRawText(request: string): void {
+    this._wsClient.send(request);
+  }
+
+  send(bladeObj: any): Promise<any> {
+    const { request } = bladeObj;
+    const promise = new Promise<void>((resolve, reject) => {
+      if (request.hasOwnProperty('result')) {
+        return resolve();
+      }
+      registerOnce(request.id, (response: any) => {
+        const { result, error } = destructResponse(response);
+        return error ? reject(error) : resolve(result);
+      });
+    });
+    logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
+    this._wsClient.send(JSON.stringify(request));
+
+    return promise;
+  }
+
+  close() {
+    if (this._wsClient) {
+      // @ts-expect-error polyfill
+      isFunction(this._wsClient._beginClose)
+        ? // @ts-expect-error polyfill
+          this._wsClient._beginClose()
+        : this._wsClient.close();
+
+      // For network switch scenarios, add a safety timeout in case
+      // Chrome's onclose takes up to 60s to fire after interface change.
+      if (this._isNetworkSwitch) {
+        this._clearSafetyTimeout();
+        this._safetyTimeoutId = setTimeout(
+          () => this._handleCloseTimeout(),
+          CLOSE_SAFETY_TIMEOUT_MS
+        );
+      } else {
+        // Normal (non-network-switch) close: null immediately as before
+        this._wsClient = null;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private: socket event registration
+  // ---------------------------------------------------------------------------
+
+  private _registerSocketEvents(ws: WebSocket): void {
+    ws.onopen = (event): boolean => {
+      this._isNetworkSwitch = false;
+      this._reconnecting = false;
+      return trigger(SwEvent.SocketOpen, event, this.session.uuid);
+    };
+
+    ws.onclose = (event): boolean => {
+      this._clearSafetyTimeout();
+      this._wsClient = null;
+      this._reconnecting = false;
+      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+    };
+
+    ws.onerror = (event): boolean =>
       trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
         this.session.uuid
       );
-    this._wsClient.onmessage = (event): void => {
+
+    ws.onmessage = (event): void => {
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
         this._handleStringResponse(msg);
@@ -155,36 +237,55 @@ export default class Connection {
     };
   }
 
-  sendRawText(request: string): void {
-    this._wsClient.send(request);
+  private _deregisterSocketEvents(): void {
+    if (!this._wsClient) return;
+    this._wsClient.onopen = null;
+    this._wsClient.onclose = null;
+    this._wsClient.onerror = null;
+    this._wsClient.onmessage = null;
   }
 
-  send(bladeObj: any): Promise<any> {
-    const { request } = bladeObj;
-    const promise = new Promise<void>((resolve, reject) => {
-      if (request.hasOwnProperty('result')) {
-        return resolve();
-      }
-      registerOnce(request.id, (response: any) => {
-        const { result, error } = destructResponse(response);
-        return error ? reject(error) : resolve(result);
-      });
-    });
-    logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
-    this._wsClient.send(JSON.stringify(request));
+  // ---------------------------------------------------------------------------
+  // Private: safety timeout for stuck CLOSING state
+  // ---------------------------------------------------------------------------
 
-    return promise;
-  }
-
-  close() {
-    if (this._wsClient) {
-      // @ts-expect-error polyfill
-      isFunction(this._wsClient._beginClose)
-        ? // @ts-expect-error polyfill
-          this._wsClient._beginClose()
-        : this._wsClient.close();
+  private _clearSafetyTimeout(): void {
+    if (this._safetyTimeoutId) {
+      clearTimeout(this._safetyTimeoutId);
+      this._safetyTimeoutId = null;
     }
-    this._wsClient = null;
+  }
+
+  /**
+   * Called when the safety timeout fires after close() during a network switch.
+   * If the socket is still stuck in CLOSING, forcefully clean up and emit
+   * SocketClose so the reconnection flow can proceed.
+   */
+  private _handleCloseTimeout(): void {
+    this._safetyTimeoutId = null;
+
+    if (!this._wsClient) return;
+
+    const state = this._wsClient.readyState;
+
+    if (state === WS_STATE.CLOSING) {
+      logger.warn(
+        'Socket close timeout after 5s — forcefully cleaning up (network switch)'
+      );
+      this._deregisterSocketEvents();
+      this._wsClient = null;
+      trigger(
+        SwEvent.SocketClose,
+        { code: 1006, reason: 'close_timeout', wasClean: false },
+        this.session.uuid
+      );
+    } else if (state === WS_STATE.CLOSED) {
+      // Already closed but onclose didn't fire — just clean up the reference
+      logger.warn('Socket already closed but onclose handler did not fire');
+      this._deregisterSocketEvents();
+      this._wsClient = null;
+    }
+    // If OPEN or CONNECTING, something reconnected — leave it alone
   }
 
   private _unsetTimer(id: string) {
