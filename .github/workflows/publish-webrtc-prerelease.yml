@@ -11,6 +11,9 @@ on:
         description: "NPM dist-tag to use for publishing (e.g. beta, alpha, next)"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   publish-js:
     name: "@telnyx/webrtc Publish prerelease"
@@ -25,27 +28,29 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # https://github.com/peter-evans/create-pull-request/issues/122
           ref: ${{ env.TARGET_REF }}
-          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Git user
-        # https://github.com/actions/checkout/issues/13
         run: |
-          git config user.name TelnyxIntegrations
-          git config user.email integrations@telnyx.com
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Use Node.js 18.x
         uses: actions/setup-node@v4
         with:
           node-version: "18.x"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
+
       - name: Install shared dependencies
         run: yarn install --immutable
+
       - name: Install package dependencies
         working-directory: packages/js
         run: yarn install --immutable
+
       - name: Publish package
         working-directory: packages/js
         run: npm publish --access public --tag ${{ env.NPM_DIST_TAG }}
@@ -53,20 +58,16 @@ jobs:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
 
-      - name: Get latest commit info
-        run: |
-          echo "::set-output name=TITLE::$(git show -1 --format='%s' -s)"
-          echo "::set-output name=BODY::$(git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:'%s' | grep -i -E '^(feat|fix|docs|refactor|chore)' )"
-        id: latest_commit
       - name: get-npm-version
         id: package-version
         uses: martinbeentjes/npm-get-version-action@master
         with:
           path: packages/${{ env.PACKAGE_DIR }}
+
       - name: Post to Slack
         uses: homeday-de/slack-release-bot-action@main
         with:
           webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
-          title: ${{ steps.latest_commit.outputs.TITLE }}
+          title: "@telnyx/webrtc@${{ steps.package-version.outputs.current-version }}"
           body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
-          context: "[Pre-release] New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version}}"
+          context: "[Pre-release] New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version }}"

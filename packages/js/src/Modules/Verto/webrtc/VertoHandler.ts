@@ -267,6 +267,14 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
+
+                // Capture call_report_id for SDK call reporting
+                const callReportId = msg?.result?.params?.call_report_id;
+                if (callReportId) {
+                  session.callReportId = callReportId;
+                  logger.debug('Captured call_report_id from REGED:', callReportId);
+                }
+
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
+import { CallReportCollector } from './CallReportCollector';
 import {
   Answer,
   Attach,
@@ -19,6 +20,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { getReconnectToken } from '../util/reconnect';
 import {
   attachMediaStream,
   getUserMedia,
@@ -66,6 +68,7 @@ const SDK_VERSION = pkg.version;
  */
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
+  private _callReportCollector: CallReportCollector | null = null;
 
   /**
    * The call identifier.
@@ -995,6 +998,12 @@ export default abstract class BaseCall implements IWebRTCCall {
             setMediaElementSinkId(remoteElement, speakerId);
           }
         }, 0);
+
+        // Start collecting call stats when call becomes active
+        // Only start if call_report_id is available (returned from voice-sdk-proxy)
+        if (this._callReportCollector && this.peer?.instance && this.session.callReportId) {
+          this._callReportCollector.start(this.peer.instance);
+        }
         break;
       }
       case State.Destroy:
@@ -1741,6 +1750,35 @@ export default abstract class BaseCall implements IWebRTCCall {
       register(SwEvent.Notification, onNotification.bind(this), this.id);
     }
 
+    // Initialize call report collector (stats + debug logs)
+    const enableCallReports =
+      this.session.options.enableCallReports !== false; // Default: true
+    const callReportInterval =
+      this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const debugLogLevel = this.session.options.debugLogLevel || 'debug';
+    const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
+
+    if (enableCallReports) {
+      this._callReportCollector = new CallReportCollector(
+        {
+          enabled: true,
+          interval: callReportInterval,
+        },
+        {
+          enabled: true, // Debug logs enabled when call reports are enabled
+          level: debugLogLevel,
+          maxEntries: debugLogMaxEntries,
+        }
+      );
+
+      // Wire up size-aware early flush: when the payload approaches the
+      // server's 2 MB limit, send an intermediate segment immediately
+      // so the buffer can keep collecting for the rest of the call.
+      this._callReportCollector.onFlushNeeded = () => {
+        this._flushIntermediateReport();
+      };
+    }
+
     if (this._isRecovering) {
       this.setState(State.Recovering);
     } else {
@@ -1751,6 +1789,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
     const { remoteStream, localStream } = this.options;
@@ -1761,6 +1800,104 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
+
+    // Post call report after cleanup
+    this._postCallReport();
+  }
+
+  /**
+   * Flush an intermediate call report segment mid-call.
+   * Called by the CallReportCollector when the estimated payload size
+   * approaches the server's 2 MB limit.
+   */
+  private _flushIntermediateReport() {
+    if (!this._callReportCollector) return;
+
+    const callReportId = this.session.callReportId;
+    if (!callReportId) {
+      logger.debug('Cannot flush intermediate report: call_report_id not available');
+      return;
+    }
+
+    const host = this.session.connection?.host;
+    if (!host) {
+      logger.debug('Cannot flush intermediate report: connection host not available');
+      return;
+    }
+
+    const summary = {
+      callId: this.id,
+      destinationNumber: this.options.destinationNumber,
+      callerNumber: this.options.callerNumber,
+      direction: (this.direction === Direction.Inbound
+        ? 'inbound'
+        : 'outbound') as 'inbound' | 'outbound',
+      state: this.state,
+      telnyxSessionId: this.options.telnyxSessionId,
+      telnyxLegId: this.options.telnyxLegId,
+      sdkVersion: SDK_VERSION,
+    };
+
+    const payload = this._callReportCollector.flush(summary);
+    if (!payload) return;
+
+    const voiceSdkId = getReconnectToken() || undefined;
+
+    // Fire-and-forget — don't block the stats collection interval
+    this._callReportCollector
+      .sendPayload(payload, callReportId, host, voiceSdkId)
+      .catch((error) => {
+        logger.error('Failed to post intermediate call report segment', { error });
+      });
+  }
+
+  private _postCallReport() {
+    if (!this._callReportCollector) {
+      logger.warn('Call report collector not initialized');
+      return;
+    }
+
+    this._callReportCollector.stop();
+
+    const callReportId = this.session.callReportId;
+    if (!callReportId) {
+      logger.debug('Cannot post call report: call_report_id not available');
+      this._callReportCollector.cleanup();
+      return;
+    }
+
+    const summary = {
+      callId: this.id,
+      destinationNumber: this.options.destinationNumber,
+      callerNumber: this.options.callerNumber,
+      direction: (this.direction === Direction.Inbound
+        ? 'inbound'
+        : 'outbound') as 'inbound' | 'outbound',
+      state: this.state,
+      telnyxSessionId: this.options.telnyxSessionId,
+      telnyxLegId: this.options.telnyxLegId,
+      sdkVersion: SDK_VERSION,
+    };
+
+    // Post report asynchronously (don't wait for it)
+    const host = this.session.connection?.host;
+    if (!host) {
+      logger.error('Cannot post call report: connection host not available');
+      return;
+    }
+
+    // voice_sdk_id is stored as the reconnect token
+    const voiceSdkId = getReconnectToken() || undefined;
+
+    this._callReportCollector
+      .postReport(summary, callReportId, host, voiceSdkId)
+      .catch((error) => {
+        logger.error('Failed to post call report', { error });
+      })
+      .finally(() => {
+        // Clean up log collector resources
+        this._callReportCollector?.cleanup();
+      });
   }
 
   private _startStats(interval: number) {
