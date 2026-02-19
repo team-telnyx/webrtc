@@ -44,7 +44,7 @@ jobs:
 
     name: "@telnyx/${{ github.event.inputs.package }} Draft release"
 
-    runs-on: telnyx-small
+    runs-on: ubuntu-latest
 
     env:
       TARGET_REF: ${{ github.event.inputs.ref || 'main' }}
