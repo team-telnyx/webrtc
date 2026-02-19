@@ -35,12 +35,12 @@ env:
   PACKAGE_DIR: ${{ github.event.inputs.package == 'webrtc' && 'js' || github.event.inputs.package }}
 
 jobs:
-  build:
+  draft:
     if: contains(fromJson('["webrtc", "react-client"]'), github.event.inputs.package)
 
     name: "@telnyx/${{ github.event.inputs.package }} Draft release"
 
-    runs-on: ubuntu-latest
+    runs-on: telnyx-small
 
     env:
       TARGET_REF: ${{ github.event.inputs.ref || 'main' }}
@@ -50,43 +50,83 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # https://github.com/peter-evans/create-pull-request/issues/122
           ref: ${{ env.TARGET_REF }}
-          # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Setup Git user
-        # https://github.com/actions/checkout/issues/13
         run: |
-          git config user.name TelnyxIntegrations
-          git config user.email integrations@telnyx.com
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Use Node.js 18.x
         uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
+
       - name: Install shared dependencies
         run: yarn install --immutable
+
       - name: Install package dependencies
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: yarn install --immutable
+
       - name: Test
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: yarn test
         env:
           CI: true
+
       - if: github.event.inputs.package == 'webrtc'
         name: Generate docs
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn docs # IDEA Set --gitRevision to release-it tag
+          yarn docs
           git add docs
           git commit -m "docs: update ts docs" || echo "docs: no docs changes to commit"
-      - name: Create draft release
+
+      - name: Determine next version
+        id: version
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release --ci --github.draft --no-npm.publish${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
+          NEXT=$(yarn release --ci --release-version${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }} 2>/dev/null)
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "branch=release/${{ github.event.inputs.package }}-v$NEXT" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release branch
+        run: |
+          git checkout -b "${{ steps.version.outputs.branch }}"
+
+      - name: Create draft release on branch
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: |
+          yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push release branch
+        run: |
+          git push origin "${{ steps.version.outputs.branch }}"
+
+      - name: Create pull request
+        run: |
+          gh pr create \
+            --title "chore: release ${{ github.event.inputs.package }}@${{ steps.version.outputs.next }}" \
+            --body "## Release ${{ github.event.inputs.package }}@${{ steps.version.outputs.next }}
+
+          Automated release PR created by the draft-release workflow.
+
+          - Version bump in \`package.json\`
+          - Updated \`CHANGELOG.md\`
+          - Draft GitHub release created
+
+          **After merging**, publish the release from the [releases page](https://github.com/${{ github.repository }}/releases)." \
+            --base "${{ env.TARGET_REF }}" \
+            --head "${{ steps.version.outputs.branch }}"
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
