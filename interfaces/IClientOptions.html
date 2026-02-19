@@ -32,8 +32,10 @@
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Properties</h3>
 <div class="tsd-index-list"><a href="IClientOptions.html#anonymous_login" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-1024"><rect fill="var(--color-icon-background)" stroke="#FF984D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M9.354 16V7.24H12.174C12.99 7.24 13.638 7.476 14.118 7.948C14.606 8.412 14.85 9.036 14.85 9.82C14.85 10.604 14.606 11.232 14.118 11.704C13.638 12.168 12.99 12.4 12.174 12.4H10.434V16H9.354ZM10.434 11.428H12.174C12.646 11.428 13.022 11.284 13.302 10.996C13.59 10.7 13.734 10.308 13.734 9.82C13.734 9.324 13.59 8.932 13.302 8.644C13.022 8.356 12.646 8.212 12.174 8.212H10.434V11.428Z" fill="var(--color-text)"></path></g></svg><span>anonymous_<wbr/>login?</span></a>
+<a href="IClientOptions.html#callReportInterval" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>call<wbr/>Report<wbr/>Interval?</span></a>
 <a href="IClientOptions.html#debug" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>debug?</span></a>
 <a href="IClientOptions.html#debugOutput" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>debug<wbr/>Output?</span></a>
+<a href="IClientOptions.html#enableCallReports" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>enable<wbr/>Call<wbr/>Reports?</span></a>
 <a href="IClientOptions.html#env" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>env?</span></a>
 <a href="IClientOptions.html#forceRelayCandidate" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>force<wbr/>Relay<wbr/>Candidate?</span></a>
 <a href="IClientOptions.html#iceServers" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ice<wbr/>Servers?</span></a>
@@ -79,6 +81,16 @@ This is optional and can be used to specify a particular version of the AI assis
 </div>
 <div class="tsd-comment tsd-typography"></div></li></ul></div>
 <div class="tsd-comment tsd-typography"></div></section>
+<section class="tsd-panel tsd-member"><a id="callReportInterval" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>call<wbr/>Report<wbr/>Interval</span><a href="#callReportInterval" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">call<wbr/>Report<wbr/>Interval</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Interval in milliseconds for collecting call statistics.
+Stats are aggregated over each interval and stored locally until call end.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-8">5000</span><span class="hl-1"> (</span><span class="hl-8">5</span><span class="hl-1"> </span><span class="hl-3">seconds</span><span class="hl-1">)</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="debug" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>debug</span><a href="#debug" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">debug</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
@@ -92,6 +104,17 @@ This will gather WebRTC debugging information.</p>
 <div class="tsd-comment tsd-typography"><p>Debug output option</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
+<section class="tsd-panel tsd-member"><a id="enableCallReports" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>enable<wbr/>Call<wbr/>Reports</span><a href="#enableCallReports" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">enable<wbr/>Call<wbr/>Reports</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>Enable automatic call quality reporting to voice-sdk-proxy.
+When enabled, WebRTC stats are collected periodically during calls
+and posted to the voice-sdk-proxy /call_report endpoint when the call ends.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-0">true</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="env" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>env</span><a href="#env" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">env</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type ">Environment</span></div>
@@ -213,8 +236,10 @@ Useful when using a custom signaling server.</p>
 <div class="tsd-accordion-details">
 <ul>
 <li><a href="#anonymous_login" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>anonymous_<wbr/>login</span></a></li>
+<li><a href="#callReportInterval" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>call<wbr/>Report<wbr/>Interval</span></a></li>
 <li><a href="#debug" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>debug</span></a></li>
 <li><a href="#debugOutput" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>debug<wbr/>Output</span></a></li>
+<li><a href="#enableCallReports" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>enable<wbr/>Call<wbr/>Reports</span></a></li>
 <li><a href="#env" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>env</span></a></li>
 <li><a href="#forceRelayCandidate" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>force<wbr/>Relay<wbr/>Candidate</span></a></li>
 <li><a href="#iceServers" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ice<wbr/>Servers</span></a></li>
