@@ -102,12 +102,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update CHANGELOG.md
+        id: changelog
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
           VERSION="${{ steps.version.outputs.next }}"
           PACKAGE="${{ github.event.inputs.package }}"
           DATE=$(date +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 --match "${PACKAGE}/v*" 2>/dev/null || echo "")
+          echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
 
           if [ -n "$LAST_TAG" ]; then
             NOTES=$(git log ${LAST_TAG}..HEAD --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' || true)
@@ -141,6 +143,19 @@ jobs:
           yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
         env:
           NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Append full changelog link to draft release
+        if: steps.changelog.outputs.last_tag != ''
+        run: |
+          TAG="${{ github.event.inputs.package }}/v${{ steps.version.outputs.next }}"
+          LAST_TAG="${{ steps.changelog.outputs.last_tag }}"
+          CHANGELOG_LINK="**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}"
+          CURRENT_BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
+          gh release edit "$TAG" --notes "${CURRENT_BODY}
+
+          ${CHANGELOG_LINK}"
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push release branch
