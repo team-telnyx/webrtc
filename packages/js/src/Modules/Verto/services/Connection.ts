@@ -41,7 +41,6 @@ export default class Connection {
   private _hasCanaryBeenUsed: boolean = false;
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private _reconnecting: boolean = false;
 
   public upDur: number = null;
   public downDur: number = null;
@@ -177,14 +176,12 @@ export default class Connection {
 
   private _registerSocketEvents(ws: WebSocket): void {
     ws.onopen = (event): boolean => {
-      this._reconnecting = false;
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
       this._wsClient = null;
-      this._reconnecting = false;
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
@@ -257,8 +254,9 @@ export default class Connection {
    * SocketClose so the reconnection flow can proceed.
    */
   private _handleCloseTimeout(): void {
+    this._safetyTimeoutId = null;
+
     if (!this._wsClient) {
-      this._safetyTimeoutId = null;
       return;
     }
 
@@ -270,7 +268,6 @@ export default class Connection {
       logger.warn(
         'Safety timeout fired but socket is reconnecting/open — skipping cleanup'
       );
-      this._safetyTimeoutId = null;
       return;
     }
 
@@ -293,7 +290,6 @@ export default class Connection {
 
     // Null the client in all cases EXCEPT CONNECTING/OPEN
     this._wsClient = null;
-    this._safetyTimeoutId = null;
   }
 
   private _unsetTimer(id: string) {
