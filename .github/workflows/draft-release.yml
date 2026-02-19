@@ -101,6 +101,36 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update CHANGELOG.md
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          PACKAGE="${{ github.event.inputs.package }}"
+          DATE=$(date +%Y-%m-%d)
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "${PACKAGE}/v*" 2>/dev/null || echo "")
+
+          if [ -n "$LAST_TAG" ]; then
+            NOTES=$(git log ${LAST_TAG}..HEAD --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' || true)
+            COMPARE="[${VERSION}](https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${PACKAGE}/v${VERSION})"
+          else
+            NOTES=$(git log --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' || true)
+            COMPARE="${VERSION}"
+          fi
+
+          if [ -n "$NOTES" ]; then
+            ENTRY=$(printf '## %s (%s)\n\n%s\n\n' "$COMPARE" "$DATE" "$NOTES")
+          else
+            ENTRY=$(printf '## %s (%s)\n\n- No notable changes\n\n' "$COMPARE" "$DATE")
+          fi
+
+          if [ -f CHANGELOG.md ]; then
+            printf '%s%s' "$ENTRY" "$(cat CHANGELOG.md)" > CHANGELOG.md
+          else
+            printf '%s' "$ENTRY" > CHANGELOG.md
+          fi
+
+          git add CHANGELOG.md
+
       - name: Create release branch
         run: |
           git checkout -b "${{ steps.version.outputs.branch }}"
