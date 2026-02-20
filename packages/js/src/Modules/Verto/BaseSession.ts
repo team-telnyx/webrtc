@@ -52,16 +52,11 @@ export default abstract class BaseSession {
   protected _keepAliveTimeout: any;
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
-  protected _immediateReconnect: boolean = false;
   protected _idle: boolean = false;
 
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
   private registerAgent: RegisterAgent;
-
-  public set immediateReconnect(value: boolean) {
-    this._immediateReconnect = value;
-  }
 
   constructor(public options: IVertoOptions) {
     if (!this.validateOptions()) {
@@ -471,17 +466,12 @@ export default abstract class BaseSession {
     }
 
     if (this._autoReconnect) {
-      if (this._immediateReconnect) {
-        this._immediateReconnect = false;
+      this._reconnectTimeout = setTimeout(() => {
+        logger.debug(
+          'Calling connect due to network close and auto-reconnect enabled.'
+        );
         this.connect();
-      } else {
-        this._reconnectTimeout = setTimeout(() => {
-          logger.debug(
-            'Calling connect due to network close and auto-reconnect enabled.'
-          );
-          this.connect();
-        }, this.reconnectDelay);
-      }
+      }, this.reconnectDelay);
     }
   }
 

@@ -749,10 +749,7 @@ export default abstract class BrowserSession extends BaseSession {
           `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
         );
         this._wasOffline = false;
-        this.immediateReconnect = true; // Signal onNetworkClose to reconnect immediately
-
-        this.socketDisconnect(); // This triggers SocketClose → onNetworkClose
-        // onNetworkClose handles the actual connect() call
+        this.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
       }
     };
 
