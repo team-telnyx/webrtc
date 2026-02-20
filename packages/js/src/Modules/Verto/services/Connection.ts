@@ -137,12 +137,14 @@ export default class Connection {
     this._wsClient?.send(request);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   send(bladeObj: any): Promise<any> {
     const { request } = bladeObj;
     const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       registerOnce(request.id, (response: any) => {
         const { result, error } = destructResponse(response);
         return error ? reject(error) : resolve(result);
@@ -157,6 +159,9 @@ export default class Connection {
   close() {
     if (!this._wsClient || this.closing) return;
 
+    // Capture socket reference for timeout handler (prevent race condition)
+    const closingSocket = this._wsClient;
+
     // Call close
     // @ts-expect-error polyfill
     isFunction(this._wsClient._beginClose)
@@ -167,7 +172,7 @@ export default class Connection {
     if (this._safetyTimeoutId) return;
     // ALWAYS set safety timeout (not just for network switches)
     this._safetyTimeoutId = setTimeout(
-      () => this._handleCloseTimeout(),
+      () => this._handleCloseTimeout(closingSocket),
       CLOSE_SAFETY_TIMEOUT_MS
     );
   }
@@ -183,13 +188,19 @@ export default class Connection {
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
-      this._wsClient = null;
+      // Only null if this is still the current socket (prevent race condition)
+      if (this._wsClient === ws) {
+        this._wsClient = null;
+      }
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
-      this._wsClient = null;
+      // Only null if this is still the current socket (prevent race condition)
+      if (this._wsClient === ws) {
+        this._wsClient = null;
+      }
       return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
@@ -198,6 +209,7 @@ export default class Connection {
     };
 
     ws.onmessage = (event): void => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
         this._handleStringResponse(msg);
@@ -253,9 +265,18 @@ export default class Connection {
    * Called when the safety timeout fires after close().
    * If the socket is still stuck in CLOSING, forcefully clean up and emit
    * SocketClose so the reconnection flow can proceed.
+   * @param closingSocket The socket that was being closed when timeout was set
    */
-  private _handleCloseTimeout(): void {
+  private _handleCloseTimeout(closingSocket: WebSocket): void {
     this._safetyTimeoutId = null;
+
+    // If this timeout is for an old socket and we've reconnected, skip cleanup
+    if (this._wsClient !== closingSocket) {
+      logger.warn(
+        'Safety timeout fired for old socket, new socket exists — skipping cleanup'
+      );
+      return;
+    }
 
     if (!this._wsClient) return;
 
@@ -275,7 +296,10 @@ export default class Connection {
 
     logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
     this._deregisterSocketEvents();
-    this._wsClient = null;
+    // Only null if this is still the current socket (prevent race condition)
+    if (this._wsClient === closingSocket) {
+      this._wsClient = null;
+    }
     trigger(
       SwEvent.SocketClose,
       {

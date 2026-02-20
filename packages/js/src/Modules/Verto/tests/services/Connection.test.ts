@@ -424,6 +424,48 @@ describe('Connection - Safety Timeout', () => {
       // Should NOT null the new socket
       expect((connection as any)._wsClient).toBe(newWs);
     });
+
+    it('should prevent old socket onclose from nulling new socket (race condition)', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      const oldWs = (connection as any)._wsClient;
+
+      connection.close();
+
+      // Simulate reconnection (new socket created)
+      const newWs = new MockWebSocket('wss://test.telnyx.com');
+      await Promise.resolve();
+      (connection as any)._wsClient = newWs;
+
+      // Old socket's onclose fires
+      oldWs.simulateClose(1000, 'normal');
+
+      // New socket should NOT be nulled
+      expect((connection as any)._wsClient).toBe(newWs);
+      expect((connection as any)._wsClient).not.toBeNull();
+    });
+
+    it('should prevent old socket onerror from nulling new socket (race condition)', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      const oldWs = (connection as any)._wsClient;
+
+      connection.close();
+
+      // Simulate reconnection (new socket created)
+      const newWs = new MockWebSocket('wss://test.telnyx.com');
+      await Promise.resolve();
+      (connection as any)._wsClient = newWs;
+
+      // Old socket's onerror fires
+      oldWs.simulateError({ type: 'error', message: 'Old socket error' });
+
+      // New socket should NOT be nulled
+      expect((connection as any)._wsClient).toBe(newWs);
+      expect((connection as any)._wsClient).not.toBeNull();
+    });
   });
 
   describe('State getters', () => {
