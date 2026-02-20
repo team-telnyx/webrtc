@@ -42,8 +42,8 @@ export default class Connection {
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  public upDur: number = null;
-  public downDur: number = null;
+  public upDur: number | null = null;
+  public downDur: number | null = null;
 
   constructor(public session: BaseSession) {
     const { host, env, region, useCanaryRtcServer } = session.options;
@@ -66,19 +66,21 @@ export default class Connection {
   }
 
   get connected(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
   }
 
   get connecting(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CONNECTING;
+    return (
+      !!this._wsClient && this._wsClient.readyState === WS_STATE.CONNECTING
+    );
   }
 
   get closing(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CLOSING;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.CLOSING;
   }
 
   get closed(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CLOSED;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.CLOSED;
   }
 
   get isAlive(): boolean {
@@ -118,12 +120,21 @@ export default class Connection {
       this._hasCanaryBeenUsed = true;
     }
 
+    if (!WebSocketClass) {
+      const error = new Error(
+        'WebSocket is not available in this environment.'
+      );
+      trigger(SwEvent.Error, { error }, this.session.uuid);
+      logger.error(error);
+      return;
+    }
+
     this._wsClient = new WebSocketClass(websocketUrl.toString());
     this._registerSocketEvents(this._wsClient);
   }
 
   sendRawText(request: string): void {
-    this._wsClient.send(request);
+    this._wsClient?.send(request);
   }
 
   send(bladeObj: any): Promise<any> {
@@ -138,23 +149,13 @@ export default class Connection {
       });
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
-    this._wsClient.send(JSON.stringify(request));
+    this._wsClient?.send(JSON.stringify(request));
 
     return promise;
   }
 
   close() {
-    if (!this._wsClient) return;
-
-    // Guard: if already closing, don't call close() again
-    if (this._wsClient.readyState === WS_STATE.CLOSING) {
-      return;
-    }
-
-    // Guard: if timeout already exists, don't create another
-    if (this._safetyTimeoutId) {
-      return;
-    }
+    if (!this._wsClient || this.closing) return;
 
     // Call close
     // @ts-expect-error polyfill
@@ -186,6 +187,7 @@ export default class Connection {
     };
 
     ws.onerror = (event): boolean => {
+      this._clearSafetyTimeout();
       this._wsClient = null;
       return trigger(
         SwEvent.SocketError,
@@ -237,10 +239,6 @@ export default class Connection {
     this._wsClient.onmessage = null;
   }
 
-  // ---------------------------------------------------------------------------
-  // Private: safety timeout for stuck CLOSING state
-  // ---------------------------------------------------------------------------
-
   private _clearSafetyTimeout(): void {
     if (this._safetyTimeoutId) {
       clearTimeout(this._safetyTimeoutId);
@@ -256,40 +254,34 @@ export default class Connection {
   private _handleCloseTimeout(): void {
     this._safetyTimeoutId = null;
 
-    if (!this._wsClient) {
-      return;
-    }
-
-    const state = this._wsClient.readyState;
+    if (!this._wsClient) return;
 
     // If socket is CONNECTING or OPEN, it means reconnection already happened somehow
     // Do nothing in this case
-    if (state === WS_STATE.CONNECTING || state === WS_STATE.OPEN) {
+    if (this.connecting || this.connected) {
       logger.warn(
         'Safety timeout fired but socket is reconnecting/open — skipping cleanup'
       );
       return;
     }
 
-    // For CLOSING or CLOSED states, clean up
-    if (state === WS_STATE.CLOSING) {
-      logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
-      this._deregisterSocketEvents();
-      trigger(
-        SwEvent.SocketClose,
-        {
-          code: 1006,
-          reason: 'timeout',
-          wasClean: false,
-        },
-        this.session.uuid
-      );
-    } else if (state === WS_STATE.CLOSED) {
-      logger.warn('Socket closed but onclose did not fire');
+    if (this.closed) {
+      logger.warn('Safety timeout fired but socket is already closed');
+      return;
     }
 
-    // Null the client in all cases EXCEPT CONNECTING/OPEN
+    logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
+    this._deregisterSocketEvents();
     this._wsClient = null;
+    trigger(
+      SwEvent.SocketClose,
+      {
+        code: 1006,
+        reason: 'timeout',
+        wasClean: false,
+      },
+      this.session.uuid
+    );
   }
 
   private _unsetTimer(id: string) {
