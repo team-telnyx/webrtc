@@ -126,10 +126,6 @@ export default class Connection {
     }
 
     try {
-      if (!WebSocketClass) {
-        throw new Error('WebSocket is not available in this environment.');
-      }
-
       this._wsClient = new WebSocketClass(websocketUrl.toString());
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
