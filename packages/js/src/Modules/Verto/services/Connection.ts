@@ -1,5 +1,10 @@
 import BaseSession from '../BaseSession';
-import { DEV_HOST, PROD_HOST, SwEvent } from '../util/constants';
+import {
+  DEV_HOST,
+  PROD_HOST,
+  SwEvent,
+  WS_CLOSE_CODES,
+} from '../util/constants';
 import {
   checkWebSocketHost,
   destructResponse,
@@ -92,15 +97,6 @@ export default class Connection {
   }
 
   connect() {
-    if (!WebSocketClass) {
-      const error = new Error(
-        'WebSocket is not available in this environment.'
-      );
-      trigger(SwEvent.Error, { error }, this.session.uuid);
-      logger.error(error);
-      return;
-    }
-
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
 
@@ -129,8 +125,21 @@ export default class Connection {
       this._hasCanaryBeenUsed = true;
     }
 
-    this._wsClient = new WebSocketClass(websocketUrl.toString());
-    this._registerSocketEvents(this._wsClient);
+    try {
+      if (!WebSocketClass) {
+        throw new Error('WebSocket is not available in this environment.');
+      }
+
+      this._wsClient = new WebSocketClass(websocketUrl.toString());
+      this._registerSocketEvents(this._wsClient);
+    } catch (error) {
+      const err =
+        error instanceof Error
+          ? error
+          : new Error(`Failed to create WebSocket: ${String(error)}`);
+      trigger(SwEvent.Error, { error: err }, this.session.uuid);
+      logger.error('WebSocket connection failed:', err);
+    }
   }
 
   sendRawText(request: string): void {
@@ -184,13 +193,13 @@ export default class Connection {
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
-      this._safetyCleanupSocket(ws);
+      this._safetyCleanupSocket(ws, 'close');
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
-      this._safetyCleanupSocket(ws);
+      this._safetyCleanupSocket(ws, 'error');
       return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
@@ -259,13 +268,13 @@ export default class Connection {
 
     logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
     this._deregisterSocketEvents(closingSocket);
-    this._safetyCleanupSocket(closingSocket);
+    this._safetyCleanupSocket(closingSocket, 'timeout');
 
     if (!this._wsClient || this._wsClient === closingSocket) {
       trigger(
         SwEvent.SocketClose,
         {
-          code: 1006, // Abnormal Closure
+          code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
           reason: 'timeout',
           wasClean: false,
         },
@@ -276,14 +285,29 @@ export default class Connection {
 
   private _clearSafetyTimeout(): void {
     if (this._safetyTimeoutId) {
+      logger.debug('Clearing safety timeout');
       clearTimeout(this._safetyTimeoutId);
       this._safetyTimeoutId = null;
     }
   }
 
-  private _safetyCleanupSocket(ws: WebSocket): void {
+  /**
+   * Safely cleanup socket reference only if it matches the current socket.
+   * This prevents race conditions where old socket events null out new sockets.
+   * @param ws The WebSocket to cleanup
+   * @param reason Why the cleanup is happening ('close', 'error', or 'timeout')
+   */
+  private _safetyCleanupSocket(
+    ws: WebSocket,
+    reason: 'close' | 'error' | 'timeout'
+  ): void {
     if (this._wsClient === ws) {
+      logger.debug(`Nulling socket reference (reason: ${reason})`);
       this._wsClient = null;
+    } else {
+      logger.debug(
+        `Skipping socket cleanup - old socket already replaced (reason: ${reason})`
+      );
     }
   }
 
