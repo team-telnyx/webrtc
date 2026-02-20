@@ -36,7 +36,7 @@ export default class Connection {
   public previousGatewayState = '';
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
-  private _timers: { [id: string]: any } = {};
+  private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
   private _useCanaryRtcServer: boolean = false;
   private _hasCanaryBeenUsed: boolean = false;
 
@@ -92,6 +92,15 @@ export default class Connection {
   }
 
   connect() {
+    if (!WebSocketClass) {
+      const error = new Error(
+        'WebSocket is not available in this environment.'
+      );
+      trigger(SwEvent.Error, { error }, this.session.uuid);
+      logger.error(error);
+      return;
+    }
+
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
 
@@ -118,15 +127,6 @@ export default class Connection {
       }
 
       this._hasCanaryBeenUsed = true;
-    }
-
-    if (!WebSocketClass) {
-      const error = new Error(
-        'WebSocket is not available in this environment.'
-      );
-      trigger(SwEvent.Error, { error }, this.session.uuid);
-      logger.error(error);
-      return;
     }
 
     this._wsClient = new WebSocketClass(websocketUrl.toString());
@@ -164,6 +164,7 @@ export default class Connection {
         this._wsClient._beginClose()
       : this._wsClient.close();
 
+    if (this._safetyTimeoutId) return;
     // ALWAYS set safety timeout (not just for network switches)
     this._safetyTimeoutId = setTimeout(
       () => this._handleCloseTimeout(),
@@ -215,7 +216,9 @@ export default class Connection {
        * GatewayState messages with result prop inside the JSON-RPC
        */
       if (
-        GatewayStateType[`${msg?.result?.params?.state}`] ||
+        GatewayStateType[
+          `${msg?.result?.params?.state as keyof typeof GatewayStateType}`
+        ] ||
         !trigger(msg.id, msg)
       ) {
         // If there is not an handler for this message, dispatch an incoming!
