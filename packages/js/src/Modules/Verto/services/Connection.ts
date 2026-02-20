@@ -184,13 +184,13 @@ export default class Connection {
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
-      this._saferyCleanupSocket(ws);
+      this._safetyCleanupSocket(ws);
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
-      this._saferyCleanupSocket(ws);
+      this._safetyCleanupSocket(ws);
       return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
@@ -259,17 +259,19 @@ export default class Connection {
 
     logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
     this._deregisterSocketEvents(closingSocket);
-    this._saferyCleanupSocket(closingSocket);
+    this._safetyCleanupSocket(closingSocket);
 
-    trigger(
-      SwEvent.SocketClose,
-      {
-        code: 1006, // Abnormal Closure
-        reason: 'timeout',
-        wasClean: false,
-      },
-      this.session.uuid
-    );
+    if (!this._wsClient || this._wsClient === closingSocket) {
+      trigger(
+        SwEvent.SocketClose,
+        {
+          code: 1006, // Abnormal Closure
+          reason: 'timeout',
+          wasClean: false,
+        },
+        this.session.uuid
+      );
+    }
   }
 
   private _clearSafetyTimeout(): void {
@@ -279,7 +281,7 @@ export default class Connection {
     }
   }
 
-  private _saferyCleanupSocket(ws: WebSocket): void {
+  private _safetyCleanupSocket(ws: WebSocket): void {
     if (this._wsClient === ws) {
       this._wsClient = null;
     }

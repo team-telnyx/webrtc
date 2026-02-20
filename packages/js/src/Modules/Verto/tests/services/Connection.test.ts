@@ -179,6 +179,28 @@ describe('Connection - Safety Timeout', () => {
       );
     });
 
+    it('should skip trigger close if socket is not the same', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      connection.close();
+
+      const newWs = new MockWebSocket('wss://test.telnyx.com');
+      (connection as any)._wsClient = newWs;
+
+      // Fast-forward timeout
+      jest.advanceTimersByTime(CLOSE_SAFETY_TIMEOUT_MS);
+      expect(trigger).not.toHaveBeenCalledWith(
+        SwEvent.SocketClose,
+        {
+          code: 1006,
+          reason: 'timeout',
+          wasClean: false,
+        },
+        mockSession.uuid
+      );
+    });
+
     it('should skip cleanup if socket is CONNECTING (reconnection happened)', async () => {
       connection.connect();
       await Promise.resolve();
