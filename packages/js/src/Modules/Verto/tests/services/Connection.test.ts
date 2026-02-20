@@ -202,13 +202,14 @@ describe('Connection - Safety Timeout', () => {
 
       connection.close();
 
-      // Simulate reconnection completing before timeout
-      const ws = (connection as any)._wsClient;
-      ws.readyState = WS_STATE.OPEN;
+      const newWs = new MockWebSocket('wss://test.telnyx.com');
+      newWs.readyState = WS_STATE.OPEN;
+      (connection as any)._wsClient = newWs;
 
       jest.advanceTimersByTime(CLOSE_SAFETY_TIMEOUT_MS);
 
-      expect((connection as any)._wsClient).not.toBeNull();
+      // Socket should NOT be nulled
+      expect((connection as any)._wsClient).toBe(newWs);
     });
 
     it('should skip cleanup if socket is CLOSED (onclose already fired)', async () => {

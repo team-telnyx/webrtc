@@ -170,16 +170,12 @@ export default class Connection {
       : this._wsClient.close();
 
     if (this._safetyTimeoutId) return;
-    // ALWAYS set safety timeout (not just for network switches)
+
     this._safetyTimeoutId = setTimeout(
       () => this._handleCloseTimeout(closingSocket),
       CLOSE_SAFETY_TIMEOUT_MS
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Private: socket event registration
-  // ---------------------------------------------------------------------------
 
   private _registerSocketEvents(ws: WebSocket): void {
     ws.onopen = (event): boolean => {
@@ -188,19 +184,13 @@ export default class Connection {
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
-      // Only null if this is still the current socket (prevent race condition)
-      if (this._wsClient === ws) {
-        this._wsClient = null;
-      }
+      this._saferyCleanupSocket(ws);
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
-      // Only null if this is still the current socket (prevent race condition)
-      if (this._wsClient === ws) {
-        this._wsClient = null;
-      }
+      this._saferyCleanupSocket(ws);
       return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
@@ -246,19 +236,11 @@ export default class Connection {
     };
   }
 
-  private _deregisterSocketEvents(): void {
-    if (!this._wsClient) return;
-    this._wsClient.onopen = null;
-    this._wsClient.onclose = null;
-    this._wsClient.onerror = null;
-    this._wsClient.onmessage = null;
-  }
-
-  private _clearSafetyTimeout(): void {
-    if (this._safetyTimeoutId) {
-      clearTimeout(this._safetyTimeoutId);
-      this._safetyTimeoutId = null;
-    }
+  private _deregisterSocketEvents(ws: WebSocket): void {
+    ws.onopen = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
   }
 
   /**
@@ -270,45 +252,37 @@ export default class Connection {
   private _handleCloseTimeout(closingSocket: WebSocket): void {
     this._safetyTimeoutId = null;
 
-    // If this timeout is for an old socket and we've reconnected, skip cleanup
-    if (this._wsClient !== closingSocket) {
-      logger.warn(
-        'Safety timeout fired for old socket, new socket exists — skipping cleanup'
-      );
-      return;
-    }
-
-    if (!this._wsClient) return;
-
-    // If socket is CONNECTING or OPEN, it means reconnection already happened somehow
-    // Do nothing in this case
-    if (this.connecting || this.connected) {
-      logger.warn(
-        'Safety timeout fired but socket is reconnecting/open — skipping cleanup'
-      );
-      return;
-    }
-
-    if (this.closed) {
+    if (closingSocket.readyState === WS_STATE.CLOSED) {
       logger.warn('Safety timeout fired but socket is already closed');
       return;
     }
 
     logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
-    this._deregisterSocketEvents();
-    // Only null if this is still the current socket (prevent race condition)
-    if (this._wsClient === closingSocket) {
-      this._wsClient = null;
-    }
+    this._deregisterSocketEvents(closingSocket);
+    this._saferyCleanupSocket(closingSocket);
+
     trigger(
       SwEvent.SocketClose,
       {
-        code: 1006,
+        code: 1006, // Abnormal Closure
         reason: 'timeout',
         wasClean: false,
       },
       this.session.uuid
     );
+  }
+
+  private _clearSafetyTimeout(): void {
+    if (this._safetyTimeoutId) {
+      clearTimeout(this._safetyTimeoutId);
+      this._safetyTimeoutId = null;
+    }
+  }
+
+  private _saferyCleanupSocket(ws: WebSocket): void {
+    if (this._wsClient === ws) {
+      this._wsClient = null;
+    }
   }
 
   private _unsetTimer(id: string) {
