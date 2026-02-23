@@ -164,7 +164,7 @@ jobs:
 
       - name: Push release branch
         run: |
-          git push origin "${{ steps.version.outputs.branch }}"
+          git push origin "${{ steps.version.outputs.branch }}" --force
 
       - name: Create pull request
         run: |
