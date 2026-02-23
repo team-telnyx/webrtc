@@ -5,7 +5,10 @@ const datetime = () =>
   new Date().toISOString().replace('T', ' ').replace('Z', '');
 const logger = log.getLogger('telnyx');
 
-// Console output threshold — only info and above go to console
+// Console output threshold — controls which levels print to console.
+// Mutable so BaseSession can raise/lower it via setConsoleLoggerMinLevel()
+// without touching loglevel's internal level (which must stay at 'debug'
+// so ALL calls flow through methodFactory and reach the LogCollector).
 const CONSOLE_LEVEL_PRIORITY: Record<string, number> = {
   trace: 0,
   debug: 1,
@@ -13,14 +16,23 @@ const CONSOLE_LEVEL_PRIORITY: Record<string, number> = {
   warn: 3,
   error: 4,
 };
-const CONSOLE_MIN_LEVEL = CONSOLE_LEVEL_PRIORITY['info'];
+let consoleMinLevel = CONSOLE_LEVEL_PRIORITY['info'];
+
+/**
+ * Set the minimum log level that prints to the browser console.
+ * This does NOT affect the LogCollector — it always captures all levels.
+ */
+export function setConsoleLoggerMinLevel(level: string): void {
+  consoleMinLevel =
+    CONSOLE_LEVEL_PRIORITY[level] ?? CONSOLE_LEVEL_PRIORITY['info'];
+}
 
 const originalFactory = logger.methodFactory;
 logger.methodFactory = (methodName, logLevel, loggerName) => {
   const rawMethod = originalFactory(methodName, logLevel, loggerName);
   return function (...logArgs: unknown[]) {
-    // Only write to console for info and above (preserves original behavior)
-    if (CONSOLE_LEVEL_PRIORITY[methodName] >= CONSOLE_MIN_LEVEL) {
+    // Only write to console if level passes the console threshold
+    if (CONSOLE_LEVEL_PRIORITY[methodName] >= consoleMinLevel) {
       const messages: unknown[] = [datetime(), '-'];
       for (const arg of logArgs) {
         messages.push(arg);
@@ -56,8 +68,10 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
   };
 };
 
-// Set to debug so all levels flow through methodFactory (collector captures everything)
-// Console output is filtered to info+ inside the factory above
-logger.setLevel('debug');
+// Keep loglevel at 'debug' so ALL calls flow through methodFactory — this
+// ensures the LogCollector captures debug logs even when the customer hasn't
+// enabled debug mode.  Console output is separately gated by consoleMinLevel.
+// persist: false avoids polluting localStorage.
+logger.setLevel('debug', false);
 
 export default logger;
