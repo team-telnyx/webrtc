@@ -257,8 +257,10 @@ export default class Connection {
   private _handleCloseTimeout(closingSocket: WebSocket): void {
     this._safetyTimeoutId = null;
 
-    if (closingSocket.readyState === WS_STATE.CLOSED) {
-      logger.warn('Safety timeout fired but socket is already closed');
+    if (!closingSocket || closingSocket.readyState === WS_STATE.CLOSED) {
+      logger.warn(
+        'Safety timeout fired but socket is already closed or cleaned up'
+      );
       return;
     }
 
@@ -271,7 +273,8 @@ export default class Connection {
         SwEvent.SocketClose,
         {
           code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
-          reason: 'timeout',
+          reason:
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
         },
         this.session.uuid
