@@ -172,7 +172,8 @@ describe('Connection - Safety Timeout', () => {
         SwEvent.SocketClose,
         {
           code: 1006,
-          reason: 'timeout',
+          reason:
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
         },
         mockSession.uuid
@@ -194,7 +195,8 @@ describe('Connection - Safety Timeout', () => {
         SwEvent.SocketClose,
         {
           code: 1006,
-          reason: 'timeout',
+          reason:
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
         },
         mockSession.uuid
@@ -250,7 +252,9 @@ describe('Connection - Safety Timeout', () => {
       // Should not emit duplicate SocketClose with timeout reason
       const timeoutCalls = (trigger as jest.Mock).mock.calls.filter(
         (call) =>
-          call[0] === SwEvent.SocketClose && call[1].reason === 'timeout'
+          call[0] === SwEvent.SocketClose &&
+          call[1].reason ===
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout'
       );
       expect(timeoutCalls).toHaveLength(0);
     });
@@ -409,7 +413,9 @@ describe('Connection - Safety Timeout', () => {
 
       const timeoutCloseCalls = (trigger as jest.Mock).mock.calls.filter(
         (call) =>
-          call[0] === SwEvent.SocketClose && call[1].reason === 'timeout'
+          call[0] === SwEvent.SocketClose &&
+          call[1].reason ===
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout'
       );
       expect(timeoutCloseCalls).toHaveLength(0);
     });
