@@ -137,6 +137,10 @@ jobs:
         run: |
           git checkout -b "${{ steps.version.outputs.branch }}"
 
+      - name: Commit CHANGELOG.md
+        run: |
+          git commit -m "chore: update changelog for ${{ github.event.inputs.package }}@${{ steps.version.outputs.next }}" || echo "changelog: no changes to commit"
+
       - name: Create draft release on branch
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
