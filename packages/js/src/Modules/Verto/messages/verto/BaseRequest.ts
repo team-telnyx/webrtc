@@ -11,20 +11,25 @@ const tmpMap = {
 };
 
 export default abstract class BaseRequest extends BaseMessage {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(params: any = {}) {
     super();
 
     if (params.hasOwnProperty('dialogParams')) {
+      /* eslint-disable @typescript-eslint/no-unused-vars */
       const {
         remoteSdp,
         localStream,
         remoteStream,
+        localElement,
+        remoteElement,
         onNotification,
         camId,
         micId,
         speakerId,
         ...dialogParams
       } = params.dialogParams;
+      /* eslint-enable @typescript-eslint/no-unused-vars */
 
       for (const key in tmpMap) {
         if (key && dialogParams.hasOwnProperty(key)) {
