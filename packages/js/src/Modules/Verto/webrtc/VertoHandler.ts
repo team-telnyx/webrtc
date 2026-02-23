@@ -80,7 +80,7 @@ class VertoHandler {
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
-        prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
+        prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,

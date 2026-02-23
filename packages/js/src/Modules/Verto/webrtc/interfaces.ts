@@ -68,6 +68,7 @@ export interface IVertoCallOptions {
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
   preferred_codecs?: RTCRtpCodecCapability[];
+  /** Enable or disable prefetching ICE candidates. Defaults to true. */
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
