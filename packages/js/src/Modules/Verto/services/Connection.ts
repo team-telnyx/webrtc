@@ -1,5 +1,10 @@
 import BaseSession from '../BaseSession';
-import { DEV_HOST, PROD_HOST, SwEvent } from '../util/constants';
+import {
+  DEV_HOST,
+  PROD_HOST,
+  SwEvent,
+  WS_CLOSE_CODES,
+} from '../util/constants';
 import {
   checkWebSocketHost,
   destructResponse,
@@ -25,16 +30,25 @@ const WS_STATE = {
   CLOSED: 3,
 };
 
+/**
+ * Safety timeout (ms) for forcing socket cleanup when ws.close()
+ * gets stuck in CLOSING state. Sockets can get stuck due to various
+ * reasons including network changes, browser bugs, or system sleep.
+ */
+const CLOSE_SAFETY_TIMEOUT_MS = 5000;
+
 export default class Connection {
   public previousGatewayState = '';
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
-  private _timers: { [id: string]: any } = {};
+  private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
   private _useCanaryRtcServer: boolean = false;
   private _hasCanaryBeenUsed: boolean = false;
 
-  public upDur: number = null;
-  public downDur: number = null;
+  private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  public upDur: number | null = null;
+  public downDur: number | null = null;
 
   constructor(public session: BaseSession) {
     const { host, env, region, useCanaryRtcServer } = session.options;
@@ -57,19 +71,21 @@ export default class Connection {
   }
 
   get connected(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.OPEN;
   }
 
   get connecting(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CONNECTING;
+    return (
+      !!this._wsClient && this._wsClient.readyState === WS_STATE.CONNECTING
+    );
   }
 
   get closing(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CLOSING;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.CLOSING;
   }
 
   get closed(): boolean {
-    return this._wsClient && this._wsClient.readyState === WS_STATE.CLOSED;
+    return !!this._wsClient && this._wsClient.readyState === WS_STATE.CLOSED;
   }
 
   get isAlive(): boolean {
@@ -113,18 +129,86 @@ export default class Connection {
       this._hasCanaryBeenUsed = true;
     }
 
-    this._wsClient = new WebSocketClass(websocketUrl.toString());
-    this._wsClient.onopen = (event): boolean =>
-      trigger(SwEvent.SocketOpen, event, this.session.uuid);
-    this._wsClient.onclose = (event): boolean =>
-      trigger(SwEvent.SocketClose, event, this.session.uuid);
-    this._wsClient.onerror = (event): boolean =>
-      trigger(
+    try {
+      this._wsClient = new WebSocketClass(websocketUrl.toString());
+      this._registerSocketEvents(this._wsClient);
+    } catch (error) {
+      const err =
+        error instanceof Error
+          ? error
+          : new Error(`Failed to create WebSocket: ${String(error)}`);
+      trigger(SwEvent.Error, { error: err }, this.session.uuid);
+      logger.error('WebSocket connection failed:', err);
+    }
+  }
+
+  sendRawText(request: string): void {
+    this._wsClient?.send(request);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  send(bladeObj: any): Promise<any> {
+    const { request } = bladeObj;
+    const promise = new Promise<void>((resolve, reject) => {
+      if (request.hasOwnProperty('result')) {
+        return resolve();
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerOnce(request.id, (response: any) => {
+        const { result, error } = destructResponse(response);
+        return error ? reject(error) : resolve(result);
+      });
+    });
+    logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
+    this._wsClient?.send(JSON.stringify(request));
+
+    return promise;
+  }
+
+  close() {
+    if (!this._wsClient || this.closing) return;
+
+    // Capture socket reference for timeout handler (prevent race condition)
+    const closingSocket = this._wsClient;
+
+    // Call close
+    // @ts-expect-error polyfill
+    isFunction(this._wsClient._beginClose)
+      ? // @ts-expect-error polyfill
+        this._wsClient._beginClose()
+      : this._wsClient.close();
+
+    if (this._safetyTimeoutId) return;
+
+    this._safetyTimeoutId = setTimeout(
+      () => this._handleCloseTimeout(closingSocket),
+      CLOSE_SAFETY_TIMEOUT_MS
+    );
+  }
+
+  private _registerSocketEvents(ws: WebSocket): void {
+    ws.onopen = (event): boolean => {
+      return trigger(SwEvent.SocketOpen, event, this.session.uuid);
+    };
+
+    ws.onclose = (event): boolean => {
+      this._clearSafetyTimeout();
+      this._safetyCleanupSocket(ws, 'close');
+      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+    };
+
+    ws.onerror = (event): boolean => {
+      this._clearSafetyTimeout();
+      this._safetyCleanupSocket(ws, 'error');
+      return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
         this.session.uuid
       );
-    this._wsClient.onmessage = (event): void => {
+    };
+
+    ws.onmessage = (event): void => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
         this._handleStringResponse(msg);
@@ -143,7 +227,9 @@ export default class Connection {
        * GatewayState messages with result prop inside the JSON-RPC
        */
       if (
-        GatewayStateType[`${msg?.result?.params?.state}`] ||
+        GatewayStateType[
+          `${msg?.result?.params?.state as keyof typeof GatewayStateType}`
+        ] ||
         !trigger(msg.id, msg)
       ) {
         // If there is not an handler for this message, dispatch an incoming!
@@ -159,36 +245,73 @@ export default class Connection {
     };
   }
 
-  sendRawText(request: string): void {
-    this._wsClient.send(request);
+  private _deregisterSocketEvents(ws: WebSocket): void {
+    ws.onopen = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
   }
 
-  send(bladeObj: any): Promise<any> {
-    const { request } = bladeObj;
-    const promise = new Promise<void>((resolve, reject) => {
-      if (request.hasOwnProperty('result')) {
-        return resolve();
-      }
-      registerOnce(request.id, (response: any) => {
-        const { result, error } = destructResponse(response);
-        return error ? reject(error) : resolve(result);
-      });
-    });
-    logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
-    this._wsClient.send(JSON.stringify(request));
+  /**
+   * Called when the safety timeout fires after close().
+   * If the socket is still stuck in CLOSING, forcefully clean up and emit
+   * SocketClose so the reconnection flow can proceed.
+   * @param closingSocket The socket that was being closed when timeout was set
+   */
+  private _handleCloseTimeout(closingSocket: WebSocket): void {
+    this._safetyTimeoutId = null;
 
-    return promise;
-  }
-
-  close() {
-    if (this._wsClient) {
-      // @ts-expect-error polyfill
-      isFunction(this._wsClient._beginClose)
-        ? // @ts-expect-error polyfill
-          this._wsClient._beginClose()
-        : this._wsClient.close();
+    if (!closingSocket || closingSocket.readyState === WS_STATE.CLOSED) {
+      logger.warn(
+        'Safety timeout fired but socket is already closed or cleaned up'
+      );
+      return;
     }
-    this._wsClient = null;
+
+    logger.warn('Socket stuck in CLOSING after 5s — forcefully cleaning up');
+    this._deregisterSocketEvents(closingSocket);
+    this._safetyCleanupSocket(closingSocket, 'timeout');
+
+    if (!this._wsClient || this._wsClient === closingSocket) {
+      trigger(
+        SwEvent.SocketClose,
+        {
+          code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
+          reason:
+            'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
+          wasClean: false,
+        },
+        this.session.uuid
+      );
+    }
+  }
+
+  private _clearSafetyTimeout(): void {
+    if (this._safetyTimeoutId) {
+      logger.debug('Clearing safety timeout');
+      clearTimeout(this._safetyTimeoutId);
+      this._safetyTimeoutId = null;
+    }
+  }
+
+  /**
+   * Safely cleanup socket reference only if it matches the current socket.
+   * This prevents race conditions where old socket events null out new sockets.
+   * @param ws The WebSocket to cleanup
+   * @param reason Why the cleanup is happening ('close', 'error', or 'timeout')
+   */
+  private _safetyCleanupSocket(
+    ws: WebSocket,
+    reason: 'close' | 'error' | 'timeout'
+  ): void {
+    if (this._wsClient === ws) {
+      logger.debug(`Nulling socket reference (reason: ${reason})`);
+      this._wsClient = null;
+    } else {
+      logger.debug(
+        `Skipping socket cleanup - old socket already replaced (reason: ${reason})`
+      );
+    }
   }
 
   private _unsetTimer(id: string) {
