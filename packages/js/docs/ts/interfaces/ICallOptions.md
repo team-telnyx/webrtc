@@ -205,7 +205,7 @@ Preferred codecs for the call.
 
 • `Optional` **prefetchIceCandidates**: `boolean`
 
-Enable or disable ICE Candidate Prefetching.
+Enable or disable ICE Candidate Prefetching. Defaults to true.
 
 ---
 

@@ -64,6 +64,7 @@ export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   userVariables: {},
   mediaSettings: { useSdpASBandwidthKbps: false, sdpASBandwidthKbps: 0 },
   mutedMicOnStart: false,
+  prefetchIceCandidates: true,
 };
 
 export enum State {

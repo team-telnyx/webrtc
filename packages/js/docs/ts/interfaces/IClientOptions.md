@@ -166,7 +166,7 @@ The `password` to authenticate with your SIP Connection.
 
 • `Optional` **prefetchIceCandidates**: `boolean`
 
-Enable or disable prefetching ICE candidates.
+Enable or disable prefetching ICE candidates. Defaults to true.
 
 ---
 

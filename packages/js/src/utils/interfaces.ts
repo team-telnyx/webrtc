@@ -52,7 +52,7 @@ export interface IClientOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
-   * Enable or disable prefetching ICE candidates.
+   * Enable or disable prefetching ICE candidates. Defaults to true.
    */
   prefetchIceCandidates?: boolean;
 
@@ -265,7 +265,7 @@ export interface ICallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
 
   /**
-   * Enable or disable ICE Candidate Prefetching.
+   * Enable or disable ICE Candidate Prefetching. Defaults to true.
    */
   prefetchIceCandidates?: boolean;
 
