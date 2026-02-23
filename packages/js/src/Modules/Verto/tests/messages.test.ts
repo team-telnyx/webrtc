@@ -193,7 +193,7 @@ describe('Messages', function () {
      * JSON-serializable.
      */
     describe('Cyclic dialogParams (#450 regression)', function () {
-      it('should strip localElement and remoteElement from Invite dialogParams', function () {
+      it('should replace cyclic elements with JSON-safe summaries in Invite dialogParams', function () {
         const localEl = createMockHTMLElement('AUDIO', 'local-audio');
         const remoteEl = createMockHTMLElement('AUDIO', 'remote-audio');
 
@@ -216,15 +216,20 @@ describe('Messages', function () {
         expect(() => JSON.stringify(invite.request)).not.toThrow();
 
         const dp = invite.request.params.dialogParams;
-        expect(dp.localElement).toBeUndefined();
-        expect(dp.remoteElement).toBeUndefined();
+        // Elements replaced with JSON-safe summaries
+        expect(dp.localElement).toEqual(
+          expect.objectContaining({ tag: 'audio', id: 'local-audio' })
+        );
+        expect(dp.remoteElement).toEqual(
+          expect.objectContaining({ tag: 'audio', id: 'remote-audio' })
+        );
         expect(dp.remoteSdp).toBeUndefined();
         // Non-cyclic params survive (with key mapping applied)
         expect(dp.callerId).toBe('regression-test');
         expect(dp.destination_number).toBe('+15551234567');
       });
 
-      it('should strip localElement and remoteElement from Answer dialogParams', function () {
+      it('should replace cyclic elements with JSON-safe summaries in Answer dialogParams', function () {
         const answer = new Answer({
           sessid: 'sess-2',
           sdp: '<SDP>',
@@ -236,13 +241,15 @@ describe('Messages', function () {
         });
 
         expect(() => JSON.stringify(answer.request)).not.toThrow();
-        expect(answer.request.params.dialogParams.localElement).toBeUndefined();
-        expect(
-          answer.request.params.dialogParams.remoteElement
-        ).toBeUndefined();
+        expect(answer.request.params.dialogParams.localElement).toEqual(
+          expect.objectContaining({ tag: 'audio' })
+        );
+        expect(answer.request.params.dialogParams.remoteElement).toEqual(
+          expect.objectContaining({ tag: 'audio' })
+        );
       });
 
-      it('should strip localElement and remoteElement from Attach dialogParams', function () {
+      it('should replace cyclic elements with JSON-safe summaries in Attach dialogParams', function () {
         const attach = new Attach({
           sessid: 'sess-3',
           dialogParams: {
@@ -252,10 +259,12 @@ describe('Messages', function () {
         });
 
         expect(() => JSON.stringify(attach.request)).not.toThrow();
-        expect(attach.request.params.dialogParams.localElement).toBeUndefined();
-        expect(
-          attach.request.params.dialogParams.remoteElement
-        ).toBeUndefined();
+        expect(attach.request.params.dialogParams.localElement).toEqual(
+          expect.objectContaining({ tag: 'audio' })
+        );
+        expect(attach.request.params.dialogParams.remoteElement).toEqual(
+          expect.objectContaining({ tag: 'audio' })
+        );
       });
 
       it('should handle dialogParams with no elements gracefully', function () {
