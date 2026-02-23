@@ -157,7 +157,6 @@ export class Call extends BaseCall {
     if (what === false) {
       return clearInterval(this._statsInterval);
     }
-    logger.setLevel(2);
     this._statsInterval = window.setInterval(async () => {
       const stats = await this.peer.instance.getStats(null);
       let statsOutput: string = '';

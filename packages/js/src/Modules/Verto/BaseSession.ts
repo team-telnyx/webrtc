@@ -1,4 +1,4 @@
-import * as log from 'loglevel';
+import type { Logger } from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 import BaseMessage from './messages/BaseMessage';
 import Connection from './services/Connection';
@@ -21,7 +21,7 @@ import {
   ILoginParams,
   IVertoOptions,
 } from './util/interfaces';
-import logger from './util/logger';
+import logger, { setConsoleLoggerMinLevel } from './util/logger';
 import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
@@ -64,7 +64,7 @@ export default abstract class BaseSession {
       throw new Error('Invalid init options');
     }
 
-    logger.setLevel(options.debug ? 'debug' : 'info');
+    setConsoleLoggerMinLevel(options.debug ? 'debug' : 'info');
 
     this._onSocketOpen = this._onSocketOpen.bind(this);
     this.onNetworkClose = this.onNetworkClose.bind(this);
@@ -76,7 +76,7 @@ export default abstract class BaseSession {
     this.registerAgent = new RegisterAgent(this);
   }
 
-  get __logger(): log.Logger {
+  get __logger(): Logger {
     return logger;
   }
 
