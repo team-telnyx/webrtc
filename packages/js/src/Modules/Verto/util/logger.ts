@@ -27,6 +27,62 @@ export function setConsoleLoggerMinLevel(level: string): void {
     CONSOLE_LEVEL_PRIORITY[level] ?? CONSOLE_LEVEL_PRIORITY['info'];
 }
 
+/**
+ * Serialize a value to a JSON-safe representation.
+ *
+ * DOM objects like Events have useful properties (type, errorCode, etc.)
+ * defined as prototype getters which JSON.stringify / Object.keys ignore.
+ * This function uses `for...in` to capture those inherited enumerable
+ * properties so they appear in call report logs.
+ */
+function toSerializable(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'object') return value;
+
+  // Fast path: try JSON round-trip for plain objects
+  try {
+    const json = JSON.stringify(value);
+    const parsed = JSON.parse(json);
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      Object.keys(parsed).length > 1
+    ) {
+      return parsed;
+    }
+  } catch {
+    // Fall through to manual extraction
+  }
+
+  // Slow path: extract all enumerable properties including prototype getters
+  // (handles DOM Events, RTCPeerConnectionIceErrorEvent, etc.)
+  const result: Record<string, unknown> = {};
+  for (const key in value) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const v = (value as any)[key];
+      if (typeof v === 'function') continue;
+      if (typeof v === 'object' && v !== null) {
+        // Avoid circular refs from DOM nodes — try JSON, fall back to toString
+        try {
+          result[key] = JSON.parse(JSON.stringify(v));
+        } catch {
+          result[key] = String(v);
+        }
+      } else {
+        result[key] = v;
+      }
+    } catch {
+      // Skip inaccessible properties
+    }
+  }
+
+  if (Object.keys(result).length > 0) return result;
+
+  // Last resort: stringify
+  return { value: String(value) };
+}
+
 const originalFactory = logger.methodFactory;
 logger.methodFactory = (methodName, logLevel, loggerName) => {
   const rawMethod = originalFactory(methodName, logLevel, loggerName);
@@ -49,6 +105,8 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
         typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
 
       // If there's a second argument and it's an object, use it as context
+      // Serialize to plain objects so DOM Events and similar host objects
+      // retain their properties when the call report is JSON.stringified.
       let context: Record<string, unknown> | undefined;
       if (restArgs.length > 0) {
         if (
@@ -56,10 +114,10 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
           typeof restArgs[0] === 'object' &&
           restArgs[0] !== null
         ) {
-          context = restArgs[0] as Record<string, unknown>;
+          context = toSerializable(restArgs[0]) as Record<string, unknown>;
         } else {
           // Multiple extra args, wrap them
-          context = { args: restArgs };
+          context = { args: restArgs.map(toSerializable) };
         }
       }
 
