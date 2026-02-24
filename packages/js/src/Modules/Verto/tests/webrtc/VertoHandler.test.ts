@@ -61,7 +61,7 @@ describe('VertoHandler', () => {
   });
 
   describe('telnyx_rtc.invite', () => {
-    it('should create a new Call in ringing state', async (done) => {
+    it('should create a new Call in ringing state with direction set', async (done) => {
       await instance.connect();
       const callId = 'cd35e65f-a507-4bd2-8d21-80f36d134a2e';
       const msg = JSON.parse(
@@ -72,6 +72,7 @@ describe('VertoHandler', () => {
       expect(instance.calls[callId].id).toEqual(callId);
       expect(instance.calls[callId].state).toEqual('ringing');
       expect(instance.calls[callId].prevState).toEqual('new');
+      expect(instance.calls[callId].direction).toEqual('inbound');
       done();
     });
 
