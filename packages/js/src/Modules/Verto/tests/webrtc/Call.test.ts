@@ -150,6 +150,44 @@ describe('Call', () => {
     });
   });
 
+  describe('hangup cause codes', () => {
+    it('should use USER_BUSY/17 when rejecting a ringing call', () => {
+      call.setState(State.Ringing);
+      call.hangup({}, false);
+      expect(call.cause).toEqual('USER_BUSY');
+      expect(call.causeCode).toEqual(17);
+    });
+
+    it('should use USER_BUSY/17 for a new (pre-answer) call', () => {
+      // call starts in State.New
+      call.hangup({}, false);
+      expect(call.cause).toEqual('USER_BUSY');
+      expect(call.causeCode).toEqual(17);
+    });
+
+    it('should use NORMAL_CLEARING/16 when hanging up an active call', () => {
+      call.setState(State.Active);
+      call.hangup({}, false);
+      expect(call.cause).toEqual('NORMAL_CLEARING');
+      expect(call.causeCode).toEqual(16);
+    });
+
+    it('should use NORMAL_CLEARING/16 when hanging up a held call', () => {
+      call.setState(State.Active);
+      call.setState(State.Held);
+      call.hangup({}, false);
+      expect(call.cause).toEqual('NORMAL_CLEARING');
+      expect(call.causeCode).toEqual(16);
+    });
+
+    it('should respect explicit cause params regardless of state', () => {
+      call.setState(State.Active);
+      call.hangup({ cause: 'CUSTOM_CAUSE', causeCode: 99 }, false);
+      expect(call.cause).toEqual('CUSTOM_CAUSE');
+      expect(call.causeCode).toEqual(99);
+    });
+  });
+
   describe('setStateTelnyx', () => {
     it('should return null if call is null', () => {
       const localCall = Call.setStateTelnyx(undefined);
