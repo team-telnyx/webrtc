@@ -1,3 +1,9 @@
+## [2.25.20](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.19...webrtc/v2.25.20) (2026-02-25)
+
+- fix: serialize log context to capture DOM Event properties in call reports (#520)
+- chore: update CODEOWNERS to @lucasassisrosa @ArtemPapazian (#530)
+- fix: set direction before setState on inbound invite (#527)
+- fix: use state-dependent hangup cause code (#528)
 ## [2.25.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.15...webrtc/v2.25.19) (2026-02-23)
 
 - fix: commit CHANGELOG.md before yarn release to avoid dirty worktree error (#524)
