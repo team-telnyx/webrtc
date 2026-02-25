@@ -305,14 +305,14 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
-    // Get remaining logs (getLogs for final, drain was used for intermediates)
-    const logs = this.logCollector?.getLogs();
-    const hasLogs = logs && logs.length > 0;
-
     if (!this.options.enabled) {
       logger.info('CallReportCollector: Skipping report — call reports disabled');
       return;
     }
+
+    // Get remaining logs (getLogs for final, drain was used for intermediates)
+    const logs = this.logCollector?.getLogs();
+    const hasLogs = logs && logs.length > 0;
 
     if (this.statsBuffer.length === 0 && !hasLogs) {
       logger.info('CallReportCollector: Skipping report — no stats or logs collected');
