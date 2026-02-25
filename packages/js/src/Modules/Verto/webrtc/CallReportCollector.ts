@@ -214,9 +214,12 @@ export class CallReportCollector {
   }
 
   /**
-   * Stop collecting stats and prepare for final report
+   * Stop collecting stats and prepare for final report.
+   * Awaits the final stats collection so the buffer is populated
+   * before postReport() is called — critical for short calls where
+   * no periodic interval has completed yet.
    */
-  public stop(): void {
+  public async stop(): Promise<void> {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -224,9 +227,10 @@ export class CallReportCollector {
 
     this.callEndTime = new Date();
 
-    // Collect final stats before stopping
+    // Collect final stats before stopping (isFinal = true to force
+    // a partial-interval entry into the buffer for short calls)
     if (this.peerConnection && this.intervalStartTime) {
-      this._collectStats();
+      await this._collectStats(true);
     }
 
     // Stop log collector
@@ -301,12 +305,19 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
-    if (!this.options.enabled || this.statsBuffer.length === 0) {
+    // Get remaining logs (getLogs for final, drain was used for intermediates)
+    const logs = this.logCollector?.getLogs();
+    const hasLogs = logs && logs.length > 0;
+
+    if (!this.options.enabled) {
+      logger.info('CallReportCollector: Skipping report — call reports disabled');
       return;
     }
 
-    // Get remaining logs (getLogs for final, drain was used for intermediates)
-    const logs = this.logCollector?.getLogs();
+    if (this.statsBuffer.length === 0 && !hasLogs) {
+      logger.info('CallReportCollector: Skipping report — no stats or logs collected');
+      return;
+    }
 
     const isMultiSegment = this._segmentIndex > 0;
     const segment = this._segmentIndex;
@@ -428,9 +439,12 @@ export class CallReportCollector {
   }
 
   /**
-   * Collect stats from the peer connection and aggregate them
+   * Collect stats from the peer connection and aggregate them.
+   * @param isFinal - When true (called from stop()), always push a partial
+   *   interval entry to the buffer even if the full interval hasn't elapsed.
+   *   This ensures short calls (< interval duration) still produce stats.
    */
-  private async _collectStats(): Promise<void> {
+  private async _collectStats(isFinal: boolean = false): Promise<void> {
     if (!this.peerConnection || !this.intervalStartTime) {
       return;
     }
@@ -536,9 +550,12 @@ export class CallReportCollector {
 
       this.previousStats.timestamp = now.getTime();
 
-      // Check if interval is complete (end of collection period)
+      // Check if interval is complete (end of collection period).
+      // When isFinal is true, always push the partial interval so that
+      // short calls (shorter than the collection interval) still produce
+      // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-      if (intervalDuration >= this.options.interval) {
+      if (isFinal || intervalDuration >= this.options.interval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
           this.intervalStartTime,

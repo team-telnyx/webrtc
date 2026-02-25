@@ -1808,8 +1808,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
-    // Post call report after cleanup
-    this._postCallReport();
+    // Post call report after cleanup (fire-and-forget — must not block teardown)
+    this._postCallReport().catch((error) => {
+      logger.error('Unexpected error in _postCallReport', { error });
+    });
   }
 
   /**
@@ -1858,13 +1860,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _postCallReport() {
+  private async _postCallReport() {
     if (!this._callReportCollector) {
       logger.warn('Call report collector not initialized');
       return;
     }
 
-    this._callReportCollector.stop();
+    // Await stop() so the final stats collection (including partial
+    // intervals for short calls) completes before we post the report.
+    await this._callReportCollector.stop();
 
     const callReportId = this.session.callReportId;
     if (!callReportId) {
