@@ -317,9 +317,6 @@ export class CallReportCollector {
     if (this.statsBuffer.length === 0 && !hasLogs) {
       logger.info('CallReportCollector: Skipping report — no stats or logs collected', {
         callId: summary.callId,
-        durationMs: this.callEndTime && this.callStartTime
-          ? this.callEndTime.getTime() - this.callStartTime.getTime()
-          : undefined,
       });
       return;
     }
