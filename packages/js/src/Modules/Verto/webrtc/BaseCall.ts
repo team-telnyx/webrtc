@@ -464,8 +464,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
 
-    this.cause = params.cause || 'NORMAL_CLEARING';
-    this.causeCode = params.causeCode || 16;
+    // State-dependent default cause code:
+    // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
+    // - Post-answer states (active call) → NORMAL_CLEARING/16
+    const defaults = this._state < State.Active
+      ? { cause: 'USER_BUSY', causeCode: 17 }
+      : { cause: 'NORMAL_CLEARING', causeCode: 16 };
+
+    this.cause = params.cause || defaults.cause;
+    this.causeCode = params.causeCode || defaults.causeCode;
     this.sipCode = params.sipCode || null;
     this.sipReason = params.sipReason || null;
     this.sipCallId = params.sip_call_id || null;
