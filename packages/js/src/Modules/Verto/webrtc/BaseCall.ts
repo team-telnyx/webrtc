@@ -1808,8 +1808,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
-    // Post call report after cleanup
-    this._postCallReport();
+    // Post call report after cleanup (fire-and-forget — must not block teardown)
+    this._postCallReport().catch((error) => {
+      logger.error('Unexpected error in _postCallReport', { error });
+    });
   }
 
   /**
