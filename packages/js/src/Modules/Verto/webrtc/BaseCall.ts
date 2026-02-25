@@ -1858,13 +1858,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _postCallReport() {
+  private async _postCallReport() {
     if (!this._callReportCollector) {
       logger.warn('Call report collector not initialized');
       return;
     }
 
-    this._callReportCollector.stop();
+    // Await stop() so the final stats collection (including partial
+    // intervals for short calls) completes before we post the report.
+    await this._callReportCollector.stop();
 
     const callReportId = this.session.callReportId;
     if (!callReportId) {
