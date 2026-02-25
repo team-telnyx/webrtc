@@ -1,4 +1,3 @@
 # Visit https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-file-location
 
-* @team-telnyx/frontend-eng-chapter
-# @team-telnyx/frontend will tag the entire frontend team
+* @lucasassisrosa @ArtemPapazian
