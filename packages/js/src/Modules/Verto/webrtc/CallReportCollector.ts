@@ -310,12 +310,12 @@ export class CallReportCollector {
     const hasLogs = logs && logs.length > 0;
 
     if (!this.options.enabled) {
-      logger.debug('CallReportCollector: Skipping report — call reports disabled');
+      logger.info('CallReportCollector: Skipping report — call reports disabled');
       return;
     }
 
     if (this.statsBuffer.length === 0 && !hasLogs) {
-      logger.debug('CallReportCollector: Skipping report — no stats or logs collected', {
+      logger.info('CallReportCollector: Skipping report — no stats or logs collected', {
         callId: summary.callId,
         durationMs: this.callEndTime && this.callStartTime
           ? this.callEndTime.getTime() - this.callStartTime.getTime()
