@@ -160,8 +160,8 @@ export class CallReportCollector {
   // ── Size-aware flush ──────────────────────────────────────────────
   // Flush when stats or logs approach their buffer limits to avoid
   // hitting the server's 2 MB body limit or dropping oldest entries.
-  private static readonly STATS_FLUSH_THRESHOLD = 300;  // flush before 360 max
-  private static readonly LOGS_FLUSH_THRESHOLD = 800;   // flush before 1000 max
+  private static readonly STATS_FLUSH_THRESHOLD = 300; // flush before 360 max
+  private static readonly LOGS_FLUSH_THRESHOLD = 800; // flush before 1000 max
 
   /** Callback invoked when stats or logs approach their buffer limits. */
   public onFlushNeeded: (() => void) | null = null;
@@ -171,6 +171,9 @@ export class CallReportCollector {
 
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
+
+  // ── Retry configuration ───────────────────────────────────────────
+  private static readonly RETRY_DELAY_MS = 500;
 
   constructor(
     options: ICallReportOptions,
@@ -271,7 +274,8 @@ export class CallReportCollector {
       const payload: ICallReportPayload = {
         summary: {
           ...summary,
-          durationSeconds: (now.getTime() - this.callStartTime.getTime()) / 1000,
+          durationSeconds:
+            (now.getTime() - this.callStartTime.getTime()) / 1000,
           startTimestamp: this.callStartTime.toISOString(),
           endTimestamp: now.toISOString(),
         },
@@ -310,12 +314,16 @@ export class CallReportCollector {
     const hasLogs = logs && logs.length > 0;
 
     if (!this.options.enabled) {
-      logger.info('CallReportCollector: Skipping report — call reports disabled');
+      logger.info(
+        'CallReportCollector: Skipping report — call reports disabled'
+      );
       return;
     }
 
     if (this.statsBuffer.length === 0 && !hasLogs) {
-      logger.info('CallReportCollector: Skipping report — no stats or logs collected');
+      logger.info(
+        'CallReportCollector: Skipping report — no stats or logs collected'
+      );
       return;
     }
 
@@ -356,6 +364,10 @@ export class CallReportCollector {
 
   /**
    * Internal: send a payload to the call_report endpoint.
+   *
+   * On network error (e.g., ERR_SOCKET_NOT_CONNECTED from Chrome reusing
+   * a stale TCP socket), retries once after a short delay. If the retry
+   * also fails, logs the error and moves on.
    */
   private async _sendPayload(
     payload: ICallReportPayload,
@@ -367,7 +379,8 @@ export class CallReportCollector {
       const wsUrl = new URL(host);
       const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-      const isIntermediate = payload.segment !== undefined && !payload.summary.endTimestamp;
+      const isIntermediate =
+        payload.segment !== undefined && !payload.summary.endTimestamp;
       const label = isIntermediate
         ? `intermediate segment ${payload.segment}`
         : 'final report';
@@ -390,11 +403,11 @@ export class CallReportCollector {
         headers['x-voice-sdk-id'] = voiceSdkId;
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
+      const body = JSON.stringify(payload);
+
+      const doFetch = () => fetch(endpoint, { method: 'POST', headers, body });
+
+      const response = await doFetch();
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -405,8 +418,52 @@ export class CallReportCollector {
       } else {
         logger.info(`CallReportCollector: Successfully posted ${label}`);
       }
-    } catch (error) {
-      logger.error('CallReportCollector: Error posting report', { error });
+    } catch (firstError) {
+      // Network error (stale socket, DNS failure, etc.) — retry once
+      logger.warn(
+        `CallReportCollector: Network error posting call report, retrying in ${CallReportCollector.RETRY_DELAY_MS}ms`,
+        { error: firstError }
+      );
+
+      await new Promise((r) =>
+        setTimeout(r, CallReportCollector.RETRY_DELAY_MS)
+      );
+
+      try {
+        const wsUrl = new URL(host);
+        const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
+
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'x-call-report-id': callReportId,
+          'x-call-id': payload.summary.callId,
+        };
+        if (voiceSdkId) {
+          headers['x-voice-sdk-id'] = voiceSdkId;
+        }
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          logger.error(
+            'CallReportCollector: Failed to post call report on retry',
+            { status: response.status, error: errorText }
+          );
+        } else {
+          logger.info(
+            'CallReportCollector: Successfully posted call report on retry'
+          );
+        }
+      } catch (retryError) {
+        logger.error('CallReportCollector: Retry also failed, giving up', {
+          error: retryError,
+        });
+      }
     }
   }
 
@@ -589,7 +646,10 @@ export class CallReportCollector {
             try {
               this.onFlushNeeded();
             } catch (err) {
-              logger.error('CallReportCollector: onFlushNeeded callback error', { error: err });
+              logger.error(
+                'CallReportCollector: onFlushNeeded callback error',
+                { error: err }
+              );
             }
           }
         }
@@ -698,5 +758,4 @@ export class CallReportCollector {
     this.intervalRTTs = [];
     this.intervalBitrates = { outbound: [], inbound: [] };
   }
-
 }
