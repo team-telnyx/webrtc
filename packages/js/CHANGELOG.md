@@ -1,3 +1,6 @@
+## [2.25.22](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.21...webrtc/v2.25.22) (2026-02-26)
+
+- fix: retry once on network error when posting call report (#534)
 ## [2.25.21](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.20...webrtc/v2.25.21) (2026-02-25)
 
 - fix: send call reports for calls shorter than the collection interval (#532)
