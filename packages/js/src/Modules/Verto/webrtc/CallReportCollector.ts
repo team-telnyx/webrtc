@@ -4,7 +4,7 @@
  * Collects WebRTC statistics during a call and posts them to voice-sdk-proxy
  * at the end of the call for quality analysis and debugging.
  *
- * Stats Collection Strategy (based on Twilio/Jitsi best practices):
+ * Stats Collection Strategy:
  * - Collects stats at regular intervals (default 5 seconds)
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
@@ -61,9 +61,8 @@ export interface ICallReportOptions {
    * Set to 0 to disable incremental posting (post only at call end).
    * Default: 50000 (50 seconds — ~10 stats samples at the default 5s collection interval).
    *
-   * Modeled after Twilio Voice JS SDK which batches every 10 samples (~50s)
-   * and flushes remaining on disconnect. This ensures most call data is
-   * already delivered before the call ends, making the final POST less critical.
+   * Posts stats in batches during the call so most data is already delivered
+   * before call end. If the final POST fails, only the last batch is lost.
    */
   incrementalPostInterval?: number;
 }
@@ -182,7 +181,7 @@ export class CallReportCollector {
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
 
-  /** Timer for incremental posting during the call (Twilio-style). */
+  /** Timer for incremental posting during the call. */
   private _incrementalFlushId: ReturnType<typeof setInterval> | null = null;
 
   /** Default incremental post interval: 50 seconds (~10 samples at 5s). */
@@ -228,7 +227,7 @@ export class CallReportCollector {
       this._collectStats();
     }, this.options.interval);
 
-    // ── Incremental posting (Twilio-style) ──────────────────────────
+    // ── Incremental posting ───────────────────────────────────────────
     // Post stats in batches during the call so most data is already
     // delivered before call end. Losing the final batch is acceptable.
     const incrementalMs =
