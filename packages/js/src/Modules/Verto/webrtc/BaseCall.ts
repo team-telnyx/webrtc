@@ -1765,11 +1765,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     const debugLogLevel = this.session.options.debugLogLevel || 'debug';
     const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
+    // Incremental posting interval: undefined → use default (50s), 0 → disable
+    const incrementalPostInterval = this.session.options.incrementalPostInterval;
+
     if (enableCallReports) {
       this._callReportCollector = new CallReportCollector(
         {
           enabled: true,
           interval: callReportInterval,
+          incrementalPostInterval,
         },
         {
           enabled: true, // Debug logs enabled when call reports are enabled

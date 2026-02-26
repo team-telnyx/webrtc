@@ -72,6 +72,13 @@ export interface IVertoOptions {
    * @default 1000
    */
   debugLogMaxEntries?: number;
+  /**
+   * Interval in milliseconds for posting stats incrementally during a call.
+   * Stats are posted in batches at this interval so most data is already
+   * delivered before call end. Set to 0 to disable (post only at call end).
+   * @default 50000 (50 seconds)
+   */
+  incrementalPostInterval?: number;
 }
 export interface ILoginParams {
   login?: string;

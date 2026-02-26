@@ -4,7 +4,7 @@
  * Collects WebRTC statistics during a call and posts them to voice-sdk-proxy
  * at the end of the call for quality analysis and debugging.
  *
- * Stats Collection Strategy (based on Twilio/Jitsi best practices):
+ * Stats Collection Strategy:
  * - Collects stats at regular intervals (default 5 seconds)
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
@@ -56,6 +56,15 @@ interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
 export interface ICallReportOptions {
   enabled: boolean;
   interval: number;
+  /**
+   * Post stats incrementally during the call at this interval (ms).
+   * Set to 0 to disable incremental posting (post only at call end).
+   * Default: 50000 (50 seconds — ~10 stats samples at the default 5s collection interval).
+   *
+   * Posts stats in batches during the call so most data is already delivered
+   * before call end. If the final POST fails, only the last batch is lost.
+   */
+  incrementalPostInterval?: number;
 }
 
 export interface ILogCollectorOptions {
@@ -160,8 +169,8 @@ export class CallReportCollector {
   // ── Size-aware flush ──────────────────────────────────────────────
   // Flush when stats or logs approach their buffer limits to avoid
   // hitting the server's 2 MB body limit or dropping oldest entries.
-  private static readonly STATS_FLUSH_THRESHOLD = 300;  // flush before 360 max
-  private static readonly LOGS_FLUSH_THRESHOLD = 800;   // flush before 1000 max
+  private static readonly STATS_FLUSH_THRESHOLD = 300; // flush before 360 max
+  private static readonly LOGS_FLUSH_THRESHOLD = 800; // flush before 1000 max
 
   /** Callback invoked when stats or logs approach their buffer limits. */
   public onFlushNeeded: (() => void) | null = null;
@@ -171,6 +180,12 @@ export class CallReportCollector {
 
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
+
+  /** Timer for incremental posting during the call. */
+  private _incrementalFlushId: ReturnType<typeof setInterval> | null = null;
+
+  /** Default incremental post interval: 50 seconds (~10 samples at 5s). */
+  private static readonly DEFAULT_INCREMENTAL_INTERVAL_MS = 50_000;
 
   constructor(
     options: ICallReportOptions,
@@ -211,6 +226,36 @@ export class CallReportCollector {
     this.intervalId = setInterval(() => {
       this._collectStats();
     }, this.options.interval);
+
+    // ── Incremental posting ───────────────────────────────────────────
+    // Post stats in batches during the call so most data is already
+    // delivered before call end. Losing the final batch is acceptable.
+    const incrementalMs =
+      this.options.incrementalPostInterval ??
+      CallReportCollector.DEFAULT_INCREMENTAL_INTERVAL_MS;
+
+    if (incrementalMs > 0 && this.onFlushNeeded) {
+      this._incrementalFlushId = setInterval(() => {
+        if (
+          this.statsBuffer.length > 0 &&
+          this.onFlushNeeded &&
+          !this._flushing
+        ) {
+          logger.info('CallReportCollector: Incremental flush triggered', {
+            intervals: this.statsBuffer.length,
+            logEntries: this.logCollector?.getLogCount() ?? 0,
+          });
+          try {
+            this.onFlushNeeded();
+          } catch (err) {
+            logger.error(
+              'CallReportCollector: Incremental flush callback error',
+              { error: err }
+            );
+          }
+        }
+      }, incrementalMs);
+    }
   }
 
   /**
@@ -223,6 +268,11 @@ export class CallReportCollector {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+
+    if (this._incrementalFlushId) {
+      clearInterval(this._incrementalFlushId);
+      this._incrementalFlushId = null;
     }
 
     this.callEndTime = new Date();
@@ -271,7 +321,8 @@ export class CallReportCollector {
       const payload: ICallReportPayload = {
         summary: {
           ...summary,
-          durationSeconds: (now.getTime() - this.callStartTime.getTime()) / 1000,
+          durationSeconds:
+            (now.getTime() - this.callStartTime.getTime()) / 1000,
           startTimestamp: this.callStartTime.toISOString(),
           endTimestamp: now.toISOString(),
         },
@@ -310,12 +361,16 @@ export class CallReportCollector {
     const hasLogs = logs && logs.length > 0;
 
     if (!this.options.enabled) {
-      logger.info('CallReportCollector: Skipping report — call reports disabled');
+      logger.info(
+        'CallReportCollector: Skipping report — call reports disabled'
+      );
       return;
     }
 
     if (this.statsBuffer.length === 0 && !hasLogs) {
-      logger.info('CallReportCollector: Skipping report — no stats or logs collected');
+      logger.info(
+        'CallReportCollector: Skipping report — no stats or logs collected'
+      );
       return;
     }
 
@@ -367,7 +422,8 @@ export class CallReportCollector {
       const wsUrl = new URL(host);
       const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-      const isIntermediate = payload.segment !== undefined && !payload.summary.endTimestamp;
+      const isIntermediate =
+        payload.segment !== undefined && !payload.summary.endTimestamp;
       const label = isIntermediate
         ? `intermediate segment ${payload.segment}`
         : 'final report';
@@ -428,6 +484,11 @@ export class CallReportCollector {
    * Clean up resources (call after postReport)
    */
   public cleanup(): void {
+    if (this._incrementalFlushId) {
+      clearInterval(this._incrementalFlushId);
+      this._incrementalFlushId = null;
+    }
+
     if (this.logCollector) {
       this.logCollector.clear();
       // Clear global reference if it points to this collector
@@ -589,7 +650,10 @@ export class CallReportCollector {
             try {
               this.onFlushNeeded();
             } catch (err) {
-              logger.error('CallReportCollector: onFlushNeeded callback error', { error: err });
+              logger.error(
+                'CallReportCollector: onFlushNeeded callback error',
+                { error: err }
+              );
             }
           }
         }
@@ -698,5 +762,4 @@ export class CallReportCollector {
     this.intervalRTTs = [];
     this.intervalBitrates = { outbound: [], inbound: [] };
   }
-
 }
