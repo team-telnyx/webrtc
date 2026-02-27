@@ -51,6 +51,34 @@ interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
   packetsReceived?: number;
   bytesSent?: number;
   bytesReceived?: number;
+  requestsSent?: number;
+  responsesReceived?: number;
+  writable?: boolean;
+}
+
+/**
+ * ICE candidate info extracted from local-candidate / remote-candidate stats
+ */
+interface ICECandidateInfo {
+  address?: string;
+  port?: number;
+  candidateType?: string; // host | srflx | prflx | relay
+  protocol?: string; // udp | tcp
+  networkType?: string; // wifi | cellular | ethernet | vpn | unknown
+}
+
+/**
+ * ICE candidate pair snapshot for a stats interval
+ */
+export interface IICECandidatePair {
+  id?: string;
+  state?: string; // frozen | waiting | in-progress | failed | succeeded
+  nominated?: boolean;
+  writable?: boolean;
+  local?: ICECandidateInfo;
+  remote?: ICECandidateInfo;
+  requestsSent?: number;
+  responsesReceived?: number;
 }
 
 export interface ICallReportOptions {
@@ -96,6 +124,7 @@ export interface IStatsInterval {
     bytesSent?: number;
     bytesReceived?: number;
   };
+  ice?: IICECandidatePair;
 }
 
 export interface ICallSummary {
@@ -153,6 +182,9 @@ export class CallReportCollector {
     outboundBytes?: number;
     inboundBytes?: number;
   } = {};
+
+  // Track selected candidate pair ID to detect mid-call path changes
+  private previousCandidatePairId: string | null = null;
 
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
@@ -603,6 +635,36 @@ export class CallReportCollector {
         if (candidatePair.currentRoundTripTime !== undefined) {
           this.intervalRTTs.push(candidatePair.currentRoundTripTime);
         }
+
+        // Detect mid-call path changes
+        if (
+          this.previousCandidatePairId !== null &&
+          candidatePair.id !== this.previousCandidatePairId
+        ) {
+          logger.debug(
+            'CallReportCollector: ICE candidate pair changed mid-call',
+            {
+              previous: this.previousCandidatePairId,
+              current: candidatePair.id,
+            }
+          );
+        }
+        this.previousCandidatePairId = candidatePair.id ?? null;
+      }
+
+      // Resolve local and remote candidates for the selected pair
+      let localCandidate: ICECandidateInfo | undefined;
+      let remoteCandidate: ICECandidateInfo | undefined;
+
+      if (candidatePair) {
+        localCandidate = this._resolveCandidate(
+          stats,
+          candidatePair.localCandidateId
+        );
+        remoteCandidate = this._resolveCandidate(
+          stats,
+          candidatePair.remoteCandidateId
+        );
       }
 
       this.previousStats.timestamp = now.getTime();
@@ -619,7 +681,9 @@ export class CallReportCollector {
           now,
           outboundAudio,
           inboundAudio,
-          candidatePair
+          candidatePair,
+          localCandidate,
+          remoteCandidate
         );
 
         // Add to buffer with size limit
@@ -671,7 +735,9 @@ export class CallReportCollector {
     end: Date,
     outboundAudio: ExtendedOutboundRtpStreamStats | null,
     inboundAudio: ExtendedInboundRtpStreamStats | null,
-    candidatePair: ExtendedCandidatePairStats | null
+    candidatePair: ExtendedCandidatePairStats | null,
+    localCandidate?: ICECandidateInfo,
+    remoteCandidate?: ICECandidateInfo
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -716,9 +782,65 @@ export class CallReportCollector {
         bytesSent: candidatePair.bytesSent,
         bytesReceived: candidatePair.bytesReceived,
       };
+
+      // ICE candidate pair details
+      entry.ice = {
+        id: candidatePair.id,
+        state: candidatePair.state,
+        nominated: candidatePair.nominated,
+        writable: candidatePair.writable,
+        requestsSent: candidatePair.requestsSent,
+        responsesReceived: candidatePair.responsesReceived,
+        ...(localCandidate ? { local: localCandidate } : {}),
+        ...(remoteCandidate ? { remote: remoteCandidate } : {}),
+      };
     }
 
     return entry;
+  }
+
+  /**
+   * Resolve a local-candidate or remote-candidate from the RTCStatsReport
+   * by its stat entry ID.
+   */
+  private _resolveCandidate(
+    stats: RTCStatsReport,
+    candidateId?: string
+  ): ICECandidateInfo | undefined {
+    if (!candidateId) {
+      logger.debug(
+        'CallReportCollector: candidateId is empty, skipping resolve'
+      );
+      return undefined;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const report = (stats as any).get(candidateId);
+    if (!report) {
+      logger.debug('CallReportCollector: candidate not found in stats report', {
+        candidateId,
+      });
+      return undefined;
+    }
+
+    const info: ICECandidateInfo = {};
+    if (report.address !== undefined) info.address = report.address;
+    if (report.port !== undefined) info.port = report.port;
+    if (report.candidateType !== undefined)
+      info.candidateType = report.candidateType;
+    if (report.protocol !== undefined) info.protocol = report.protocol;
+    // networkType is only available on local candidates and may be absent in some browsers
+    if (report.networkType !== undefined) info.networkType = report.networkType;
+
+    if (Object.keys(info).length === 0) {
+      logger.debug(
+        'CallReportCollector: candidate report has no usable fields',
+        { candidateId }
+      );
+      return undefined;
+    }
+
+    return info;
   }
 
   /**
@@ -728,12 +850,22 @@ export class CallReportCollector {
     stats: RTCStatsReport,
     trackId?: string
   ): number | null {
-    if (!trackId) return null;
+    if (!trackId) {
+      logger.debug(
+        'CallReportCollector: trackId is empty, skipping audio level'
+      );
+      return null;
+    }
 
     // RTCStatsReport.get() returns RTCStats which doesn't include audioLevel in TS types
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const trackStats = (stats as any).get(trackId);
-    if (!trackStats) return null;
+    if (!trackStats) {
+      logger.debug('CallReportCollector: track not found in stats report', {
+        trackId,
+      });
+      return null;
+    }
 
     // Chrome/Safari use 'audioLevel', Firefox might use different property
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
