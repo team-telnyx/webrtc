@@ -1673,11 +1673,17 @@ export default abstract class BaseCall implements IWebRTCCall {
   };
 
   private _onMediaError(error: any) {
+    const errorName = error?.name || 'UnknownError';
+    const errorMessage = error?.message || 'Unknown media error';
+
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.userMediaError,
       error,
+      call: this,
+      errorName,
+      errorMessage,
     });
-    logger.error('Media error, hanging up call', error);
+    logger.error(`Media error (${errorName}): ${errorMessage}`, error);
     this.hangup({}, false);
   }
 
