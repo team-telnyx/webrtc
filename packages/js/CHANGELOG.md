@@ -1,3 +1,8 @@
+## [2.25.23](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.22...webrtc/v2.25.23) (2026-02-27)
+
+- docs: update ts docs
+- feat: add ICE candidate pair stats to call report (WEBRTC-3302) (#538)
+- chore: release webrtc@2.25.22 (#536)
 ## [2.25.22](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.21...webrtc/v2.25.22) (2026-02-26)
 
 - fix: retry once on network error when posting call report (#534)
