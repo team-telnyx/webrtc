@@ -153,8 +153,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _targetNodeId: string = null;
 
-  private _iceTimeout = null;
-
   private _iceDone: boolean = false;
 
   private _ringtone: IAudio;
@@ -1363,10 +1361,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIceSdp(data: RTCSessionDescription) {
-    if (this._iceTimeout) {
-      clearTimeout(this._iceTimeout);
-    }
-    this._iceTimeout = null;
     this._iceDone = true;
     const { sdp, type } = data;
 
@@ -1502,18 +1496,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
-    const { instance } = this.peer;
-    if (this._iceTimeout === null) {
-      this._iceTimeout = setTimeout(
-        () => this._onIceSdp(instance.localDescription),
-        1000
-      );
-    }
-
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
     } else {
-      this._onIceSdp(instance.localDescription);
+      logger.debug('RTCPeer null candidate received (ICE gathering may be complete)');
     }
   }
 
@@ -1597,11 +1583,20 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _registerPeerEvents(instance: RTCPeerConnection) {
     this._iceDone = false;
+    
     instance.onicecandidate = (event) => {
       if (this._iceDone) {
         return;
       }
       this._onIce(event);
+    };
+
+    instance.onicegatheringstatechange = () => {
+      logger.debug('ICE gathering state:', instance.iceGatheringState);
+      if (instance.iceGatheringState === 'complete') {
+        logger.info('ICE gathering complete, sending SDP');
+        this._onIceSdp(instance.localDescription);
+      }
     };
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
