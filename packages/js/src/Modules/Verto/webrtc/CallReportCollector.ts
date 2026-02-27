@@ -641,7 +641,7 @@ export class CallReportCollector {
           this.previousCandidatePairId !== null &&
           candidatePair.id !== this.previousCandidatePairId
         ) {
-          logger.info(
+          logger.debug(
             'CallReportCollector: ICE candidate pair changed mid-call',
             {
               previous: this.previousCandidatePairId,
