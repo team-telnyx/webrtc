@@ -5,6 +5,7 @@ type AnonymousLoginConstructorParams = {
   target_id: string;
   target_type: string;
   target_version_id?: string;
+  conversation_id?: string;
   sessionId?: string;
   userVariables?: Record<string, any>;
   reconnection?: boolean;
@@ -20,6 +21,7 @@ class AnonymousLogin extends BaseRequest {
       target_type,
       target_id,
       target_version_id,
+      conversation_id,
       userVariables,
       sessionId,
       reconnection,
@@ -42,6 +44,10 @@ class AnonymousLogin extends BaseRequest {
 
     if (target_version_id) {
       params.target_version_id = target_version_id;
+    }
+
+    if (conversation_id) {
+      params.conversation_id = conversation_id;
     }
 
     this.buildRequest({ method: this.method, params });

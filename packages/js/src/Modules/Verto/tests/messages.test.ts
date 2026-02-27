@@ -1,5 +1,6 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
 import { Ping } from '../messages/verto/Ping';
+import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
 import { version } from '../../../../package.json';
 
 const userAgent = JSON.stringify({
@@ -141,6 +142,66 @@ describe('Messages', function () {
           `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.ping","params":{}}`
         );
         expect(message).toEqual(res);
+      });
+    });
+
+    describe('AnonymousLogin', function () {
+      it('should match struct without conversation_id', function () {
+        const message = new AnonymousLogin({
+          target_type: 'ai_assistant',
+          target_id: 'asst_123',
+          target_version_id: 'v1',
+          userVariables: { key: 'value' },
+          reconnection: false,
+        }).request;
+
+        expect(message.method).toEqual('anonymous_login');
+        expect(message.params.target_type).toEqual('ai_assistant');
+        expect(message.params.target_id).toEqual('asst_123');
+        expect(message.params.target_version_id).toEqual('v1');
+        expect(message.params.userVariables).toEqual({ key: 'value' });
+        expect(message.params.reconnection).toEqual(false);
+        expect(message.params.conversation_id).toBeUndefined();
+      });
+
+      it('should match struct with conversation_id', function () {
+        const message = new AnonymousLogin({
+          target_type: 'ai_assistant',
+          target_id: 'asst_456',
+          target_version_id: 'v2',
+          conversation_id: 'conv-789-xyz',
+          userVariables: {},
+          reconnection: true,
+        }).request;
+
+        expect(message.method).toEqual('anonymous_login');
+        expect(message.params.target_type).toEqual('ai_assistant');
+        expect(message.params.target_id).toEqual('asst_456');
+        expect(message.params.target_version_id).toEqual('v2');
+        expect(message.params.conversation_id).toEqual('conv-789-xyz');
+        expect(message.params.reconnection).toEqual(true);
+      });
+
+      it('should include sessid when sessionId is provided', function () {
+        const message = new AnonymousLogin({
+          target_type: 'ai_assistant',
+          target_id: 'asst_123',
+          sessionId: 'session-abc-123',
+          conversation_id: 'conv-existing',
+        }).request;
+
+        expect(message.params.sessid).toEqual('session-abc-123');
+        expect(message.params.conversation_id).toEqual('conv-existing');
+      });
+
+      it('should pass User-Agent to the backend', function () {
+        const message = new AnonymousLogin({
+          target_type: 'ai_assistant',
+          target_id: 'asst_123',
+        }).request;
+
+        expect(message.params['User-Agent']).toBeDefined();
+        expect(message.params['User-Agent'].sdkVersion).toEqual(version);
       });
     });
   });

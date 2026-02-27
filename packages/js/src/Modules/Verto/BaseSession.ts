@@ -421,6 +421,7 @@ export default abstract class BaseSession {
         target_id: this.options.anonymous_login.target_id,
         target_type: this.options.anonymous_login.target_type,
         target_version_id: this.options.anonymous_login.target_version_id,
+        conversation_id: this.options.anonymous_login.conversation_id,
         sessionId: this.sessionid,
         userVariables: this.options.userVariables,
         reconnection: !!getReconnectToken(),

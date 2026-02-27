@@ -257,6 +257,23 @@ const client = new TelnyxRTC({
 client.connect();
 ```
 
+#### Joining an Existing Conversation
+
+You can join an existing conversation by providing a `conversation_id` in the `anonymous_login` options. This is useful for resuming previous conversations or joining ongoing sessions.
+
+```js
+const client = new TelnyxRTC({
+  anonymous_login: {
+    target_id: 'assistant-UUID',
+    target_type: 'ai_assistant',
+    /** Optional: Join an existing conversation */
+    conversation_id: 'existing-conversation-uuid',
+  },
+});
+
+client.connect();
+```
+
 ### Making Calls to AI Assistants
 
 Making calls to the AI assistant is similar to making calls with a SIP connection. You can use the `newCall` method to initiate a call, the destination number can be left blank.
