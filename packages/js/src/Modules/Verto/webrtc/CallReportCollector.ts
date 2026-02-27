@@ -807,11 +807,21 @@ export class CallReportCollector {
     stats: RTCStatsReport,
     candidateId?: string
   ): ICECandidateInfo | undefined {
-    if (!candidateId) return undefined;
+    if (!candidateId) {
+      logger.debug(
+        'CallReportCollector: candidateId is empty, skipping resolve'
+      );
+      return undefined;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const report = (stats as any).get(candidateId);
-    if (!report) return undefined;
+    if (!report) {
+      logger.debug('CallReportCollector: candidate not found in stats report', {
+        candidateId,
+      });
+      return undefined;
+    }
 
     const info: ICECandidateInfo = {};
     if (report.address !== undefined) info.address = report.address;
@@ -822,7 +832,15 @@ export class CallReportCollector {
     // networkType is only available on local candidates and may be absent in some browsers
     if (report.networkType !== undefined) info.networkType = report.networkType;
 
-    return Object.keys(info).length > 0 ? info : undefined;
+    if (Object.keys(info).length === 0) {
+      logger.debug(
+        'CallReportCollector: candidate report has no usable fields',
+        { candidateId }
+      );
+      return undefined;
+    }
+
+    return info;
   }
 
   /**
@@ -832,12 +850,22 @@ export class CallReportCollector {
     stats: RTCStatsReport,
     trackId?: string
   ): number | null {
-    if (!trackId) return null;
+    if (!trackId) {
+      logger.debug(
+        'CallReportCollector: trackId is empty, skipping audio level'
+      );
+      return null;
+    }
 
     // RTCStatsReport.get() returns RTCStats which doesn't include audioLevel in TS types
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const trackStats = (stats as any).get(trackId);
-    if (!trackStats) return null;
+    if (!trackStats) {
+      logger.debug('CallReportCollector: track not found in stats report', {
+        trackId,
+      });
+      return null;
+    }
 
     // Chrome/Safari use 'audioLevel', Firefox might use different property
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
