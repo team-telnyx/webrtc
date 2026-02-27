@@ -401,15 +401,6 @@ export default class Peer {
     }
 
     performance.mark(`peer-creation-end`);
-
-    // If getUserMedia failed (no mic/camera), localStream is null.
-    // Bail out early to prevent negotiation on a call that will be
-    // hung up by _onMediaError. This avoids null-reference errors
-    // in _logTransceivers and _createOffer/_createAnswer.
-    if (!this.options.localStream && this.options.audio !== false) {
-      logger.warn('No local stream available — skipping negotiation');
-      return;
-    }
   }
 
   private _handleIceConnectionStateChange = () => {
