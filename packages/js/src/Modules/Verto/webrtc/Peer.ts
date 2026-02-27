@@ -400,6 +400,10 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
+    if (!this.options.localStream) {
+      logger.warn('No local media stream available');
+    }
+
     performance.mark(`peer-creation-end`);
   }
 
