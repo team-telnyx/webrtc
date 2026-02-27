@@ -43,6 +43,7 @@ export interface IVertoOptions {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    target_params?: Record<string, unknown>;
   };
 
   /**
@@ -83,6 +84,7 @@ export interface ILoginParams {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    target_params?: Record<string, unknown>;
   };
 }
 export interface SubscribeParams {

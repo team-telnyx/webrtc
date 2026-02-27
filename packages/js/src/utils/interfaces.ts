@@ -96,6 +96,13 @@ export interface IClientOptions {
      * This is optional and can be used to specify a particular version of the AI assistant.
      */
     target_version_id?: string;
+
+    /**
+     * Optional parameters to pass to the target.
+     * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+     * For example, `{ conversation_id: 'conv-123' }` becomes `X-AI-Assistant-Conversation-ID`.
+     */
+    target_params?: Record<string, unknown>;
   };
 
   /**
