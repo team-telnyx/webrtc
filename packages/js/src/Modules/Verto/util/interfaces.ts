@@ -43,6 +43,11 @@ export interface IVertoOptions {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    /**
+     * The conversation ID to join an existing conversation.
+     * When provided, the user will join the specified conversation instead of creating a new one.
+     */
+    conversation_id?: string;
   };
 
   /**
@@ -83,6 +88,11 @@ export interface ILoginParams {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    /**
+     * The conversation ID to join an existing conversation.
+     * When provided, the user will join the specified conversation instead of creating a new one.
+     */
+    conversation_id?: string;
   };
 }
 export interface SubscribeParams {

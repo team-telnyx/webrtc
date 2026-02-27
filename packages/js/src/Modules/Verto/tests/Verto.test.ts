@@ -396,6 +396,21 @@ describe('Verto', () => {
         expect(instance.options.anonymous_login).toEqual(anonymousLogin);
       });
 
+      it('should update anonymous_login with conversation_id when provided', async () => {
+        const anonymousLogin = {
+          target_type: 'ai_assistant',
+          target_id: '456',
+          target_version_id: 'v2',
+          conversation_id: 'conv-123-abc',
+        };
+        await instance.login({ creds: { anonymous_login: anonymousLogin } });
+
+        expect(instance.options.anonymous_login).toEqual(anonymousLogin);
+        expect(instance.options.anonymous_login.conversation_id).toEqual(
+          'conv-123-abc'
+        );
+      });
+
       it('should update multiple credentials at once', async () => {
         await instance.login({
           creds: {

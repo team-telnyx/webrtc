@@ -96,6 +96,13 @@ export interface IClientOptions {
      * This is optional and can be used to specify a particular version of the AI assistant.
      */
     target_version_id?: string;
+
+    /**
+     * The conversation ID to join an existing conversation.
+     * When provided, the user will join the specified conversation instead of creating a new one.
+     * This is useful for resuming previous conversations or joining ongoing sessions.
+     */
+    conversation_id?: string;
   };
 
   /**
