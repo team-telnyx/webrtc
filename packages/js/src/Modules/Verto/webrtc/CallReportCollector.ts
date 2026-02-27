@@ -34,6 +34,7 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
   totalSamplesReceived?: number;
   concealedSamples?: number;
   concealmentEvents?: number;
+  audioLevel?: number;
 }
 
 /**
@@ -41,6 +42,21 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
  */
 interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
   trackId?: string;
+  mediaSourceId?: string;
+}
+
+/**
+ * Extended transport stats from getStats() 'transport' type
+ */
+interface ExtendedTransportStats {
+  type: string;
+  id: string;
+  iceState?: string; // new | checking | connected | completed | disconnected | failed | closed
+  dtlsState?: string; // new | connecting | connected | closed | failed
+  srtpCipher?: string; // e.g. AES_CM_128_HMAC_SHA1_80
+  tlsVersion?: string; // e.g. FEFD (DTLS 1.2)
+  selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
 }
 
 /**
@@ -79,6 +95,17 @@ export interface IICECandidatePair {
   remote?: ICECandidateInfo;
   requestsSent?: number;
   responsesReceived?: number;
+}
+
+/**
+ * Transport-level stats snapshot for a stats interval
+ */
+export interface ITransportStats {
+  iceState?: string;
+  dtlsState?: string;
+  srtpCipher?: string;
+  tlsVersion?: string;
+  selectedCandidatePairChanges?: number;
 }
 
 export interface ICallReportOptions {
@@ -125,6 +152,7 @@ export interface IStatsInterval {
     bytesReceived?: number;
   };
   ice?: IICECandidatePair;
+  transport?: ITransportStats;
 }
 
 export interface ICallSummary {
@@ -546,6 +574,7 @@ export class CallReportCollector {
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
+      let transportStats: ExtendedTransportStats | null = null;
 
       stats.forEach((report) => {
         switch (report.type) {
@@ -567,15 +596,17 @@ export class CallReportCollector {
               candidatePair = report as ExtendedCandidatePairStats;
             }
             break;
+          case 'transport':
+            transportStats = report as unknown as ExtendedTransportStats;
+            break;
         }
       });
 
       // Collect sample values for averaging
       if (outboundAudio) {
-        const audioLevel = this._getTrackAudioLevel(
-          stats,
-          outboundAudio.trackId
-        );
+        // Outbound audioLevel: available on the media-source stat (Chrome 96+)
+        // or on the deprecated track stat as fallback
+        const audioLevel = this._getOutboundAudioLevel(stats, outboundAudio);
         if (audioLevel !== null) {
           this.intervalAudioLevels.outbound.push(audioLevel);
         }
@@ -599,11 +630,12 @@ export class CallReportCollector {
       }
 
       if (inboundAudio) {
-        const audioLevel = this._getTrackAudioLevel(
-          stats,
-          inboundAudio.trackId
-        );
-        if (audioLevel !== null) {
+        // Inbound audioLevel: available directly on inbound-rtp (Chrome 96+)
+        // or on the deprecated track stat as fallback
+        const audioLevel =
+          inboundAudio.audioLevel ??
+          this._getTrackAudioLevel(stats, inboundAudio.trackId);
+        if (audioLevel !== null && audioLevel !== undefined) {
           this.intervalAudioLevels.inbound.push(audioLevel);
         }
 
@@ -683,7 +715,8 @@ export class CallReportCollector {
           inboundAudio,
           candidatePair,
           localCandidate,
-          remoteCandidate
+          remoteCandidate,
+          transportStats
         );
 
         // Add to buffer with size limit
@@ -737,7 +770,8 @@ export class CallReportCollector {
     inboundAudio: ExtendedInboundRtpStreamStats | null,
     candidatePair: ExtendedCandidatePairStats | null,
     localCandidate?: ICECandidateInfo,
-    remoteCandidate?: ICECandidateInfo
+    remoteCandidate?: ICECandidateInfo,
+    transportStats?: ExtendedTransportStats | null
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -796,6 +830,30 @@ export class CallReportCollector {
       };
     }
 
+    // Transport stats
+    if (transportStats) {
+      entry.transport = {
+        ...(transportStats.iceState !== undefined
+          ? { iceState: transportStats.iceState }
+          : {}),
+        ...(transportStats.dtlsState !== undefined
+          ? { dtlsState: transportStats.dtlsState }
+          : {}),
+        ...(transportStats.srtpCipher !== undefined
+          ? { srtpCipher: transportStats.srtpCipher }
+          : {}),
+        ...(transportStats.tlsVersion !== undefined
+          ? { tlsVersion: transportStats.tlsVersion }
+          : {}),
+        ...(transportStats.selectedCandidatePairChanges !== undefined
+          ? {
+              selectedCandidatePairChanges:
+                transportStats.selectedCandidatePairChanges,
+            }
+          : {}),
+      };
+    }
+
     return entry;
   }
 
@@ -844,7 +902,31 @@ export class CallReportCollector {
   }
 
   /**
-   * Get audio level from track stats
+   * Get outbound audio level from media-source stats (Chrome 96+)
+   * or fall back to deprecated track stats.
+   *
+   * In modern Chrome, outbound-rtp has a mediaSourceId that references
+   * a 'media-source' stat entry which contains audioLevel.
+   */
+  private _getOutboundAudioLevel(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): number | null {
+    // Try media-source stat first (Chrome 96+)
+    if (outboundAudio.mediaSourceId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mediaSource = (stats as any).get(outboundAudio.mediaSourceId);
+      if (mediaSource && mediaSource.audioLevel !== undefined) {
+        return mediaSource.audioLevel;
+      }
+    }
+
+    // Fallback: deprecated track stats
+    return this._getTrackAudioLevel(stats, outboundAudio.trackId);
+  }
+
+  /**
+   * Get audio level from track stats (deprecated — fallback for older browsers)
    */
   private _getTrackAudioLevel(
     stats: RTCStatsReport,
