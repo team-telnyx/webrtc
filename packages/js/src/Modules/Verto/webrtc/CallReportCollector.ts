@@ -34,6 +34,11 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
   totalSamplesReceived?: number;
   concealedSamples?: number;
   concealmentEvents?: number;
+  audioLevel?: number;
+  /** Cumulative audio energy (sum of squared samples) — available without RTP header extension */
+  totalAudioEnergy?: number;
+  /** Cumulative duration of received audio in seconds */
+  totalSamplesDuration?: number;
 }
 
 /**
@@ -41,6 +46,33 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
  */
 interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
   trackId?: string;
+  mediaSourceId?: string;
+}
+
+/**
+ * Extended RTCAudioSourceStats (type: 'media-source', kind: 'audio')
+ * Available in Chrome 96+ via outbound-rtp.mediaSourceId
+ */
+interface ExtendedMediaSourceStats {
+  type: string;
+  kind?: string;
+  audioLevel?: number;
+  totalAudioEnergy?: number;
+  totalSamplesDuration?: number;
+}
+
+/**
+ * Extended transport stats from getStats() 'transport' type
+ */
+interface ExtendedTransportStats {
+  type: string;
+  id: string;
+  iceState?: string; // new | checking | connected | completed | disconnected | failed | closed
+  dtlsState?: string; // new | connecting | connected | closed | failed
+  srtpCipher?: string; // e.g. AES_CM_128_HMAC_SHA1_80
+  tlsVersion?: string; // e.g. FEFD (DTLS 1.2)
+  selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
 }
 
 /**
@@ -79,6 +111,17 @@ export interface IICECandidatePair {
   remote?: ICECandidateInfo;
   requestsSent?: number;
   responsesReceived?: number;
+}
+
+/**
+ * Transport-level stats snapshot for a stats interval
+ */
+export interface ITransportStats {
+  iceState?: string;
+  dtlsState?: string;
+  srtpCipher?: string;
+  tlsVersion?: string;
+  selectedCandidatePairChanges?: number;
 }
 
 export interface ICallReportOptions {
@@ -125,6 +168,7 @@ export interface IStatsInterval {
     bytesReceived?: number;
   };
   ice?: IICECandidatePair;
+  transport?: ITransportStats;
 }
 
 export interface ICallSummary {
@@ -181,6 +225,11 @@ export class CallReportCollector {
     timestamp?: number;
     outboundBytes?: number;
     inboundBytes?: number;
+    // For computing audio level from totalAudioEnergy deltas
+    inboundAudioEnergy?: number;
+    inboundSamplesDuration?: number;
+    outboundAudioEnergy?: number;
+    outboundSamplesDuration?: number;
   } = {};
 
   // Track selected candidate pair ID to detect mid-call path changes
@@ -546,6 +595,7 @@ export class CallReportCollector {
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
+      let transportStats: ExtendedTransportStats | null = null;
 
       stats.forEach((report) => {
         switch (report.type) {
@@ -567,15 +617,17 @@ export class CallReportCollector {
               candidatePair = report as ExtendedCandidatePairStats;
             }
             break;
+          case 'transport':
+            transportStats = report as unknown as ExtendedTransportStats;
+            break;
         }
       });
 
       // Collect sample values for averaging
       if (outboundAudio) {
-        const audioLevel = this._getTrackAudioLevel(
-          stats,
-          outboundAudio.trackId
-        );
+        // Outbound audioLevel: available on the media-source stat (Chrome 96+)
+        // or on the deprecated track stat as fallback
+        const audioLevel = this._getOutboundAudioLevel(stats, outboundAudio);
         if (audioLevel !== null) {
           this.intervalAudioLevels.outbound.push(audioLevel);
         }
@@ -599,10 +651,10 @@ export class CallReportCollector {
       }
 
       if (inboundAudio) {
-        const audioLevel = this._getTrackAudioLevel(
-          stats,
-          inboundAudio.trackId
-        );
+        // Inbound audioLevel: try direct audioLevel on inbound-rtp (requires
+        // ssrc-audio-level RTP header extension), then compute from
+        // totalAudioEnergy deltas, then deprecated track stat
+        const audioLevel = this._getInboundAudioLevel(stats, inboundAudio);
         if (audioLevel !== null) {
           this.intervalAudioLevels.inbound.push(audioLevel);
         }
@@ -683,7 +735,8 @@ export class CallReportCollector {
           inboundAudio,
           candidatePair,
           localCandidate,
-          remoteCandidate
+          remoteCandidate,
+          transportStats
         );
 
         // Add to buffer with size limit
@@ -737,7 +790,8 @@ export class CallReportCollector {
     inboundAudio: ExtendedInboundRtpStreamStats | null,
     candidatePair: ExtendedCandidatePairStats | null,
     localCandidate?: ICECandidateInfo,
-    remoteCandidate?: ICECandidateInfo
+    remoteCandidate?: ICECandidateInfo,
+    transportStats?: ExtendedTransportStats | null
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -796,6 +850,30 @@ export class CallReportCollector {
       };
     }
 
+    // Transport stats
+    if (transportStats) {
+      entry.transport = {
+        ...(transportStats.iceState !== undefined
+          ? { iceState: transportStats.iceState }
+          : {}),
+        ...(transportStats.dtlsState !== undefined
+          ? { dtlsState: transportStats.dtlsState }
+          : {}),
+        ...(transportStats.srtpCipher !== undefined
+          ? { srtpCipher: transportStats.srtpCipher }
+          : {}),
+        ...(transportStats.tlsVersion !== undefined
+          ? { tlsVersion: transportStats.tlsVersion }
+          : {}),
+        ...(transportStats.selectedCandidatePairChanges !== undefined
+          ? {
+              selectedCandidatePairChanges:
+                transportStats.selectedCandidatePairChanges,
+            }
+          : {}),
+      };
+    }
+
     return entry;
   }
 
@@ -844,32 +922,169 @@ export class CallReportCollector {
   }
 
   /**
-   * Get audio level from track stats
+   * Get outbound audio level from media-source stats (Chrome 96+)
+   * or compute from totalAudioEnergy deltas, or fall back to deprecated track stats.
+   *
+   * Strategy (in priority order):
+   * 1. media-source stat via outbound-rtp.mediaSourceId (Chrome 96+) — audioLevel
+   * 2. media-source stat by iterating all stats (fallback when mediaSourceId missing)
+   * 3. Compute RMS from media-source totalAudioEnergy / totalSamplesDuration deltas
+   * 4. Deprecated track stat via trackId (legacy browsers)
+   */
+  private _getOutboundAudioLevel(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): number | null {
+    // 1. Try media-source stat by ID (Chrome 96+)
+    let mediaSource: ExtendedMediaSourceStats | undefined;
+
+    if (outboundAudio.mediaSourceId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mediaSource = (stats as any).get(outboundAudio.mediaSourceId) as
+        | ExtendedMediaSourceStats
+        | undefined;
+    }
+
+    // 2. If mediaSourceId not set or not found, iterate stats for media-source
+    if (!mediaSource) {
+      stats.forEach((report) => {
+        if (
+          !mediaSource &&
+          report.type === 'media-source' &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (report as any).kind === 'audio'
+        ) {
+          mediaSource = report as unknown as ExtendedMediaSourceStats;
+        }
+      });
+    }
+
+    // Try direct audioLevel on media-source
+    if (mediaSource?.audioLevel !== undefined) {
+      return mediaSource.audioLevel;
+    }
+
+    // 3. Compute RMS audio level from totalAudioEnergy deltas on media-source
+    if (mediaSource) {
+      const level = this._computeAudioLevelFromEnergy(
+        mediaSource.totalAudioEnergy,
+        mediaSource.totalSamplesDuration,
+        'outbound'
+      );
+      if (level !== null) {
+        return level;
+      }
+    }
+
+    // 4. Deprecated track stat fallback (legacy browsers only)
+    return this._getTrackAudioLevel(stats, outboundAudio.trackId);
+  }
+
+  /**
+   * Get inbound audio level from the best available source.
+   *
+   * Strategy (in priority order):
+   * 1. audioLevel directly on inbound-rtp (requires remote to negotiate
+   *    urn:ietf:params:rtp-hdrext:ssrc-audio-level RTP header extension)
+   * 2. Compute RMS from inbound-rtp totalAudioEnergy / totalSamplesDuration deltas
+   * 3. Deprecated track stat via trackId (legacy browsers)
+   */
+  private _getInboundAudioLevel(
+    stats: RTCStatsReport,
+    inboundAudio: ExtendedInboundRtpStreamStats
+  ): number | null {
+    // 1. Direct audioLevel on inbound-rtp (needs ssrc-audio-level ext)
+    if (inboundAudio.audioLevel !== undefined) {
+      return inboundAudio.audioLevel;
+    }
+
+    // 2. Compute RMS from totalAudioEnergy deltas (always available)
+    const level = this._computeAudioLevelFromEnergy(
+      inboundAudio.totalAudioEnergy,
+      inboundAudio.totalSamplesDuration,
+      'inbound'
+    );
+    if (level !== null) {
+      return level;
+    }
+
+    // 3. Deprecated track stat fallback (legacy browsers only)
+    return this._getTrackAudioLevel(stats, inboundAudio.trackId);
+  }
+
+  /**
+   * Compute RMS audio level from totalAudioEnergy and totalSamplesDuration
+   * deltas between consecutive stats collections.
+   *
+   * Formula: audioLevel = sqrt(deltaEnergy / deltaDuration)
+   *
+   * Returns a value between 0.0 (silence) and 1.0 (max), or null if
+   * insufficient data (first sample or missing fields).
+   *
+   * @see https://www.w3.org/TR/webrtc-stats/#dom-rtcaudiohandlerstats-totalaudioenergy
+   */
+  private _computeAudioLevelFromEnergy(
+    currentEnergy: number | undefined,
+    currentDuration: number | undefined,
+    direction: 'inbound' | 'outbound'
+  ): number | null {
+    if (currentEnergy === undefined || currentDuration === undefined) {
+      return null;
+    }
+
+    const prevEnergyKey =
+      direction === 'inbound' ? 'inboundAudioEnergy' : 'outboundAudioEnergy';
+    const prevDurationKey =
+      direction === 'inbound'
+        ? 'inboundSamplesDuration'
+        : 'outboundSamplesDuration';
+
+    const prevEnergy = this.previousStats[prevEnergyKey];
+    const prevDuration = this.previousStats[prevDurationKey];
+
+    // Store current values for next delta calculation
+    this.previousStats[prevEnergyKey] = currentEnergy;
+    this.previousStats[prevDurationKey] = currentDuration;
+
+    // Need previous values to compute delta (skip first sample)
+    if (prevEnergy === undefined || prevDuration === undefined) {
+      return null;
+    }
+
+    const deltaEnergy = currentEnergy - prevEnergy;
+    const deltaDuration = currentDuration - prevDuration;
+
+    if (deltaDuration <= 0) {
+      return null;
+    }
+
+    // RMS audio level: sqrt(energy / duration), clamped to [0, 1]
+    const rms = Math.sqrt(deltaEnergy / deltaDuration);
+    return Math.min(1.0, Math.max(0.0, rms));
+  }
+
+  /**
+   * Get audio level from deprecated track stats (legacy browsers only).
+   * Chrome removed trackId from outbound-rtp/inbound-rtp stats in ~Chrome 117.
+   * This method is kept as a last-resort fallback.
+   * @deprecated Use _getOutboundAudioLevel / _getInboundAudioLevel instead
    */
   private _getTrackAudioLevel(
     stats: RTCStatsReport,
     trackId?: string
   ): number | null {
     if (!trackId) {
-      logger.debug(
-        'CallReportCollector: trackId is empty, skipping audio level'
-      );
       return null;
     }
 
-    // RTCStatsReport.get() returns RTCStats which doesn't include audioLevel in TS types
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const trackStats = (stats as any).get(trackId);
     if (!trackStats) {
-      logger.debug('CallReportCollector: track not found in stats report', {
-        trackId,
-      });
       return null;
     }
 
-    // Chrome/Safari use 'audioLevel', Firefox might use different property
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (trackStats as any).audioLevel || null;
+    return (trackStats as any).audioLevel ?? null;
   }
 
   /**
