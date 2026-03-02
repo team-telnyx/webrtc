@@ -109,6 +109,8 @@ export interface INotificationEventData {
   type: string;
   call?: IWebRTCCall;
   error?: Error;
+  errorName?: string;
+  errorMessage?: string;
   displayName?: string;
   displayNumber?: string;
   displayDirection?: string;

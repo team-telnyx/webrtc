@@ -124,6 +124,10 @@ export default class Peer {
   }
 
   private _logTransceivers() {
+    if (!this.instance) {
+      logger.warn('Cannot log transceivers: peer connection is null');
+      return;
+    }
     logger.info(
       'Number of transceivers:',
       this.instance.getTransceivers().length
@@ -394,6 +398,16 @@ export default class Peer {
     ) {
       logger.info('Muting local audio tracks on start');
       disableAudioTracks(this.options.localStream);
+    }
+
+    if (!this.options.localStream) {
+      logger.warn('No local media stream available');
+      if (this.options.audio) {
+        logger.warn(
+          'Audio is required but no local stream — skipping negotiation'
+        );
+        return;
+      }
     }
 
     performance.mark(`peer-creation-end`);
