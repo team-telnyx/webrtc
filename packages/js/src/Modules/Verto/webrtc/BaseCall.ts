@@ -1672,7 +1672,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     return check;
   };
 
-  private _onMediaError(error: any) {
+  private _onMediaError(error: Error | DOMException) {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
 

@@ -402,6 +402,12 @@ export default class Peer {
 
     if (!this.options.localStream) {
       logger.warn('No local media stream available');
+      if (this.options.audio) {
+        logger.warn(
+          'Audio is required but no local stream — skipping negotiation'
+        );
+        return;
+      }
     }
 
     performance.mark(`peer-creation-end`);
