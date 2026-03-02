@@ -11,6 +11,30 @@ export interface ICredentials {
 }
 
 /**
+ * Optional parameters to pass to the target during anonymous login.
+ * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+ *
+ * Known keys are typed explicitly for discoverability and autocomplete.
+ * Unknown keys are still accepted and forwarded as-is.
+ *
+ * @example
+ * ```ts
+ * target_params: {
+ *   conversation_id: 'conv-123',  // → X-AI-Assistant-Conversation-ID
+ * }
+ * ```
+ */
+export interface TargetParams {
+  /**
+   * The conversation ID to join an existing conversation.
+   * Mapped to `X-AI-Assistant-Conversation-ID` on the SIP INVITE.
+   */
+  conversation_id?: string;
+  /** Allow additional pass-through parameters. */
+  [key: string]: unknown;
+}
+
+/**
  * IClientOptions
  * @interface IClientOptions
  */
@@ -100,9 +124,9 @@ export interface IClientOptions {
     /**
      * Optional parameters to pass to the target.
      * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
-     * For example, `{ conversation_id: 'conv-123' }` becomes `X-AI-Assistant-Conversation-ID`.
+     * @see {@link TargetParams}
      */
-    target_params?: Record<string, unknown>;
+    target_params?: TargetParams;
   };
 
   /**
