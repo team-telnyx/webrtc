@@ -37,11 +37,12 @@ anonymous_login login options
 
 #### Type declaration
 
-| Name                 | Type     | Description                                                                                                                                 |
-| :------------------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| `target_id`          | `string` | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to.                          |
-| `target_type`        | `string` | A string indicating the target type, for now only `ai_assistant` is supported.                                                              |
-| `target_version_id?` | `string` | The target version ID to use for the anonymous login. This is optional and can be used to specify a particular version of the AI assistant. |
+| Name                 | Type                                                                                              | Description                                                                                                                                                                                                                                 |
+| :------------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `target_id`          | `string`                                                                                          | The target ID to use for the anonymous login. this is typically the ID of the AI assistant you want to connect to.                                                                                                                          |
+| `target_params?`     | [`TargetParams`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/targetparams) | Optional parameters to pass to the target. These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE. **`See`** [TargetParams](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/targetparams) |
+| `target_type`        | `string`                                                                                          | A string indicating the target type, for now only `ai_assistant` is supported.                                                                                                                                                              |
+| `target_version_id?` | `string`                                                                                          | The target version ID to use for the anonymous login. This is optional and can be used to specify a particular version of the AI assistant.                                                                                                 |
 
 ---
 
