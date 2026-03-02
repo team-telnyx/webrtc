@@ -1,3 +1,9 @@
+## [2.25.24-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.23...webrtc/v2.25.24-beta.0) (2026-03-02)
+
+- docs: update ts docs
+- refactor: type target_params with TargetParams interface
+- feat(WEBRTC-3324): support target_params in anonymous_login
+- feat: add audioLevel + transport stats to call report (WEBRTC-3321) (#540)
 ## [2.25.23](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.22...webrtc/v2.25.23) (2026-02-27)
 
 - docs: update ts docs
