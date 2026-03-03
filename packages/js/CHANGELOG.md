@@ -1,3 +1,8 @@
+## [2.25.24](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.23...webrtc/v2.25.24) (2026-03-03)
+
+- docs: update ts docs
+- fix: handle getUserMedia failure gracefully (no microphone) (#541)
+- feat: add audioLevel + transport stats to call report (WEBRTC-3321) (#540)
 ## [2.25.23](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.22...webrtc/v2.25.23) (2026-02-27)
 
 - docs: update ts docs
