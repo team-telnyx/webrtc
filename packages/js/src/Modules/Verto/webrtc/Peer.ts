@@ -100,15 +100,15 @@ export default class Peer {
     );
   }
 
-  startNegotiation() {
+  async startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
     this._negotiating = true;
 
     if (this._isOffer()) {
-      this._createOffer();
+      await this._createOffer();
     } else {
-      this._createAnswer();
+      await this._createAnswer();
     }
   }
   async startTrickleIceNegotiation() {
@@ -248,9 +248,13 @@ export default class Peer {
       return;
     }
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation();
+      this.startTrickleIceNegotiation().catch((error) => {
+        logger.error('Trickle ICE renegotiation failed:', error);
+      });
     } else {
-      this.startNegotiation();
+      this.startNegotiation().catch((error) => {
+        logger.error('Renegotiation failed:', error);
+      });
     }
   }
 
@@ -554,11 +558,11 @@ export default class Peer {
         this._checkMediaToNegotiate('video');
       }
     } else if (!this._isTrickleIce()) {
-      this.startNegotiation();
+      await this.startNegotiation();
     }
 
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation();
+      await this.startTrickleIceNegotiation();
     }
 
     this._logTransceivers();
@@ -600,6 +604,7 @@ export default class Peer {
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
+      throw error;
     }
   }
 
@@ -647,6 +652,7 @@ export default class Peer {
       return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
+      throw error;
     }
   }
 

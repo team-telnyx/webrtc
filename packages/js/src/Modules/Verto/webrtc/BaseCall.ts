@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-function-type */
 import { WebRTCStats } from '@peermetrics/webrtc-stats';
 import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
@@ -16,6 +17,7 @@ import {
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
+import { createTelnyxError, SdkErrorCode } from '../util/errors';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
@@ -381,7 +383,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
-    await this.peer.init();
+    try {
+      await this.peer.init();
+    } catch (error) {
+      this._hangupWithError(40001, error);
+    }
     this._creatingPeer = false;
   }
   /**
@@ -420,7 +426,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
-    await this.peer.init();
+    try {
+      await this.peer.init();
+    } catch (error) {
+      this._hangupWithError(40002, error);
+    }
     performance.mark('new-call-end');
     this._creatingPeer = false;
   }
@@ -467,9 +477,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     // State-dependent default cause code:
     // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
     // - Post-answer states (active call) → NORMAL_CLEARING/16
-    const defaults = this._state < State.Active
-      ? { cause: 'USER_BUSY', causeCode: 17 }
-      : { cause: 'NORMAL_CLEARING', causeCode: 16 };
+    const defaults =
+      this._state < State.Active
+        ? { cause: 'USER_BUSY', causeCode: 17 }
+        : { cause: 'NORMAL_CLEARING', causeCode: 16 };
 
     this.cause = params.cause || defaults.cause;
     this.causeCode = params.causeCode || defaults.causeCode;
@@ -1008,7 +1019,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
         // Start collecting call stats when call becomes active
         // Only start if call_report_id is available (returned from voice-sdk-proxy)
-        if (this._callReportCollector && this.peer?.instance && this.session.callReportId) {
+        if (
+          this._callReportCollector &&
+          this.peer?.instance &&
+          this.session.callReportId
+        ) {
           this._callReportCollector.start(this.peer.instance);
         }
         break;
@@ -1140,6 +1155,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         const {
           chatChannel,
           infoChannel,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           modChannel,
           laName,
           conferenceMemberID,
@@ -1310,6 +1326,16 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
+  private _hangupWithError(code: SdkErrorCode, originalError?: unknown): void {
+    const error = createTelnyxError(code, originalError);
+    trigger(
+      SwEvent.Error,
+      { error, callId: this.id, sessionId: this.session.sessionid },
+      this.session.uuid
+    );
+    this.hangup({ cause: 'USER_BUSY', causeCode: 17 }, true);
+  }
+
   private async _onRemoteSdp(remoteSdp: string) {
     const sdp = new RTCSessionDescription({
       sdp: remoteSdp,
@@ -1332,14 +1358,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error('Call setRemoteDescription Error: ', error);
-        // Temporarily use USER_BUSY for setRemoteDescription failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        this._hangupWithError(40004, error);
       });
   }
 
@@ -1359,7 +1378,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       value: this._onIceSdp.bind(this),
     });
     this._iceDone = false;
-    this.peer.startNegotiation();
+    this.peer.startNegotiation().catch((error) => {
+      this._hangupWithError(40001, error);
+    });
   }
 
   private _onIceSdp(data: RTCSessionDescription) {
@@ -1418,14 +1439,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        // Temporarily use USER_BUSY for any SDP send failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        this._hangupWithError(40005, error);
       })
       .finally(() => {
         performance.mark('sdp-send-end');
@@ -1487,14 +1501,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        // Temporarily use USER_BUSY for any SDP send failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        this._hangupWithError(40005, error);
       })
       .finally(() => {
         performance.mark('sdp-send-end');
@@ -1612,7 +1619,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    //@ts-ignore
+    //@ts-expect-error MediaStreamEvent is not defined in standard typings
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
@@ -1630,6 +1637,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIce(event);
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     instance.onicegatheringstatechange = (event) => {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
@@ -1676,6 +1684,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
 
+    // Emit deprecated notification for backward compatibility
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.userMediaError,
       error,
@@ -1684,15 +1693,31 @@ export default abstract class BaseCall implements IWebRTCCall {
       errorMessage,
     });
     logger.error(`Media error (${errorName}): ${errorMessage}`, error);
-    this.hangup({}, false);
+    this._hangupWithError(42003, error);
   }
 
   private _onPeerConnectionFailureError(error: any) {
+    // Emit deprecated notification for backward compatibility
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error,
     });
     logger.error('Peer connection failure error');
+
+    // Fire structured error immediately only when autoReconnect is disabled.
+    // When autoReconnect is enabled, the error will be fired after reconnection
+    // is exhausted (WEBRTC-3249).
+    if (!this.session.hasAutoReconnect()) {
+      trigger(
+        SwEvent.Error,
+        {
+          error: createTelnyxError(43001, error.error),
+          callId: this.id,
+          sessionId: this.session.sessionid,
+        },
+        this.session.uuid
+      );
+    }
   }
 
   private _onPeerConnectionSignalingStateClosed(data: any) {
@@ -1764,10 +1789,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     // Initialize call report collector (stats + debug logs)
-    const enableCallReports =
-      this.session.options.enableCallReports !== false; // Default: true
-    const callReportInterval =
-      this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const enableCallReports = this.session.options.enableCallReports !== false; // Default: true
+    const callReportInterval = this.session.options.callReportInterval || 5000; // Default: 5 seconds
     const debugLogLevel = this.session.options.debugLogLevel || 'debug';
     const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
@@ -1830,13 +1853,17 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const callReportId = this.session.callReportId;
     if (!callReportId) {
-      logger.debug('Cannot flush intermediate report: call_report_id not available');
+      logger.debug(
+        'Cannot flush intermediate report: call_report_id not available'
+      );
       return;
     }
 
     const host = this.session.connection?.host;
     if (!host) {
-      logger.debug('Cannot flush intermediate report: connection host not available');
+      logger.debug(
+        'Cannot flush intermediate report: connection host not available'
+      );
       return;
     }
 
@@ -1862,7 +1889,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._callReportCollector
       .sendPayload(payload, callReportId, host, voiceSdkId)
       .catch((error) => {
-        logger.error('Failed to post intermediate call report segment', { error });
+        logger.error('Failed to post intermediate call report segment', {
+          error,
+        });
       });
   }
 
