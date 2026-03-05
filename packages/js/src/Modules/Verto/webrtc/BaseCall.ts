@@ -175,6 +175,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  private _firstNonHostCandidateSent: boolean = false;
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions,
@@ -1327,7 +1329,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.setState(State.Early);
         }
         if (this.gotAnswer) {
+          performance.mark('call-active');
           this.setState(State.Active);
+          this._logCallTimings(this.options.trickleIce ? 'trickle' : 'non-trickle');
         }
       })
       .catch((error) => {
@@ -1412,9 +1416,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       .then((response) => {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
-        type === PeerType.Offer
-          ? this.setState(State.Trying)
-          : this.setState(State.Active);
+        if (type === PeerType.Offer) {
+          this.setState(State.Trying);
+        } else {
+          performance.mark('call-active');
+          this.setState(State.Active);
+          this._logCallTimings('non-trickle');
+        }
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
@@ -1481,9 +1489,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       .then((response) => {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
-        type === PeerType.Offer
-          ? this.setState(State.Trying)
-          : this.setState(State.Active);
+        if (type === PeerType.Offer) {
+          this.setState(State.Trying);
+        } else {
+          performance.mark('call-active');
+          this.setState(State.Active);
+          this._logCallTimings('trickle');
+        }
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
@@ -1520,6 +1532,16 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
+
+      if (!this._firstNonHostCandidateSent) {
+        const parts = event.candidate.candidate.split(' ');
+        const candidateType = parts[7];
+        if (candidateType === 'srflx' || candidateType === 'relay') {
+          performance.mark('first-non-host-candidate');
+          this._firstNonHostCandidateSent = true;
+        }
+      }
+
       this._sendIceCandidate(event.candidate);
     } else {
       this._sendEndOfCandidates();
@@ -1577,9 +1599,28 @@ export default abstract class BaseCall implements IWebRTCCall {
     performance.mark('ice-gathering-end');
   }
 
+  private _logCallTimings(mode: string) {
+    const fmt = (label: string, start: string, end: string) => {
+      try {
+        const m = performance.measure(label, start, end);
+        logger.info(`[CallTimings][${mode}] ${label}: ${m.duration.toFixed(2)}ms`);
+      } catch {
+        logger.info(`[CallTimings][${mode}] ${label}: N/A`);
+      }
+    };
+    fmt('Create Peer to Send Invite', 'peer-creation-start', 'sdp-send-start');
+    fmt('Start gathering to Complete gathering', 'ice-gathering-start', 'ice-gathering-end');
+    fmt('Send SDP to Call Active', 'sdp-send-start', 'call-active');
+    if (mode === 'trickle') {
+      fmt('Send SDP to First non-host candidate', 'sdp-send-start', 'first-non-host-candidate');
+      fmt('First non-host candidate to Call Active', 'first-non-host-candidate', 'call-active');
+    }
+  }
+
   private _resetTrickleIceCandidateState() {
     this._pendingIceCandidates = [];
     this._isRemoteDescriptionSet = false;
+    this._firstNonHostCandidateSent = false;
   }
 
   private _flushPendingTrickleIceCandidates() {
@@ -1630,10 +1671,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIce(event);
     };
 
-    instance.onicegatheringstatechange = (event) => {
+    instance.onicegatheringstatechange = () => {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
+        performance.mark('ice-gathering-end');
       }
     };
 
