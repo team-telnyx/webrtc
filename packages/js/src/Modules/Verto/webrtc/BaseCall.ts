@@ -1439,12 +1439,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .finally(() => {
         performance.mark('sdp-send-end');
-        // Log performance metrics
-        console.group('Performance Metrics');
-        console.table(this.performanceMetrics);
-        console.groupEnd();
-
-        performance.clearMarks();
       });
   }
 
@@ -1617,6 +1611,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       fmt('Send SDP to First non-host candidate', 'sdp-send-start', 'first-non-host-candidate');
       fmt('First non-host candidate to Call Active', 'first-non-host-candidate', 'call-active');
     }
+    performance.clearMarks();
   }
 
   private _resetTrickleIceCandidateState() {
