@@ -1032,7 +1032,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           return;
         }
         if (this._state >= State.Early) {
+          performance.mark('call-active');
           this.setState(State.Active);
+          this._logCallTimings(this.options.trickleIce ? 'trickle' : 'non-trickle');
         }
         if (!this.gotEarly) {
           this._onRemoteSdp(params.sdp);
