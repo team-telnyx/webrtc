@@ -1026,6 +1026,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     switch (method) {
       case VertoMethod.Answer: {
         this.gotAnswer = true;
+        if (params.telnyx_call_control_id) {
+          this.options.telnyxCallControlId = params.telnyx_call_control_id;
+        }
+        if (params.telnyx_session_id) {
+          this.options.telnyxSessionId = params.telnyx_session_id;
+        }
+        if (params.telnyx_leg_id) {
+          this.options.telnyxLegId = params.telnyx_leg_id;
+        }
         if (this._state >= State.Active) {
           return;
         }
