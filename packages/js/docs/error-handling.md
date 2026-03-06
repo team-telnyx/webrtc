@@ -46,6 +46,13 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [5. Monitor Connection State](#5-monitor-connection-state)
     - [6. Log Errors for Debugging](#6-log-errors-for-debugging)
     - [7. Implement Graceful Degradation](#7-implement-graceful-degradation)
+  - [Structured Error Events (telnyx.error)](#structured-error-events-telnyxerror)
+    - [TelnyxError Interface](#telnyxerror-interface)
+    - [Error Code Reference](#error-code-reference)
+    - [Listening for Structured Errors](#listening-for-structured-errors)
+    - [Before / After Example](#before--after-example)
+  - [Deprecation Notice](#deprecation-notice)
+  - [Migration Guide](#migration-guide)
 
 ## Introduction
 
@@ -994,3 +1001,133 @@ async function checkWebRTCSupport() {
 ```
 
 By following these best practices and understanding the error handling mechanisms, you can build robust applications that provide a smooth user experience even when errors occur.
+
+## Structured Error Events (telnyx.error)
+
+Starting with this release, all call-related errors are surfaced via a single `telnyx.error` (`SwEvent.Error`) event carrying a `TelnyxError` instance. This replaces the previous pattern of individual `telnyx.rtc.*` events and notification-based error dispatch.
+
+### TelnyxError Interface
+
+Every error emitted through `telnyx.error` implements the `ITelnyxError` interface:
+
+```ts
+interface ITelnyxError {
+  code: number; // Numeric error code (e.g. 40001)
+  name: string; // Machine-readable name (e.g. 'SdpCreateOfferFailed')
+  description: string; // Short description of what failed
+  explanation: string; // Longer explanation of the failure context
+  message: string; // Human-readable message: "[code] name: description"
+  causes: string[]; // Possible root causes
+  solutions: string[]; // Suggested remediation steps
+  originalError?: unknown; // The underlying error, if any
+  canRetry: boolean; // Whether the operation can be retried
+}
+```
+
+### Error Code Reference
+
+| Code                               | Name                            | Description                                              | Can Retry |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------- | --------- |
+| **SDP Errors (400xx)**             |                                 |                                                          |           |
+| 40001                              | SdpCreateOfferFailed            | Failed to create SDP offer                               | Yes       |
+| 40002                              | SdpCreateAnswerFailed           | Failed to create SDP answer                              | Yes       |
+| 40003                              | SdpSetLocalDescriptionFailed    | Failed to set local SDP description                      | Yes       |
+| 40004                              | SdpSetRemoteDescriptionFailed   | Failed to set remote SDP description                     | Yes       |
+| 40005                              | SdpSendFailed                   | Failed to send SDP to the server                         | Yes       |
+| **ICE Errors (410xx)**             |                                 |                                                          |           |
+| 41001                              | IceConnectionFailed             | ICE connection failed and could not be recovered         | Yes       |
+| 41002                              | IceNoCandidates                 | No ICE candidates were gathered after retry              | Yes       |
+| 41003                              | IceGatheringTimeout             | ICE candidate gathering timed out                        | Yes       |
+| **Media Errors (420xx)**           |                                 |                                                          |           |
+| 42001                              | MediaMicrophonePermissionDenied | Microphone access was denied                             | No        |
+| 42002                              | MediaDeviceNotFound             | No microphone device found                               | No        |
+| 42003                              | MediaGetUserMediaFailed         | Failed to acquire local media stream                     | Yes       |
+| **Peer Connection Errors (430xx)** |                                 |                                                          |           |
+| 43001                              | PeerConnectionFailed            | WebRTC peer connection failed and could not be recovered | Yes       |
+| **Call-Control Errors (440xx)**    |                                 |                                                          |           |
+| 44001                              | HoldFailed                      | Failed to put the call on hold                           | Yes       |
+| 44002                              | TransferFailed                  | Failed to transfer the call                              | Yes       |
+| 44003                              | ByeSendFailed                   | Failed to send BYE to the server                         | No        |
+
+### Listening for Structured Errors
+
+```ts
+import { TelnyxRTC, TelnyxError, SwEvent } from '@telnyx/webrtc';
+
+const client = new TelnyxRTC({
+  /* credentials */
+});
+
+client.on(SwEvent.Error, (event) => {
+  const { error, callId, sessionId } = event;
+
+  if (error instanceof TelnyxError) {
+    console.error(`[${error.code}] ${error.name}: ${error.description}`);
+    console.log('Possible causes:', error.causes);
+    console.log('Suggested solutions:', error.solutions);
+
+    if (error.canRetry) {
+      // Implement retry logic
+    }
+
+    // Access the original browser error if needed
+    if (error.originalError) {
+      console.debug('Original error:', error.originalError);
+    }
+  }
+});
+```
+
+### Before / After Example
+
+**Before (deprecated pattern):**
+
+```ts
+client.on('telnyx.rtc.mediaError', (error) => {
+  console.error('Media error:', error.message);
+  // No structured info about causes or solutions
+});
+
+client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
+  console.error('Peer connection failed');
+  // No error code, no retry guidance
+});
+```
+
+**After (new pattern):**
+
+```ts
+client.on('telnyx.error', ({ error, callId }) => {
+  if (error.code === 42003) {
+    // Media error — show specific guidance
+    alert(error.solutions.join('\n'));
+  } else if (error.code === 43001) {
+    // Peer connection failed
+    if (error.canRetry) {
+      retryCall(callId);
+    }
+  }
+});
+```
+
+## Deprecation Notice
+
+The following events are **deprecated** and will be removed in a future major version:
+
+| Deprecated Event                                | Replacement                                    |
+| ----------------------------------------------- | ---------------------------------------------- |
+| `telnyx.rtc.mediaError`                         | `telnyx.error` with code 42001 / 42002 / 42003 |
+| `telnyx.rtc.peerConnectionFailureError`         | `telnyx.error` with code 43001                 |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | `telnyx.error` (future)                        |
+| `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with code 42003                 |
+| `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.error` with code 43001                 |
+
+During the transition period, both the deprecated events **and** the new `telnyx.error` event are emitted for backward compatibility.
+
+## Migration Guide
+
+1. **Add a `telnyx.error` listener** using `client.on(SwEvent.Error, handler)`.
+2. **Switch on `error.code`** instead of listening to multiple separate events.
+3. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
+4. **Use `error.canRetry`** to decide whether to offer a retry to the user.
+5. **Use `error.causes` and `error.solutions`** to display actionable guidance in your UI.

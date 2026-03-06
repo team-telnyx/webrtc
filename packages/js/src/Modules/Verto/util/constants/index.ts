@@ -85,7 +85,10 @@ export enum SwEvent {
   Calls = 'telnyx.calls',
 
   // RTC Events
+  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   MediaError = 'telnyx.rtc.mediaError',
+  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   PeerConnectionFailureError = 'telnyx.rtc.peerConnectionFailureError',
+  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   PeerConnectionSignalingStateClosed = 'telnyx.rtc.peerConnectionSignalingStateClosed',
 }
