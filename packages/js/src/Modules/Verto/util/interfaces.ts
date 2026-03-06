@@ -1,4 +1,5 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
+import { TargetParams } from '../../../utils/interfaces';
 
 export type Environment = 'production' | 'development';
 export interface IVertoOptions {
@@ -43,6 +44,7 @@ export interface IVertoOptions {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    target_params?: TargetParams;
   };
 
   /**
@@ -83,6 +85,7 @@ export interface ILoginParams {
     target_type: string;
     target_id: string;
     target_version_id?: string;
+    target_params?: TargetParams;
   };
 }
 export interface SubscribeParams {
