@@ -659,7 +659,18 @@ export default class Peer {
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    await this.instance.setLocalDescription(sessionDescription);
+    try {
+      await this.instance.setLocalDescription(sessionDescription);
+    } catch (error) {
+      logger.error('setLocalDescription failed:', error);
+      const wrapped: Error & {
+        code?: string;
+        originalError?: unknown;
+      } = new Error('setLocalDescription failed');
+      wrapped.code = 'SET_LOCAL_DESCRIPTION_FAILED';
+      wrapped.originalError = error;
+      throw wrapped;
+    }
   }
 
   private _setCodecs = (

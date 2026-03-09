@@ -43,8 +43,51 @@ describe('Call error events', () => {
   });
 
   describe('_onMediaError via SwEvent.MediaError', () => {
-    it('should fire telnyx.error with code 42003 on media error', (done) => {
+    it('should fire telnyx.error with code 42002 on NotFoundError', (done) => {
       const mediaError = new DOMException('Device not found', 'NotFoundError');
+
+      const handler = (data: {
+        error: TelnyxError;
+        callId: string;
+        sessionId: string;
+      }) => {
+        expect(data.error).toBeInstanceOf(TelnyxError);
+        expect(data.error.code).toBe(42002);
+        expect(data.error.name).toBe('MediaDeviceNotFound');
+        expect(data.error.originalError).toBe(mediaError);
+        expect(data.callId).toBe(call.id);
+        expect(data.sessionId).toBe(session.sessionid);
+        done();
+      };
+
+      register(SwEvent.Error, handler, session.uuid);
+      trigger(SwEvent.MediaError, mediaError, call.id);
+    });
+
+    it('should fire telnyx.error with code 42001 on NotAllowedError', (done) => {
+      const mediaError = new DOMException(
+        'Permission denied',
+        'NotAllowedError'
+      );
+
+      const handler = (data: {
+        error: TelnyxError;
+        callId: string;
+        sessionId: string;
+      }) => {
+        expect(data.error).toBeInstanceOf(TelnyxError);
+        expect(data.error.code).toBe(42001);
+        expect(data.error.name).toBe('MediaMicrophonePermissionDenied');
+        expect(data.error.originalError).toBe(mediaError);
+        done();
+      };
+
+      register(SwEvent.Error, handler, session.uuid);
+      trigger(SwEvent.MediaError, mediaError, call.id);
+    });
+
+    it('should fire telnyx.error with code 42003 on other media errors', (done) => {
+      const mediaError = new DOMException('Device in use', 'NotReadableError');
 
       const handler = (data: {
         error: TelnyxError;
@@ -54,9 +97,6 @@ describe('Call error events', () => {
         expect(data.error).toBeInstanceOf(TelnyxError);
         expect(data.error.code).toBe(42003);
         expect(data.error.name).toBe('MediaGetUserMediaFailed');
-        expect(data.error.originalError).toBe(mediaError);
-        expect(data.callId).toBe(call.id);
-        expect(data.sessionId).toBe(session.sessionid);
         done();
       };
 

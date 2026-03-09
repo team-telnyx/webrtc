@@ -385,8 +385,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     try {
       await this.peer.init();
-    } catch (error) {
-      this._hangupWithError(40001, error);
+    } catch (error: any) {
+      const code =
+        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40001;
+      this._hangupWithError(code, error?.originalError ?? error);
     }
     this._creatingPeer = false;
   }
@@ -428,8 +430,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     try {
       await this.peer.init();
-    } catch (error) {
-      this._hangupWithError(40002, error);
+    } catch (error: any) {
+      const code =
+        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40002;
+      this._hangupWithError(code, error?.originalError ?? error);
     }
     performance.mark('new-call-end');
     this._creatingPeer = false;
@@ -525,7 +529,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           logger.error('telnyx_rtc.bye failed!', error);
           trigger(
             SwEvent.Error,
-            { error, sessionId: this.session.sessionid },
+            {
+              error: createTelnyxError(44003, error),
+              callId: this.id,
+              sessionId: this.session.sessionid,
+            },
             this.session.uuid
           );
         })
@@ -1323,6 +1331,15 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _handleChangeHoldStateError(error) {
     logger.error(`Failed to ${error.action} on call ${this.id}`);
+    trigger(
+      SwEvent.Error,
+      {
+        error: createTelnyxError(44001, error),
+        callId: this.id,
+        sessionId: this.session.sessionid,
+      },
+      this.session.uuid
+    );
     return false;
   }
 
@@ -1378,8 +1395,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       value: this._onIceSdp.bind(this),
     });
     this._iceDone = false;
-    this.peer.startNegotiation().catch((error) => {
-      this._hangupWithError(40001, error);
+    this.peer.startNegotiation().catch((error: any) => {
+      const code =
+        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40001;
+      this._hangupWithError(code, error?.originalError ?? error);
     });
   }
 
@@ -1693,7 +1712,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       errorMessage,
     });
     logger.error(`Media error (${errorName}): ${errorMessage}`, error);
-    this._hangupWithError(42003, error);
+
+    let code: SdkErrorCode = 42003;
+    if (errorName === 'NotAllowedError') {
+      code = 42001;
+    } else if (errorName === 'NotFoundError') {
+      code = 42002;
+    }
+    this._hangupWithError(code, error);
   }
 
   private _onPeerConnectionFailureError(error: any) {

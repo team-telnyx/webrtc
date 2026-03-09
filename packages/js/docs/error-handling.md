@@ -1042,7 +1042,6 @@ interface ITelnyxError {
 | 43001                              | PeerConnectionFailed            | WebRTC peer connection failed and could not be recovered | Yes       |
 | **Call-Control Errors (440xx)**    |                                 |                                                          |           |
 | 44001                              | HoldFailed                      | Failed to put the call on hold                           | Yes       |
-| 44002                              | TransferFailed                  | Failed to transfer the call                              | Yes       |
 | 44003                              | ByeSendFailed                   | Failed to send BYE to the server                         | No        |
 
 ### Listening for Structured Errors

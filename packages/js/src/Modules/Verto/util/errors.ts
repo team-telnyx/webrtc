@@ -193,18 +193,6 @@ export const SDK_ERRORS = {
     solutions: ['Retry the hold operation', 'Check network connectivity'],
     canRetry: true,
   },
-  44002: {
-    name: 'TransferFailed',
-    description: 'Failed to transfer the call.',
-    explanation: 'The transfer request was rejected or could not be delivered.',
-    causes: [
-      'Server error',
-      'Invalid transfer target',
-      'WebSocket connection lost',
-    ],
-    solutions: ['Retry the transfer', 'Verify the transfer destination'],
-    canRetry: true,
-  },
   44003: {
     name: 'ByeSendFailed',
     description: 'Failed to send BYE to the server.',

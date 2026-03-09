@@ -5,7 +5,7 @@ describe('errors module', () => {
     it('should contain all expected error codes', () => {
       const expectedCodes: number[] = [
         40001, 40002, 40003, 40004, 40005, 42001, 42002, 42003, 43001, 44001,
-        44002, 44003,
+        44003,
       ];
       const registeredCodes = Object.keys(SDK_ERRORS).map(Number);
       expect(registeredCodes).toEqual(expect.arrayContaining(expectedCodes));
