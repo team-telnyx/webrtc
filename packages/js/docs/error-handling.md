@@ -1034,10 +1034,6 @@ interface ITelnyxError {
 | 40003                              | SdpSetLocalDescriptionFailed    | Failed to set local SDP description                      | Yes       |
 | 40004                              | SdpSetRemoteDescriptionFailed   | Failed to set remote SDP description                     | Yes       |
 | 40005                              | SdpSendFailed                   | Failed to send SDP to the server                         | Yes       |
-| **ICE Errors (410xx)**             |                                 |                                                          |           |
-| 41001                              | IceConnectionFailed             | ICE connection failed and could not be recovered         | Yes       |
-| 41002                              | IceNoCandidates                 | No ICE candidates were gathered after retry              | Yes       |
-| 41003                              | IceGatheringTimeout             | ICE candidate gathering timed out                        | Yes       |
 | **Media Errors (420xx)**           |                                 |                                                          |           |
 | 42001                              | MediaMicrophonePermissionDenied | Microphone access was denied                             | No        |
 | 42002                              | MediaDeviceNotFound             | No microphone device found                               | No        |

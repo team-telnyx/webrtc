@@ -74,7 +74,6 @@ export class TelnyxError extends Error implements ITelnyxError {
  *
  * Code ranges:
  * - 400xx — SDP negotiation errors
- * - 410xx — ICE connectivity errors
  * - 420xx — Media / device errors
  * - 430xx — Peer connection errors
  * - 440xx — Call-control errors (hold, transfer, bye)
@@ -127,60 +126,6 @@ export const SDK_ERRORS = {
       'The Invite or Answer message could not be delivered via signaling.',
     causes: ['WebSocket connection lost', 'Server error'],
     solutions: ['Check network connectivity', 'Retry the call'],
-    canRetry: true,
-  },
-
-  // ── ICE errors (410xx) ──────────────────────────────────────────────
-  41001: {
-    name: 'IceConnectionFailed',
-    description: 'ICE connection failed and could not be recovered.',
-    explanation:
-      'The peer connection entered a failed/disconnected state and all reconnection attempts were exhausted.',
-    causes: [
-      'Firewall blocking UDP/TCP',
-      'TURN server unreachable',
-      'Prolonged network interruption',
-    ],
-    solutions: [
-      'Check network connectivity',
-      'Ensure TURN server is reachable',
-      'Check firewall rules for ports 3478/5349',
-      'Try forceRelayCandidate option',
-    ],
-    canRetry: true,
-  },
-  41002: {
-    name: 'IceNoCandidates',
-    description: 'No ICE candidates were gathered after retry.',
-    explanation:
-      'A non-trickle-ICE SDP was sent twice, and neither contained candidates.',
-    causes: [
-      'Firewall blocking all STUN/TURN traffic',
-      'No network interface available',
-      'VPN blocking',
-    ],
-    solutions: [
-      'Check STUN/TURN server reachability',
-      'Ensure UDP traffic is not blocked',
-      'Use forceRelayCandidate option',
-    ],
-    canRetry: true,
-  },
-  41003: {
-    name: 'IceGatheringTimeout',
-    description: 'ICE candidate gathering timed out.',
-    explanation:
-      'Trickle-ICE only: no candidates were gathered within the safety timeout after sending the initial SDP.',
-    causes: [
-      'Firewall blocking STUN/TURN',
-      'Network unreachable',
-      'STUN/TURN server not responding',
-    ],
-    solutions: [
-      'Check STUN/TURN server reachability',
-      'Ensure UDP traffic is not blocked',
-      'Try forceRelayCandidate option',
-    ],
     canRetry: true,
   },
 

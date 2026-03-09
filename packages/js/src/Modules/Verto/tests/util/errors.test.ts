@@ -4,8 +4,8 @@ describe('errors module', () => {
   describe('SDK_ERRORS', () => {
     it('should contain all expected error codes', () => {
       const expectedCodes: number[] = [
-        40001, 40002, 40003, 40004, 40005, 41001, 41002, 41003, 42001, 42002,
-        42003, 43001, 44001, 44002, 44003,
+        40001, 40002, 40003, 40004, 40005, 42001, 42002, 42003, 43001, 44001,
+        44002, 44003,
       ];
       const registeredCodes = Object.keys(SDK_ERRORS).map(Number);
       expect(registeredCodes).toEqual(expect.arrayContaining(expectedCodes));
@@ -43,13 +43,6 @@ describe('errors module', () => {
       expect(error.canRetry).toBe(true);
       expect(error.causes.length).toBeGreaterThan(0);
       expect(error.solutions.length).toBeGreaterThan(0);
-    });
-
-    it('should return a TelnyxError for ICE error code', () => {
-      const error = createTelnyxError(41001);
-      expect(error.code).toBe(41001);
-      expect(error.name).toBe('IceConnectionFailed');
-      expect(error.canRetry).toBe(true);
     });
 
     it('should return a TelnyxError for media error code', () => {
