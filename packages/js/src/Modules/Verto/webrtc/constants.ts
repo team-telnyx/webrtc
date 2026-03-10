@@ -40,11 +40,8 @@ export const NOTIFICATION_TYPE = {
   conferenceUpdate: 'conferenceUpdate',
   callUpdate: 'callUpdate',
   vertoClientReady: 'vertoClientReady',
-  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   userMediaError: 'userMediaError',
-  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   peerConnectionFailureError: 'peerConnectionFailureError',
-  /** @deprecated Use SwEvent.Error ('telnyx.error') with TelnyxError instead. Will be removed in a future major version. */
   signalingStateClosed: 'signalingStateClosed',
 };
 
