@@ -1051,22 +1051,24 @@ interface ITelnyxError {
 
 Warnings represent degraded conditions that may cause unstable connections or bad call experience. They are surfaced via `SwEvent.Warning` (`'telnyx.warning'`) as plain objects (not `Error` instances).
 
-| Code                                 | Name                  | Message                            |
-| ------------------------------------ | --------------------- | ---------------------------------- |
-| **Network Quality Warnings (310xx)** |                       |                                    |
-| 31001                                | HIGH_RTT              | High network latency detected      |
-| 31002                                | HIGH_JITTER           | High jitter detected               |
-| 31003                                | HIGH_PACKET_LOSS      | High packet loss detected          |
-| 31004                                | LOW_MOS               | Low call quality score             |
-| **Connection Warnings (320xx)**      |                       |                                    |
-| 32001                                | LOW_BYTES_RECEIVED    | No audio data received             |
-| 32002                                | LOW_BYTES_SENT        | No audio data being sent           |
-| **ICE Warnings (330xx)**             |                       |                                    |
-| 33001                                | ICE_CONNECTIVITY_LOST | Connection interrupted             |
-| 33002                                | ICE_GATHERING_TIMEOUT | ICE gathering timed out            |
-| 33003                                | ICE_GATHERING_EMPTY   | No ICE candidates gathered         |
-| **Authentication Warnings (340xx)**  |                       |                                    |
-| 34001                                | TOKEN_EXPIRING_SOON   | Authentication token expiring soon |
+| Code                                 | Name                   | Message                            |
+| ------------------------------------ | ---------------------- | ---------------------------------- |
+| **Network Quality Warnings (310xx)** |                        |                                    |
+| 31001                                | HIGH_RTT               | High network latency detected      |
+| 31002                                | HIGH_JITTER            | High jitter detected               |
+| 31003                                | HIGH_PACKET_LOSS       | High packet loss detected          |
+| 31004                                | LOW_MOS                | Low call quality score             |
+| **Connection Warnings (320xx)**      |                        |                                    |
+| 32001                                | LOW_BYTES_RECEIVED     | No audio data received             |
+| 32002                                | LOW_BYTES_SENT         | No audio data being sent           |
+| **ICE Warnings (330xx)**             |                        |                                    |
+| 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
+| 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
+| 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
+| **Authentication Warnings (340xx)**  |                        |                                    |
+| 34001                                | TOKEN_EXPIRING_SOON    | Authentication token expiring soon |
+| **Session / Reconnection (350xx)**   |                        |                                    |
+| 35001                                | SESSION_NOT_REATTACHED | Active call lost after reconnect   |
 
 ### Listening for Structured Errors
 

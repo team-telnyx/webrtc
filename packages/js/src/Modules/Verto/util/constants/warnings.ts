@@ -11,6 +11,7 @@
  * - 320xx — Connection / data-flow warnings
  * - 330xx — ICE warnings
  * - 340xx — Authentication warnings
+ * - 350xx — Session / reconnection warnings
  */
 
 export interface ITelnyxWarning {
@@ -184,6 +185,24 @@ export const SDK_WARNINGS = {
     solutions: [
       'Generate a new authentication token',
       'Reconnect with fresh credentials before the token expires',
+    ],
+  },
+
+  // ── Session / reconnection warnings (350xx) ─────────────────────────
+  35001: {
+    name: 'SESSION_NOT_REATTACHED',
+    message: 'Active call lost after reconnect',
+    description:
+      'The WebSocket reconnected successfully but the server returned an empty reattached_sessions list while the SDK still has an active call. The server no longer knows about the call, so any subsequent call-control operation (hangup, hold, etc.) will fail with CALL_DOES_NOT_EXIST.',
+    causes: [
+      'Server-side session expired during the disconnection window',
+      'Reconnect token was invalidated',
+      'Backend restarted or lost in-memory call state',
+    ],
+    solutions: [
+      'Terminate the local call and notify the user',
+      'Start a new call',
+      'Investigate why the session was not preserved on the server',
     ],
   },
 } as const;
