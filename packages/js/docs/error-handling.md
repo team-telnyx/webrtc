@@ -1042,6 +1042,16 @@ interface ITelnyxError {
 | 44001                              | HOLD_FAILED                        | Failed to hold the call                |
 | 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
 
+### Warning Code Reference
+
+Warnings represent degraded conditions that may recover automatically. They do not terminate the call.
+
+| Code                     | Name                  | Message                    |
+| ------------------------ | --------------------- | -------------------------- |
+| **ICE Warnings (410xx)** |                       |                            |
+| 41002                    | ICE_NO_CANDIDATES     | No ICE candidates gathered |
+| 41003                    | ICE_GATHERING_TIMEOUT | ICE gathering timed out    |
+
 ### Listening for Structured Errors
 
 ```ts

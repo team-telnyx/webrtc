@@ -17,6 +17,9 @@ import {
   SDK_ERRORS,
   SdkErrorCode,
   createTelnyxError,
+  SDK_WARNINGS,
+  SdkWarningCode,
+  createTelnyxWarning,
 } from './Modules/Verto/util/errors';
 
 export {
@@ -34,6 +37,9 @@ export {
   SDK_ERRORS,
   SdkErrorCode,
   createTelnyxError,
+  SDK_WARNINGS,
+  SdkWarningCode,
+  createTelnyxWarning,
 };
 
 export * from './PreCallDiagnosis';
