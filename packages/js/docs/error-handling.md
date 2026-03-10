@@ -1039,11 +1039,16 @@ interface ITelnyxError {
 | **Call-Control Errors (440xx)**    |                                    |                                        |
 | 44001                              | HOLD_FAILED                        | Failed to hold the call                |
 | 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
+| 44002                              | INVALID_CALL_PARAMETERS            | Invalid call parameters                |
+| 44004                              | SUBSCRIBE_FAILED                   | Failed to subscribe to call events     |
 | **WebSocket / Transport (450xx)**  |                                    |                                        |
 | 45001                              | WEBSOCKET_CONNECTION_FAILED        | Unable to connect to server            |
 | 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
 | **Authentication (460xx)**         |                                    |                                        |
+| 45003                              | RECONNECTION_EXHAUSTED             | Unable to reconnect to server          |
+| **Authentication (460xx)**         |                                    |                                        |
 | 46001                              | LOGIN_FAILED                       | Authentication failed                  |
+| 46002                              | INVALID_CREDENTIALS                | Invalid credentials provided           |
 | **Network (480xx)**                |                                    |                                        |
 | 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
 

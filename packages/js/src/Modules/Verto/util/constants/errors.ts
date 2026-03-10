@@ -7,7 +7,7 @@
  * Code ranges:
  * - 400xx — SDP negotiation errors
  * - 420xx — Media / device errors
- * - 440xx — Call-control errors (hold, bye)
+ * - 440xx — Call-control errors (hold, bye, subscribe, call params)
  * - 450xx — WebSocket / transport errors
  * - 460xx — Authentication errors
  * - 480xx — Network errors
@@ -118,6 +118,35 @@ export const SDK_ERRORS = {
     ],
   },
 
+  44002: {
+    name: 'INVALID_CALL_PARAMETERS',
+    message: 'Invalid call parameters',
+    description:
+      'The call could not be initiated because required parameters are missing or invalid. For example, no destination number was provided to newCall().',
+    causes: [
+      'Missing destinationNumber in call options',
+      'Invalid or empty call parameters',
+    ],
+    solutions: [
+      'Provide a valid destinationNumber when calling newCall()',
+      'Check the call options object for required fields',
+    ],
+  },
+  44004: {
+    name: 'SUBSCRIBE_FAILED',
+    message: 'Failed to subscribe to call events',
+    description:
+      'The Verto subscribe request for the call channel failed. This may prevent receiving call state updates from the server.',
+    causes: [
+      'WebSocket connection lost during subscribe',
+      'Server rejected the subscription request',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Retry the call',
+    ],
+  },
+
   // ── WebSocket / transport errors (450xx) ────────────────────────────
   45001: {
     name: 'WEBSOCKET_CONNECTION_FAILED',
@@ -152,6 +181,23 @@ export const SDK_ERRORS = {
     ],
   },
 
+  45003: {
+    name: 'RECONNECTION_EXHAUSTED',
+    message: 'Unable to reconnect to server',
+    description:
+      'All automatic reconnection attempts have been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt.',
+    causes: [
+      'Prolonged network outage',
+      'Server unreachable',
+      'Firewall or proxy blocking reconnection',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Call client.disconnect() and client.connect() to manually retry',
+      'Notify the user that the connection was lost',
+    ],
+  },
+
   // ── Authentication errors (460xx) ───────────────────────────────────
   46001: {
     name: 'LOGIN_FAILED',
@@ -167,6 +213,22 @@ export const SDK_ERRORS = {
       'Verify credentials',
       'Generate a new authentication token',
       'Check account status',
+    ],
+  },
+
+  46002: {
+    name: 'INVALID_CREDENTIALS',
+    message: 'Invalid credentials provided',
+    description:
+      'The login options provided are not valid for authentication. Required fields (login/password, token, or anonymous login parameters) are missing or malformed.',
+    causes: [
+      'Missing login and password',
+      'Missing or malformed authentication token',
+      'Invalid combination of credential fields',
+    ],
+    solutions: [
+      'Provide valid login/password or a valid authentication token',
+      'Check the TelnyxRTC constructor options',
     ],
   },
 
