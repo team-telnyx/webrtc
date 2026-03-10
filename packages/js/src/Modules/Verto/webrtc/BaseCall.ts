@@ -17,7 +17,7 @@ import {
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import { createTelnyxError, SdkErrorCode, TelnyxError } from '../util/errors';
+import { createTelnyxError, SdkErrorCode } from '../util/errors';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
@@ -386,11 +386,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     try {
       await this.peer.init();
     } catch (error) {
-      if (error instanceof TelnyxError) {
-        this._emitErrorAndHangup(error);
-      } else {
-        this._hangupWithError(40001, error);
-      }
+      trigger(
+        SwEvent.Error,
+        { error, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+      this.hangup({ cause: 'USER_BUSY', causeCode: 17 }, true);
       return;
     }
     this._creatingPeer = false;
@@ -434,11 +435,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     try {
       await this.peer.init();
     } catch (error) {
-      if (error instanceof TelnyxError) {
-        this._emitErrorAndHangup(error);
-      } else {
-        this._hangupWithError(40002, error);
-      }
+      trigger(
+        SwEvent.Error,
+        { error, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+      this.hangup({ cause: 'USER_BUSY', causeCode: 17 }, true);
       return;
     }
     performance.mark('new-call-end');
@@ -1350,10 +1352,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _hangupWithError(code: SdkErrorCode, originalError?: unknown): void {
-    this._emitErrorAndHangup(createTelnyxError(code, originalError));
-  }
-
-  private _emitErrorAndHangup(error: TelnyxError): void {
+    const error = createTelnyxError(code, originalError);
     trigger(
       SwEvent.Error,
       { error, callId: this.id, sessionId: this.session.sessionid },
@@ -1405,11 +1404,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
     this._iceDone = false;
     this.peer.startNegotiation().catch((error: unknown) => {
-      if (error instanceof TelnyxError) {
-        this._emitErrorAndHangup(error);
-      } else {
-        this._hangupWithError(40001, error);
-      }
+      trigger(
+        SwEvent.Error,
+        { error, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+      this.hangup({ cause: 'USER_BUSY', causeCode: 17 }, true);
     });
   }
 
