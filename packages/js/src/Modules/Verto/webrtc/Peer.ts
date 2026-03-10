@@ -544,6 +544,29 @@ export default class Peer {
       if (screenShare === false) {
         attachMediaStream(localElement, localStream);
       }
+    } else if (
+      this.isOffer &&
+      this.options.audio === false &&
+      this._constraints.offerToReceiveAudio &&
+      typeof this.instance.addTransceiver === 'function'
+    ) {
+      // No local stream (audio: false), but we still want to receive remote audio.
+      // Add a recvonly transceiver so the SDP negotiation includes an audio m-line
+      // that can receive the remote party's audio (e.g. AI agent speech).
+      const recvOnlyTransceiver = this.instance.addTransceiver('audio', {
+        direction: 'recvonly',
+      });
+      logger.info(
+        'Added recvonly audio transceiver for receive-only mode',
+        recvOnlyTransceiver
+      );
+
+      const { audioCodecs } = getPreferredCodecs(
+        this.options.preferred_codecs
+      );
+      if (audioCodecs.length > 0) {
+        this._setCodecs(recvOnlyTransceiver, audioCodecs);
+      }
     }
 
     if (this.isOffer) {
@@ -583,8 +606,9 @@ export default class Peer {
     if (!this._isOffer()) {
       return;
     }
-    // set default audio true, given value given in session mediaConstraints and call options is may be undefined
-    this._constraints.offerToReceiveAudio = this.options.audio !== false;
+    // Always offer to receive audio — even when audio is false (recvonly mode),
+    // we still want to receive the remote party's audio stream.
+    this._constraints.offerToReceiveAudio = true;
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
