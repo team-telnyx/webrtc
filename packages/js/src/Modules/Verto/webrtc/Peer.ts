@@ -1,4 +1,5 @@
 import BrowserSession from '../BrowserSession';
+import { createTelnyxError } from '../util/errors';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import {
@@ -593,19 +594,21 @@ export default class Peer {
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
 
+    let offer: RTCSessionDescriptionInit;
     try {
-      const offer = await this.instance.createOffer(this._constraints);
-      await this._setLocalDescription(offer);
-
-      if (!this._isTrickleIce()) {
-        this._sdpReady();
-      }
-
-      return offer;
+      offer = await this.instance.createOffer(this._constraints);
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
-      throw error;
+      throw createTelnyxError(40001, error);
     }
+
+    await this._setLocalDescription(offer);
+
+    if (!this._isTrickleIce()) {
+      this._sdpReady();
+    }
+
+    return offer;
   }
 
   private async _setRemoteDescription(
@@ -645,15 +648,17 @@ export default class Peer {
 
     this._logTransceivers();
 
+    let answer: RTCSessionDescriptionInit;
     try {
-      const answer = await this.instance.createAnswer();
-      await this._setLocalDescription(answer);
-
-      return answer;
+      answer = await this.instance.createAnswer();
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
-      throw error;
+      throw createTelnyxError(40002, error);
     }
+
+    await this._setLocalDescription(answer);
+
+    return answer;
   }
 
   private async _setLocalDescription(
@@ -663,13 +668,7 @@ export default class Peer {
       await this.instance.setLocalDescription(sessionDescription);
     } catch (error) {
       logger.error('setLocalDescription failed:', error);
-      const wrapped: Error & {
-        code?: string;
-        originalError?: unknown;
-      } = new Error('setLocalDescription failed');
-      wrapped.code = 'SET_LOCAL_DESCRIPTION_FAILED';
-      wrapped.originalError = error;
-      throw wrapped;
+      throw createTelnyxError(40003, error);
     }
   }
 

@@ -17,7 +17,7 @@ import {
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import { createTelnyxError, SdkErrorCode } from '../util/errors';
+import { createTelnyxError, SdkErrorCode, TelnyxError } from '../util/errors';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
@@ -385,10 +385,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     try {
       await this.peer.init();
-    } catch (error: any) {
-      const code =
-        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40001;
-      this._hangupWithError(code, error?.originalError ?? error);
+    } catch (error) {
+      if (error instanceof TelnyxError) {
+        this._emitErrorAndHangup(error);
+      } else {
+        this._hangupWithError(40001, error);
+      }
+      return;
     }
     this._creatingPeer = false;
   }
@@ -430,10 +433,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
     try {
       await this.peer.init();
-    } catch (error: any) {
-      const code =
-        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40002;
-      this._hangupWithError(code, error?.originalError ?? error);
+    } catch (error) {
+      if (error instanceof TelnyxError) {
+        this._emitErrorAndHangup(error);
+      } else {
+        this._hangupWithError(40002, error);
+      }
+      return;
     }
     performance.mark('new-call-end');
     this._creatingPeer = false;
@@ -1344,7 +1350,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _hangupWithError(code: SdkErrorCode, originalError?: unknown): void {
-    const error = createTelnyxError(code, originalError);
+    this._emitErrorAndHangup(createTelnyxError(code, originalError));
+  }
+
+  private _emitErrorAndHangup(error: TelnyxError): void {
     trigger(
       SwEvent.Error,
       { error, callId: this.id, sessionId: this.session.sessionid },
@@ -1395,10 +1404,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       value: this._onIceSdp.bind(this),
     });
     this._iceDone = false;
-    this.peer.startNegotiation().catch((error: any) => {
-      const code =
-        error?.code === 'SET_LOCAL_DESCRIPTION_FAILED' ? 40003 : 40001;
-      this._hangupWithError(code, error?.originalError ?? error);
+    this.peer.startNegotiation().catch((error: unknown) => {
+      if (error instanceof TelnyxError) {
+        this._emitErrorAndHangup(error);
+      } else {
+        this._hangupWithError(40001, error);
+      }
     });
   }
 
