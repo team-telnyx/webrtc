@@ -201,14 +201,15 @@ export type SdkErrorCode = keyof typeof SDK_ERRORS;
  */
 export function createTelnyxError(
   code: SdkErrorCode,
-  originalError?: unknown
+  originalError?: unknown,
+  message?: string
 ): TelnyxError {
   const entry = SDK_ERRORS[code];
   return new TelnyxError({
     code,
     name: entry.name,
     description: entry.description,
-    message: entry.message,
+    message: message || entry.message,
     causes: [...entry.causes],
     solutions: [...entry.solutions],
     originalError,
