@@ -7,7 +7,6 @@
  * Code ranges:
  * - 400xx — SDP negotiation errors
  * - 420xx — Media / device errors
- * - 430xx — Peer connection errors
  * - 440xx — Call-control errors (hold, bye)
  * - 450xx — WebSocket / transport errors
  * - 460xx — Authentication errors
@@ -96,24 +95,6 @@ export const SDK_ERRORS = {
       'getUserMedia() was rejected for an unexpected reason. The device may be in use by another application or the browser encountered an internal error.',
     causes: ['Browser error', 'Device in use by another application'],
     solutions: ['Close other applications using the microphone', 'Retry'],
-  },
-
-  // ── Peer connection errors (430xx) ──────────────────────────────────
-  43001: {
-    name: 'PEER_CONNECTION_FAILED',
-    message: 'Connection failed',
-    description:
-      'RTCPeerConnection entered the failed state. This may be caused by ICE failure, DTLS handshake failure, or a prolonged network interruption.',
-    causes: [
-      'ICE failure after reconnect exhausted',
-      'DTLS handshake failure',
-      'Prolonged network interruption',
-    ],
-    solutions: [
-      'Check network connectivity',
-      'Verify TURN server credentials',
-      'Retry the call',
-    ],
   },
 
   // ── Call-control errors (440xx) ─────────────────────────────────────

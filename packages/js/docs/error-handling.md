@@ -1036,8 +1036,6 @@ interface ITelnyxError {
 | 42001                              | MEDIA_MICROPHONE_PERMISSION_DENIED | Microphone access denied               |
 | 42002                              | MEDIA_DEVICE_NOT_FOUND             | No microphone found                    |
 | 42003                              | MEDIA_GET_USER_MEDIA_FAILED        | Failed to access microphone            |
-| **Peer Connection Errors (430xx)** |                                    |                                        |
-| 43001                              | PEER_CONNECTION_FAILED             | Connection failed                      |
 | **Call-Control Errors (440xx)**    |                                    |                                        |
 | 44001                              | HOLD_FAILED                        | Failed to hold the call                |
 | 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
@@ -1067,6 +1065,7 @@ Warnings represent degraded conditions that may cause unstable connections or ba
 | 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
 | 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
 | 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
+| 33004                                | PEER_CONNECTION_FAILED | Connection failed                  |
 | **Authentication Warnings (340xx)**  |                        |                                    |
 | 34001                                | TOKEN_EXPIRING_SOON    | Authentication token expiring soon |
 | **Session / Reconnection (350xx)**   |                        |                                    |
@@ -1111,7 +1110,7 @@ client.on('telnyx.rtc.mediaError', (error) => {
 });
 
 client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
-  console.error('Peer connection failed');
+  console.error('Peer connection failed (warning)');
   // No error code, no retry guidance
 });
 ```
@@ -1123,8 +1122,8 @@ client.on('telnyx.error', ({ error, callId }) => {
   if (error.code === 42003) {
     // Media error — show user-friendly message
     alert(error.message);
-  } else if (error.code === 43001) {
-    // Peer connection failed
+  } else if (warning.code === 33004) {
+    // Peer connection failed (warning)
     retryCall(callId);
   }
 });
@@ -1137,10 +1136,10 @@ The following events are **deprecated** and will be removed in a future major ve
 | Deprecated Event                                | Replacement                                    |
 | ----------------------------------------------- | ---------------------------------------------- |
 | `telnyx.rtc.mediaError`                         | `telnyx.error` with code 42001 / 42002 / 42003 |
-| `telnyx.rtc.peerConnectionFailureError`         | `telnyx.error` with code 43001                 |
+| `telnyx.rtc.peerConnectionFailureError`         | `telnyx.warning` with code 33004                 |
 | `telnyx.rtc.peerConnectionSignalingStateClosed` | `telnyx.error` (future)                        |
 | `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with code 42003                 |
-| `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.error` with code 43001                 |
+| `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.warning` with code 33004                 |
 
 During the transition period, both the deprecated events **and** the new `telnyx.error` event are emitted for backward compatibility.
 

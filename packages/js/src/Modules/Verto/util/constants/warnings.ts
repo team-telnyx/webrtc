@@ -175,6 +175,23 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  33004: {
+    name: 'PEER_CONNECTION_FAILED',
+    message: 'Connection failed',
+    description:
+      'RTCPeerConnection entered the failed state. This is a recoverable condition — the SDK may attempt ICE restart or the connection may recover. If it does not recover, the call will eventually be terminated.',
+    causes: [
+      'ICE failure',
+      'DTLS handshake failure',
+      'Prolonged network interruption',
+    ],
+    solutions: [
+      'Wait for automatic recovery',
+      'Check network connectivity',
+      'Verify TURN server credentials',
+    ],
+  },
+
   // ── Authentication warnings (340xx) ─────────────────────────────────
   34001: {
     name: 'TOKEN_EXPIRING_SOON',
