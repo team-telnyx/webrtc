@@ -9,6 +9,8 @@
  * - 420xx — Media / device errors
  * - 430xx — Peer connection errors
  * - 440xx — Call-control errors (hold, bye)
+ * - 450xx — WebSocket / transport errors
+ * - 460xx — Authentication errors
  */
 export const SDK_ERRORS = {
   // ── SDP errors (400xx) ──────────────────────────────────────────────
@@ -131,6 +133,58 @@ export const SDK_ERRORS = {
     solutions: [
       'No action needed — call is terminated locally',
       'Check network connectivity',
+    ],
+  },
+
+  // ── WebSocket / transport errors (450xx) ────────────────────────────
+  45001: {
+    name: 'WEBSOCKET_CONNECTION_FAILED',
+    message: 'Unable to connect to server',
+    description:
+      'The WebSocket connection to the signaling server could not be established. The server may be unreachable, the URL may be incorrect, or a firewall may be blocking the connection.',
+    causes: [
+      'Server unreachable',
+      'Incorrect WebSocket URL',
+      'Firewall blocking WebSocket connections',
+      'Network interruption',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Verify the signaling server URL',
+      'Ensure WebSocket connections are not blocked by a firewall',
+    ],
+  },
+  45002: {
+    name: 'WEBSOCKET_ERROR',
+    message: 'Connection to server lost',
+    description:
+      'An error occurred on the WebSocket connection after it was established. The connection may have been dropped due to network issues or server-side closure.',
+    causes: [
+      'Network interruption',
+      'Server closed the connection',
+      'Idle timeout',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'SDK will attempt automatic reconnection if configured',
+    ],
+  },
+
+  // ── Authentication errors (460xx) ───────────────────────────────────
+  46001: {
+    name: 'LOGIN_FAILED',
+    message: 'Authentication failed',
+    description:
+      'The login request was rejected by the server. The credentials may be invalid, expired, or the account may be suspended.',
+    causes: [
+      'Invalid credentials (username/password or token)',
+      'Expired authentication token',
+      'Account suspended or disabled',
+    ],
+    solutions: [
+      'Verify credentials',
+      'Generate a new authentication token',
+      'Check account status',
     ],
   },
 } as const;

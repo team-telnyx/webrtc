@@ -1041,25 +1041,32 @@ interface ITelnyxError {
 | **Call-Control Errors (440xx)**    |                                    |                                        |
 | 44001                              | HOLD_FAILED                        | Failed to hold the call                |
 | 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
+| **WebSocket / Transport (450xx)**  |                                    |                                        |
+| 45001                              | WEBSOCKET_CONNECTION_FAILED        | Unable to connect to server            |
+| 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
+| **Authentication (460xx)**         |                                    |                                        |
+| 46001                              | LOGIN_FAILED                       | Authentication failed                  |
 
 ### Warning Code Reference
 
 Warnings represent degraded conditions that may cause unstable connections or bad call experience. They are surfaced via `SwEvent.Warning` (`'telnyx.warning'`) as plain objects (not `Error` instances).
 
-| Code                                 | Name                  | Message                       |
-| ------------------------------------ | --------------------- | ----------------------------- |
-| **Network Quality Warnings (310xx)** |                       |                               |
-| 31001                                | HIGH_RTT              | High network latency detected |
-| 31002                                | HIGH_JITTER           | High jitter detected          |
-| 31003                                | HIGH_PACKET_LOSS      | High packet loss detected     |
-| 31004                                | LOW_MOS               | Low call quality score        |
-| **Connection Warnings (320xx)**      |                       |                               |
-| 32001                                | LOW_BYTES_RECEIVED    | No audio data received        |
-| 32002                                | LOW_BYTES_SENT        | No audio data being sent      |
-| **ICE Warnings (330xx)**             |                       |                               |
-| 33001                                | ICE_CONNECTIVITY_LOST | Connection interrupted        |
-| 33002                                | ICE_GATHERING_TIMEOUT | ICE gathering timed out       |
-| 33003                                | ICE_GATHERING_EMPTY   | No ICE candidates gathered    |
+| Code                                 | Name                  | Message                            |
+| ------------------------------------ | --------------------- | ---------------------------------- |
+| **Network Quality Warnings (310xx)** |                       |                                    |
+| 31001                                | HIGH_RTT              | High network latency detected      |
+| 31002                                | HIGH_JITTER           | High jitter detected               |
+| 31003                                | HIGH_PACKET_LOSS      | High packet loss detected          |
+| 31004                                | LOW_MOS               | Low call quality score             |
+| **Connection Warnings (320xx)**      |                       |                                    |
+| 32001                                | LOW_BYTES_RECEIVED    | No audio data received             |
+| 32002                                | LOW_BYTES_SENT        | No audio data being sent           |
+| **ICE Warnings (330xx)**             |                       |                                    |
+| 33001                                | ICE_CONNECTIVITY_LOST | Connection interrupted             |
+| 33002                                | ICE_GATHERING_TIMEOUT | ICE gathering timed out            |
+| 33003                                | ICE_GATHERING_EMPTY   | No ICE candidates gathered         |
+| **Authentication Warnings (340xx)**  |                       |                                    |
+| 34001                                | TOKEN_EXPIRING_SOON   | Authentication token expiring soon |
 
 ### Listening for Structured Errors
 

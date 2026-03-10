@@ -8,7 +8,7 @@ import {
 describe('warnings module', () => {
   describe('SDK_WARNINGS', () => {
     const expectedCodes: number[] = [
-      31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003,
+      31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003, 34001,
     ];
 
     it('should contain all expected warning codes', () => {
@@ -98,7 +98,7 @@ describe('warnings module', () => {
     it('should accept only valid SdkWarningCode', () => {
       // Type-level check: ensure the factory accepts all codes
       const codes: SdkWarningCode[] = [
-        31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003,
+        31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003, 34001,
       ];
       for (const code of codes) {
         const warning = createTelnyxWarning(code);

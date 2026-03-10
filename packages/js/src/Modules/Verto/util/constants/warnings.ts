@@ -10,6 +10,7 @@
  * - 310xx — Network quality warnings
  * - 320xx — Connection / data-flow warnings
  * - 330xx — ICE warnings
+ * - 340xx — Authentication warnings
  */
 
 export interface ITelnyxWarning {
@@ -170,6 +171,19 @@ export const SDK_WARNINGS = {
       'Check STUN/TURN server reachability',
       'Ensure UDP traffic is not blocked',
       'Use forceRelayCandidate option',
+    ],
+  },
+
+  // ── Authentication warnings (340xx) ─────────────────────────────────
+  34001: {
+    name: 'TOKEN_EXPIRING_SOON',
+    message: 'Authentication token expiring soon',
+    description:
+      'The authentication token is approaching its expiration time. If the token expires the connection will be lost and calls will fail. A new token should be generated before expiration.',
+    causes: ['Token was issued with a limited lifetime'],
+    solutions: [
+      'Generate a new authentication token',
+      'Reconnect with fresh credentials before the token expires',
     ],
   },
 } as const;
