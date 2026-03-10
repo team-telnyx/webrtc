@@ -16,18 +16,22 @@ describe('errors module', () => {
       for (const [, entry] of Object.entries(SDK_ERRORS)) {
         expect(entry).toHaveProperty('name');
         expect(entry).toHaveProperty('description');
-        expect(entry).toHaveProperty('explanation');
+        expect(entry).toHaveProperty('message');
         expect(entry).toHaveProperty('causes');
         expect(entry).toHaveProperty('solutions');
-        expect(entry).toHaveProperty('canRetry');
         expect(typeof entry.name).toBe('string');
         expect(typeof entry.description).toBe('string');
-        expect(typeof entry.explanation).toBe('string');
+        expect(typeof entry.message).toBe('string');
         expect(Array.isArray(entry.causes)).toBe(true);
         expect(Array.isArray(entry.solutions)).toBe(true);
-        expect(typeof entry.canRetry).toBe('boolean');
         expect(entry.causes.length).toBeGreaterThan(0);
         expect(entry.solutions.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('every name should be UPPER_SNAKE_CASE', () => {
+      for (const [, entry] of Object.entries(SDK_ERRORS)) {
+        expect(entry.name).toMatch(/^[A-Z][A-Z0-9_]+$/);
       }
     });
   });
@@ -38,9 +42,7 @@ describe('errors module', () => {
       expect(error).toBeInstanceOf(TelnyxError);
       expect(error).toBeInstanceOf(Error);
       expect(error.code).toBe(40001);
-      expect(error.name).toBe('SdpCreateOfferFailed');
-      expect(error.description).toBe('Failed to create SDP offer.');
-      expect(error.canRetry).toBe(true);
+      expect(error.name).toBe('SDP_CREATE_OFFER_FAILED');
       expect(error.causes.length).toBeGreaterThan(0);
       expect(error.solutions.length).toBeGreaterThan(0);
     });
@@ -48,22 +50,19 @@ describe('errors module', () => {
     it('should return a TelnyxError for media error code', () => {
       const error = createTelnyxError(42001);
       expect(error.code).toBe(42001);
-      expect(error.name).toBe('MediaMicrophonePermissionDenied');
-      expect(error.canRetry).toBe(false);
+      expect(error.name).toBe('MEDIA_MICROPHONE_PERMISSION_DENIED');
     });
 
     it('should return a TelnyxError for peer connection error code', () => {
       const error = createTelnyxError(43001);
       expect(error.code).toBe(43001);
-      expect(error.name).toBe('PeerConnectionFailed');
-      expect(error.canRetry).toBe(true);
+      expect(error.name).toBe('PEER_CONNECTION_FAILED');
     });
 
     it('should return a TelnyxError for call-control error code', () => {
       const error = createTelnyxError(44003);
       expect(error.code).toBe(44003);
-      expect(error.name).toBe('ByeSendFailed');
-      expect(error.canRetry).toBe(false);
+      expect(error.name).toBe('BYE_SEND_FAILED');
     });
 
     it('should attach originalError when provided', () => {
@@ -77,11 +76,9 @@ describe('errors module', () => {
       expect(error.originalError).toBeUndefined();
     });
 
-    it('should format message as [code] name: description', () => {
+    it('should use the short message from SDK_ERRORS', () => {
       const error = createTelnyxError(40005);
-      expect(error.message).toBe(
-        '[40005] SdpSendFailed: Failed to send SDP to the server.'
-      );
+      expect(error.message).toBe('Failed to send call data to server');
     });
   });
 
@@ -99,14 +96,12 @@ describe('errors module', () => {
 
       expect(json).toEqual({
         code: 42003,
-        name: 'MediaGetUserMediaFailed',
-        description: 'Failed to acquire local media stream.',
-        explanation: 'getUserMedia() was rejected for an unexpected reason.',
-        message: expect.stringContaining('42003'),
+        name: 'MEDIA_GET_USER_MEDIA_FAILED',
+        description: expect.any(String),
+        message: 'Failed to access microphone',
         causes: expect.any(Array),
         solutions: expect.any(Array),
         originalError: original,
-        canRetry: true,
       });
     });
 
@@ -116,7 +111,7 @@ describe('errors module', () => {
       const serialized = JSON.stringify(json);
       const parsed = JSON.parse(serialized);
       expect(parsed.code).toBe(40001);
-      expect(parsed.name).toBe('SdpCreateOfferFailed');
+      expect(parsed.name).toBe('SDP_CREATE_OFFER_FAILED');
     });
 
     it('should not share cause/solution arrays between instances', () => {

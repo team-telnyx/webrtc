@@ -8,13 +8,11 @@
 export interface ITelnyxError {
   /** Numeric error code (e.g. 40001) */
   code: number;
-  /** Machine-readable error name (e.g. 'SdpCreateOfferFailed') */
+  /** Machine-readable error name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED') */
   name: string;
-  /** Short description of what failed */
+  /** Full explanation of the error — what happened and why */
   description: string;
-  /** Longer explanation of the failure context */
-  explanation: string;
-  /** Human-readable message combining code + description */
+  /** Short human-readable message suitable for UI alerts */
   message: string;
   /** Possible root causes */
   causes: string[];
@@ -22,33 +20,25 @@ export interface ITelnyxError {
   solutions: string[];
   /** The original error that triggered this, if any */
   originalError?: unknown;
-  /** Whether the operation can be retried */
-  canRetry: boolean;
 }
 
 export class TelnyxError extends Error implements ITelnyxError {
   public readonly code: number;
   public readonly description: string;
-  public readonly explanation: string;
   public readonly causes: string[];
   public readonly solutions: string[];
   public readonly originalError?: unknown;
-  public readonly canRetry: boolean;
 
   constructor(params: Omit<ITelnyxError, 'message'> & { message?: string }) {
-    const message =
-      params.message ||
-      `[${params.code}] ${params.name}: ${params.description}`;
+    const message = params.message || `[${params.code}] ${params.name}`;
     super(message);
 
     this.name = params.name;
     this.code = params.code;
     this.description = params.description;
-    this.explanation = params.explanation;
     this.causes = params.causes;
     this.solutions = params.solutions;
     this.originalError = params.originalError;
-    this.canRetry = params.canRetry;
 
     // Maintain proper prototype chain
     Object.setPrototypeOf(this, TelnyxError.prototype);
@@ -59,12 +49,10 @@ export class TelnyxError extends Error implements ITelnyxError {
       code: this.code,
       name: this.name,
       description: this.description,
-      explanation: this.explanation,
       message: this.message,
       causes: this.causes,
       solutions: this.solutions,
       originalError: this.originalError,
-      canRetry: this.canRetry,
     };
   }
 }
@@ -76,14 +64,15 @@ export class TelnyxError extends Error implements ITelnyxError {
  * - 400xx — SDP negotiation errors
  * - 420xx — Media / device errors
  * - 430xx — Peer connection errors
- * - 440xx — Call-control errors (hold, transfer, bye)
+ * - 440xx — Call-control errors (hold, bye)
  */
 export const SDK_ERRORS = {
   // ── SDP errors (400xx) ──────────────────────────────────────────────
   40001: {
-    name: 'SdpCreateOfferFailed',
-    description: 'Failed to create SDP offer.',
-    explanation: 'The browser was unable to generate a local SDP offer.',
+    name: 'SDP_CREATE_OFFER_FAILED',
+    message: 'Failed to create call offer',
+    description:
+      'The browser was unable to generate a local SDP offer. This typically indicates a WebRTC API error or invalid media constraints.',
     causes: [
       'Browser WebRTC API error',
       'Missing or invalid media constraints',
@@ -92,59 +81,57 @@ export const SDK_ERRORS = {
       'Check getUserMedia permissions',
       'Verify ICE server configuration',
     ],
-    canRetry: true,
   },
   40002: {
-    name: 'SdpCreateAnswerFailed',
-    description: 'Failed to create SDP answer.',
-    explanation: 'The browser was unable to generate a local SDP answer.',
+    name: 'SDP_CREATE_ANSWER_FAILED',
+    message: 'Failed to answer the call',
+    description:
+      'The browser was unable to generate a local SDP answer. The remote offer may be invalid or the browser state inconsistent.',
     causes: ['Browser WebRTC API error', 'Invalid remote SDP offer'],
     solutions: ['Retry the call', 'Check browser WebRTC compatibility'],
-    canRetry: true,
   },
   40003: {
-    name: 'SdpSetLocalDescriptionFailed',
-    description: 'Failed to set local SDP description.',
-    explanation: 'setLocalDescription() was rejected by the browser.',
+    name: 'SDP_SET_LOCAL_DESCRIPTION_FAILED',
+    message: 'Failed to apply local call settings',
+    description:
+      'setLocalDescription() was rejected by the browser. The generated SDP may be malformed or the browser state may be inconsistent.',
     causes: ['Malformed SDP', 'Browser state inconsistency'],
     solutions: ['Retry the call'],
-    canRetry: true,
   },
   40004: {
-    name: 'SdpSetRemoteDescriptionFailed',
-    description: 'Failed to set remote SDP description.',
-    explanation:
-      'setRemoteDescription() was rejected; the remote SDP may be malformed.',
+    name: 'SDP_SET_REMOTE_DESCRIPTION_FAILED',
+    message: 'Failed to process remote call settings',
+    description:
+      'setRemoteDescription() was rejected by the browser. The remote SDP may be malformed or contain unsupported codecs.',
     causes: ['Malformed remote SDP', 'Browser codec mismatch'],
     solutions: ['Retry the call', 'Check codec configuration'],
-    canRetry: true,
   },
   40005: {
-    name: 'SdpSendFailed',
-    description: 'Failed to send SDP to the server.',
-    explanation:
-      'The Invite or Answer message could not be delivered via signaling.',
+    name: 'SDP_SEND_FAILED',
+    message: 'Failed to send call data to server',
+    description:
+      'The Invite or Answer message could not be delivered via the signaling WebSocket. The connection may have been lost.',
     causes: ['WebSocket connection lost', 'Server error'],
     solutions: ['Check network connectivity', 'Retry the call'],
-    canRetry: true,
   },
 
   // ── Media / device errors (420xx) ───────────────────────────────────
   42001: {
-    name: 'MediaMicrophonePermissionDenied',
-    description: 'Microphone access was denied.',
-    explanation: 'The user denied microphone permission.',
+    name: 'MEDIA_MICROPHONE_PERMISSION_DENIED',
+    message: 'Microphone access denied',
+    description:
+      'The user or operating system denied microphone permission. The browser permission prompt was dismissed or OS-level access is disabled.',
     causes: [
       'User denied browser permission prompt',
       'OS-level microphone access disabled',
     ],
     solutions: ['Ask user to grant microphone permission in browser settings'],
-    canRetry: false,
   },
   42002: {
-    name: 'MediaDeviceNotFound',
-    description: 'No microphone device found.',
-    explanation: 'The requested audio input device is not available.',
+    name: 'MEDIA_DEVICE_NOT_FOUND',
+    message: 'No microphone found',
+    description:
+      'The requested audio input device is not available. No microphone is connected, the device was disconnected, or an invalid deviceId was specified.',
     causes: [
       'No microphone connected',
       'Device was disconnected',
@@ -154,23 +141,22 @@ export const SDK_ERRORS = {
       'Check that a microphone is connected',
       'Select a valid audio input device',
     ],
-    canRetry: false,
   },
   42003: {
-    name: 'MediaGetUserMediaFailed',
-    description: 'Failed to acquire local media stream.',
-    explanation: 'getUserMedia() was rejected for an unexpected reason.',
+    name: 'MEDIA_GET_USER_MEDIA_FAILED',
+    message: 'Failed to access microphone',
+    description:
+      'getUserMedia() was rejected for an unexpected reason. The device may be in use by another application or the browser encountered an internal error.',
     causes: ['Browser error', 'Device in use by another application'],
     solutions: ['Close other applications using the microphone', 'Retry'],
-    canRetry: true,
   },
 
   // ── Peer connection errors (430xx) ──────────────────────────────────
   43001: {
-    name: 'PeerConnectionFailed',
-    description: 'WebRTC peer connection failed and could not be recovered.',
-    explanation:
-      'RTCPeerConnection entered the failed state and all reconnection/ICE restart attempts were exhausted.',
+    name: 'PEER_CONNECTION_FAILED',
+    message: 'Connection failed',
+    description:
+      'RTCPeerConnection entered the failed state. This may be caused by ICE failure, DTLS handshake failure, or a prolonged network interruption.',
     causes: [
       'ICE failure after reconnect exhausted',
       'DTLS handshake failure',
@@ -181,29 +167,27 @@ export const SDK_ERRORS = {
       'Verify TURN server credentials',
       'Retry the call',
     ],
-    canRetry: true,
   },
 
   // ── Call-control errors (440xx) ─────────────────────────────────────
   44001: {
-    name: 'HoldFailed',
-    description: 'Failed to put the call on hold.',
-    explanation: 'The server rejected or did not respond to the hold request.',
+    name: 'HOLD_FAILED',
+    message: 'Failed to hold the call',
+    description:
+      'The server rejected or did not respond to the hold request. The WebSocket connection may have been lost during the operation.',
     causes: ['Server error', 'WebSocket connection lost during hold'],
     solutions: ['Retry the hold operation', 'Check network connectivity'],
-    canRetry: true,
   },
   44003: {
-    name: 'ByeSendFailed',
-    description: 'Failed to send BYE to the server.',
-    explanation:
-      'The hangup signal could not be delivered; the call was terminated locally.',
+    name: 'BYE_SEND_FAILED',
+    message: 'Failed to hang up cleanly',
+    description:
+      'The hangup signal could not be delivered to the server. The call was terminated locally but the server may not be aware.',
     causes: ['WebSocket connection lost before BYE sent'],
     solutions: [
       'No action needed — call is terminated locally',
       'Check network connectivity',
     ],
-    canRetry: false,
   },
 } as const;
 
@@ -224,10 +208,9 @@ export function createTelnyxError(
     code,
     name: entry.name,
     description: entry.description,
-    explanation: entry.explanation,
+    message: entry.message,
     causes: [...entry.causes],
     solutions: [...entry.solutions],
-    canRetry: entry.canRetry,
     originalError,
   });
 }

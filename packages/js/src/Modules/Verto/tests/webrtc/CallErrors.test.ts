@@ -53,7 +53,7 @@ describe('Call error events', () => {
       }) => {
         expect(data.error).toBeInstanceOf(TelnyxError);
         expect(data.error.code).toBe(42002);
-        expect(data.error.name).toBe('MediaDeviceNotFound');
+        expect(data.error.name).toBe('MEDIA_DEVICE_NOT_FOUND');
         expect(data.error.originalError).toBe(mediaError);
         expect(data.callId).toBe(call.id);
         expect(data.sessionId).toBe(session.sessionid);
@@ -77,7 +77,7 @@ describe('Call error events', () => {
       }) => {
         expect(data.error).toBeInstanceOf(TelnyxError);
         expect(data.error.code).toBe(42001);
-        expect(data.error.name).toBe('MediaMicrophonePermissionDenied');
+        expect(data.error.name).toBe('MEDIA_MICROPHONE_PERMISSION_DENIED');
         expect(data.error.originalError).toBe(mediaError);
         done();
       };
@@ -96,7 +96,7 @@ describe('Call error events', () => {
       }) => {
         expect(data.error).toBeInstanceOf(TelnyxError);
         expect(data.error.code).toBe(42003);
-        expect(data.error.name).toBe('MediaGetUserMediaFailed');
+        expect(data.error.name).toBe('MEDIA_GET_USER_MEDIA_FAILED');
         done();
       };
 
@@ -140,7 +140,7 @@ describe('Call error events', () => {
       const handler = (data: { error: TelnyxError; callId: string }) => {
         expect(data.error).toBeInstanceOf(TelnyxError);
         expect(data.error.code).toBe(43001);
-        expect(data.error.name).toBe('PeerConnectionFailed');
+        expect(data.error.name).toBe('PEER_CONNECTION_FAILED');
         expect(data.callId).toBe(call.id);
         done();
       };

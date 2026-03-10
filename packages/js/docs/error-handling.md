@@ -1013,36 +1013,34 @@ Every error emitted through `telnyx.error` implements the `ITelnyxError` interfa
 ```ts
 interface ITelnyxError {
   code: number; // Numeric error code (e.g. 40001)
-  name: string; // Machine-readable name (e.g. 'SdpCreateOfferFailed')
-  description: string; // Short description of what failed
-  explanation: string; // Longer explanation of the failure context
-  message: string; // Human-readable message: "[code] name: description"
+  name: string; // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED')
+  description: string; // Full explanation of the error — what happened and why
+  message: string; // Short human-readable message for UI alerts
   causes: string[]; // Possible root causes
   solutions: string[]; // Suggested remediation steps
   originalError?: unknown; // The underlying error, if any
-  canRetry: boolean; // Whether the operation can be retried
 }
 ```
 
 ### Error Code Reference
 
-| Code                               | Name                            | Description                                              | Can Retry |
-| ---------------------------------- | ------------------------------- | -------------------------------------------------------- | --------- |
-| **SDP Errors (400xx)**             |                                 |                                                          |           |
-| 40001                              | SdpCreateOfferFailed            | Failed to create SDP offer                               | Yes       |
-| 40002                              | SdpCreateAnswerFailed           | Failed to create SDP answer                              | Yes       |
-| 40003                              | SdpSetLocalDescriptionFailed    | Failed to set local SDP description                      | Yes       |
-| 40004                              | SdpSetRemoteDescriptionFailed   | Failed to set remote SDP description                     | Yes       |
-| 40005                              | SdpSendFailed                   | Failed to send SDP to the server                         | Yes       |
-| **Media Errors (420xx)**           |                                 |                                                          |           |
-| 42001                              | MediaMicrophonePermissionDenied | Microphone access was denied                             | No        |
-| 42002                              | MediaDeviceNotFound             | No microphone device found                               | No        |
-| 42003                              | MediaGetUserMediaFailed         | Failed to acquire local media stream                     | Yes       |
-| **Peer Connection Errors (430xx)** |                                 |                                                          |           |
-| 43001                              | PeerConnectionFailed            | WebRTC peer connection failed and could not be recovered | Yes       |
-| **Call-Control Errors (440xx)**    |                                 |                                                          |           |
-| 44001                              | HoldFailed                      | Failed to put the call on hold                           | Yes       |
-| 44003                              | ByeSendFailed                   | Failed to send BYE to the server                         | No        |
+| Code                               | Name                               | Message                                |
+| ---------------------------------- | ---------------------------------- | -------------------------------------- |
+| **SDP Errors (400xx)**             |                                    |                                        |
+| 40001                              | SDP_CREATE_OFFER_FAILED            | Failed to create call offer            |
+| 40002                              | SDP_CREATE_ANSWER_FAILED           | Failed to answer the call              |
+| 40003                              | SDP_SET_LOCAL_DESCRIPTION_FAILED   | Failed to apply local call settings    |
+| 40004                              | SDP_SET_REMOTE_DESCRIPTION_FAILED  | Failed to process remote call settings |
+| 40005                              | SDP_SEND_FAILED                    | Failed to send call data to server     |
+| **Media Errors (420xx)**           |                                    |                                        |
+| 42001                              | MEDIA_MICROPHONE_PERMISSION_DENIED | Microphone access denied               |
+| 42002                              | MEDIA_DEVICE_NOT_FOUND             | No microphone found                    |
+| 42003                              | MEDIA_GET_USER_MEDIA_FAILED        | Failed to access microphone            |
+| **Peer Connection Errors (430xx)** |                                    |                                        |
+| 43001                              | PEER_CONNECTION_FAILED             | Connection failed                      |
+| **Call-Control Errors (440xx)**    |                                    |                                        |
+| 44001                              | HOLD_FAILED                        | Failed to hold the call                |
+| 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
 
 ### Listening for Structured Errors
 
@@ -1057,13 +1055,12 @@ client.on(SwEvent.Error, (event) => {
   const { error, callId, sessionId } = event;
 
   if (error instanceof TelnyxError) {
-    console.error(`[${error.code}] ${error.name}: ${error.description}`);
+    // error.message is a short UI-friendly string
+    console.error(`[${error.code}] ${error.name}: ${error.message}`);
+    // error.description has the full technical explanation
+    console.debug('Details:', error.description);
     console.log('Possible causes:', error.causes);
     console.log('Suggested solutions:', error.solutions);
-
-    if (error.canRetry) {
-      // Implement retry logic
-    }
 
     // Access the original browser error if needed
     if (error.originalError) {
@@ -1094,13 +1091,11 @@ client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
 ```ts
 client.on('telnyx.error', ({ error, callId }) => {
   if (error.code === 42003) {
-    // Media error — show specific guidance
-    alert(error.solutions.join('\n'));
+    // Media error — show user-friendly message
+    alert(error.message);
   } else if (error.code === 43001) {
     // Peer connection failed
-    if (error.canRetry) {
-      retryCall(callId);
-    }
+    retryCall(callId);
   }
 });
 ```
@@ -1124,5 +1119,5 @@ During the transition period, both the deprecated events **and** the new `telnyx
 1. **Add a `telnyx.error` listener** using `client.on(SwEvent.Error, handler)`.
 2. **Switch on `error.code`** instead of listening to multiple separate events.
 3. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
-4. **Use `error.canRetry`** to decide whether to offer a retry to the user.
+4. **Use `error.message`** to display a short, user-friendly alert in your UI.
 5. **Use `error.causes` and `error.solutions`** to display actionable guidance in your UI.
