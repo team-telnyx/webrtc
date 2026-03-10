@@ -76,6 +76,7 @@ export enum SwEvent {
   // Global Events
   Ready = 'telnyx.ready',
   Error = 'telnyx.error',
+  Warning = 'telnyx.warning',
   Notification = 'telnyx.notification',
   StatsFrame = 'telnyx.stats.frame',
   StatsReport = 'telnyx.stats.report',

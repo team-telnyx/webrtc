@@ -19,6 +19,7 @@ import {
   createTelnyxError,
   SDK_WARNINGS,
   SdkWarningCode,
+  ITelnyxWarning,
   createTelnyxWarning,
 } from './Modules/Verto/util/errors';
 
@@ -39,6 +40,7 @@ export {
   createTelnyxError,
   SDK_WARNINGS,
   SdkWarningCode,
+  ITelnyxWarning,
   createTelnyxWarning,
 };
 

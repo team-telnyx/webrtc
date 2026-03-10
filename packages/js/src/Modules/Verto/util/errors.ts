@@ -1,13 +1,20 @@
 /**
  * Structured error types for the Telnyx WebRTC SDK.
  *
- * Error/warning definitions live in `util/constants/errors.ts` and
- * `util/constants/warnings.ts`. This module provides the shared
- * `TelnyxError` class and factory functions.
+ * Error definitions live in `util/constants/errors.ts`.
+ * Warning definitions live in `util/constants/warnings.ts`.
+ *
+ * This module provides the `TelnyxError` class (for errors) and
+ * re-exports everything from the constants modules.
  */
 
 export { SDK_ERRORS, SdkErrorCode } from './constants/errors';
-export { SDK_WARNINGS, SdkWarningCode } from './constants/warnings';
+export {
+  SDK_WARNINGS,
+  SdkWarningCode,
+  ITelnyxWarning,
+  createTelnyxWarning,
+} from './constants/warnings';
 
 export interface ITelnyxError {
   /** Numeric error code (e.g. 40001) */
@@ -61,9 +68,8 @@ export class TelnyxError extends Error implements ITelnyxError {
   }
 }
 
-// ── Internal imports for factory functions ─────────────────────────────
+// ── Internal import for factory function ──────────────────────────────
 import { SDK_ERRORS, SdkErrorCode } from './constants/errors';
-import { SDK_WARNINGS, SdkWarningCode } from './constants/warnings';
 
 /**
  * Factory that creates a `TelnyxError` from a registered error code.
@@ -78,30 +84,6 @@ export function createTelnyxError(
   message?: string
 ): TelnyxError {
   const entry = SDK_ERRORS[code];
-  return new TelnyxError({
-    code,
-    name: entry.name,
-    description: entry.description,
-    message: message || entry.message,
-    causes: [...entry.causes],
-    solutions: [...entry.solutions],
-    originalError,
-  });
-}
-
-/**
- * Factory that creates a `TelnyxError` from a registered warning code.
- *
- * @param code - One of the numeric keys from `SDK_WARNINGS`
- * @param originalError - The underlying error, if available
- * @param message - Optional override for the default message
- */
-export function createTelnyxWarning(
-  code: SdkWarningCode,
-  originalError?: unknown,
-  message?: string
-): TelnyxError {
-  const entry = SDK_WARNINGS[code];
   return new TelnyxError({
     code,
     name: entry.name,

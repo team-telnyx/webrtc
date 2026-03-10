@@ -1,13 +1,17 @@
 import {
-  TelnyxError,
   SDK_WARNINGS,
+  SdkWarningCode,
+  ITelnyxWarning,
   createTelnyxWarning,
-} from '../../util/errors';
+} from '../../util/constants/warnings';
 
 describe('warnings module', () => {
   describe('SDK_WARNINGS', () => {
+    const expectedCodes: number[] = [
+      31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003,
+    ];
+
     it('should contain all expected warning codes', () => {
-      const expectedCodes: number[] = [41002, 41003];
       const registeredCodes = Object.keys(SDK_WARNINGS).map(Number);
       expect(registeredCodes).toEqual(expect.arrayContaining(expectedCodes));
       expect(registeredCodes).toHaveLength(expectedCodes.length);
@@ -35,37 +39,71 @@ describe('warnings module', () => {
         expect(entry.name).toMatch(/^[A-Z][A-Z0-9_]+$/);
       }
     });
+
+    it('all codes should start with 3xxxx', () => {
+      const registeredCodes = Object.keys(SDK_WARNINGS).map(Number);
+      for (const code of registeredCodes) {
+        expect(code).toBeGreaterThanOrEqual(30000);
+        expect(code).toBeLessThan(40000);
+      }
+    });
   });
 
   describe('createTelnyxWarning', () => {
-    it('should return a TelnyxError instance', () => {
-      const warning = createTelnyxWarning(41002);
-      expect(warning).toBeInstanceOf(TelnyxError);
-      expect(warning).toBeInstanceOf(Error);
-      expect(warning.code).toBe(41002);
-      expect(warning.name).toBe('ICE_NO_CANDIDATES');
-    });
-
-    it('should return a warning for ICE gathering timeout', () => {
-      const warning = createTelnyxWarning(41003);
-      expect(warning.code).toBe(41003);
-      expect(warning.name).toBe('ICE_GATHERING_TIMEOUT');
+    it('should return a plain ITelnyxWarning object (not an Error)', () => {
+      const warning = createTelnyxWarning(31001);
+      expect(warning).not.toBeInstanceOf(Error);
+      expect(warning.code).toBe(31001);
+      expect(warning.name).toBe('HIGH_RTT');
+      expect(warning.message).toBe('High network latency detected');
+      expect(warning.description).toBeTruthy();
+      expect(warning.causes.length).toBeGreaterThan(0);
+      expect(warning.solutions.length).toBeGreaterThan(0);
     });
 
     it('should allow message override', () => {
-      const warning = createTelnyxWarning(41002, undefined, 'Custom message');
+      const warning = createTelnyxWarning(31001, 'Custom message');
       expect(warning.message).toBe('Custom message');
     });
 
     it('should use default message when not overridden', () => {
-      const warning = createTelnyxWarning(41002);
-      expect(warning.message).toBe('No ICE candidates gathered');
+      const warning = createTelnyxWarning(31002);
+      expect(warning.message).toBe('High jitter detected');
     });
 
-    it('should attach originalError when provided', () => {
-      const original = new Error('test');
-      const warning = createTelnyxWarning(41003, original);
-      expect(warning.originalError).toBe(original);
+    it('should create warnings for all code ranges', () => {
+      const networkWarning = createTelnyxWarning(31003);
+      expect(networkWarning.name).toBe('HIGH_PACKET_LOSS');
+
+      const connectionWarning = createTelnyxWarning(32001);
+      expect(connectionWarning.name).toBe('LOW_BYTES_RECEIVED');
+
+      const iceWarning = createTelnyxWarning(33001);
+      expect(iceWarning.name).toBe('ICE_CONNECTIVITY_LOST');
+    });
+
+    it('should not share arrays between instances', () => {
+      const a = createTelnyxWarning(31001);
+      const b = createTelnyxWarning(31001);
+      a.causes.push('extra');
+      expect(b.causes).not.toContain('extra');
+    });
+
+    it('should satisfy ITelnyxWarning type', () => {
+      const warning: ITelnyxWarning = createTelnyxWarning(33002);
+      expect(warning.code).toBe(33002);
+      expect(warning.name).toBe('ICE_GATHERING_TIMEOUT');
+    });
+
+    it('should accept only valid SdkWarningCode', () => {
+      // Type-level check: ensure the factory accepts all codes
+      const codes: SdkWarningCode[] = [
+        31001, 31002, 31003, 31004, 32001, 32002, 33001, 33002, 33003,
+      ];
+      for (const code of codes) {
+        const warning = createTelnyxWarning(code);
+        expect(warning.code).toBe(code);
+      }
     });
   });
 });
