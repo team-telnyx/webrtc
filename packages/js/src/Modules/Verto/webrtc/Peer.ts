@@ -1,5 +1,4 @@
 import BrowserSession from '../BrowserSession';
-import { createTelnyxError } from '../util/errors';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import {
@@ -101,15 +100,15 @@ export default class Peer {
     );
   }
 
-  async startNegotiation() {
+  startNegotiation() {
     performance.mark(`ice-gathering-start`);
 
     this._negotiating = true;
 
     if (this._isOffer()) {
-      await this._createOffer();
+      this._createOffer();
     } else {
-      await this._createAnswer();
+      this._createAnswer();
     }
   }
   async startTrickleIceNegotiation() {
@@ -249,13 +248,9 @@ export default class Peer {
       return;
     }
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation().catch((error) => {
-        logger.error('Trickle ICE renegotiation failed:', error);
-      });
+      this.startTrickleIceNegotiation();
     } else {
-      this.startNegotiation().catch((error) => {
-        logger.error('Renegotiation failed:', error);
-      });
+      this.startNegotiation();
     }
   }
 
@@ -559,11 +554,11 @@ export default class Peer {
         this._checkMediaToNegotiate('video');
       }
     } else if (!this._isTrickleIce()) {
-      await this.startNegotiation();
+      this.startNegotiation();
     }
 
     if (this._isTrickleIce()) {
-      await this.startTrickleIceNegotiation();
+      this.startTrickleIceNegotiation();
     }
 
     this._logTransceivers();
@@ -594,21 +589,18 @@ export default class Peer {
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
 
-    let offer: RTCSessionDescriptionInit;
     try {
-      offer = await this.instance.createOffer(this._constraints);
+      const offer = await this.instance.createOffer(this._constraints);
+      await this._setLocalDescription(offer);
+
+      if (!this._isTrickleIce()) {
+        this._sdpReady();
+      }
+
+      return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
-      throw createTelnyxError(40001, error);
     }
-
-    await this._setLocalDescription(offer);
-
-    if (!this._isTrickleIce()) {
-      this._sdpReady();
-    }
-
-    return offer;
   }
 
   private async _setRemoteDescription(
@@ -648,28 +640,20 @@ export default class Peer {
 
     this._logTransceivers();
 
-    let answer: RTCSessionDescriptionInit;
     try {
-      answer = await this.instance.createAnswer();
+      const answer = await this.instance.createAnswer();
+      await this._setLocalDescription(answer);
+
+      return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
-      throw createTelnyxError(40002, error);
     }
-
-    await this._setLocalDescription(answer);
-
-    return answer;
   }
 
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    try {
-      await this.instance.setLocalDescription(sessionDescription);
-    } catch (error) {
-      logger.error('setLocalDescription failed:', error);
-      throw createTelnyxError(40003, error);
-    }
+    await this.instance.setLocalDescription(sessionDescription);
   }
 
   private _setCodecs = (

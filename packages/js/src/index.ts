@@ -11,17 +11,6 @@ import {
   ERROR_TYPE,
 } from './Modules/Verto/webrtc/constants';
 import Call from './Modules/Verto/webrtc/Call';
-import {
-  TelnyxError,
-  ITelnyxError,
-  SDK_ERRORS,
-  SdkErrorCode,
-  createTelnyxError,
-  SDK_WARNINGS,
-  SdkWarningCode,
-  ITelnyxWarning,
-  createTelnyxWarning,
-} from './Modules/Verto/util/errors';
 
 export {
   Call,
@@ -33,15 +22,6 @@ export {
   SwEvent,
   NOTIFICATION_TYPE,
   ERROR_TYPE,
-  TelnyxError,
-  ITelnyxError,
-  SDK_ERRORS,
-  SdkErrorCode,
-  createTelnyxError,
-  SDK_WARNINGS,
-  SdkWarningCode,
-  ITelnyxWarning,
-  createTelnyxWarning,
 };
 
 export * from './PreCallDiagnosis';
