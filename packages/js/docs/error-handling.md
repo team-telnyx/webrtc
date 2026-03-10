@@ -1046,6 +1046,8 @@ interface ITelnyxError {
 | 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
 | **Authentication (460xx)**         |                                    |                                        |
 | 46001                              | LOGIN_FAILED                       | Authentication failed                  |
+| **Network (480xx)**                |                                    |                                        |
+| 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
 
 ### Warning Code Reference
 

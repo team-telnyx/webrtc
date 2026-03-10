@@ -11,6 +11,7 @@
  * - 440xx — Call-control errors (hold, bye)
  * - 450xx — WebSocket / transport errors
  * - 460xx — Authentication errors
+ * - 480xx — Network errors
  */
 export const SDK_ERRORS = {
   // ── SDP errors (400xx) ──────────────────────────────────────────────
@@ -185,6 +186,24 @@ export const SDK_ERRORS = {
       'Verify credentials',
       'Generate a new authentication token',
       'Check account status',
+    ],
+  },
+
+  // ── Network errors (480xx) ──────────────────────────────────────────
+  48001: {
+    name: 'NETWORK_OFFLINE',
+    message: 'Device is offline',
+    description:
+      'The browser reported that the device has lost network connectivity (navigator.onLine === false). All WebSocket and media connections will fail until the network is restored.',
+    causes: [
+      'Wi-Fi or ethernet disconnected',
+      'Airplane mode enabled',
+      'Network interface went down',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Reconnect to Wi-Fi or ethernet',
+      'Disable airplane mode',
     ],
   },
 } as const;
