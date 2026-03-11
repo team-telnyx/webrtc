@@ -1,3 +1,10 @@
+## [2.25.25](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.24...webrtc/v2.25.25) (2026-03-11)
+
+- docs: update ts docs
+- fix: disable trickle ICE for attach (reconnection) (#550)
+- feat: add recvonly audio transceiver when audio=false (WEBRTC-3394) (#549)
+- feat(WEBRTC-3324): support target_params in anonymous_login (#542)
+- feat: auto-trigger developer docs update on JS SDK release (#545)
 ## [2.25.24](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.23...webrtc/v2.25.24) (2026-03-03)
 
 - docs: update ts docs
