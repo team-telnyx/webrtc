@@ -1583,6 +1583,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
+      this.peer?.incrementGatheredCandidates();
     } else {
       this._onIceSdp(instance.localDescription);
     }
@@ -1591,6 +1592,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
+      this.peer?.incrementGatheredCandidates();
       this._sendIceCandidate(event.candidate);
     } else {
       this._sendEndOfCandidates();
