@@ -1044,8 +1044,8 @@ interface ITelnyxError {
 | **WebSocket / Transport (450xx)**  |                                    |                                        |
 | 45001                              | WEBSOCKET_CONNECTION_FAILED        | Unable to connect to server            |
 | 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
-| **Authentication (460xx)**         |                                    |                                        |
 | 45003                              | RECONNECTION_EXHAUSTED             | Unable to reconnect to server          |
+| **Authentication (460xx)**         |                                    |                                        |
 | 46001                              | LOGIN_FAILED                       | Authentication failed                  |
 | 46002                              | INVALID_CREDENTIALS                | Invalid credential parameters          |
 | **Network (480xx)**                |                                    |                                        |
