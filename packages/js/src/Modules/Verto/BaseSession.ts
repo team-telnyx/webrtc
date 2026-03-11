@@ -131,7 +131,25 @@ export default abstract class BaseSession {
         this.connect();
       });
     }
-    return this.connection.send(msg);
+    return this.connection.send(msg).catch((error) => {
+      if (error?.code === this.authenticationRequiredErrorCode) {
+        const telnyxError = createTelnyxError(46003, error);
+        trigger(
+          SwEvent.Error,
+          { error: telnyxError, sessionId: this.sessionid },
+          this.uuid
+        );
+
+        // Attempt re-login if auto-reconnect is enabled
+        if (this._autoReconnect) {
+          logger.warn(
+            'Authentication required error received. Attempting re-login...'
+          );
+          this.login();
+        }
+      }
+      throw error;
+    });
   }
 
   /**
