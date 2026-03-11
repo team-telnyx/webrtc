@@ -491,6 +491,12 @@ class VertoHandler {
         };
         const result = await session.vertoSubscribe(tmp).catch((error) => {
           logger.error('liveArray subscription error:', error);
+          const telnyxError = createTelnyxError(44004, error);
+          trigger(
+            SwEvent.Error,
+            { error: telnyxError, sessionId: session.sessionid },
+            session.uuid
+          );
         });
         if (checkSubscribeResponse(result, laChannel)) {
           _liveArrayBootstrap();

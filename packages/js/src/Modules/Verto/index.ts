@@ -3,7 +3,6 @@ import {
   SubscribeParams,
   BroadcastParams,
   IVertoOptions,
-  ILoginParams,
 } from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
 import Call from './webrtc/Call';
@@ -13,6 +12,9 @@ import {
   isValidLoginOptions,
 } from './util/helpers';
 import logger from './util/logger';
+import { SwEvent } from './util/constants';
+import { createTelnyxError } from './util/errors';
+import { trigger } from './services/Handler';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -27,7 +29,8 @@ export default class Verto extends BrowserSession {
     super(options);
     this._vertoHandler = new VertoHandler(this);
     // hang up current call when browser closes or refreshes.
-    window.addEventListener('beforeunload', (e) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    window.addEventListener('beforeunload', (_e) => {
       if (this.calls) {
         Object.keys(this.calls).forEach((callId) => {
           if (this.calls[callId]) {
@@ -48,7 +51,17 @@ export default class Verto extends BrowserSession {
 
   newCall(options: IVertoCallOptions) {
     if (!this.validateCallOptions(options)) {
-      throw new Error('Verto.newCall() error: destinationNumber is required.');
+      const telnyxError = createTelnyxError(
+        44002,
+        undefined,
+        'Verto.newCall() error: destinationNumber is required.'
+      );
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.sessionid },
+        this.uuid
+      );
+      throw telnyxError;
     }
     performance.mark('new-call-start');
     const call = new Call(this, options);
@@ -101,6 +114,7 @@ export default class Verto extends BrowserSession {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _onSocketMessage(msg: any) {
     this._vertoHandler.handleMessage(msg);
   }
