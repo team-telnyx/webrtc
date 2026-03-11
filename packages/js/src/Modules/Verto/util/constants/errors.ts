@@ -233,6 +233,24 @@ export const SDK_ERRORS = {
     ],
   },
 
+  46003: {
+    name: 'AUTHENTICATION_REQUIRED',
+    message: 'Authentication required',
+    description:
+      'The server rejected a request because the session is not authenticated. This can happen when the client sends a message (e.g. Invite, Subscribe, or Ping) before login completes, after a token expires mid-session, or after the server drops the authenticated state for any reason.',
+    causes: [
+      'Message sent before login completed',
+      'Authentication token expired during the session',
+      'Server-side session was invalidated',
+      'WebSocket reconnected but re-authentication did not complete',
+    ],
+    solutions: [
+      'Ensure the client is fully logged in before sending messages',
+      'Re-authenticate using client.login() with fresh credentials',
+      'Listen for telnyx.ready before making calls or sending requests',
+    ],
+  },
+
   // ── Network errors (480xx) ──────────────────────────────────────────
   48001: {
     name: 'NETWORK_OFFLINE',

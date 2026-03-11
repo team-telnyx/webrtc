@@ -1048,6 +1048,7 @@ interface ITelnyxError {
 | **Authentication (460xx)**         |                                    |                                        |
 | 46001                              | LOGIN_FAILED                       | Authentication failed                  |
 | 46002                              | INVALID_CREDENTIALS                | Invalid credential parameters          |
+| 46003                              | AUTHENTICATION_REQUIRED            | Authentication required                |
 | **Network (480xx)**                |                                    |                                        |
 | 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
 
