@@ -198,6 +198,23 @@ export const SDK_ERRORS = {
     ],
   },
 
+  45004: {
+    name: 'GATEWAY_FAILED',
+    message: 'Gateway connection failed',
+    description:
+      'The upstream gateway reported a FAILED or FAIL_WAIT state. The signaling server could not establish or maintain a connection to the gateway. When autoReconnect is disabled, this is immediately fatal. When enabled, the SDK will retry until RECONNECTION_EXHAUSTED.',
+    causes: [
+      'Gateway down or unreachable',
+      'Server-side infrastructure issue',
+      'Network partition between signaling server and gateway',
+    ],
+    solutions: [
+      'Wait for automatic reconnection (if autoReconnect is enabled)',
+      'Call client.disconnect() and client.connect() to manually retry',
+      'Check Telnyx service status',
+    ],
+  },
+
   // ── Authentication errors (460xx) ───────────────────────────────────
   46001: {
     name: 'LOGIN_FAILED',
