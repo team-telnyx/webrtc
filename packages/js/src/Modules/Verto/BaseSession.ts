@@ -10,7 +10,7 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import { SwEvent } from './util/constants';
-import { createTelnyxError } from './util/errors';
+import { createTelnyxError, createTelnyxWarning } from './util/errors';
 import {
   isFunction,
   isValidAnonymousLoginOptions,
@@ -58,6 +58,9 @@ export default abstract class BaseSession {
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
+
+  private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
@@ -173,6 +176,7 @@ export default abstract class BaseSession {
    */
   async disconnect() {
     clearTimeout(this._reconnectTimeout);
+    this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
     this.relayProtocol = null;
@@ -291,6 +295,61 @@ export default abstract class BaseSession {
       { error: telnyxError, sessionId: this.sessionid },
       this.uuid
     );
+  }
+
+  /**
+   * Check if the login_token is a JWT and schedule a warning
+   * if it's expiring within TOKEN_EXPIRY_WARNING_SECONDS.
+   */
+  private _checkTokenExpiry(): void {
+    this._clearTokenExpiryTimeout();
+    const token = this.options.login_token;
+    if (!token || typeof token !== 'string') return;
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return;
+
+      const payload = JSON.parse(atob(parts[1]));
+      const exp = payload.exp;
+      if (typeof exp !== 'number') return;
+
+      const nowSec = Math.floor(Date.now() / 1000);
+      const secondsUntilExpiry = exp - nowSec;
+
+      if (secondsUntilExpiry <= 0) {
+        // Already expired — emit immediately
+        this._emitTokenExpiryWarning();
+      } else if (
+        secondsUntilExpiry <= BaseSession.TOKEN_EXPIRY_WARNING_SECONDS
+      ) {
+        // Expiring very soon — emit immediately
+        this._emitTokenExpiryWarning();
+      } else {
+        // Schedule warning for TOKEN_EXPIRY_WARNING_SECONDS before expiry
+        const delayMs =
+          (secondsUntilExpiry - BaseSession.TOKEN_EXPIRY_WARNING_SECONDS) *
+          1000;
+        this._tokenExpiryTimeout = setTimeout(() => {
+          this._emitTokenExpiryWarning();
+        }, delayMs);
+      }
+    } catch {
+      // Not a valid JWT — skip silently
+      logger.debug('login_token is not a decodable JWT, skipping expiry check');
+    }
+  }
+
+  private _emitTokenExpiryWarning(): void {
+    const warning = createTelnyxWarning(34001);
+    trigger(SwEvent.Warning, { warning, sessionId: this.sessionid }, this.uuid);
+  }
+
+  private _clearTokenExpiryTimeout(): void {
+    if (this._tokenExpiryTimeout !== null) {
+      clearTimeout(this._tokenExpiryTimeout);
+      this._tokenExpiryTimeout = null;
+    }
   }
 
   /**
@@ -452,6 +511,7 @@ export default abstract class BaseSession {
 
     if (response) {
       this.sessionid = response.sessid;
+      this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }
   }

@@ -1,5 +1,5 @@
 import logger from '../util/logger';
-import { createTelnyxError } from '../util/errors';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
@@ -60,6 +60,22 @@ class VertoHandler {
 
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
+
+    // W8: Session not reattached warning
+    // If the server sends reattached_sessions as an empty array and the SDK
+    // has active calls, the session was not reattached after reconnection.
+    if (
+      Array.isArray(params?.reattached_sessions) &&
+      params.reattached_sessions.length === 0 &&
+      Object.keys(session.calls).length > 0
+    ) {
+      const warning = createTelnyxWarning(35001);
+      trigger(
+        SwEvent.Warning,
+        { warning, sessionId: session.sessionid },
+        session.uuid
+      );
+    }
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
