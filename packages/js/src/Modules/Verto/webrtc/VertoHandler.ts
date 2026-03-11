@@ -341,6 +341,20 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.FAIL_WAIT
               ) {
+                // Emit gateway failure on first occurrence
+                const gatewayError = createTelnyxError(
+                  45004,
+                  new Error(`Gateway state: ${gateWayState}`)
+                );
+                trigger(
+                  SwEvent.Error,
+                  {
+                    error: gatewayError,
+                    sessionId: session.sessionid,
+                  },
+                  session.uuid
+                );
+
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
                   const originalError = new ErrorResponse(
