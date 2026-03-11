@@ -259,8 +259,8 @@ export class CallReportCollector {
   private static readonly CONSECUTIVE_BREACHES_REQUIRED = 3;
   private static readonly THRESHOLD_RTT_MS = 0.4; // 400ms (RTT is in seconds from WebRTC API)
   private static readonly THRESHOLD_JITTER_MS = 30; // 30ms
-  private static readonly THRESHOLD_PACKET_LOSS_PCT = 5; // 5%
-  private static readonly THRESHOLD_MOS = 3.0;
+  private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
+  private static readonly THRESHOLD_MOS = 3.5;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
