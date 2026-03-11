@@ -225,6 +225,51 @@ describe('Call', () => {
     });
   });
 
+  describe('recovery flow (isRecovering)', () => {
+    it('should set initial state to Recovering when created with isRecovering=true', () => {
+      const recoveringCall = new Call(session, defaultParams, true);
+      expect(recoveringCall.state).toEqual('recovering');
+    });
+
+    it('should set state to Recovering (not Hangup/Destroy) when hangup is called with isRecovering', () => {
+      call.setState(State.Active);
+      call.hangup({ isRecovering: true }, false);
+      expect(call.state).toEqual('recovering');
+    });
+
+    it('should clear recovery flag and transition to Active on setState(Active)', () => {
+      const recoveringCall = new Call(session, defaultParams, true);
+      expect(recoveringCall.state).toEqual('recovering');
+      recoveringCall.setState(State.Active);
+      expect(recoveringCall.state).toEqual('active');
+    });
+
+    it('should preserve Recovering state through the full recovery lifecycle', () => {
+      // Simulate: active call → socket drops → hangup with recovery → new call recovers → active
+      call.setState(State.Active);
+      expect(call.state).toEqual('active');
+
+      // Old call receives recovery hangup
+      call.hangup({ isRecovering: true }, false);
+      expect(call.state).toEqual('recovering');
+
+      // New call is created in recovering state
+      const recoveredCall = new Call(session, defaultParams, true);
+      expect(recoveredCall.state).toEqual('recovering');
+
+      // After server confirms, call becomes active
+      recoveredCall.setState(State.Active);
+      expect(recoveredCall.state).toEqual('active');
+    });
+
+    it('should not transition to New when created with isRecovering=true', () => {
+      const recoveringCall = new Call(session, defaultParams, true);
+      // State should never be 'new' — it should start as 'recovering'
+      expect(recoveringCall.state).not.toEqual('new');
+      expect(recoveringCall.state).toEqual('recovering');
+    });
+  });
+
   describe('.setAudioBandwidthEncodingsMaxBps()', () => {
     it('if audio is used it should set audio max bitrate to 200 kbits/s', () => {
       const maxBitsPerSecond = 200000;
