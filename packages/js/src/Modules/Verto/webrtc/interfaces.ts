@@ -68,6 +68,15 @@ export interface IVertoCallOptions {
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
   preferred_codecs?: RTCRtpCodecCapability[];
+  /**
+   * When true and audio is false (no microphone), add a recvonly audio
+   * transceiver so the SDP still includes an audio m-line capable of
+   * receiving the remote party's audio (e.g. AI agent speech) without
+   * requesting microphone permission.
+   *
+   * Defaults to false.
+   */
+  receiveOnlyAudio?: boolean;
   /** Enable or disable prefetching ICE candidates. Defaults to true. */
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
