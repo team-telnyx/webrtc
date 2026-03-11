@@ -1886,6 +1886,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._callReportCollector.onFlushNeeded = () => {
         this._flushIntermediateReport();
       };
+
+      this._callReportCollector.onWarning = (warning) => {
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            callId: this.id,
+            sessionId: this.session.sessionid,
+          },
+          this.session.uuid
+        );
+      };
     }
 
     if (this._isRecovering) {
