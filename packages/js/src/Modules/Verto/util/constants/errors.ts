@@ -46,7 +46,7 @@ export const SDK_ERRORS = {
   },
   40004: {
     name: 'SDP_SET_REMOTE_DESCRIPTION_FAILED',
-    message: 'Failed to process remote call settings',
+    message: 'Failed to apply remote call settings',
     description:
       'setRemoteDescription() was rejected by the browser. The remote SDP may be malformed or contain unsupported codecs.',
     causes: ['Malformed remote SDP', 'Browser codec mismatch'],
@@ -218,17 +218,18 @@ export const SDK_ERRORS = {
 
   46002: {
     name: 'INVALID_CREDENTIALS',
-    message: 'Invalid credentials provided',
+    message: 'Invalid credential parameters',
     description:
-      'The login options provided are not valid for authentication. Required fields (login/password, token, or anonymous login parameters) are missing or malformed.',
+      'The SDK rejected the login options before sending any request to the server. This is an internal client-side validation guard — the credentials object is missing required fields or has an invalid structure. No network request was made.',
     causes: [
-      'Missing login and password',
+      'Missing login and password fields',
       'Missing or malformed authentication token',
-      'Invalid combination of credential fields',
+      'Invalid combination of credential fields in the options object',
     ],
     solutions: [
       'Provide valid login/password or a valid authentication token',
-      'Check the TelnyxRTC constructor options',
+      'Check the TelnyxRTC constructor options against the documentation',
+      'Ensure the credential object matches one of the supported auth modes (credentials, token, or anonymous)',
     ],
   },
 

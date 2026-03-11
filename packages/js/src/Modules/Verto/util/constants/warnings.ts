@@ -9,7 +9,7 @@
  * Code ranges:
  * - 310xx — Network quality warnings
  * - 320xx — Connection / data-flow warnings
- * - 330xx — ICE warnings
+ * - 330xx — Call connection warnings
  * - 340xx — Authentication warnings
  * - 350xx — Session / reconnection warnings
  */
@@ -129,7 +129,7 @@ export const SDK_WARNINGS = {
     ],
   },
 
-  // ── ICE warnings (330xx) ────────────────────────────────────────────
+  // ── Call connection warnings (330xx) ─────────────────────────────────
   33001: {
     name: 'ICE_CONNECTIVITY_LOST',
     message: 'Connection interrupted',

@@ -1030,7 +1030,7 @@ interface ITelnyxError {
 | 40001                              | SDP_CREATE_OFFER_FAILED            | Failed to create call offer            |
 | 40002                              | SDP_CREATE_ANSWER_FAILED           | Failed to answer the call              |
 | 40003                              | SDP_SET_LOCAL_DESCRIPTION_FAILED   | Failed to apply local call settings    |
-| 40004                              | SDP_SET_REMOTE_DESCRIPTION_FAILED  | Failed to process remote call settings |
+| 40004                              | SDP_SET_REMOTE_DESCRIPTION_FAILED  | Failed to apply remote call settings   |
 | 40005                              | SDP_SEND_FAILED                    | Failed to send call data to server     |
 | **Media Errors (420xx)**           |                                    |                                        |
 | 42001                              | MEDIA_MICROPHONE_PERMISSION_DENIED | Microphone access denied               |
@@ -1046,15 +1046,27 @@ interface ITelnyxError {
 | 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
 | **Authentication (460xx)**         |                                    |                                        |
 | 45003                              | RECONNECTION_EXHAUSTED             | Unable to reconnect to server          |
-| **Authentication (460xx)**         |                                    |                                        |
 | 46001                              | LOGIN_FAILED                       | Authentication failed                  |
-| 46002                              | INVALID_CREDENTIALS                | Invalid credentials provided           |
+| 46002                              | INVALID_CREDENTIALS                | Invalid credential parameters          |
 | **Network (480xx)**                |                                    |                                        |
 | 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
 
-### Warning Code Reference
+### ITelnyxWarning Interface
 
-Warnings represent degraded conditions that may cause unstable connections or bad call experience. They are surfaced via `SwEvent.Warning` (`'telnyx.warning'`) as plain objects (not `Error` instances).
+Warnings are **plain objects** (not `Error` instances). They represent degraded conditions that may affect call quality or stability but are not fatal — the SDK continues operating. Warnings are surfaced via a separate `telnyx.warning` (`SwEvent.Warning`) event.
+
+```ts
+interface ITelnyxWarning {
+  code: number;        // Numeric warning code (e.g. 31001)
+  name: string;        // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'HIGH_RTT')
+  message: string;     // Short human-readable message for UI alerts
+  description: string; // Full explanation — what the warning means
+  causes: string[];    // Possible root causes
+  solutions: string[]; // Suggested remediation steps
+}
+```
+
+### Warning Code Reference
 
 | Code                                 | Name                   | Message                            |
 | ------------------------------------ | ---------------------- | ---------------------------------- |
@@ -1066,7 +1078,7 @@ Warnings represent degraded conditions that may cause unstable connections or ba
 | **Connection Warnings (320xx)**      |                        |                                    |
 | 32001                                | LOW_BYTES_RECEIVED     | No audio data received             |
 | 32002                                | LOW_BYTES_SENT         | No audio data being sent           |
-| **ICE Warnings (330xx)**             |                        |                                    |
+| **Call Connection Warnings (330xx)** |                        |                                    |
 | 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
 | 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
 | 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
@@ -1123,13 +1135,19 @@ client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
 **After (new pattern):**
 
 ```ts
+// Listen for errors
 client.on('telnyx.error', ({ error, callId }) => {
   if (error.code === 42003) {
     // Media error — show user-friendly message
     alert(error.message);
-  } else if (warning.code === 33004) {
-    // Peer connection failed (warning)
-    retryCall(callId);
+  }
+});
+
+// Listen for warnings (separate event)
+client.on('telnyx.warning', ({ warning, callId }) => {
+  if (warning.code === 33004) {
+    // Peer connection failed (recoverable)
+    showWarningBanner(warning.message);
   }
 });
 ```
@@ -1150,8 +1168,25 @@ During the transition period, both the deprecated events **and** the new `telnyx
 
 ## Migration Guide
 
-1. **Add a `telnyx.error` listener** using `client.on(SwEvent.Error, handler)`.
-2. **Switch on `error.code`** instead of listening to multiple separate events.
-3. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
-4. **Use `error.message`** to display a short, user-friendly alert in your UI.
-5. **Use `error.causes` and `error.solutions`** to display actionable guidance in your UI.
+1. **Add a `telnyx.error` listener** using `client.on('telnyx.error', handler)` for unrecoverable errors.
+2. **Add a `telnyx.warning` listener** using `client.on('telnyx.warning', handler)` for degraded conditions (ICE issues, quality drops, token expiry).
+3. **Switch on `code`** instead of listening to multiple separate events — errors use `error.code`, warnings use `warning.code`.
+4. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
+5. **Use `.message`** to display a short, user-friendly alert in your UI.
+6. **Use `.causes` and `.solutions`** to display actionable guidance in your UI.
+
+**Example — handling both errors and warnings:**
+
+```ts
+// Errors: unrecoverable failures (call dropped, media denied, etc.)
+client.on('telnyx.error', ({ error, callId }) => {
+  console.error(`[${error.code}] ${error.name}: ${error.message}`);
+  showErrorAlert(error.message);
+});
+
+// Warnings: degraded but recoverable conditions
+client.on('telnyx.warning', ({ warning, callId }) => {
+  console.warn(`[${warning.code}] ${warning.name}: ${warning.message}`);
+  showWarningBanner(warning.message);
+});
+```
