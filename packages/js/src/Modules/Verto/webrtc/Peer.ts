@@ -545,7 +545,6 @@ export default class Peer {
         attachMediaStream(localElement, localStream);
       }
     } else if (
-      this.isOffer &&
       this.options.receiveOnlyAudio &&
       this.options.audio === false &&
       typeof this.instance.addTransceiver === 'function'
