@@ -1,10 +1,12 @@
 import BaseRequest from './BaseRequest';
 import pkg from '../../../../../package.json';
+import { TargetParams } from '../../../../utils/interfaces';
 
 type AnonymousLoginConstructorParams = {
   target_id: string;
   target_type: string;
   target_version_id?: string;
+  target_params?: TargetParams;
   sessionId?: string;
   userVariables?: Record<string, any>;
   reconnection?: boolean;
@@ -20,6 +22,7 @@ class AnonymousLogin extends BaseRequest {
       target_type,
       target_id,
       target_version_id,
+      target_params,
       userVariables,
       sessionId,
       reconnection,
@@ -42,6 +45,10 @@ class AnonymousLogin extends BaseRequest {
 
     if (target_version_id) {
       params.target_version_id = target_version_id;
+    }
+
+    if (target_params) {
+      params.target_params = target_params;
     }
 
     this.buildRequest({ method: this.method, params });
