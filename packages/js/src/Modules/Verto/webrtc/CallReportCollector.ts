@@ -263,8 +263,12 @@ export class CallReportCollector {
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
-  // Track which warnings are currently in "active episode" to avoid repeated emissions
+  // Track which warnings are currently in "active episode"
   private _activeWarnings: Set<number> = new Set();
+  // Timestamp (ms) of last emitted warning per code, for throttling
+  private _lastWarningEmitted: Record<number, number> = {};
+  // Minimum interval (ms) between repeated warnings of the same code
+  private static readonly WARNING_THROTTLE_MS = 15_000;
   // Previous packets values for packet loss delta calculation
   private _prevPacketsReceived: number | null = null;
   private _prevPacketsLost: number | null = null;
@@ -901,7 +905,9 @@ export class CallReportCollector {
 
   /**
    * Track consecutive breaches for a warning code.
-   * Emits the warning when the threshold is met (once per episode).
+   * Emits the warning when the threshold is met, then re-emits
+   * at most once every WARNING_THROTTLE_MS (15s) while the
+   * condition persists — so consumers know the issue is ongoing.
    * Resets when the condition clears.
    */
   private _trackBreach(code: number, isBreach: boolean): void {
@@ -909,24 +915,30 @@ export class CallReportCollector {
       this._breachCounters[code] = (this._breachCounters[code] ?? 0) + 1;
       if (
         this._breachCounters[code] >=
-          CallReportCollector.CONSECUTIVE_BREACHES_REQUIRED &&
-        !this._activeWarnings.has(code)
+        CallReportCollector.CONSECUTIVE_BREACHES_REQUIRED
       ) {
         this._activeWarnings.add(code);
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const warning = createTelnyxWarning(code as any);
-          this.onWarning!(warning);
-        } catch (err) {
-          logger.error(`CallReportCollector: Failed to emit warning ${code}`, {
-            error: err,
-          });
+        const now = Date.now();
+        const lastEmitted = this._lastWarningEmitted[code] ?? 0;
+        if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
+          this._lastWarningEmitted[code] = now;
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const warning = createTelnyxWarning(code as any);
+            this.onWarning!(warning);
+          } catch (err) {
+            logger.error(
+              `CallReportCollector: Failed to emit warning ${code}`,
+              { error: err }
+            );
+          }
         }
       }
     } else {
       // Condition cleared — reset so warning can fire again in future
       this._breachCounters[code] = 0;
       this._activeWarnings.delete(code);
+      delete this._lastWarningEmitted[code];
     }
   }
 
