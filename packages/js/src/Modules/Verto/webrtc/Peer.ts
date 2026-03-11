@@ -371,6 +371,20 @@ export default class Peer {
   };
 
   private async createPeerConnection() {
+    // Check network connectivity before attempting WebRTC setup
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const telnyxError = createTelnyxError(48001);
+      trigger(
+        SwEvent.Error,
+        {
+          error: telnyxError,
+          callId: this.options.id,
+          sessionId: this._session.sessionid,
+        },
+        this.options.id
+      );
+    }
+
     this.instance = RTCPeerConnection(this._config());
 
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
