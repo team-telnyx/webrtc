@@ -1750,9 +1750,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
 
+    // Use the original error for the deprecated notification to preserve
+    // the shape consumers expect (raw DOMException, not TelnyxError wrapper)
+    const notificationError = error?.originalError || error;
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.userMediaError,
-      error,
+      error: notificationError,
       call: this,
       errorName,
       errorMessage,
