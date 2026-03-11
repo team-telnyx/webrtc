@@ -546,7 +546,6 @@ export default class Peer {
       }
     } else if (
       this.options.receiveOnlyAudio &&
-      this.options.audio === false &&
       typeof this.instance.addTransceiver === 'function'
     ) {
       // receiveOnlyAudio opt-in: no local stream (audio: false), but we still
@@ -606,8 +605,8 @@ export default class Peer {
     if (!this._isOffer()) {
       return;
     }
-    // When receiveOnlyAudio is enabled and audio is false, still offer to
-    // receive audio so the recvonly transceiver works correctly.
+    // set default audio true, given value given in session mediaConstraints and call options may be undefined.
+    // When receiveOnlyAudio is enabled, always offer to receive audio.
     this._constraints.offerToReceiveAudio =
       this.options.audio !== false || Boolean(this.options.receiveOnlyAudio);
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
