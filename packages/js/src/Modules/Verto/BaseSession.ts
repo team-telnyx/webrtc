@@ -10,6 +10,7 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import { SwEvent } from './util/constants';
+import { createTelnyxError } from './util/errors';
 import {
   isFunction,
   isValidAnonymousLoginOptions,
@@ -37,6 +38,7 @@ const KEEPALIVE_INTERVAL = 35 * 1000;
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
   public sessionid: string = '';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public subscriptions: { [channel: string]: any } = {};
   public nodeid: string;
   public master_nodeid: string;
@@ -50,11 +52,14 @@ export default abstract class BaseSession {
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
   private registerAgent: RegisterAgent;
@@ -107,6 +112,7 @@ export default abstract class BaseSession {
    * @return Promise that will resolve/reject depending on the server response
    * @ignore
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   execute(msg: BaseMessage): Promise<any> {
     if (this._idle) {
       return new Promise((resolve) =>
@@ -158,7 +164,8 @@ export default abstract class BaseSession {
    * @return void
    * @ignore
    */
-  broadcast(params: BroadcastParams) {} // TODO: to be implemented
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  broadcast(_params: BroadcastParams) {} // TODO: to be implemented
 
   /**
    * Remove subscriptions and calls, close WS connection and remove all session listeners.
@@ -210,6 +217,7 @@ export default abstract class BaseSession {
    * })
    * ```
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   on(eventName: string, callback: Function) {
     register(eventName, callback, this.uuid);
     return this;
@@ -244,6 +252,7 @@ export default abstract class BaseSession {
    * client.off('telnyx.error', errorHandler)
    * ```
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   off(eventName: string, callback?: Function) {
     deRegister(eventName, callback, this.uuid);
     return this;
@@ -274,8 +283,14 @@ export default abstract class BaseSession {
    * Handle login error
    * @return void
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
-    trigger(SwEvent.Error, { error, sessionId: this.sessionid }, this.uuid);
+    const telnyxError = createTelnyxError(46001, error);
+    trigger(
+      SwEvent.Error,
+      { error: telnyxError, sessionId: this.sessionid },
+      this.uuid
+    );
   }
 
   /**
@@ -348,6 +363,7 @@ export default abstract class BaseSession {
   }: {
     creds?: ILoginParams;
     onSuccess?: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError?: (error: any) => void;
   } = {}): Promise<void> {
     // Validate connection state
@@ -384,10 +400,11 @@ export default abstract class BaseSession {
     } else {
       const msg = 'Invalid login options provided for authentication.';
       logger.error(msg);
+      const telnyxError = createTelnyxError(46002, undefined, msg);
       trigger(
         SwEvent.Error,
         {
-          error: new Error(msg),
+          error: telnyxError,
           type: ERROR_TYPE.invalidCredentialsOptions,
           sessionId: this.sessionid,
         },
@@ -404,6 +421,7 @@ export default abstract class BaseSession {
   }: {
     type: 'login' | 'anonymous_login';
     onSuccess?: () => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError?: (error: any) => void;
   }): Promise<void> {
     let msg: Login | AnonymousLogin;
@@ -480,7 +498,8 @@ export default abstract class BaseSession {
    * Callback to handle inbound messages from the ws
    * @return void
    */
-  protected _onSocketMessage(response: any) {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  protected _onSocketMessage(_response: any) {}
 
   /**
    * Remove subscription by key and deregister the related callback
@@ -505,6 +524,7 @@ export default abstract class BaseSession {
    */
   protected _addSubscription(
     protocol: string,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
     handler: Function = null,
     channel: string
   ) {
@@ -613,6 +633,7 @@ export default abstract class BaseSession {
     this._pong = true;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static on(eventName: string, callback: any) {
     register(eventName, callback);
   }
