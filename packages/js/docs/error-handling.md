@@ -1082,8 +1082,9 @@ interface ITelnyxWarning {
 | 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
 | 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
 | 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
-| 33004                                | PEER_CONNECTION_FAILED | Connection failed                  |
-| **Authentication Warnings (340xx)**  |                        |                                    |
+| 33004                                | PEER_CONNECTION_FAILED       | Connection failed                        |
+| 33005                                | ONLY_HOST_ICE_CANDIDATES     | Only local network candidates available  |
+| **Authentication Warnings (340xx)**  |                              |                                          |
 | 34001                                | TOKEN_EXPIRING_SOON    | Authentication token expiring soon |
 | **Session / Reconnection (350xx)**   |                        |                                    |
 | 35001                                | SESSION_NOT_REATTACHED | Active call lost after reconnect   |
