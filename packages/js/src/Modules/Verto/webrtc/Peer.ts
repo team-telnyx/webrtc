@@ -1,6 +1,7 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
@@ -319,10 +320,25 @@ export default class Peer {
       }
     }
 
+    if (connectionState === 'disconnected') {
+      const warning = createTelnyxWarning(33001);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.options.id,
+          sessionId: this._session.sessionid,
+        },
+        this.options.id
+      );
+    }
+
     if (connectionState === 'failed') {
+      const warning = createTelnyxWarning(33004);
       trigger(
         SwEvent.PeerConnectionFailureError,
         {
+          warning,
           error: new Error(
             `Peer Connection failed. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
           ),
@@ -387,7 +403,19 @@ export default class Peer {
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
-        trigger(SwEvent.MediaError, error, this.options.id);
+        let errorCode: 42001 | 42002 | 42003 = 42003;
+        if (error instanceof DOMException) {
+          if (error.name === 'NotAllowedError') {
+            errorCode = 42001;
+          } else if (
+            error.name === 'NotFoundError' ||
+            error.name === 'OverconstrainedError'
+          ) {
+            errorCode = 42002;
+          }
+        }
+        const telnyxError = createTelnyxError(errorCode, error);
+        trigger(SwEvent.MediaError, telnyxError, this.options.id);
         return null;
       }
     );
@@ -600,6 +628,12 @@ export default class Peer {
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
+      const telnyxError = createTelnyxError(40001, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
     }
   }
 
@@ -607,7 +641,18 @@ export default class Peer {
     remoteDescription: RTCSessionDescriptionInit
   ) {
     logger.debug('Setting remote description', remoteDescription);
-    await this.instance.setRemoteDescription(remoteDescription);
+    try {
+      await this.instance.setRemoteDescription(remoteDescription);
+    } catch (error) {
+      logger.error('Peer _setRemoteDescription error:', error);
+      const telnyxError = createTelnyxError(40004, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
+      throw error;
+    }
   }
 
   private async _createAnswer() {
@@ -647,13 +692,30 @@ export default class Peer {
       return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
+      const telnyxError = createTelnyxError(40002, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
     }
   }
 
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    await this.instance.setLocalDescription(sessionDescription);
+    try {
+      await this.instance.setLocalDescription(sessionDescription);
+    } catch (error) {
+      logger.error('Peer _setLocalDescription error:', error);
+      const telnyxError = createTelnyxError(40003, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
+      throw error;
+    }
   }
 
   private _setCodecs = (
