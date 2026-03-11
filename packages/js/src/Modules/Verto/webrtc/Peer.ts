@@ -546,13 +546,14 @@ export default class Peer {
       }
     } else if (
       this.isOffer &&
+      this.options.receiveOnlyAudio &&
       this.options.audio === false &&
-      this._constraints.offerToReceiveAudio &&
       typeof this.instance.addTransceiver === 'function'
     ) {
-      // No local stream (audio: false), but we still want to receive remote audio.
-      // Add a recvonly transceiver so the SDP negotiation includes an audio m-line
-      // that can receive the remote party's audio (e.g. AI agent speech).
+      // receiveOnlyAudio opt-in: no local stream (audio: false), but we still
+      // want to receive remote audio.  Add a recvonly transceiver so the SDP
+      // negotiation includes an audio m-line that can receive the remote
+      // party's audio (e.g. AI agent speech) without requesting mic permission.
       const recvOnlyTransceiver = this.instance.addTransceiver('audio', {
         direction: 'recvonly',
       });
@@ -606,9 +607,10 @@ export default class Peer {
     if (!this._isOffer()) {
       return;
     }
-    // Always offer to receive audio — even when audio is false (recvonly mode),
-    // we still want to receive the remote party's audio stream.
-    this._constraints.offerToReceiveAudio = true;
+    // When receiveOnlyAudio is enabled and audio is false, still offer to
+    // receive audio so the recvonly transceiver works correctly.
+    this._constraints.offerToReceiveAudio =
+      this.options.audio !== false || Boolean(this.options.receiveOnlyAudio);
     this._constraints.offerToReceiveVideo = Boolean(this.options.video);
     logger.info('_createOffer - this._constraints', this._constraints);
     // FIXME: Use https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpTransceiver when available (M71)
