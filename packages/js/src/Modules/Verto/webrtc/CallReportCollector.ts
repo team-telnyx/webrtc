@@ -22,6 +22,7 @@ import {
 } from '../../../Modules/Verto/util/LogCollector';
 import {
   type ITelnyxWarning,
+  type SdkWarningCode,
   createTelnyxWarning,
 } from '../../../Modules/Verto/util/errors';
 
@@ -910,7 +911,7 @@ export class CallReportCollector {
    * condition persists — so consumers know the issue is ongoing.
    * Resets when the condition clears.
    */
-  private _trackBreach(code: number, isBreach: boolean): void {
+  private _trackBreach(code: SdkWarningCode, isBreach: boolean): void {
     if (isBreach) {
       this._breachCounters[code] = (this._breachCounters[code] ?? 0) + 1;
       if (
@@ -923,8 +924,7 @@ export class CallReportCollector {
         if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
           this._lastWarningEmitted[code] = now;
           try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const warning = createTelnyxWarning(code as any);
+            const warning = createTelnyxWarning(code);
             this.onWarning!(warning);
           } catch (err) {
             logger.error(
