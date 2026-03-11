@@ -79,7 +79,13 @@ class VertoHandler {
         mediaSettings: params.mediaSettings,
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
-        trickleIce: session.options.trickleIce ?? false,
+        // b2bua-rtc's attach handler does not support trickle ICE — it expects
+        // a complete SDP with all ICE candidates. Force trickleIce off for attach
+        // to avoid CODEC NEGOTIATION ERROR. See WEBRTC-3395.
+        trickleIce:
+          method === VertoMethod.Attach
+            ? false
+            : (session.options.trickleIce ?? false),
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
         forceRelayCandidate: session.options.forceRelayCandidate ?? false,
         keepConnectionAliveOnSocketClose:

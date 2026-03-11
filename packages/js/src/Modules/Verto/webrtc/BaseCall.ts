@@ -1513,9 +1513,12 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
     if (this._iceTimeout === null) {
+      // Use a longer timeout for attach (reconnection) to allow full ICE
+      // gathering — b2bua-rtc requires a complete SDP for attach.
+      const timeoutMs = this.options.attach ? 5000 : 1000;
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        1000
+        timeoutMs,
       );
     }
 
