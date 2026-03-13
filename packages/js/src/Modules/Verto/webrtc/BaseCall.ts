@@ -76,6 +76,30 @@ export default abstract class BaseCall implements IWebRTCCall {
   public id: string = '';
 
   /**
+   * The call ID of the previous call that this call is recovering from.
+   * Present only when the call was created as part of a reattachment/recovery
+   * flow (e.g. after a network reconnection).
+   *
+   * Use this to match the new call object to the ended/destroyed call
+   * and prevent duplicate UI elements such as dialers.
+   *
+   * @example
+   * ```js
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'callUpdate') {
+   *     const call = notification.call;
+   *     if (call.recoveredCallId) {
+   *       // This call replaced a previous call after recovery
+   *       // Remove the old dialer for call.recoveredCallId
+   *       removeDialer(call.recoveredCallId);
+   *     }
+   *   }
+   * });
+   * ```
+   */
+  public recoveredCallId: string = '';
+
+  /**
    * The `state` of the call.
    *
    * | Value | Description |
@@ -1743,7 +1767,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _init() {
-    const { id, userVariables, remoteCallerNumber, onNotification } =
+    const { id, userVariables, remoteCallerNumber, onNotification, recoveredCallId } =
       this.options;
     if (id) {
       this.options.id = id.toString();
@@ -1751,6 +1775,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.id = uuidv4();
     }
     this.id = this.options.id;
+
+    if (recoveredCallId) {
+      this.recoveredCallId = recoveredCallId;
+    }
 
     if (!userVariables || objEmpty(userVariables)) {
       this.options.userVariables = this.session.options.userVariables || {};
