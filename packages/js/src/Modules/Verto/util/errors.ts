@@ -8,13 +8,16 @@
  * re-exports everything from the constants modules.
  */
 
-export { SDK_ERRORS, SdkErrorCode } from './constants/errors';
-export {
+import { SDK_ERRORS, SdkErrorCode } from './constants/errors';
+import {
   SDK_WARNINGS,
   SdkWarningCode,
   ITelnyxWarning,
   createTelnyxWarning,
 } from './constants/warnings';
+
+export { SDK_ERRORS, SdkErrorCode };
+export { SDK_WARNINGS, SdkWarningCode, ITelnyxWarning, createTelnyxWarning };
 
 export interface ITelnyxError {
   /** Numeric error code (e.g. 40001) */
@@ -67,9 +70,6 @@ export class TelnyxError extends Error implements ITelnyxError {
     };
   }
 }
-
-// ── Internal import for factory function ──────────────────────────────
-import { SDK_ERRORS, SdkErrorCode } from './constants/errors';
 
 /**
  * Factory that creates a `TelnyxError` from a registered error code.

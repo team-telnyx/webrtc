@@ -106,18 +106,6 @@ export const SDK_ERRORS = {
     causes: ['Server error', 'WebSocket connection lost during hold'],
     solutions: ['Retry the hold operation', 'Check network connectivity'],
   },
-  44003: {
-    name: 'BYE_SEND_FAILED',
-    message: 'Failed to hang up cleanly',
-    description:
-      'The hangup signal could not be delivered to the server. The call was terminated locally but the server may not be aware.',
-    causes: ['WebSocket connection lost before BYE sent'],
-    solutions: [
-      'No action needed — call is terminated locally',
-      'Check network connectivity',
-    ],
-  },
-
   44002: {
     name: 'INVALID_CALL_PARAMETERS',
     message: 'Invalid call parameters',
@@ -132,6 +120,17 @@ export const SDK_ERRORS = {
       'Check the call options object for required fields',
     ],
   },
+  44003: {
+    name: 'BYE_SEND_FAILED',
+    message: 'Failed to hang up cleanly',
+    description:
+      'The hangup signal could not be delivered to the server. The call was terminated locally but the server may not be aware.',
+    causes: ['WebSocket connection lost before BYE sent'],
+    solutions: [
+      'No action needed — call is terminated locally',
+      'Check network connectivity',
+    ],
+  },
   44004: {
     name: 'SUBSCRIBE_FAILED',
     message: 'Failed to subscribe to call events',
@@ -141,10 +140,7 @@ export const SDK_ERRORS = {
       'WebSocket connection lost during subscribe',
       'Server rejected the subscription request',
     ],
-    solutions: [
-      'Check network connectivity',
-      'Retry the call',
-    ],
+    solutions: ['Check network connectivity', 'Retry the call'],
   },
 
   // ── WebSocket / transport errors (450xx) ────────────────────────────
