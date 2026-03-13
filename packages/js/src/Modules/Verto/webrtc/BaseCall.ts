@@ -199,10 +199,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  private _isRecovering: boolean = false;
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions,
-    private _isRecovering: boolean = false
   ) {
     const {
       iceServers,
@@ -1778,6 +1779,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
+      this._isRecovering = true;
     }
 
     if (!userVariables || objEmpty(userVariables)) {
