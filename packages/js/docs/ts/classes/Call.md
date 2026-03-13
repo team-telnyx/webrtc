@@ -55,6 +55,7 @@ call.muteAudio();
 - [direction](#direction)
 - [id](#id)
 - [prevState](#prevstate)
+- [recoveredCallId](#recoveredcallid)
 - [state](#state)
 
 ### Accessors
@@ -123,6 +124,38 @@ See `Call.state` for all possible values.
 #### Inherited from
 
 BaseCall.prevState
+
+---
+
+### recoveredCallId
+
+• **recoveredCallId**: `string` = `''`
+
+The call ID of the previous call that this call is recovering from.
+Present only when the call was created as part of a reattachment/recovery
+flow (e.g. after a network reconnection).
+
+Use this to match the new call object to the ended/destroyed call
+and prevent duplicate UI elements such as dialers.
+
+**`Example`**
+
+```js
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'callUpdate') {
+    const call = notification.call;
+    if (call.recoveredCallId) {
+      // This call replaced a previous call after recovery
+      // Remove the old dialer for call.recoveredCallId
+      removeDialer(call.recoveredCallId);
+    }
+  }
+});
+```
+
+#### Inherited from
+
+BaseCall.recoveredCallId
 
 ---
 
