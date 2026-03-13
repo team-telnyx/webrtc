@@ -88,4 +88,7 @@ export enum SwEvent {
   MediaError = 'telnyx.rtc.mediaError',
   PeerConnectionFailureError = 'telnyx.rtc.peerConnectionFailureError',
   PeerConnectionSignalingStateClosed = 'telnyx.rtc.peerConnectionSignalingStateClosed',
+
+  // Structured diagnostic events
+  Warning = 'telnyx.warning',
 }

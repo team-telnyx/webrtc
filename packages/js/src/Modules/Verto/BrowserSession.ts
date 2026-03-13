@@ -8,6 +8,7 @@ import {
 } from './util/interfaces';
 import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
+import { createTelnyxError } from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
@@ -757,6 +758,13 @@ export default abstract class BrowserSession extends BaseSession {
     this._offlineHandler = () => {
       this._wasOffline = true;
       logger.debug(`Network connectivity lost for session ${this.sessionid}`);
+
+      const telnyxError = createTelnyxError(48001);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.sessionid },
+        this.uuid
+      );
     };
 
     window.addEventListener('online', this._onlineHandler);
