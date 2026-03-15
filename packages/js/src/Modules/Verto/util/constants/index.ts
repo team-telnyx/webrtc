@@ -76,6 +76,7 @@ export enum SwEvent {
   // Global Events
   Ready = 'telnyx.ready',
   Error = 'telnyx.error',
+  Warning = 'telnyx.warning',
   Notification = 'telnyx.notification',
   StatsFrame = 'telnyx.stats.frame',
   StatsReport = 'telnyx.stats.report',
@@ -88,7 +89,4 @@ export enum SwEvent {
   MediaError = 'telnyx.rtc.mediaError',
   PeerConnectionFailureError = 'telnyx.rtc.peerConnectionFailureError',
   PeerConnectionSignalingStateClosed = 'telnyx.rtc.peerConnectionSignalingStateClosed',
-
-  // Structured diagnostic events
-  Warning = 'telnyx.warning',
 }

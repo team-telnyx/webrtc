@@ -247,7 +247,19 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices().catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      let errorCode: 42001 | 42002 | 42003 = 42003;
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorCode = 42001;
+        } else if (
+          error.name === 'NotFoundError' ||
+          error.name === 'OverconstrainedError'
+        ) {
+          errorCode = 42002;
+        }
+      }
+      const telnyxError = createTelnyxError(errorCode, error);
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }
@@ -314,7 +326,19 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      let errorCode: 42001 | 42002 | 42003 = 42003;
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorCode = 42001;
+        } else if (
+          error.name === 'NotFoundError' ||
+          error.name === 'OverconstrainedError'
+        ) {
+          errorCode = 42002;
+        }
+      }
+      const telnyxError = createTelnyxError(errorCode, error);
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }

@@ -33,8 +33,6 @@ class VertoHandler {
 
   retriedRegister = 0;
 
-  receivedAuthenticationRequired = 0;
-
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -158,31 +156,9 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session
-          .execute(messagePing)
-          .then(() => {
-            this.receivedAuthenticationRequired = 0;
-          })
-          .catch(async (error) => {
-            if (
-              error.code === this.session.authenticationRequiredErrorCode &&
-              this.receivedAuthenticationRequired >= 0
-            ) {
-              this.receivedAuthenticationRequired += 1;
-
-              if (
-                this.receivedAuthenticationRequired > 1 &&
-                this.session.hasAutoReconnect()
-              ) {
-                logger.warn(
-                  'Ping failed twice with Authentication Required. Re-logging in...'
-                );
-
-                this.session.login();
-                this.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
-              }
-            }
-          });
+        this.session.execute(messagePing).catch(() => {
+          // Auth errors are handled centrally in BaseSession.execute()
+        });
         break;
       }
       case VertoMethod.Punt:

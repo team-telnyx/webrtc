@@ -12,9 +12,7 @@ import {
   isValidLoginOptions,
 } from './util/helpers';
 import logger from './util/logger';
-import { SwEvent } from './util/constants';
 import { createTelnyxError } from './util/errors';
-import { trigger } from './services/Handler';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -54,12 +52,7 @@ export default class Verto extends BrowserSession {
       const telnyxError = createTelnyxError(
         44002,
         undefined,
-        'Verto.newCall() error: destinationNumber is required.'
-      );
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this.sessionid },
-        this.uuid
+        'Error: destinationNumber is required'
       );
       throw telnyxError;
     }

@@ -132,21 +132,16 @@ export default abstract class BaseSession {
       });
     }
     return this.connection.send(msg).catch((error) => {
-      if (error?.code === this.authenticationRequiredErrorCode) {
+      if (
+        error?.code === this.authenticationRequiredErrorCode &&
+        !this._autoReconnect
+      ) {
         const telnyxError = createTelnyxError(46003, error);
         trigger(
           SwEvent.Error,
           { error: telnyxError, sessionId: this.sessionid },
           this.uuid
         );
-
-        // Attempt re-login if auto-reconnect is enabled
-        if (this._autoReconnect) {
-          logger.warn(
-            'Authentication required error received. Attempting re-login...'
-          );
-          this.login();
-        }
       }
       throw error;
     });
@@ -336,8 +331,8 @@ export default abstract class BaseSession {
       const secondsUntilExpiry = exp - nowSec;
 
       if (secondsUntilExpiry <= 0) {
-        // Already expired — emit immediately
-        this._emitTokenExpiryWarning();
+        // Already expired — login will fail and _handleLoginError will handle it
+        return;
       } else if (
         secondsUntilExpiry <= BaseSession.TOKEN_EXPIRY_WARNING_SECONDS
       ) {
