@@ -8,6 +8,7 @@ import {
 } from './util/interfaces';
 import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
+import { createTelnyxError } from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
@@ -246,7 +247,19 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices().catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      let errorCode: 42001 | 42002 | 42003 = 42003;
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorCode = 42001;
+        } else if (
+          error.name === 'NotFoundError' ||
+          error.name === 'OverconstrainedError'
+        ) {
+          errorCode = 42002;
+        }
+      }
+      const telnyxError = createTelnyxError(errorCode, error);
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }
@@ -313,7 +326,19 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      let errorCode: 42001 | 42002 | 42003 = 42003;
+      if (error instanceof DOMException) {
+        if (error.name === 'NotAllowedError') {
+          errorCode = 42001;
+        } else if (
+          error.name === 'NotFoundError' ||
+          error.name === 'OverconstrainedError'
+        ) {
+          errorCode = 42002;
+        }
+      }
+      const telnyxError = createTelnyxError(errorCode, error);
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }
@@ -757,6 +782,13 @@ export default abstract class BrowserSession extends BaseSession {
     this._offlineHandler = () => {
       this._wasOffline = true;
       logger.debug(`Network connectivity lost for session ${this.sessionid}`);
+
+      const telnyxError = createTelnyxError(48001);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.sessionid },
+        this.uuid
+      );
     };
 
     window.addEventListener('online', this._onlineHandler);
