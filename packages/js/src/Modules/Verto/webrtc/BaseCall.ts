@@ -16,7 +16,8 @@ import {
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import { createTelnyxError, createTelnyxWarning } from '../util/errors';
+import { createTelnyxError, createTelnyxWarning, TelnyxError } from '../util/errors';
+import { ITelnyxWarning } from '../util/constants/warnings';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
@@ -744,9 +745,33 @@ export default abstract class BaseCall implements IWebRTCCall {
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
     if (sender) {
-      const newStream = await getUserMedia({
-        audio: { deviceId: { exact: deviceId } },
-      });
+      let newStream: MediaStream;
+      try {
+        newStream = await getUserMedia({
+          audio: { deviceId: { exact: deviceId } },
+        });
+      } catch (error) {
+        let code: 42001 | 42002 | 42003 = 42003;
+        if (error instanceof DOMException) {
+          if (error.name === 'NotAllowedError') {
+            code = 42001;
+          } else if (
+            error.name === 'NotFoundError' ||
+            error.name === 'OverconstrainedError'
+          ) {
+            code = 42002;
+          }
+        }
+        const telnyxError = createTelnyxError(code, {
+          originalError: error instanceof Error ? error : new Error(String(error)),
+        });
+        trigger(
+          SwEvent.MediaError,
+          telnyxError,
+          this.options?.id || this.id
+        );
+        return;
+      }
       const audioTrack = newStream.getAudioTracks()[0];
       audioTrack.enabled = !muted;
       sender.replaceTrack(audioTrack);
@@ -1745,14 +1770,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     return check;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _onMediaError(error: any) {
+  private _onMediaError(error: TelnyxError) {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
 
     // Use the original error for the deprecated notification to preserve
     // the shape consumers expect (raw DOMException, not TelnyxError wrapper)
-    const notificationError = error?.originalError || error;
+    const notificationError = (error?.originalError || error) as Error;
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.userMediaError,
       error: notificationError,
@@ -1772,8 +1796,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.hangup({}, false);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _onPeerConnectionFailureError(data: any) {
+  private _onPeerConnectionFailureError(data: {
+    warning: ITelnyxWarning;
+    error: Error;
+    sessionId: string;
+  }) {
     this._dispatchNotification({
       type: NOTIFICATION_TYPE.peerConnectionFailureError,
       error: data.error,

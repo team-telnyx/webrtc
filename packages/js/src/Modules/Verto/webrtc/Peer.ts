@@ -48,6 +48,7 @@ export default class Peer {
   private _iceGatheringSafetyTimeout: ReturnType<typeof setTimeout> | null =
     null;
   private _gatheredCandidatesCount: number = 0;
+  private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
 
   constructor(
     public type: PeerType,
@@ -342,6 +343,8 @@ export default class Peer {
         SwEvent.PeerConnectionFailureError,
         {
           warning,
+          // TODO: The raw Error is kept for backward compatibility with the deprecated
+          // peerConnectionFailureError notification. Remove when the notification is removed.
           error: new Error(
             `Peer Connection failed. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
           ),
@@ -371,20 +374,6 @@ export default class Peer {
   };
 
   private async createPeerConnection() {
-    // Check network connectivity before attempting WebRTC setup
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      const telnyxError = createTelnyxError(48001);
-      trigger(
-        SwEvent.Error,
-        {
-          error: telnyxError,
-          callId: this.options.id,
-          sessionId: this._session.sessionid,
-        },
-        this.options.id
-      );
-    }
-
     this.instance = RTCPeerConnection(this._config());
 
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
@@ -464,7 +453,6 @@ export default class Peer {
       this.instance.iceConnectionState
     );
   };
-  private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
 
   private _handleIceGatheringStateChange = () => {
     const state = this.instance.iceGatheringState;
