@@ -1371,12 +1371,18 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.peer.startNegotiation();
   }
 
-  private _onIceSdp(data: RTCSessionDescription) {
+  private _onIceSdp(data: RTCSessionDescription | null) {
     if (this._iceTimeout) {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
     this._iceDone = true;
+
+    if (!data) {
+      logger.warn('localDescription is null — PeerConnection may have been closed during ICE gathering');
+      return;
+    }
+
     const { sdp, type } = data;
 
     if (sdp.indexOf('candidate') === -1) {
