@@ -225,6 +225,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
+        iceRestartGraceMs: options.iceRestartGraceMs,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
@@ -1609,31 +1610,38 @@ export default abstract class BaseCall implements IWebRTCCall {
   private static readonly ICE_RESTART_MAX_ATTEMPTS = 3;
 
   /**
-   * Grace period (ms) after ICE failure before triggering restart.
+   * Default grace period (ms) after ICE failure before triggering restart.
    * Gives time for transient recovery (e.g., network flap).
-   * Jitsi uses 2000ms after XMPP ping; we use 2000ms after state change.
+   * Can be overridden via `iceRestartGraceMs` option.
    */
-  private static readonly ICE_RESTART_GRACE_MS = 2000;
+  private static readonly ICE_RESTART_DEFAULT_GRACE_MS = 2000;
 
   /**
    * Attempt ICE restart when the connection fails.
    *
    * Flow (follows Jitsi's IceFailedHandling pattern):
    * 1. connectionState → 'failed' detected
-   * 2. Wait ICE_RESTART_GRACE_MS for transient recovery
+   * 2. Wait grace period for transient recovery
    * 3. If still failed, create new offer with { iceRestart: true }
-   * 4. Send via telnyx_rtc.invite (trickle) or full SDP re-invite
+   * 4. Send via telnyx_rtc.invite (trickle)
    * 5. Remote answers, setRemoteDescription completes the restart
    *
-   * Only works for trickle ICE (the non-trickle path gathers all
-   * candidates before sending — ICE restart there would need a full
-   * re-invite which the B2BUA doesn't currently support).
+   * Limitations:
+   * - Only works for outbound trickle ICE calls. ICE restart creates a
+   *   new offer, which requires the SDK to be the offerer (outbound).
+   *   Inbound calls have the SDK as the answerer, and we don't have
+   *   perfect negotiation (role switch) implemented yet.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
    */
   private _scheduleIceRestart(): void {
     if (!this.options.trickleIce) {
       logger.debug('[IceRestart] Skipping — not in trickle ICE mode');
+      return;
+    }
+
+    if (this.direction !== Direction.Outbound) {
+      logger.debug('[IceRestart] Skipping — only supported for outbound calls (no perfect negotiation)');
       return;
     }
 
@@ -1649,15 +1657,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
+    const graceMs = this.options.iceRestartGraceMs ?? BaseCall.ICE_RESTART_DEFAULT_GRACE_MS;
+
     logger.info(
-      `[IceRestart] Scheduling restart in ${BaseCall.ICE_RESTART_GRACE_MS}ms ` +
+      `[IceRestart] Scheduling restart in ${graceMs}ms ` +
         `(attempt ${this._iceRestartAttempts + 1}/${BaseCall.ICE_RESTART_MAX_ATTEMPTS})`
     );
 
     this._iceRestartTimer = setTimeout(() => {
       this._iceRestartTimer = null;
       this._executeIceRestart();
-    }, BaseCall.ICE_RESTART_GRACE_MS);
+    }, graceMs);
   }
 
   /**

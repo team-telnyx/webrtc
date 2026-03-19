@@ -81,6 +81,16 @@ export interface IVertoCallOptions {
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
+  /**
+   * Grace period in milliseconds before triggering ICE restart after
+   * connection failure. Allows transient failures to recover without
+   * unnecessary restart cycles.
+   *
+   * Only effective when `trickleIce` is true and call is outbound.
+   *
+   * @default 2000
+   */
+  iceRestartGraceMs?: number;
   // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;

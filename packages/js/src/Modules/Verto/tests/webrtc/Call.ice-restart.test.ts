@@ -95,6 +95,14 @@ describe('Call ICE Restart on Failure', () => {
       expect((call as any)._iceRestartTimer).toBeNull();
     });
 
+    it('should not schedule ICE restart for inbound calls (no perfect negotiation)', () => {
+      (call as any).direction = 'inbound';
+
+      (call as any)._scheduleIceRestart();
+
+      expect((call as any)._iceRestartTimer).toBeNull();
+    });
+
     it('should not schedule when max attempts reached', () => {
       (call as any)._iceRestartAttempts = 3;
 
