@@ -49,6 +49,7 @@ a remote caller in a <code>telnyx.notification</code> event handler.</p>
 <div class="tsd-index-list"><a href="Call.html#direction" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-1024"><rect fill="var(--color-icon-background)" stroke="#FF984D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M9.354 16V7.24H12.174C12.99 7.24 13.638 7.476 14.118 7.948C14.606 8.412 14.85 9.036 14.85 9.82C14.85 10.604 14.606 11.232 14.118 11.704C13.638 12.168 12.99 12.4 12.174 12.4H10.434V16H9.354ZM10.434 11.428H12.174C12.646 11.428 13.022 11.284 13.302 10.996C13.59 10.7 13.734 10.308 13.734 9.82C13.734 9.324 13.59 8.932 13.302 8.644C13.022 8.356 12.646 8.212 12.174 8.212H10.434V11.428Z" fill="var(--color-text)"></path></g></svg><span>direction</span></a>
 <a href="Call.html#id" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>id</span></a>
 <a href="Call.html#prevState" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>prev<wbr/>State</span></a>
+<a href="Call.html#recoveredCallId" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>recovered<wbr/>Call<wbr/>Id</span></a>
 <a href="Call.html#state" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>state</span></a>
 </div></section>
 <section class="tsd-index-section">
@@ -105,6 +106,20 @@ See <code>Call.state</code> for all possible values.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from BaseCall.prevState</p></aside></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="recoveredCallId" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>recovered<wbr/>Call<wbr/>Id</span><a href="#recoveredCallId" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">recovered<wbr/>Call<wbr/>Id</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> = &#39;&#39;</span></div>
+<div class="tsd-comment tsd-typography"><p>The call ID of the previous call that this call is recovering from.
+Present only when the call was created as part of a reattachment/recovery
+flow (e.g. after a network reconnection).</p>
+<p>Use this to match the new call object to the ended/destroyed call
+and prevent duplicate UI elements such as dialers.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Example</h4><pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">on</span><span class="hl-1">(</span><span class="hl-6">&#39;telnyx.notification&#39;</span><span class="hl-1">, (</span><span class="hl-3">notification</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">notification</span><span class="hl-1">.</span><span class="hl-3">type</span><span class="hl-1"> === </span><span class="hl-6">&#39;callUpdate&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">call</span><span class="hl-1"> = </span><span class="hl-3">notification</span><span class="hl-1">.</span><span class="hl-3">call</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">call</span><span class="hl-1">.</span><span class="hl-3">recoveredCallId</span><span class="hl-1">) {</span><br/><span class="hl-1">      </span><span class="hl-5">// This call replaced a previous call after recovery</span><br/><span class="hl-1">      </span><span class="hl-5">// Remove the old dialer for call.recoveredCallId</span><br/><span class="hl-1">      </span><span class="hl-4">removeDialer</span><span class="hl-1">(</span><span class="hl-3">call</span><span class="hl-1">.</span><span class="hl-3">recoveredCallId</span><span class="hl-1">);</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+</div><aside class="tsd-sources">
+<p>Inherited from BaseCall.recoveredCallId</p></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="state" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>state</span><a href="#state" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">state</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> = ...</span></div>
@@ -592,6 +607,7 @@ video visible to other call participants.</p>
 <li><a href="#direction" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>direction</span></a></li>
 <li><a href="#id" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>id</span></a></li>
 <li><a href="#prevState" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>prev<wbr/>State</span></a></li>
+<li><a href="#recoveredCallId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>recovered<wbr/>Call<wbr/>Id</span></a></li>
 <li><a href="#state" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>state</span></a></li>
 <li><a href="#isAudioMuted" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>is<wbr/>Audio<wbr/>Muted</span></a></li>
 <li><a href="#localStream" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Stream</span></a></li>
