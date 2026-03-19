@@ -19,6 +19,11 @@ import logger from '../util/logger';
  *
  * @see https://github.com/team-telnyx/webrtc/pull/558
  */
+/**
+ * raddr value when the browser anonymizes the related address.
+ */
+const ANONYMIZED_RADDR = '0.0.0.0';
+
 export class CandidateFilter {
   private _lockedRaddr: string | null = null;
   private _enabled: boolean;
@@ -80,7 +85,7 @@ export class CandidateFilter {
     // Extract raddr (related address = private IP of the source interface)
     const raddr = this._extractRaddr(str);
 
-    if (!raddr || raddr === '0.0.0.0') {
+    if (!raddr || raddr === ANONYMIZED_RADDR) {
       // Can't determine interface (browser privacy mode) — pass through.
       // Worst case: no filtering, same behavior as today.
       this._passedCount++;
