@@ -175,6 +175,15 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  /**
+   * ICE restart on failure state.
+   * Inspired by Jitsi's IceFailedHandling: when ICE/DTLS fails, wait a
+   * short grace period for recovery, then trigger ICE restart via new
+   * offer/answer exchange.
+   */
+  private _iceRestartAttempts: number = 0;
+  private _iceRestartTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions,
@@ -216,6 +225,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
+        iceRestartGraceMs: options.iceRestartGraceMs,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
@@ -1594,6 +1604,153 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._isRemoteDescriptionSet = false;
   }
 
+  /**
+   * Maximum number of ICE restart attempts before giving up.
+   */
+  private static readonly ICE_RESTART_MAX_ATTEMPTS = 3;
+
+  /**
+   * Default grace period (ms) after ICE failure before triggering restart.
+   * Gives time for transient recovery (e.g., network flap).
+   * Can be overridden via `iceRestartGraceMs` option.
+   */
+  private static readonly ICE_RESTART_DEFAULT_GRACE_MS = 2000;
+
+  /**
+   * Attempt ICE restart when the connection fails.
+   *
+   * Flow (follows Jitsi's IceFailedHandling pattern):
+   * 1. connectionState → 'failed' detected
+   * 2. Wait grace period for transient recovery
+   * 3. If still failed, create new offer with { iceRestart: true }
+   * 4. Send via telnyx_rtc.invite (trickle)
+   * 5. Remote answers, setRemoteDescription completes the restart
+   *
+   * Limitations:
+   * - Only works for outbound trickle ICE calls. ICE restart creates a
+   *   new offer, which requires the SDK to be the offerer (outbound).
+   *   Inbound calls have the SDK as the answerer, and we don't have
+   *   perfect negotiation (role switch) implemented yet.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
+   */
+  private _scheduleIceRestart(): void {
+    if (!this.options.trickleIce) {
+      logger.debug('[IceRestart] Skipping — not in trickle ICE mode');
+      return;
+    }
+
+    if (this.direction !== Direction.Outbound) {
+      logger.debug('[IceRestart] Skipping — only supported for outbound calls (no perfect negotiation)');
+      return;
+    }
+
+    if (this._iceRestartAttempts >= BaseCall.ICE_RESTART_MAX_ATTEMPTS) {
+      logger.warn(
+        `[IceRestart] Max attempts (${BaseCall.ICE_RESTART_MAX_ATTEMPTS}) reached — giving up`
+      );
+      return;
+    }
+
+    // Don't schedule if already pending
+    if (this._iceRestartTimer) {
+      return;
+    }
+
+    const graceMs = this.options.iceRestartGraceMs ?? BaseCall.ICE_RESTART_DEFAULT_GRACE_MS;
+
+    logger.info(
+      `[IceRestart] Scheduling restart in ${graceMs}ms ` +
+        `(attempt ${this._iceRestartAttempts + 1}/${BaseCall.ICE_RESTART_MAX_ATTEMPTS})`
+    );
+
+    this._iceRestartTimer = setTimeout(() => {
+      this._iceRestartTimer = null;
+      this._executeIceRestart();
+    }, graceMs);
+  }
+
+  /**
+   * Cancel any pending ICE restart (e.g., connection recovered).
+   */
+  private _cancelIceRestart(): void {
+    if (this._iceRestartTimer) {
+      logger.info('[IceRestart] Connection recovered — cancelling pending restart');
+      clearTimeout(this._iceRestartTimer);
+      this._iceRestartTimer = null;
+    }
+  }
+
+  /**
+   * Execute the ICE restart: create new offer with iceRestart flag,
+   * set local description, send to server, wait for answer.
+   */
+  private async _executeIceRestart(): Promise<void> {
+    if (!this.peer?.instance) {
+      logger.warn('[IceRestart] No peer connection — aborting');
+      return;
+    }
+
+    const pc = this.peer.instance;
+
+    // Check if connection recovered during grace period
+    if (pc.connectionState === 'connected') {
+      logger.info('[IceRestart] Connection recovered during grace period — skipping');
+      return;
+    }
+
+    if (pc.signalingState === 'closed') {
+      logger.warn('[IceRestart] Signaling state is closed — aborting');
+      return;
+    }
+
+    this._iceRestartAttempts++;
+    logger.info(
+      `[IceRestart] Executing ICE restart (attempt ${this._iceRestartAttempts})`
+    );
+
+    try {
+      // Reset trickle state for the new gathering cycle
+      this._resetTrickleIceCandidateState();
+
+      // Create new offer with ICE restart flag
+      // This generates new ICE ufrag/pwd, triggering fresh candidate gathering
+      const offer = await pc.createOffer({
+        iceRestart: true,
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: !!this.options.video,
+      });
+
+      await pc.setLocalDescription(offer);
+
+      logger.info('[IceRestart] New offer created, sending to server');
+
+      // Send the new offer through the signaling channel
+      // Uses the same path as initial trickle ICE negotiation
+      const tmpParams = {
+        sessid: this.session.sessionid,
+        sdp: offer.sdp,
+        dialogParams: this.options,
+        trickle: true,
+        iceRestart: true,
+        'User-Agent': `Web-${SDK_VERSION}`,
+      };
+
+      const msg = new Invite(tmpParams);
+      if (this.nodeId) {
+        msg.targetNodeId = this.nodeId;
+      }
+
+      const response = await this.session.execute(msg);
+      const { node_id = null } = response;
+      this._targetNodeId = node_id;
+
+      logger.info('[IceRestart] Server accepted ICE restart offer');
+    } catch (error) {
+      logger.error('[IceRestart] Failed:', error);
+    }
+  }
+
   private _flushPendingTrickleIceCandidates() {
     if (!this._pendingIceCandidates.length) {
       return;
@@ -1657,6 +1814,21 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.peer.statsReporter.reportIceCandidateError(details);
       }
     };
+
+    // ICE restart on connection failure — inspired by Jitsi's IceFailedHandling.
+    // When the connection fails, wait a grace period for transient recovery,
+    // then trigger ICE restart with new offer/answer exchange.
+    instance.addEventListener('connectionstatechange', () => {
+      const state = instance.connectionState;
+
+      if (state === 'failed') {
+        this._scheduleIceRestart();
+      } else if (state === 'connected') {
+        // Connection recovered — cancel pending restart and reset attempts
+        this._cancelIceRestart();
+        this._iceRestartAttempts = 0;
+      }
+    });
 
     // addstream and MediaStreamEvent are deprecated
     //@ts-expect-error MediaStreamEvent is not defined
@@ -1814,6 +1986,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+    this._cancelIceRestart();
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();

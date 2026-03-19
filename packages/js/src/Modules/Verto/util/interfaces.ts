@@ -31,6 +31,16 @@ export interface IVertoOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
+   * Grace period in milliseconds before triggering ICE restart after
+   * connection failure. Allows transient failures to recover without
+   * unnecessary restart cycles.
+   *
+   * Only effective when `trickleIce` is true and call is outbound.
+   *
+   * @default 2000
+   */
+  iceRestartGraceMs?: number;
+  /**
    * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
