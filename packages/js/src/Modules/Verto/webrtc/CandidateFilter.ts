@@ -17,7 +17,7 @@ import logger from '../util/logger';
  *
  * Enabled via `singleInterfaceIce: true` in SDK options.
  *
- * @see https://telnyx.atlassian.net/browse/ENGDESK-50518
+ * @see https://github.com/team-telnyx/webrtc/pull/558
  */
 export class CandidateFilter {
   private _lockedRaddr: string | null = null;
