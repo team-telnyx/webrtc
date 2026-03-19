@@ -89,7 +89,7 @@ export interface IVertoCallOptions {
    * Only effective when `trickleIce` is also true.
    *
    * @default false
-   * @see https://telnyx.atlassian.net/browse/ENGDESK-50518
+   * @see https://github.com/team-telnyx/webrtc/pull/558
    */
   singleInterfaceIce?: boolean;
   // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
