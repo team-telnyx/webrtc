@@ -15,7 +15,7 @@ import logger from '../util/logger';
  * that sourced the candidate) and drop candidates from all other interfaces.
  * This is zero-config, works across all browsers, and adds no buffering delay.
  *
- * Enabled via `filterCandidatesByInterface: true` in SDK options.
+ * Enabled via `singleInterfaceIce: true` in SDK options.
  *
  * @see https://telnyx.atlassian.net/browse/ENGDESK-50518
  */
