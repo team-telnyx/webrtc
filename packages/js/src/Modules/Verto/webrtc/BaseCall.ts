@@ -244,7 +244,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
-        filterCandidatesByInterface: options.filterCandidatesByInterface,
+        singleInterfaceIce: options.singleInterfaceIce,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
@@ -1672,7 +1672,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
     // Initialize candidate filter for multi-interface mitigation
     this._candidateFilter = new CandidateFilter(
-      this.options.filterCandidatesByInterface === true,
+      this.options.singleInterfaceIce === true,
       (candidate: RTCIceCandidate) => this._sendIceCandidate(candidate),
       () => this._sendEndOfCandidates()
     );

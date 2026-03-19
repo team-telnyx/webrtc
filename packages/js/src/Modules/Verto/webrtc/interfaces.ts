@@ -82,7 +82,7 @@ export interface IVertoCallOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
-   * When true, filters trickle ICE candidates to a single network interface.
+   * When true, restricts trickle ICE candidates to a single network interface.
    * Prevents DTLS handshake failures on multi-NIC clients where the B2BUA
    * and client may disagree on which interface to use for media.
    *
@@ -91,7 +91,7 @@ export interface IVertoCallOptions {
    * @default false
    * @see https://telnyx.atlassian.net/browse/ENGDESK-50518
    */
-  filterCandidatesByInterface?: boolean;
+  singleInterfaceIce?: boolean;
   // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;
