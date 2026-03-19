@@ -1,3 +1,7 @@
+## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
+
+- docs: update ts docs
+- feat: add recoveredCallId to call object for recovery correlation (ENGDESK-50308)
 ## [2.25.25](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.24...webrtc/v2.25.25) (2026-03-11)
 
 - docs: update ts docs

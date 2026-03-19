@@ -63,7 +63,7 @@ class VertoHandler {
       return this._handlePvtEvent(params.pvtData);
     }
 
-    const _buildCall = (isRecovering: boolean = false) => {
+    const _buildCall = (recoveredCallId?: string) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -120,7 +120,11 @@ class VertoHandler {
         callOptions.customHeaders = params.dialogParams.custom_headers;
       }
 
-      const call = new Call(session, callOptions, isRecovering);
+      if (recoveredCallId) {
+        callOptions.recoveredCallId = recoveredCallId;
+      }
+
+      const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;
     };
@@ -207,20 +211,17 @@ class VertoHandler {
           return;
         }
 
-        /**
-         * We call our recovery flow with recovering call state during the call lifecycle.
-         */
-        const isRecovering = !!existingCall;
+        const recoveredCallId = existingCall.id;
 
         logger.info(
           `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
         );
-        existingCall.hangup({ isRecovering }, false);
+        existingCall.hangup({ isRecovering: true }, false);
 
         logger.info(
-          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery`
+          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
         );
-        const call = _buildCall(isRecovering);
+        const call = _buildCall(recoveredCallId);
         call.answer();
         this._ack(id, method);
         break;
