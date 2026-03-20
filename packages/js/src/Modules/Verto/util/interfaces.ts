@@ -117,6 +117,13 @@ export interface INotificationEventData {
   displayName?: string;
   displayNumber?: string;
   displayDirection?: string;
+  /** Present when type === 'audioSilenceDetected' */
+  silence?: {
+    direction: 'both' | 'inbound' | 'outbound';
+    durationMs: number;
+    inboundLevel: number;
+    outboundLevel: number;
+  };
 }
 
 export interface IRequestRPC {

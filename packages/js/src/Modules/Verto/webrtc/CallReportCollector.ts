@@ -20,6 +20,10 @@ import {
   setGlobalLogCollector,
   getGlobalLogCollector,
 } from '../../../Modules/Verto/util/LogCollector';
+import {
+  SilenceDetector,
+  SilenceEvent,
+} from './SilenceDetector';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -253,6 +257,12 @@ export class CallReportCollector {
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
 
+  /** Detects sustained silence on both audio directions */
+  private _silenceDetector: SilenceDetector | null = null;
+
+  /** Public callback for silence events — wired by BaseCall to dispatch notifications */
+  public onSilenceDetected: ((event: SilenceEvent) => void) | null = null;
+
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAY_MS = 500;
 
@@ -286,6 +296,14 @@ export class CallReportCollector {
 
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
+
+    // Create silence detector — polls every stats interval
+    this._silenceDetector = new SilenceDetector({
+      pollingIntervalMs: this.options.interval,
+    });
+    this._silenceDetector.onSilenceDetected = (event) => {
+      this.onSilenceDetected?.(event);
+    };
 
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
@@ -566,6 +584,10 @@ export class CallReportCollector {
    * Clean up resources (call after postReport)
    */
   public cleanup(): void {
+    if (this._silenceDetector) {
+      this._silenceDetector.destroy();
+      this._silenceDetector = null;
+    }
     if (this.logCollector) {
       this.logCollector.clear();
       // Clear global reference if it points to this collector
@@ -720,6 +742,23 @@ export class CallReportCollector {
       }
 
       this.previousStats.timestamp = now.getTime();
+
+      // Feed audio levels to silence detector on every stats poll
+      if (this._silenceDetector) {
+        const lastInbound =
+          this.intervalAudioLevels.inbound.length > 0
+            ? this.intervalAudioLevels.inbound[
+                this.intervalAudioLevels.inbound.length - 1
+              ]
+            : null;
+        const lastOutbound =
+          this.intervalAudioLevels.outbound.length > 0
+            ? this.intervalAudioLevels.outbound[
+                this.intervalAudioLevels.outbound.length - 1
+              ]
+            : null;
+        this._silenceDetector.onAudioLevels(lastInbound, lastOutbound);
+      }
 
       // Check if interval is complete (end of collection period).
       // When isFinal is true, always push the partial interval so that

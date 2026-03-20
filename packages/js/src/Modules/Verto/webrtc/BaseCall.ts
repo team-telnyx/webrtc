@@ -911,6 +911,81 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
+  /**
+   * Triggers an ICE restart to renew the media connection without tearing
+   * down the call. Useful when silence is detected or the media path
+   * degrades.
+   *
+   * Can be called during an active call (State.Active) or after ICE
+   * connection is established. Creates a new SDP offer with fresh ICE
+   * credentials and sends it via `telnyx_rtc.invite`.
+   *
+   * @examples
+   *
+   * Listen for the `audioSilenceDetected` notification and restart:
+   * ```js
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'audioSilenceDetected') {
+   *     notification.call.restartMedia();
+   *   }
+   * });
+   * ```
+   *
+   * Or call it explicitly:
+   * ```js
+   * call.restartMedia();
+   * ```
+   */
+  async restartMedia(): Promise<void> {
+    if (!this.peer?.instance) {
+      logger.warn(`[${this.id}] restartMedia: no peer connection`);
+      return;
+    }
+
+    const connectionState = this.peer.instance.connectionState;
+    const iceState = this.peer.instance.iceConnectionState;
+
+    // Only allow restart when the call is active or connected
+    if (
+      this._state < State.Active &&
+      iceState !== 'connected' &&
+      iceState !== 'completed'
+    ) {
+      logger.warn(
+        `[${this.id}] restartMedia: call not active (state=${State[this._state]}, ice=${iceState})`
+      );
+      return;
+    }
+
+    logger.info(
+      `[${this.id}] restartMedia: initiating ICE restart (connection=${connectionState}, ice=${iceState})`
+    );
+
+    try {
+      const offer = await this.peer.instance.createOffer({
+        iceRestart: true,
+      });
+
+      await this.peer.instance.setLocalDescription(offer);
+
+      // Send the new offer to the server — reuses the existing invite flow
+      const msg = new Invite({
+        sessid: this.session.sessionid,
+        sdp: offer.sdp,
+        trickle: this.options.trickleIce === true,
+        iceRestart: true,
+        dialogParams: this.options,
+        'User-Agent': `Web-${SDK_VERSION}`,
+      });
+
+      await this._execute(msg);
+
+      logger.info(`[${this.id}] restartMedia: ICE restart offer sent`);
+    } catch (error) {
+      logger.error(`[${this.id}] restartMedia failed:`, error);
+    }
+  }
+
   async setBandwidthEncodingsMaxBps(max: number, _kind: string) {
     if (!this || !this.peer) {
       logger.error(
@@ -1831,6 +1906,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       // so the buffer can keep collecting for the rest of the call.
       this._callReportCollector.onFlushNeeded = () => {
         this._flushIntermediateReport();
+      };
+
+      this._callReportCollector.onSilenceDetected = (event) => {
+        logger.warn(
+          `[${this.id}] Silence detected: ${event.direction} for ${event.durationMs}ms ` +
+            `(in=${event.inboundLevel.toFixed(4)}, out=${event.outboundLevel.toFixed(4)})`
+        );
+        this._dispatchNotification({
+          type: NOTIFICATION_TYPE.audioSilenceDetected,
+          call: this,
+          silence: {
+            direction: event.direction,
+            durationMs: event.durationMs,
+            inboundLevel: event.inboundLevel,
+            outboundLevel: event.outboundLevel,
+          },
+        });
       };
     }
 
