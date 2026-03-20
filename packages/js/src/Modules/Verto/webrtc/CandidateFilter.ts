@@ -11,8 +11,9 @@ import logger from '../util/logger';
  * from interface A while the client nominates a candidate from interface B,
  * causing a DTLS path mismatch and zero audio.
  *
- * Solution: Lock to the first interface (identified by `raddr` — the private IP
- * that sourced the candidate) and drop candidates from all other interfaces.
+ * Solution: Lock to the first interface and drop candidates from all others.
+ * Interface is identified by `raddr` (private IP), falling back to `network-id`
+ * when raddr is anonymized (e.g. relay-only mode where raddr is 0.0.0.0).
  * This is zero-config, works across all browsers, and adds no buffering delay.
  *
  * Enabled via `singleInterfaceIce: true` in SDK options.
@@ -25,7 +26,7 @@ import logger from '../util/logger';
 const ANONYMIZED_RADDR = '0.0.0.0';
 
 export class CandidateFilter {
-  private _lockedRaddr: string | null = null;
+  private _lockedInterface: string | null = null;
   private _enabled: boolean;
   private _onCandidate: (candidate: RTCIceCandidate) => void;
   private _onEndOfCandidates: () => void;
@@ -54,7 +55,7 @@ export class CandidateFilter {
         logger.info(
           `[CandidateFilter] Gathering complete. ` +
             `Passed: ${this._passedCount}, Filtered: ${this._filteredCount}, ` +
-            `Locked interface: ${this._lockedRaddr}`
+            `Locked interface: ${this._lockedInterface}`
         );
       }
       this._onEndOfCandidates();
@@ -82,31 +83,36 @@ export class CandidateFilter {
       return;
     }
 
-    // Extract raddr (related address = private IP of the source interface)
+    // Determine interface identifier.
+    // Primary: raddr (private IP of source interface).
+    // Fallback: network-id (Chrome extension, useful when raddr is 0.0.0.0
+    // e.g. relay-only mode with iceTransportPolicy: 'relay').
     const raddr = this._extractRaddr(str);
+    const networkId = this._extractNetworkId(str);
+    const interfaceKey =
+      raddr && raddr !== ANONYMIZED_RADDR ? raddr : networkId;
 
-    if (!raddr || raddr === ANONYMIZED_RADDR) {
-      // Can't determine interface (browser privacy mode) — pass through.
-      // Worst case: no filtering, same behavior as today.
+    if (!interfaceKey) {
+      // Can't determine interface at all — pass through.
       this._passedCount++;
       this._onCandidate(event.candidate);
       return;
     }
 
     // Lock to first interface seen
-    if (!this._lockedRaddr) {
-      this._lockedRaddr = raddr;
-      logger.info(`[CandidateFilter] Locked to interface: ${raddr}`);
+    if (!this._lockedInterface) {
+      this._lockedInterface = interfaceKey;
+      logger.info(`[CandidateFilter] Locked to interface: ${interfaceKey}`);
     }
 
-    if (raddr === this._lockedRaddr) {
+    if (interfaceKey === this._lockedInterface) {
       this._passedCount++;
       this._onCandidate(event.candidate);
     } else {
       this._filteredCount++;
       logger.debug(
-        `[CandidateFilter] Dropped candidate from ${raddr} ` +
-          `(locked: ${this._lockedRaddr}): ${str}`
+        `[CandidateFilter] Dropped candidate from ${interfaceKey} ` +
+          `(locked: ${this._lockedInterface}): ${str}`
       );
     }
   }
@@ -115,7 +121,7 @@ export class CandidateFilter {
    * Reset filter state. Call on ICE restart or new call.
    */
   reset(): void {
-    this._lockedRaddr = null;
+    this._lockedInterface = null;
     this._filteredCount = 0;
     this._passedCount = 0;
   }
@@ -127,6 +133,16 @@ export class CandidateFilter {
   private _extractRaddr(candidateStr: string): string | null {
     const match = candidateStr.match(/raddr (\S+)/);
     return match ? match[1] : null;
+  }
+
+  /**
+   * Extract `network-id` from an ICE candidate string.
+   * network-id is a Chrome extension that identifies the source interface.
+   * Used as fallback when raddr is anonymized (0.0.0.0).
+   */
+  private _extractNetworkId(candidateStr: string): string | null {
+    const match = candidateStr.match(/network-id (\d+)/);
+    return match ? `network-id:${match[1]}` : null;
   }
 
   /**
