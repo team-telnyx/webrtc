@@ -43,6 +43,7 @@ export const NOTIFICATION_TYPE = {
   userMediaError: 'userMediaError',
   peerConnectionFailureError: 'peerConnectionFailureError',
   signalingStateClosed: 'signalingStateClosed',
+  audioSilenceDetected: 'audioSilenceDetected',
 };
 
 export const ERROR_TYPE = {

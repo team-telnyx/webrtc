@@ -1832,6 +1832,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._callReportCollector.onFlushNeeded = () => {
         this._flushIntermediateReport();
       };
+
+      this._callReportCollector.onSilenceDetected = (event) => {
+        logger.warn(
+          `[${this.id}] Silence detected: ${event.direction} for ${event.durationMs}ms ` +
+            `(in=${event.inboundLevel.toFixed(4)}, out=${event.outboundLevel.toFixed(4)})`
+        );
+        this._dispatchNotification({
+          type: NOTIFICATION_TYPE.audioSilenceDetected,
+          call: this,
+          silence: {
+            direction: event.direction,
+            durationMs: event.durationMs,
+            inboundLevel: event.inboundLevel,
+            outboundLevel: event.outboundLevel,
+          },
+        });
+      };
     }
 
     if (this._isRecovering) {
