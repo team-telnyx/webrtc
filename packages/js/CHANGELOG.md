@@ -1,3 +1,11 @@
+## [2.25.26-beta.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.4) (2026-03-20)
+
+- chore: bump version to 2.25.26-beta.3 for singleInterfaceIce prerelease
+- refactor: extract magic string to ANONYMIZED_RADDR constant
+- chore: replace Jira links with PR link in code comments
+- refactor: rename filterCandidatesByInterface to singleInterfaceIce
+- feat: add single-interface ICE candidate filter for multi-NIC DTLS mismatch mitigation
+- feat: add recoveredCallId to call object for recovery correlation (#553)
 ## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
 
 - docs: update ts docs
