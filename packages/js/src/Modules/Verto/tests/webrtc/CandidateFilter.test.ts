@@ -169,7 +169,31 @@ describe('CandidateFilter', () => {
       ]);
     });
 
-    it('passes candidates with raddr 0.0.0.0 (browser privacy mode)', () => {
+    it('falls back to network-id when raddr is 0.0.0.0', () => {
+      const filter = new CandidateFilter(true, onCandidate, onEndOfCandidates);
+
+      // raddr 0.0.0.0 but different network-ids — locks to first
+      filter.add(
+        makeEvent(
+          'candidate:1 1 udp 58597631 64.16.248.194 53163 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 1'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:2 1 udp 58466559 64.16.248.194 50398 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 3 network-cost 10'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:3 1 udp 25042943 64.16.248.195 63369 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 1'
+        )
+      );
+
+      // network-id 1 locked, network-id 3 dropped
+      expect(onCandidate).toHaveBeenCalledTimes(2);
+    });
+
+    it('passes all candidates when raddr is 0.0.0.0 and no network-id', () => {
       const filter = new CandidateFilter(true, onCandidate, onEndOfCandidates);
 
       filter.add(
@@ -183,6 +207,7 @@ describe('CandidateFilter', () => {
         )
       );
 
+      // No network-id, no raddr — can't filter, pass through
       expect(onCandidate).toHaveBeenCalledTimes(2);
     });
 
@@ -323,6 +348,39 @@ describe('CandidateFilter', () => {
       // All candidates pass — single interface
       expect(onCandidate).toHaveBeenCalledTimes(3);
       expect(onEndOfCandidates).toHaveBeenCalledTimes(1);
+    });
+
+    it('filters relay-only candidates by network-id (forceRelay dual-NIC)', () => {
+      const filter = new CandidateFilter(true, onCandidate, onEndOfCandidates);
+
+      // Exact scenario from call-report-force-relay-double-network.json
+      // All relay, raddr 0.0.0.0, different network-ids
+      filter.add(
+        makeEvent(
+          'candidate:1081149668 1 udp 58597631 64.16.248.194 53163 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 1'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:1081149668 1 udp 58466559 64.16.248.194 50398 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 3 network-cost 10'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:3651357931 1 udp 25042943 64.16.248.195 63369 typ relay raddr 0.0.0.0 rport 0 generation 0 ufrag gHLB network-id 1'
+        )
+      );
+
+      filter.add(makeEvent(null));
+
+      // network-id 1 locked (first seen), network-id 3 dropped
+      expect(onCandidate).toHaveBeenCalledTimes(2);
+      expect(onEndOfCandidates).toHaveBeenCalledTimes(1);
+
+      const passed = onCandidate.mock.calls.map(([c]) => c.candidate);
+      passed.forEach((c: string) => {
+        expect(c).toContain('network-id 1');
+      });
     });
 
     it('handles empty candidate string in event', () => {
