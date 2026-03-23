@@ -208,6 +208,25 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Call Recovery and `recoveredCallId`
+   *
+   * When a call is recovered after a network reconnection (reattach), the SDK
+   * creates a new call object and sets `recoveredCallId` to the ID of the ended call.
+   * Use this to correlate the new call with the old one and avoid duplicate UI elements:
+   *
+   * ```js
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'callUpdate') {
+   *     const call = notification.call;
+   *     if (call.recoveredCallId) {
+   *       // This call replaced a previous call after recovery.
+   *       // Remove the old dialer/UI for call.recoveredCallId
+   *       removeDialer(call.recoveredCallId);
+   *     }
+   *   }
+   * });
+   * ```
+   *
    * ### Voice Isolation
    *
    * Voice isolation options can be set by passing an `audio` object to the `newCall` method. This property controls the settings of a MediaStreamTrack object. For reference on available audio constraints, see [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints).
