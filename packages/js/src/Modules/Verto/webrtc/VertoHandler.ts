@@ -156,9 +156,9 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session.execute(messagePing).catch(() => {
-          // Auth errors are handled centrally in BaseSession.execute()
-        });
+        // Auth errors are handled centrally in BaseSession.execute();
+        // catch only prevents unhandled promise rejection.
+        this.session.execute(messagePing).catch(() => {});
         break;
       }
       case VertoMethod.Punt:
