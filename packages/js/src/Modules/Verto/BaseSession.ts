@@ -131,17 +131,17 @@ export default abstract class BaseSession {
         this.connect();
       });
     }
-    return this.connection.send(msg).catch((error) => {
-      if (
-        error?.code === this.authenticationRequiredErrorCode &&
-        !this._autoReconnect
-      ) {
-        const telnyxError = createTelnyxError(46003, error);
-        trigger(
-          SwEvent.Error,
-          { error: telnyxError, sessionId: this.sessionid },
-          this.uuid
-        );
+    return this.connection.send(msg).catch(async (error) => {
+      if (error?.code === this.authenticationRequiredErrorCode) {
+        if (!this._autoReconnect) {
+          const telnyxError = createTelnyxError(46003, error);
+          trigger(
+            SwEvent.Error,
+            { error: telnyxError, sessionId: this.sessionid },
+            this.uuid
+          );
+        }
+        await this.login();
       }
       throw error;
     });
