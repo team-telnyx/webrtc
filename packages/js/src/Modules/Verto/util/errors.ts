@@ -72,6 +72,27 @@ export class TelnyxError extends Error implements ITelnyxError {
 }
 
 /**
+ * Classify a media-related error into a structured error code.
+ *
+ * - 42001 → Permission denied (NotAllowedError)
+ * - 42002 → Device not found (NotFoundError / OverconstrainedError)
+ * - 42003 → Generic media error (fallback)
+ */
+export function classifyMediaErrorCode(
+  error: unknown
+): 42001 | 42002 | 42003 {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError') {
+      return 42001;
+    }
+    if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
+      return 42002;
+    }
+  }
+  return 42003;
+}
+
+/**
  * Factory that creates a `TelnyxError` from a registered error code.
  *
  * @param code - One of the numeric keys from `SDK_ERRORS`

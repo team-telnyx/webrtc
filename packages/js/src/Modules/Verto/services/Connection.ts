@@ -5,6 +5,7 @@ import {
   SwEvent,
   WS_CLOSE_CODES,
 } from '../util/constants';
+import { createTelnyxError } from '../util/errors';
 import {
   checkWebSocketHost,
   destructResponse,
@@ -133,12 +134,13 @@ export default class Connection {
       this._wsClient = new WebSocketClass(websocketUrl.toString());
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
-      const err =
-        error instanceof Error
-          ? error
-          : new Error(`Failed to create WebSocket: ${String(error)}`);
-      trigger(SwEvent.Error, { error: err }, this.session.uuid);
-      logger.error('WebSocket connection failed:', err);
+      logger.error('WebSocket connection failed:', error);
+      const telnyxError = createTelnyxError(45001, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
     }
   }
 
@@ -200,6 +202,15 @@ export default class Connection {
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
+
+      // Emit structured error alongside the legacy SocketError
+      const telnyxError = createTelnyxError(45002);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+
       return trigger(
         SwEvent.SocketError,
         { error: event, sessionId: this.session.sessionid },
