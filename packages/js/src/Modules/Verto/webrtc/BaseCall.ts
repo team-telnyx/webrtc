@@ -78,6 +78,30 @@ export default abstract class BaseCall implements IWebRTCCall {
   public id: string = '';
 
   /**
+   * The call ID of the previous call that this call is recovering from.
+   * Present only when the call was created as part of a reattachment/recovery
+   * flow (e.g. after a network reconnection).
+   *
+   * Use this to match the new call object to the ended/destroyed call
+   * and prevent duplicate UI elements such as dialers.
+   *
+   * @example
+   * ```js
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'callUpdate') {
+   *     const call = notification.call;
+   *     if (call.recoveredCallId) {
+   *       // This call replaced a previous call after recovery
+   *       // Remove the old dialer for call.recoveredCallId
+   *       removeDialer(call.recoveredCallId);
+   *     }
+   *   }
+   * });
+   * ```
+   */
+  public recoveredCallId: string = '';
+
+  /**
    * The `state` of the call.
    *
    * | Value | Description |
@@ -177,10 +201,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  private _isRecovering: boolean = false;
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions,
-    private _isRecovering: boolean = false
   ) {
     const {
       iceServers,
@@ -1057,6 +1082,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     switch (method) {
       case VertoMethod.Answer: {
         this.gotAnswer = true;
+        if (params.telnyx_call_control_id) {
+          this.options.telnyxCallControlId = params.telnyx_call_control_id;
+        }
+        if (params.telnyx_session_id) {
+          this.options.telnyxSessionId = params.telnyx_session_id;
+        }
+        if (params.telnyx_leg_id) {
+          this.options.telnyxLegId = params.telnyx_leg_id;
+        }
         if (this._state >= State.Active) {
           return;
         }
@@ -1590,9 +1624,12 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onIce(event: RTCPeerConnectionIceEvent) {
     const { instance } = this.peer;
     if (this._iceTimeout === null) {
+      // Use a longer timeout for attach (reconnection) to allow full ICE
+      // gathering — b2bua-rtc requires a complete SDP for attach.
+      const timeoutMs = this.options.attach ? 5000 : 1000;
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        1000
+        timeoutMs,
       );
     }
 
@@ -1849,7 +1886,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _init() {
-    const { id, userVariables, remoteCallerNumber, onNotification } =
+    const { id, userVariables, remoteCallerNumber, onNotification, recoveredCallId } =
       this.options;
     if (id) {
       this.options.id = id.toString();
@@ -1857,6 +1894,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.id = uuidv4();
     }
     this.id = this.options.id;
+
+    if (recoveredCallId) {
+      this.recoveredCallId = recoveredCallId;
+      this._isRecovering = true;
+    }
 
     if (!userVariables || objEmpty(userVariables)) {
       this.options.userVariables = this.session.options.userVariables || {};

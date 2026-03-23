@@ -68,6 +68,15 @@ export interface IVertoCallOptions {
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
   preferred_codecs?: RTCRtpCodecCapability[];
+  /**
+   * When true and audio is false (no microphone), add a recvonly audio
+   * transceiver so the SDP still includes an audio m-line capable of
+   * receiving the remote party's audio (e.g. AI agent speech) without
+   * requesting microphone permission.
+   *
+   * Defaults to false.
+   */
+  receiveOnlyAudio?: boolean;
   /** Enable or disable prefetching ICE candidates. Defaults to true. */
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
@@ -75,6 +84,15 @@ export interface IVertoCallOptions {
   // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;
+  /**
+   * The call ID of the previous call that this call is recovering from.
+   * Set automatically during reattachment/recovery when a new call object
+   * replaces an existing one (e.g. after network reconnection).
+   *
+   * Customers can use this to correlate the new call object with the
+   * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
+   */
+  recoveredCallId?: string;
 }
 
 export interface IStatsBinding {
@@ -108,6 +126,15 @@ export interface AnswerParams {
 
 export interface IWebRTCCall {
   id: string;
+  /**
+   * The call ID of the previous call that this call is recovering from.
+   * Present only when the call was created as part of a reattachment/recovery
+   * flow (e.g. after a network reconnection).
+   *
+   * Use this to match the new call object to the ended/destroyed call
+   * and prevent duplicate UI elements such as dialers.
+   */
+  recoveredCallId?: string;
   state: string;
   prevState: string;
   direction: string;

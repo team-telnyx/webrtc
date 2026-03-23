@@ -141,13 +141,80 @@ describe('VertoHandler', () => {
     });
   });
 
-  // describe('verto.attach', () => {
+  describe('telnyx_rtc.attach', () => {
+    it('should set recoveredCallId on the new call when recovering from an existing call', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
 
-  // })
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
 
-  // describe('verto.event', () => {
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4405,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
 
-  // })
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should NOT set recoveredCallId when no existing call (fresh attach)', async (done) => {
+      await instance.connect();
+      const callId = 'fresh-call-id-1234';
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4406,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should set recoveredCallId when call ID changes during recovery', async (done) => {
+      await instance.connect();
+      const oldCallId = 'old-call-id-1234';
+      const newCallId = 'new-call-id-5678';
+      _setupCall({ id: oldCallId });
+      call.setState(State.Active);
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      // Server sends attach with a DIFFERENT callID — old call won't be found
+      // so it goes through the !existingCall branch (no recoveredCallId)
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4407,"method":"telnyx_rtc.attach","params":{"callID":"${newCallId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[newCallId];
+      expect(newCall).toBeDefined();
+      // When callID differs, existingCall is null → no recoveredCallId set
+      expect(newCall.recoveredCallId).toBeFalsy();
+      // Old call should still exist
+      expect(instance.calls[oldCallId]).toBeDefined();
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+  });
 
   describe('telnyx_rtc.info', () => {
     it('should dispatch a notification', () => {
