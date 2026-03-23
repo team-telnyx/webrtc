@@ -16,7 +16,7 @@ import {
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import { createTelnyxError, createTelnyxWarning, TelnyxError } from '../util/errors';
+import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning, TelnyxError } from '../util/errors';
 import { ITelnyxWarning } from '../util/constants/warnings';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
@@ -751,20 +751,10 @@ export default abstract class BaseCall implements IWebRTCCall {
           audio: { deviceId: { exact: deviceId } },
         });
       } catch (error) {
-        let code: 42001 | 42002 | 42003 = 42003;
-        if (error instanceof DOMException) {
-          if (error.name === 'NotAllowedError') {
-            code = 42001;
-          } else if (
-            error.name === 'NotFoundError' ||
-            error.name === 'OverconstrainedError'
-          ) {
-            code = 42002;
-          }
-        }
-        const telnyxError = createTelnyxError(code, {
-          originalError: error instanceof Error ? error : new Error(String(error)),
-        });
+        const telnyxError = createTelnyxError(
+          classifyMediaErrorCode(error),
+          error instanceof Error ? error : new Error(String(error))
+        );
         trigger(
           SwEvent.MediaError,
           telnyxError,

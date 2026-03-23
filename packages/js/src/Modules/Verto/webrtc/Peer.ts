@@ -1,7 +1,7 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
-import { createTelnyxError, createTelnyxWarning } from '../util/errors';
+import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning } from '../util/errors';
 import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
@@ -409,18 +409,7 @@ export default class Peer {
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
-        let errorCode: 42001 | 42002 | 42003 = 42003;
-        if (error instanceof DOMException) {
-          if (error.name === 'NotAllowedError') {
-            errorCode = 42001;
-          } else if (
-            error.name === 'NotFoundError' ||
-            error.name === 'OverconstrainedError'
-          ) {
-            errorCode = 42002;
-          }
-        }
-        const telnyxError = createTelnyxError(errorCode, error);
+        const telnyxError = createTelnyxError(classifyMediaErrorCode(error), error);
         trigger(SwEvent.MediaError, telnyxError, this.options.id);
         return null;
       }
