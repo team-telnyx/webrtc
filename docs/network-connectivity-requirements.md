@@ -80,7 +80,6 @@ The SDK uses STUN for NAT traversal (discovering the client's public-facing IP) 
 | STUN (UDP) | ANY | ANY | `stun.telnyx.com` | **3478** |
 | TURN (UDP) | ANY | ANY | TURN server IPs | **3478** |
 | TURN (TCP) | ANY | ANY | TURN server IPs | **3478** |
-| TURNS (TLS) | ANY | ANY | TURN server IPs | **443** |
 | TURN relay (UDP) | ANY | ANY | TURN server IPs | **49152–65535** |
 
 ### TURN server IP addresses
@@ -163,9 +162,11 @@ If your network blocks all UDP traffic:
      forceRelayCandidate: true,
    })
    ```
-2. Ensure TCP port **443** (TURNS) or **3478** (TURN TCP) is open to the TURN server IPs listed above.
+2. Ensure TCP port **3478** (TURN TCP) is open to the TURN server IPs listed above.
 
 > **Warning:** Forcing relay candidates adds latency since all media is relayed through the TURN server. Use this only when direct UDP is not possible.
+>
+> **Note:** TURNS (TURN over TLS on port 443) is not currently supported.
 
 ## Recommendations and best practices
 
