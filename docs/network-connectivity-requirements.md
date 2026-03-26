@@ -2,8 +2,6 @@
 
 This document outlines the network connectivity requirements for Telnyx's Voice SDK (`@telnyx/webrtc`). It lists the servers' ports and IP addresses that the SDK must be able to reach, and the bandwidth required for quality audio.
 
-> **Note:** Telnyx's Voice SDK assumes a well-performing and accessible network. Problems with firewall configurations, QoS implementations, bandwidth allocations, and ISP performance are outside Telnyx support scope — please work with your local IT, ISP, and hardware vendors for assistance.
-
 ## Connectivity checklist
 
 1. Allow [Signaling servers](#signaling-connectivity) (WebSocket TLS)
