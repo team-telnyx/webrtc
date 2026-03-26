@@ -3,6 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
+import {
+  collectCallEstablishmentTimings,
+  logCallEstablishmentTimings,
+  clearCallMarks,
+  ICallEstablishmentTimings,
+} from './CallEstablishmentTimings';
 import { CallReportCollector } from './CallReportCollector';
 import {
   Answer,
@@ -199,6 +205,16 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  private _firstCandidateSent: boolean = false;
+
+  private _firstNonHostCandidateSent: boolean = false;
+
+  private _establishmentTimings: ICallEstablishmentTimings | null = null;
+
+  private _timingsCollected: boolean = false;
+
+  private _callIsActive: boolean = false;
+
   private _isRecovering: boolean = false;
 
   constructor(
@@ -266,48 +282,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
       this._ringback = createAudio(this.options.ringbackFile, '_ringback');
     }
-  }
-
-  private get performanceMetrics() {
-    const peerCreation = performance.measure(
-      'peer-creation',
-      'peer-creation-start',
-      'peer-creation-end'
-    );
-
-    const iceGathering = performance.measure(
-      'ice-gathering',
-      'ice-gathering-start',
-      'ice-gathering-end'
-    );
-
-    const sdpSend = performance.measure(
-      'sdp-send',
-      'sdp-send-start',
-      'sdp-send-end'
-    );
-
-    const totalDuration = performance.measure(
-      'total-duration',
-      'peer-creation-start',
-      'sdp-send-end'
-    );
-
-    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
-    return {
-      'Peer Creation': {
-        duration: formatDuration(peerCreation.duration),
-      },
-      'ICE Gathering': {
-        duration: formatDuration(iceGathering.duration),
-      },
-      'SDP Send': {
-        duration: formatDuration(sdpSend.duration),
-      },
-      'Total Duration': {
-        duration: formatDuration(totalDuration.duration),
-      },
-    };
   }
 
   get nodeId(): string {
@@ -396,7 +370,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark(`peer-creation-start`);
+    performance.mark(`${this.id}-new-peer`);
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
@@ -419,8 +393,8 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    performance.mark(`${this.id}-answer-called`);
     this._creatingPeer = true;
-    performance.mark('new-call-start');
     this.stopRingtone();
 
     this.direction = Direction.Inbound;
@@ -435,7 +409,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark(`peer-creation-start`);
+    performance.mark(`${this.id}-new-peer`);
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
@@ -446,7 +420,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         : this._registerPeerEvents
     );
     await this.peer.init();
-    performance.mark('new-call-end');
     this._creatingPeer = false;
   }
 
@@ -1019,6 +992,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
         break;
       case State.Active: {
+        performance.mark(`${this.id}-call-active`);
+        this._callIsActive = true;
+
         // Clear recovery flag when call becomes active again
         if (this._isRecovering) {
           this._isRecovering = false;
@@ -1030,6 +1006,10 @@ export default abstract class BaseCall implements IWebRTCCall {
             setMediaElementSinkId(remoteElement, speakerId);
           }
         }, 0);
+
+        // Try to collect timings — will succeed if DTLS is already connected.
+        // Otherwise _onDtlsConnected will collect when DTLS finishes.
+        this._tryCollectTimings();
 
         // Start collecting call stats when call becomes active
         // Only start if call_report_id is available (returned from voice-sdk-proxy)
@@ -1050,6 +1030,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (method) {
       case VertoMethod.Answer: {
+        performance.mark(`${this.id}-telnyx-rtc-answer`);
         this.gotAnswer = true;
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1074,6 +1055,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Media: {
+        performance.mark(`${this.id}-telnyx-rtc-media`);
         if (this._state >= State.Early) {
           return;
         }
@@ -1122,6 +1104,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Ringing: {
+        performance.mark(`${this.id}-ringing`);
         this.playRingback();
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1353,6 +1336,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
+        performance.mark(`${this.id}-set-remote-description`);
         if (this.options.trickleIce) {
           this._isRemoteDescriptionSet = true;
           this._flushPendingTrickleIceCandidates();
@@ -1412,7 +1396,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
-    performance.mark('ice-gathering-end');
     let msg = null;
 
     const tmpParams = {
@@ -1441,14 +1424,16 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error(`${this.id} - Unknown local SDP type:`, data);
         return this.hangup({}, false);
     }
-    performance.mark('sdp-send-start');
+    performance.mark(`${this.id}-send-sdp`);
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
-        type === PeerType.Offer
-          ? this.setState(State.Trying)
-          : this.setState(State.Active);
+        if (type === PeerType.Offer) {
+          this.setState(State.Trying);
+        } else {
+          this.setState(State.Active);
+        }
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
@@ -1460,15 +1445,6 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           true
         );
-      })
-      .finally(() => {
-        performance.mark('sdp-send-end');
-        // Log performance metrics
-        console.group('Performance Metrics');
-        console.table(this.performanceMetrics);
-        console.groupEnd();
-
-        performance.clearMarks();
       });
   }
 
@@ -1510,14 +1486,16 @@ export default abstract class BaseCall implements IWebRTCCall {
         return this.hangup({}, false);
     }
 
-    performance.mark('sdp-send-start');
+    performance.mark(`${this.id}-send-sdp`);
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
-        type === PeerType.Offer
-          ? this.setState(State.Trying)
-          : this.setState(State.Active);
+        if (type === PeerType.Offer) {
+          this.setState(State.Trying);
+        } else {
+          this.setState(State.Active);
+        }
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
@@ -1529,9 +1507,6 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           true
         );
-      })
-      .finally(() => {
-        performance.mark('sdp-send-end');
       });
   }
 
@@ -1549,6 +1524,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (event.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
+      this._trackCandidateMarks(event.candidate);
     } else {
       this._onIceSdp(instance.localDescription);
     }
@@ -1557,6 +1533,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
+      this._trackCandidateMarks(event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
       this._sendEndOfCandidates();
@@ -1611,12 +1588,65 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
     });
     this._execute(msg);
-    performance.mark('ice-gathering-end');
+  }
+
+  /**
+   * Track first candidate and first non-host candidate performance marks.
+   * Called from both _onIce and _onTrickleIce.
+   */
+  private _trackCandidateMarks(candidate: RTCIceCandidate) {
+    if (!this._firstCandidateSent) {
+      performance.mark(`${this.id}-first-candidate`);
+      this._firstCandidateSent = true;
+    }
+
+    if (!this._firstNonHostCandidateSent) {
+      const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
+      if (candidateType && candidateType !== 'host') {
+        performance.mark(`${this.id}-first-non-host-candidate`);
+        this._firstNonHostCandidateSent = true;
+      }
+    }
+  }
+
+  /**
+   * Called when the RTCPeerConnection reaches 'connected' state (DTLS handshake done).
+   * If the call is already Active, this triggers timing collection.
+   */
+  private _onDtlsConnected() {
+    if (this._callIsActive) {
+      this._tryCollectTimings();
+    }
+  }
+
+  /**
+   * Collect call establishment timings if not already collected.
+   *
+   * For outbound calls: DTLS typically connects before Active → collected at Active.
+   * For inbound trickle calls: Active fires before DTLS → collected at DTLS connect.
+   */
+  private _tryCollectTimings() {
+    if (this._timingsCollected) {
+      return;
+    }
+    this._timingsCollected = true;
+    const mode = this.options.trickleIce ? 'trickle' : 'non-trickle';
+    const direction =
+      this.direction === Direction.Outbound ? 'outbound' : 'inbound';
+    this._establishmentTimings = collectCallEstablishmentTimings(
+      mode,
+      this.id,
+      direction
+    );
+    logCallEstablishmentTimings(this._establishmentTimings);
+    clearCallMarks(this.id);
   }
 
   private _resetTrickleIceCandidateState() {
     this._pendingIceCandidates = [];
     this._isRemoteDescriptionSet = false;
+    this._firstCandidateSent = false;
+    this._firstNonHostCandidateSent = false;
   }
 
   private _flushPendingTrickleIceCandidates() {
@@ -1640,6 +1670,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       this._onIce(event);
     };
+
+    instance.onicegatheringstatechange = () => {
+      if (instance.iceGatheringState === 'complete') {
+        performance.mark(`${this.id}-ice-gathering-completed`);
+      }
+    };
+
+    instance.addEventListener('connectionstatechange', () => {
+      if (instance.connectionState === 'connected') {
+        this._onDtlsConnected();
+      }
+    });
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       logger.debug('ICE candidate error:', event);
@@ -1667,12 +1709,19 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIce(event);
     };
 
-    instance.onicegatheringstatechange = (event) => {
+    instance.onicegatheringstatechange = () => {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
+        performance.mark(`${this.id}-ice-gathering-completed`);
       }
     };
+
+    instance.addEventListener('connectionstatechange', () => {
+      if (instance.connectionState === 'connected') {
+        this._onDtlsConnected();
+      }
+    });
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       // if a candidate fails this is not fatal as long as other candidates succeed
@@ -1893,6 +1942,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      ...(this._establishmentTimings
+        ? { establishmentTimings: this._establishmentTimings }
+        : {}),
     };
 
     const payload = this._callReportCollector.flush(summary);
@@ -1936,6 +1988,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      ...(this._establishmentTimings
+        ? { establishmentTimings: this._establishmentTimings }
+        : {}),
     };
 
     // Post report asynchronously (don't wait for it)

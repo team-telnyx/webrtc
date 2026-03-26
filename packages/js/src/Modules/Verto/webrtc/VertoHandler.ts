@@ -124,7 +124,9 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
+      performance.mark(`${callOptions.id}-new-call-start`);
       const call = new Call(session, callOptions);
+      performance.mark(`${callOptions.id}-new-call`);
       call.nodeId = this.nodeId;
       return call;
     };
