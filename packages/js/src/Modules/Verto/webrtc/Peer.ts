@@ -45,12 +45,15 @@ export default class Peer {
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
 
+  private _onDtlsConnectedFn: (() => void) | null = null;
+
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void,
+    onDtlsConnected?: () => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -70,6 +73,7 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
+    this._onDtlsConnectedFn = onDtlsConnected || null;
   }
 
   get isOffer() {
@@ -101,7 +105,7 @@ export default class Peer {
   }
 
   startNegotiation() {
-    performance.mark(`ice-gathering-start`);
+    performance.mark('start-negotiation');
 
     this._negotiating = true;
 
@@ -112,7 +116,7 @@ export default class Peer {
     }
   }
   async startTrickleIceNegotiation() {
-    performance.mark(`ice-gathering-start`);
+    performance.mark('start-negotiation');
 
     this._negotiating = true;
 
@@ -144,66 +148,6 @@ export default class Peer {
         JSON.stringify(tr.sender.getParameters(), null, 2)
       );
     });
-  }
-
-  private get trickleIcePerformanceMetrics() {
-    const newCall = performance.measure(
-      'new-call',
-      'new-call-start',
-      'new-call-end'
-    );
-
-    const peerCreation = performance.measure(
-      'peer-creation',
-      'peer-creation-start',
-      'peer-creation-end'
-    );
-
-    const iceGathering = performance.measure(
-      'ice-gathering',
-      'ice-gathering-start',
-      'ice-gathering-end'
-    );
-
-    const sdpSend = performance.measure(
-      'sdp-send',
-      'sdp-send-start',
-      'sdp-send-end'
-    );
-
-    const inviteSend = performance.measure(
-      'invite-send',
-      'new-call-start',
-      'sdp-send-start'
-    );
-
-    const totalDuration = performance.measure(
-      'total-duration',
-      'peer-creation-start',
-      'sdp-send-end'
-    );
-
-    const formatDuration = (dur: number) => `${dur.toFixed(2)}ms`;
-    return {
-      'New Call': {
-        duration: formatDuration(newCall.duration),
-      },
-      'Peer Creation': {
-        duration: formatDuration(peerCreation.duration),
-      },
-      'ICE Gathering': {
-        duration: formatDuration(iceGathering.duration),
-      },
-      [this._isOffer() ? 'Invite Send' : 'Answer Send']: {
-        duration: formatDuration(inviteSend.duration),
-      },
-      'SDP Send': {
-        duration: formatDuration(sdpSend.duration),
-      },
-      'Total Duration': {
-        duration: formatDuration(totalDuration.duration),
-      },
-    };
   }
 
   private handleSignalingStateChangeEvent() {
@@ -254,7 +198,14 @@ export default class Peer {
     }
   }
 
+  private _firstMediaTrackMarked = false;
+
   private handleTrackEvent(event: RTCTrackEvent) {
+    if (!this._firstMediaTrackMarked) {
+      performance.mark('first-remote-media-track');
+      this._firstMediaTrackMarked = true;
+    }
+
     const {
       streams: [first],
     } = event;
@@ -335,18 +286,10 @@ export default class Peer {
     // update previous state for the next transition
     this._prevConnectionState = connectionState;
 
-    if (this._isTrickleIce()) {
-      if (connectionState === 'connecting') {
-        performance.mark('peer-connection-connecting');
-      }
-
-      if (connectionState === 'connected') {
-        performance.mark('peer-connection-connected');
-        // Log Trickle ICE performance metrics
-        console.group('Performance Metrics');
-        console.table(this.trickleIcePerformanceMetrics);
-        console.groupEnd();
-        performance.clearMarks();
+    if (connectionState === 'connected') {
+      performance.mark('dtls-connected');
+      if (this._onDtlsConnectedFn) {
+        this._onDtlsConnectedFn();
       }
     }
   };
@@ -383,6 +326,7 @@ export default class Peer {
         sdp: this.options.remoteSdp,
         type: PeerType.Offer,
       });
+      performance.mark('set-remote-description');
     }
 
     this.options.localStream = await this._retrieveLocalStream().catch(
@@ -391,6 +335,7 @@ export default class Peer {
         return null;
       }
     );
+    performance.mark('get-user-media');
 
     if (
       this.options.mutedMicOnStart &&
@@ -410,14 +355,19 @@ export default class Peer {
       }
     }
 
-    performance.mark(`peer-creation-end`);
+    performance.mark('peer-creation-end');
   }
 
   private _handleIceConnectionStateChange = () => {
+    const state = this.instance.iceConnectionState;
     logger.debug(
       `[${new Date().toISOString()}] ICE Connection State`,
-      this.instance.iceConnectionState
+      state
     );
+
+    if (state === 'connected') {
+      performance.mark('ice-connected');
+    }
   };
   private _handleIceGatheringStateChange = () => {
     logger.debug(
@@ -615,7 +565,10 @@ export default class Peer {
 
     try {
       const offer = await this.instance.createOffer(this._constraints);
+      performance.mark('create-offer');
       await this._setLocalDescription(offer);
+      performance.mark('set-local-description');
+      performance.mark('ice-gathering-started');
 
       if (!this._isTrickleIce()) {
         this._sdpReady();
@@ -666,7 +619,10 @@ export default class Peer {
 
     try {
       const answer = await this.instance.createAnswer();
+      performance.mark('create-answer');
       await this._setLocalDescription(answer);
+      performance.mark('set-local-description');
+      performance.mark('ice-gathering-started');
 
       return answer;
     } catch (error) {
