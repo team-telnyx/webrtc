@@ -1609,24 +1609,29 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
+  private _dtlsConnected: boolean = false;
+
   /**
    * Called when the RTCPeerConnection reaches 'connected' state (DTLS handshake done).
-   * If the call is already Active, this triggers timing collection.
+   * Triggers timing collection if the call is already Active.
    */
   private _onDtlsConnected() {
+    this._dtlsConnected = true;
     if (this._callIsActive) {
       this._tryCollectTimings();
     }
   }
 
   /**
-   * Collect call establishment timings if not already collected.
+   * Collect call establishment timings when BOTH conditions are met:
+   * 1. Call is Active (call-active mark exists)
+   * 2. DTLS is connected (dtls-connected mark exists)
    *
-   * For outbound calls: DTLS typically connects before Active → collected at Active.
-   * For inbound trickle calls: Active fires before DTLS → collected at DTLS connect.
+   * This ensures ICE/DTLS timings are always captured regardless of
+   * whether they complete before or after the Active state transition.
    */
   private _tryCollectTimings() {
-    if (this._timingsCollected) {
+    if (this._timingsCollected || !this._dtlsConnected) {
       return;
     }
     this._timingsCollected = true;

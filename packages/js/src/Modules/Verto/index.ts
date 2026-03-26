@@ -52,7 +52,6 @@ export default class Verto extends BrowserSession {
     }
     const call = new Call(this, options);
     performance.mark(`${call.id}-new-call-start`);
-    performance.mark(`${call.id}-new-call`);
     call.invite();
     return call;
   }

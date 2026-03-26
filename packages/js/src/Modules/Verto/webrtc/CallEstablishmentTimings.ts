@@ -18,7 +18,6 @@ export interface ICallEstablishmentTimings {
 /** All known mark suffixes (appended to callId prefix). */
 const MARK_SUFFIXES = [
   'new-call-start',
-  'new-call',
   'new-peer',
   'get-user-media',
   'peer-creation-end',
@@ -45,7 +44,6 @@ const MARK_SUFFIXES = [
 /** Human-readable labels for each mark suffix. */
 const MARK_LABELS: Record<string, string> = {
   'new-call-start': 'Call Start',
-  'new-call': 'Call object created',
   'new-peer': 'Peer object created',
   'get-user-media': 'Media devices acquired',
   'peer-creation-end': 'Peer setup complete',
@@ -66,7 +64,7 @@ const MARK_LABELS: Record<string, string> = {
   'ice-connected': 'ICE connection established',
   'dtls-connected': 'Secure media channel established (DTLS)',
   'call-active': 'Call is active',
-  'answer-called': 'User answered the call',
+  'answer-called': 'Answer delay (invite → call.answer)',
 };
 
 /**
