@@ -7,7 +7,6 @@ import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
   clearCallMarks,
-  ICallEstablishmentTimings,
 } from './CallEstablishmentTimings';
 import { CallReportCollector } from './CallReportCollector';
 import {
@@ -208,8 +207,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
-
-  private _establishmentTimings: ICallEstablishmentTimings | null = null;
 
   private _timingsCollected: boolean = false;
 
@@ -1638,12 +1635,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     const mode = this.options.trickleIce ? 'trickle' : 'non-trickle';
     const direction =
       this.direction === Direction.Outbound ? 'outbound' : 'inbound';
-    this._establishmentTimings = collectCallEstablishmentTimings(
-      mode,
-      this.id,
-      direction
-    );
-    logCallEstablishmentTimings(this._establishmentTimings);
+    const timings = collectCallEstablishmentTimings(mode, this.id, direction);
+    logCallEstablishmentTimings(timings);
     clearCallMarks(this.id);
   }
 
@@ -1947,9 +1940,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
-      ...(this._establishmentTimings
-        ? { establishmentTimings: this._establishmentTimings }
-        : {}),
     };
 
     const payload = this._callReportCollector.flush(summary);
@@ -1993,9 +1983,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
-      ...(this._establishmentTimings
-        ? { establishmentTimings: this._establishmentTimings }
-        : {}),
     };
 
     // Post report asynchronously (don't wait for it)
