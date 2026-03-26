@@ -2,6 +2,11 @@ import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
 import { SwEvent } from '../util/constants';
 import {
+  collectCallEstablishmentTimings,
+  logCallEstablishmentTimings,
+  clearCallMarks,
+} from './CallEstablishmentTimings';
+import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
   WebRTCStatsReporter,
@@ -44,16 +49,15 @@ export default class Peer {
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
-
-  private _onDtlsConnectedFn: (() => void) | null = null;
+  private _firstMediaTrackMarked: boolean = false;
+  private _timingsCollected: boolean = false;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void,
-    onDtlsConnected?: () => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -73,7 +77,6 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
-    this._onDtlsConnectedFn = onDtlsConnected || null;
   }
 
   get isOffer() {
@@ -198,8 +201,6 @@ export default class Peer {
     }
   }
 
-  private _firstMediaTrackMarked = false;
-
   private handleTrackEvent(event: RTCTrackEvent) {
     if (!this._firstMediaTrackMarked) {
       performance.mark('first-remote-media-track');
@@ -288,11 +289,31 @@ export default class Peer {
 
     if (connectionState === 'connected') {
       performance.mark('dtls-connected');
-      if (this._onDtlsConnectedFn) {
-        this._onDtlsConnectedFn();
-      }
+      this.tryCollectTimings();
     }
   };
+
+  /**
+   * Collect call establishment timings when BOTH conditions are met:
+   * 1. Call is Active (call-active mark exists)
+   * 2. DTLS is connected (connectionState === 'connected')
+   */
+  tryCollectTimings() {
+    if (this._timingsCollected) {
+      return;
+    }
+    const callActiveExists =
+      performance.getEntriesByName('call-active', 'mark').length > 0;
+    if (!callActiveExists || this.instance.connectionState !== 'connected') {
+      return;
+    }
+    this._timingsCollected = true;
+    const mode = this._isTrickleIce() ? 'trickle' : 'non-trickle';
+    const direction = this.isOffer ? 'outbound' : 'inbound';
+    const timings = collectCallEstablishmentTimings(mode, direction);
+    logCallEstablishmentTimings(timings);
+    clearCallMarks();
+  }
 
   private async createPeerConnection() {
     this.instance = RTCPeerConnection(this._config());

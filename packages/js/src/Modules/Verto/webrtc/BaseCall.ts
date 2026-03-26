@@ -3,11 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
-import {
-  collectCallEstablishmentTimings,
-  logCallEstablishmentTimings,
-  clearCallMarks,
-} from './CallEstablishmentTimings';
+
 import { CallReportCollector } from './CallReportCollector';
 import {
   Answer,
@@ -208,10 +204,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _firstNonHostCandidateSent: boolean = false;
 
-  private _timingsCollected: boolean = false;
-
-  private _callIsActive: boolean = false;
-
   private _isRecovering: boolean = false;
 
   constructor(
@@ -375,8 +367,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      this._onDtlsConnected.bind(this)
+        : this._registerPeerEvents
     );
     await this.peer.init();
     this._creatingPeer = false;
@@ -415,8 +406,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      this._onDtlsConnected.bind(this)
+        : this._registerPeerEvents
     );
     await this.peer.init();
     this._creatingPeer = false;
@@ -992,7 +982,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       case State.Active: {
         performance.mark('call-active');
-        this._callIsActive = true;
+        this.peer?.tryCollectTimings();
 
         // Clear recovery flag when call becomes active again
         if (this._isRecovering) {
@@ -1005,10 +995,6 @@ export default abstract class BaseCall implements IWebRTCCall {
             setMediaElementSinkId(remoteElement, speakerId);
           }
         }, 0);
-
-        // Try to collect timings — will succeed if DTLS is already connected.
-        // Otherwise _onDtlsConnected will collect when DTLS finishes.
-        this._tryCollectTimings();
 
         // Start collecting call stats when call becomes active
         // Only start if call_report_id is available (returned from voice-sdk-proxy)
@@ -1606,40 +1592,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._firstNonHostCandidateSent = true;
       }
     }
-  }
-
-  private _dtlsConnected: boolean = false;
-
-  /**
-   * Called when the RTCPeerConnection reaches 'connected' state (DTLS handshake done).
-   * Triggers timing collection if the call is already Active.
-   */
-  private _onDtlsConnected() {
-    this._dtlsConnected = true;
-    if (this._callIsActive) {
-      this._tryCollectTimings();
-    }
-  }
-
-  /**
-   * Collect call establishment timings when BOTH conditions are met:
-   * 1. Call is Active (call-active mark exists)
-   * 2. DTLS is connected (dtls-connected mark exists)
-   *
-   * This ensures ICE/DTLS timings are always captured regardless of
-   * whether they complete before or after the Active state transition.
-   */
-  private _tryCollectTimings() {
-    if (this._timingsCollected || !this._dtlsConnected) {
-      return;
-    }
-    this._timingsCollected = true;
-    const mode = this.options.trickleIce ? 'trickle' : 'non-trickle';
-    const direction =
-      this.direction === Direction.Outbound ? 'outbound' : 'inbound';
-    const timings = collectCallEstablishmentTimings(mode, direction);
-    logCallEstablishmentTimings(timings);
-    clearCallMarks();
   }
 
   private _resetTrickleIceCandidateState() {
