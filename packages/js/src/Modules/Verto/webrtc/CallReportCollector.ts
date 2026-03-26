@@ -184,7 +184,6 @@ export interface ICallSummary {
   sdkVersion?: string;
   startTimestamp?: string;
   endTimestamp?: string;
-  establishmentTimings?: import('./CallEstablishmentTimings').ICallEstablishmentTimings;
 }
 
 export interface ICallReportPayload {
