@@ -367,7 +367,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark(`${this.id}-new-peer`);
+    performance.mark('new-peer');
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
@@ -375,7 +375,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      this._onDtlsConnected.bind(this)
     );
     await this.peer.init();
     this._creatingPeer = false;
@@ -390,7 +391,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
-    performance.mark(`${this.id}-answer-called`);
+    performance.mark('answer-called');
     this._creatingPeer = true;
     this.stopRingtone();
 
@@ -406,7 +407,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark(`${this.id}-new-peer`);
+    performance.mark('new-peer');
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
@@ -414,7 +415,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      this._onDtlsConnected.bind(this)
     );
     await this.peer.init();
     this._creatingPeer = false;
@@ -989,7 +991,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
         break;
       case State.Active: {
-        performance.mark(`${this.id}-call-active`);
+        performance.mark('call-active');
         this._callIsActive = true;
 
         // Clear recovery flag when call becomes active again
@@ -1027,7 +1029,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (method) {
       case VertoMethod.Answer: {
-        performance.mark(`${this.id}-telnyx-rtc-answer`);
+        performance.mark('telnyx-rtc-answer');
         this.gotAnswer = true;
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1052,7 +1054,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Media: {
-        performance.mark(`${this.id}-telnyx-rtc-media`);
+        performance.mark('telnyx-rtc-media');
         if (this._state >= State.Early) {
           return;
         }
@@ -1101,7 +1103,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Ringing: {
-        performance.mark(`${this.id}-ringing`);
+        performance.mark('ringing');
         this.playRingback();
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1333,7 +1335,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
-        performance.mark(`${this.id}-set-remote-description`);
+        performance.mark('set-remote-description');
         if (this.options.trickleIce) {
           this._isRemoteDescriptionSet = true;
           this._flushPendingTrickleIceCandidates();
@@ -1421,7 +1423,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error(`${this.id} - Unknown local SDP type:`, data);
         return this.hangup({}, false);
     }
-    performance.mark(`${this.id}-send-sdp`);
+    performance.mark('send-sdp');
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1483,7 +1485,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         return this.hangup({}, false);
     }
 
-    performance.mark(`${this.id}-send-sdp`);
+    performance.mark('send-sdp');
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1593,14 +1595,14 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   private _trackCandidateMarks(candidate: RTCIceCandidate) {
     if (!this._firstCandidateSent) {
-      performance.mark(`${this.id}-first-candidate`);
+      performance.mark('first-candidate');
       this._firstCandidateSent = true;
     }
 
     if (!this._firstNonHostCandidateSent) {
       const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
       if (candidateType && candidateType !== 'host') {
-        performance.mark(`${this.id}-first-non-host-candidate`);
+        performance.mark('first-non-host-candidate');
         this._firstNonHostCandidateSent = true;
       }
     }
@@ -1635,9 +1637,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     const mode = this.options.trickleIce ? 'trickle' : 'non-trickle';
     const direction =
       this.direction === Direction.Outbound ? 'outbound' : 'inbound';
-    const timings = collectCallEstablishmentTimings(mode, this.id, direction);
+    const timings = collectCallEstablishmentTimings(mode, direction);
     logCallEstablishmentTimings(timings);
-    clearCallMarks(this.id);
+    clearCallMarks();
   }
 
   private _resetTrickleIceCandidateState() {
@@ -1671,15 +1673,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     instance.onicegatheringstatechange = () => {
       if (instance.iceGatheringState === 'complete') {
-        performance.mark(`${this.id}-ice-gathering-completed`);
+        performance.mark('ice-gathering-completed');
       }
     };
-
-    instance.addEventListener('connectionstatechange', () => {
-      if (instance.connectionState === 'connected') {
-        this._onDtlsConnected();
-      }
-    });
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       logger.debug('ICE candidate error:', event);
@@ -1711,15 +1707,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       logger.debug('ICE gathering state changed:', instance.iceGatheringState);
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
-        performance.mark(`${this.id}-ice-gathering-completed`);
+        performance.mark('ice-gathering-completed');
       }
     };
-
-    instance.addEventListener('connectionstatechange', () => {
-      if (instance.connectionState === 'connected') {
-        this._onDtlsConnected();
-      }
-    });
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
       // if a candidate fails this is not fatal as long as other candidates succeed

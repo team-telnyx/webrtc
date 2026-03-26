@@ -85,18 +85,16 @@ function getMarkTime(markName: string): number | undefined {
 
 /**
  * Collect all call establishment timings from performance marks.
- * All times are measured from the call start mark.
+ * All times are measured from the 'new-call-start' mark.
  *
  * @param mode - 'trickle' or 'non-trickle' ICE mode
- * @param callId - unique call ID used as mark prefix
  * @param direction - 'outbound' or 'inbound'
  */
 export function collectCallEstablishmentTimings(
   mode: 'trickle' | 'non-trickle',
-  callId: string,
   direction: 'outbound' | 'inbound'
 ): ICallEstablishmentTimings {
-  const startTime = getMarkTime(`${callId}-new-call-start`);
+  const startTime = getMarkTime('new-call-start');
 
   if (startTime === undefined) {
     return { mode, direction, steps: [] };
@@ -107,7 +105,7 @@ export function collectCallEstablishmentTimings(
 
   for (const suffix of MARK_SUFFIXES) {
     if (suffix === 'new-call-start') continue; // skip the start point itself
-    const time = getMarkTime(`${callId}-${suffix}`);
+    const time = getMarkTime(suffix);
     if (time !== undefined) {
       raw.push({
         label: MARK_LABELS[suffix] || suffix,
@@ -192,12 +190,12 @@ export function logCallEstablishmentTimings(
 }
 
 /**
- * Clear all performance marks for a specific call.
+ * Clear all call establishment performance marks.
  */
-export function clearCallMarks(callId: string): void {
+export function clearCallMarks(): void {
   for (const suffix of MARK_SUFFIXES) {
     try {
-      performance.clearMarks(`${callId}-${suffix}`);
+      performance.clearMarks(suffix);
     } catch {
       // ignore
     }

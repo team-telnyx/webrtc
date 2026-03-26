@@ -45,12 +45,15 @@ export default class Peer {
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
 
+  private _onDtlsConnectedFn: (() => void) | null = null;
+
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void,
+    onDtlsConnected?: () => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -70,6 +73,7 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
+    this._onDtlsConnectedFn = onDtlsConnected || null;
   }
 
   get isOffer() {
@@ -101,7 +105,7 @@ export default class Peer {
   }
 
   startNegotiation() {
-    performance.mark(`${this.options.id}-start-negotiation`);
+    performance.mark('start-negotiation');
 
     this._negotiating = true;
 
@@ -112,7 +116,7 @@ export default class Peer {
     }
   }
   async startTrickleIceNegotiation() {
-    performance.mark(`${this.options.id}-start-negotiation`);
+    performance.mark('start-negotiation');
 
     this._negotiating = true;
 
@@ -198,7 +202,7 @@ export default class Peer {
 
   private handleTrackEvent(event: RTCTrackEvent) {
     if (!this._firstMediaTrackMarked) {
-      performance.mark(`${this.options.id}-first-remote-media-track`);
+      performance.mark('first-remote-media-track');
       this._firstMediaTrackMarked = true;
     }
 
@@ -283,7 +287,10 @@ export default class Peer {
     this._prevConnectionState = connectionState;
 
     if (connectionState === 'connected') {
-      performance.mark(`${this.options.id}-dtls-connected`);
+      performance.mark('dtls-connected');
+      if (this._onDtlsConnectedFn) {
+        this._onDtlsConnectedFn();
+      }
     }
   };
 
@@ -319,7 +326,7 @@ export default class Peer {
         sdp: this.options.remoteSdp,
         type: PeerType.Offer,
       });
-      performance.mark(`${this.options.id}-set-remote-description`);
+      performance.mark('set-remote-description');
     }
 
     this.options.localStream = await this._retrieveLocalStream().catch(
@@ -328,7 +335,7 @@ export default class Peer {
         return null;
       }
     );
-    performance.mark(`${this.options.id}-get-user-media`);
+    performance.mark('get-user-media');
 
     if (
       this.options.mutedMicOnStart &&
@@ -348,7 +355,7 @@ export default class Peer {
       }
     }
 
-    performance.mark(`${this.options.id}-peer-creation-end`);
+    performance.mark('peer-creation-end');
   }
 
   private _handleIceConnectionStateChange = () => {
@@ -359,7 +366,7 @@ export default class Peer {
     );
 
     if (state === 'connected') {
-      performance.mark(`${this.options.id}-ice-connected`);
+      performance.mark('ice-connected');
     }
   };
   private _handleIceGatheringStateChange = () => {
@@ -558,10 +565,10 @@ export default class Peer {
 
     try {
       const offer = await this.instance.createOffer(this._constraints);
-      performance.mark(`${this.options.id}-create-offer`);
+      performance.mark('create-offer');
       await this._setLocalDescription(offer);
-      performance.mark(`${this.options.id}-set-local-description`);
-      performance.mark(`${this.options.id}-ice-gathering-started`);
+      performance.mark('set-local-description');
+      performance.mark('ice-gathering-started');
 
       if (!this._isTrickleIce()) {
         this._sdpReady();
@@ -612,10 +619,10 @@ export default class Peer {
 
     try {
       const answer = await this.instance.createAnswer();
-      performance.mark(`${this.options.id}-create-answer`);
+      performance.mark('create-answer');
       await this._setLocalDescription(answer);
-      performance.mark(`${this.options.id}-set-local-description`);
-      performance.mark(`${this.options.id}-ice-gathering-started`);
+      performance.mark('set-local-description');
+      performance.mark('ice-gathering-started');
 
       return answer;
     } catch (error) {

@@ -51,7 +51,7 @@ export default class Verto extends BrowserSession {
       throw new Error('Verto.newCall() error: destinationNumber is required.');
     }
     const call = new Call(this, options);
-    performance.mark(`${call.id}-new-call-start`);
+    performance.mark('new-call-start');
     call.invite();
     return call;
   }
