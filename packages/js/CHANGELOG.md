@@ -1,3 +1,7 @@
+## [2.25.28](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.27...webrtc/v2.25.28) (2026-03-31)
+
+- chore: upgrade Node.js from 18 to 22.14 across all workflows (#572)
+- chore: release webrtc@2.25.27 (#571)
 ## [2.25.27](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26...webrtc/v2.25.27) (2026-03-31)
 
 - chore: remove NODE_AUTH_TOKEN from publish steps for OIDC auth (#570)
