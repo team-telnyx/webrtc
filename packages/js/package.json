@@ -17,7 +17,8 @@
   "module": "lib/bundle.mjs",
   "types": "lib/packages/js/src/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "README.md"
   ],
   "scripts": {
     "build": "rollup -c",
