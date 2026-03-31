@@ -32,7 +32,7 @@ jobs:
           git config user.name TelnyxIntegrations
           git config user.email integrations@telnyx.com
       - name: Use Node.js 22.14
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22.14"
           cache: "yarn"

@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Use Node.js 22.14
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22.14"
           cache: "yarn"
@@ -49,7 +49,7 @@ jobs:
           # https://github.com/release-it/release-it/issues/657#issuecomment-647848200
           fetch-depth: 0
       - name: Use Node.js 22.14
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "22.14"
           cache: "yarn"
