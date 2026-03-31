@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish-js:
@@ -43,7 +44,7 @@ jobs:
 
       - name: Publish package
         working-directory: packages/js
-        run: npm publish --access public
+        run: npm publish --access public --provenance
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
@@ -105,7 +106,7 @@ jobs:
 
       - name: Publish package
         working-directory: packages/react-client
-        run: npm publish --access public
+        run: npm publish --access public --provenance
         env:
           CI: true
           NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
