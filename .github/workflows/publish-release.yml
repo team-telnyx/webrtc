@@ -28,10 +28,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Use Node.js 22.14
+      - name: Use Node.js 24.5
         uses: actions/setup-node@v6
         with:
-          node-version: "22.14"
+          node-version: "24.5.0"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
 
@@ -111,10 +111,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Use Node.js 22.14
+      - name: Use Node.js 24.5
         uses: actions/setup-node@v6
         with:
-          node-version: "22.14"
+          node-version: "24.5.0"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
 
