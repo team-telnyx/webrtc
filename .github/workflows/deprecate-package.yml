@@ -1,0 +1,68 @@
+name: "Deprecate package version"
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to deprecate"
+        required: true
+        type: choice
+        options:
+          - "@telnyx/webrtc"
+          - "@telnyx/react-client"
+      version_range:
+        description: "Version or range to deprecate (e.g. 2.25.0-beta.1, >=2.25.0-beta.0 <2.25.0)"
+        required: true
+      message:
+        description: "Deprecation message"
+        required: false
+        default: "This version is deprecated. Use the latest stable release instead."
+      undeprecate:
+        description: "Remove deprecation instead of adding it"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  deprecate:
+    name: "${{ inputs.undeprecate && 'Undeprecate' || 'Deprecate' }} ${{ inputs.package }}@${{ inputs.version_range }}"
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate inputs
+        run: |
+          if [[ -z "${{ inputs.version_range }}" ]]; then
+            echo "::error::version_range is required"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+          registry-url: https://registry.npmjs.org/
+
+      - name: ${{ inputs.undeprecate && 'Remove deprecation' || 'Deprecate' }}
+        run: |
+          PACKAGE="${{ inputs.package }}"
+          RANGE="${{ inputs.version_range }}"
+          UNDEPRECATE="${{ inputs.undeprecate }}"
+
+          if [[ "$UNDEPRECATE" == "true" ]]; then
+            echo "Removing deprecation from ${PACKAGE}@${RANGE}"
+            npm deprecate "${PACKAGE}@${RANGE}" ""
+          else
+            echo "Deprecating ${PACKAGE}@${RANGE}"
+            echo "Message: ${{ inputs.message }}"
+            npm deprecate "${PACKAGE}@${RANGE}" "${{ inputs.message }}"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
+
+      - name: Verify
+        run: npm view "${{ inputs.package }}@${{ inputs.version_range }}" version deprecated 2>/dev/null || echo "Range may match multiple versions — check npmjs.com"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_DEPRECATE_TOKEN }}
