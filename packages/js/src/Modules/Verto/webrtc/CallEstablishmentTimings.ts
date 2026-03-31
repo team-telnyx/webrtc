@@ -56,7 +56,7 @@ const MARK_LABELS: Record<string, string> = {
   'first-non-host-candidate': 'First server-reflexive/relay candidate found',
   'send-sdp': 'SDP sent to server',
   'ice-gathering-completed': 'All ICE candidates gathered',
-  'ringing': 'Remote side ringing',
+  ringing: 'Remote side ringing',
   'telnyx-rtc-media': 'Early media received from server',
   'first-remote-media-track': 'First remote audio/video track received',
   'set-remote-description': 'Remote description applied',
@@ -197,7 +197,7 @@ export function clearCallMarks(): void {
     try {
       performance.clearMarks(suffix);
     } catch {
-      // ignore
+      logger.warn('Clearing performance marks is failed');
     }
   }
 }
