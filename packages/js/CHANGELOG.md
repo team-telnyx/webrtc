@@ -1,3 +1,11 @@
+## [2.25.26](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26-beta.4...webrtc/v2.25.26) (2026-03-31)
+
+- fix: guard against null localDescription in _onIceSdp (#557)
+- chore: consolidate publish workflows for npm trusted publisher OIDC (#567)
+- fix: reset keepalive on any inbound message to prevent false ping/pong warnings (#556)
+- fix: don't null global LogCollector on call cleanup (#555)
+- chore: add OIDC permissions and npm provenance to prerelease workflow (#566)
+- chore: add OIDC permissions and npm provenance to publish-release workflow (#565)
 ## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
 
 - docs: update ts docs
