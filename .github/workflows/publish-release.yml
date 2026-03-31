@@ -68,7 +68,6 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           CI: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
 
       - name: get-npm-version
         id: package-version
@@ -151,4 +150,3 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           CI: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
