@@ -18,7 +18,6 @@ import {
   ILogEntry,
   createLogCollector,
   setGlobalLogCollector,
-  getGlobalLogCollector,
 } from '../../../Modules/Verto/util/LogCollector';
 
 /**
@@ -564,14 +563,13 @@ export class CallReportCollector {
 
   /**
    * Clean up resources (call after postReport)
+   *
+   * Does NOT null the global log collector — a concurrent call may still
+   * be using it. The next call's constructor overwrites the global anyway.
    */
   public cleanup(): void {
     if (this.logCollector) {
       this.logCollector.clear();
-      // Clear global reference if it points to this collector
-      if (getGlobalLogCollector() === this.logCollector) {
-        setGlobalLogCollector(null);
-      }
       this.logCollector = null;
     }
   }
