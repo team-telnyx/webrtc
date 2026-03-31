@@ -1,3 +1,6 @@
+## [2.25.27](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26...webrtc/v2.25.27) (2026-03-31)
+
+- chore: remove NODE_AUTH_TOKEN from publish steps for OIDC auth (#570)
 ## [2.25.26](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26-beta.4...webrtc/v2.25.26) (2026-03-31)
 
 - fix: guard against null localDescription in _onIceSdp (#557)
