@@ -1,3 +1,6 @@
+## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
+
+- chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
 ## [2.25.29](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.28...webrtc/v2.25.29) (2026-03-31)
 
 - fix: upgrade actions/setup-node from v4 to v6 for OIDC compatibility (#574)
