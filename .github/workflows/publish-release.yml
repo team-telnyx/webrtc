@@ -63,6 +63,22 @@ jobs:
           fi
         working-directory: packages/js
 
+      - name: Debug npm auth
+        run: |
+          echo "Node: $(node -v)"
+          echo "npm: $(npm -v)"
+          echo "--- .npmrc ---"
+          cat ~/.npmrc 2>/dev/null || echo "no ~/.npmrc"
+          echo "--- project .npmrc ---"
+          cat .npmrc 2>/dev/null || echo "no project .npmrc"
+          echo "--- npm config ---"
+          npm config list
+          echo "--- npm whoami ---"
+          npm whoami 2>&1 || echo "whoami failed (expected with OIDC before publish)"
+          echo "--- ACTIONS_ID_TOKEN_REQUEST_URL ---"
+          echo "${ACTIONS_ID_TOKEN_REQUEST_URL:+set (length ${#ACTIONS_ID_TOKEN_REQUEST_URL})}"
+          echo "${ACTIONS_ID_TOKEN_REQUEST_URL:-NOT SET}"
+
       - name: Publish package
         working-directory: packages/js
         run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
