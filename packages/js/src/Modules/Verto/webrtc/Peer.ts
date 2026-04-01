@@ -339,11 +339,6 @@ export default class Peer {
         this._clearIceGatheringSafetyTimeout();
 
         performance.mark('peer-connection-connected');
-        // Log Trickle ICE performance metrics
-        console.group('Performance Metrics');
-        console.table(this.trickleIcePerformanceMetrics);
-        console.groupEnd();
-        performance.clearMarks();
       }
     }
   };
