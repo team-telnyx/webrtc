@@ -1,3 +1,4 @@
+export * from './errorCodes';
 export const STORAGE_PREFIX = '@telnyx:';
 export const ADD = 'add';
 export const REMOVE = 'remove';

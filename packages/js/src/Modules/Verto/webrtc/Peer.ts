@@ -1,7 +1,21 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
-import { SwEvent } from '../util/constants';
-import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning } from '../util/errors';
+import {
+  SwEvent,
+  ICE_CONNECTIVITY_LOST,
+  PEER_CONNECTION_FAILED,
+  ICE_GATHERING_EMPTY,
+  ICE_GATHERING_TIMEOUT,
+  SDP_CREATE_OFFER_FAILED,
+  SDP_CREATE_ANSWER_FAILED,
+  SDP_SET_LOCAL_DESCRIPTION_FAILED,
+  SDP_SET_REMOTE_DESCRIPTION_FAILED,
+} from '../util/constants';
+import {
+  classifyMediaErrorCode,
+  createTelnyxError,
+  createTelnyxWarning,
+} from '../util/errors';
 import {
   createWebRTCStatsReporter,
   getConnectionStateDetails,
@@ -325,7 +339,7 @@ export default class Peer {
     }
 
     if (connectionState === 'disconnected') {
-      const warning = createTelnyxWarning(33001);
+      const warning = createTelnyxWarning(ICE_CONNECTIVITY_LOST);
       trigger(
         SwEvent.Warning,
         {
@@ -338,7 +352,7 @@ export default class Peer {
     }
 
     if (connectionState === 'failed') {
-      const warning = createTelnyxWarning(33004);
+      const warning = createTelnyxWarning(PEER_CONNECTION_FAILED);
       trigger(
         SwEvent.PeerConnectionFailureError,
         {
@@ -363,6 +377,10 @@ export default class Peer {
       }
 
       if (connectionState === 'connected') {
+        // ICE gathering may never reach 'complete' in some scenarios,
+        // so also clear the safety timeout when the connection succeeds.
+        this._clearIceGatheringSafetyTimeout();
+
         performance.mark('peer-connection-connected');
         // Log Trickle ICE performance metrics
         console.group('Performance Metrics');
@@ -409,7 +427,10 @@ export default class Peer {
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
-        const telnyxError = createTelnyxError(classifyMediaErrorCode(error), error);
+        const telnyxError = createTelnyxError(
+          classifyMediaErrorCode(error),
+          error
+        );
         trigger(SwEvent.MediaError, telnyxError, this.options.id);
         return null;
       }
@@ -470,7 +491,7 @@ export default class Peer {
 
       if (this._gatheredCandidatesCount === 0) {
         // No candidates at all within timeout
-        const warning = createTelnyxWarning(33003);
+        const warning = createTelnyxWarning(ICE_GATHERING_EMPTY);
         trigger(
           SwEvent.Warning,
           {
@@ -482,7 +503,7 @@ export default class Peer {
         );
       } else if (this.instance.iceGatheringState !== 'complete') {
         // Some candidates but gathering still stuck
-        const warning = createTelnyxWarning(33002);
+        const warning = createTelnyxWarning(ICE_GATHERING_TIMEOUT);
         trigger(
           SwEvent.Warning,
           {
@@ -637,9 +658,7 @@ export default class Peer {
         recvOnlyTransceiver
       );
 
-      const { audioCodecs } = getPreferredCodecs(
-        this.options.preferred_codecs
-      );
+      const { audioCodecs } = getPreferredCodecs(this.options.preferred_codecs);
       if (audioCodecs.length > 0) {
         this._setCodecs(recvOnlyTransceiver, audioCodecs);
       }
@@ -701,7 +720,7 @@ export default class Peer {
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
-      const telnyxError = createTelnyxError(40001, error);
+      const telnyxError = createTelnyxError(SDP_CREATE_OFFER_FAILED, error);
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this._session.sessionid },
@@ -718,7 +737,10 @@ export default class Peer {
       await this.instance.setRemoteDescription(remoteDescription);
     } catch (error) {
       logger.error('Peer _setRemoteDescription error:', error);
-      const telnyxError = createTelnyxError(40004, error);
+      const telnyxError = createTelnyxError(
+        SDP_SET_REMOTE_DESCRIPTION_FAILED,
+        error
+      );
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this._session.sessionid },
@@ -765,7 +787,7 @@ export default class Peer {
       return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
-      const telnyxError = createTelnyxError(40002, error);
+      const telnyxError = createTelnyxError(SDP_CREATE_ANSWER_FAILED, error);
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this._session.sessionid },
@@ -781,7 +803,10 @@ export default class Peer {
       await this.instance.setLocalDescription(sessionDescription);
     } catch (error) {
       logger.error('Peer _setLocalDescription error:', error);
-      const telnyxError = createTelnyxError(40003, error);
+      const telnyxError = createTelnyxError(
+        SDP_SET_LOCAL_DESCRIPTION_FAILED,
+        error
+      );
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this._session.sessionid },

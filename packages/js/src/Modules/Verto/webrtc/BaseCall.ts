@@ -15,8 +15,21 @@ import {
   Modify,
 } from '../messages/Verto';
 import { deRegister, register, trigger } from '../services/Handler';
-import { SwEvent } from '../util/constants';
-import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning, TelnyxError } from '../util/errors';
+import {
+  SwEvent,
+  BYE_SEND_FAILED,
+  HOLD_FAILED,
+  SDP_SET_REMOTE_DESCRIPTION_FAILED,
+  SDP_SEND_FAILED,
+  ONLY_HOST_ICE_CANDIDATES,
+  HAS_NON_HOST_ICE_CANDIDATE_REGEX,
+} from '../util/constants';
+import {
+  classifyMediaErrorCode,
+  createTelnyxError,
+  createTelnyxWarning,
+  TelnyxError,
+} from '../util/errors';
 import { ITelnyxWarning } from '../util/constants/warnings';
 import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
@@ -205,7 +218,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   constructor(
     protected session: BrowserSession,
-    opts?: IVertoCallOptions,
+    opts?: IVertoCallOptions
   ) {
     const {
       iceServers,
@@ -540,7 +553,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._execute(bye)
         .catch((error) => {
           logger.error('telnyx_rtc.bye failed!', error);
-          const telnyxError = createTelnyxError(44003, error);
+          const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
           trigger(
             SwEvent.Error,
             {
@@ -778,13 +791,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       } catch (error) {
         const telnyxError = createTelnyxError(
           classifyMediaErrorCode(error),
-          error instanceof Error ? error : new Error(String(error))
+          error
         );
-        trigger(
-          SwEvent.MediaError,
-          telnyxError,
-          this.options?.id || this.id
-        );
+        trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
         return;
       }
       const audioTrack = newStream.getAudioTracks()[0];
@@ -1377,7 +1386,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _handleChangeHoldStateError(error) {
     logger.error(`Failed to ${error.action} on call ${this.id}`);
-    const telnyxError = createTelnyxError(44001, error);
+    const telnyxError = createTelnyxError(HOLD_FAILED, error);
     trigger(
       SwEvent.Error,
       {
@@ -1412,7 +1421,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error('Call setRemoteDescription Error: ', error);
-        const telnyxError = createTelnyxError(40004, error);
+        const telnyxError = createTelnyxError(
+          SDP_SET_REMOTE_DESCRIPTION_FAILED,
+          error
+        );
         trigger(
           SwEvent.Error,
           {
@@ -1469,8 +1481,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
     // W5d: Check for host-only ICE candidates (non-trickle path)
-    if (!/^a=candidate:.+typ (srflx|prflx|relay)/m.test(sdp)) {
-      const warning = createTelnyxWarning(33005);
+    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
+      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
+      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
       trigger(
         SwEvent.Warning,
         { warning, callId: this.id, sessionId: this.session.sessionid },
@@ -1518,7 +1531,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        const telnyxError = createTelnyxError(40005, error);
+        const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
         trigger(
           SwEvent.Error,
           {
@@ -1597,7 +1610,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
-        const telnyxError = createTelnyxError(40005, error);
+        const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
         trigger(
           SwEvent.Error,
           {
@@ -1629,7 +1642,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       const timeoutMs = this.options.attach ? 5000 : 1000;
       this._iceTimeout = setTimeout(
         () => this._onIceSdp(instance.localDescription),
-        timeoutMs,
+        timeoutMs
       );
     }
 
@@ -1755,8 +1768,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIce(event);
     };
 
-    instance.onicegatheringstatechange = () => {
-      logger.debug('ICE gathering state changed:', instance.iceGatheringState);
+    instance.onicegatheringstatechange = (event) => {
+      logger.debug(
+        'ICE gathering state changed:',
+        instance.iceGatheringState,
+        event
+      );
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
       }
@@ -1886,8 +1903,13 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _init() {
-    const { id, userVariables, remoteCallerNumber, onNotification, recoveredCallId } =
-      this.options;
+    const {
+      id,
+      userVariables,
+      remoteCallerNumber,
+      onNotification,
+      recoveredCallId,
+    } = this.options;
     if (id) {
       this.options.id = id.toString();
     } else {

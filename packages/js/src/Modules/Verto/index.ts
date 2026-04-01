@@ -13,6 +13,7 @@ import {
 } from './util/helpers';
 import logger from './util/logger';
 import { createTelnyxError } from './util/errors';
+import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -50,7 +51,7 @@ export default class Verto extends BrowserSession {
   newCall(options: IVertoCallOptions) {
     if (!this.validateCallOptions(options)) {
       const telnyxError = createTelnyxError(
-        44002,
+        INVALID_CALL_PARAMETERS,
         undefined,
         'Error: destinationNumber is required'
       );

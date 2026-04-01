@@ -15,6 +15,11 @@ import {
   ITelnyxWarning,
   createTelnyxWarning,
 } from './constants/warnings';
+import {
+  MEDIA_MICROPHONE_PERMISSION_DENIED,
+  MEDIA_DEVICE_NOT_FOUND,
+  MEDIA_GET_USER_MEDIA_FAILED,
+} from './constants/errorCodes';
 
 export { SDK_ERRORS, SdkErrorCode };
 export { SDK_WARNINGS, SdkWarningCode, ITelnyxWarning, createTelnyxWarning };
@@ -80,16 +85,22 @@ export class TelnyxError extends Error implements ITelnyxError {
  */
 export function classifyMediaErrorCode(
   error: unknown
-): 42001 | 42002 | 42003 {
+):
+  | typeof MEDIA_MICROPHONE_PERMISSION_DENIED
+  | typeof MEDIA_DEVICE_NOT_FOUND
+  | typeof MEDIA_GET_USER_MEDIA_FAILED {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError') {
-      return 42001;
+      return MEDIA_MICROPHONE_PERMISSION_DENIED;
     }
-    if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
-      return 42002;
+    if (
+      error.name === 'NotFoundError' ||
+      error.name === 'OverconstrainedError'
+    ) {
+      return MEDIA_DEVICE_NOT_FOUND;
     }
   }
-  return 42003;
+  return MEDIA_GET_USER_MEDIA_FAILED;
 }
 
 /**
@@ -105,6 +116,12 @@ export function createTelnyxError(
   message?: string
 ): TelnyxError {
   const entry = SDK_ERRORS[code];
+  const normalizedError =
+    originalError instanceof Error
+      ? originalError
+      : originalError !== undefined
+        ? new Error(String(originalError))
+        : undefined;
   return new TelnyxError({
     code,
     name: entry.name,
@@ -112,6 +129,6 @@ export function createTelnyxError(
     message: message || entry.message,
     causes: [...entry.causes],
     solutions: [...entry.solutions],
-    originalError,
+    originalError: normalizedError,
   });
 }

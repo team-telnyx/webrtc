@@ -25,6 +25,14 @@ import {
   type SdkWarningCode,
   createTelnyxWarning,
 } from '../../../Modules/Verto/util/errors';
+import {
+  HIGH_RTT,
+  HIGH_JITTER,
+  HIGH_PACKET_LOSS,
+  LOW_MOS,
+  LOW_BYTES_RECEIVED,
+  LOW_BYTES_SENT,
+} from '../../../Modules/Verto/util/constants/errorCodes';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -845,26 +853,26 @@ export class CallReportCollector {
       this._prevPacketsLost = currentLost;
     }
 
-    // RTT warning (31001) — RTT is in seconds from WebRTC API
+    // RTT warning — RTT is in seconds from WebRTC API
     this._trackBreach(
-      31001,
+      HIGH_RTT,
       rtt !== undefined && rtt > CallReportCollector.THRESHOLD_RTT_MS
     );
 
-    // Jitter warning (31002) — jitter from our averaging is in ms
+    // Jitter warning — jitter from our averaging is in ms
     this._trackBreach(
-      31002,
+      HIGH_JITTER,
       jitter !== undefined && jitter > CallReportCollector.THRESHOLD_JITTER_MS
     );
 
-    // Packet loss warning (31003)
+    // Packet loss warning
     this._trackBreach(
-      31003,
+      HIGH_PACKET_LOSS,
       packetLossPct !== undefined &&
         packetLossPct > CallReportCollector.THRESHOLD_PACKET_LOSS_PCT
     );
 
-    // MOS warning (31004) — simplified E-model
+    // MOS warning — simplified E-model
     if (
       rtt !== undefined &&
       jitter !== undefined &&
@@ -876,9 +884,9 @@ export class CallReportCollector {
         1,
         Math.min(4.5, 1 + 0.035 * R + R * (R - 60) * (100 - R) * 7e-6)
       );
-      this._trackBreach(31004, mos < CallReportCollector.THRESHOLD_MOS);
+      this._trackBreach(LOW_MOS, mos < CallReportCollector.THRESHOLD_MOS);
     } else {
-      this._trackBreach(31004, false);
+      this._trackBreach(LOW_MOS, false);
     }
 
     // Low bytes received (32001) — check bytesReceived delta is 0
@@ -889,10 +897,10 @@ export class CallReportCollector {
       const prev = this.statsBuffer[this.statsBuffer.length - 2];
       const prevBytes = prev?.audio?.inbound?.bytesReceived ?? 0;
       const currBytes = statsEntry.audio.inbound.bytesReceived ?? 0;
-      this._trackBreach(32001, currBytes - prevBytes === 0);
+      this._trackBreach(LOW_BYTES_RECEIVED, currBytes - prevBytes === 0);
     }
 
-    // Low bytes sent (32002) — check bytesSent delta is 0
+    // Low bytes sent — check bytesSent delta is 0
     if (
       statsEntry.audio?.outbound?.bytesSent !== undefined &&
       this.statsBuffer.length > 1
@@ -900,7 +908,7 @@ export class CallReportCollector {
       const prev = this.statsBuffer[this.statsBuffer.length - 2];
       const prevBytes = prev?.audio?.outbound?.bytesSent ?? 0;
       const currBytes = statsEntry.audio.outbound.bytesSent ?? 0;
-      this._trackBreach(32002, currBytes - prevBytes === 0);
+      this._trackBreach(LOW_BYTES_SENT, currBytes - prevBytes === 0);
     }
   }
 
@@ -925,7 +933,10 @@ export class CallReportCollector {
           this._lastWarningEmitted[code] = now;
           try {
             const warning = createTelnyxWarning(code);
-            this.onWarning!(warning);
+            logger.warn(
+              `CallReportCollector: warning ${warning.code}: ${warning.message}`
+            );
+            this.onWarning?.(warning);
           } catch (err) {
             logger.error(
               `CallReportCollector: Failed to emit warning ${code}`,
