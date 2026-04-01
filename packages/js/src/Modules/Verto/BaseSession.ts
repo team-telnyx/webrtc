@@ -9,7 +9,13 @@ import {
   trigger,
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
-import { SwEvent } from './util/constants';
+import {
+  SwEvent,
+  AUTHENTICATION_REQUIRED,
+  LOGIN_FAILED,
+  INVALID_CREDENTIALS,
+  TOKEN_EXPIRING_SOON,
+} from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
 import {
   isFunction,
@@ -134,7 +140,7 @@ export default abstract class BaseSession {
     return this.connection.send(msg).catch(async (error) => {
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
-          const telnyxError = createTelnyxError(46003, error);
+          const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -302,7 +308,7 @@ export default abstract class BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
-    const telnyxError = createTelnyxError(46001, error);
+    const telnyxError = createTelnyxError(LOGIN_FAILED, error);
     trigger(
       SwEvent.Error,
       { error: telnyxError, sessionId: this.sessionid },
@@ -354,7 +360,7 @@ export default abstract class BaseSession {
   }
 
   private _emitTokenExpiryWarning(): void {
-    const warning = createTelnyxWarning(34001);
+    const warning = createTelnyxWarning(TOKEN_EXPIRING_SOON);
     trigger(SwEvent.Warning, { warning, sessionId: this.sessionid }, this.uuid);
   }
 
@@ -472,7 +478,11 @@ export default abstract class BaseSession {
     } else {
       const msg = 'Invalid login options provided for authentication.';
       logger.error(msg);
-      const telnyxError = createTelnyxError(46002, undefined, msg);
+      const telnyxError = createTelnyxError(
+        INVALID_CREDENTIALS,
+        undefined,
+        msg
+      );
       trigger(
         SwEvent.Error,
         {

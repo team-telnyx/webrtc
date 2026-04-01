@@ -4,7 +4,14 @@ import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
-import { SwEvent } from '../util/constants';
+import {
+  SwEvent,
+  SESSION_NOT_REATTACHED,
+  LOGIN_FAILED,
+  GATEWAY_FAILED,
+  RECONNECTION_EXHAUSTED,
+  SUBSCRIBE_FAILED,
+} from '../util/constants';
 import {
   VertoMethod,
   NOTIFICATION_TYPE,
@@ -73,7 +80,7 @@ class VertoHandler {
       params.reattached_sessions.length === 0 &&
       Object.keys(session.calls).length > 0
     ) {
-      const warning = createTelnyxWarning(35001);
+      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
       trigger(
         SwEvent.Warning,
         { warning, sessionId: session.sessionid },
@@ -305,7 +312,10 @@ class VertoHandler {
                   `Fail to register the user, the server tried ${RETRY_REGISTER_TIME} times`,
                   'UNREGED|NOREG'
                 );
-                const telnyxError = createTelnyxError(46001, originalError);
+                const telnyxError = createTelnyxError(
+                  LOGIN_FAILED,
+                  originalError
+                );
                 trigger(
                   SwEvent.Error,
                   {
@@ -331,7 +341,7 @@ class VertoHandler {
               ) {
                 // Emit gateway failure on first occurrence
                 const gatewayError = createTelnyxError(
-                  45004,
+                  GATEWAY_FAILED,
                   new Error(`Gateway state: ${gateWayState}`)
                 );
                 trigger(
@@ -349,7 +359,10 @@ class VertoHandler {
                     `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
                     'FAILED|FAIL_WAIT'
                   );
-                  const telnyxError = createTelnyxError(45003, originalError);
+                  const telnyxError = createTelnyxError(
+                    RECONNECTION_EXHAUSTED,
+                    originalError
+                  );
                   trigger(
                     SwEvent.Error,
                     {
@@ -493,7 +506,7 @@ class VertoHandler {
         };
         const result = await session.vertoSubscribe(tmp).catch((error) => {
           logger.error('liveArray subscription error:', error);
-          const telnyxError = createTelnyxError(44004, error);
+          const telnyxError = createTelnyxError(SUBSCRIBE_FAILED, error);
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: session.sessionid },
