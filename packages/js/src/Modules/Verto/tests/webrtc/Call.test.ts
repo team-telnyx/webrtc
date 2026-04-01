@@ -1,3 +1,16 @@
+Object.defineProperty(global, 'performance', {
+  writable: true,
+  value: {
+    mark: jest.fn(),
+    measure: jest.fn().mockReturnValue({ duration: 0 }),
+    clearMarks: jest.fn(),
+    clearMeasures: jest.fn(),
+    getEntriesByName: jest.fn().mockReturnValue([]),
+    getEntriesByType: jest.fn().mockReturnValue([]),
+    now: jest.fn().mockReturnValue(Date.now()),
+  },
+});
+
 import { isQueued } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
