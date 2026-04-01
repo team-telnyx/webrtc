@@ -56,10 +56,9 @@ export default class Verto extends BrowserSession {
       );
       throw telnyxError;
     }
-    performance.mark('new-call-start');
     const call = new Call(this, options);
+    performance.mark('new-call-start');
     call.invite();
-    performance.mark('new-call-end');
     return call;
   }
 

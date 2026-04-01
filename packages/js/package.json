@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "2.25.26-beta.2",
+  "version": "2.26.0",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",
@@ -17,7 +17,8 @@
   "module": "lib/bundle.mjs",
   "types": "lib/packages/js/src/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "README.md"
   ],
   "scripts": {
     "build": "rollup -c",

@@ -6,19 +6,20 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish-js:
-    if: startsWith(github.event.release.tag_name, 'webrtc/v') && github.event.release.prerelease == false
+    if: startsWith(github.event.release.tag_name, 'webrtc/v')
 
-    name: "@telnyx/webrtc Publish release"
+    name: "@telnyx/webrtc Publish ${{ github.event.release.prerelease && 'prerelease' || 'release' }}"
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "main"
+          ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -27,10 +28,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v4
+      - name: Use Node.js 24.5
+        uses: actions/setup-node@v6
         with:
-          node-version: "18.x"
+          node-version: "24.5.0"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
 
@@ -41,12 +42,32 @@ jobs:
         working-directory: packages/js
         run: yarn install --immutable
 
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-alpha* ]]; then
+            echo "tag=alpha" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-beta* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-rc* ]]; then
+            echo "tag=rc" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-next* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-* ]]; then
+            # Generic prerelease — extract identifier before the dot
+            PRE="${VERSION#*-}"
+            echo "tag=${PRE%%.*}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: packages/js
+
       - name: Publish package
         working-directory: packages/js
-        run: npm publish --access public
+        run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           CI: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
 
       - name: get-npm-version
         id: package-version
@@ -54,15 +75,8 @@ jobs:
         with:
           path: packages/js
 
-      - name: Post to Slack
-        uses: homeday-de/slack-release-bot-action@main
-        with:
-          webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
-          title: "@telnyx/webrtc@${{ steps.package-version.outputs.current-version }}"
-          body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
-          context: "New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version }}"
-
       - name: Trigger developer docs update
+        if: "!github.event.release.prerelease"
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.DOCS_DISPATCH_TOKEN }}
@@ -71,16 +85,16 @@ jobs:
           client-payload: '{"sdk": "js", "version": "${{ steps.package-version.outputs.current-version }}"}'
 
   publish-react-client:
-    if: startsWith(github.event.release.tag_name, 'react-client/v') && github.event.release.prerelease == false
+    if: startsWith(github.event.release.tag_name, 'react-client/v')
 
-    name: "@telnyx/react-client Publish release"
+    name: "@telnyx/react-client Publish ${{ github.event.release.prerelease && 'prerelease' || 'release' }}"
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "main"
+          ref: ${{ github.event.release.target_commitish }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -89,10 +103,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v4
+      - name: Use Node.js 24.5
+        uses: actions/setup-node@v6
         with:
-          node-version: "18.x"
+          node-version: "24.5.0"
           cache: "yarn"
           registry-url: https://registry.npmjs.org/
 
@@ -103,9 +117,28 @@ jobs:
         working-directory: packages/react-client
         run: yarn install --immutable
 
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-alpha* ]]; then
+            echo "tag=alpha" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-beta* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-rc* ]]; then
+            echo "tag=rc" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-next* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-* ]]; then
+            PRE="${VERSION#*-}"
+            echo "tag=${PRE%%.*}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: packages/react-client
+
       - name: Publish package
         working-directory: packages/react-client
-        run: npm publish --access public
+        run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           CI: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_CI_TOKEN }}

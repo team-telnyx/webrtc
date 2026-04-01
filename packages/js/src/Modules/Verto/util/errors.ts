@@ -78,14 +78,15 @@ export class TelnyxError extends Error implements ITelnyxError {
  * - 42002 → Device not found (NotFoundError / OverconstrainedError)
  * - 42003 → Generic media error (fallback)
  */
-export function classifyMediaErrorCode(
-  error: unknown
-): 42001 | 42002 | 42003 {
+export function classifyMediaErrorCode(error: unknown): 42001 | 42002 | 42003 {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError') {
       return 42001;
     }
-    if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
+    if (
+      error.name === 'NotFoundError' ||
+      error.name === 'OverconstrainedError'
+    ) {
       return 42002;
     }
   }

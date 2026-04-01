@@ -1,3 +1,24 @@
+## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
+
+- chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
+## [2.25.29](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.28...webrtc/v2.25.29) (2026-03-31)
+
+- fix: upgrade actions/setup-node from v4 to v6 for OIDC compatibility (#574)
+## [2.25.28](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.27...webrtc/v2.25.28) (2026-03-31)
+
+- chore: upgrade Node.js from 18 to 22.14 across all workflows (#572)
+- chore: release webrtc@2.25.27 (#571)
+## [2.25.27](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26...webrtc/v2.25.27) (2026-03-31)
+
+- chore: remove NODE_AUTH_TOKEN from publish steps for OIDC auth (#570)
+## [2.25.26](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26-beta.4...webrtc/v2.25.26) (2026-03-31)
+
+- fix: guard against null localDescription in _onIceSdp (#557)
+- chore: consolidate publish workflows for npm trusted publisher OIDC (#567)
+- fix: reset keepalive on any inbound message to prevent false ping/pong warnings (#556)
+- fix: don't null global LogCollector on call cleanup (#555)
+- chore: add OIDC permissions and npm provenance to prerelease workflow (#566)
+- chore: add OIDC permissions and npm provenance to publish-release workflow (#565)
 ## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
 
 - docs: update ts docs

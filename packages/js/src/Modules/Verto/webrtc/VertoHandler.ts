@@ -50,6 +50,12 @@ class VertoHandler {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handleMessage(msg: any) {
     const { session } = this;
+
+    // Any inbound message proves the WebSocket is alive — reset keepalive timer
+    // to prevent false "No ping/pong received" warnings when server pings and
+    // client PONG responses drift out of sync with the 35s keepalive interval.
+    session.setPingReceived();
+
     const { id, method, params = {}, voice_sdk_id } = msg;
 
     const callID = params?.callID;
@@ -140,6 +146,7 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
+      performance.mark('new-call-start');
       const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;
