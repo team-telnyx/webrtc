@@ -74,6 +74,23 @@ export interface IVertoOptions {
    * @default 1000
    */
   debugLogMaxEntries?: number;
+  /**
+   * Configuration for media permissions recovery on inbound calls.
+   * When enabled and `getUserMedia` fails during an inbound call,
+   * the SDK will emit a `userMediaError` notification with a `resume()`
+   * callback, allowing the app to prompt the user to fix permissions
+   * and then retry media acquisition.
+   */
+  mediaPermissionsRecovery?: {
+    /** Enable the recovery flow. */
+    enabled: boolean;
+    /** Maximum time in ms to wait for the app to call `resume()`. Recommended max 25000. */
+    timeout: number;
+    /** Called when the retry `getUserMedia` succeeds after `resume()`. */
+    onSuccess?: () => void;
+    /** Called when the retry `getUserMedia` fails or the timeout expires. */
+    onError?: (error: Error) => void;
+  };
 }
 export interface ILoginParams {
   login?: string;

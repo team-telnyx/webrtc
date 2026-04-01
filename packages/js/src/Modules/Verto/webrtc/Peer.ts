@@ -16,7 +16,7 @@ import {
   streamIsValid,
   videoIsMediaTrackConstraints,
 } from '../util/webrtc';
-import { PeerType } from './constants';
+import { NOTIFICATION_TYPE, PeerType } from './constants';
 import {
   disableAudioTracks,
   getMediaConstraints,
@@ -386,7 +386,46 @@ export default class Peer {
     }
 
     this.options.localStream = await this._retrieveLocalStream().catch(
-      (error) => {
+      async (error) => {
+        const recovery = this._session.options.mediaPermissionsRecovery;
+
+        if (recovery?.enabled && this._isAnswer()) {
+          let recoveredStream: MediaStream | null = null;
+
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(
+              () => reject(new Error('mediaPermissionsTimeout')),
+              recovery.timeout
+            );
+
+            trigger(
+              SwEvent.Notification,
+              {
+                type: NOTIFICATION_TYPE.userMediaError,
+                error,
+                call: this._session.calls[this.options.id],
+                retryDeadline: Date.now() + recovery.timeout,
+                resume: () => {
+                  clearTimeout(timer);
+                  resolve();
+                },
+              },
+              this.options.id
+            );
+          })
+            .then(async () => {
+              recoveredStream = await this._retrieveLocalStream();
+              recovery.onSuccess?.();
+            })
+            .catch((recoveryError) => {
+              recovery.onError?.(recoveryError);
+              trigger(SwEvent.MediaError, recoveryError, this.options.id);
+            });
+
+          return recoveredStream;
+        }
+
+        // existing path — unchanged
         trigger(SwEvent.MediaError, error, this.options.id);
         return null;
       }

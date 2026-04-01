@@ -177,6 +177,44 @@ export interface IClientOptions {
    * @default 5000 (5 seconds)
    */
   callReportInterval?: number;
+
+  /**
+   * Configuration for media permissions recovery on inbound calls.
+   * When enabled and `getUserMedia` fails during an inbound call,
+   * the SDK will emit a `userMediaError` notification with a `resume()`
+   * callback, allowing the app to prompt the user to fix permissions
+   * and then retry media acquisition.
+   *
+   * @example
+   * ```js
+   * const client = new TelnyxRTC({
+   *   login_token: '...',
+   *   mediaPermissionsRecovery: {
+   *     enabled: true,
+   *     timeout: 20000,
+   *     onSuccess: () => console.log('Media recovered'),
+   *     onError: (err) => console.error('Recovery failed', err),
+   *   },
+   * });
+   *
+   * client.on('telnyx.notification', (notification) => {
+   *   if (notification.type === 'userMediaError') {
+   *     // Show UI to fix permissions, then call resume()
+   *     showPermissionDialog(() => notification.resume());
+   *   }
+   * });
+   * ```
+   */
+  mediaPermissionsRecovery?: {
+    /** Enable the recovery flow. */
+    enabled: boolean;
+    /** Maximum time in ms to wait for the app to call `resume()`. Recommended max 25000. */
+    timeout: number;
+    /** Called when the retry `getUserMedia` succeeds after `resume()`. */
+    onSuccess?: () => void;
+    /** Called when the retry `getUserMedia` fails or the timeout expires. */
+    onError?: (error: Error) => void;
+  };
 }
 
 /**
