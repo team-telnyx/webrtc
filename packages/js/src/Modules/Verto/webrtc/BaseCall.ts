@@ -543,7 +543,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             this.session.uuid
           );
         })
-        .finally(_close.bind(this));
+        .then(_close.bind(this));
     } else {
       _close();
     }
