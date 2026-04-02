@@ -32,7 +32,7 @@ export default class Verto extends BrowserSession {
         Object.keys(this.calls).forEach((callId) => {
           if (this.calls[callId]) {
             logger.info(`Hanging up call due to window unload: ${callId}`);
-            this.calls[callId].hangup({}, true);
+            void this.calls[callId].hangup({}, true);
           }
         });
       }

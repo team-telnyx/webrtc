@@ -164,38 +164,38 @@ describe('Call', () => {
   });
 
   describe('hangup cause codes', () => {
-    it('should use USER_BUSY/17 when rejecting a ringing call', () => {
+    it('should use USER_BUSY/17 when rejecting a ringing call', async () => {
       call.setState(State.Ringing);
-      call.hangup({}, false);
+      await call.hangup({}, false);
       expect(call.cause).toEqual('USER_BUSY');
       expect(call.causeCode).toEqual(17);
     });
 
-    it('should use USER_BUSY/17 for a new (pre-answer) call', () => {
+    it('should use USER_BUSY/17 for a new (pre-answer) call', async () => {
       // call starts in State.New
-      call.hangup({}, false);
+      await call.hangup({}, false);
       expect(call.cause).toEqual('USER_BUSY');
       expect(call.causeCode).toEqual(17);
     });
 
-    it('should use NORMAL_CLEARING/16 when hanging up an active call', () => {
+    it('should use NORMAL_CLEARING/16 when hanging up an active call', async () => {
       call.setState(State.Active);
-      call.hangup({}, false);
+      await call.hangup({}, false);
       expect(call.cause).toEqual('NORMAL_CLEARING');
       expect(call.causeCode).toEqual(16);
     });
 
-    it('should use NORMAL_CLEARING/16 when hanging up a held call', () => {
+    it('should use NORMAL_CLEARING/16 when hanging up a held call', async () => {
       call.setState(State.Active);
       call.setState(State.Held);
-      call.hangup({}, false);
+      await call.hangup({}, false);
       expect(call.cause).toEqual('NORMAL_CLEARING');
       expect(call.causeCode).toEqual(16);
     });
 
-    it('should respect explicit cause params regardless of state', () => {
+    it('should respect explicit cause params regardless of state', async () => {
       call.setState(State.Active);
-      call.hangup({ cause: 'CUSTOM_CAUSE', causeCode: 99 }, false);
+      await call.hangup({ cause: 'CUSTOM_CAUSE', causeCode: 99 }, false);
       expect(call.cause).toEqual('CUSTOM_CAUSE');
       expect(call.causeCode).toEqual(99);
     });
