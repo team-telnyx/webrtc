@@ -158,7 +158,7 @@ export interface IWebRTCCall {
   signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
-  hangup: (params: IHangupParams, execute: boolean) => void;
+  hangup: (params?: IHangupParams, execute?: boolean) => void;
 
   hold: () => void;
   unhold: () => void;

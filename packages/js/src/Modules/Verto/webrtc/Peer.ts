@@ -419,9 +419,10 @@ export default class Peer {
             })
             .catch((recoveryError) => {
               recovery.onError?.(recoveryError);
-              // Hang up the inbound call with BYE so the remote peer isn't left waiting
-              this._session.calls[this.options.id]?.hangup({}, true);
-              trigger(SwEvent.MediaError, recoveryError, this.options.id);
+              // Call hangup directly — _onMediaError would fire a second userMediaError notification
+              // but the app already received one (with resume) above. BaseCall.hangup() with no
+              // args sends BYE for inbound calls (execute defaults to true).
+              this._session.calls[this.options.id]?.hangup();
             });
 
           return recoveredStream;

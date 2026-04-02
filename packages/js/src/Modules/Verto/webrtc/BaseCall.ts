@@ -1727,7 +1727,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       errorMessage,
     });
     logger.error(`Media error (${errorName}): ${errorMessage}`, error);
-    this.hangup({}, false);
+    this.hangup();
   }
 
   private _onPeerConnectionFailureError(error: any) {
