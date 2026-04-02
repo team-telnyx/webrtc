@@ -166,7 +166,25 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async disconnect() {
-    Object.keys(this.calls).forEach((k) => this.calls[k].setState(State.Purge));
+    logger.info('[disconnect] Client-initiated disconnect — setting Purge with BYE on all active calls.');
+    Object.keys(this.calls).forEach((k) => {
+      this.calls[k].setState(State.Purge, { sendBye: true });
+    });
+    this.calls = {};
+
+    this._cleanupNetworkListeners();
+    await super.disconnect();
+  }
+
+  /**
+   * Server-initiated disconnect (e.g. PUNT message).
+   * Purges all calls locally without sending BYE — server side may already be gone.
+   */
+  async serverDisconnect() {
+    logger.info('[serverDisconnect] Server-initiated disconnect — setting Purge without BYE on all active calls.');
+    Object.keys(this.calls).forEach((k) => {
+      this.calls[k].setState(State.Purge, { sendBye: false });
+    });
     this.calls = {};
 
     this._cleanupNetworkListeners();

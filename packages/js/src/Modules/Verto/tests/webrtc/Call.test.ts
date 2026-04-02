@@ -146,8 +146,22 @@ describe('Call', () => {
       expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);
     });
 
-    it('set state to Purge', () => {
+    it('set state to Purge without sendBye (default)', () => {
       call.setState(State.Purge);
+      expect(call.state).toEqual('destroy');
+      expect(session.calls).not.toHaveProperty(call.id);
+      expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);
+    });
+
+    it('set state to Purge with sendBye=true (client disconnect)', () => {
+      call.setState(State.Purge, { sendBye: true });
+      // With sendBye=true, hangup executes BYE which transitions through Hangup
+      // (in test env without a real socket, it stays at hangup instead of reaching destroy)
+      expect(call.state).toEqual('hangup');
+    });
+
+    it('set state to Purge with sendBye=false (server disconnect)', () => {
+      call.setState(State.Purge, { sendBye: false });
       expect(call.state).toEqual('destroy');
       expect(session.calls).not.toHaveProperty(call.id);
       expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);

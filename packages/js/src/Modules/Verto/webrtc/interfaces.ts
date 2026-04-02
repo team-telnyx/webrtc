@@ -179,7 +179,7 @@ export interface IWebRTCCall {
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   getStats: (callback: Function, constraints: any) => void;
-  setState: (state: State) => void;
+  setState: (state: State, options?: { sendBye?: boolean }) => void;
   // Privates
   handleMessage: (msg: any) => void;
   _addChannel: (laChannel: any) => void;

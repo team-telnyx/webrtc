@@ -961,7 +961,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  setState(state: State) {
+  setState(state: State, options?: { sendBye?: boolean }): void {
     this._prevState = this._state;
     this._state = state;
     this.state = State[this._state].toLowerCase();
@@ -976,10 +976,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
 
     switch (state) {
-      case State.Purge:
-        logger.debug(`Call ${this.id} hangup call due to purge state`);
-        this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
+      case State.Purge: {
+        const sendBye = options?.sendBye ?? false;
+        logger.info(
+          `[${this.id}] Entering Purge state. sendBye=${sendBye}. Reason: ${sendBye ? 'client.disconnect() — sending BYE' : 'server-initiated (PUNT) — skipping BYE'}`
+        );
+        this.hangup({ cause: 'PURGE', causeCode: 1 }, sendBye);
         break;
+      }
       case State.Active: {
         performance.mark('call-active');
         this.peer?.tryCollectTimings();

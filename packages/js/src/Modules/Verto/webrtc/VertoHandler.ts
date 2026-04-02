@@ -188,13 +188,12 @@ class VertoHandler {
           session.options.keepConnectionAliveOnSocketClose &&
           isPeerConnectionAlive
         ) {
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] keeping session calls alive due to PUNT and keepConnectionAliveOnSocketClose. Disconnecting base session...`
-          );
+          logger.info('[punt] Received PUNT from server. keepConnectionAliveOnSocketClose=true — disconnecting socket only, keeping calls alive.');
           session.socketDisconnect();
           this._ack(id, method);
         } else {
-          session.disconnect();
+          logger.info('[punt] Received PUNT from server — calling serverDisconnect() to purge all calls without BYE.');
+          session.serverDisconnect();
         }
         break;
       case VertoMethod.Invite: {

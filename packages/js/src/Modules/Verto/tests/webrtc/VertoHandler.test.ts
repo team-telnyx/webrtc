@@ -63,13 +63,13 @@ describe('VertoHandler', () => {
   });
 
   describe('telnyx_rtc.punt', () => {
-    it('should initiate the logout process', () => {
+    it('should call serverDisconnect (no BYE) on PUNT', () => {
       const msg = JSON.parse(
         '{"jsonrpc":"2.0","id":38,"method":"telnyx_rtc.punt","params":{}}'
       );
-      instance.disconnect = jest.fn();
+      instance.serverDisconnect = jest.fn();
       handler.handleMessage(msg);
-      expect(instance.disconnect).toBeCalledTimes(1);
+      expect(instance.serverDisconnect).toBeCalledTimes(1);
     });
   });
 
