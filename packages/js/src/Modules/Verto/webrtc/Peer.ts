@@ -410,7 +410,7 @@ export default class Peer {
                   resolve();
                 },
               },
-              this.options.id
+              this._session.uuid
             );
           })
             .then(async () => {
@@ -419,6 +419,8 @@ export default class Peer {
             })
             .catch((recoveryError) => {
               recovery.onError?.(recoveryError);
+              // Hang up the inbound call with BYE so the remote peer isn't left waiting
+              this._session.calls[this.options.id]?.hangup({}, true);
               trigger(SwEvent.MediaError, recoveryError, this.options.id);
             });
 
