@@ -350,9 +350,15 @@ export default class Peer {
       performance.mark('set-remote-description');
     }
 
+    const isReceiveOnly =
+      Boolean(this.options.receiveOnlyAudio) && !this.options.audio;
+
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
         trigger(SwEvent.MediaError, error, this.options.id);
+        if (!isReceiveOnly) {
+          throw error;
+        }
         return null;
       }
     );
@@ -366,14 +372,10 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
-    if (!this.options.localStream) {
-      logger.warn('No local media stream available');
-      if (this.options.audio) {
-        logger.warn(
-          'Audio is required but no local stream — skipping negotiation'
-        );
-        return;
-      }
+    if (!this.options.localStream && !isReceiveOnly) {
+      const err = new Error('Failed to retrieve local media stream');
+      trigger(SwEvent.MediaError, err, this.options.id);
+      throw err;
     }
 
     performance.mark('peer-creation-end');

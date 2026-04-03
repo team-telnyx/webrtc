@@ -369,7 +369,14 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
-    await this.peer.init();
+    try {
+      await this.peer.init();
+    } catch (error) {
+      logger.error('Peer init failed due to media error, aborting call', error);
+      this._creatingPeer = false;
+      this.hangup({}, false);
+      return;
+    }
     this._creatingPeer = false;
   }
   /**
@@ -408,7 +415,14 @@ export default abstract class BaseCall implements IWebRTCCall {
         ? this._registerTrickleIcePeerEvents
         : this._registerPeerEvents
     );
-    await this.peer.init();
+    try {
+      await this.peer.init();
+    } catch (error) {
+      logger.error('Peer init failed due to media error, aborting call', error);
+      this._creatingPeer = false;
+      this.hangup({}, false);
+      return;
+    }
     this._creatingPeer = false;
   }
 
