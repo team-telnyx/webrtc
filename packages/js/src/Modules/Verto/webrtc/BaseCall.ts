@@ -1702,7 +1702,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     return check;
   };
 
-  private async _onMediaError(error: Error | DOMException) {
+  private _onMediaError(error: Error | DOMException) {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
 
@@ -1714,7 +1714,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       errorMessage,
     });
     logger.error(`Media error (${errorName}): ${errorMessage}`, error);
-    await this.hangup({}, false);
+    void this.hangup({}, false);
   }
 
   private _onPeerConnectionFailureError(error: any) {
