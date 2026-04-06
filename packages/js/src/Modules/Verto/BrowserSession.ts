@@ -1,17 +1,17 @@
 import BaseSession from './BaseSession';
 import {
   IAudioSettings,
-  IVideoSettings,
   BroadcastParams,
   SubscribeParams,
   IVertoOptions,
 } from './util/interfaces';
-import pkg from '../../../../../package.json';
 import { registerOnce, trigger } from './services/Handler';
+import { classifyMediaErrorCode, createTelnyxError } from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
   DEFAULT_DEV_ICE_SERVERS,
+  NETWORK_OFFLINE,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
@@ -25,11 +25,10 @@ import {
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
 import logger from './util/logger';
-import { Unsubscribe, Subscribe, Broadcast, Attach } from './messages/Verto';
+import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
-const SDK_VERSION = pkg.version;
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
@@ -181,6 +180,7 @@ export default abstract class BrowserSession extends BaseSession {
    * Handle login error
    * @return void
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handleLoginError(error: any) {
     super._handleLoginError(error);
   }
@@ -246,7 +246,11 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices().catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }
@@ -313,7 +317,11 @@ export default abstract class BrowserSession extends BaseSession {
    */
   getAudioInDevices(): Promise<MediaDeviceInfo[]> {
     return getDevices(DeviceType.AudioIn).catch((error) => {
-      trigger(SwEvent.MediaError, error, this.uuid);
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.uuid);
       return [];
     });
   }
@@ -610,6 +618,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @type {(HTMLMediaElement | string | Function)}
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   set localElement(tag: HTMLMediaElement | string | Function) {
     this._localElement = findElementByType(tag);
   }
@@ -642,6 +651,7 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @type {(HTMLMediaElement | string | Function)}
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   set remoteElement(tag: HTMLMediaElement | string | Function) {
     this._remoteElement = findElementByType(tag);
   }
@@ -757,6 +767,13 @@ export default abstract class BrowserSession extends BaseSession {
     this._offlineHandler = () => {
       this._wasOffline = true;
       logger.debug(`Network connectivity lost for session ${this.sessionid}`);
+
+      const telnyxError = createTelnyxError(NETWORK_OFFLINE);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.sessionid },
+        this.uuid
+      );
     };
 
     window.addEventListener('online', this._onlineHandler);

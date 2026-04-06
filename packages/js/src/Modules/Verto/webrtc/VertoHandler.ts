@@ -1,9 +1,17 @@
 import logger from '../util/logger';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
-import { SwEvent } from '../util/constants';
+import {
+  SwEvent,
+  SESSION_NOT_REATTACHED,
+  LOGIN_FAILED,
+  GATEWAY_FAILED,
+  RECONNECTION_EXHAUSTED,
+  SUBSCRIBE_FAILED,
+} from '../util/constants';
 import {
   VertoMethod,
   NOTIFICATION_TYPE,
@@ -32,8 +40,6 @@ class VertoHandler {
 
   retriedRegister = 0;
 
-  receivedAuthenticationRequired = 0;
-
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -48,6 +54,7 @@ class VertoHandler {
     return randomInt(2, 6) * 1000;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handleMessage(msg: any) {
     const { session } = this;
 
@@ -64,6 +71,22 @@ class VertoHandler {
 
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
+
+    // W8: Session not reattached warning
+    // If the server sends reattached_sessions as an empty array and the SDK
+    // has active calls, the session was not reattached after reconnection.
+    if (
+      Array.isArray(params?.reattached_sessions) &&
+      params.reattached_sessions.length === 0 &&
+      Object.keys(session.calls).length > 0
+    ) {
+      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+      trigger(
+        SwEvent.Warning,
+        { warning, sessionId: session.sessionid },
+        session.uuid
+      );
+    }
 
     if (eventType === 'channelPvtData') {
       return this._handlePvtEvent(params.pvtData);
@@ -156,31 +179,8 @@ class VertoHandler {
 
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
-        this.session
-          .execute(messagePing)
-          .then(() => {
-            this.receivedAuthenticationRequired = 0;
-          })
-          .catch(async (error) => {
-            if (
-              error.code === this.session.authenticationRequiredErrorCode &&
-              this.receivedAuthenticationRequired >= 0
-            ) {
-              this.receivedAuthenticationRequired += 1;
-
-              if (
-                this.receivedAuthenticationRequired > 1 &&
-                this.session.hasAutoReconnect()
-              ) {
-                logger.warn(
-                  'Ping failed twice with Authentication Required. Re-logging in...'
-                );
-
-                this.session.login();
-                this.receivedAuthenticationRequired = -1; // reset login after ping failed counter until next successful ping
-              }
-            }
-          });
+        this.session.setPingReceived();
+        this.session.execute(messagePing);
         break;
       }
       case VertoMethod.Punt:
@@ -267,7 +267,6 @@ class VertoHandler {
         const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {
-          // eslint-disable-next-line no-case-declarations
           switch (gateWayState) {
             // If the user is REGED tell the client that it is ready to make calls
             case GatewayStateType.REGISTER:
@@ -285,7 +284,10 @@ class VertoHandler {
                 const callReportId = msg?.result?.params?.call_report_id;
                 if (callReportId) {
                   session.callReportId = callReportId;
-                  logger.debug('Captured call_report_id from REGED:', callReportId);
+                  logger.debug(
+                    'Captured call_report_id from REGED:',
+                    callReportId
+                  );
                 }
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
@@ -306,13 +308,18 @@ class VertoHandler {
 
               if (this.retriedRegister === RETRY_REGISTER_TIME) {
                 this.retriedRegister = 0;
+                const originalError = new ErrorResponse(
+                  `Fail to register the user, the server tried ${RETRY_REGISTER_TIME} times`,
+                  'UNREGED|NOREG'
+                );
+                const telnyxError = createTelnyxError(
+                  LOGIN_FAILED,
+                  originalError
+                );
                 trigger(
                   SwEvent.Error,
                   {
-                    error: new ErrorResponse(
-                      `Fail to register the user, the server tried ${RETRY_REGISTER_TIME} times`,
-                      'UNREGED|NOREG'
-                    ),
+                    error: telnyxError,
                     sessionId: session.sessionid,
                   },
                   session.uuid
@@ -332,15 +339,34 @@ class VertoHandler {
                 session.connection.previousGatewayState !==
                   GatewayStateType.FAIL_WAIT
               ) {
+                // Emit gateway failure on first occurrence
+                const gatewayError = createTelnyxError(
+                  GATEWAY_FAILED,
+                  new Error(`Gateway state: ${gateWayState}`)
+                );
+                trigger(
+                  SwEvent.Error,
+                  {
+                    error: gatewayError,
+                    sessionId: session.sessionid,
+                  },
+                  session.uuid
+                );
+
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
+                  const originalError = new ErrorResponse(
+                    `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
+                    'FAILED|FAIL_WAIT'
+                  );
+                  const telnyxError = createTelnyxError(
+                    RECONNECTION_EXHAUSTED,
+                    originalError
+                  );
                   trigger(
                     SwEvent.Error,
                     {
-                      error: new ErrorResponse(
-                        `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                        'FAILED|FAIL_WAIT'
-                      ),
+                      error: telnyxError,
                       sessionId: session.sessionid,
                     },
                     session.uuid
@@ -351,10 +377,14 @@ class VertoHandler {
                 this.retriedConnect += 1;
                 if (this.retriedConnect === RETRY_CONNECT_TIME) {
                   this.retriedConnect = 0;
+                  const telnyxError = createTelnyxError(
+                    45003,
+                    new Error('Connection Retry Failed')
+                  );
                   trigger(
                     SwEvent.Error,
                     {
-                      error: new Error('Connection Retry Failed'),
+                      error: telnyxError,
                       sessionId: session.sessionid,
                     },
                     session.uuid
@@ -409,6 +439,7 @@ class VertoHandler {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _retrieveCallId(packet: any, laChannel: string) {
     const callIds = Object.keys(this.session.calls);
     if (packet.action === 'bootObj') {
@@ -425,6 +456,7 @@ class VertoHandler {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async _handlePvtEvent(pvtData: any) {
     const { session } = this;
     const protocol = session.relayProtocol;
@@ -457,6 +489,7 @@ class VertoHandler {
         const tmp = {
           nodeId: this.nodeId,
           channels: [laChannel],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           handler: ({ data: packet }: any) => {
             const id = callID || this._retrieveCallId(packet, laChannel);
             if (id && session.calls.hasOwnProperty(id)) {
@@ -473,6 +506,12 @@ class VertoHandler {
         };
         const result = await session.vertoSubscribe(tmp).catch((error) => {
           logger.error('liveArray subscription error:', error);
+          const telnyxError = createTelnyxError(SUBSCRIBE_FAILED, error);
+          trigger(
+            SwEvent.Error,
+            { error: telnyxError, sessionId: session.sessionid },
+            session.uuid
+          );
         });
         if (checkSubscribeResponse(result, laChannel)) {
           _liveArrayBootstrap();
@@ -521,6 +560,7 @@ class VertoHandler {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private _handleSessionEvent(eventData: any) {
     switch (eventData.contentType) {
       case 'layout-info':
