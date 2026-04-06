@@ -16,6 +16,7 @@ import {
   createTelnyxError,
   createTelnyxWarning,
 } from '../util/errors';
+import { MEDIA_GET_USER_MEDIA_FAILED } from '../util/constants/errorCodes';
 import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
@@ -424,9 +425,9 @@ export default class Peer {
     }
 
     if (!this.options.localStream && !isReceiveOnly) {
-      const err = new Error('Failed to retrieve local media stream');
-      trigger(SwEvent.MediaError, err, this.options.id);
-      throw err;
+      const telnyxError = createTelnyxError(MEDIA_GET_USER_MEDIA_FAILED);
+      trigger(SwEvent.MediaError, telnyxError, this.options.id);
+      throw telnyxError;
     }
 
     performance.mark('peer-creation-end');
