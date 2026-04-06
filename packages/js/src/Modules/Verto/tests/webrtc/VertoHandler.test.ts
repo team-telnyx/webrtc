@@ -290,8 +290,8 @@ describe('VertoHandler', () => {
         )
       );
 
-      expect(instance.localDc).toBe('ams3-prod');
-      expect(instance.localRegion).toBe('eu-west');
+      expect(instance.dc).toBe('ams3-prod');
+      expect(instance.region).toBe('eu-west');
     });
 
     it('should store call_report_id from REGED message params on the session', () => {

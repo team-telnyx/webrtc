@@ -290,14 +290,14 @@ class VertoHandler {
 
                 const localDc = msg?.result?.params?.local_dc;
                 if (localDc) {
-                  session.localDc = localDc;
-                  logger.debug('Captured local_dc from REGED:', localDc);
+                  session.dc = localDc;
+                  logger.debug('Captured dc from REGED:', { dc: localDc });
                 }
 
                 const localRegion = msg?.result?.params?.local_region;
                 if (localRegion) {
-                  session.localRegion = localRegion;
-                  logger.debug('Captured local_region from REGED:', localRegion);
+                  session.region = localRegion;
+                  logger.debug('Captured region from REGED:', { region: localRegion });
                 }
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
