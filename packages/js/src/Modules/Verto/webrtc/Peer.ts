@@ -1,6 +1,21 @@
 import BrowserSession from '../BrowserSession';
 import { trigger } from '../services/Handler';
-import { SwEvent } from '../util/constants';
+import {
+  SwEvent,
+  ICE_CONNECTIVITY_LOST,
+  PEER_CONNECTION_FAILED,
+  ICE_GATHERING_EMPTY,
+  ICE_GATHERING_TIMEOUT,
+  SDP_CREATE_OFFER_FAILED,
+  SDP_CREATE_ANSWER_FAILED,
+  SDP_SET_LOCAL_DESCRIPTION_FAILED,
+  SDP_SET_REMOTE_DESCRIPTION_FAILED,
+} from '../util/constants';
+import {
+  classifyMediaErrorCode,
+  createTelnyxError,
+  createTelnyxWarning,
+} from '../util/errors';
 import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
@@ -49,6 +64,10 @@ export default class Peer {
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
+  private _iceGatheringSafetyTimeout: ReturnType<typeof setTimeout> | null =
+    null;
+  private _gatheredCandidatesCount: number = 0;
+  private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
   private _firstMediaTrackMarked: boolean = false;
   private _timingsCollected: boolean = false;
 
@@ -271,10 +290,27 @@ export default class Peer {
       }
     }
 
+    if (connectionState === 'disconnected') {
+      const warning = createTelnyxWarning(ICE_CONNECTIVITY_LOST);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.options.id,
+          sessionId: this._session.sessionid,
+        },
+        this.options.id
+      );
+    }
+
     if (connectionState === 'failed') {
+      const warning = createTelnyxWarning(PEER_CONNECTION_FAILED);
       trigger(
         SwEvent.PeerConnectionFailureError,
         {
+          warning,
+          // TODO: The raw Error is kept for backward compatibility with the deprecated
+          // peerConnectionFailureError notification. Remove when the notification is removed.
           error: new Error(
             `Peer Connection failed. previous state: ${this._prevConnectionState}, current state: ${connectionState}`
           ),
@@ -290,6 +326,20 @@ export default class Peer {
     if (connectionState === 'connected') {
       performance.mark('dtls-connected');
       this.tryCollectTimings();
+    }
+
+    if (this._isTrickleIce()) {
+      if (connectionState === 'connecting') {
+        performance.mark('peer-connection-connecting');
+      }
+
+      if (connectionState === 'connected') {
+        // ICE gathering may never reach 'complete' in some scenarios,
+        // so also clear the safety timeout when the connection succeeds.
+        this._clearIceGatheringSafetyTimeout();
+
+        performance.mark('peer-connection-connected');
+      }
     }
   };
 
@@ -352,7 +402,11 @@ export default class Peer {
 
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
-        trigger(SwEvent.MediaError, error, this.options.id);
+        const telnyxError = createTelnyxError(
+          classifyMediaErrorCode(error),
+          error
+        );
+        trigger(SwEvent.MediaError, telnyxError, this.options.id);
         return null;
       }
     );
@@ -381,21 +435,72 @@ export default class Peer {
 
   private _handleIceConnectionStateChange = () => {
     const state = this.instance.iceConnectionState;
-    logger.debug(
-      `[${new Date().toISOString()}] ICE Connection State`,
-      state
-    );
+    logger.debug(`[${new Date().toISOString()}] ICE Connection State`, state);
 
     if (state === 'connected') {
       performance.mark('ice-connected');
     }
   };
+
   private _handleIceGatheringStateChange = () => {
-    logger.debug(
-      `[${new Date().toISOString()}] ICE Gathering State`,
-      this.instance.iceGatheringState
-    );
+    const state = this.instance.iceGatheringState;
+    logger.debug(`[${new Date().toISOString()}] ICE Gathering State`, state);
+
+    if (state === 'gathering') {
+      this._gatheredCandidatesCount = 0;
+      this._startIceGatheringSafetyTimeout();
+    } else if (state === 'complete') {
+      this._clearIceGatheringSafetyTimeout();
+    }
   };
+
+  /**
+   * Increment gathered candidates counter. Called from BaseCall peer event
+   * handlers when a non-null ICE candidate is received.
+   */
+  public incrementGatheredCandidates(): void {
+    this._gatheredCandidatesCount++;
+  }
+
+  private _startIceGatheringSafetyTimeout(): void {
+    this._clearIceGatheringSafetyTimeout();
+    this._iceGatheringSafetyTimeout = setTimeout(() => {
+      if (!this.instance) return;
+
+      if (this._gatheredCandidatesCount === 0) {
+        // No candidates at all within timeout
+        const warning = createTelnyxWarning(ICE_GATHERING_EMPTY);
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            callId: this.options.id,
+            sessionId: this._session.sessionid,
+          },
+          this.options.id
+        );
+      } else if (this.instance.iceGatheringState !== 'complete') {
+        // Some candidates but gathering still stuck
+        const warning = createTelnyxWarning(ICE_GATHERING_TIMEOUT);
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            callId: this.options.id,
+            sessionId: this._session.sessionid,
+          },
+          this.options.id
+        );
+      }
+    }, Peer.ICE_GATHERING_SAFETY_TIMEOUT_MS);
+  }
+
+  private _clearIceGatheringSafetyTimeout(): void {
+    if (this._iceGatheringSafetyTimeout !== null) {
+      clearTimeout(this._iceGatheringSafetyTimeout);
+      this._iceGatheringSafetyTimeout = null;
+    }
+  }
   async init() {
     await this.createPeerConnection();
 
@@ -531,9 +636,7 @@ export default class Peer {
         recvOnlyTransceiver
       );
 
-      const { audioCodecs } = getPreferredCodecs(
-        this.options.preferred_codecs
-      );
+      const { audioCodecs } = getPreferredCodecs(this.options.preferred_codecs);
       if (audioCodecs.length > 0) {
         this._setCodecs(recvOnlyTransceiver, audioCodecs);
       }
@@ -598,6 +701,12 @@ export default class Peer {
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
+      const telnyxError = createTelnyxError(SDP_CREATE_OFFER_FAILED, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
     }
   }
 
@@ -605,7 +714,21 @@ export default class Peer {
     remoteDescription: RTCSessionDescriptionInit
   ) {
     logger.debug('Setting remote description', remoteDescription);
-    await this.instance.setRemoteDescription(remoteDescription);
+    try {
+      await this.instance.setRemoteDescription(remoteDescription);
+    } catch (error) {
+      logger.error('Peer _setRemoteDescription error:', error);
+      const telnyxError = createTelnyxError(
+        SDP_SET_REMOTE_DESCRIPTION_FAILED,
+        error
+      );
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
+      throw error;
+    }
   }
 
   private async _createAnswer() {
@@ -648,13 +771,33 @@ export default class Peer {
       return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
+      const telnyxError = createTelnyxError(SDP_CREATE_ANSWER_FAILED, error);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
     }
   }
 
   private async _setLocalDescription(
     sessionDescription: RTCSessionDescriptionInit
   ) {
-    await this.instance.setLocalDescription(sessionDescription);
+    try {
+      await this.instance.setLocalDescription(sessionDescription);
+    } catch (error) {
+      logger.error('Peer _setLocalDescription error:', error);
+      const telnyxError = createTelnyxError(
+        SDP_SET_LOCAL_DESCRIPTION_FAILED,
+        error
+      );
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this.options.id
+      );
+      throw error;
+    }
   }
 
   private _setCodecs = (
@@ -740,6 +883,7 @@ export default class Peer {
   }
 
   public async close() {
+    this._clearIceGatheringSafetyTimeout();
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;
