@@ -288,6 +288,13 @@ class VertoHandler {
                   logger.debug('Captured call_report_id from REGED:', callReportId);
                 }
 
+                // Capture source datacenter identifier
+                const source = msg?.result?.params?.source;
+                if (source) {
+                  session.source = source;
+                  logger.debug('Captured source from REGED:', source);
+                }
+
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }
