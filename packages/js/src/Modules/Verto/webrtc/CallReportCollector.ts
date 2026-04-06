@@ -19,6 +19,19 @@ import {
   createLogCollector,
   setGlobalLogCollector,
 } from '../../../Modules/Verto/util/LogCollector';
+import {
+  type ITelnyxWarning,
+  type SdkWarningCode,
+  createTelnyxWarning,
+} from '../../../Modules/Verto/util/errors';
+import {
+  HIGH_RTT,
+  HIGH_JITTER,
+  HIGH_PACKET_LOSS,
+  LOW_MOS,
+  LOW_BYTES_RECEIVED,
+  LOW_BYTES_SENT,
+} from '../../../Modules/Verto/util/constants/errorCodes';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -245,6 +258,28 @@ export class CallReportCollector {
 
   /** Callback invoked when stats or logs approach their buffer limits. */
   public onFlushNeeded: (() => void) | null = null;
+
+  /** Callback invoked when a quality warning threshold is breached. */
+  public onWarning: ((warning: ITelnyxWarning) => void) | null = null;
+
+  // ── Quality warning thresholds ────────────────────────────────────
+  private static readonly CONSECUTIVE_BREACHES_REQUIRED = 3;
+  private static readonly THRESHOLD_RTT_MS = 0.4; // 400ms (RTT is in seconds from WebRTC API)
+  private static readonly THRESHOLD_JITTER_MS = 30; // 30ms
+  private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
+  private static readonly THRESHOLD_MOS = 3.5;
+
+  // Consecutive breach counters (per warning code)
+  private _breachCounters: Record<number, number> = {};
+  // Track which warnings are currently in "active episode"
+  private _activeWarnings: Set<number> = new Set();
+  // Timestamp (ms) of last emitted warning per code, for throttling
+  private _lastWarningEmitted: Record<number, number> = {};
+  // Minimum interval (ms) between repeated warnings of the same code
+  private static readonly WARNING_THROTTLE_MS = 15_000;
+  // Previous packets values for packet loss delta calculation
+  private _prevPacketsReceived: number | null = null;
+  private _prevPacketsLost: number | null = null;
 
   /** Running segment counter for multi-part reports. */
   private _segmentIndex: number = 0;
@@ -769,12 +804,150 @@ export class CallReportCollector {
           }
         }
 
+        // Check quality warning thresholds
+        this._checkQualityWarnings(statsEntry, inboundAudio);
+
         // Reset interval
         this.intervalStartTime = now;
         this._resetIntervalAccumulators();
       }
     } catch (error) {
       logger.error('CallReportCollector: Error collecting stats', { error });
+    }
+  }
+
+  /**
+   * Check quality warning thresholds against the latest stats interval.
+   * Emits warnings only after CONSECUTIVE_BREACHES_REQUIRED consecutive breaches.
+   * Resets when the metric returns to acceptable levels.
+   */
+  private _checkQualityWarnings(
+    statsEntry: IStatsInterval,
+    inboundAudio: ExtendedInboundRtpStreamStats | null
+  ): void {
+    if (!this.onWarning) return;
+
+    const rtt = statsEntry.connection?.roundTripTimeAvg;
+    const jitter = statsEntry.audio?.inbound?.jitterAvg;
+
+    // Packet loss calculation (delta-based)
+    let packetLossPct: number | undefined;
+    if (inboundAudio) {
+      const currentReceived = inboundAudio.packetsReceived ?? 0;
+      const currentLost = inboundAudio.packetsLost ?? 0;
+
+      if (
+        this._prevPacketsReceived !== null &&
+        this._prevPacketsLost !== null
+      ) {
+        const deltaReceived = currentReceived - this._prevPacketsReceived;
+        const deltaLost = currentLost - this._prevPacketsLost;
+        const totalDelta = deltaReceived + deltaLost;
+        if (totalDelta > 0) {
+          packetLossPct = (deltaLost / totalDelta) * 100;
+        }
+      }
+      this._prevPacketsReceived = currentReceived;
+      this._prevPacketsLost = currentLost;
+    }
+
+    // RTT warning — RTT is in seconds from WebRTC API
+    this._trackBreach(
+      HIGH_RTT,
+      rtt !== undefined && rtt > CallReportCollector.THRESHOLD_RTT_MS
+    );
+
+    // Jitter warning — jitter from our averaging is in ms
+    this._trackBreach(
+      HIGH_JITTER,
+      jitter !== undefined && jitter > CallReportCollector.THRESHOLD_JITTER_MS
+    );
+
+    // Packet loss warning
+    this._trackBreach(
+      HIGH_PACKET_LOSS,
+      packetLossPct !== undefined &&
+        packetLossPct > CallReportCollector.THRESHOLD_PACKET_LOSS_PCT
+    );
+
+    // MOS warning — simplified E-model
+    if (
+      rtt !== undefined &&
+      jitter !== undefined &&
+      packetLossPct !== undefined
+    ) {
+      const rttMs = rtt * 1000;
+      const R = 93.2 - jitter * 0.11 - packetLossPct * 2.5 - rttMs * 0.01;
+      const mos = Math.max(
+        1,
+        Math.min(4.5, 1 + 0.035 * R + R * (R - 60) * (100 - R) * 7e-6)
+      );
+      this._trackBreach(LOW_MOS, mos < CallReportCollector.THRESHOLD_MOS);
+    } else {
+      this._trackBreach(LOW_MOS, false);
+    }
+
+    // Low bytes received (32001) — check bytesReceived delta is 0
+    if (
+      statsEntry.audio?.inbound?.bytesReceived !== undefined &&
+      this.statsBuffer.length > 1
+    ) {
+      const prev = this.statsBuffer[this.statsBuffer.length - 2];
+      const prevBytes = prev?.audio?.inbound?.bytesReceived ?? 0;
+      const currBytes = statsEntry.audio.inbound.bytesReceived ?? 0;
+      this._trackBreach(LOW_BYTES_RECEIVED, currBytes - prevBytes === 0);
+    }
+
+    // Low bytes sent — check bytesSent delta is 0
+    if (
+      statsEntry.audio?.outbound?.bytesSent !== undefined &&
+      this.statsBuffer.length > 1
+    ) {
+      const prev = this.statsBuffer[this.statsBuffer.length - 2];
+      const prevBytes = prev?.audio?.outbound?.bytesSent ?? 0;
+      const currBytes = statsEntry.audio.outbound.bytesSent ?? 0;
+      this._trackBreach(LOW_BYTES_SENT, currBytes - prevBytes === 0);
+    }
+  }
+
+  /**
+   * Track consecutive breaches for a warning code.
+   * Emits the warning when the threshold is met, then re-emits
+   * at most once every WARNING_THROTTLE_MS (15s) while the
+   * condition persists — so consumers know the issue is ongoing.
+   * Resets when the condition clears.
+   */
+  private _trackBreach(code: SdkWarningCode, isBreach: boolean): void {
+    if (isBreach) {
+      this._breachCounters[code] = (this._breachCounters[code] ?? 0) + 1;
+      if (
+        this._breachCounters[code] >=
+        CallReportCollector.CONSECUTIVE_BREACHES_REQUIRED
+      ) {
+        this._activeWarnings.add(code);
+        const now = Date.now();
+        const lastEmitted = this._lastWarningEmitted[code] ?? 0;
+        if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
+          this._lastWarningEmitted[code] = now;
+          try {
+            const warning = createTelnyxWarning(code);
+            logger.warn(
+              `CallReportCollector: warning ${warning.code}: ${warning.message}`
+            );
+            this.onWarning?.(warning);
+          } catch (err) {
+            logger.error(
+              `CallReportCollector: Failed to emit warning ${code}`,
+              { error: err }
+            );
+          }
+        }
+      }
+    } else {
+      // Condition cleared — reset so warning can fire again in future
+      this._breachCounters[code] = 0;
+      this._activeWarnings.delete(code);
+      delete this._lastWarningEmitted[code];
     }
   }
 
