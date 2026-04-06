@@ -288,16 +288,16 @@ class VertoHandler {
                   logger.debug('Captured call_report_id from REGED:', callReportId);
                 }
 
-                const localDc = msg?.result?.params?.local_dc;
-                if (localDc) {
-                  session.dc = localDc;
-                  logger.debug('Captured dc from REGED:', { dc: localDc });
+                const dc = msg?.result?.params?.dc;
+                if (dc) {
+                  session.dc = dc;
+                  logger.debug('Captured dc from REGED:', { dc });
                 }
 
-                const localRegion = msg?.result?.params?.local_region;
-                if (localRegion) {
-                  session.region = localRegion;
-                  logger.debug('Captured region from REGED:', { region: localRegion });
+                const region = msg?.result?.params?.region;
+                if (region) {
+                  session.region = region;
+                  logger.debug('Captured region from REGED:', { region });
                 }
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;

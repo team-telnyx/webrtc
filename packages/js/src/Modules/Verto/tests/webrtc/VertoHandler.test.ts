@@ -283,10 +283,10 @@ describe('VertoHandler', () => {
       });
     });
 
-    it('should store local_dc and local_region from REGED message params on the session', () => {
+    it('should store dc and region from REGED message params on the session', () => {
       handler.handleMessage(
         JSON.parse(
-          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","local_dc":"ams3-prod","local_region":"eu-west"},"sessid":"fab032b1-9b27-43fc"}}'
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","dc":"ams3-prod","region":"eu-west"},"sessid":"fab032b1-9b27-43fc"}}'
         )
       );
 
