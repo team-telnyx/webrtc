@@ -283,14 +283,15 @@ describe('VertoHandler', () => {
       });
     });
 
-    it('should store source from REGED message params on the session', () => {
+    it('should store local_dc and local_region from REGED message params on the session', () => {
       handler.handleMessage(
         JSON.parse(
-          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","source":"ams3-prod"},"sessid":"fab032b1-9b27-43fc"}}'
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","local_dc":"ams3-prod","local_region":"eu-west"},"sessid":"fab032b1-9b27-43fc"}}'
         )
       );
 
-      expect(instance.source).toBe('ams3-prod');
+      expect(instance.localDc).toBe('ams3-prod');
+      expect(instance.localRegion).toBe('eu-west');
     });
 
     it('should store call_report_id from REGED message params on the session', () => {

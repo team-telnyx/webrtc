@@ -288,11 +288,16 @@ class VertoHandler {
                   logger.debug('Captured call_report_id from REGED:', callReportId);
                 }
 
-                // Capture source datacenter identifier
-                const source = msg?.result?.params?.source;
-                if (source) {
-                  session.source = source;
-                  logger.debug('Captured source from REGED:', source);
+                const localDc = msg?.result?.params?.local_dc;
+                if (localDc) {
+                  session.localDc = localDc;
+                  logger.debug('Captured local_dc from REGED:', localDc);
+                }
+
+                const localRegion = msg?.result?.params?.local_region;
+                if (localRegion) {
+                  session.localRegion = localRegion;
+                  logger.debug('Captured local_region from REGED:', localRegion);
                 }
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
