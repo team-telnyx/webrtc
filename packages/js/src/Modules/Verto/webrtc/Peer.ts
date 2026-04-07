@@ -404,6 +404,8 @@ export default class Peer {
     const isReceiveOnly =
       Boolean(this.options.receiveOnlyAudio) && !this.options.audio;
 
+    let capturedMediaError: Error | null = null;
+
     this.options.localStream = await this._retrieveLocalStream().catch(
       async (error) => {
         const recovery = this._session.options.mediaPermissionsRecovery;
@@ -437,22 +439,16 @@ export default class Peer {
               recovery.onSuccess?.();
             })
             .catch((recoveryError) => {
+              capturedMediaError = recoveryError;
               recovery.onError?.(recoveryError);
-              // Call hangup directly — _onMediaError would fire a second userMediaError notification
-              // but the app already received one (with resume) above. BaseCall.hangup() with no
-              // args sends BYE for inbound calls (execute defaults to true).
-              this._session.calls[this.options.id]?.hangup();
             });
 
           return recoveredStream;
         }
 
-        // existing path — unchanged
-        const telnyxError = createTelnyxError(
-          classifyMediaErrorCode(error),
-          error
-        );
-        trigger(SwEvent.MediaError, telnyxError, this.options.id);
+        // Non-recovery path: save the raw error and return null.
+        // MediaError is triggered below after localStream assignment so it fires exactly once.
+        capturedMediaError = error;
         return null;
       }
     );
@@ -467,7 +463,12 @@ export default class Peer {
     }
 
     if (!this.options.localStream && !isReceiveOnly) {
-      const telnyxError = createTelnyxError(MEDIA_GET_USER_MEDIA_FAILED);
+      const telnyxError = createTelnyxError(
+        capturedMediaError
+          ? classifyMediaErrorCode(capturedMediaError)
+          : MEDIA_GET_USER_MEDIA_FAILED,
+        capturedMediaError ?? undefined
+      );
       trigger(SwEvent.MediaError, telnyxError, this.options.id);
       throw telnyxError;
     }
