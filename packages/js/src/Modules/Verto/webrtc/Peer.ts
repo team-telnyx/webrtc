@@ -419,17 +419,39 @@ export default class Peer {
               recovery.timeout
             );
 
+            const retryDeadline = Date.now() + recovery.timeout;
+            const resume = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+
+            // Emit structured Error event with recoverable:true so apps using
+            // the new error-event API also get a signal that recovery is available.
+            const recoverableError = createTelnyxError(
+              classifyMediaErrorCode(error),
+              error
+            );
+            trigger(
+              SwEvent.Error,
+              {
+                error: recoverableError,
+                callId: this.options.id,
+                sessionId: this._session.sessionid,
+                recoverable: true,
+                retryDeadline,
+                resume,
+              },
+              this._session.uuid
+            );
+
             trigger(
               SwEvent.Notification,
               {
                 type: NOTIFICATION_TYPE.userMediaError,
                 error,
                 call: this._session.calls[this.options.id],
-                retryDeadline: Date.now() + recovery.timeout,
-                resume: () => {
-                  clearTimeout(timer);
-                  resolve();
-                },
+                retryDeadline,
+                resume,
               },
               this._session.uuid
             );
@@ -469,7 +491,10 @@ export default class Peer {
           : MEDIA_GET_USER_MEDIA_FAILED,
         capturedMediaError ?? undefined
       );
-      trigger(SwEvent.MediaError, telnyxError, this.options.id);
+      // Do NOT trigger SwEvent.MediaError here — that would invoke _onMediaError
+      // which calls hangup({}, false) before the throw reaches BaseCall, causing
+      // a double-hangup (local teardown first, then BYE attempt on a dead call).
+      // BaseCall.invite()/answer() catch blocks own error reporting and hangup.
       throw telnyxError;
     }
 

@@ -389,6 +389,23 @@ export default abstract class BaseCall implements IWebRTCCall {
     } catch (error) {
       logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
+      const telnyxError =
+        error instanceof TelnyxError
+          ? error
+          : createTelnyxError(
+              classifyMediaErrorCode(error),
+              error instanceof Error ? error : undefined
+            );
+      trigger(
+        SwEvent.Error,
+        {
+          error: telnyxError,
+          callId: this.id,
+          sessionId: this.session.sessionid,
+          recoverable: false,
+        },
+        this.session.uuid
+      );
       void this.hangup({}, false);
       return;
     }
@@ -435,6 +452,23 @@ export default abstract class BaseCall implements IWebRTCCall {
     } catch (error) {
       logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
+      const telnyxError =
+        error instanceof TelnyxError
+          ? error
+          : createTelnyxError(
+              classifyMediaErrorCode(error),
+              error instanceof Error ? error : undefined
+            );
+      trigger(
+        SwEvent.Error,
+        {
+          error: telnyxError,
+          callId: this.id,
+          sessionId: this.session.sessionid,
+          recoverable: false,
+        },
+        this.session.uuid
+      );
       await this.hangup();
       return;
     }
