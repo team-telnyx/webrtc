@@ -141,12 +141,18 @@ jobs:
         run: |
           git commit -m "chore: update changelog for ${{ github.event.inputs.package }}@${{ steps.version.outputs.next }}" || echo "changelog: no changes to commit"
 
-      - name: Create draft release on branch
+      - name: Bump version in package.json (commit only, no tag or release)
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
+          yarn release --ci --no-npm.publish --no-github.release --no-git.tag --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
         env:
-          NPM_TOKEN: ${{ secrets.NPM_CI_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create draft release (tag on version-bump commit)
+        working-directory: packages/${{ env.PACKAGE_DIR }}
+        run: |
+          yarn release --ci --github.draft --no-npm.publish --no-increment --no-git.push --no-git.requireUpstream${{ env.PRERELEASE_ARGS }}
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Append full changelog link to draft release
@@ -162,9 +168,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push release branch
+      - name: Push release branch and tag
         run: |
-          git push origin "${{ steps.version.outputs.branch }}"
+          git push origin "${{ steps.version.outputs.branch }}" --follow-tags
 
       - name: Create pull request
         run: |
