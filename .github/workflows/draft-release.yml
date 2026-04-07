@@ -148,6 +148,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Update lockfile after version bump
+        run: |
+          yarn install --no-immutable
+          git add yarn.lock
+          git commit --amend --no-edit
+
       - name: Create draft release (tag on version-bump commit)
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
