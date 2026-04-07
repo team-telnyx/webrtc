@@ -14,6 +14,7 @@ Object.defineProperty(global, 'performance', {
 import { isQueued } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
+import Peer from '../../webrtc/Peer';
 import Verto from '../..';
 
 function getBitrate(call: Call, trackKind: string) {
@@ -245,6 +246,86 @@ describe('Call', () => {
         call.setAudioBandwidthEncodingsMaxBps(maxBitsPerSecond);
         expect(getBitrate(call, 'audio')).toEqual(maxBitsPerSecond);
       }
+    });
+  });
+
+  describe('media failure handling', () => {
+    const mediaError = new DOMException(
+      'Permission denied',
+      'NotAllowedError'
+    );
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('invite() should call hangup and not proceed with negotiation when media fails', async () => {
+      jest
+        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .mockRejectedValue(mediaError);
+      const startNegotiationSpy = jest
+        .spyOn(Peer.prototype, 'startNegotiation')
+        .mockImplementation(() => {});
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockResolvedValue(undefined);
+
+      await call.invite();
+
+      expect(hangupSpy).toHaveBeenCalledWith({}, false);
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
+    });
+
+    it('answer() should call hangup and not proceed with negotiation when media fails', async () => {
+      jest
+        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .mockRejectedValue(mediaError);
+      const startNegotiationSpy = jest
+        .spyOn(Peer.prototype, 'startNegotiation')
+        .mockImplementation(() => {});
+
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      const hangupSpy = jest
+        .spyOn(answerCall, 'hangup')
+        .mockResolvedValue(undefined);
+
+      await answerCall.answer();
+
+      expect(hangupSpy).toHaveBeenCalledWith();
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
+    });
+
+    it('invite() should not abort early when media succeeds', async () => {
+      // Default getUserMedia mock returns a valid stream — no override needed.
+      // Verify invite() does not throw and _creatingPeer is reset (media-failure
+      // try/catch path was not hit).
+      await expect(call.invite()).resolves.toBeUndefined();
+      expect(call['_creatingPeer']).toBe(false);
+    });
+
+    it('answer() with receiveOnlyAudio should not throw on getUserMedia failure', async () => {
+      // For receive-only peers (no local audio), media failure is expected and
+      // should NOT cause createPeerConnection to throw. We verify this by
+      // asserting answer() resolves without throwing, and that _creatingPeer
+      // is reset (i.e., the media-abort branch was not hit).
+      jest
+        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .mockRejectedValue(mediaError);
+
+      const receiveOnlyCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+        receiveOnlyAudio: true,
+        audio: false,
+      });
+
+      await expect(receiveOnlyCall.answer()).resolves.toBeUndefined();
+      // _creatingPeer false means we reached the end of answer() normally,
+      // not via the media-error early-return path
+      expect(receiveOnlyCall['_creatingPeer']).toBe(false);
     });
   });
 });

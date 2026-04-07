@@ -16,6 +16,7 @@ import {
   createTelnyxError,
   createTelnyxWarning,
 } from '../util/errors';
+import { MEDIA_GET_USER_MEDIA_FAILED } from '../util/constants/errorCodes';
 import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
@@ -400,6 +401,9 @@ export default class Peer {
       performance.mark('set-remote-description');
     }
 
+    const isReceiveOnly =
+      Boolean(this.options.receiveOnlyAudio) && !this.options.audio;
+
     this.options.localStream = await this._retrieveLocalStream().catch(
       (error) => {
         const telnyxError = createTelnyxError(
@@ -420,14 +424,10 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
-    if (!this.options.localStream) {
-      logger.warn('No local media stream available');
-      if (this.options.audio) {
-        logger.warn(
-          'Audio is required but no local stream — skipping negotiation'
-        );
-        return;
-      }
+    if (!this.options.localStream && !isReceiveOnly) {
+      const telnyxError = createTelnyxError(MEDIA_GET_USER_MEDIA_FAILED);
+      trigger(SwEvent.MediaError, telnyxError, this.options.id);
+      throw telnyxError;
     }
 
     performance.mark('peer-creation-end');
