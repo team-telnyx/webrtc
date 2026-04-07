@@ -387,7 +387,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     try {
       await this.peer.init();
     } catch (error) {
-      logger.error('Peer init failed due to media error, aborting call', error);
+      logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
       this.hangup({}, false);
       return;
@@ -433,7 +433,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     try {
       await this.peer.init();
     } catch (error) {
-      logger.error('Peer init failed due to media error, aborting call', error);
+      logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
       this.hangup({}, false);
       return;
