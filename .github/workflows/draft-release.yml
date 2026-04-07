@@ -137,24 +137,12 @@ jobs:
         run: |
           git checkout -b "${{ steps.version.outputs.branch }}"
 
-      - name: Commit CHANGELOG.md
-        run: |
-          git commit -m "chore: update changelog for ${{ github.event.inputs.package }}@${{ steps.version.outputs.next }}" || echo "changelog: no changes to commit"
-
-      - name: Bump version in package.json (commit only, no tag or release)
+      - name: Create draft release (bump + changelog + tag + draft)
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release --ci --no-npm.publish --no-github.release --no-git.tag --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
+          yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create draft release (tag on version-bump commit)
-        working-directory: packages/${{ env.PACKAGE_DIR }}
-        run: |
-          yarn release --ci --github.draft --no-npm.publish --no-increment --no-git.push --no-git.requireUpstream${{ env.PRERELEASE_ARGS }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          YARN_ENABLE_IMMUTABLE_INSTALLS: "false"
 
       - name: Append full changelog link to draft release
         if: steps.changelog.outputs.last_tag != ''
