@@ -389,7 +389,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     } catch (error) {
       logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
-      this.hangup({}, false);
+      void this.hangup({}, false);
       return;
     }
     this._creatingPeer = false;
@@ -435,7 +435,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     } catch (error) {
       logger.error('Peer init failed, aborting call', error);
       this._creatingPeer = false;
-      this.hangup({}, false);
+      await this.hangup();
       return;
     }
     this._creatingPeer = false;

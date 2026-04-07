@@ -266,7 +266,9 @@ describe('Call', () => {
       const startNegotiationSpy = jest
         .spyOn(Peer.prototype, 'startNegotiation')
         .mockImplementation(() => {});
-      const hangupSpy = jest.spyOn(call, 'hangup').mockImplementation(() => {});
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockResolvedValue(undefined);
 
       await call.invite();
 
@@ -286,11 +288,13 @@ describe('Call', () => {
         ...defaultParams,
         remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
       });
-      const hangupSpy = jest.spyOn(answerCall, 'hangup').mockImplementation(() => {});
+      const hangupSpy = jest
+        .spyOn(answerCall, 'hangup')
+        .mockResolvedValue(undefined);
 
       await answerCall.answer();
 
-      expect(hangupSpy).toHaveBeenCalledWith({}, false);
+      expect(hangupSpy).toHaveBeenCalledWith();
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
