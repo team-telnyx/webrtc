@@ -1,3 +1,10 @@
+## [2.26.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.1) (2026-04-07)
+
+- fix(ci): update lockfile after version bump in draft-release (#587)
+- fix(ci): create release tag after version bump commit (#586)
+- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
+- feat: make hangup async, properly await BYE execution (#581)
+- Feat: wire structured errors and warnings across SDK (#548)
 ## [2.26.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1-beta.0) (2026-04-07)
 
 - docs: update ts docs
