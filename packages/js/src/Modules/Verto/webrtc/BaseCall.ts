@@ -452,17 +452,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * call.hangup()
    * ```
    */
-  hangup(): void;
+  hangup(): Promise<void>;
   /**
    * @internal
    */
-  hangup(hangupParams: IHangupParams, hangupExecute: boolean): void;
+  hangup(hangupParams: IHangupParams, hangupExecute: boolean): Promise<void>;
   /**
    * @internal
    * @param hangupParams _For internal use_ Specify custom hangup cause and call ID
    * @param hangupExecute _For internal use_ Allow or prevent execution of `Bye`
    */
-  hangup(hangupParams?: IHangupParams, hangupExecute?: boolean): void {
+  async hangup(
+    hangupParams?: IHangupParams,
+    hangupExecute?: boolean
+  ): Promise<void> {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
 
@@ -494,13 +497,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.setState(State.Hangup);
 
-    const _close = () => {
-      logger.debug(`[${this.id}] Closing peer from hangup`);
-      this.peer?.close();
-      this.setState(State.Destroy);
-      return;
-    };
-
     this.stopRingtone();
     this.stopRingback();
     if (execute) {
@@ -512,24 +508,26 @@ export default abstract class BaseCall implements IWebRTCCall {
         cause: this.cause,
         causeCode: this.causeCode,
       });
-      this._execute(bye)
-        .catch((error) => {
-          logger.error('telnyx_rtc.bye failed!', error);
-          const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
-          trigger(
-            SwEvent.Error,
-            {
-              error: telnyxError,
-              callId: this.id,
-              sessionId: this.session.sessionid,
-            },
-            this.session.uuid
-          );
-        })
-        .then(_close.bind(this));
-    } else {
-      _close();
+      try {
+        await this._execute(bye);
+      } catch (error) {
+        logger.error('telnyx_rtc.bye failed!', error);
+        const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
+        trigger(
+          SwEvent.Error,
+          {
+            error: telnyxError,
+            callId: this.id,
+            sessionId: this.session.sessionid,
+          },
+          this.session.uuid
+        );
+      }
     }
+
+    logger.debug(`[${this.id}] Closing peer from hangup`);
+    this.peer?.close();
+    this.setState(State.Destroy);
   }
 
   /**
@@ -1013,7 +1011,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     switch (state) {
       case State.Purge:
         logger.debug(`Call ${this.id} hangup call due to purge state`);
-        this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
+        void this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
         break;
       case State.Active: {
         performance.mark('call-active');
@@ -1153,7 +1151,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
         this.stopRingback();
         this.stopRingtone();
-        this.hangup(params, false);
+        void this.hangup(params, false);
         break;
     }
   }
@@ -1388,7 +1386,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.setState(State.Active);
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
         logger.error('Call setRemoteDescription Error: ', error);
         const telnyxError = createTelnyxError(
           SDP_SET_REMOTE_DESCRIPTION_FAILED,
@@ -1404,13 +1402,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for setRemoteDescription failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after setRemoteDescription failure:',
+            hangupError
+          );
+        }
       });
   }
 
@@ -1495,7 +1500,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        return this.hangup({}, false);
+        void this.hangup({}, false);
+        return;
     }
     performance.mark('send-sdp');
     this._execute(msg)
@@ -1508,7 +1514,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.setState(State.Active);
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
         trigger(
@@ -1521,20 +1527,28 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for any SDP send failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after SDP send failure:',
+            hangupError
+          );
+        }
       });
   }
 
   private _onTrickleIceSdp(data: RTCSessionDescription) {
     if (!data) {
       logger.error('No SDP data provided');
-      return this.hangup({}, false);
+      void this.hangup({}, false);
+      return;
     }
 
     const { sdp, type } = data;
@@ -1566,7 +1580,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        return this.hangup({}, false);
+        void this.hangup({}, false);
+        return;
     }
 
     performance.mark('send-sdp');
@@ -1580,7 +1595,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.setState(State.Active);
         }
       })
-      .catch((error) => {
+      .catch(async (error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
         trigger(
@@ -1593,13 +1608,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for any SDP send failure
-        this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after SDP send failure:',
+            hangupError
+          );
+        }
       });
   }
 
@@ -1835,7 +1857,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.session.uuid
     );
 
-    this.hangup({}, false);
+    void this.hangup({}, false);
   }
 
   private _onPeerConnectionFailureError(data: {
