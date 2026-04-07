@@ -281,6 +281,18 @@ export const SDK_ERRORS = {
       'Disable airplane mode',
     ],
   },
+  // ── General / catch-all errors (490xx) ──────────────────────────────
+  49001: {
+    name: 'UNEXPECTED_ERROR',
+    message: 'An unexpected error occurred',
+    description:
+      'An error was thrown that does not match any known SDK error category. This is a catch-all for unclassified failures.',
+    causes: ['Unknown or unhandled error condition'],
+    solutions: [
+      'Check the originalError property for the underlying cause',
+      'Report the issue if it persists',
+    ],
+  },
 } as const;
 
 export type SdkErrorCode = keyof typeof SDK_ERRORS;

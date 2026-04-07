@@ -24,6 +24,7 @@ import {
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
+  UNEXPECTED_ERROR,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -393,7 +394,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         error instanceof TelnyxError
           ? error
           : createTelnyxError(
-              classifyMediaErrorCode(error),
+              UNEXPECTED_ERROR,
               error instanceof Error ? error : undefined
             );
       trigger(
@@ -456,7 +457,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         error instanceof TelnyxError
           ? error
           : createTelnyxError(
-              classifyMediaErrorCode(error),
+              UNEXPECTED_ERROR,
               error instanceof Error ? error : undefined
             );
       trigger(
