@@ -150,7 +150,7 @@ jobs:
 
       - name: Update lockfile after version bump
         run: |
-          yarn install --no-immutable
+          yarn install --mode update-lockfile
           git add yarn.lock
           git commit --amend --no-edit
 
