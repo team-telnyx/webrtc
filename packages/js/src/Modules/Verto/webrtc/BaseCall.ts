@@ -1402,13 +1402,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for setRemoteDescription failure
-        await this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after setRemoteDescription failure:',
+            hangupError
+          );
+        }
       });
   }
 
@@ -1520,13 +1527,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for any SDP send failure
-        await this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after SDP send failure:',
+            hangupError
+          );
+        }
       });
   }
 
@@ -1594,13 +1608,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
         // Temporarily use USER_BUSY for any SDP send failure
-        await this.hangup(
-          {
-            cause: 'USER_BUSY',
-            causeCode: 17,
-          },
-          true
-        );
+        try {
+          await this.hangup(
+            {
+              cause: 'USER_BUSY',
+              causeCode: 17,
+            },
+            true
+          );
+        } catch (hangupError) {
+          logger.error(
+            'Error during hangup after SDP send failure:',
+            hangupError
+          );
+        }
       });
   }
 
