@@ -158,7 +158,7 @@ export interface IWebRTCCall {
   signalingStateClosed: boolean;
   invite: () => void;
   answer: (params: AnswerParams) => void;
-  hangup: (params?: IHangupParams, execute?: boolean) => void;
+  hangup: (params?: IHangupParams, execute?: boolean) => Promise<void>;
 
   hold: () => void;
   unhold: () => void;
@@ -186,7 +186,7 @@ export interface IWebRTCCall {
   handleConferenceUpdate: (packet: any, pvtData: any) => Promise<string>;
   // WEB
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
-  stopScreenShare?: () => void;
+  stopScreenShare?: () => Promise<void>;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
   // RN
   setSpeakerPhone?: (flag: boolean) => void;

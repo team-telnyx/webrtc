@@ -46,6 +46,13 @@ This document provides a comprehensive overview of error handling in the Telnyx 
     - [5. Monitor Connection State](#5-monitor-connection-state)
     - [6. Log Errors for Debugging](#6-log-errors-for-debugging)
     - [7. Implement Graceful Degradation](#7-implement-graceful-degradation)
+  - [Structured Error Events (telnyx.error)](#structured-error-events-telnyxerror)
+    - [TelnyxError Interface](#telnyxerror-interface)
+    - [Error Code Reference](#error-code-reference)
+    - [Listening for Structured Errors](#listening-for-structured-errors)
+    - [Before / After Example](#before--after-example)
+  - [Deprecation Notice](#deprecation-notice)
+  - [Migration Guide](#migration-guide)
 
 ## Introduction
 
@@ -994,3 +1001,195 @@ async function checkWebRTCSupport() {
 ```
 
 By following these best practices and understanding the error handling mechanisms, you can build robust applications that provide a smooth user experience even when errors occur.
+
+## Structured Error Events (telnyx.error)
+
+Starting with this release, all call-related errors are surfaced via a single `telnyx.error` (`SwEvent.Error`) event carrying a `TelnyxError` instance. This replaces the previous pattern of individual `telnyx.rtc.*` events and notification-based error dispatch.
+
+### TelnyxError Interface
+
+Every error emitted through `telnyx.error` implements the `ITelnyxError` interface:
+
+```ts
+interface ITelnyxError {
+  code: number; // Numeric error code (e.g. 40001)
+  name: string; // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED')
+  description: string; // Full explanation of the error — what happened and why
+  message: string; // Short human-readable message for UI alerts
+  causes: string[]; // Possible root causes
+  solutions: string[]; // Suggested remediation steps
+  originalError?: unknown; // The underlying error, if any
+}
+```
+
+### Error Code Reference
+
+| Code                               | Name                               | Message                                |
+| ---------------------------------- | ---------------------------------- | -------------------------------------- |
+| **SDP Errors (400xx)**             |                                    |                                        |
+| 40001                              | SDP_CREATE_OFFER_FAILED            | Failed to create call offer            |
+| 40002                              | SDP_CREATE_ANSWER_FAILED           | Failed to answer the call              |
+| 40003                              | SDP_SET_LOCAL_DESCRIPTION_FAILED   | Failed to apply local call settings    |
+| 40004                              | SDP_SET_REMOTE_DESCRIPTION_FAILED  | Failed to apply remote call settings   |
+| 40005                              | SDP_SEND_FAILED                    | Failed to send call data to server     |
+| **Media Errors (420xx)**           |                                    |                                        |
+| 42001                              | MEDIA_MICROPHONE_PERMISSION_DENIED | Microphone access denied               |
+| 42002                              | MEDIA_DEVICE_NOT_FOUND             | No microphone found                    |
+| 42003                              | MEDIA_GET_USER_MEDIA_FAILED        | Failed to access microphone            |
+| **Call-Control Errors (440xx)**    |                                    |                                        |
+| 44001                              | HOLD_FAILED                        | Failed to hold the call                |
+| 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
+| 44002                              | INVALID_CALL_PARAMETERS            | Invalid call parameters                |
+| 44004                              | SUBSCRIBE_FAILED                   | Failed to subscribe to call events     |
+| **WebSocket / Transport (450xx)**  |                                    |                                        |
+| 45001                              | WEBSOCKET_CONNECTION_FAILED        | Unable to connect to server            |
+| 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
+| 45003                              | RECONNECTION_EXHAUSTED             | Unable to reconnect to server          |
+| 45004                              | GATEWAY_FAILED                     | Gateway connection failed              |
+| **Authentication (460xx)**         |                                    |                                        |
+| 46001                              | LOGIN_FAILED                       | Authentication failed                  |
+| 46002                              | INVALID_CREDENTIALS                | Invalid credential parameters          |
+| 46003                              | AUTHENTICATION_REQUIRED            | Authentication required                |
+| **Network (480xx)**                |                                    |                                        |
+| 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
+
+### ITelnyxWarning Interface
+
+Warnings are **plain objects** (not `Error` instances). They represent degraded conditions that may affect call quality or stability but are not fatal — the SDK continues operating. Warnings are surfaced via a separate `telnyx.warning` (`SwEvent.Warning`) event.
+
+```ts
+interface ITelnyxWarning {
+  code: number;        // Numeric warning code (e.g. 31001)
+  name: string;        // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'HIGH_RTT')
+  message: string;     // Short human-readable message for UI alerts
+  description: string; // Full explanation — what the warning means
+  causes: string[];    // Possible root causes
+  solutions: string[]; // Suggested remediation steps
+}
+```
+
+### Warning Code Reference
+
+| Code                                 | Name                   | Message                            |
+| ------------------------------------ | ---------------------- | ---------------------------------- |
+| **Network Quality Warnings (310xx)** |                        |                                    |
+| 31001                                | HIGH_RTT               | High network latency detected      |
+| 31002                                | HIGH_JITTER            | High jitter detected               |
+| 31003                                | HIGH_PACKET_LOSS       | High packet loss detected          |
+| 31004                                | LOW_MOS                | Low call quality score             |
+| **Connection Warnings (320xx)**      |                        |                                    |
+| 32001                                | LOW_BYTES_RECEIVED     | No audio data received             |
+| 32002                                | LOW_BYTES_SENT         | No audio data being sent           |
+| **Call Connection Warnings (330xx)** |                        |                                    |
+| 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
+| 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
+| 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
+| 33004                                | PEER_CONNECTION_FAILED       | Connection failed                        |
+| 33005                                | ONLY_HOST_ICE_CANDIDATES     | Only local network candidates available  |
+| **Authentication Warnings (340xx)**  |                              |                                          |
+| 34001                                | TOKEN_EXPIRING_SOON    | Authentication token expiring soon |
+| **Session / Reconnection (350xx)**   |                        |                                    |
+| 35001                                | SESSION_NOT_REATTACHED | Active call lost after reconnect   |
+
+### Listening for Structured Errors
+
+```ts
+import { TelnyxRTC, TelnyxError, SwEvent } from '@telnyx/webrtc';
+
+const client = new TelnyxRTC({
+  /* credentials */
+});
+
+client.on(SwEvent.Error, (event) => {
+  const { error, callId, sessionId } = event;
+
+  if (error instanceof TelnyxError) {
+    // error.message is a short UI-friendly string
+    console.error(`[${error.code}] ${error.name}: ${error.message}`);
+    // error.description has the full technical explanation
+    console.debug('Details:', error.description);
+    console.log('Possible causes:', error.causes);
+    console.log('Suggested solutions:', error.solutions);
+
+    // Access the original browser error if needed
+    if (error.originalError) {
+      console.debug('Original error:', error.originalError);
+    }
+  }
+});
+```
+
+### Before / After Example
+
+**Before (deprecated pattern):**
+
+```ts
+client.on('telnyx.rtc.mediaError', (error) => {
+  console.error('Media error:', error.message);
+  // No structured info about causes or solutions
+});
+
+client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
+  console.error('Peer connection failed (warning)');
+  // No error code, no retry guidance
+});
+```
+
+**After (new pattern):**
+
+```ts
+// Listen for errors
+client.on('telnyx.error', ({ error, callId }) => {
+  if (error.code === 42003) {
+    // Media error — show user-friendly message
+    alert(error.message);
+  }
+});
+
+// Listen for warnings (separate event)
+client.on('telnyx.warning', ({ warning, callId }) => {
+  if (warning.code === 33004) {
+    // Peer connection failed (recoverable)
+    showWarningBanner(warning.message);
+  }
+});
+```
+
+## Deprecation Notice
+
+The following events are **deprecated** and will be removed in a future major version:
+
+| Deprecated Event                                | Replacement                                    |
+| ----------------------------------------------- | ---------------------------------------------- |
+| `telnyx.rtc.mediaError`                         | `telnyx.error` with code 42001 / 42002 / 42003 |
+| `telnyx.rtc.peerConnectionFailureError`         | `telnyx.warning` with code 33004                 |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | `telnyx.error` (future)                        |
+| `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with code 42003                 |
+| `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.warning` with code 33004                 |
+
+During the transition period, both the deprecated events **and** the new `telnyx.error` event are emitted for backward compatibility.
+
+## Migration Guide
+
+1. **Add a `telnyx.error` listener** using `client.on('telnyx.error', handler)` for unrecoverable errors.
+2. **Add a `telnyx.warning` listener** using `client.on('telnyx.warning', handler)` for degraded conditions (ICE issues, quality drops, token expiry).
+3. **Switch on `code`** instead of listening to multiple separate events — errors use `error.code`, warnings use `warning.code`.
+4. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
+5. **Use `.message`** to display a short, user-friendly alert in your UI.
+6. **Use `.causes` and `.solutions`** to display actionable guidance in your UI.
+
+**Example — handling both errors and warnings:**
+
+```ts
+// Errors: unrecoverable failures (call dropped, media denied, etc.)
+client.on('telnyx.error', ({ error, callId }) => {
+  console.error(`[${error.code}] ${error.name}: ${error.message}`);
+  showErrorAlert(error.message);
+});
+
+// Warnings: degraded but recoverable conditions
+client.on('telnyx.warning', ({ warning, callId }) => {
+  console.warn(`[${warning.code}] ${warning.name}: ${warning.message}`);
+  showWarningBanner(warning.message);
+});
+```

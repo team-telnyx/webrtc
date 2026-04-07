@@ -56,11 +56,11 @@ export class Call extends BaseCall {
 
   private _statsInterval: any = null;
 
-  hangup(params: any = {}, execute: boolean = true) {
+  async hangup(params: any = {}, execute: boolean = true): Promise<void> {
     if (this.screenShare instanceof Call) {
-      this.screenShare.hangup(params, execute);
+      await this.screenShare.hangup(params, execute);
     }
-    super.hangup(params, execute);
+    await super.hangup(params, execute);
   }
 
   /**
@@ -70,9 +70,9 @@ export class Call extends BaseCall {
   async startScreenShare(opts?: IVertoCallOptions) {
     const displayStream: MediaStream = await getDisplayMedia({ video: true });
     displayStream.getTracks().forEach((t) => {
-      t.addEventListener('ended', () => {
+      t.addEventListener('ended', async () => {
         if (this.screenShare) {
-          this.screenShare.hangup();
+          await this.screenShare.hangup();
         }
       });
     });
@@ -97,9 +97,9 @@ export class Call extends BaseCall {
    * @deprecated
    * @private
    */
-  stopScreenShare() {
+  async stopScreenShare() {
     if (this.screenShare instanceof Call) {
-      this.screenShare.hangup();
+      await this.screenShare.hangup();
     }
   }
 

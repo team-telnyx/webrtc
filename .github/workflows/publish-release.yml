@@ -75,14 +75,6 @@ jobs:
         with:
           path: packages/js
 
-      - name: Post to Slack
-        uses: homeday-de/slack-release-bot-action@main
-        with:
-          webhook_url: ${{ secrets.SLACK_RELEASE_BOT_WEBHOOK_URL }}
-          title: "@telnyx/webrtc@${{ steps.package-version.outputs.current-version }}"
-          body: "See the CHANGELOG ---> https://github.com/team-telnyx/webrtc/blob/main/packages/js/CHANGELOG.md"
-          context: "${{ github.event.release.prerelease && '[Pre-release] ' || '' }}New Telnyx WebRTC SDK Release ${{ steps.package-version.outputs.current-version }}"
-
       - name: Trigger developer docs update
         if: "!github.event.release.prerelease"
         uses: peter-evans/repository-dispatch@v3
