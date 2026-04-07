@@ -418,26 +418,18 @@ export default class Peer {
               () => reject(new Error('mediaPermissionsTimeout')),
               recovery.timeout
             );
-
-            const retryDeadline = Date.now() + recovery.timeout;
-            const resume = () => {
-              clearTimeout(timer);
-              resolve();
-            };
-
-            const recoverableError = createTelnyxError(
-              classifyMediaErrorCode(error),
-              error
-            );
             trigger(
               SwEvent.Error,
               {
-                error: recoverableError,
+                error: createTelnyxError(classifyMediaErrorCode(error), error),
                 callId: this.options.id,
                 sessionId: this._session.sessionid,
                 recoverable: true,
-                retryDeadline,
-                resume,
+                retryDeadline: Date.now() + recovery.timeout,
+                resume: () => {
+                  clearTimeout(timer);
+                  resolve();
+                },
               },
               this._session.uuid
             );
@@ -458,15 +450,6 @@ export default class Peer {
         return null;
       }
     );
-    performance.mark('get-user-media');
-
-    if (
-      this.options.mutedMicOnStart &&
-      streamIsValid(this.options.localStream)
-    ) {
-      logger.info('Muting local audio tracks on start');
-      disableAudioTracks(this.options.localStream);
-    }
 
     if (!this.options.localStream && !isReceiveOnly) {
       const telnyxError = createTelnyxError(
@@ -476,6 +459,16 @@ export default class Peer {
         capturedMediaError ?? undefined
       );
       throw telnyxError;
+    }
+
+    performance.mark('get-user-media');
+
+    if (
+      this.options.mutedMicOnStart &&
+      streamIsValid(this.options.localStream)
+    ) {
+      logger.info('Muting local audio tracks on start');
+      disableAudioTracks(this.options.localStream);
     }
 
     performance.mark('peer-creation-end');
