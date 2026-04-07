@@ -1,3 +1,11 @@
+## [2.26.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1-beta.0) (2026-04-07)
+
+- docs: update ts docs
+- fix: read dc/region instead of local_dc/local_region from REGED params
+- refactor: rename localDc/localRegion to dc/region and use structured logging
+- feat: store local_dc and local_region from REGED message
+- feat: store source datacenter identifier from REGED message
+- chore: include README.md in npm packages and remove Slack notifications (#578)
 ## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
 
 - chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
