@@ -18,6 +18,7 @@
 
 ### Other Interfaces
 
+- [ICallEstablishmentTimings](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
 - [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
 - [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
 - [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
@@ -31,10 +32,45 @@
 
 ### Functions
 
+- [clearCallMarks](#clearcallmarks)
+- [collectCallEstablishmentTimings](#collectcallestablishmenttimings)
 - [getConstraintsWithoutDeviceId](#getconstraintswithoutdeviceid)
 - [isDeviceNotFoundError](#isdevicenotfounderror)
+- [logCallEstablishmentTimings](#logcallestablishmenttimings)
 
 ## Functions
+
+### clearCallMarks
+
+▸ **clearCallMarks**(): `void`
+
+Clear all call establishment performance marks.
+
+#### Returns
+
+`void`
+
+---
+
+### collectCallEstablishmentTimings
+
+▸ **collectCallEstablishmentTimings**(`mode`, `direction`): [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
+
+Collect all call establishment timings from performance marks.
+All times are measured from the 'new-call-start' mark.
+
+#### Parameters
+
+| Name        | Type                           | Description                         |
+| :---------- | :----------------------------- | :---------------------------------- |
+| `mode`      | `"trickle"` \| `"non-trickle"` | 'trickle' or 'non-trickle' ICE mode |
+| `direction` | `"inbound"` \| `"outbound"`    | 'outbound' or 'inbound'             |
+
+#### Returns
+
+[`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
+
+---
 
 ### getConstraintsWithoutDeviceId
 
@@ -70,3 +106,21 @@ Check if error is related to a specific device being unavailable
 #### Returns
 
 `boolean`
+
+---
+
+### logCallEstablishmentTimings
+
+▸ **logCallEstablishmentTimings**(`timings`): `void`
+
+Log call establishment timings as a readable table.
+
+#### Parameters
+
+| Name      | Type                                                                                                                                       |
+| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| `timings` | [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md) |
+
+#### Returns
+
+`void`
