@@ -282,6 +282,27 @@ describe('VertoHandler', () => {
         type: 'vertoClientReady',
       });
     });
+
+    it('should store dc and region from REGED message params on the session', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","dc":"ams3-prod","region":"eu-west"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(instance.dc).toBe('ams3-prod');
+      expect(instance.region).toBe('eu-west');
+    });
+
+    it('should store call_report_id from REGED message params on the session', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","call_report_id":"test-report-123"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(instance.callReportId).toBe('test-report-123');
+    });
   });
 
   describe('should fire telnyx.ready again after socket reconnection', () => {
