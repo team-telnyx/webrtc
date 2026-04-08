@@ -55,6 +55,8 @@ export default abstract class BaseSession {
   public invalidMethodErrorCode = -32601;
   public authenticationRequiredErrorCode = -32000;
   public callReportId: string | null = null;
+  public dc: string | null = null;
+  public region: string | null = null;
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;

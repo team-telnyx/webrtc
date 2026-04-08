@@ -290,6 +290,18 @@ class VertoHandler {
                   );
                 }
 
+                const dc = msg?.result?.params?.dc;
+                if (dc) {
+                  session.dc = dc;
+                  logger.debug('Captured dc from REGED:', { dc });
+                }
+
+                const region = msg?.result?.params?.region;
+                if (region) {
+                  session.region = region;
+                  logger.debug('Captured region from REGED:', { region });
+                }
+
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }
