@@ -148,6 +148,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Pin draft release target to bump commit SHA
+        run: |
+          # Pin the draft's target_commitish to the exact bump commit SHA so
+          # publishing the draft does NOT force-move the tag when the release
+          # branch is deleted (GitHub falls back to the default branch otherwise).
+          BUMP_SHA=$(git rev-parse HEAD)
+          TAG="${{ github.event.inputs.package }}/v${{ steps.version.outputs.next }}"
+          gh release edit "$TAG" --target "$BUMP_SHA"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Append full changelog link to draft release
         if: steps.changelog.outputs.last_tag != ''
         run: |
