@@ -148,11 +148,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Push release branch and tag
+        run: |
+          git push origin "${{ steps.version.outputs.branch }}" --follow-tags
+
       - name: Pin draft release target to bump commit SHA
         run: |
           # Pin the draft's target_commitish to the exact bump commit SHA so
           # publishing the draft does NOT force-move the tag when the release
-          # branch is deleted (GitHub falls back to the default branch otherwise).
+          # branch is later deleted (GitHub falls back to the default branch
+          # otherwise, moving the tag away from the version-bump commit).
+          # Must run AFTER the push so the SHA exists on origin, otherwise
+          # the GitHub API rejects it with 422 "target_commitish is invalid".
           BUMP_SHA=$(git rev-parse HEAD)
           TAG="${{ github.event.inputs.package }}/v${{ steps.version.outputs.next }}"
           gh release edit "$TAG" --target "$BUMP_SHA"
@@ -171,10 +178,6 @@ jobs:
           ${CHANGELOG_LINK}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push release branch and tag
-        run: |
-          git push origin "${{ steps.version.outputs.branch }}" --follow-tags
 
       - name: Create pull request
         run: |
