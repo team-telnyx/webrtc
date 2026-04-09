@@ -82,16 +82,24 @@ export interface IVertoCallOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
-   * When true, restricts trickle ICE candidates to a single network interface.
+   * Restricts trickle ICE candidates to a single network interface.
    * Prevents DTLS handshake failures on multi-NIC clients where the B2BUA
    * and client may disagree on which interface to use for media.
+   *
+   * - `true`: Lock to the first interface discovered (default behavior)
+   * - `0|1|2|3`: Lock to a specific interface by index (0=first, 1=second, etc.)
+   * - `false`: Disabled, allow candidates from all interfaces
+   *
+   * Interface order is determined by candidate arrival timing, which correlates
+   * with interface priority in the browser's ICE agent. If the requested index
+   * is out of range, falls back to the first interface.
    *
    * Only effective when `trickleIce` is also true.
    *
    * @default false
    * @see https://github.com/team-telnyx/webrtc/pull/558
    */
-  singleInterfaceIce?: boolean;
+  singleInterfaceIce?: boolean | number;
   // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;

@@ -396,4 +396,169 @@ describe('CandidateFilter', () => {
       expect(onEndOfCandidates).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('interface selection by index (number option)', () => {
+    it('locks to second interface when singleInterfaceIce: 1', () => {
+      const filter = new CandidateFilter(1, onCandidate, onEndOfCandidates);
+
+      // First interface (index 0)
+      filter.add(
+        makeEvent(
+          'candidate:1 1 udp 1677729535 50.236.171.26 16464 typ srflx raddr 192.168.101.233 rport 16464'
+        )
+      );
+
+      // Second interface (index 1) — this should be locked
+      filter.add(
+        makeEvent(
+          'candidate:2 1 udp 1677729535 50.236.171.26 42084 typ srflx raddr 192.168.1.195 rport 42084'
+        )
+      );
+
+      // Additional candidate from first interface — should be dropped
+      filter.add(
+        makeEvent(
+          'candidate:3 1 udp 33562367 64.16.248.199 51648 typ relay raddr 192.168.101.233 rport 63650'
+        )
+      );
+
+      // Additional candidate from second interface — should pass
+      filter.add(
+        makeEvent(
+          'candidate:4 1 udp 33562367 64.16.248.198 55626 typ relay raddr 192.168.1.195 rport 52901'
+        )
+      );
+
+      filter.add(makeEvent(null));
+
+      // First 2 buffered until index 1 appears, candidate 3 dropped (wrong interface), candidate 4 passes
+      expect(onCandidate).toHaveBeenCalledTimes(3);
+
+      const passedCandidates = onCandidate.mock.calls.map(([c]) => c.candidate);
+      // Should include 2 from locked interface (index 1): candidate 2 and candidate 4
+      expect(passedCandidates.filter((c: string) => c.includes('raddr 192.168.1.195')).length).toBe(2);
+    });
+
+    it('locks to third interface when singleInterfaceIce: 2', () => {
+      const filter = new CandidateFilter(2, onCandidate, onEndOfCandidates);
+
+      // Three different interfaces
+      filter.add(
+        makeEvent(
+          'candidate:1 1 udp 1677729535 50.236.171.26 16464 typ srflx raddr 192.168.101.233 rport 16464'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:2 1 udp 1677729535 50.236.171.26 42084 typ srflx raddr 192.168.1.195 rport 42084'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:3 1 udp 1677729535 50.236.171.26 28263 typ srflx raddr 10.0.0.5 rport 28263'
+        )
+      );
+
+      // Fourth candidate from interface 0 — should be dropped after lock
+      filter.add(
+        makeEvent(
+          'candidate:4 1 udp 33562367 64.16.248.199 51648 typ relay raddr 192.168.101.233 rport 63650'
+        )
+      );
+
+      filter.add(makeEvent(null));
+
+      // First 3 buffered until index 2 appears, candidate 4 dropped (wrong interface)
+      expect(onCandidate).toHaveBeenCalledTimes(3);
+    });
+
+    it('falls back to first interface when requested index is out of range', () => {
+      const filter = new CandidateFilter(5, onCandidate, onEndOfCandidates);
+
+      // Only two interfaces available
+      filter.add(
+        makeEvent(
+          'candidate:1 1 udp 1677729535 50.236.171.26 16464 typ srflx raddr 192.168.101.233 rport 16464'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:2 1 udp 1677729535 50.236.171.26 42084 typ srflx raddr 192.168.1.195 rport 42084'
+        )
+      );
+
+      // Third candidate from interface 1 — should pass after fallback
+      filter.add(
+        makeEvent(
+          'candidate:3 1 udp 33562367 64.16.248.198 55626 typ relay raddr 192.168.1.195 rport 52901'
+        )
+      );
+
+      filter.add(makeEvent(null));
+
+      // All pass (2 initial + 1 after lock), but locked to first interface
+      expect(onCandidate).toHaveBeenCalledTimes(3);
+    });
+
+    it('singleInterfaceIce: 0 behaves like singleInterfaceIce: true', () => {
+      const filterTrue = new CandidateFilter(true, onCandidate, onEndOfCandidates);
+      const filterZero = new CandidateFilter(0, jest.fn(), jest.fn());
+
+      // Both should lock to first interface
+      filterTrue.add(
+        makeEvent(
+          'candidate:1 1 udp 1677729535 50.236.171.26 16464 typ srflx raddr 192.168.101.233 rport 16464'
+        )
+      );
+      filterZero.add(
+        makeEvent(
+          'candidate:1 1 udp 1677729535 50.236.171.26 16464 typ srflx raddr 192.168.101.233 rport 16464'
+        )
+      );
+
+      // Second interface should be dropped by both
+      filterTrue.add(
+        makeEvent(
+          'candidate:2 1 udp 1677729535 50.236.171.26 42084 typ srflx raddr 192.168.1.195 rport 42084'
+        )
+      );
+      filterZero.add(
+        makeEvent(
+          'candidate:2 1 udp 1677729535 50.236.171.26 42084 typ srflx raddr 192.168.1.195 rport 42084'
+        )
+      );
+
+      expect(onCandidate).toHaveBeenCalledTimes(1);
+    });
+
+    it('works with network-id when raddr is anonymized', () => {
+      const filter = new CandidateFilter(1, onCandidate, onEndOfCandidates);
+
+      // Relay-only candidates with anonymized raddr, different network-ids
+      filter.add(
+        makeEvent(
+          'candidate:1 1 udp 58597631 64.16.248.194 53163 typ relay raddr 0.0.0.0 rport 0 network-id 1'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:2 1 udp 58466559 64.16.248.194 50398 typ relay raddr 0.0.0.0 rport 0 network-id 3 network-cost 10'
+        )
+      );
+      filter.add(
+        makeEvent(
+          'candidate:3 1 udp 25042943 64.16.248.195 63369 typ relay raddr 0.0.0.0 rport 0 network-id 1'
+        )
+      );
+
+      filter.add(makeEvent(null));
+
+      // First 2 buffered until index 1 appears, then candidate 3 dropped (wrong interface)
+      expect(onCandidate).toHaveBeenCalledTimes(2);
+
+      // Verify network-id 3 (index 1) was selected
+      const passed = onCandidate.mock.calls.map(([c]) => c.candidate);
+      expect(passed.filter((c: string) => c.includes('network-id 3')).length).toBe(1);
+    });
+  });
 });

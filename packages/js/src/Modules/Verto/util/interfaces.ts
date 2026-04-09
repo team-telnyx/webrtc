@@ -40,7 +40,7 @@ export interface IVertoOptions {
    * @default false
    * @see https://github.com/team-telnyx/webrtc/pull/558
    */
-  singleInterfaceIce?: boolean;
+  singleInterfaceIce?: boolean | number;
   /**
    * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).

@@ -11,12 +11,14 @@ import logger from '../util/logger';
  * from interface A while the client nominates a candidate from interface B,
  * causing a DTLS path mismatch and zero audio.
  *
- * Solution: Lock to the first interface and drop candidates from all others.
- * Interface is identified by `raddr` (private IP), falling back to `network-id`
- * when raddr is anonymized (e.g. relay-only mode where raddr is 0.0.0.0).
- * This is zero-config, works across all browsers, and adds no buffering delay.
+ * Solution: Lock to a specific interface (by index or first available) and drop
+ * candidates from all others. Interface is identified by `raddr` (private IP),
+ * falling back to `network-id` when raddr is anonymized (e.g. relay-only mode
+ * where raddr is 0.0.0.0). This is zero-config, works across all browsers,
+ * and adds no buffering delay.
  *
- * Enabled via `singleInterfaceIce: true` in SDK options.
+ * Enabled via `singleInterfaceIce: true` (first interface) or
+ * `singleInterfaceIce: 0|1|2|3` (specific interface by index) in SDK options.
  *
  * @see https://github.com/team-telnyx/webrtc/pull/558
  */
@@ -25,20 +27,35 @@ import logger from '../util/logger';
  */
 const ANONYMIZED_RADDR = '0.0.0.0';
 
+interface BufferedCandidate {
+  candidate: RTCIceCandidate;
+  interfaceKey: string;
+}
+
 export class CandidateFilter {
   private _lockedInterface: string | null = null;
   private _enabled: boolean;
+  private _targetInterfaceIndex: number | null = null;
+  private _seenInterfaces: string[] = [];
+  private _bufferedCandidates: BufferedCandidate[] = [];
   private _onCandidate: (candidate: RTCIceCandidate) => void;
   private _onEndOfCandidates: () => void;
   private _filteredCount: number = 0;
   private _passedCount: number = 0;
 
   constructor(
-    enabled: boolean,
+    enabled: boolean | number,
     onCandidate: (candidate: RTCIceCandidate) => void,
     onEndOfCandidates: () => void
   ) {
-    this._enabled = enabled;
+    // Handle boolean | number union type
+    if (typeof enabled === 'number') {
+      this._enabled = true;
+      this._targetInterfaceIndex = enabled;
+    } else {
+      this._enabled = enabled;
+      this._targetInterfaceIndex = null; // Lock to first interface seen
+    }
     this._onCandidate = onCandidate;
     this._onEndOfCandidates = onEndOfCandidates;
   }
@@ -51,6 +68,21 @@ export class CandidateFilter {
   add(event: RTCPeerConnectionIceEvent): void {
     // null candidate = gathering complete
     if (!event.candidate || !event.candidate.candidate) {
+      // If gathering completes before we locked, lock to first available interface
+      if (this._enabled && !this._lockedInterface && this._seenInterfaces.length > 0) {
+        const targetIndex = this._targetInterfaceIndex ?? 0;
+        // When target is out of range, fall back to first interface (index 0)
+        const fallbackIndex = targetIndex < this._seenInterfaces.length ? targetIndex : 0;
+        this._lockedInterface = this._seenInterfaces[fallbackIndex];
+        if (fallbackIndex !== targetIndex) {
+          logger.warn(
+            `[CandidateFilter] Requested interface index ${targetIndex} not available, ` +
+              `falling back to index 0: ${this._lockedInterface}`
+          );
+        }
+        this._flushBuffer();
+      }
+
       if (this._enabled && this._filteredCount > 0) {
         logger.info(
           `[CandidateFilter] Gathering complete. ` +
@@ -99,10 +131,44 @@ export class CandidateFilter {
       return;
     }
 
-    // Lock to first interface seen
+    // Track this interface if we haven't seen it before
+    const isNewInterface = !this._seenInterfaces.includes(interfaceKey);
+    if (isNewInterface) {
+      this._seenInterfaces.push(interfaceKey);
+    }
+
+    // Determine which interface to lock to
     if (!this._lockedInterface) {
-      this._lockedInterface = interfaceKey;
-      logger.info(`[CandidateFilter] Locked to interface: ${interfaceKey}`);
+      const targetIndex = this._targetInterfaceIndex ?? 0;
+
+      // If we haven't seen enough interfaces yet, buffer this candidate
+      if (this._seenInterfaces.length - 1 < targetIndex) {
+        this._bufferedCandidates.push({ candidate: event.candidate, interfaceKey });
+        logger.debug(
+          `[CandidateFilter] Buffering candidate from ${interfaceKey} ` +
+            `(waiting for interface index ${targetIndex})`
+        );
+        return;
+      }
+
+      // Lock to the interface at the target index
+      const targetInterface = this._seenInterfaces[targetIndex];
+      if (targetInterface) {
+        this._lockedInterface = targetInterface;
+        logger.info(
+          `[CandidateFilter] Locked to interface index ${targetIndex}: ${targetInterface}`
+        );
+      } else {
+        // Fallback: target index out of range, use first interface
+        this._lockedInterface = this._seenInterfaces[0];
+        logger.warn(
+          `[CandidateFilter] Requested interface index ${targetIndex} not available, ` +
+            `falling back to index 0: ${this._lockedInterface}`
+        );
+      }
+
+      // Flush buffered candidates, keeping only those from locked interface
+      this._flushBuffer();
     }
 
     if (interfaceKey === this._lockedInterface) {
@@ -118,10 +184,24 @@ export class CandidateFilter {
   }
 
   /**
+   * Flush buffered candidates after lock is established.
+   * All buffered candidates are passed through (they arrived before lock).
+   */
+  private _flushBuffer(): void {
+    for (const buffered of this._bufferedCandidates) {
+      this._passedCount++;
+      this._onCandidate(buffered.candidate);
+    }
+    this._bufferedCandidates = [];
+  }
+
+  /**
    * Reset filter state. Call on ICE restart or new call.
    */
   reset(): void {
     this._lockedInterface = null;
+    this._seenInterfaces = [];
+    this._bufferedCandidates = [];
     this._filteredCount = 0;
     this._passedCount = 0;
   }

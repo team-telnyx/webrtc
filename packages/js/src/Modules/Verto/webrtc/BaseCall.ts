@@ -1805,8 +1805,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
     // Initialize candidate filter for multi-interface mitigation
+    // Pass through boolean or number (interface index)
+    const filterOption = this.options.singleInterfaceIce ?? false;
     this._candidateFilter = new CandidateFilter(
-      this.options.singleInterfaceIce === true,
+      filterOption,
       (candidate: RTCIceCandidate) => this._sendIceCandidate(candidate),
       () => this._sendEndOfCandidates()
     );
