@@ -192,6 +192,8 @@ export interface IClientOptions {
    *
    * @example
    * ```js
+   * import {isMediaRecoveryErrorEvent} from "@telnyx/webrtc"
+   *
    * const client = new TelnyxRTC({
    *   login_token: '...',
    *   mediaPermissionsRecovery: {
@@ -203,7 +205,7 @@ export interface IClientOptions {
    * });
    *
    * client.on('telnyx.error', (event) => {
-   *   if (event.recoverable && event.resume) {
+   *   if (isMediaRecoveryErrorEvent(event)) {
    *     showPermissionDialog({
    *       onContinue: () => event.resume(),
    *       onCancel: () => event.reject?.(),
