@@ -404,16 +404,82 @@ export default class Peer {
     const isReceiveOnly =
       Boolean(this.options.receiveOnlyAudio) && !this.options.audio;
 
+    let capturedMediaError: Error | null = null;
+
     this.options.localStream = await this._retrieveLocalStream().catch(
-      (error) => {
-        const telnyxError = createTelnyxError(
-          classifyMediaErrorCode(error),
-          error
-        );
-        trigger(SwEvent.MediaError, telnyxError, this.options.id);
+      async (error) => {
+        const recovery = this._session.options.mediaPermissionsRecovery;
+
+        // Only run recovery for answers. We keep the invite flow simple so the
+        // caller can fix local media issues and start the call again without
+        // requiring extra recovery handling from us.
+        if (recovery?.enabled && this._isAnswer()) {
+          let recoveredStream: MediaStream | null = null;
+          let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+          await new Promise<void>((resolve, reject) => {
+            safetyTimeout = setTimeout(
+              () => reject(new Error('Media recovery flow timed out!')),
+              recovery.timeout
+            );
+
+            trigger(
+              SwEvent.Error,
+              {
+                error: createTelnyxError(classifyMediaErrorCode(error), error),
+                callId: this.options.id,
+                sessionId: this._session.sessionid,
+                recoverable: true,
+                retryDeadline: Date.now() + recovery.timeout,
+                resume: () => {
+                  resolve();
+                },
+                reject: () => {
+                  reject(
+                    new Error('Call was rejected during media recovery flow!')
+                  );
+                },
+              },
+              this._session.uuid
+            );
+          })
+            .then(async () => {
+              if (safetyTimeout) {
+                clearTimeout(safetyTimeout);
+                safetyTimeout = null;
+              }
+
+              recoveredStream = await this._retrieveLocalStream();
+              recovery.onSuccess?.();
+            })
+            .catch((recoveryError) => {
+              if (safetyTimeout) {
+                clearTimeout(safetyTimeout);
+                safetyTimeout = null;
+              }
+
+              capturedMediaError = recoveryError;
+              recovery.onError?.(recoveryError);
+            });
+
+          return recoveredStream;
+        }
+
+        capturedMediaError = error;
         return null;
       }
     );
+
+    if (!this.options.localStream && !isReceiveOnly) {
+      const telnyxError = createTelnyxError(
+        capturedMediaError
+          ? classifyMediaErrorCode(capturedMediaError)
+          : MEDIA_GET_USER_MEDIA_FAILED,
+        capturedMediaError ?? undefined
+      );
+      throw telnyxError;
+    }
+
     performance.mark('get-user-media');
 
     if (
@@ -422,12 +488,6 @@ export default class Peer {
     ) {
       logger.info('Muting local audio tracks on start');
       disableAudioTracks(this.options.localStream);
-    }
-
-    if (!this.options.localStream && !isReceiveOnly) {
-      const telnyxError = createTelnyxError(MEDIA_GET_USER_MEDIA_FAILED);
-      trigger(SwEvent.MediaError, telnyxError, this.options.id);
-      throw telnyxError;
     }
 
     performance.mark('peer-creation-end');

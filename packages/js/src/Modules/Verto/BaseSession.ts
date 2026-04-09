@@ -17,6 +17,7 @@ import {
   TOKEN_EXPIRING_SOON,
 } from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
+import type { ITelnyxErrorEvent } from './util/errors';
 import {
   isFunction,
   isValidAnonymousLoginOptions,
@@ -28,12 +29,14 @@ import {
   ILoginParams,
   IVertoOptions,
 } from './util/interfaces';
+import type { INotification } from '../../utils/interfaces';
 import logger, { setConsoleLoggerMinLevel } from './util/logger';
 import { getReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
+import type { ITelnyxWarningEvent } from './util/constants/warnings';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -242,6 +245,20 @@ export default abstract class BaseSession {
    * })
    * ```
    */
+  on(
+    eventName: SwEvent.Error | 'telnyx.error',
+    callback: (event: ITelnyxErrorEvent) => void
+  ): this;
+  on(
+    eventName: SwEvent.Warning | 'telnyx.warning',
+    callback: (event: ITelnyxWarningEvent) => void
+  ): this;
+  on(
+    eventName: SwEvent.Notification | 'telnyx.notification',
+    callback: (event: INotification) => void
+  ): this;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  on(eventName: string, callback: Function): this;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   on(eventName: string, callback: Function) {
     register(eventName, callback, this.uuid);
@@ -277,6 +294,20 @@ export default abstract class BaseSession {
    * client.off('telnyx.error', errorHandler)
    * ```
    */
+  off(
+    eventName: SwEvent.Error | 'telnyx.error',
+    callback?: (event: ITelnyxErrorEvent) => void
+  ): this;
+  off(
+    eventName: SwEvent.Warning | 'telnyx.warning',
+    callback?: (event: ITelnyxWarningEvent) => void
+  ): this;
+  off(
+    eventName: SwEvent.Notification | 'telnyx.notification',
+    callback?: (event: INotification) => void
+  ): this;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  off(eventName: string, callback?: Function): this;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   off(eventName: string, callback?: Function) {
     deRegister(eventName, callback, this.uuid);

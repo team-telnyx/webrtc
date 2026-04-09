@@ -29,6 +29,15 @@ export interface ITelnyxWarning {
   solutions: string[];
 }
 
+export interface ITelnyxWarningEvent {
+  /** Structured SDK warning */
+  warning: ITelnyxWarning;
+  /** Current SDK session identifier */
+  sessionId: string;
+  /** Call identifier when the warning is associated with a call */
+  callId?: string;
+}
+
 export const SDK_WARNINGS = {
   // ── Network quality warnings (310xx) ────────────────────────────────
   31001: {

@@ -43,6 +43,9 @@ export const AUTHENTICATION_REQUIRED: SdkErrorCode = 46003;
 // ── Network errors (480xx) ──────────────────────────────────────────
 export const NETWORK_OFFLINE: SdkErrorCode = 48001;
 
+// ── General / catch-all errors (490xx) ──────────────────────────────
+export const UNEXPECTED_ERROR: SdkErrorCode = 49001;
+
 // ── Network quality warnings (310xx) ────────────────────────────────
 export const HIGH_RTT: SdkWarningCode = 31001;
 export const HIGH_JITTER: SdkWarningCode = 31002;
