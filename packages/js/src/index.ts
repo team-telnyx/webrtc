@@ -24,7 +24,21 @@ export {
   ERROR_TYPE,
 };
 
-export type { ITelnyxError } from './Modules/Verto/util/errors';
-export type { ITelnyxWarning } from './Modules/Verto/util/constants/warnings';
+export {
+  TelnyxError,
+  isMediaRecoveryErrorEvent,
+} from './Modules/Verto/util/errors';
+export type {
+  ITelnyxError,
+  ITelnyxMediaError,
+  ITelnyxErrorEvent,
+  ITelnyxMediaRecoveryErrorEvent,
+  ITelnyxStandardErrorEvent,
+  TelnyxMediaErrorCode,
+} from './Modules/Verto/util/errors';
+export type {
+  ITelnyxWarning,
+  ITelnyxWarningEvent,
+} from './Modules/Verto/util/constants/warnings';
 
 export * from './PreCallDiagnosis';

@@ -180,10 +180,15 @@ export interface IClientOptions {
 
   /**
    * Configuration for media permissions recovery on inbound calls.
-   * When enabled and `getUserMedia` fails during an inbound call,
-   * the SDK will emit a `userMediaError` notification with a `resume()`
-   * callback, allowing the app to prompt the user to fix permissions
-   * and then retry media acquisition.
+   * When enabled and the initial `getUserMedia` call fails while answering,
+   * the SDK emits a recoverable `telnyx.error` event with `resume()` and
+   * `reject()` callbacks so the app can prompt the user to fix permissions
+   * before the call fails.
+   *
+   * Recovery is attempted only for inbound calls. If the app calls
+   * `resume()`, the SDK retries `getUserMedia`. If the app calls `reject()`
+   * or does not respond before `timeout`, recovery fails and the call is
+   * terminated with the usual media error flow.
    *
    * @example
    * ```js
@@ -197,10 +202,12 @@ export interface IClientOptions {
    *   },
    * });
    *
-   * client.on('telnyx.notification', (notification) => {
-   *   if (notification.type === 'userMediaError') {
-   *     // Show UI to fix permissions, then call resume()
-   *     showPermissionDialog(() => notification.resume());
+   * client.on('telnyx.error', (event) => {
+   *   if (event.recoverable && event.resume) {
+   *     showPermissionDialog({
+   *       onContinue: () => event.resume(),
+   *       onCancel: () => event.reject?.(),
+   *     });
    *   }
    * });
    * ```
@@ -208,11 +215,11 @@ export interface IClientOptions {
   mediaPermissionsRecovery?: {
     /** Enable the recovery flow. */
     enabled: boolean;
-    /** Maximum time in ms to wait for the app to call `resume()`. Recommended max 25000. */
+    /** Maximum time in ms to wait for the app to call `resume()` or `reject()`. Recommended max 25000. */
     timeout: number;
     /** Called when the retry `getUserMedia` succeeds after `resume()`. */
     onSuccess?: () => void;
-    /** Called when the retry `getUserMedia` fails or the timeout expires. */
+    /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
 }

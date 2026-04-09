@@ -76,19 +76,19 @@ export interface IVertoOptions {
   debugLogMaxEntries?: number;
   /**
    * Configuration for media permissions recovery on inbound calls.
-   * When enabled and `getUserMedia` fails during an inbound call,
-   * the SDK will emit a `userMediaError` notification with a `resume()`
-   * callback, allowing the app to prompt the user to fix permissions
-   * and then retry media acquisition.
+   * When enabled and the initial `getUserMedia` call fails while answering,
+   * the SDK emits a recoverable `telnyx.error` event with `resume()` and
+   * `reject()` callbacks so the app can prompt the user to fix permissions
+   * before the call fails.
    */
   mediaPermissionsRecovery?: {
     /** Enable the recovery flow. */
     enabled: boolean;
-    /** Maximum time in ms to wait for the app to call `resume()`. Recommended max 25000. */
+    /** Maximum time in ms to wait for the app to call `resume()` or `reject()`. Recommended max 25000. */
     timeout: number;
     /** Called when the retry `getUserMedia` succeeds after `resume()`. */
     onSuccess?: () => void;
-    /** Called when the retry `getUserMedia` fails or the timeout expires. */
+    /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
 }

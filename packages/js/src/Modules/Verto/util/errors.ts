@@ -24,9 +24,14 @@ import {
 export { SDK_ERRORS, SdkErrorCode };
 export { SDK_WARNINGS, SdkWarningCode, ITelnyxWarning, createTelnyxWarning };
 
+export type TelnyxMediaErrorCode =
+  | typeof MEDIA_MICROPHONE_PERMISSION_DENIED
+  | typeof MEDIA_DEVICE_NOT_FOUND
+  | typeof MEDIA_GET_USER_MEDIA_FAILED;
+
 export interface ITelnyxError {
   /** Numeric error code (e.g. 40001) */
-  code: number;
+  code: SdkErrorCode;
   /** Machine-readable error name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED') */
   name: string;
   /** Full explanation of the error — what happened and why */
@@ -41,8 +46,45 @@ export interface ITelnyxError {
   originalError?: unknown;
 }
 
+export interface ITelnyxMediaError extends Omit<ITelnyxError, 'code'> {
+  /** Media-layer error code (420xx) */
+  code: TelnyxMediaErrorCode;
+}
+
+export interface ITelnyxStandardErrorEvent {
+  /** Structured SDK error */
+  error: ITelnyxError;
+  /** Current SDK session identifier */
+  sessionId: string;
+  /** Call identifier when the error is associated with a call */
+  callId?: string;
+  /** Non-recoverable errors omit recovery helpers */
+  recoverable?: false;
+}
+
+export interface ITelnyxMediaRecoveryErrorEvent {
+  /** Structured media error for the failed initial getUserMedia attempt */
+  error: ITelnyxMediaError;
+  /** Current SDK session identifier */
+  sessionId: string;
+  /** Inbound call being recovered */
+  callId: string;
+  /** Indicates that the app can still recover by resuming the flow */
+  recoverable: true;
+  /** Epoch timestamp in ms after which the SDK will stop waiting */
+  retryDeadline: number;
+  /** Retry media acquisition after the app resolves permissions */
+  resume: () => void;
+  /** Abort recovery and let the call fail immediately */
+  reject: () => void;
+}
+
+export type ITelnyxErrorEvent =
+  | ITelnyxStandardErrorEvent
+  | ITelnyxMediaRecoveryErrorEvent;
+
 export class TelnyxError extends Error implements ITelnyxError {
-  public readonly code: number;
+  public readonly code: SdkErrorCode;
   public readonly description: string;
   public readonly causes: string[];
   public readonly solutions: string[];
@@ -74,6 +116,12 @@ export class TelnyxError extends Error implements ITelnyxError {
       originalError: this.originalError,
     };
   }
+}
+
+export function isMediaRecoveryErrorEvent(
+  event: ITelnyxErrorEvent
+): event is ITelnyxMediaRecoveryErrorEvent {
+  return event.recoverable === true;
 }
 
 /**

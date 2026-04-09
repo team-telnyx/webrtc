@@ -1004,7 +1004,7 @@ By following these best practices and understanding the error handling mechanism
 
 ## Structured Error Events (telnyx.error)
 
-Starting with this release, all call-related errors are surfaced via a single `telnyx.error` (`SwEvent.Error`) event carrying a `TelnyxError` instance. This replaces the previous pattern of individual `telnyx.rtc.*` events and notification-based error dispatch.
+Starting with this release, all call-related errors are surfaced via a single `telnyx.error` (`SwEvent.Error`) event carrying a structured payload. The payload always includes a `TelnyxError` instance under `event.error`. Some media-permission recovery flows also include recovery-specific fields such as `recoverable`, `retryDeadline`, `resume()`, and `reject()`.
 
 ### TelnyxError Interface
 
@@ -1012,7 +1012,7 @@ Every error emitted through `telnyx.error` implements the `ITelnyxError` interfa
 
 ```ts
 interface ITelnyxError {
-  code: number; // Numeric error code (e.g. 40001)
+  code: SdkErrorCode; // Numeric SDK error code (e.g. 40001)
   name: string; // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED')
   description: string; // Full explanation of the error — what happened and why
   message: string; // Short human-readable message for UI alerts
@@ -1021,6 +1021,35 @@ interface ITelnyxError {
   originalError?: unknown; // The underlying error, if any
 }
 ```
+
+### telnyx.error Event Payload Types
+
+The callback passed to `client.on('telnyx.error', ...)` now receives a typed union:
+
+```ts
+interface ITelnyxStandardErrorEvent {
+  error: ITelnyxError;
+  sessionId: string;
+  callId?: string;
+  recoverable?: false;
+}
+
+interface ITelnyxMediaRecoveryErrorEvent {
+  error: ITelnyxMediaError;
+  sessionId: string;
+  callId: string;
+  recoverable: true;
+  retryDeadline: number;
+  resume: () => void;
+  reject: () => void;
+}
+
+type ITelnyxErrorEvent =
+  | ITelnyxStandardErrorEvent
+  | ITelnyxMediaRecoveryErrorEvent;
+```
+
+`ITelnyxMediaRecoveryErrorEvent` is used when an inbound call fails its initial `getUserMedia()` attempt and `mediaPermissionsRecovery` is enabled. TypeScript can narrow to this branch by checking `event.recoverable` or by using `isMediaRecoveryErrorEvent(event)`.
 
 ### Error Code Reference
 
@@ -1094,7 +1123,12 @@ interface ITelnyxWarning {
 ### Listening for Structured Errors
 
 ```ts
-import { TelnyxRTC, TelnyxError, SwEvent } from '@telnyx/webrtc';
+import {
+  TelnyxRTC,
+  TelnyxError,
+  SwEvent,
+  isMediaRecoveryErrorEvent,
+} from '@telnyx/webrtc';
 
 const client = new TelnyxRTC({
   /* credentials */
@@ -1102,6 +1136,15 @@ const client = new TelnyxRTC({
 
 client.on(SwEvent.Error, (event) => {
   const { error, callId, sessionId } = event;
+
+  if (isMediaRecoveryErrorEvent(event)) {
+    console.log('Recover by:', new Date(event.retryDeadline).toISOString());
+    showPermissionDialog({
+      onContinue: () => event.resume(),
+      onCancel: () => event.reject(),
+    });
+    return;
+  }
 
   if (error instanceof TelnyxError) {
     // error.message is a short UI-friendly string
@@ -1139,10 +1182,19 @@ client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
 
 ```ts
 // Listen for errors
-client.on('telnyx.error', ({ error, callId }) => {
-  if (error.code === 42003) {
-    // Media error — show user-friendly message
-    alert(error.message);
+client.on('telnyx.error', (event) => {
+  if (event.recoverable) {
+    // Inbound media recovery flow: TS exposes resume(), reject(), and retryDeadline
+    openPermissionsModal({
+      onRetry: () => event.resume(),
+      onCancel: () => event.reject(),
+    });
+    return;
+  }
+
+  if (event.error.code === 42003) {
+    // Final media failure — show user-friendly message
+    alert(event.error.message);
   }
 });
 
@@ -1164,14 +1216,14 @@ The following events are **deprecated** and will be removed in a future major ve
 | `telnyx.rtc.mediaError`                         | `telnyx.error` with code 42001 / 42002 / 42003 |
 | `telnyx.rtc.peerConnectionFailureError`         | `telnyx.warning` with code 33004                 |
 | `telnyx.rtc.peerConnectionSignalingStateClosed` | `telnyx.error` (future)                        |
-| `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with code 42003                 |
+| `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with media error codes; inspect `recoverable` for inbound recovery flows |
 | `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.warning` with code 33004                 |
 
 During the transition period, both the deprecated events **and** the new `telnyx.error` event are emitted for backward compatibility.
 
 ## Migration Guide
 
-1. **Add a `telnyx.error` listener** using `client.on('telnyx.error', handler)` for unrecoverable errors.
+1. **Add a `telnyx.error` listener** using `client.on('telnyx.error', handler)` for structured errors and inbound media recovery prompts.
 2. **Add a `telnyx.warning` listener** using `client.on('telnyx.warning', handler)` for degraded conditions (ICE issues, quality drops, token expiry).
 3. **Switch on `code`** instead of listening to multiple separate events — errors use `error.code`, warnings use `warning.code`.
 4. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
@@ -1181,10 +1233,20 @@ During the transition period, both the deprecated events **and** the new `telnyx
 **Example — handling both errors and warnings:**
 
 ```ts
-// Errors: unrecoverable failures (call dropped, media denied, etc.)
-client.on('telnyx.error', ({ error, callId }) => {
-  console.error(`[${error.code}] ${error.name}: ${error.message}`);
-  showErrorAlert(error.message);
+// Errors: recoverable inbound media prompts or unrecoverable failures
+client.on('telnyx.error', (event) => {
+  if (event.recoverable) {
+    promptForPermissions({
+      onRetry: () => event.resume(),
+      onCancel: () => event.reject(),
+    });
+    return;
+  }
+
+  console.error(
+    `[${event.error.code}] ${event.error.name}: ${event.error.message}`
+  );
+  showErrorAlert(event.error.message);
 });
 
 // Warnings: degraded but recoverable conditions
