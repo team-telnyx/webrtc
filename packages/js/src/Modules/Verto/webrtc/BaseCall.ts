@@ -47,6 +47,7 @@ import {
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
 import Peer from './Peer';
+import { CandidateFilter } from './CandidateFilter';
 import {
   ConferenceAction,
   DEFAULT_CALL_OPTIONS,
@@ -222,6 +223,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  private _candidateFilter: CandidateFilter | null = null;
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions
@@ -262,6 +265,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
+        singleInterfaceIce: options.singleInterfaceIce,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
@@ -1780,6 +1784,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._isRemoteDescriptionSet = false;
     this._firstCandidateSent = false;
     this._firstNonHostCandidateSent = false;
+    if (this._candidateFilter) {
+      this._candidateFilter.reset();
+    }
   }
 
   private _flushPendingTrickleIceCandidates() {
@@ -1832,8 +1839,17 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
+    // Initialize candidate filter for multi-interface mitigation
+    // Pass through boolean or number (interface index)
+    const filterOption = this.options.singleInterfaceIce ?? false;
+    this._candidateFilter = new CandidateFilter(
+      filterOption,
+      (candidate: RTCIceCandidate) => this._sendIceCandidate(candidate),
+      () => this._sendEndOfCandidates()
+    );
+
     instance.onicecandidate = (event) => {
-      this._onTrickleIce(event);
+      this._candidateFilter.add(event);
     };
 
     instance.onicegatheringstatechange = (event) => {

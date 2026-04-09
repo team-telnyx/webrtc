@@ -31,6 +31,17 @@ export interface IVertoOptions {
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
+   * When true, restricts trickle ICE candidates to a single network interface.
+   * Prevents DTLS handshake failures on multi-NIC clients where the B2BUA
+   * and client may disagree on which interface to use for media.
+   *
+   * Only effective when `trickleIce` is also true.
+   *
+   * @default false
+   * @see https://github.com/team-telnyx/webrtc/pull/558
+   */
+  singleInterfaceIce?: boolean | number;
+  /**
    * By passing `keepConnectionAliveOnSocketClose` as `true`, the SDK will attempt to keep Peer connection alive
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
