@@ -64,6 +64,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#newCall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a>
 <a href="TelnyxRTC.html#off" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a>
 <a href="TelnyxRTC.html#on" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on</span></a>
+<a href="TelnyxRTC.html#serverDisconnect" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>server<wbr/>Disconnect</span></a>
 <a href="TelnyxRTC.html#setAudioSettings" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Settings</span></a>
 <a href="TelnyxRTC.html#webRTCInfo" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>webRTCInfo</span></a>
 <a href="TelnyxRTC.html#webRTCSupportedBrowserList" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>webRTCSupported<wbr/>Browser<wbr/>List</span></a>
@@ -716,6 +717,17 @@ so make sure to use the same reference in both <code>.on()</code> and <code>.off
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.on</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="serverDisconnect" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>server<wbr/>Disconnect</span><a href="#serverDisconnect" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature tsd-anchor-link" id="serverDisconnect.serverDisconnect-1"><span class="tsd-kind-call-signature">server<wbr/>Disconnect</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#serverDisconnect.serverDisconnect-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Server-initiated disconnect (e.g. PUNT message).
+Purges all calls locally without sending BYE — server side may already be gone.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.serverDisconnect</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="setAudioSettings" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>set<wbr/>Audio<wbr/>Settings</span><a href="#setAudioSettings" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -887,6 +899,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li>
 <ul>
 <li><a href="#md:events"><span>Events</span></a></li></ul></li>
+<li><a href="#serverDisconnect" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>server<wbr/>Disconnect</span></a></li>
 <li><a href="#setAudioSettings" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Settings</span></a></li>
 <li><a href="#webRTCInfo" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>webRTCInfo</span></a></li>
 <li>
