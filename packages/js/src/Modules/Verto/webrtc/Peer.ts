@@ -412,12 +412,14 @@ export default class Peer {
 
         if (recovery?.enabled && this._isAnswer()) {
           let recoveredStream: MediaStream | null = null;
+          let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
 
           await new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(
-              () => reject(new Error('mediaPermissionsTimeout')),
+            safetyTimeout = setTimeout(
+              () => reject(new Error('Media recovery flow timed out!')),
               recovery.timeout
             );
+
             trigger(
               SwEvent.Error,
               {
@@ -427,18 +429,32 @@ export default class Peer {
                 recoverable: true,
                 retryDeadline: Date.now() + recovery.timeout,
                 resume: () => {
-                  clearTimeout(timer);
                   resolve();
+                },
+                reject: () => {
+                  reject(
+                    new Error('Call was rejected during media recovery flow!')
+                  );
                 },
               },
               this._session.uuid
             );
           })
             .then(async () => {
+              if (safetyTimeout) {
+                clearTimeout(safetyTimeout);
+                safetyTimeout = null;
+              }
+
               recoveredStream = await this._retrieveLocalStream();
               recovery.onSuccess?.();
             })
             .catch((recoveryError) => {
+              if (safetyTimeout) {
+                clearTimeout(safetyTimeout);
+                safetyTimeout = null;
+              }
+
               capturedMediaError = recoveryError;
               recovery.onError?.(recoveryError);
             });
