@@ -165,10 +165,18 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async disconnect() {
-    logger.info('[disconnect] Client-initiated disconnect — setting Purge with BYE on all active calls.');
-    Object.keys(this.calls).forEach((k) => {
-      this.calls[k].setState(State.Purge, { sendBye: true });
-    });
+    logger.info(
+      '[disconnect] Client-initiated disconnect — setting Purge with BYE on all active calls.'
+    );
+
+    for (const key in this.calls) {
+      const call = this.calls[key];
+
+      call.setState(State.Purge);
+      logger.info('Start hangup for ', call);
+      await call.hangup({}, true);
+    }
+
     this.calls = {};
 
     this._cleanupNetworkListeners();
@@ -180,10 +188,17 @@ export default abstract class BrowserSession extends BaseSession {
    * Purges all calls locally without sending BYE — server side may already be gone.
    */
   async serverDisconnect() {
-    logger.info('[serverDisconnect] Server-initiated disconnect — setting Purge without BYE on all active calls.');
-    Object.keys(this.calls).forEach((k) => {
-      this.calls[k].setState(State.Purge, { sendBye: false });
-    });
+    logger.info(
+      '[serverDisconnect] Server-initiated disconnect — setting Purge without BYE on all active calls.'
+    );
+
+    for (const key in this.calls) {
+      const call = this.calls[key];
+
+      call.setState(State.Purge);
+      void call.hangup({}, false);
+    }
+
     this.calls = {};
 
     this._cleanupNetworkListeners();
