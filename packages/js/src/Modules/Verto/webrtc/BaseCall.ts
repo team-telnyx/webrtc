@@ -1043,7 +1043,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  setState(state: State) {
+  setState(state: State): void {
     this._prevState = this._state;
     this._state = state;
     this.state = State[this._state].toLowerCase();
@@ -1058,10 +1058,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
 
     switch (state) {
-      case State.Purge:
-        logger.debug(`Call ${this.id} hangup call due to purge state`);
-        void this.hangup({ cause: 'PURGE', causeCode: 1 }, false);
+      case State.Purge: {
+        logger.info(`[${this.id}] Entering Purge state.`);
         break;
+      }
       case State.Active: {
         performance.mark('call-active');
         this.peer?.tryCollectTimings();
