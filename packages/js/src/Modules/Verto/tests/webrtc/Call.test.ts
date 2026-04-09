@@ -147,25 +147,9 @@ describe('Call', () => {
       expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);
     });
 
-    it('set state to Purge without sendBye (default)', () => {
+    it('set state to Purge', () => {
       call.setState(State.Purge);
-      expect(call.state).toEqual('destroy');
-      expect(session.calls).not.toHaveProperty(call.id);
-      expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);
-    });
-
-    it('set state to Purge with sendBye=true (client disconnect)', () => {
-      call.setState(State.Purge, { sendBye: true });
-      // With sendBye=true, hangup executes BYE which transitions through Hangup
-      // (in test env without a real socket, it stays at hangup instead of reaching destroy)
-      expect(call.state).toEqual('hangup');
-    });
-
-    it('set state to Purge with sendBye=false (server disconnect)', () => {
-      call.setState(State.Purge, { sendBye: false });
-      expect(call.state).toEqual('destroy');
-      expect(session.calls).not.toHaveProperty(call.id);
-      expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(false);
+      expect(call.state).toEqual('purge');
     });
 
     it('set prevState', () => {
@@ -264,10 +248,7 @@ describe('Call', () => {
   });
 
   describe('media failure handling', () => {
-    const mediaError = new DOMException(
-      'Permission denied',
-      'NotAllowedError'
-    );
+    const mediaError = new DOMException('Permission denied', 'NotAllowedError');
 
     afterEach(() => {
       jest.restoreAllMocks();
@@ -275,14 +256,17 @@ describe('Call', () => {
 
     it('invite() should call hangup and not proceed with negotiation when media fails', async () => {
       jest
-        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .spyOn(
+          Peer.prototype as unknown as {
+            _retrieveLocalStream: () => Promise<MediaStream>;
+          },
+          '_retrieveLocalStream'
+        )
         .mockRejectedValue(mediaError);
       const startNegotiationSpy = jest
         .spyOn(Peer.prototype, 'startNegotiation')
         .mockImplementation(() => {});
-      const hangupSpy = jest
-        .spyOn(call, 'hangup')
-        .mockResolvedValue(undefined);
+      const hangupSpy = jest.spyOn(call, 'hangup').mockResolvedValue(undefined);
 
       await call.invite();
 
@@ -292,7 +276,12 @@ describe('Call', () => {
 
     it('answer() should call hangup and not proceed with negotiation when media fails', async () => {
       jest
-        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .spyOn(
+          Peer.prototype as unknown as {
+            _retrieveLocalStream: () => Promise<MediaStream>;
+          },
+          '_retrieveLocalStream'
+        )
         .mockRejectedValue(mediaError);
       const startNegotiationSpy = jest
         .spyOn(Peer.prototype, 'startNegotiation')
@@ -326,7 +315,12 @@ describe('Call', () => {
       // asserting answer() resolves without throwing, and that _creatingPeer
       // is reset (i.e., the media-abort branch was not hit).
       jest
-        .spyOn(Peer.prototype as unknown as { _retrieveLocalStream: () => Promise<MediaStream> }, '_retrieveLocalStream')
+        .spyOn(
+          Peer.prototype as unknown as {
+            _retrieveLocalStream: () => Promise<MediaStream>;
+          },
+          '_retrieveLocalStream'
+        )
         .mockRejectedValue(mediaError);
 
       const receiveOnlyCall = new Call(session, {
