@@ -410,6 +410,9 @@ export default class Peer {
       async (error) => {
         const recovery = this._session.options.mediaPermissionsRecovery;
 
+        // Only run recovery for answers. We keep the invite flow simple so the
+        // caller can fix local media issues and start the call again without
+        // requiring extra recovery handling from us.
         if (recovery?.enabled && this._isAnswer()) {
           let recoveredStream: MediaStream | null = null;
           let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
