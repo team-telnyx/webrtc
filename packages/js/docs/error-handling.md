@@ -1,1030 +1,59 @@
 # WebRTC JS SDK Error Handling
 
-This document provides a comprehensive overview of error handling in the Telnyx WebRTC JS SDK, including when the `telnyx.notification` event is triggered, the types of errors that can occur, and how the SDK handles reconnection attempts.
+This guide reflects the current SDK surface in this branch.
+
+The current SDK exposes error-related behavior through three main channels:
+
+- `telnyx.error` for structured failures.
+- `telnyx.warning` for degraded but recoverable conditions.
+- `telnyx.notification` for call/session updates plus a small set of backward-compatible notifications.
+
+Use `telnyx.ready` to know when the client is authenticated and the gateway is ready. Do not treat readiness as a `telnyx.notification` case.
 
 ## Table of Contents
 
-- [WebRTC JS SDK Error Handling](#webrtc-js-sdk-error-handling)
-  - [Table of Contents](#table-of-contents)
-  - [Introduction](#introduction)
-  - [Error Constants Reference](#error-constants-reference)
-  - [SwEvent Error Reference](#swevent-error-reference)
-    - [Summary Table](#summary-table)
-    - [Handling Details](#handling-details)
-      - [`telnyx.rtc.mediaError`](#telnyxrtcmediaerror)
-      - [`telnyx.rtc.peerConnectionFailureError`](#telnyxrtcpeerconnectionfailureerror)
-      - [`telnyx.rtc.peerConnectionSignalingStateClosed`](#telnyxrtcpeerconnectionsignalingstateclosed)
-  - [Call Termination Reasons](#call-termination-reasons)
-    - [Call Termination Fields](#call-termination-fields)
-    - [Common Cause Values](#common-cause-values)
-    - [Example Usage](#example-usage)
-  - [The telnyx.notification Event Handler](#the-telnyxnotification-event-handler)
-    - [Event Structure](#event-structure)
-    - [When is telnyx.notification Triggered?](#when-is-telnyxnotification-triggered)
-    - [Example Implementation](#example-implementation)
-  - [Error Types](#error-types)
-    - [User Media Errors](#user-media-errors)
-    - [Call State Errors](#call-state-errors)
-    - [Connection Errors](#connection-errors)
-    - [Authentication Errors](#authentication-errors)
-  - [Socket Connection Close and Socket Connection Error Handling](#socket-connection-close-and-socket-connection-error-handling)
-    - [Event delivery to TelnyxRTC consumers](#event-delivery-to-telnyxrtc-consumers)
-    - [`telnyx.socket.close` payload](#telnyxsocketclose-payload)
-    - [`telnyx.socket.error` payload](#telnyxsocketerror-payload)
-    - [Monitoring WebSocket ready states](#monitoring-websocket-ready-states)
-    - [CloseEvent Reference](#closeevent-reference)
-    - [Recommended Handling Strategies](#recommended-handling-strategies)
-    - [Code Examples for Common Scenarios](#code-examples-for-common-scenarios)
-  - [Reconnection Process](#reconnection-process)
-    - [Automatic Reconnection](#automatic-reconnection)
-    - [Manual Reconnection](#manual-reconnection)
-  - [Best Practices](#best-practices)
-    - [1. Always Implement the telnyx.notification Event Handler](#1-always-implement-the-telnyxnotification-event-handler)
-    - [2. Handle User Media Permissions Gracefully](#2-handle-user-media-permissions-gracefully)
-    - [3. Implement Proper Error UI Feedback](#3-implement-proper-error-ui-feedback)
-    - [4. Handle Call Failures Appropriately](#4-handle-call-failures-appropriately)
-    - [5. Monitor Connection State](#5-monitor-connection-state)
-    - [6. Log Errors for Debugging](#6-log-errors-for-debugging)
-    - [7. Implement Graceful Degradation](#7-implement-graceful-degradation)
-  - [Structured Error Events (telnyx.error)](#structured-error-events-telnyxerror)
-    - [TelnyxError Interface](#telnyxerror-interface)
-    - [Error Code Reference](#error-code-reference)
-    - [Listening for Structured Errors](#listening-for-structured-errors)
-    - [Before / After Example](#before--after-example)
-  - [Deprecation Notice](#deprecation-notice)
-  - [Migration Guide](#migration-guide)
-
-## Introduction
-
-The Telnyx WebRTC JS SDK provides robust error handling mechanisms to help developers manage various error scenarios that may occur during the lifecycle of a WebRTC connection. Understanding these error handling mechanisms is crucial for building reliable applications that can gracefully recover from failures.
-
-## Error Constants Reference
-
-The following table lists all error constants and codes used in the Telnyx WebRTC JS SDK:
-
-| **ERROR MESSAGE**               | **ERROR CODE** | **DESCRIPTION**                                          |
-| ------------------------------- | -------------- | -------------------------------------------------------- |
-| Token registration error        | -32000         | Error during token registration                          |
-| JWT token authentication failed | -32001         | JWT login credentials are invalid or expired             |
-| Credential registration error   | -32001         | Error during credential registration                     |
-| Codec error                     | -32002         | Error related to codec operation                         |
-| Gateway registration timeout    | -32003         | Gateway registration timed out                           |
-| Gateway registration failed     | -32004         | Gateway registration failed                              |
-| Call not found                  | N/A            | The specified call cannot be found                       |
-| User media error                | N/A            | Browser does not have permission to access media devices |
-| Connection timeout              | -329990        | Fake verto timeout error code                            |
-
-## SwEvent Error Reference
-
-The SDK exposes every recoverable failure through specific `SwEvent` constants. Listening to each event provides clear separation between transport issues, session-level failures, and media-layer errors.
-
-### Summary Table
-
-| **EVENT**                                       | **TRIGGER**                                                                                        | **PAYLOAD**                                                                                             | **RECOMMENDED HANDLING**                                                                     |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `telnyx.error`                                  | Session-level failure (registration retry exhausted, server rejects RPC, BYE fails, etc.)          | `{ error: Error \| ErrorResponse, sessionId: string }`                                                  | Surface actionable message, decide whether to retry or prompt the user to re-authenticate    |
-| `telnyx.rtc.mediaError`                         | Browser media APIs fail (device enumeration, permission denials, track issues)                     | Browser `DOMException`/`Error` instance                                                                 | Ask user to grant permissions, suggest device troubleshooting, downgrade to audio-only       |
-| `telnyx.rtc.peerConnectionFailureError`         | The peer connection failed, could be recovered on attach method from server.                       | `{ error: Error, sessionId: string }` dispatched with `callId` as the listener scope                    | The call would be restored automaticlly if it's possible                                     |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | Peer connection signaling state transitions to 'closed' while the connection was previously active | `{ previousConnectionState: string, sessionId: string }` dispatched with `callId` as the listener scope | The call could be recoverable only through auto creating the new call with reconvering state |
-
-### Handling Details
-
-#### `telnyx.rtc.mediaError`
-
-Triggered whenever media-device related promises reject (enumerating devices, opening a microphone/camera, setting tracks). Inspect the DOMException `name` to differentiate between `NotAllowedError` (prompt the user to grant permissions), `NotFoundError` (show “no devices” guidance), and transient issues (allow retries). Pair this with feature detection and fallbacks described in [Handle User Media Permissions Gracefully](#2-handle-user-media-permissions-gracefully).
-
-#### `telnyx.rtc.peerConnectionFailureError`
-
-Raised by the peer connection monitor when peer connection failed due to some reasons, mostlikely losing network connection. The event (`SwEvent.PeerConnectionFailureError`) is scoped to the call id, so listen on the call instance as well as the session if you need global tracking. Recommended handling: The call should be recovered automaticlly, so it's more warning event to give opportunity UI react on problems with a call.
-
-#### `telnyx.rtc.peerConnectionSignalingStateClosed`
-
-Raised when the peer connection's signaling state transitions to `closed`. This event (`SwEvent.PeerConnectionSignalingStateClosed`) is scoped to the call id. When this event fires, the peer connection is not recoverable. In that case on attach method from server SDK will recreate call with recovering state and the same call_id.
-
-**Important**: For more details on recovering process, see the [Reconnection Process](#reconnection-process) section.
-
-## Call Termination Reasons
-
-The SDK provides detailed information about why a call has ended through the call's `cause` and `causeCode` properties. These properties are available when a call reaches the `hangup` state.
-
-### Call Termination Fields
-
-| **FIELD**   | **TYPE** | **DESCRIPTION**                                                |
-| ----------- | -------- | -------------------------------------------------------------- |
-| `cause`     | `string` | General cause description (e.g., "CALL_REJECTED", "USER_BUSY") |
-| `causeCode` | `number` | Numerical code for the cause (e.g., 21 for CALL_REJECTED)      |
-| `sipCode`   | `number` | SIP response code (e.g., 403, 404)                             |
-| `sipReason` | `string` | SIP reason phrase (e.g., "Forbidden", "Not Found")             |
-
-### Common Cause Values
-
-| **CAUSE**            | **DESCRIPTION**                                |
-| -------------------- | ---------------------------------------------- |
-| `NORMAL_CLEARING`    | Normal call termination                        |
-| `USER_BUSY`          | The remote user is busy                        |
-| `CALL_REJECTED`      | The call was rejected by the remote party      |
-| `UNALLOCATED_NUMBER` | The dialed number is invalid or does not exist |
-| `NO_ANSWER`          | The call was not answered                      |
-| `PURGE`              | Call was purged from the system                |
-
-### Example Usage
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'callUpdate') {
-    const call = notification.call;
-
-    if (call.state === 'hangup') {
-      // Check termination reason
-      if (call.cause && call.causeCode) {
-        console.log(`Call ended: ${call.cause} (Code: ${call.causeCode})`);
-
-        // Handle specific termination reasons
-        switch (call.cause) {
-          case 'CALL_REJECTED':
-            showMessage('Call was rejected by the remote party');
-            break;
-          case 'USER_BUSY':
-            showMessage('The remote user is busy');
-            break;
-          case 'UNALLOCATED_NUMBER':
-            showMessage('Invalid phone number');
-            break;
-          case 'NO_ANSWER':
-            showMessage('Call was not answered');
-            break;
-          default:
-            showMessage(`Call ended: ${call.cause}`);
-        }
-      }
-
-      // Check SIP error codes
-      if (call.sipCode && call.sipReason) {
-        console.log(`SIP Error: ${call.sipCode} - ${call.sipReason}`);
-
-        switch (call.sipCode) {
-          case 403:
-            showMessage('Call forbidden - check your permissions');
-            break;
-          case 404:
-            showMessage('Number not found');
-            break;
-          case 486:
-            showMessage('User is busy');
-            break;
-          default:
-            showMessage(`Call failed: ${call.sipReason} (${call.sipCode})`);
-        }
-      }
-    }
-  }
-});
-```
-
-## The telnyx.notification Event Handler
-
-The `telnyx.notification` event is the primary mechanism for receiving error notifications and call state updates in the JS SDK. This event provides a way for your application to be notified of errors and take appropriate action.
-
-### Event Structure
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  // notification.type identifies the event case
-  // notification.call contains call information (for callUpdate events)
-  // notification.error contains error information (for userMediaError events)
-});
-```
-
-### When is telnyx.notification Triggered?
-
-The `telnyx.notification` event is triggered in the following scenarios:
-
-1. **Call State Updates**: When a call changes state (ringing, active, hangup, etc.)
-   - Event Type: `callUpdate`
-   - Contains: `call` object with current state and termination details
-
-2. **User Media Errors**: When the browser cannot access media devices
-   - Event Type: `userMediaError`
-   - Contains: `error` object with details about the media access failure
-
-3. **Connection State Changes**: When the client connection state changes
-   - Event Type: `vertoClientReady`
-   - Indicates the client is ready to make/receive calls
-
-### Example Implementation
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  switch (notification.type) {
-    case 'callUpdate':
-      handleCallUpdate(notification.call);
-      break;
-    case 'userMediaError':
-      handleUserMediaError(notification.error);
-      break;
-    case 'vertoClientReady':
-      handleClientReady();
-      break;
-    default:
-      console.log('Unknown notification type:', notification.type);
-  }
-});
-
-function handleCallUpdate(call) {
-  console.log(`Call ${call.id} state: ${call.state}`);
-
-  switch (call.state) {
-    case 'ringing':
-      showIncomingCallUI(call);
-      break;
-    case 'active':
-      showActiveCallUI(call);
-      break;
-    case 'hangup':
-      handleCallTermination(call);
-      break;
-    case 'destroy':
-      cleanupCall(call);
-      break;
-  }
-}
-
-function handleUserMediaError(error) {
-  console.error('User media error:', error);
-  showErrorMessage(
-    'Cannot access microphone or camera. Please check your browser permissions.'
-  );
-}
-
-function handleClientReady() {
-  console.log('Client is ready to make calls');
-  updateUIConnectionStatus('connected');
-}
-```
-
-## Error Types
-
-The SDK encounters different types of errors that require different handling approaches.
-
-### User Media Errors
-
-User media errors occur when the browser cannot access the user's microphone or camera.
-
-**Common Causes:**
-
-- User denied permission to access media devices
-- Media devices are not available or in use by another application
-- Browser security restrictions (HTTPS required for media access)
-- Invalid audio/video constraints
-
-**Example Handling:**
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'userMediaError') {
-    const error = notification.error;
-
-    // Check specific error types
-    if (error.name === 'NotAllowedError') {
-      showMessage('Please allow access to your microphone and camera');
-    } else if (error.name === 'NotFoundError') {
-      showMessage('No microphone or camera found');
-    } else if (error.name === 'NotReadableError') {
-      showMessage(
-        'Your microphone or camera is being used by another application'
-      );
-    } else {
-      showMessage('Cannot access media devices: ' + error.message);
-    }
-  }
-});
-```
-
-### Call State Errors
-
-Call state errors are indicated through the call's state transitions and termination reasons.
-
-**Call States:**
-
-- `new`: New call has been created
-- `trying`: Attempting to establish the call
-- `requesting`: The outbound call is being sent to the server
-- `ringing`: Incoming call or outbound call is ringing
-- `answering`: Attempting to answer an incoming call
-- `early`: Receiving media before the call is answered
-- `active`: Call is connected and active
-- `held`: Call is on hold
-- `hangup`: Call has ended
-- `destroy`: Call object is being destroyed
-- `purge`: Call has been purged from the system
-
-**Example Handling:**
-
-```javascript
-function handleCallStateError(call) {
-  if (call.state === 'hangup' && call.cause !== 'NORMAL_CLEARING') {
-    // Handle abnormal call termination
-    switch (call.cause) {
-      case 'CALL_REJECTED':
-        showNotification('Call was declined', 'warning');
-        break;
-      case 'USER_BUSY':
-        showNotification('User is busy, try again later', 'info');
-        break;
-      case 'UNALLOCATED_NUMBER':
-        showNotification('Invalid phone number', 'error');
-        break;
-      case 'NO_ANSWER':
-        showNotification('No answer', 'info');
-        break;
-      default:
-        showNotification(`Call failed: ${call.cause}`, 'error');
-    }
-  }
-}
-```
-
-### Connection Errors
-
-Connection errors occur when there are issues with the WebSocket connection to the Telnyx servers.
-
-**Common Connection Issues:**
-
-- Network connectivity problems
-- Authentication failures
-- Server-side issues
-- Firewall or proxy blocking WebSocket connections
-
-**Example Handling:**
-
-```javascript
-client.on('telnyx.socket.close', () => {
-  console.log('WebSocket connection closed');
-  showConnectionStatus('disconnected');
-  // Attempt to reconnect
-  setTimeout(() => {
-    try {
-      client.connect();
-    } catch (error) {
-      console.error('Reconnection failed:', error);
-    }
-  }, 5000);
-});
-
-client.on('telnyx.socket.error', ({ error, sessionId }) => {
-  console.error(`WebSocket error on session ${sessionId}:`, error);
-  showErrorMessage('Connection error. Please check your internet connection.');
-});
-
-client.on('telnyx.ready', () => {
-  console.log('Client connected and ready');
-  showConnectionStatus('connected');
-});
-```
-
-### Authentication Errors
-
-Authentication errors occur when the session credentials expire or become invalid. These are emitted via `telnyx.error`:
-
-**Example Handling:**
-
-```javascript
-client.on('telnyx.error', (payload) => {
-  if (payload.error?.code === -32001) {
-    console.error('JWT authentication failed:', payload.error.message);
-    // Prompt user to refresh their token or re-authenticate
-    showErrorMessage('Session expired. Please log in again.');
-  }
-});
-```
-
-**Invalid Credentials Errors**
-
-Invalid credentials errors occur when the `login()` method is called with invalid credentials configuration. When this happens, the SDK emits a `telnyx.error` event with an `InvalidCredentialsOptions` error type.
-
-```javascript
-client.on('telnyx.error', ({ error, type, sessionId }) => {
-  if (type === ERROR_TYPE.invalidCredentialsOptions) {
-    console.error('Invalid login credentials configuration:', error.message);
-    showErrorMessage(
-      'Invalid login credentials. Please check your configuration.'
-    );
-  }
-});
-```
-
-**Manual Re-authentication with a New Token**
-
-If you need to re-authenticate with a new JWT token (e.g., when the original token has expired), you can update the client options and reconnect:
-
-```javascript
-// Function to fetch a new token from your backend
-async function fetchNewToken() {
-  const response = await fetch('/api/telnyx/token');
-  const data = await response.json();
-  return data.token;
-}
-
-// Function to re-authenticate with a new token
-async function reAuthenticate(client) {
-  // 1. Fetch a new JWT token
-  const newToken = await fetchNewToken().catch(handleFetchError);
-
-  // 2. Login with fresh JWT token
-  await client.login({
-    creds: {
-      login_token: newToken,
-    },
-    onSuccess: () => {
-      console.log('Re-authentication successful');
-    },
-    onError: (error) => {
-      console.error('Re-authentication error:', error);
-    },
-  });
-}
-
-// Listen for JWT authentication failures
-client.on('telnyx.error', async (payload) => {
-  if (payload.error?.code === -32001) {
-    console.warn('JWT authentication failed, attempting re-authentication...');
-    await reAuthenticate(client);
-  }
-});
-
-// Listen for successful reconnection
-client.on('telnyx.ready', () => {
-  console.log('Client reconnected and ready');
-});
-```
-
-This approach is useful when:
-
-- The original JWT token has expired and you have obtained a fresh token
-- You need to switch to different credentials
-- The `telnyx.error` event indicates a `-32001` (JWT authentication failed) error
-
-## Socket Connection Close and Socket Connection Error Handling
-
-The Telnyx WebRTC JS SDK forwards those events directly to your application without modification. The WebSocket is used strictly for signaling—media keeps flowing over the underlying WebRTC peer connection—so transient socket interruptions do not require you to drop active calls. The SDK automatically re-establishes signaling when the socket returns, restoring subscriptions and resuming message delivery.
-
-### Event delivery to TelnyxRTC consumers
-
-```javascript
-client.on('telnyx.socket.close', onSocketClose);
-client.on('telnyx.socket.error', onSocketError);
-```
-
-- `telnyx.socket.close` is fired when the underlying WebSocket transitions into the `CLOSING`/`CLOSED` states and the browser emits a [`CloseEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent). The SDK does not mutate the event.
-- `telnyx.socket.error` is fired on from the WebSocket implementation (for example, TLS handshake issues, DNS failures, or rejected frames). The SDK wraps the error along with the Telnyx session identifier.
-
-Both events invoke the internal network-close handler. If `autoReconnect` is enabled (the default), the SDK clears subscriptions and schedules a reconnect using the configured delay.
-
-### `telnyx.socket.close` payload
-
-Your handler receives the raw `CloseEvent`. Key fields you can rely on:
-
-- `event.code` - numeric close code set by Cowboy. Common codes include:
-  - `1000`: Normal closure (intentional disconnect or logout).
-  - `1001`: Endpoint is going away (browser has navigated away or lost network).
-  - `1002`: Protocol error (unexpected or malformed frame).
-  - `1003`: Unsupported data (frame contained an unsupported type).
-  - `1005`: No status code present. Browsers surface it when the peer omits a status code entirely or the connection drops unexpectedly.
-  - `1006`: Abnormal closure observed by the browser when the TCP socket drops without a close frame.
-  - `1011`: Internal error raised by the voice proxy.
-  - `4014`: Gateway down. The upstream gateway reported a `DOWN` state. The SDK will auto-reconnect.
-- `event.reason` - string provided by Cowboy when additional context is available.
-- `event.wasClean` - `true` when the browser confirms the close handshake completed cleanly.
-
-```javascript
-const onSocketClose = (event) => {
-  if (event.code === 4014) {
-    // Gateway down - SDK will auto-reconnect
-    console.warn('Gateway down, reconnecting...', { reason: event.reason });
-    showConnectionStatus('reconnecting');
-    return;
-  }
-
-  if (!event.wasClean) {
-    console.warn('Socket closed unexpectedly', {
-      code: event.code,
-      reason: event.reason,
-    });
-  }
-
-  showConnectionStatus('disconnected');
-};
-```
-
-You can map application-specific behaviour by inspecting the close codes as defined in RFC 6455. The server will continue to use registered status codes.
-
-### `telnyx.socket.error` payload
-
-The SDK provides an object with the signature `{ error, sessionId }`:
-
-- `error` - the original `ErrorEvent` (or the WebSocket polyfill equivalent) supplied by the browser. WebSocket APIs intentionally keep this opaque; you typically only get `error.type` and `error.message`.
-- `sessionId` - the Telnyx session identifier associated with the current socket.
-
-```javascript
-const onSocketError = ({ error, sessionId }) => {
-  notifyMonitoringTool({
-    sessionId,
-    message: error?.message ?? 'Unknown WebSocket error',
-    type: error?.type,
-  });
-};
-```
-
-### Monitoring WebSocket ready states
-
-The browser exposes the WebSocket `readyState` as an integer (`0-3`). The SDK mirrors these values through convenience getters on `client.connection` so you can check the state without touching the underlying socket:
-
-| `readyState` label | Numeric value | SDK getter                     | Description                                                    |
-| ------------------ | ------------- | ------------------------------ | -------------------------------------------------------------- |
-| `CONNECTING`       | `0`           | `client.connection.connecting` | Handshake in progress; no frames exchanged yet.                |
-| `OPEN`             | `1`           | `client.connection.connected`  | Socket is open and ready for signaling.                        |
-| `CLOSING`          | `2`           | `client.connection.closing`    | Close frame has been sent or received; waiting for completion. |
-| `CLOSED`           | `3`           | `client.connection.closed`     | Socket is fully closed.                                        |
-
-Additional helpers provide aggregate checks: `client.connection.isAlive` is `true` when the socket is `CONNECTING` or `OPEN`, while `client.connection.isDead` is `true` during `CLOSING` or `CLOSED`.
-
-### CloseEvent Reference
-
-The SDK exposes the browser-native [`CloseEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent) object so you can inspect the details that originated from the Cowboy proxy or from the browser itself.
-
-- `code` (`number`) - Close status code described earlier in this section.
-- `reason` (`string`) - Optional human-readable message supplied by the server. Cowboy sends concise reasons when available.
-- `wasClean` (`boolean`) - Indicates whether both peers completed the close handshake.
-- `type` (`string`) - Always `"close"` for this event, useful when sharing logging infrastructure with other event types.
-- `target.url` (`string`) - The WebSocket URL that closed. This helps verify the environment/region the client was connected to.
-- `timeStamp` (`number`) - Epoch timestamp (DOMHighResTimeStamp) of when the event fired, which is helpful when correlating with other telemetry.
-
-Polyfills (such as the `ws` package used in Jest tests) expose the same surface area, though some optional fields (like `target.url`) may be undefined. Guard your logging to cope with those differences.
-
-### Recommended Handling Strategies
-
-- Treat `code === 1000` (normal closure) as a controlled shutdown (for example, when the user signs out). If the closure was not user initiated, allow the SDK's reconnection logic to create a fresh session instead of forcing a call hangup.
-- For `1001`, `1005`, or `1006`, surface a transient connectivity message and trigger a retry if your workflow can recover gracefully.
-- Log and alert on `1002`, `1003`, or any value greater than `1011`; these usually indicate protocol or payload defects that need developer attention.
-- Use `telnyx.socket.error` events for observability: capture the `sessionId`, timestamp, and user context so failures can be correlated with server-side logs.
-- Gate privileged actions (placing calls, sending DTMF, subscribing to streams) on `client.connection.connected` to prevent user operations from failing while the socket is reconnecting.
-- Keep call objects alive while the SDK reconnects; WebRTC media continues despite a signaling outage, and the SDK will reattach once the socket is back.
-
-### Code Examples for Common Scenarios
-
-**Normal closure (user logout)**
-
-```javascript
-const onSocketClose = (event) => {
-  if (event.code === 1000) {
-    showConnectionStatus('signed-out');
-    return;
-  }
-
-  handleAbnormalClose(event);
-};
-```
-
-**Abnormal closure with retry**
-
-```javascript
-const handleAbnormalClose = (event) => {
-  if (event.code === 1001 || event.code === 1005 || event.code === 1006) {
-    showConnectionStatus('reconnecting');
-    // attemptReconnection is defined in the Reconnection Process section.
-    // Active calls remain alive; the SDK restores signaling once the socket returns.
-    attemptReconnection();
-    return;
-  }
-};
-```
-
-**Socket-level error logging**
-
-```javascript
-const onSocketError = ({ error, sessionId }) => {
-  console.error('WebSocket error', {
-    message: error?.message,
-    type: error?.type,
-    sessionId,
-  });
-
-  // Media continues over the peer connection; reconnect signaling.
-  if (!client.connection.isAlive) {
-    attemptReconnection();
-  }
-};
-```
-
-**Guarding user actions while reconnecting**
-
-```javascript
-const placeCall = (destinationNumber) => {
-  if (!client.connection.connected) {
-    showErrorMessage('Still connecting to Telnyx. Please try again shortly.');
-    return;
-  }
-
-  client.newCall({ destinationNumber });
-};
-```
-
-## Reconnection Process
-
-The SDK includes automatic reconnection mechanisms to handle temporary network issues:
-
-### Automatic Reconnection
-
-1. **Connection Monitoring**: The SDK monitors the WebSocket connection status
-2. **Automatic Retry**: When a connection is lost, the SDK attempts to reconnect automatically
-3. **Exponential Backoff**: Retry intervals increase progressively to avoid overwhelming the server
-4. **Call Recovery**: Active calls may be recovered if the connection is restored quickly. The SDK will keep current call alive if peer connection state is connected and signaling state is not closed. If existing call is unrecoverable, then SDK will recreate the call with recoverable state and the same call_id.
-
-**Important**: When sdk recreate the call in recovering state, client application could listen call state changes and treat recovering state as needed. Throughout the recovering process, the call will keep recovering state and once the call is active again, the call state will transition from recovering to active. There is no middle state like ringing or early during the recovering process.
-
-#### Notification Type Comparison Table
-
-| Notification Type            | Trigger                      | Recovery Behavior                                       |
-| ---------------------------- | ---------------------------- | ------------------------------------------------------- |
-| `peerConnectionFailureError` | `connectionState` → `failed` | ICE restart attempted, then new INVITE with new call ID |
-| `signalingStateClosed`       | `signalingState` → `closed`  | Call hung up and recreated with same call ID            |
-
-> [!IMPORTANT]
-> **When Notifications Are Not Dispatched**
->
-> These notifications are **suppressed for screen share calls** (when `screenShare: true` is set in call options). This is by design since screen share calls are typically secondary streams that don't require the same error handling as primary audio/video calls.
->
-> If you need to monitor connection health for screen share calls, check the `signalingStateClosed` property directly on the call object instead:
->
-> ```javascript
-> if (screenShareCall.signalingStateClosed) {
->   console.log('Screen share connection cannot be recovered');
-> }
-> ```
-
-> [!NOTE]
-> **Notification Scoping: Call-Level vs Session-Level**
->
-> Notifications are first dispatched to listeners registered for the specific **call ID**. If no call-level listeners exist, the SDK falls back to dispatching the notification to **session-level** listeners (registered on the client).
->
-> **Session-Level Listener (Recommended)**
->
-> Register on the client to receive notifications from all calls:
->
-> ```javascript
-> client.on('telnyx.notification', (notification) => {
->   if (notification.type === 'peerConnectionFailureError') {
->     console.log('Connection failed for call:', notification.call?.id);
->   }
->   if (notification.type === 'signalingStateClosed') {
->     console.log('Signaling closed for call:', notification.call?.id);
->   }
-> });
-> ```
->
-> **Call-Level Listener**
->
-> Use the `onNotification` callback in call options to receive notifications only for that specific call:
->
-> ```javascript
-> const call = client.newCall({
->   destinationNumber: '+15551234567',
->   onNotification: (notification) => {
->     // Only receives notifications for this specific call
->     if (notification.type === 'peerConnectionFailureError') {
->       console.log('This call connection failed');
->     }
->     if (notification.type === 'signalingStateClosed') {
->       console.log('This call signaling closed');
->     }
->   },
-> });
-> ```
->
-> **Important**: If a call-level `onNotification` listener is registered, it will receive the notification and the session-level listener will **not** receive it (call-level takes priority). The session-level listener only receives notifications as a fallback when no call-level listener is registered. If no listeners are registered at either level, the notification is silently dropped.
-
-### Manual Reconnection
-
-You can also implement manual reconnection logic:
-
-```javascript
-let reconnectAttempts = 0;
-const maxReconnectAttempts = 5;
-const baseReconnectDelay = 1000; // 1 second
-
-function attemptReconnection() {
-  if (reconnectAttempts >= maxReconnectAttempts) {
-    showErrorMessage('Unable to reconnect. Please refresh the page.');
-    return;
-  }
-
-  const delay = baseReconnectDelay * Math.pow(2, reconnectAttempts);
-  reconnectAttempts++;
-
-  console.log(
-    `Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay}ms`
-  );
-
-  setTimeout(() => {
-    try {
-      client.connect();
-    } catch (error) {
-      console.error('Reconnection attempt failed:', error);
-      attemptReconnection();
-    }
-  }, delay);
-}
-
-client.on('telnyx.socket.close', () => {
-  if (client.connected) {
-    // Unexpected disconnection
-    attemptReconnection();
-  }
-});
-
-client.on('telnyx.ready', () => {
-  // Reset reconnection counter on successful connection
-  reconnectAttempts = 0;
-});
-```
-
-## Best Practices
-
-To effectively handle errors in your application:
-
-### 1. Always Implement the telnyx.notification Event Handler
-
-```javascript
-client.on('telnyx.notification', (notification) => {
-  switch (notification.type) {
-    case 'callUpdate':
-      // Handle call state changes
-      updateCallUI(notification.call);
-      break;
-    case 'userMediaError':
-      // Handle media access errors
-      handleMediaError(notification.error);
-      break;
-    case 'vertoClientReady':
-      // Handle client ready state
-      onClientReady();
-      break;
-    default:
-      console.log('Unhandled notification:', notification);
-  }
-});
-```
-
-### 2. Handle User Media Permissions Gracefully
-
-```javascript
-// Request permissions before making calls
-async function requestMediaPermissions() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: false,
-    });
-    // Stop the stream immediately, we just needed to request permission
-    stream.getTracks().forEach((track) => track.stop());
-    return true;
-  } catch (error) {
-    console.error('Media permission denied:', error);
-    showPermissionDialog();
-    return false;
-  }
-}
-
-// Use before making calls
-async function makeCall(destinationNumber) {
-  const hasPermission = await requestMediaPermissions();
-  if (!hasPermission) {
-    return;
-  }
-
-  const call = client.newCall({
-    destinationNumber: destinationNumber,
-    callerNumber: '1234567890',
-  });
-}
-```
-
-### 3. Implement Proper Error UI Feedback
-
-```javascript
-function showErrorMessage(message, type = 'error') {
-  const errorDiv = document.createElement('div');
-  errorDiv.className = `error-message ${type}`;
-  errorDiv.textContent = message;
-
-  // Add to UI
-  document.getElementById('error-container').appendChild(errorDiv);
-
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    errorDiv.remove();
-  }, 5000);
-}
-
-function updateConnectionStatus(status) {
-  const statusElement = document.getElementById('connection-status');
-  statusElement.className = `status ${status}`;
-  statusElement.textContent =
-    status === 'connected' ? 'Connected' : 'Disconnected';
-}
-```
-
-### 4. Handle Call Failures Appropriately
-
-```javascript
-function handleCallFailure(call) {
-  // Log for debugging
-  console.error('Call failed:', {
-    id: call.id,
-    cause: call.cause,
-    causeCode: call.causeCode,
-    sipCode: call.sipCode,
-    sipReason: call.sipReason,
-  });
-
-  // Provide user-friendly messages
-  let userMessage = 'Call failed';
-
-  if (call.sipCode) {
-    switch (call.sipCode) {
-      case 403:
-        userMessage =
-          'Call not allowed. Please check your account permissions.';
-        break;
-      case 404:
-        userMessage = 'Number not found. Please check the phone number.';
-        break;
-      case 486:
-        userMessage = 'The person you are calling is busy.';
-        break;
-      case 503:
-        userMessage =
-          'Service temporarily unavailable. Please try again later.';
-        break;
-      default:
-        userMessage = `Call failed: ${call.sipReason || 'Unknown error'}`;
-    }
-  } else if (call.cause) {
-    switch (call.cause) {
-      case 'USER_BUSY':
-        userMessage = 'The person you are calling is busy.';
-        break;
-      case 'CALL_REJECTED':
-        userMessage = 'Call was declined.';
-        break;
-      case 'NO_ANSWER':
-        userMessage = 'No answer. Please try again later.';
-        break;
-      case 'UNALLOCATED_NUMBER':
-        userMessage = 'Invalid phone number.';
-        break;
-    }
-  }
-
-  showErrorMessage(userMessage);
-}
-```
-
-### 5. Monitor Connection State
-
-```javascript
-let connectionState = 'disconnected';
-
-client.on('telnyx.socket.open', () => {
-  connectionState = 'connecting';
-  updateConnectionStatus('connecting');
-});
-
-client.on('telnyx.ready', () => {
-  connectionState = 'connected';
-  updateConnectionStatus('connected');
-});
-
-client.on('telnyx.socket.close', () => {
-  connectionState = 'disconnected';
-  updateConnectionStatus('disconnected');
-});
-
-// Check connection before making calls
-function makeCall(destinationNumber) {
-  if (connectionState !== 'connected') {
-    showErrorMessage(
-      'Not connected. Please wait for connection to be established.'
-    );
-    return;
-  }
-
-  // Proceed with call
-  const call = client.newCall({
-    destinationNumber: destinationNumber,
-  });
-}
-```
-
-### 6. Log Errors for Debugging
-
-```javascript
-function logError(context, error, additionalData = {}) {
-  const errorLog = {
-    timestamp: new Date().toISOString(),
-    context: context,
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    },
-    additionalData: additionalData,
-    userAgent: navigator.userAgent,
-    url: window.location.href,
-  };
-
-  console.error('TelnyxRTC Error:', errorLog);
-
-  // Send to your error tracking service
-  // sendErrorToTrackingService(errorLog);
-}
-
-// Usage
-client.on('telnyx.notification', (notification) => {
-  if (notification.type === 'userMediaError') {
-    logError('UserMediaError', notification.error, {
-      notificationType: notification.type,
-    });
-  }
-});
-```
-
-### 7. Implement Graceful Degradation
-
-```javascript
-// Fallback for browsers without WebRTC support
-if (!window.RTCPeerConnection) {
-  showErrorMessage(
-    'Your browser does not support WebRTC. Please use a modern browser.'
-  );
-  // Redirect to alternative communication method
-  return;
-}
-
-// Fallback for HTTPS requirement
-if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-  showErrorMessage('WebRTC requires HTTPS. Please use a secure connection.');
-  return;
-}
-
-// Feature detection
-async function checkWebRTCSupport() {
-  const checks = {
-    webrtc: !!window.RTCPeerConnection,
-    getUserMedia: !!(
-      navigator.mediaDevices && navigator.mediaDevices.getUserMedia
-    ),
-    websockets: !!window.WebSocket,
-  };
-
-  const unsupported = Object.keys(checks).filter((key) => !checks[key]);
-
-  if (unsupported.length > 0) {
-    showErrorMessage(
-      `Your browser does not support: ${unsupported.join(', ')}`
-    );
-    return false;
-  }
-
-  return true;
-}
-```
-
-By following these best practices and understanding the error handling mechanisms, you can build robust applications that provide a smooth user experience even when errors occur.
-
-## Structured Error Events (telnyx.error)
-
-Starting with this release, all call-related errors are surfaced via a single `telnyx.error` (`SwEvent.Error`) event carrying a structured payload. The payload always includes a `TelnyxError` instance under `event.error`. Some media-permission recovery flows also include recovery-specific fields such as `recoverable`, `retryDeadline`, `resume()`, and `reject()`.
-
-### TelnyxError Interface
-
-Every error emitted through `telnyx.error` implements the `ITelnyxError` interface:
+- [Event Overview](#event-overview)
+- [Structured Errors (`telnyx.error`)](#structured-errors-telnyxerror)
+- [Structured Warnings (`telnyx.warning`)](#structured-warnings-telnyxwarning)
+- [Notifications (`telnyx.notification`)](#notifications-telnyxnotification)
+- [Call Termination Data](#call-termination-data)
+- [Socket Events](#socket-events)
+- [Reconnection Behavior](#reconnection-behavior)
+- [Legacy RTC Events and Migration](#legacy-rtc-events-and-migration)
+
+## Event Overview
+
+| Event | Purpose | Recommended use |
+| --- | --- | --- |
+| `telnyx.ready` | Client is authenticated and gateway reached `REGISTER` or `REGED` | Enable calling UI and flush any reconnect state |
+| `telnyx.error` | Fatal or blocking SDK errors | Show actionable errors, retry, re-authenticate, or fail the current action |
+| `telnyx.warning` | Non-fatal quality, connectivity, and token warnings | Show degraded-state UI and collect telemetry |
+| `telnyx.notification` | Call lifecycle updates and compatibility notifications | Drive call UI and hangup handling |
+| `telnyx.socket.close` | Raw WebSocket close event | Log close codes and monitor reconnect behavior |
+| `telnyx.socket.error` | Raw WebSocket error wrapper | Log opaque socket failures alongside `sessionId` |
+
+## Structured Errors (`telnyx.error`)
+
+`telnyx.error` is the primary error surface in the current SDK.
+
+### Imports
 
 ```ts
-interface ITelnyxError {
-  code: SdkErrorCode; // Numeric SDK error code (e.g. 40001)
-  name: string; // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'SDP_CREATE_OFFER_FAILED')
-  description: string; // Full explanation of the error — what happened and why
-  message: string; // Short human-readable message for UI alerts
-  causes: string[]; // Possible root causes
-  solutions: string[]; // Suggested remediation steps
-  originalError?: unknown; // The underlying error, if any
-}
+import {
+  SwEvent,
+  TelnyxError,
+  TELNYX_ERROR_CODES,
+  SDK_ERRORS,
+  isMediaRecoveryErrorEvent,
+} from '@telnyx/webrtc';
 ```
 
-### telnyx.error Event Payload Types
+- `TelnyxError` is the structured error class emitted by the SDK.
+- `isMediaRecoveryErrorEvent()` is the type guard for inbound permission recovery flows.
+- `TELNYX_ERROR_CODES` provides named constants for numeric error comparisons.
+- `SDK_ERRORS` provides the registered error metadata.
 
-The callback passed to `client.on('telnyx.error', ...)` now receives a typed union:
+### Payload shapes
 
 ```ts
 interface ITelnyxStandardErrorEvent {
@@ -1049,209 +78,368 @@ type ITelnyxErrorEvent =
   | ITelnyxMediaRecoveryErrorEvent;
 ```
 
-`ITelnyxMediaRecoveryErrorEvent` is used when an inbound call fails its initial `getUserMedia()` attempt and `mediaPermissionsRecovery` is enabled. TypeScript can narrow to this branch by checking `event.recoverable` or by using `isMediaRecoveryErrorEvent(event)`.
+`recoverable: true` is used only for inbound media-permission recovery when `mediaPermissionsRecovery.enabled` is configured and the initial `getUserMedia()` attempt fails while answering a call.
 
-### Error Code Reference
-
-| Code                               | Name                               | Message                                |
-| ---------------------------------- | ---------------------------------- | -------------------------------------- |
-| **SDP Errors (400xx)**             |                                    |                                        |
-| 40001                              | SDP_CREATE_OFFER_FAILED            | Failed to create call offer            |
-| 40002                              | SDP_CREATE_ANSWER_FAILED           | Failed to answer the call              |
-| 40003                              | SDP_SET_LOCAL_DESCRIPTION_FAILED   | Failed to apply local call settings    |
-| 40004                              | SDP_SET_REMOTE_DESCRIPTION_FAILED  | Failed to apply remote call settings   |
-| 40005                              | SDP_SEND_FAILED                    | Failed to send call data to server     |
-| **Media Errors (420xx)**           |                                    |                                        |
-| 42001                              | MEDIA_MICROPHONE_PERMISSION_DENIED | Microphone access denied               |
-| 42002                              | MEDIA_DEVICE_NOT_FOUND             | No microphone found                    |
-| 42003                              | MEDIA_GET_USER_MEDIA_FAILED        | Failed to access microphone            |
-| **Call-Control Errors (440xx)**    |                                    |                                        |
-| 44001                              | HOLD_FAILED                        | Failed to hold the call                |
-| 44003                              | BYE_SEND_FAILED                    | Failed to hang up cleanly              |
-| 44002                              | INVALID_CALL_PARAMETERS            | Invalid call parameters                |
-| 44004                              | SUBSCRIBE_FAILED                   | Failed to subscribe to call events     |
-| **WebSocket / Transport (450xx)**  |                                    |                                        |
-| 45001                              | WEBSOCKET_CONNECTION_FAILED        | Unable to connect to server            |
-| 45002                              | WEBSOCKET_ERROR                    | Connection to server lost              |
-| 45003                              | RECONNECTION_EXHAUSTED             | Unable to reconnect to server          |
-| 45004                              | GATEWAY_FAILED                     | Gateway connection failed              |
-| **Authentication (460xx)**         |                                    |                                        |
-| 46001                              | LOGIN_FAILED                       | Authentication failed                  |
-| 46002                              | INVALID_CREDENTIALS                | Invalid credential parameters          |
-| 46003                              | AUTHENTICATION_REQUIRED            | Authentication required                |
-| **Network (480xx)**                |                                    |                                        |
-| 48001                              | NETWORK_OFFLINE                    | Device is offline                      |
-
-### ITelnyxWarning Interface
-
-Warnings are **plain objects** (not `Error` instances). They represent degraded conditions that may affect call quality or stability but are not fatal — the SDK continues operating. Warnings are surfaced via a separate `telnyx.warning` (`SwEvent.Warning`) event.
+### Basic example
 
 ```ts
-interface ITelnyxWarning {
-  code: number;        // Numeric warning code (e.g. 31001)
-  name: string;        // Machine-readable name in UPPER_SNAKE_CASE (e.g. 'HIGH_RTT')
-  message: string;     // Short human-readable message for UI alerts
-  description: string; // Full explanation — what the warning means
-  causes: string[];    // Possible root causes
-  solutions: string[]; // Suggested remediation steps
+client.on(SwEvent.Error, (event) => {
+  if (isMediaRecoveryErrorEvent(event)) {
+    openPermissionsDialog({
+      deadline: event.retryDeadline,
+      onRetry: () => event.resume(),
+      onCancel: () => event.reject(),
+    });
+    return;
+  }
+
+  if (!(event.error instanceof TelnyxError)) {
+    showErrorMessage('An unknown SDK error occurred.');
+    return;
+  }
+
+  switch (event.error.code) {
+    case TELNYX_ERROR_CODES.NETWORK_OFFLINE:
+      showErrorMessage('You appear to be offline.');
+      break;
+    case TELNYX_ERROR_CODES.AUTHENTICATION_REQUIRED:
+      showErrorMessage('Session expired. Please authenticate again.');
+      break;
+    default:
+      showErrorMessage(event.error.message);
+  }
+});
+```
+
+### Error code reference
+
+#### SDP errors
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `40001` | `SDP_CREATE_OFFER_FAILED` | Failed to create call offer | `RTCPeerConnection.createOffer()` failed |
+| `40002` | `SDP_CREATE_ANSWER_FAILED` | Failed to answer the call | `RTCPeerConnection.createAnswer()` failed |
+| `40003` | `SDP_SET_LOCAL_DESCRIPTION_FAILED` | Failed to apply local call settings | `setLocalDescription()` failed |
+| `40004` | `SDP_SET_REMOTE_DESCRIPTION_FAILED` | Failed to apply remote call settings | `setRemoteDescription()` failed |
+| `40005` | `SDP_SEND_FAILED` | Failed to send call data to server | Invite/answer signaling could not be sent |
+
+#### Media errors
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `42001` | `MEDIA_MICROPHONE_PERMISSION_DENIED` | Microphone access denied | Browser or OS denied microphone permission |
+| `42002` | `MEDIA_DEVICE_NOT_FOUND` | No microphone found | Missing/disconnected device or invalid `deviceId` |
+| `42003` | `MEDIA_GET_USER_MEDIA_FAILED` | Failed to access microphone | `getUserMedia()` failed for another reason |
+
+#### Call-control errors
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `44001` | `HOLD_FAILED` | Failed to hold the call | Hold request failed |
+| `44002` | `INVALID_CALL_PARAMETERS` | Invalid call parameters | Required call params were missing or invalid |
+| `44003` | `BYE_SEND_FAILED` | Failed to hang up cleanly | Local hangup succeeded but BYE could not be sent |
+| `44004` | `SUBSCRIBE_FAILED` | Failed to subscribe to call events | Verto subscribe failed |
+
+#### WebSocket and transport errors
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `45001` | `WEBSOCKET_CONNECTION_FAILED` | Unable to connect to server | WebSocket construction/connection failed |
+| `45002` | `WEBSOCKET_ERROR` | Connection to server lost | Browser `ws.onerror` fired |
+| `45003` | `RECONNECTION_EXHAUSTED` | Unable to reconnect to server | Gateway reconnect attempts were exhausted |
+| `45004` | `GATEWAY_FAILED` | Gateway connection failed | Gateway reported `FAILED` or `FAIL_WAIT` |
+
+#### Authentication and session errors
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `46001` | `LOGIN_FAILED` | Authentication failed | Login rejected or registration never reached ready state |
+| `46002` | `INVALID_CREDENTIALS` | Invalid credential parameters | Client-side login validation failed before request send |
+| `46003` | `AUTHENTICATION_REQUIRED` | Authentication required | Request sent before auth completed or after auth was lost |
+| `48001` | `NETWORK_OFFLINE` | Device is offline | Browser `offline` event fired |
+| `49001` | `UNEXPECTED_ERROR` | An unexpected error occurred | Unclassified failure during peer/call setup |
+
+> [!NOTE]
+> Invalid login options currently also include `type: ERROR_TYPE.invalidCredentialsOptions` on the runtime event payload for backward compatibility. The stable signal to key on is still `event.error.code === TELNYX_ERROR_CODES.INVALID_CREDENTIALS`.
+
+## Structured Warnings (`telnyx.warning`)
+
+Warnings are not fatal. They describe degraded behavior, quality issues, or situations that may need user action before the session breaks.
+
+### Payload shape
+
+```ts
+interface ITelnyxWarningEvent {
+  warning: ITelnyxWarning;
+  sessionId: string;
+  callId?: string;
 }
 ```
 
-### Warning Code Reference
-
-| Code                                 | Name                   | Message                            |
-| ------------------------------------ | ---------------------- | ---------------------------------- |
-| **Network Quality Warnings (310xx)** |                        |                                    |
-| 31001                                | HIGH_RTT               | High network latency detected      |
-| 31002                                | HIGH_JITTER            | High jitter detected               |
-| 31003                                | HIGH_PACKET_LOSS       | High packet loss detected          |
-| 31004                                | LOW_MOS                | Low call quality score             |
-| **Connection Warnings (320xx)**      |                        |                                    |
-| 32001                                | LOW_BYTES_RECEIVED     | No audio data received             |
-| 32002                                | LOW_BYTES_SENT         | No audio data being sent           |
-| **Call Connection Warnings (330xx)** |                        |                                    |
-| 33001                                | ICE_CONNECTIVITY_LOST  | Connection interrupted             |
-| 33002                                | ICE_GATHERING_TIMEOUT  | ICE gathering timed out            |
-| 33003                                | ICE_GATHERING_EMPTY    | No ICE candidates gathered         |
-| 33004                                | PEER_CONNECTION_FAILED       | Connection failed                        |
-| 33005                                | ONLY_HOST_ICE_CANDIDATES     | Only local network candidates available  |
-| **Authentication Warnings (340xx)**  |                              |                                          |
-| 34001                                | TOKEN_EXPIRING_SOON    | Authentication token expiring soon |
-| **Session / Reconnection (350xx)**   |                        |                                    |
-| 35001                                | SESSION_NOT_REATTACHED | Active call lost after reconnect   |
-
-### Listening for Structured Errors
+### Basic example
 
 ```ts
-import {
-  TelnyxRTC,
-  TelnyxError,
-  SwEvent,
-  isMediaRecoveryErrorEvent,
-} from '@telnyx/webrtc';
+import { SwEvent, TELNYX_WARNING_CODES, SDK_WARNINGS } from '@telnyx/webrtc';
 
-const client = new TelnyxRTC({
-  /* credentials */
-});
-
-client.on(SwEvent.Error, (event) => {
-  const { error, callId, sessionId } = event;
-
-  if (isMediaRecoveryErrorEvent(event)) {
-    console.log('Recover by:', new Date(event.retryDeadline).toISOString());
-    showPermissionDialog({
-      onContinue: () => event.resume(),
-      onCancel: () => event.reject(),
-    });
+client.on(SwEvent.Warning, ({ warning, callId }) => {
+  if (warning.code === TELNYX_WARNING_CODES.TOKEN_EXPIRING_SOON) {
+    refreshTokenSoon();
     return;
   }
 
-  if (error instanceof TelnyxError) {
-    // error.message is a short UI-friendly string
-    console.error(`[${error.code}] ${error.name}: ${error.message}`);
-    // error.description has the full technical explanation
-    console.debug('Details:', error.description);
-    console.log('Possible causes:', error.causes);
-    console.log('Suggested solutions:', error.solutions);
-
-    // Access the original browser error if needed
-    if (error.originalError) {
-      console.debug('Original error:', error.originalError);
-    }
-  }
-});
-```
-
-### Before / After Example
-
-**Before (deprecated pattern):**
-
-```ts
-client.on('telnyx.rtc.mediaError', (error) => {
-  console.error('Media error:', error.message);
-  // No structured info about causes or solutions
-});
-
-client.on('telnyx.rtc.peerConnectionFailureError', (error) => {
-  console.error('Peer connection failed (warning)');
-  // No error code, no retry guidance
-});
-```
-
-**After (new pattern):**
-
-```ts
-// Listen for errors
-client.on('telnyx.error', (event) => {
-  if (event.recoverable) {
-    // Inbound media recovery flow: TS exposes resume(), reject(), and retryDeadline
-    openPermissionsModal({
-      onRetry: () => event.resume(),
-      onCancel: () => event.reject(),
-    });
+  if (warning.code === TELNYX_WARNING_CODES.PEER_CONNECTION_FAILED) {
+    showWarningBanner(`Call ${callId ?? ''} is reconnecting`.trim());
     return;
   }
 
-  if (event.error.code === 42003) {
-    // Final media failure — show user-friendly message
-    alert(event.error.message);
-  }
-});
-
-// Listen for warnings (separate event)
-client.on('telnyx.warning', ({ warning, callId }) => {
-  if (warning.code === 33004) {
-    // Peer connection failed (recoverable)
-    showWarningBanner(warning.message);
-  }
-});
-```
-
-## Deprecation Notice
-
-The following events are **deprecated** and will be removed in a future major version:
-
-| Deprecated Event                                | Replacement                                    |
-| ----------------------------------------------- | ---------------------------------------------- |
-| `telnyx.rtc.mediaError`                         | `telnyx.error` with code 42001 / 42002 / 42003 |
-| `telnyx.rtc.peerConnectionFailureError`         | `telnyx.warning` with code 33004                 |
-| `telnyx.rtc.peerConnectionSignalingStateClosed` | `telnyx.error` (future)                        |
-| `NOTIFICATION_TYPE.userMediaError`              | `telnyx.error` with media error codes; inspect `recoverable` for inbound recovery flows |
-| `NOTIFICATION_TYPE.peerConnectionFailureError`  | `telnyx.warning` with code 33004                 |
-
-During the transition period, both the deprecated events **and** the new `telnyx.error` event are emitted for backward compatibility.
-
-## Migration Guide
-
-1. **Add a `telnyx.error` listener** using `client.on('telnyx.error', handler)` for structured errors and inbound media recovery prompts.
-2. **Add a `telnyx.warning` listener** using `client.on('telnyx.warning', handler)` for degraded conditions (ICE issues, quality drops, token expiry).
-3. **Switch on `code`** instead of listening to multiple separate events — errors use `error.code`, warnings use `warning.code`.
-4. **Remove deprecated listeners** (`telnyx.rtc.mediaError`, `telnyx.rtc.peerConnectionFailureError`, etc.) once you've migrated.
-5. **Use `.message`** to display a short, user-friendly alert in your UI.
-6. **Use `.causes` and `.solutions`** to display actionable guidance in your UI.
-
-**Example — handling both errors and warnings:**
-
-```ts
-// Errors: recoverable inbound media prompts or unrecoverable failures
-client.on('telnyx.error', (event) => {
-  if (event.recoverable) {
-    promptForPermissions({
-      onRetry: () => event.resume(),
-      onCancel: () => event.reject(),
-    });
-    return;
-  }
-
-  console.error(
-    `[${event.error.code}] ${event.error.name}: ${event.error.message}`
-  );
-  showErrorAlert(event.error.message);
-});
-
-// Warnings: degraded but recoverable conditions
-client.on('telnyx.warning', ({ warning, callId }) => {
+  console.debug(SDK_WARNINGS[warning.code]?.description);
   console.warn(`[${warning.code}] ${warning.name}: ${warning.message}`);
-  showWarningBanner(warning.message);
 });
 ```
+
+### Warning code reference
+
+#### Network quality warnings
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `31001` | `HIGH_RTT` | High network latency detected | RTT stayed above threshold |
+| `31002` | `HIGH_JITTER` | High jitter detected | Jitter stayed above threshold |
+| `31003` | `HIGH_PACKET_LOSS` | High packet loss detected | Packet loss stayed above threshold |
+| `31004` | `LOW_MOS` | Low call quality score | MOS stayed below threshold |
+
+#### Data-flow warnings
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `32001` | `LOW_BYTES_RECEIVED` | No audio data received | Remote audio bytes stopped increasing |
+| `32002` | `LOW_BYTES_SENT` | No audio data being sent | Local audio bytes stopped increasing |
+
+#### Connectivity warnings
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `33001` | `ICE_CONNECTIVITY_LOST` | Connection interrupted | ICE connection state became `disconnected` |
+| `33002` | `ICE_GATHERING_TIMEOUT` | ICE gathering timed out | ICE gathering safety timeout fired |
+| `33003` | `ICE_GATHERING_EMPTY` | No ICE candidates gathered | No candidates were collected |
+| `33004` | `PEER_CONNECTION_FAILED` | Connection failed | Peer connection state became `failed` |
+| `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available | SDP contained only host ICE candidates |
+
+#### Authentication and session warnings
+
+| Code | Name | Message | Typical trigger |
+| --- | --- | --- | --- |
+| `34001` | `TOKEN_EXPIRING_SOON` | Authentication token expiring soon | JWT expires within 120 seconds |
+| `35001` | `SESSION_NOT_REATTACHED` | Active call lost after reconnect | Server returned an empty `reattached_sessions` list while calls still existed locally |
+
+## Notifications (`telnyx.notification`)
+
+`telnyx.notification` is still important, but it is no longer the main place to integrate error handling logic. Use it primarily for call lifecycle and UI synchronization.
+
+### Important clarification
+
+- `telnyx.ready` is separate from `telnyx.notification`.
+- The `vertoClientReady` payload is emitted on `telnyx.ready`, not on `telnyx.notification`.
+
+### Error-related notification types
+
+| `notification.type` | Current status | Payload notes |
+| --- | --- | --- |
+| `callUpdate` | Active | Includes `call`; use this for call state and hangup data |
+| `userMediaError` | Compatibility notification | Final media-failure notification. Includes raw browser/media `error`, `errorName`, `errorMessage`, and `call` when available |
+| `peerConnectionFailureError` | Compatibility notification | Includes raw `error`; structured replacement is warning `33004` |
+| `signalingStateClosed` | Active | Includes `sessionId`; indicates the current peer signaling state closed |
+
+### Listener scoping
+
+Notifications are dispatched to the call scope first. If a call-level listener handles the notification, the session-level listener **does not** also receive it — it is one or the other, not both.
+
+- `onNotification` on a call (passed via call options) is the highest-priority hook for that call.
+- `client.on(SwEvent.Notification, ...)` is the session-level fallback that only fires when no call-level listener is registered.
+- If no listeners exist at either level, the notification is silently dropped.
+
+For `peerConnectionFailureError` and `signalingStateClosed`, prefer call-scoped handling or the structured warning/error events when you need explicit call correlation. The compatibility notification payload itself does not include `callId`.
+
+### Screen-share behavior
+
+All `telnyx.notification` dispatches are suppressed for calls created with `screenShare: true`.
+
+If you need recovery state for a screen-share call, inspect the call object directly:
+
+```ts
+if (screenShareCall.signalingStateClosed) {
+  console.log('This screen-share peer is no longer recoverable.');
+}
+```
+
+### Example: hangup and recovery-aware call updates
+
+```ts
+client.on(SwEvent.Notification, (notification) => {
+  if (notification.type !== 'callUpdate' || !notification.call) {
+    return;
+  }
+
+  const call = notification.call;
+
+  if (call.recoveredCallId) {
+    removeOldCallUi(call.recoveredCallId);
+  }
+
+  if (call.state === 'recovering') {
+    showConnectionStatus('recovering');
+    return;
+  }
+
+  if (call.state === 'hangup') {
+    console.log('Call ended', {
+      cause: call.cause,
+      causeCode: call.causeCode,
+      sipCode: call.sipCode,
+      sipReason: call.sipReason,
+    });
+  }
+});
+```
+
+## Call Termination Data
+
+When a call reaches `hangup`, inspect these fields on the `Call` object:
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `cause` | `string` | High-level cause such as `USER_BUSY` or `CALL_REJECTED` |
+| `causeCode` | `number` | Numeric cause code |
+| `sipCode` | `number` | SIP response code when available |
+| `sipReason` | `string` | SIP reason phrase when available |
+
+Typical cases:
+
+| Field value | Meaning |
+| --- | --- |
+| `cause === 'NORMAL_CLEARING'` | Expected call completion |
+| `cause === 'USER_BUSY'` | Remote party was busy |
+| `cause === 'CALL_REJECTED'` | Remote party rejected the call |
+| `cause === 'NO_ANSWER'` | Call timed out unanswered |
+| `cause === 'UNALLOCATED_NUMBER'` | Dialed number is invalid or does not exist |
+| `cause === 'PURGE'` | Call was purged from the system |
+| `sipCode === 403` | Forbidden |
+| `sipCode === 404` | Destination not found |
+| `sipCode === 486` | Busy Here |
+
+## Socket Events
+
+The SDK exposes both raw socket events and structured transport errors.
+
+### `telnyx.socket.close`
+
+`telnyx.socket.close` delivers the browser `CloseEvent` unchanged. During a forced safety cleanup, the SDK emits a synthetic abnormal close with:
+
+- `code: 1006`
+- `reason: 'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout'`
+- `wasClean: false`
+
+Useful close codes:
+
+| Code | Meaning |
+| --- | --- |
+| `1000` | Normal closure |
+| `1001` | Going away |
+| `1002` | Protocol error |
+| `1003` | Unsupported data |
+| `1005` | No status code received |
+| `1006` | Abnormal closure |
+| `1011` | Internal error |
+
+### `telnyx.socket.error`
+
+`telnyx.socket.error` delivers:
+
+```ts
+{
+  error: ErrorEvent | Event;
+  sessionId: string;
+}
+```
+
+This event is intentionally low-detail because browsers expose very little information for WebSocket errors. The SDK also emits `telnyx.error` with code `45002` (`WEBSOCKET_ERROR`) when `ws.onerror` fires.
+
+### Connection state helpers
+
+The browser session exposes WebSocket state helpers on `client.connection`:
+
+| Getter | Meaning |
+| --- | --- |
+| `client.connection.connecting` | WebSocket is in `CONNECTING` |
+| `client.connection.connected` | WebSocket is in `OPEN` |
+| `client.connection.closing` | WebSocket is in `CLOSING` |
+| `client.connection.closed` | WebSocket is in `CLOSED` |
+| `client.connection.isAlive` | `CONNECTING` or `OPEN` |
+| `client.connection.isDead` | `CLOSING` or `CLOSED` |
+
+Example:
+
+```ts
+const placeCall = (destinationNumber: string) => {
+  if (!client.connection.connected) {
+    showErrorMessage('Still connecting to Telnyx. Please try again shortly.');
+    return;
+  }
+
+  client.newCall({ destinationNumber });
+};
+```
+
+## Reconnection Behavior
+
+The previous version of this document described a generic exponential-backoff flow. That is not how the current browser SDK reconnects.
+
+### What the current SDK does
+
+1. On `telnyx.socket.close` or `telnyx.socket.error`, the SDK clears subscriptions and resets gateway readiness state.
+2. If `autoReconnect` is enabled, the browser session schedules `connect()` after `client.reconnectDelay`.
+3. In the browser session, `reconnectDelay` is currently `1000` ms.
+4. When the gateway reports `REGISTER` or `REGED` again, the SDK emits `telnyx.ready` again.
+
+### Gateway retry behavior
+
+Gateway-state retries use separate jittered delays:
+
+- `UNREGED` / `NOREG`: up to 5 registration retries, each delayed by a random `2` to `6` seconds. After that the SDK emits `LOGIN_FAILED` (`46001`).
+- `FAILED` / `FAIL_WAIT`: `GATEWAY_FAILED` (`45004`) is emitted on first detection. If `autoReconnect` stays enabled, the SDK retries up to 5 times with a random `2` to `6` second delay before `RECONNECTION_EXHAUSTED` (`45003`).
+
+### Keeping media alive across socket loss
+
+If `keepConnectionAliveOnSocketClose` is `true`, the SDK will try to preserve active peer connections while signaling reconnects.
+
+- If the peer is still recoverable, the SDK disconnects and reconnects the socket while keeping the call alive.
+- If the peer signaling state is already closed, the SDK falls back to a full reconnect path.
+
+### Recovery and call objects
+
+Recovery can create a new `Call` object. When that happens:
+
+- The new call exposes `recoveredCallId`.
+- The call may stay in `recovering` until media/signaling are restored.
+- Your UI should remove or merge the old call UI using `recoveredCallId`.
+
+## Legacy RTC Events and Migration
+
+The SDK still exposes low-level RTC events, but new integrations should prefer `telnyx.error`, `telnyx.warning`, and `telnyx.notification`.
+
+### Legacy or low-level RTC events
+
+| Event | Status | Preferred surface |
+| --- | --- | --- |
+| `telnyx.rtc.mediaError` | Legacy/compatibility | `telnyx.error` with `42001`, `42002`, or `42003` |
+| `telnyx.rtc.peerConnectionFailureError` | Legacy/compatibility | `telnyx.warning` with `33004` |
+| `telnyx.rtc.peerConnectionSignalingStateClosed` | Low-level active event | `notification.type === 'signalingStateClosed'` if you want the higher-level notification |
+
+### Migration checklist
+
+1. Add a `telnyx.error` listener and switch on `event.error.code`.
+2. Add a `telnyx.warning` listener and switch on `warning.code`.
+3. Keep `telnyx.notification` for `callUpdate` and any compatibility notifications you still depend on.
+4. Treat `telnyx.ready` as the only readiness signal.
+5. Prefer `TELNYX_ERROR_CODES` and `TELNYX_WARNING_CODES` over hard-coded numeric literals.
+6. If you support inbound permission recovery, enable `mediaPermissionsRecovery` and handle `isMediaRecoveryErrorEvent(event)`.

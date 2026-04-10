@@ -25,9 +25,15 @@ export {
 };
 
 export {
+  SDK_ERRORS,
+  SDK_WARNINGS,
   TelnyxError,
   isMediaRecoveryErrorEvent,
 } from './Modules/Verto/util/errors';
+export {
+  TELNYX_ERROR_CODES,
+  TELNYX_WARNING_CODES,
+} from './Modules/Verto/util/constants/errorCodes';
 export type {
   ITelnyxError,
   ITelnyxMediaError,
