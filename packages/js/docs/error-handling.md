@@ -252,12 +252,11 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 
 ### Listener scoping
 
-Notifications are dispatched to the call scope first. If no call-scoped listener handles them, the SDK falls back to the session-scoped listener on the client.
+Notifications are dispatched to the call scope first. If a call-level listener handles the notification, the session-level listener **does not** also receive it — it is one or the other, not both.
 
-In practice:
-
-- `onNotification` on a call is the highest-priority notification hook for that call.
-- `client.on(SwEvent.Notification, ...)` is the session-level fallback.
+- `onNotification` on a call (passed via call options) is the highest-priority hook for that call.
+- `client.on(SwEvent.Notification, ...)` is the session-level fallback that only fires when no call-level listener is registered.
+- If no listeners exist at either level, the notification is silently dropped.
 
 For `peerConnectionFailureError` and `signalingStateClosed`, prefer call-scoped handling or the structured warning/error events when you need explicit call correlation. The compatibility notification payload itself does not include `callId`.
 
@@ -322,6 +321,8 @@ Typical cases:
 | `cause === 'USER_BUSY'` | Remote party was busy |
 | `cause === 'CALL_REJECTED'` | Remote party rejected the call |
 | `cause === 'NO_ANSWER'` | Call timed out unanswered |
+| `cause === 'UNALLOCATED_NUMBER'` | Dialed number is invalid or does not exist |
+| `cause === 'PURGE'` | Call was purged from the system |
 | `sipCode === 403` | Forbidden |
 | `sipCode === 404` | Destination not found |
 | `sipCode === 486` | Busy Here |
