@@ -41,8 +41,6 @@ export type {
   ITelnyxMediaRecoveryErrorEvent,
   ITelnyxStandardErrorEvent,
   TelnyxMediaErrorCode,
-  SdkErrorCode,
-  SdkWarningCode,
 } from './Modules/Verto/util/errors';
 export type {
   ITelnyxWarning,
