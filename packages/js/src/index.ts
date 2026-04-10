@@ -28,8 +28,6 @@ export {
   SDK_ERRORS,
   SDK_WARNINGS,
   TelnyxError,
-  createTelnyxError,
-  createTelnyxWarning,
   isMediaRecoveryErrorEvent,
 } from './Modules/Verto/util/errors';
 export {
