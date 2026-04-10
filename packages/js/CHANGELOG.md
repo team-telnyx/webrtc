@@ -1,3 +1,136 @@
+## [2.26.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1) (2026-04-10)
+
+### Structured Errors & Warnings
+
+- **Feat: wire structured errors and warnings across SDK** (#548)
+  Comprehensive overhaul introducing typed error codes (`40xxx`–`49xxx`) and warning codes (`3xxxx`) throughout the SDK. Replaces previously swallowed errors with structured `TelnyxError` events and `ITelnyxWarning` notifications while maintaining backward compatibility.
+  - **SDP errors (`400xx`):** offer, answer, local/remote description, and send failures
+  - **Media errors (`420xx`):** microphone permission denied, device not found, general media failures
+  - **Call-control errors (`440xx`):** hold failed, invalid parameters, BYE send failed, subscribe failed
+  - **WebSocket/transport errors (`450xx`):** connection failed, reconnection exhausted, gateway failures
+  - **Authentication errors (`460xx`):** login failed, invalid credentials, authentication required
+  - **Network errors (`480xx`):** network offline
+  - **Quality warnings (`310xx`):** high RTT, jitter, packet loss, low MOS
+  - **Connection warnings (`320xx`):** low bytes received/sent
+  - **ICE warnings (`330xx`):** connectivity lost, gathering timeout, peer connection failed, host-only candidates
+  - **Auth warnings (`340xx`):** token expiring soon
+  - **Session warnings (`350xx`):** session not reattached
+- **Chore: improve errors docs and export error/warning code constants** (#602)
+  Restructured error-handling documentation for clarity. Exports `TELNYX_ERROR_CODES` and `TELNYX_WARNING_CODES` from the main package index so consumers can reference them directly.
+
+  **Listening for errors and warnings:**
+
+  ```ts
+  import {
+    SwEvent,
+    TelnyxError,
+    TELNYX_ERROR_CODES,
+    TELNYX_WARNING_CODES,
+  } from '@telnyx/webrtc';
+
+  client.on(SwEvent.Error, (event) => {
+    switch (event.error.code) {
+      case TELNYX_ERROR_CODES.MICROPHONE_PERMISSION_DENIED:
+        showMessage('Microphone access was denied.');
+        break;
+      case TELNYX_ERROR_CODES.NETWORK_OFFLINE:
+        showMessage('You appear to be offline.');
+        break;
+      case TELNYX_ERROR_CODES.AUTHENTICATION_REQUIRED:
+        showMessage('Session expired. Please re-authenticate.');
+        break;
+      default:
+        showMessage(event.error.message);
+    }
+  });
+
+  client.on(SwEvent.Warning, (event) => {
+    if (event.warning.code === TELNYX_WARNING_CODES.PEER_CONNECTION_FAILED) {
+      showBanner('Call connectivity degraded.');
+    }
+    if (event.warning.code === TELNYX_WARNING_CODES.TOKEN_EXPIRING_SOON) {
+      refreshToken();
+    }
+  });
+  ```
+
+### Media Recovery
+
+- **Fix: interrupt call negotiation on media failure for non-receive-only peers** (#582)
+  When media retrieval (e.g. microphone access) fails during peer initialization, the SDK now interrupts call negotiation immediately instead of continuing into SDP setup. Previously, media failures triggered hangup asynchronously, creating a race condition where an answer SDP could be created before hangup executed on inbound calls. Receive-only peers are unaffected since they do not require local media.
+
+  **Media recovery on inbound calls:**
+
+  ```ts
+  import { isMediaRecoveryErrorEvent } from '@telnyx/webrtc';
+
+  const client = new TelnyxRTC({
+    login_token: '...',
+    mediaPermissionsRecovery: {
+      enabled: true,
+      timeout: 20000,
+      onSuccess: () => console.log('Media recovered, call proceeding'),
+      onError: (err) => console.error('Recovery failed', err),
+    },
+  });
+
+  client.on(SwEvent.Error, (event) => {
+    if (isMediaRecoveryErrorEvent(event)) {
+      // Show a prompt so the user can grant microphone access
+      // User need to implement it on their side
+      showPermissionDialog({
+        deadline: event.retryDeadline,
+        onAllow: () => event.resume(), // retries getUserMedia
+        onDeny: () => event.reject(), // terminates the call
+      });
+    }
+  });
+  ```
+
+- **Fix: remove trickleIce guard for attach method** (WEBRTC-3395) (#584)
+  Removes the forced `trickleIce=false` override for the `attach` (reconnection) method. The guard was originally added for b2bua-rtc codec negotiation compatibility but is no longer needed.
+
+### Call Teardown & Disconnect
+
+- **Fix: separate client.disconnect() and PUNT disconnect paths with correct BYE behavior** (#580)
+  Distinguishes between client-initiated graceful disconnect and server-initiated disconnect (PUNT). `client.disconnect()` now sends BYE messages to active calls before purging; PUNT triggers `serverDisconnect()` which purges calls without BYE since the server connection is already gone.
+- **Feat: make hangup async, properly await BYE execution** (#581)
+  **Breaking:** `hangup()` is now an **async** method returning `Promise<void>` (previously synchronous/fire-and-forget). Callers can now `await hangup()` to ensure BYE messages are fully sent before proceeding, enabling clean call termination sequences.
+
+  ```ts
+  // Before (fire-and-forget)
+  call.hangup();
+
+  // After (await to ensure BYE is sent)
+  await call.hangup();
+  ```
+
+### Features
+
+- **Feat: store source datacenter identifier from REGED message** (#583)
+  The SDK now extracts and stores `dc` and `region` fields from the REGED WebSocket message, allowing consumers to identify which Telnyx regional infrastructure handled their connection.
+
+### Bug Fixes
+
+- **fix(types):** point `types` field at `lib/src/index.d.ts` (#601)
+
+### Documentation
+
+- **docs: Voice SDK Network Connectivity Requirements** (#564)
+  New comprehensive guide covering signaling server endpoints, STUN/TURN addresses, media server IP subnets, port ranges (UDP 16384–32768), bandwidth requirements (Opus ~40 kbps, PCMU ~100 kbps), firewall configuration, and best practices for enterprise/VPN environments.
+
+### CI / Chores
+
+- fix(ci): push release branch before pinning draft release target (#597)
+- fix(ci): pin draft target to bump SHA, publish from tag (#596)
+- fix(ci): single release-it call for bump + tag + draft (#593, #594)
+- fix(ci): allow non-immutable installs for draft release tagging step (#592)
+- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
+- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
+- fix(ci): update lockfile after version bump in draft-release (#587)
+- fix(ci): create release tag after version bump commit (#586)
+- chore: include README.md in npm packages and remove Slack notifications (#578)
+
 ## [2.26.1-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.2) (2026-04-08)
 
 - chore: release webrtc@2.26.1-beta.1 (#595)
@@ -10,6 +143,7 @@
 - Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
 - feat: make hangup async, properly await BYE execution (#581)
 - Feat: wire structured errors and warnings across SDK (#548)
+
 ## [2.26.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.1) (2026-04-08)
 
 - fix(ci): allow non-immutable installs for draft release tagging step (#592)
@@ -21,6 +155,7 @@
 - Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
 - feat: make hangup async, properly await BYE execution (#581)
 - Feat: wire structured errors and warnings across SDK (#548)
+
 ## [2.26.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1-beta.0) (2026-04-07)
 
 - docs: update ts docs
@@ -29,31 +164,38 @@
 - feat: store local_dc and local_region from REGED message
 - feat: store source datacenter identifier from REGED message
 - chore: include README.md in npm packages and remove Slack notifications (#578)
+
 ## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
 
 - chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
+
 ## [2.25.29](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.28...webrtc/v2.25.29) (2026-03-31)
 
 - fix: upgrade actions/setup-node from v4 to v6 for OIDC compatibility (#574)
+
 ## [2.25.28](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.27...webrtc/v2.25.28) (2026-03-31)
 
 - chore: upgrade Node.js from 18 to 22.14 across all workflows (#572)
 - chore: release webrtc@2.25.27 (#571)
+
 ## [2.25.27](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26...webrtc/v2.25.27) (2026-03-31)
 
 - chore: remove NODE_AUTH_TOKEN from publish steps for OIDC auth (#570)
+
 ## [2.25.26](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.26-beta.4...webrtc/v2.25.26) (2026-03-31)
 
-- fix: guard against null localDescription in _onIceSdp (#557)
+- fix: guard against null localDescription in \_onIceSdp (#557)
 - chore: consolidate publish workflows for npm trusted publisher OIDC (#567)
 - fix: reset keepalive on any inbound message to prevent false ping/pong warnings (#556)
 - fix: don't null global LogCollector on call cleanup (#555)
 - chore: add OIDC permissions and npm provenance to prerelease workflow (#566)
 - chore: add OIDC permissions and npm provenance to publish-release workflow (#565)
+
 ## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
 
 - docs: update ts docs
 - feat: add recoveredCallId to call object for recovery correlation (ENGDESK-50308)
+
 ## [2.25.25](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.24...webrtc/v2.25.25) (2026-03-11)
 
 - docs: update ts docs
@@ -61,28 +203,34 @@
 - feat: add recvonly audio transceiver when audio=false (WEBRTC-3394) (#549)
 - feat(WEBRTC-3324): support target_params in anonymous_login (#542)
 - feat: auto-trigger developer docs update on JS SDK release (#545)
+
 ## [2.25.24](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.23...webrtc/v2.25.24) (2026-03-03)
 
 - docs: update ts docs
 - fix: handle getUserMedia failure gracefully (no microphone) (#541)
 - feat: add audioLevel + transport stats to call report (WEBRTC-3321) (#540)
+
 ## [2.25.23](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.22...webrtc/v2.25.23) (2026-02-27)
 
 - docs: update ts docs
 - feat: add ICE candidate pair stats to call report (WEBRTC-3302) (#538)
 - chore: release webrtc@2.25.22 (#536)
+
 ## [2.25.22](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.21...webrtc/v2.25.22) (2026-02-26)
 
 - fix: retry once on network error when posting call report (#534)
+
 ## [2.25.21](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.20...webrtc/v2.25.21) (2026-02-25)
 
 - fix: send call reports for calls shorter than the collection interval (#532)
+
 ## [2.25.20](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.19...webrtc/v2.25.20) (2026-02-25)
 
 - fix: serialize log context to capture DOM Event properties in call reports (#520)
 - chore: update CODEOWNERS to @lucasassisrosa @ArtemPapazian (#530)
 - fix: set direction before setState on inbound invite (#527)
 - fix: use state-dependent hangup cause code (#528)
+
 ## [2.25.19](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.15...webrtc/v2.25.19) (2026-02-23)
 
 - fix: commit CHANGELOG.md before yarn release to avoid dirty worktree error (#524)
@@ -95,7 +243,7 @@
 - feat: automatic call quality reporting to voice-sdk-proxy (#494)
 - fix: reuse single VertoHandler instance and convert static state to instance state (#509)
 - fix(WEBRTC-3267): Fire telnyx.ready event on reconnection (#513)
-- fix(WEBRTC-3266): Prevent race condition in network reconnection by deferring _wasOffline reset (#511)
+- fix(WEBRTC-3266): Prevent race condition in network reconnection by deferring \_wasOffline reset (#511)
 - fix(ENGDESK-49463): use correct hangup code (16) instead of hardcoded USER_BUSY (17) (#506)
 - fix: set TURN transport to udp as default and tcp as fallback (#495)
 - fix: stop debug reporter when peer connection is closing (#498)
@@ -108,6 +256,7 @@
 - feat: getUserMedia fallback for device-specific errors (#490)
 - docs: add authentication error handling documentation (#491)
 - fix: documentation on event listening (#489)
+
 ## [2.25.18](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.17...webrtc/v2.25.18) (2026-02-10)
 
 - fix: use correct hangup code (16) instead of hardcoded USER_BUSY (17)

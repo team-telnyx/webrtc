@@ -16,6 +16,7 @@ IClientOptions
 - [keepConnectionAliveOnSocketClose](#keepconnectionaliveonsocketclose)
 - [login](#login)
 - [login_token](#login_token)
+- [mediaPermissionsRecovery](#mediapermissionsrecovery)
 - [mutedMicOnStart](#mutedmiconstart)
 - [password](#password)
 - [prefetchIceCandidates](#prefetchicecandidates)
@@ -144,6 +145,57 @@ The `username` to authenticate with your SIP Connection.
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
+
+---
+
+### mediaPermissionsRecovery
+
+• `Optional` **mediaPermissionsRecovery**: `Object`
+
+Configuration for media permissions recovery on inbound calls.
+When enabled and the initial `getUserMedia` call fails while answering,
+the SDK emits a recoverable `telnyx.error` event with `resume()` and
+`reject()` callbacks so the app can prompt the user to fix permissions
+before the call fails.
+
+Recovery is attempted only for inbound calls. If the app calls
+`resume()`, the SDK retries `getUserMedia`. If the app calls `reject()`
+or does not respond before `timeout`, recovery fails and the call is
+terminated with the usual media error flow.
+
+**`Example`**
+
+```js
+import { isMediaRecoveryErrorEvent } from '@telnyx/webrtc';
+
+const client = new TelnyxRTC({
+  login_token: '...',
+  mediaPermissionsRecovery: {
+    enabled: true,
+    timeout: 20000,
+    onSuccess: () => console.log('Media recovered'),
+    onError: (err) => console.error('Recovery failed', err),
+  },
+});
+
+client.on('telnyx.error', (event) => {
+  if (isMediaRecoveryErrorEvent(event)) {
+    showPermissionDialog({
+      onContinue: () => event.resume(),
+      onCancel: () => event.reject?.(),
+    });
+  }
+});
+```
+
+#### Type declaration
+
+| Name         | Type                         | Description                                                                                     |
+| :----------- | :--------------------------- | :---------------------------------------------------------------------------------------------- |
+| `enabled`    | `boolean`                    | Enable the recovery flow.                                                                       |
+| `onError?`   | (`error`: `Error`) => `void` | Called when retry fails, the timeout expires, or the app calls `reject()`.                      |
+| `onSuccess?` | () => `void`                 | Called when the retry `getUserMedia` succeeds after `resume()`.                                 |
+| `timeout`    | `number`                     | Maximum time in ms to wait for the app to call `resume()` or `reject()`. Recommended max 25000. |
 
 ---
 
