@@ -70,6 +70,7 @@ client.off('telnyx.notification');
 - [newCall](#newcall)
 - [off](#off)
 - [on](#on)
+- [serverDisconnect](#serverdisconnect)
 - [setAudioSettings](#setaudiosettings)
 - [webRTCInfo](#webrtcinfo)
 - [webRTCSupportedBrowserList](#webrtcsupportedbrowserlist)
@@ -1043,10 +1044,10 @@ If no handler parameter is passed, all listeners for that event will be removed.
 
 #### Parameters
 
-| Name        | Type       | Description                     |
-| :---------- | :--------- | :------------------------------ |
-| `eventName` | `string`   | Event name.                     |
-| `callback?` | `Function` | Function handler to be removed. |
+| Name        | Type                                     | Description                     |
+| :---------- | :--------------------------------------- | :------------------------------ |
+| `eventName` | `Error` \| `"telnyx.error"`              | Event name.                     |
+| `callback?` | (`event`: `ITelnyxErrorEvent`) => `void` | Function handler to be removed. |
 
 #### Returns
 
@@ -1100,10 +1101,10 @@ Attaches an event handler for a specific type of event.
 
 #### Parameters
 
-| Name        | Type       | Description                            |
-| :---------- | :--------- | :------------------------------------- |
-| `eventName` | `string`   | Event name.                            |
-| `callback`  | `Function` | Function to call when the event comes. |
+| Name        | Type                                     | Description                            |
+| :---------- | :--------------------------------------- | :------------------------------------- |
+| `eventName` | `Error` \| `"telnyx.error"`              | Event name.                            |
+| `callback`  | (`event`: `ITelnyxErrorEvent`) => `void` | Function to call when the event comes. |
 
 #### Returns
 
@@ -1130,6 +1131,23 @@ client
 #### Inherited from
 
 TelnyxRTCClient.on
+
+---
+
+### serverDisconnect
+
+▸ **serverDisconnect**(): `Promise`\<`void`\>
+
+Server-initiated disconnect (e.g. PUNT message).
+Purges all calls locally without sending BYE — server side may already be gone.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+TelnyxRTCClient.serverDisconnect
 
 ---
 
