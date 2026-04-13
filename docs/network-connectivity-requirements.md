@@ -58,7 +58,6 @@ The SDK connects to Telnyx signaling infrastructure via secure WebSocket (WSS) o
 | EU | FR5 (Frankfurt) | `185.246.41.136` |
 | EU | LD6 (London) | `185.246.41.135` |
 | APAC | CN1 (Chennai) | `36.255.198.250` |
-| APAC | SG1 (Singapore) | `103.115.244.153` |
 
 ### Regional signaling endpoints
 
@@ -237,7 +236,7 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `us-west.rtc.telnyx.com` | US West | LV1 (Las Vegas) |
 | `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai), SG1 (Singapore) |
+| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai) |
 
 Use regional endpoints when:
 - Your users are concentrated in a known region
@@ -274,6 +273,6 @@ new TelnyxRTC({
 | United States | CH1 (Chicago), AT1 (Atlanta), NJ1 (New Jersey), LV1 (Las Vegas), DA1 (Dallas) |
 | Canada | TR1 (Toronto), MT1 (Montreal) |
 | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| Asia-Pacific | CN1 (Chennai), SG1 (Singapore), SY1 (Sydney) |
+| Asia-Pacific | CN1 (Chennai), SY1 (Sydney) |
 
 Customers can request a direct connection to the Telnyx network via Megaport or direct peering.
