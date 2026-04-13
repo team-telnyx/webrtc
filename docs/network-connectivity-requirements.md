@@ -224,19 +224,7 @@ new TelnyxRTC({
 3. `rtc-dns-server` returns the local datacenter's voice-sdk-proxy IP
 4. Client connects via WebSocket to that IP for the entire session
 
-**Known limitation:** Anycast routing is based on BGP path selection, not geographic proximity. In some cases, a client's DNS resolver may route to a non-optimal datacenter due to transit peering paths. For example, a client in India may receive a European signaling IP if their ISP's DNS resolver reaches a European PoP first.
-
-**EDNS Client Subnet (ECS):** The `rtc-dns-server` supports EDNS Client Subnet ([RFC 7871](https://tools.ietf.org/html/rfc7871)) to improve geo-accuracy. When an ECS-capable resolver (e.g., Google DNS 8.8.8.8, OpenDNS) includes the client's subnet in the query, `rtc-dns-server` can return the nearest regional IP even if the DNS query arrived at a distant datacenter.
-
-Not all resolvers support ECS. Cloudflare (1.1.1.1) does not send ECS as a privacy policy, and most ISP resolvers do not support it. For these resolvers, routing is determined by which datacenter the resolver's query reaches via BGP.
-
-To test if your DNS resolver sends EDNS Client Subnet:
-
-```bash
-dig edns-client-sub.net TXT
-```
-
-If the response includes your approximate IP range, your resolver supports ECS and will benefit from geo-aware DNS responses.
+**Known limitation:** Anycast routing is based on BGP path selection, not geographic proximity. In some cases, a client's DNS resolver may route to a non-optimal datacenter due to transit peering paths. For example, a client in India may receive a European signaling IP if their ISP's DNS resolver reaches a European PoP first. If this happens, use a [regional signaling endpoint](#region-selection) to pin connections to the correct region.
 
 ### Region selection
 
