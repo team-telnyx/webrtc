@@ -1,28 +1,40 @@
-## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.2) (2026-04-13)
+## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1...webrtc/v2.26.2) (2026-04-13)
 
-- chore: add workflow to deprecate/undeprecate npm package versions (#568)
-- feat: log region and dc at info level on connect and new call (#605)
-- docs: update region/DC info and DNS routing details (#604)
-- chore: release webrtc@2.26.1 (#603)
-- Chore: improve errors docs and import error/warning codecs (#602)
-- Fix: separate client.disconnect() and PUNT disconnect paths with correct BYE behavior (#580)
-- docs: Voice SDK Network Connectivity Requirements (#564)
-- fix: remove trickleIce guard for attach method (WEBRTC-3395) (#584)
-- fix(types): point types field at lib/src/index.d.ts (#601)
-- feat: store source datacenter identifier from REGED message (#583)
-- fix(ci): push release branch before pinning draft release target (#597)
-- fix(ci): pin draft target to bump SHA, publish from tag (#596)
-- fix(ci): single release-it call for bump + tag + draft (#594)
-- fix(ci): single release-it call for bump + tag + draft (#593)
-- fix(ci): allow non-immutable installs for draft release tagging step (#592)
-- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
-- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
-- fix(ci): update lockfile after version bump in draft-release (#587)
-- fix(ci): create release tag after version bump commit (#586)
-- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
-- feat: make hangup async, properly await BYE execution (#581)
-- Feat: wire structured errors and warnings across SDK (#548)
-- chore: include README.md in npm packages and remove Slack notifications (#578)
+### Region & Datacenter Visibility
+
+- **feat: log region and dc at info level on connect and new call** (#605)
+  `client.region` and `client.dc` are now logged at `info` level (previously `debug`) when the client connects and on every new call. Logs now show:
+  ```text
+  Connected to Telnyx — region: apac, dc: cn1
+  New Call — region: apac, dc: cn1 { destinationNumber: "...", ... }
+  ```
+- **feat: store source datacenter identifier from REGED message** (#583)
+  The gateway `REGED` response now populates `client.dc` and `client.region` properties on the session, available after `telnyx.ready` fires.
+
+### Call Handling
+
+- **fix: separate client.disconnect() and PUNT disconnect paths with correct BYE behavior** (#580)
+  Client-initiated disconnects now properly send BYE on all active calls before closing the socket. Server-initiated disconnects (PUNT) no longer attempt BYE on already-terminated calls.
+- **feat: make hangup async, properly await BYE execution** (#581)
+  `call.hangup()` now returns a Promise that resolves after the BYE message is sent and acknowledged, preventing race conditions on rapid hangup sequences.
+- **fix: interrupt call negotiation on media failure for non-receive-only peers** (#582)
+  Calls that fail to acquire media now properly cancel SDP negotiation instead of leaving the peer connection in an inconsistent state.
+- **fix: remove trickleIce guard for attach method (WEBRTC-3395)** (#584)
+  The `attach` method no longer requires `trickleIce` to be enabled, fixing call recovery failures for clients using non-trickle ICE.
+
+### Documentation
+
+- **docs: update region/DC info and DNS routing details** (#604)
+  Updated network connectivity docs: fixed CN1 location (Chennai, not Hong Kong), added regional signaling endpoints table, documented `client.region` and `client.dc` properties.
+- **docs: Voice SDK Network Connectivity Requirements** (#564)
+  New document covering signaling IPs, STUN/TURN servers, media subnets, bandwidth requirements, and firewall configuration.
+
+### Other
+
+- **fix(types): point types field at lib/src/index.d.ts** (#601)
+- **chore: add workflow to deprecate/undeprecate npm package versions** (#568)
+- CI release pipeline fixes (#586, #587, #589, #591, #592, #593, #594, #596, #597)
+
 ## [2.26.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1) (2026-04-10)
 
 ### Structured Errors & Warnings
