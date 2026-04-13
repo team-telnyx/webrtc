@@ -57,8 +57,8 @@ The SDK connects to Telnyx signaling infrastructure via secure WebSocket (WSS) o
 | EU | AMS3 (Amsterdam) | `185.246.41.166` |
 | EU | FR5 (Frankfurt) | `185.246.41.136` |
 | EU | LD6 (London) | `185.246.41.135` |
-| APAC | CN1 (Hong Kong) | `36.255.198.250` |
-| APAC | SY1 (Sydney) | `103.115.244.153` |
+| APAC | CN1 (Chennai) | `36.255.198.250` |
+| APAC | SG1 (Singapore) | `103.115.244.153` |
 
 ### Regional signaling endpoints
 
@@ -213,32 +213,65 @@ new TelnyxRTC({
 - Split-tunnel VPN is recommended: route Telnyx signaling and media IPs outside the VPN tunnel for optimal latency
 - If using full-tunnel VPN, ensure the VPN gateway is geographically close to a Telnyx datacenter
 
-### DNS requirements
+### DNS and region routing
 
-`rtc.telnyx.com` uses anycast routing to direct clients to the nearest signaling server. For accurate geolocation:
+`rtc.telnyx.com` uses anycast DNS routing to direct clients to the nearest signaling server. The DNS authoritative server (`rtc-dns-server`) receives the query and returns the voice-sdk-proxy IP for its local datacenter.
 
-- Your DNS resolver should support [EDNS Client Subnet (RFC 7871)](https://tools.ietf.org/html/rfc7871)
-- If using a public DNS resolver (e.g., `8.8.8.8`), it may not accurately determine your location via anycast
+**How region selection works:**
 
-To test if your DNS supports EDNS Client Subnet:
+1. Client resolves `rtc.telnyx.com` → CNAME → `rtc.lb.telnyx.tech`
+2. DNS query routes via anycast to the nearest `rtc-dns-server` instance
+3. `rtc-dns-server` returns the local datacenter's voice-sdk-proxy IP
+4. Client connects via WebSocket to that IP for the entire session
+
+**Known limitation:** Anycast routing is based on BGP path selection, not geographic proximity. In some cases, a client's DNS resolver may route to a non-optimal datacenter due to transit peering paths. For example, a client in India may receive a European signaling IP if their ISP's DNS resolver reaches a European PoP first.
+
+**EDNS Client Subnet (ECS):** The `rtc-dns-server` supports EDNS Client Subnet ([RFC 7871](https://tools.ietf.org/html/rfc7871)) to improve geo-accuracy. When an ECS-capable resolver (e.g., Google DNS 8.8.8.8, OpenDNS) includes the client's subnet in the query, `rtc-dns-server` can return the nearest regional IP even if the DNS query arrived at a distant datacenter.
+
+Not all resolvers support ECS. Cloudflare (1.1.1.1) does not send ECS as a privacy policy, and most ISP resolvers do not support it. For these resolvers, routing is determined by which datacenter the resolver's query reaches via BGP.
+
+To test if your DNS resolver sends EDNS Client Subnet:
 
 ```bash
 dig edns-client-sub.net TXT
 ```
 
+If the response includes your approximate IP range, your resolver supports ECS and will benefit from geo-aware DNS responses.
+
 ### Region selection
 
-The SDK supports a `preferred_server` parameter to pin signaling to a specific region. Use this if your users are concentrated in a known region:
+The SDK supports regional signaling endpoints for customers who need to pin connections to a specific region. Regional subdomains are available via DNS:
+
+| Regional Endpoint | Region | Datacenters |
+|-------------------|--------|-------------|
+| `us-east.rtc.telnyx.com` | US East | AT1 (Atlanta), NJ1 (New Jersey) |
+| `us-central.rtc.telnyx.com` | US Central | CH1 (Chicago) |
+| `us-west.rtc.telnyx.com` | US West | LV1 (Las Vegas) |
+| `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
+| `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
+| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai), SG1 (Singapore) |
+
+Use regional endpoints when:
+- Your users are concentrated in a known region
+- Anycast DNS routing is directing clients to a suboptimal datacenter (e.g., India clients landing at a European datacenter)
+- You need to guarantee low-latency signaling paths for specific regions
 
 ```js
+// Default: anycast DNS selects nearest datacenter
 new TelnyxRTC({
   login: 'username',
   password: 'password',
-  login_params: {
-    preferred_server: 'ap-northeast',  // Hong Kong
-  },
+})
+
+// Pin to APAC for India/Southeast Asia users
+new TelnyxRTC({
+  login: 'username',
+  password: 'password',
+  host: 'apac.rtc.telnyx.com',
 })
 ```
+
+> **Note:** Regional endpoints return multiple A records for all datacenters in that region. The client will connect to the first reachable IP. Media (B2BUA-RTC) selection happens within the signaling proxy, which prefers local-datacenter media servers for lowest latency.
 
 ## Additional network information
 
@@ -253,6 +286,6 @@ new TelnyxRTC({
 | United States | CH1 (Chicago), AT1 (Atlanta), NJ1 (New Jersey), LV1 (Las Vegas), DA1 (Dallas) |
 | Canada | TR1 (Toronto), MT1 (Montreal) |
 | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| Asia-Pacific | CN1 (Hong Kong), SY1 (Sydney), SG1 (Singapore) |
+| Asia-Pacific | CN1 (Chennai), SG1 (Singapore), SY1 (Sydney) |
 
 Customers can request a direct connection to the Telnyx network via Megaport or direct peering.

@@ -36,7 +36,9 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 #### `telnyx.ready`
 
-Emitted after the server reports `REGISTER` or `REGED` gateway states (see `VertoHandler`). Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any “connecting” banners.
+Emitted after the server reports `REGISTER` or `REGED` gateway states (see `VertoHandler`). Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners.
+
+The signaling connection is established to a specific voice-sdk-proxy instance in one of Telnyx's datacenters (see [Network Connectivity Requirements](../../../docs/network-connectivity-requirements.md) for the full list of regions and IPs). The datacenter is selected via anycast DNS when connecting to `rtc.telnyx.com`, or can be pinned using a regional endpoint like `apac.rtc.telnyx.com`. Once connected, all signaling and media for that session routes through the selected datacenter's infrastructure.
 
 #### `telnyx.notification`
 
