@@ -236,7 +236,7 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `us-west.rtc.telnyx.com` | US West | LV1 (Las Vegas) |
 | `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai) |
+| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai), SY1 (Sydney) |
 
 Use regional endpoints when:
 - Your users are concentrated in a known region
