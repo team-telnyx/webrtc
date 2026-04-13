@@ -54,7 +54,7 @@ client.on('telnyx.ready', () => {
 | `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`) |
 | `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
 
-Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered. Use these to verify that your users are connecting to the expected region — for example, to detect if an India-based user is unexpectedly routed to a European datacenter.
+Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
 
 #### `telnyx.notification`
 
