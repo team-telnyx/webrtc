@@ -1,3 +1,24 @@
+## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1...webrtc/v2.26.2) (2026-04-13)
+
+### Region & Datacenter Visibility
+
+- **feat: log region and dc at info level on connect and new call** (#605)
+  `client.region` and `client.dc` are now logged at `info` level (previously `debug`) when the client connects and on every new call. Logs now show:
+  ```text
+  Connected to Telnyx — region: apac, dc: cn1
+  New Call — region: apac, dc: cn1 { destinationNumber: "...", ... }
+  ```
+
+### Documentation
+
+- **docs: update region/DC info and DNS routing details** (#604)
+  Updated network connectivity docs: fixed CN1 location (Chennai, not Hong Kong), added regional signaling endpoints table, documented `client.region` and `client.dc` properties.
+
+### Other
+
+- **fix(types): point types field at lib/src/index.d.ts** (#601)
+- **chore: add workflow to deprecate/undeprecate npm package versions** (#568)
+
 ## [2.26.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1) (2026-04-10)
 
 ### Structured Errors & Warnings
