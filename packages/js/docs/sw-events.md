@@ -36,7 +36,25 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 #### `telnyx.ready`
 
-Emitted after the server reports `REGISTER` or `REGED` gateway states (see `VertoHandler`). Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any “connecting” banners.
+Emitted after the server reports `REGISTER` or `REGED` gateway states (see `VertoHandler`). Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners.
+
+The signaling connection is established to a specific voice-sdk-proxy instance in one of Telnyx's datacenters (see [Network Connectivity Requirements](../../../docs/network-connectivity-requirements.md) for the full list of regions and IPs). The datacenter is selected via anycast DNS when connecting to `rtc.telnyx.com`, or can be pinned to a specific region using a regional endpoint (e.g., `apac.rtc.telnyx.com`). Once connected, all signaling and media for that session routes through the selected datacenter's infrastructure.
+
+After `telnyx.ready` fires, the connected datacenter and region are available on the client instance:
+
+```ts
+client.on('telnyx.ready', () => {
+  console.log('Region:', client.region); // e.g. "apac", "eu", "us-east"
+  console.log('DC:', client.dc); // e.g. "cn1", "fr5", "at1"
+});
+```
+
+| Property        | Type             | Description                                                                                                              |
+| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`) |
+| `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
+
+Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
 
 #### `telnyx.notification`
 
