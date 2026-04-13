@@ -182,11 +182,15 @@ class VertoHandler {
           session.options.keepConnectionAliveOnSocketClose &&
           isPeerConnectionAlive
         ) {
-          logger.info('[punt] Received PUNT from server. keepConnectionAliveOnSocketClose=true — disconnecting socket only, keeping calls alive.');
+          logger.info(
+            '[punt] Received PUNT from server. keepConnectionAliveOnSocketClose=true — disconnecting socket only, keeping calls alive.'
+          );
           session.socketDisconnect();
           this._ack(id, method);
         } else {
-          logger.info('[punt] Received PUNT from server — calling serverDisconnect() to purge all calls without BYE.');
+          logger.info(
+            '[punt] Received PUNT from server — calling serverDisconnect() to purge all calls without BYE.'
+          );
           session.serverDisconnect();
         }
         break;
@@ -286,14 +290,16 @@ class VertoHandler {
                 const dc = msg?.result?.params?.dc;
                 if (dc) {
                   session.dc = dc;
-                  logger.debug('Captured dc from REGED:', { dc });
                 }
 
                 const region = msg?.result?.params?.region;
                 if (region) {
                   session.region = region;
-                  logger.debug('Captured region from REGED:', { region });
                 }
+
+                logger.info(
+                  `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
+                );
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);

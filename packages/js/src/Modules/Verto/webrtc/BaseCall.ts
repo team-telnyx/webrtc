@@ -2058,7 +2058,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     } else {
       this.setState(State.New);
     }
-    logger.info('New Call with Options:', this.options);
+    logger.info(
+      `New Call — region: ${this.session.region ?? 'unknown'}, dc: ${this.session.dc ?? 'unknown'}`,
+      this.options
+    );
   }
 
   protected _finalize() {
