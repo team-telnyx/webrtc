@@ -53,6 +53,7 @@ export default class Peer {
   public instance: RTCPeerConnection;
   public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
+  public isIceRestarting: boolean = false;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
@@ -132,7 +133,7 @@ export default class Peer {
 
     this._negotiating = true;
 
-    if (this._isOffer()) {
+    if (this._isOffer() || this.isIceRestarting) {
       this._createOffer();
     } else {
       this._createAnswer();
@@ -143,7 +144,7 @@ export default class Peer {
 
     this._negotiating = true;
 
-    if (this._isOffer()) {
+    if (this._isOffer() || this.isIceRestarting) {
       await this._createOffer().then(this._trickleIceSdpFn.bind(this));
     } else {
       await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
@@ -248,46 +249,30 @@ export default class Peer {
 
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
-      const onConnectionOnline = async () => {
-        // Report detailed connection state if debug is enabled
-        if (this.isDebugEnabled && this.statsReporter) {
-          const details = await getConnectionStateDetails(
-            this.instance,
-            this._prevConnectionState
-          );
+      // Report detailed connection state if debug is enabled
+      if (this.isDebugEnabled && this.statsReporter) {
+        getConnectionStateDetails(
+          this.instance,
+          this._prevConnectionState
+        ).then((details) => {
           this.statsReporter.reportConnectionStateChange(details);
-        }
+        });
+      }
 
-        //FIXME: implement proper ICE restart flow
-        /**
-         * Restart ICE is not working since we do not handle SDP exchange after ICE restart.
-         * The proper way:
-         * 1. Create new offer
-         * 2. Set the local description to the offer
-         * 3. Send it to the remote peer
-         * 4. Wait for the remote peer to send us an answer
-         * 5. Set the remote description to the answer
-         *
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Session_lifetime#ice_restart
-         */
-        // if (
-        //   !this._restartedIceOnConnectionStateFailed &&
-        //   connectionState === 'failed' &&
-        //   this._session.hasAutoReconnect()
-        // ) {
-        // this.instance.restartIce();
-        // this._restartedIceOnConnectionStateFailed = true;
-        // logger.info('Peer connection state failed. ICE restarted.');
-        // }
-
-        window.removeEventListener('online', onConnectionOnline);
-      };
-
-      if (navigator.onLine) {
-        onConnectionOnline();
-      } else {
-        window.addEventListener('online', onConnectionOnline);
+      // ICE restart: only when peer failed + client online + WebSocket alive.
+      // If any of these conditions aren't met, the socket reconnect + Attach flow handles recovery.
+      if (
+        !this._restartedIceOnConnectionStateFailed &&
+        connectionState === 'failed' &&
+        navigator.onLine &&
+        this._session.connected
+      ) {
+        this.isIceRestarting = true;
+        this._restartedIceOnConnectionStateFailed = true;
+        this.instance.restartIce();
+        // Re-register peer events to reset _iceDone flag
+        this._registerPeerEvents(this.instance);
+        logger.info('ICE restart: peer failed, client online, WebSocket alive. Creating new offer via Modify.');
       }
     }
 
@@ -327,6 +312,8 @@ export default class Peer {
     if (connectionState === 'connected') {
       performance.mark('dtls-connected');
       this.tryCollectTimings();
+
+      // [TEST] setTimeout ICE restart removed — using real failure trigger instead
     }
 
     if (this._isTrickleIce()) {
@@ -736,7 +723,7 @@ export default class Peer {
   }
 
   private async _createOffer() {
-    if (!this._isOffer()) {
+    if (!this._isOffer() && !this.isIceRestarting) {
       return;
     }
     // set default audio true, given value given in session mediaConstraints and call options may be undefined.

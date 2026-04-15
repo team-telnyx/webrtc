@@ -1128,11 +1128,25 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       case VertoMethod.Media: {
         performance.mark('telnyx-rtc-media');
+        // Allow Media through during ICE restart (answer SDP for restarted offer)
+        if (this.peer?.isIceRestarting && params.sdp) {
+          logger.info('ICE restart: received Media with answer SDP');
+          this.peer.isIceRestarting = false;
+          this._onRemoteSdp(params.sdp);
+          break;
+        }
         if (this._state >= State.Early) {
           return;
         }
         this.gotEarly = true;
         this._onRemoteSdp(params.sdp);
+        break;
+      }
+      case VertoMethod.Modify: {
+        logger.info('Received Modify message:', params);
+        if (params.sdp) {
+          this._onRemoteSdp(params.sdp);
+        }
         break;
       }
       case VertoMethod.Display: {
@@ -1414,6 +1428,28 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
+  private _sendIceRestartModify(sdp: string) {
+    const modifyMsg = new Modify({
+      action: 'updateMedia',
+      callID: this.options.id,
+      sdp,
+      dialogParams: this.options,
+    });
+    logger.info('ICE restart: sending Modify with new offer SDP');
+    this._execute(modifyMsg)
+      .then(async (response) => {
+        logger.info('ICE restart Modify response:', response);
+        this.peer.isIceRestarting = false;
+        if (response?.sdp) {
+          await this._onRemoteSdp(response.sdp);
+        }
+      })
+      .catch((error) => {
+        logger.error('ICE restart Modify failed:', error);
+        this.peer.isIceRestarting = false;
+      });
+  }
+
   private async _onRemoteSdp(remoteSdp: string) {
     const sdp = new RTCSessionDescription({
       sdp: remoteSdp,
@@ -1532,6 +1568,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       'User-Agent': `Web-${SDK_VERSION}`,
     };
 
+    // ICE restart: send Modify with new SDP regardless of original call direction
+    if (this.peer?.isIceRestarting) {
+      this._sendIceRestartModify(sdp);
+      return;
+    }
+
     switch (type) {
       case PeerType.Offer:
         this.setState(State.Requesting);
@@ -1611,6 +1653,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
     };
+
+    // ICE restart: send Modify with new SDP regardless of original call direction
+    if (this.peer?.isIceRestarting) {
+      this._sendIceRestartModify(sdp);
+      return;
+    }
 
     switch (type) {
       case PeerType.Offer:
