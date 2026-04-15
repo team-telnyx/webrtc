@@ -370,6 +370,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   async invite() {
+    // Mark that this session has made a call (disables session-level reporting)
+    this.session.markCallMade();
+
     this._creatingPeer = true;
     this.direction = Direction.Outbound;
     if (this.options.trickleIce) {
@@ -422,6 +425,9 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    // Mark that this session has made/answered a call (disables session-level reporting)
+    this.session.markCallMade();
+
     performance.mark('answer-called');
     this._creatingPeer = true;
     this.stopRingtone();

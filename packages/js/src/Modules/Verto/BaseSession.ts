@@ -37,6 +37,10 @@ import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
+import {
+  SessionReportCollector,
+  createSessionReportCollector,
+} from './webrtc/SessionReportCollector';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -70,6 +74,9 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
 
+  // Session-level reporting
+  protected _sessionReportCollector: SessionReportCollector | null = null;
+
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
 
@@ -93,6 +100,105 @@ export default abstract class BaseSession {
     this._attachListeners();
     this.connection = new Connection(this);
     this.registerAgent = new RegisterAgent(this);
+
+    // Initialize session-level reporting
+    this._initializeSessionReporting();
+  }
+
+  /**
+   * Initialize session-level reporting collector
+   */
+  protected _initializeSessionReporting(): void {
+    // Check if session reporting is enabled via options (default: true)
+    const sessionReportingEnabled = this.options.sessionReporting !== false;
+
+    if (sessionReportingEnabled) {
+      this._sessionReportCollector = createSessionReportCollector({
+        enabled: true,
+        maxSessionDurationMinutes: this.options.sessionReportMaxDurationMinutes ?? 10,
+        logCollector: {
+          enabled: true,
+          level: 'debug',
+          maxEntries: 500,
+        },
+      });
+
+      logger.debug('BaseSession: Session reporting initialized');
+    }
+  }
+
+  /**
+   * Mark that a call has been made in this session.
+   * This prevents session-level reporting since the call will report itself.
+   */
+  public markCallMade(): void {
+    this._sessionReportCollector?.markCallMade();
+  }
+
+  /**
+   * Check if this session has made any calls.
+   */
+  public get hasMadeCall(): boolean {
+    return this._sessionReportCollector?.hasMadeCall ?? false;
+  }
+
+  /**
+   * Post a session-level report when no calls were made.
+   * This captures SDK sessions that fail before call creation
+   * (e.g., "destination out of order", broken sessions).
+   *
+   * @param reason - Why the report is being posted
+   * @returns true if a report was posted, false if skipped
+   */
+  public async postSessionReport(reason: string = 'session_end'): Promise<boolean> {
+    if (!this._sessionReportCollector) {
+      return false;
+    }
+
+    // Skip if we don't have connection info
+    if (!this.connection?.host) {
+      logger.debug('BaseSession: Skipping session report - no connection host');
+      return false;
+    }
+
+    const posted = await this._sessionReportCollector.postSessionReport(
+      reason,
+      this.connection.host,
+      this.sessionid,
+      this.options.login,
+      getReconnectToken() ?? undefined,
+      this.region ?? undefined,
+      this.dc ?? undefined
+    );
+
+    if (posted) {
+      logger.info('BaseSession: Session report posted', { reason, sessionId: this.sessionid });
+    }
+
+    return posted;
+  }
+
+  /**
+   * Record a session event for reporting
+   */
+  protected _recordSessionEvent(
+    type: import('./webrtc/SessionReportCollector').SessionEventType,
+    message?: string,
+    details?: Record<string, unknown>
+  ): void {
+    this._sessionReportCollector?.recordEvent(type, message, details);
+  }
+
+  /**
+   * Record a session error for reporting
+   */
+  protected _recordSessionError(
+    message: string,
+    code?: number,
+    type?: string,
+    details?: Record<string, unknown>
+  ): void {
+    this._sessionReportCollector?.recordError(message, code, type, details);
   }
 
   get __logger(): Logger {
@@ -199,6 +305,9 @@ export default abstract class BaseSession {
    * @return void
    */
   async disconnect() {
+    // Post session report before disconnect (if no calls made)
+    await this.postSessionReport('explicit_disconnect');
+
     clearTimeout(this._reconnectTimeout);
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
@@ -208,6 +317,11 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+
+    // Clean up session reporting
+    this._sessionReportCollector?.cleanup();
+    this._sessionReportCollector = null;
+
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
     );
@@ -341,6 +455,13 @@ export default abstract class BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
+    this._recordSessionError(
+      error?.message || 'Login failed',
+      error?.code,
+      'login_failed',
+      { error }
+    );
+
     const telnyxError = createTelnyxError(LOGIN_FAILED, error);
     trigger(
       SwEvent.Error,
@@ -482,6 +603,11 @@ export default abstract class BaseSession {
       return;
     }
 
+    this._recordSessionEvent('login', 'Login attempt started', {
+      hasCreds: !!creds,
+      reconnection: !!getReconnectToken(),
+    });
+
     // Update session options with new credentials
     if (creds) {
       if (creds.login !== undefined) {
@@ -568,6 +694,10 @@ export default abstract class BaseSession {
 
     if (response) {
       this.sessionid = response.sessid;
+      this._recordSessionEvent('login_success', 'Login successful', {
+        sessid: response.sessid,
+        reconnection: !!getReconnectToken(),
+      });
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }
@@ -577,7 +707,9 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {}
+  protected async _onSocketOpen() {
+    this._recordSessionEvent('socket_open', 'WebSocket connection opened');
+  }
 
   /**
    * Callback when the ws connection is going to close or get an error
@@ -608,6 +740,9 @@ export default abstract class BaseSession {
         );
         this.connect();
       }, this.reconnectDelay);
+    } else {
+      // No auto-reconnect - post session report if no calls were made
+      this.postSessionReport('socket_close');
     }
   }
 
