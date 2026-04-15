@@ -75,6 +75,19 @@ export interface IVertoOptions {
    */
   debugLogMaxEntries?: number;
   /**
+   * Enable session-level reporting for SDK sessions without calls.
+   * When enabled, captures session events, logs, and errors even when
+   * no call is successfully created (e.g., broken sessions, "destination out of order").
+   * @default true
+   */
+  sessionReporting?: boolean;
+  /**
+   * Maximum session duration in minutes before forcing a session report.
+   * Only applies when sessionReporting is enabled.
+   * @default 10
+   */
+  sessionReportMaxDurationMinutes?: number;
+  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and
