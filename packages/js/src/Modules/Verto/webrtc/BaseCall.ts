@@ -1929,6 +1929,35 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
+  /**
+   * Post the call report for an ended call when the socket closes.
+   * This is called by the session when the WebSocket connection is lost,
+   * to ensure call reports for ended calls are still sent.
+   * 
+   * Only calls in ended states (Hangup, Destroy) will have their reports posted,
+   * and only if the report hasn't already been posted.
+   */
+  public postCallReportOnSocketClose(): void {
+    // Only post reports for calls that have ended
+    if (this._state < State.Hangup) {
+      logger.debug(`[${this.id}] Skipping call report post on socket close: call not ended (state: ${State[this._state]})`);
+      return;
+    }
+
+    // Check if we have a call report collector with data to send
+    if (!this._callReportCollector) {
+      logger.debug(`[${this.id}] No call report collector available for socket close report`);
+      return;
+    }
+
+    logger.info(`[${this.id}] Posting call report on socket close for ended call`);
+    
+    // Fire-and-forget — must not block teardown
+    this._postCallReport().catch((error) => {
+      logger.error(`[${this.id}] Unexpected error in postCallReportOnSocketClose`, { error });
+    });
+  }
+
   private _startStats(interval: number) {
     this._statsIntervalId = setInterval(this._doStats, interval);
     logger.info('Stats started');

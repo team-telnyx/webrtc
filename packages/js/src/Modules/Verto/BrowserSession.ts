@@ -185,6 +185,49 @@ export default abstract class BrowserSession extends BaseSession {
     super._handleLoginError(error);
   }
 
+  /**
+   * Handle network close — called when the WebSocket connection is closed.
+   * Posts call reports for any ended calls before triggering reconnection.
+   */
+  public onNetworkClose(): void {
+    // Post call reports for ended calls before we lose the connection
+    this._postCallReportsForEndedCalls();
+    
+    // Call parent implementation for reconnection logic
+    super.onNetworkClose();
+  }
+
+  /**
+   * Post call reports for calls that have ended but may not have
+   * successfully posted their reports yet. This is called when the
+   * socket closes to ensure we don't lose call quality data.
+   */
+  private _postCallReportsForEndedCalls(): void {
+    const callIds = Object.keys(this.calls);
+    if (callIds.length === 0) {
+      return;
+    }
+
+    logger.info(`Checking ${callIds.length} calls for ended call reports on socket close`);
+
+    for (const callId of callIds) {
+      const call = this.calls[callId];
+      if (!call) {
+        continue;
+      }
+
+      // Use type assertion to access the public method we added to BaseCall
+      const baseCall = call as unknown as { postCallReportOnSocketClose?: () => void };
+      if (typeof baseCall.postCallReportOnSocketClose === 'function') {
+        try {
+          baseCall.postCallReportOnSocketClose();
+        } catch (error) {
+          logger.error(`[${callId}] Error posting call report on socket close`, { error });
+        }
+      }
+    }
+  }
+
   speedTest(bytes: number) {
     return new Promise((resolve, reject) => {
       registerOnce(
