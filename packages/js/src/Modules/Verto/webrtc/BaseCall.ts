@@ -20,6 +20,7 @@ import {
   SwEvent,
   BYE_SEND_FAILED,
   HOLD_FAILED,
+  ICE_RESTART_FAILED,
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
@@ -1446,7 +1447,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error('ICE restart Modify failed:', error);
-        this.peer?.finishIceRestart();
+        this.peer.isIceRestarting = false;
+        const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+        trigger(
+          SwEvent.Error,
+          {
+            error: telnyxError,
+            callId: this.id,
+            sessionId: this.session.sessionid,
+          },
+          this.session.uuid
+        );
       });
   }
 
