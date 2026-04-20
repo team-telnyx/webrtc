@@ -54,6 +54,7 @@ export default class Peer {
   public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
   public isIceRestarting: boolean = false;
+  public iceDone: boolean = false;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
@@ -74,15 +75,13 @@ export default class Peer {
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
-  private _resetIceDone: (() => void) | null = null;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void,
-    resetIceDone?: () => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -102,7 +101,6 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
-    this._resetIceDone = resetIceDone ?? null;
   }
 
   /**
@@ -288,11 +286,9 @@ export default class Peer {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
         this.instance.restartIce();
-        // Reset _iceDone so the next icecandidate event path runs through again.
-        // Using the dedicated setter avoids re-attaching event listeners.
-        if (this._resetIceDone) {
-          this._resetIceDone();
-        }
+        // Reset iceDone so BaseCall's icecandidate handler processes the new
+        // candidates from the restarted ICE gathering.
+        this.iceDone = false;
         // Safety net: if the Modify exchange never completes (server drops the
         // response, WS reconnects mid-restart, etc.), clear the flag so we don't
         // get stuck in a permanent "restarting" state.

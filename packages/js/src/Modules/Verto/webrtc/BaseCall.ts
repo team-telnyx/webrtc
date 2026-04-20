@@ -196,8 +196,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceTimeout = null;
 
-  private _iceDone: boolean = false;
-
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -383,10 +381,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      () => {
-        this._iceDone = false;
-      }
+        : this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -449,10 +444,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      () => {
-        this._iceDone = false;
-      }
+        : this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -1527,7 +1519,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     Object.defineProperty(this.peer, 'onSdpReadyTwice', {
       value: this._onIceSdp.bind(this),
     });
-    this._iceDone = false;
+    this.peer.iceDone = false;
     this.peer.startNegotiation();
   }
 
@@ -1536,7 +1528,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
-    this._iceDone = true;
+    if (this.peer) {
+      this.peer.iceDone = true;
+    }
 
     if (!data) {
       logger.warn(
@@ -1852,9 +1846,11 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _registerPeerEvents(instance: RTCPeerConnection) {
-    this._iceDone = false;
+    if (this.peer) {
+      this.peer.iceDone = false;
+    }
     instance.onicecandidate = (event) => {
-      if (this._iceDone) {
+      if (this.peer?.iceDone) {
         return;
       }
       this._onIce(event);
