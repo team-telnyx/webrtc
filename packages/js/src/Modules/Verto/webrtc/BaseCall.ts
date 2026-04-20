@@ -383,7 +383,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      () => {
+        this._iceDone = false;
+      }
     );
     try {
       await this.peer.init();
@@ -446,7 +449,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      () => {
+        this._iceDone = false;
+      }
     );
     try {
       await this.peer.init();
@@ -1128,13 +1134,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       case VertoMethod.Media: {
         performance.mark('telnyx-rtc-media');
-        // Allow Media through during ICE restart (answer SDP for restarted offer)
-        if (this.peer?.isIceRestarting && params.sdp) {
-          logger.info('ICE restart: received Media with answer SDP');
-          this.peer.isIceRestarting = false;
-          this._onRemoteSdp(params.sdp);
-          break;
-        }
+        // Media is an early-media event for the pre-Answer phase only.
+        // After Early state (including mid-call ICE restart), the answer SDP
+        // is delivered via Modify responses or the telnyx_rtc.modify path,
+        // not through Media. Applying it here would call setRemoteDescription
+        // twice and break the ICE restart flow.
         if (this._state >= State.Early) {
           return;
         }
@@ -1143,7 +1147,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Modify: {
-        logger.info('Received Modify message:', params);
+        logger.info('Received Modify message', {
+          callID: params?.callID,
+          action: params?.action,
+          hasSdp: !!params?.sdp,
+        });
         if (params.sdp) {
           this._onRemoteSdp(params.sdp);
         }
@@ -1438,15 +1446,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.info('ICE restart: sending Modify with new offer SDP');
     this._execute(modifyMsg)
       .then(async (response) => {
-        logger.info('ICE restart Modify response:', response);
-        this.peer.isIceRestarting = false;
+        logger.info('ICE restart Modify response received');
+        this.peer?.finishIceRestart();
         if (response?.sdp) {
           await this._onRemoteSdp(response.sdp);
         }
       })
       .catch((error) => {
         logger.error('ICE restart Modify failed:', error);
-        this.peer.isIceRestarting = false;
+        this.peer?.finishIceRestart();
       });
   }
 

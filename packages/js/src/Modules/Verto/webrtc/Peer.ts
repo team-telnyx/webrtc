@@ -72,13 +72,17 @@ export default class Peer {
   private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
   private _firstMediaTrackMarked: boolean = false;
   private _timingsCollected: boolean = false;
+  private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
+  private _resetIceDone: (() => void) | null = null;
 
   constructor(
     public type: PeerType,
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void,
+    resetIceDone?: () => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -98,6 +102,19 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
+    this._resetIceDone = resetIceDone ?? null;
+  }
+
+  /**
+   * Ends the current ICE restart cycle (clears the flag and any pending timeout).
+   * Safe to call multiple times — only the first invocation has an effect.
+   */
+  public finishIceRestart() {
+    this.isIceRestarting = false;
+    if (this._iceRestartTimeoutId) {
+      clearTimeout(this._iceRestartTimeoutId);
+      this._iceRestartTimeoutId = null;
+    }
   }
 
   get isOffer() {
@@ -259,20 +276,38 @@ export default class Peer {
         });
       }
 
-      // ICE restart: only when peer failed + client online + WebSocket alive.
-      // If any of these conditions aren't met, the socket reconnect + Attach flow handles recovery.
+      // ICE restart: fire on `failed` or `disconnected` when the client is online
+      // and the WebSocket is alive. If any of these conditions aren't met, the
+      // socket reconnect + Attach flow handles recovery.
       if (
         !this._restartedIceOnConnectionStateFailed &&
-        connectionState === 'failed' &&
+        (connectionState === 'failed' || connectionState === 'disconnected') &&
         navigator.onLine &&
         this._session.connected
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
         this.instance.restartIce();
-        // Re-register peer events to reset _iceDone flag
-        this._registerPeerEvents(this.instance);
-        logger.info('ICE restart: peer failed, client online, WebSocket alive. Creating new offer via Modify.');
+        // Reset _iceDone so the next icecandidate event path runs through again.
+        // Using the dedicated setter avoids re-attaching event listeners.
+        if (this._resetIceDone) {
+          this._resetIceDone();
+        }
+        // Safety net: if the Modify exchange never completes (server drops the
+        // response, WS reconnects mid-restart, etc.), clear the flag so we don't
+        // get stuck in a permanent "restarting" state.
+        this._iceRestartTimeoutId = setTimeout(() => {
+          if (this.isIceRestarting) {
+            logger.warn(
+              'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
+            );
+            this.isIceRestarting = false;
+          }
+          this._iceRestartTimeoutId = null;
+        }, Peer.ICE_RESTART_TIMEOUT_MS);
+        logger.info(
+          `ICE restart: peer ${connectionState}, client online, WebSocket alive. Creating new offer via Modify.`
+        );
       }
     }
 
@@ -313,7 +348,9 @@ export default class Peer {
       performance.mark('dtls-connected');
       this.tryCollectTimings();
 
-      // [TEST] setTimeout ICE restart removed — using real failure trigger instead
+      // Successful (re)connection — allow future ICE restarts if we fail again.
+      this._restartedIceOnConnectionStateFailed = false;
+      this.finishIceRestart();
     }
 
     if (this._isTrickleIce()) {
