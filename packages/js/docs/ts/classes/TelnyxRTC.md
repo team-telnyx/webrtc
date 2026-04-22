@@ -55,6 +55,7 @@ client.off('telnyx.notification');
 ### Methods
 
 - [checkPermissions](#checkpermissions)
+- [clearReconnectToken](#clearreconnecttoken)
 - [connect](#connect)
 - [disableMicrophone](#disablemicrophone)
 - [disconnect](#disconnect)
@@ -397,6 +398,24 @@ client.checkPermissions(false, true);
 #### Inherited from
 
 TelnyxRTCClient.checkPermissions
+
+---
+
+### clearReconnectToken
+
+▸ **clearReconnectToken**(): `void`
+
+Clears the reconnect token from sessionStorage.
+This forces the next connection to pick a new b2bua-rtc instance
+via weighted round-robin instead of sticking to the same one.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.clearReconnectToken
 
 ---
 
