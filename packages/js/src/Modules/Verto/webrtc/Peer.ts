@@ -124,10 +124,21 @@ export default class Peer {
    * Safe to call multiple times — only the first invocation has an effect.
    */
   public finishIceRestart() {
+    if (!this.isIceRestarting) {
+      return;
+    }
     this.isIceRestarting = false;
     if (this._iceRestartTimeoutId) {
       clearTimeout(this._iceRestartTimeoutId);
       this._iceRestartTimeoutId = null;
+    }
+    // Restore trickle ICE event handlers if we swapped them for the restart.
+    if (
+      this._registerNonTricklePeerEvents &&
+      this._isTrickleIce() &&
+      this.instance
+    ) {
+      this._registerPeerEvents(this.instance);
     }
   }
 
@@ -372,14 +383,6 @@ export default class Peer {
       // Successful (re)connection — allow future ICE restarts if we fail again.
       this._restartedIceOnConnectionStateFailed = false;
       this._wasOffline = false;
-      // Restore trickle ICE event handlers if we swapped them for the restart.
-      if (
-        this.isIceRestarting &&
-        this._registerNonTricklePeerEvents &&
-        this._isTrickleIce()
-      ) {
-        this._registerPeerEvents(this.instance);
-      }
       this.finishIceRestart();
     }
 
