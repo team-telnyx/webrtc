@@ -274,14 +274,15 @@ export default class Peer {
         });
       }
 
-      // ICE restart: fire on `failed` or `disconnected` when the client is online
-      // and the WebSocket is alive. If any of these conditions aren't met, the
-      // socket reconnect + Attach flow handles recovery.
+      // ICE restart: fire only when the browser never went offline.
+      // If `window.offline` fired, the Attach flow owns recovery exclusively.
+      // When no offline event was observed, the peer failure is due to a
+      // non-network cause (relay outage, TURN failure, server-side issue)
+      // and ICE restart is the correct recovery path.
       if (
         !this._restartedIceOnConnectionStateFailed &&
         (connectionState === 'failed' || connectionState === 'disconnected') &&
-        navigator.onLine &&
-        this._session.connected
+        !this._session.wasOffline
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
@@ -302,7 +303,7 @@ export default class Peer {
           this._iceRestartTimeoutId = null;
         }, Peer.ICE_RESTART_TIMEOUT_MS);
         logger.info(
-          `ICE restart: peer ${connectionState}, client online, WebSocket alive. Creating new offer via Modify.`
+          `ICE restart: peer ${connectionState}, no offline event detected. Creating new offer via Modify.`
         );
       }
     }
