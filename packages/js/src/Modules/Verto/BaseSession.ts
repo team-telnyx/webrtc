@@ -359,6 +359,62 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Re-sends the login message on the existing WebSocket connection.
+   * Useful for retrying after a transient "Login Incorrect" error
+   * without closing and reopening the socket.
+   *
+   * @returns Promise that resolves when login succeeds
+   */
+  public async relogin(): Promise<void> {
+    if (isValidAnonymousLoginOptions(this.options)) {
+      const msg = new AnonymousLogin({
+        target_id: this.options.anonymous_login.target_id,
+        target_type: this.options.anonymous_login.target_type,
+        target_version_id: this.options.anonymous_login.target_version_id,
+        target_params: this.options.anonymous_login.target_params,
+        sessionId: this.sessionid,
+        userVariables: this.options.userVariables,
+        reconnection: !!getReconnectToken(),
+      });
+
+      const response = await this.execute(msg).catch((error) => {
+        this._handleLoginError(error);
+        throw error;
+      });
+
+      if (response) {
+        this.sessionid = response.sessid;
+        this._checkTokenExpiry();
+      }
+      return;
+    }
+
+    if (isValidLoginOptions(this.options)) {
+      const msg = new Login(
+        this.options.login,
+        this.options.password || this.options.passwd,
+        this.options.login_token,
+        this.sessionid,
+        this.options.userVariables,
+        !!getReconnectToken()
+      );
+
+      const response = await this.execute(msg).catch((error) => {
+        this._handleLoginError(error);
+        throw error;
+      });
+
+      if (response) {
+        this.sessionid = response.sessid;
+        this._checkTokenExpiry();
+      }
+      return;
+    }
+
+    throw new Error('No valid login options found for relogin');
+  }
+
+  /**
    * Check if the login_token is a JWT and schedule a warning
    * if it's expiring within TOKEN_EXPIRY_WARNING_SECONDS.
    */
