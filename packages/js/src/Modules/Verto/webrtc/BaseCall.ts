@@ -382,7 +382,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      this.options.trickleIce ? this._registerPeerEvents : undefined
     );
     try {
       await this.peer.init();
@@ -445,7 +446,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this.options.trickleIce
         ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+        : this._registerPeerEvents,
+      this.options.trickleIce ? this._registerPeerEvents : undefined
     );
     try {
       await this.peer.init();
