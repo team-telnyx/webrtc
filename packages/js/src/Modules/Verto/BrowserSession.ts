@@ -68,14 +68,6 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _wasOffline: boolean = false;
 
-  /**
-   * Whether the browser fired an `offline` event since the last recovery.
-   * Used by Peer to decide between ICE restart and the full Attach flow.
-   */
-  get wasOffline(): boolean {
-    return this._wasOffline;
-  }
-
   constructor(options: IVertoOptions) {
     super(options);
     this._videoConstraints = options.video || false;

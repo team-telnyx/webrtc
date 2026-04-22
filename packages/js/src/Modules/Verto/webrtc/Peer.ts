@@ -75,6 +75,8 @@ export default class Peer {
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
+  private _wasOffline: boolean = false;
+  private _offlineHandler: (() => void) | null = null;
 
   constructor(
     public type: PeerType,
@@ -101,6 +103,15 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
+
+    // Track offline events independently so ICE restart and Attach never race.
+    // _wasOffline is only cleared on peer `connected`, not on `online`.
+    if (typeof window !== 'undefined') {
+      this._offlineHandler = () => {
+        this._wasOffline = true;
+      };
+      window.addEventListener('offline', this._offlineHandler);
+    }
   }
 
   /**
@@ -274,15 +285,15 @@ export default class Peer {
         });
       }
 
-      // ICE restart: fire only when the browser never went offline.
-      // If `window.offline` fired, the Attach flow owns recovery exclusively.
-      // When no offline event was observed, the peer failure is due to a
-      // non-network cause (relay outage, TURN failure, server-side issue)
-      // and ICE restart is the correct recovery path.
+      // ICE restart: fire only when the browser never went offline during
+      // this peer's lifetime. If `window.offline` fired, the Attach flow
+      // owns recovery exclusively. _wasOffline is only cleared on `connected`,
+      // not on the `online` event, so there's no race with BrowserSession's
+      // online handler.
       if (
         !this._restartedIceOnConnectionStateFailed &&
         (connectionState === 'failed' || connectionState === 'disconnected') &&
-        !this._session.wasOffline
+        !this._wasOffline
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
@@ -347,6 +358,7 @@ export default class Peer {
 
       // Successful (re)connection — allow future ICE restarts if we fail again.
       this._restartedIceOnConnectionStateFailed = false;
+      this._wasOffline = false;
       this.finishIceRestart();
     }
 
@@ -965,6 +977,10 @@ export default class Peer {
 
   public async close() {
     this._clearIceGatheringSafetyTimeout();
+    if (this._offlineHandler && typeof window !== 'undefined') {
+      window.removeEventListener('offline', this._offlineHandler);
+      this._offlineHandler = null;
+    }
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;
