@@ -1864,17 +1864,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     instance.onicegatheringstatechange = (event) => {
-      if (this.options.trickleIce) {
-        logger.debug(
-          'ICE gathering state changed:',
-          instance.iceGatheringState,
-          event
-        );
-      }
+      logger.debug(
+        'ICE gathering state changed:',
+        instance.iceGatheringState,
+        event
+      );
       if (instance.iceGatheringState === 'complete') {
-        if (this.options.trickleIce) {
-          logger.debug('Finished gathering candidates');
-        }
+        logger.debug('Finished gathering candidates');
         performance.mark('ice-gathering-completed');
       }
     };
