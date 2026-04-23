@@ -277,8 +277,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
-    this._registerTrickleIcePeerEvents =
-      this._registerTrickleIcePeerEvents.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -380,10 +378,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
+      this._registerPeerEvents,
       this.options.trickleIce
-        ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      this.options.trickleIce ? this._registerPeerEvents : undefined
+        ? (instance: RTCPeerConnection) =>
+            this._registerPeerEvents(instance, false)
+        : undefined
     );
     try {
       await this.peer.init();
@@ -444,10 +443,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
+      this._registerPeerEvents,
       this.options.trickleIce
-        ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents,
-      this.options.trickleIce ? this._registerPeerEvents : undefined
+        ? (instance: RTCPeerConnection) =>
+            this._registerPeerEvents(instance, false)
+        : undefined
     );
     try {
       await this.peer.init();
@@ -1858,63 +1858,43 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _registerPeerEvents(instance: RTCPeerConnection) {
-    if (this.peer) {
-      this.peer.iceDone = false;
+  private _registerPeerEvents(
+    instance: RTCPeerConnection,
+    trickle: boolean = !!this.options.trickleIce
+  ) {
+    if (trickle) {
+      instance.onicecandidate = (event) => {
+        this._onTrickleIce(event);
+      };
+    } else {
+      if (this.peer) {
+        this.peer.iceDone = false;
+      }
+      instance.onicecandidate = (event) => {
+        if (this.peer?.iceDone) {
+          return;
+        }
+        this._onIce(event);
+      };
     }
-    instance.onicecandidate = (event) => {
-      if (this.peer?.iceDone) {
-        return;
-      }
-      this._onIce(event);
-    };
-
-    instance.onicegatheringstatechange = () => {
-      if (instance.iceGatheringState === 'complete') {
-        performance.mark('ice-gathering-completed');
-      }
-    };
-
-    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
-      logger.debug('ICE candidate error:', event);
-      if (this.peer?.statsReporter) {
-        const details = getIceCandidateErrorDetails(event, instance);
-        this.peer.statsReporter.reportIceCandidateError(details);
-      }
-    };
-
-    //@ts-expect-error MediaStreamEvent is not defined
-    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
-      this.options.remoteStream = event.stream;
-    });
-    instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream);
-      }
-    });
-  }
-
-  private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
-    instance.onicecandidate = (event) => {
-      this._onTrickleIce(event);
-    };
 
     instance.onicegatheringstatechange = (event) => {
-      logger.debug(
-        'ICE gathering state changed:',
-        instance.iceGatheringState,
-        event
-      );
+      if (trickle) {
+        logger.debug(
+          'ICE gathering state changed:',
+          instance.iceGatheringState,
+          event
+        );
+      }
       if (instance.iceGatheringState === 'complete') {
-        logger.debug('Finished gathering candidates');
+        if (trickle) {
+          logger.debug('Finished gathering candidates');
+        }
         performance.mark('ice-gathering-completed');
       }
     };
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
-      // if a candidate fails this is not fatal as long as other candidates succeed
       logger.debug('ICE candidate error:', event);
       if (this.peer?.statsReporter) {
         const details = getIceCandidateErrorDetails(event, instance);
@@ -1922,12 +1902,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    // addstream and MediaStreamEvent are deprecated
     //@ts-expect-error MediaStreamEvent is not defined
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
-
     instance.addEventListener('track', (event: RTCTrackEvent) => {
       this.options.remoteStream = event.streams[0];
       const { remoteElement, remoteStream, screenShare } = this.options;
