@@ -66,9 +66,7 @@ export default class Peer {
   private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
-  private _registerNonTricklePeerEvents:
-    | ((instance: RTCPeerConnection) => void)
-    | null = null;
+
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
   private _iceGatheringSafetyTimeout: ReturnType<typeof setTimeout> | null =
     null;
@@ -86,8 +84,7 @@ export default class Peer {
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void,
-    registerNonTricklePeerEvents?: (instance: RTCPeerConnection) => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -107,8 +104,6 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
-    this._registerNonTricklePeerEvents = registerNonTricklePeerEvents ?? null;
-
     // Track offline events independently so ICE restart and Attach never race.
     // _wasOffline is only cleared on peer `connected`, not on `online`.
     if (typeof window !== 'undefined') {
@@ -131,14 +126,6 @@ export default class Peer {
     if (this._iceRestartTimeoutId) {
       clearTimeout(this._iceRestartTimeoutId);
       this._iceRestartTimeoutId = null;
-    }
-    // Restore trickle ICE event handlers if we swapped them for the restart.
-    if (
-      this._registerNonTricklePeerEvents &&
-      this._isTrickleIce() &&
-      this.instance
-    ) {
-      this._registerPeerEvents(this.instance);
     }
   }
 
@@ -315,12 +302,9 @@ export default class Peer {
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
-        // Backend doesn't support trickle ICE for Modify — switch to
-        // non-trickle event handlers so the full SDP (with all candidates)
-        // is collected before sending.
-        if (this._registerNonTricklePeerEvents) {
-          this._registerNonTricklePeerEvents(this.instance);
-        }
+        // Backend doesn't support trickle ICE for Modify — the
+        // onicecandidate handler in BaseCall checks isIceRestarting
+        // at runtime to use the non-trickle path.
         this.instance.restartIce();
         // Reset iceDone so BaseCall's icecandidate handler processes the new
         // candidates from the restarted ICE gathering.

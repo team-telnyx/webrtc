@@ -378,11 +378,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this._registerPeerEvents,
-      this.options.trickleIce
-        ? (instance: RTCPeerConnection) =>
-            this._registerPeerEvents(instance, false)
-        : undefined
+      this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -443,11 +439,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this._registerPeerEvents,
-      this.options.trickleIce
-        ? (instance: RTCPeerConnection) =>
-            this._registerPeerEvents(instance, false)
-        : undefined
+      this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -1858,28 +1850,21 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _registerPeerEvents(
-    instance: RTCPeerConnection,
-    trickle: boolean = !!this.options.trickleIce
-  ) {
-    if (trickle) {
-      instance.onicecandidate = (event) => {
+  private _registerPeerEvents(instance: RTCPeerConnection) {
+    instance.onicecandidate = (event) => {
+      const useTrickle = this.options.trickleIce && !this.peer?.isIceRestarting;
+      if (useTrickle) {
         this._onTrickleIce(event);
-      };
-    } else {
-      if (this.peer) {
-        this.peer.iceDone = false;
-      }
-      instance.onicecandidate = (event) => {
+      } else {
         if (this.peer?.iceDone) {
           return;
         }
         this._onIce(event);
-      };
-    }
+      }
+    };
 
     instance.onicegatheringstatechange = (event) => {
-      if (trickle) {
+      if (this.options.trickleIce) {
         logger.debug(
           'ICE gathering state changed:',
           instance.iceGatheringState,
@@ -1887,7 +1872,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         );
       }
       if (instance.iceGatheringState === 'complete') {
-        if (trickle) {
+        if (this.options.trickleIce) {
           logger.debug('Finished gathering candidates');
         }
         performance.mark('ice-gathering-completed');
