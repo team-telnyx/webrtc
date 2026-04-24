@@ -399,6 +399,15 @@ export default class Peer {
         type: PeerType.Offer,
       });
       performance.mark('set-remote-description');
+
+      // Race condition guard: close() may have run during the await above,
+      // setting this.instance to null. Abort setup if the peer was closed.
+      if (!this.instance) {
+        logger.warn(
+          'Peer closed during setRemoteDescription, aborting createPeerConnection'
+        );
+        return;
+      }
     }
 
     const isReceiveOnly =
@@ -469,6 +478,16 @@ export default class Peer {
         return null;
       }
     );
+
+    // Race condition guard: close() may have run during any of the awaits above
+    // (getUserMedia prompt, media recovery flow, etc.), setting this.instance
+    // to null. Abort setup if the peer was closed.
+    if (!this.instance) {
+      logger.warn(
+        'Peer closed during local stream retrieval, aborting createPeerConnection'
+      );
+      return;
+    }
 
     if (!this.options.localStream && !isReceiveOnly) {
       const telnyxError = createTelnyxError(
@@ -563,6 +582,14 @@ export default class Peer {
   }
   async init() {
     await this.createPeerConnection();
+
+    // Race condition guard: close() may have run during createPeerConnection()
+    // (e.g. setRemoteDescription, getUserMedia, media recovery flow),
+    // setting this.instance to null. Abort init if the peer was closed.
+    if (!this.instance) {
+      logger.warn('Peer closed during createPeerConnection, aborting init');
+      return;
+    }
 
     if (this.isDebugEnabled) {
       this.statsReporter = createWebRTCStatsReporter(
