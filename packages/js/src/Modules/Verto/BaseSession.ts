@@ -31,7 +31,7 @@ import {
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
 import logger, { setConsoleLoggerMinLevel } from './util/logger';
-import { getReconnectToken } from './util/reconnect';
+import { getReconnectToken, clearReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
@@ -347,6 +347,15 @@ export default abstract class BaseSession {
       { error: telnyxError, sessionId: this.sessionid },
       this.uuid
     );
+  }
+
+  /**
+   * Clears the reconnect token from sessionStorage.
+   * This forces the next connection to pick a new b2bua-rtc instance
+   * via weighted round-robin instead of sticking to the same one.
+   */
+  public clearReconnectToken(): void {
+    clearReconnectToken();
   }
 
   /**

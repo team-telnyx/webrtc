@@ -1,3 +1,8 @@
+## [2.26.3-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.2...webrtc/v2.26.3-beta.0) (2026-04-22)
+
+- docs: update ts docs
+- feat: expose clearReconnectToken() to allow consumers to break b2bua-rtc stickiness
+
 ## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1...webrtc/v2.26.2) (2026-04-13)
 
 ### Region & Datacenter Visibility
