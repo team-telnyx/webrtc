@@ -1,7 +1,6 @@
-## [2.26.3-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.2...webrtc/v2.26.3-beta.0) (2026-04-22)
+## [2.26.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.3) (2026-04-24)
 
-- docs: update ts docs
-- feat: expose clearReconnectToken() to allow consumers to break b2bua-rtc stickiness
+- feat: expose clearReconnectToken() to break b2bua-rtc stickiness on retry (#610)
 
 ## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1...webrtc/v2.26.2) (2026-04-13)
 
