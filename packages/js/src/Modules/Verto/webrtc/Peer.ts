@@ -16,7 +16,10 @@ import {
   createTelnyxError,
   createTelnyxWarning,
 } from '../util/errors';
-import { MEDIA_GET_USER_MEDIA_FAILED } from '../util/constants/errorCodes';
+import {
+  MEDIA_GET_USER_MEDIA_FAILED,
+  PEER_CLOSED_DURING_INIT,
+} from '../util/constants/errorCodes';
 import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
@@ -401,12 +404,10 @@ export default class Peer {
       performance.mark('set-remote-description');
 
       // Race condition guard: close() may have run during the await above,
-      // setting this.instance to null. Abort setup if the peer was closed.
+      // setting this.instance to null. Throw a structured error so the caller
+      // can handle it properly.
       if (!this.instance) {
-        logger.warn(
-          'Peer closed during setRemoteDescription, aborting createPeerConnection'
-        );
-        return;
+        throw createTelnyxError(PEER_CLOSED_DURING_INIT);
       }
     }
 
@@ -481,12 +482,9 @@ export default class Peer {
 
     // Race condition guard: close() may have run during any of the awaits above
     // (getUserMedia prompt, media recovery flow, etc.), setting this.instance
-    // to null. Abort setup if the peer was closed.
+    // to null. Throw a structured error so the caller can handle it properly.
     if (!this.instance) {
-      logger.warn(
-        'Peer closed during local stream retrieval, aborting createPeerConnection'
-      );
-      return;
+      throw createTelnyxError(PEER_CLOSED_DURING_INIT);
     }
 
     if (!this.options.localStream && !isReceiveOnly) {
@@ -585,10 +583,10 @@ export default class Peer {
 
     // Race condition guard: close() may have run during createPeerConnection()
     // (e.g. setRemoteDescription, getUserMedia, media recovery flow),
-    // setting this.instance to null. Abort init if the peer was closed.
+    // setting this.instance to null. Throw a structured error so the caller
+    // can handle it properly.
     if (!this.instance) {
-      logger.warn('Peer closed during createPeerConnection, aborting init');
-      return;
+      throw createTelnyxError(PEER_CLOSED_DURING_INIT);
     }
 
     if (this.isDebugEnabled) {

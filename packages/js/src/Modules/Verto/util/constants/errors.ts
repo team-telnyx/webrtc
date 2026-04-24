@@ -98,6 +98,22 @@ export const SDK_ERRORS = {
   },
 
   // ── Call-control errors (440xx) ─────────────────────────────────────
+  44005: {
+    name: 'PEER_CLOSED_DURING_INIT',
+    message: 'Call was closed during setup',
+    description:
+      'The PeerConnection was closed (e.g. by hangup()) while peer.init() was still running. This is a race condition: an async operation such as setRemoteDescription, getUserMedia, or the media recovery flow yielded control, and close() ran during that gap. The init() cannot continue because the underlying RTCPeerConnection has been destroyed.',
+    causes: [
+      'call.hangup() or call.close() was called while the call was still setting up',
+      'A WebSocket Bye message arrived during getUserMedia prompt or SDP negotiation',
+      'User clicked hangup/decline before media permissions were granted',
+    ],
+    solutions: [
+      'This is expected if the user intentionally hung up during setup — no action needed',
+      'If this happens frequently without user action, check for automatic hangup triggers that may fire too early',
+    ],
+  },
+
   44001: {
     name: 'HOLD_FAILED',
     message: 'Failed to hold the call',
