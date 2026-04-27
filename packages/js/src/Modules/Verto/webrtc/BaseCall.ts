@@ -23,6 +23,7 @@ import {
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
+  ANSWER_WHILE_PEER_ACTIVE,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
 } from '../util/constants';
@@ -422,6 +423,19 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    if (this.peer?.instance && this.peer.instance.signalingState !== 'closed') {
+      const warning = createTelnyxWarning(ANSWER_WHILE_PEER_ACTIVE);
+      trigger(
+        SwEvent.Warning,
+        { warning, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+      logger.warn(
+        `[${this.id}] answer() ignored: peer connection already exists (signalingState: ${this.peer.instance.signalingState})`
+      );
+      return;
+    }
+
     performance.mark('answer-called');
     this._creatingPeer = true;
     this.stopRingtone();

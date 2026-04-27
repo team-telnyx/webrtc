@@ -11,8 +11,9 @@ Object.defineProperty(global, 'performance', {
   },
 });
 
-import { isQueued } from '../../services/Handler';
+import { isQueued, register, deRegister } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
+import { SwEvent } from '../../util/constants';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -334,6 +335,64 @@ describe('Call', () => {
       // _creatingPeer false means we reached the end of answer() normally,
       // not via the media-error early-return path
       expect(receiveOnlyCall['_creatingPeer']).toBe(false);
+    });
+  });
+
+  describe('double answer prevention', () => {
+    it('should ignore second answer() when peer connection already exists', async () => {
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      // Mock a peer with an active (non-closed) RTCPeerConnection
+      answerCall.peer = {
+        instance: {
+          signalingState: 'stable',
+        },
+      } as unknown as Peer;
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, answerCall.id);
+
+      await answerCall.answer();
+
+      expect(warningHandler).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: 33006,
+            name: 'ANSWER_WHILE_PEER_ACTIVE',
+          }),
+          callId: answerCall.id,
+        })
+      );
+
+      deRegister(SwEvent.Warning, undefined, answerCall.id);
+    });
+
+    it('should allow answer() when peer connection is closed', async () => {
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      // Mock a peer with a closed RTCPeerConnection
+      answerCall.peer = {
+        instance: {
+          signalingState: 'closed',
+        },
+      } as unknown as Peer;
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, answerCall.id);
+
+      await answerCall.answer();
+
+      // Warning should NOT fire — a closed peer is allowed to be replaced
+      expect(warningHandler).not.toHaveBeenCalled();
+
+      deRegister(SwEvent.Warning, undefined, answerCall.id);
     });
   });
 });

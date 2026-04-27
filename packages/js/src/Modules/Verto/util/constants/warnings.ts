@@ -219,6 +219,21 @@ export const SDK_WARNINGS = {
       'Try using TCP-based TURN as a fallback',
     ],
   },
+  33006: {
+    name: 'ANSWER_WHILE_PEER_ACTIVE',
+    message: 'Call answer ignored because a peer connection is already active',
+    description:
+      'answer() was called on a call that already has an active or connecting peer connection. Creating a second peer connection for the same call would duplicate media negotiation, confuse the remote party, and break call reporting. This is typically caused by application code invoking answer() multiple times (e.g. from multiple event handlers).',
+    causes: [
+      'Application called answer() twice on the same call object',
+      'Multiple click handlers or event listeners triggering answer()',
+    ],
+    solutions: [
+      'Ensure answer() is called only once per call',
+      'Disable the answer button after the first click',
+      'Check that answer() is not invoked from multiple event handlers',
+    ],
+  },
 
   // ── Authentication warnings (340xx) ─────────────────────────────────
   34001: {
