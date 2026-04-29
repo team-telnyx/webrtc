@@ -25,6 +25,7 @@ IClientOptions
 - [ringtoneFile](#ringtonefile)
 - [rtcIp](#rtcip)
 - [rtcPort](#rtcport)
+- [skipLastVoiceSdkId](#skiplastvoicesdkid)
 - [trickleIce](#trickleice)
 - [useCanaryRtcServer](#usecanaryrtcserver)
 
@@ -263,6 +264,24 @@ Useful when using a custom signaling server.
 
 RTC connection port to use instead of the default one.
 Useful when using a custom signaling server.
+
+---
+
+### skipLastVoiceSdkId
+
+• `Optional` **skipLastVoiceSdkId**: `boolean`
+
+When reconnecting with a stored `voice_sdk_id`, append
+`?skip_last_voice_sdk_id=true` to the WebSocket URL so VSP routes
+the connection to a different b2bua-rtc instance instead of sticky-
+reconnecting to the same one. Useful when retrying after errors
+caused by stale state on a specific b2bua-rtc node.
+
+**`Default`**
+
+```ts
+false;
+```
 
 ---
 
