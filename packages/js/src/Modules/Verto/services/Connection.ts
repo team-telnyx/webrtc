@@ -132,9 +132,13 @@ export default class Connection {
       this._hasCanaryBeenUsed = true;
     }
 
-    // When reconnecting with a voice_sdk_id, ask VSP to route to a
-    // different b2bua-rtc instance instead of sticky-reconnecting.
-    if (websocketUrl.searchParams.has('voice_sdk_id')) {
+    // When explicitly requested and reconnecting with a voice_sdk_id,
+    // ask VSP to route to a different b2bua-rtc instance instead of
+    // sticky-reconnecting to the same one.
+    if (
+      this.session.options.skipLastVoiceSdkId &&
+      websocketUrl.searchParams.has('voice_sdk_id')
+    ) {
       websocketUrl.searchParams.set('skip_last_voice_sdk_id', 'true');
     }
 
