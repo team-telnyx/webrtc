@@ -75,6 +75,16 @@ export interface IVertoOptions {
    */
   debugLogMaxEntries?: number;
   /**
+   * When reconnecting with a stored `voice_sdk_id`, append
+   * `?skip_last_voice_sdk_id=true` to the WebSocket URL so VSP routes
+   * the connection to a different b2bua-rtc instance instead of sticky-
+   * reconnecting to the same one.
+   *
+   * @default false
+   */
+  skipLastVoiceSdkId?: boolean;
+
+  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and

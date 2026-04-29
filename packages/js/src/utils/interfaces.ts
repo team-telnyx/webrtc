@@ -146,6 +146,17 @@ export interface IClientOptions {
   useCanaryRtcServer?: boolean;
 
   /**
+   * When reconnecting with a stored `voice_sdk_id`, append
+   * `?skip_last_voice_sdk_id=true` to the WebSocket URL so VSP routes
+   * the connection to a different b2bua-rtc instance instead of sticky-
+   * reconnecting to the same one. Useful when retrying after errors
+   * caused by stale state on a specific b2bua-rtc node.
+   *
+   * @default false
+   */
+  skipLastVoiceSdkId?: boolean;
+
+  /**
    *  Environment to use for the connection.
    *  So far this property is only for internal purposes.
    */
