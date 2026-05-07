@@ -132,14 +132,17 @@ export default class Connection {
       this._hasCanaryBeenUsed = true;
     }
 
-    // When explicitly requested and reconnecting with a voice_sdk_id,
-    // ask VSP to route to a different b2bua-rtc instance instead of
-    // sticky-reconnecting to the same one.
+    // Only failed login/auth retry reconnects should ask VSP for a fresh target.
+    // Normal network reconnects preserve voice_sdk_id stickiness for call recovery.
     if (
-      this.session.options.skipLastVoiceSdkId &&
-      websocketUrl.searchParams.has('voice_sdk_id')
+      reconnectToken &&
+      this.session.consumeSkipLastVoiceSdkIdOnNextConnect()
     ) {
       websocketUrl.searchParams.set('skip_last_voice_sdk_id', 'true');
+      websocketUrl.searchParams.set(
+        'skip_last_voice_sdk_id_reason',
+        'login_retry'
+      );
     }
 
     try {

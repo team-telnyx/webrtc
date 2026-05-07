@@ -38,6 +38,13 @@ export interface IVertoOptions {
   useCanaryRtcServer?: boolean;
   region?: string;
   /**
+   * When true, a failed login/authentication response marks the next socket
+   * reconnect to ask voice-sdk-proxy for a fresh b2bua-rtc target instead of
+   * reusing the last voice_sdk_id target. Normal network reconnects are not
+   * affected, preserving active call recovery behavior.
+   */
+  skipLastVoiceSdkId?: boolean;
+  /**
    * anonymous_login login options
    */
   anonymous_login?: {
@@ -74,16 +81,6 @@ export interface IVertoOptions {
    * @default 1000
    */
   debugLogMaxEntries?: number;
-  /**
-   * When reconnecting with a stored `voice_sdk_id`, append
-   * `?skip_last_voice_sdk_id=true` to the WebSocket URL so VSP routes
-   * the connection to a different b2bua-rtc instance instead of sticky-
-   * reconnecting to the same one.
-   *
-   * @default false
-   */
-  skipLastVoiceSdkId?: boolean;
-
   /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,

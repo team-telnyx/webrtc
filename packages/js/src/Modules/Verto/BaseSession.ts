@@ -71,6 +71,7 @@ export default abstract class BaseSession {
   protected _idle: boolean = false;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _skipLastVoiceSdkIdOnNextConnect: boolean = false;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
@@ -341,6 +342,10 @@ export default abstract class BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
+    if (this.options.skipLastVoiceSdkId && getReconnectToken()) {
+      this._skipLastVoiceSdkIdOnNextConnect = true;
+    }
+
     const telnyxError = createTelnyxError(LOGIN_FAILED, error);
     trigger(
       SwEvent.Error,
@@ -350,12 +355,23 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Consume the one-shot fresh-target retry marker. Normal network reconnects
+   * should preserve b2bua-rtc stickiness so active call recovery is unaffected.
+   */
+  public consumeSkipLastVoiceSdkIdOnNextConnect(): boolean {
+    const shouldSkip = this._skipLastVoiceSdkIdOnNextConnect;
+    this._skipLastVoiceSdkIdOnNextConnect = false;
+    return shouldSkip;
+  }
+
+  /**
    * Clears the reconnect token from sessionStorage.
    * This forces the next connection to pick a new b2bua-rtc instance
    * via weighted round-robin instead of sticking to the same one.
    */
   public clearReconnectToken(): void {
     clearReconnectToken();
+    this._skipLastVoiceSdkIdOnNextConnect = false;
   }
 
   /**

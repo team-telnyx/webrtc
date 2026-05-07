@@ -11,6 +11,7 @@ jest.unmock('../../services/Connection');
 import Connection, { setWebSocket } from '../../services/Connection';
 import { trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
+import { getReconnectToken } from '../../util/reconnect';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
@@ -88,13 +89,50 @@ describe('Connection - Safety Timeout', () => {
         login: 'test-login',
         password: 'test-password',
       },
+      consumeSkipLastVoiceSdkIdOnNextConnect: jest.fn(() => false),
     };
+    (getReconnectToken as jest.Mock).mockReturnValue(null);
 
     connection = new Connection(mockSession);
   });
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  describe('connect() method', () => {
+    it('should not append skip_last_voice_sdk_id on normal reconnects', async () => {
+      (getReconnectToken as jest.Mock).mockReturnValue('VSDK1abc');
+
+      connection.connect();
+      await Promise.resolve();
+
+      const ws = (connection as any)._wsClient;
+      const url = new URL(ws.url);
+
+      expect(url.searchParams.get('voice_sdk_id')).toBe('VSDK1abc');
+      expect(url.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
+      expect(
+        mockSession.consumeSkipLastVoiceSdkIdOnNextConnect
+      ).toHaveBeenCalled();
+    });
+
+    it('should append skip_last_voice_sdk_id only for one-shot login retry reconnects', async () => {
+      (getReconnectToken as jest.Mock).mockReturnValue('VSDK1abc');
+      mockSession.consumeSkipLastVoiceSdkIdOnNextConnect.mockReturnValue(true);
+
+      connection.connect();
+      await Promise.resolve();
+
+      const ws = (connection as any)._wsClient;
+      const url = new URL(ws.url);
+
+      expect(url.searchParams.get('voice_sdk_id')).toBe('VSDK1abc');
+      expect(url.searchParams.get('skip_last_voice_sdk_id')).toBe('true');
+      expect(url.searchParams.get('skip_last_voice_sdk_id_reason')).toBe(
+        'login_retry'
+      );
+    });
   });
 
   describe('close() method', () => {
