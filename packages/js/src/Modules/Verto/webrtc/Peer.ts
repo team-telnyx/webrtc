@@ -298,7 +298,8 @@ export default class Peer {
       if (
         !this._restartedIceOnConnectionStateFailed &&
         (connectionState === 'failed' || connectionState === 'disconnected') &&
-        !this._wasOffline
+        !this._wasOffline &&
+        this._session.connected
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
@@ -984,6 +985,7 @@ export default class Peer {
   }
 
   public async close() {
+    this.finishIceRestart();
     this._clearIceGatheringSafetyTimeout();
     if (this._offlineHandler && typeof window !== 'undefined') {
       window.removeEventListener('offline', this._offlineHandler);

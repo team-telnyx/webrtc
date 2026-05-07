@@ -1140,7 +1140,18 @@ export default abstract class BaseCall implements IWebRTCCall {
           hasSdp: !!params?.sdp,
         });
         if (params.sdp) {
-          this._onRemoteSdp(params.sdp);
+          // If we are in stable state, this is a server-initiated offer:
+          // set it as a remote offer and generate an answer.
+          // If we are in have-local-offer (waiting for ICE restart answer),
+          // treat it as an answer. Note: client-initiated ICE restart answers
+          // normally arrive via the _sendIceRestartModify() promise, so this
+          // path handles edge cases (e.g. response arriving as a push).
+          const signalingState = this.peer?.instance?.signalingState;
+          if (signalingState === 'stable') {
+            this._handleServerModifyOffer(params.sdp);
+          } else {
+            this._onRemoteSdp(params.sdp);
+          }
         }
         break;
       }
@@ -1425,6 +1436,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _sendIceRestartModify(sdp: string) {
     const modifyMsg = new Modify({
+      sessid: this.session.sessionid,
       action: 'updateMedia',
       callID: this.options.id,
       sdp,
@@ -1441,7 +1453,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         logger.error('ICE restart Modify failed:', error);
-        this.peer.isIceRestarting = false;
+        this.peer?.finishIceRestart();
         const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
         trigger(
           SwEvent.Error,
@@ -1453,6 +1465,35 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
       });
+  }
+
+  /**
+   * Handle a server-initiated Modify that carries an offer SDP.
+   * Sets the remote description as an offer and replies with an answer.
+   */
+  private async _handleServerModifyOffer(remoteSdp: string) {
+    const offerSdp = new RTCSessionDescription({
+      sdp: remoteSdp,
+      type: PeerType.Offer,
+    });
+
+    try {
+      await this.peer.instance.setRemoteDescription(offerSdp);
+      const answer = await this.peer.instance.createAnswer();
+      await this.peer.instance.setLocalDescription(answer);
+
+      const modifyMsg = new Modify({
+        sessid: this.session.sessionid,
+        action: 'updateMedia',
+        callID: this.options.id,
+        sdp: answer.sdp,
+        dialogParams: this.options,
+      });
+      logger.info('Server-initiated Modify: sending answer SDP');
+      await this._execute(modifyMsg);
+    } catch (error) {
+      logger.error('Failed to handle server-initiated Modify offer:', error);
+    }
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
