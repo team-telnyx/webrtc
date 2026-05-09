@@ -27,12 +27,13 @@ export class DebugReportStopMessage extends BaseMessage {
 }
 
 export class DebugReportDataMessage extends BaseMessage {
-  constructor(id: string, data: any) {
+  constructor(id: string, callID: string, data: unknown) {
     super();
     this.buildRequest({
       type: 'debug_report_data',
       debug_report_id: id,
       debug_report_version: DEBUG_REPORT_VERSION,
+      call_id: callID,
       debug_report_data: data,
     });
   }
