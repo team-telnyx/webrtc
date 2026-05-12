@@ -24,6 +24,7 @@ import {
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
+  DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
 } from '../util/constants';
@@ -216,6 +217,13 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _signalingStateClosed: boolean = false;
 
   private _creatingPeer: boolean = false;
+
+  private _inboundAnswerLockKey: string | null = null;
+
+  private static _inboundAnswerLocks: Map<
+    string,
+    { callId: string; sessionId: string }
+  > = new Map();
 
   private _firstCandidateSent: boolean = false;
 
@@ -423,7 +431,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
-    if (this.peer?.instance && this.peer.instance.signalingState !== 'closed') {
+    if (
+      this._creatingPeer ||
+      (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
+    ) {
       const warning = createTelnyxWarning(ANSWER_WHILE_PEER_ACTIVE);
       trigger(
         SwEvent.Warning,
@@ -431,8 +442,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.uuid
       );
       logger.warn(
-        `[${this.id}] answer() ignored: peer connection already exists (signalingState: ${this.peer.instance.signalingState})`
+        `[${this.id}] answer() ignored: peer connection already exists or is being created (signalingState: ${this.peer?.instance?.signalingState ?? 'creating'})`
       );
+      return;
+    }
+
+    if (!this._acquireInboundAnswerLock()) {
       return;
     }
 
@@ -1985,6 +2000,94 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.execute(msg);
   }
 
+  private _getInboundAnswerLockKey(): string | null {
+    if (this.options.attach || this._isRecovering) {
+      return null;
+    }
+
+    const {
+      env = 'production',
+      host,
+      region = '',
+      login,
+      login_token,
+      anonymous_login,
+    } = this.session.options;
+    const endpoint = host || `${env}|${region}`;
+
+    if (login) {
+      return `${endpoint}|login|${login}`;
+    }
+
+    if (login_token) {
+      return `${endpoint}|login_token|${login_token}`;
+    }
+
+    if (anonymous_login?.target_type && anonymous_login?.target_id) {
+      return [
+        endpoint,
+        'anonymous_login',
+        anonymous_login.target_type,
+        anonymous_login.target_id,
+        anonymous_login.target_version_id ?? '',
+      ].join('|');
+    }
+
+    return null;
+  }
+
+  private _acquireInboundAnswerLock(): boolean {
+    const key = this._getInboundAnswerLockKey();
+
+    if (!key) {
+      return true;
+    }
+
+    const existingLock = BaseCall._inboundAnswerLocks.get(key);
+
+    if (existingLock && existingLock.callId !== this.id) {
+      const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.id,
+          activeCallId: existingLock.callId,
+          sessionId: this.session.sessionid,
+          activeSessionId: existingLock.sessionId,
+        },
+        this.session.uuid
+      );
+      logger.warn(
+        `[${this.id}] answer() ignored: inbound call ${existingLock.callId} is already answering or active for this credential`
+      );
+      return false;
+    }
+
+    BaseCall._inboundAnswerLocks.set(key, {
+      callId: this.id,
+      sessionId: this.session.sessionid,
+    });
+    this._inboundAnswerLockKey = key;
+    return true;
+  }
+
+  private _releaseInboundAnswerLock() {
+    if (!this._inboundAnswerLockKey) {
+      return;
+    }
+
+    const existingLock = BaseCall._inboundAnswerLocks.get(
+      this._inboundAnswerLockKey
+    );
+
+    if (existingLock?.callId === this.id) {
+      BaseCall._inboundAnswerLocks.delete(this._inboundAnswerLockKey);
+    }
+
+    this._inboundAnswerLockKey = null;
+  }
+
   private _init() {
     const {
       id,
@@ -2089,6 +2192,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
+    this._releaseInboundAnswerLock();
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
