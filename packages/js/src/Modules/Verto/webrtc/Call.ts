@@ -72,7 +72,9 @@ export class Call extends BaseCall {
     displayStream.getTracks().forEach((t) => {
       t.addEventListener('ended', async () => {
         if (this.screenShare) {
-          await this.screenShare.hangup();
+          await this.screenShare.hangup({
+            initiator: 'sdk:screenshare-track-ended',
+          });
         }
       });
     });
@@ -99,7 +101,7 @@ export class Call extends BaseCall {
    */
   async stopScreenShare() {
     if (this.screenShare instanceof Call) {
-      await this.screenShare.hangup();
+      await this.screenShare.hangup({ initiator: 'app:stopScreenShare' });
     }
   }
 

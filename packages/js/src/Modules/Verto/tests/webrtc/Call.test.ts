@@ -182,6 +182,7 @@ describe('Call', () => {
           prevState: 'new',
           cause: 'NORMAL_CLEARING',
           causeCode: 16,
+          initiator: 'app:call.hangup',
           isRecovering: false,
           hasDialogCustomHeaders: false,
           callerStack: expect.any(Array),
@@ -194,6 +195,23 @@ describe('Call', () => {
       const hangupLogContext = hangupLog?.[1] as { callerStack: string[] };
       expect(hangupLogContext.callerStack.length).toBeGreaterThan(0);
       expect(hangupLogContext.callerStack.join('\n')).toContain('hangup');
+
+      debugSpy.mockRestore();
+    });
+
+    it('should log explicit hangup initiator metadata', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      await call.hangup({ initiator: 'sdk:sdp-send-failure' }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          initiator: 'sdk:sdp-send-failure',
+        })
+      );
 
       debugSpy.mockRestore();
     });
@@ -307,7 +325,10 @@ describe('Call', () => {
 
       await call.invite();
 
-      expect(hangupSpy).toHaveBeenCalledWith({}, false);
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        false
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
@@ -334,7 +355,10 @@ describe('Call', () => {
 
       await answerCall.answer();
 
-      expect(hangupSpy).toHaveBeenCalledWith();
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        true
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
