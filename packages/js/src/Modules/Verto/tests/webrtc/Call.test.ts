@@ -14,6 +14,7 @@ Object.defineProperty(global, 'performance', {
 import { isQueued, register, deRegister } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
 import { SwEvent } from '../../util/constants';
+import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -160,6 +161,41 @@ describe('Call', () => {
       expect(call.prevState).toEqual('ringing');
       call.setState(State.Hangup);
       expect(call.prevState).toEqual('active');
+    });
+  });
+
+  describe('hangup caller instrumentation', () => {
+    it('should log caller stack and state metadata when hangup is invoked', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      call.setState(State.Active);
+      await call.hangup({ cause: 'NORMAL_CLEARING', causeCode: 16 }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          callId: call.id,
+          execute: false,
+          state: 'active',
+          prevState: 'new',
+          cause: 'NORMAL_CLEARING',
+          causeCode: 16,
+          isRecovering: false,
+          hasDialogCustomHeaders: false,
+          callerStack: expect.any(Array),
+        })
+      );
+
+      const hangupLog = debugSpy.mock.calls.find(
+        ([message]) => message === `[${call.id}] hangup() invoked`
+      );
+      const hangupLogContext = hangupLog?.[1] as { callerStack: string[] };
+      expect(hangupLogContext.callerStack.length).toBeGreaterThan(0);
+      expect(hangupLogContext.callerStack.join('\n')).toContain('hangup');
+
+      debugSpy.mockRestore();
     });
   });
 

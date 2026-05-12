@@ -223,6 +223,20 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  private _captureHangupCallerStack(): string[] {
+    const stack = new Error('Call.hangup caller').stack;
+
+    if (!stack) {
+      return [];
+    }
+
+    return stack
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(1, 11);
+  }
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions
@@ -531,6 +545,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   ): Promise<void> {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
+    const stateBeforeHangup = this.state;
+    const prevStateBeforeHangup = this.prevState;
+    const callerStack = this._captureHangupCallerStack();
 
     // State-dependent default cause code:
     // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
@@ -549,6 +566,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       ...(this.options.customHeaders ?? []),
       ...(params?.dialogParams?.customHeaders ?? []),
     ];
+
+    logger.debug(`[${this.id}] hangup() invoked`, {
+      callId: this.id,
+      execute,
+      state: stateBeforeHangup,
+      prevState: prevStateBeforeHangup,
+      cause: this.cause,
+      causeCode: this.causeCode,
+      sipCode: this.sipCode,
+      sipReason: this.sipReason,
+      sipCallId: this.sipCallId,
+      isRecovering: Boolean(params.isRecovering),
+      hasDialogCustomHeaders: Boolean(
+        params.dialogParams?.customHeaders?.length
+      ),
+      callerStack,
+    });
 
     // If recovering from attach, set Recovering state and skip Bye
     if (params.isRecovering) {
