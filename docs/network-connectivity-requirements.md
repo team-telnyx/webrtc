@@ -93,8 +93,6 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 | TURN over UDP | `turn:turn.telnyx.com:3478?transport=udp` |
 | TURN over TCP | `turn:turn.telnyx.com:3478?transport=tcp` |
 
-For development environments, the SDK uses `stun:stundev.telnyx.com:3478`, `turn:turndev.telnyx.com:3478?transport=udp`, and `turn:turndev.telnyx.com:3478?transport=tcp`.
-
 ### TURN server IP addresses
 
 | Region | Site | Primary | Secondary |
