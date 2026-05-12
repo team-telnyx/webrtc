@@ -66,11 +66,52 @@ interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
  * Available in Chrome 96+ via outbound-rtp.mediaSourceId
  */
 interface ExtendedMediaSourceStats {
+  id?: string;
   type: string;
   kind?: string;
+  trackIdentifier?: string;
   audioLevel?: number;
   totalAudioEnergy?: number;
   totalSamplesDuration?: number;
+  echoReturnLoss?: number;
+  echoReturnLossEnhancement?: number;
+}
+
+/**
+ * Local audio track metadata captured from the RTCRtpSender track.
+ * Useful to distinguish RTP carrying silence from muted/ended/wrong inputs.
+ */
+export interface ILocalAudioTrackSnapshot {
+  id?: string;
+  label?: string;
+  enabled?: boolean;
+  muted?: boolean;
+  readyState?: MediaStreamTrackState;
+  contentHint?: string;
+  settings?: {
+    deviceId?: string;
+    groupId?: string;
+    channelCount?: number;
+    sampleRate?: number;
+    sampleSize?: number;
+    latency?: number;
+    echoCancellation?: boolean;
+    noiseSuppression?: boolean;
+    autoGainControl?: boolean;
+  };
+}
+
+/**
+ * Local audio media-source stats backing the outbound RTP stream.
+ */
+export interface ILocalAudioSourceStats {
+  id?: string;
+  trackIdentifier?: string;
+  audioLevel?: number;
+  totalAudioEnergy?: number;
+  totalSamplesDuration?: number;
+  echoReturnLoss?: number;
+  echoReturnLossEnhancement?: number;
 }
 
 /**
@@ -156,6 +197,8 @@ export interface IStatsInterval {
       bytesSent?: number;
       audioLevelAvg?: number;
       bitrateAvg?: number;
+      localTrack?: ILocalAudioTrackSnapshot;
+      mediaSource?: ILocalAudioSourceStats;
     };
     inbound?: {
       packetsReceived?: number;
@@ -280,6 +323,9 @@ export class CallReportCollector {
   // Previous packets values for packet loss delta calculation
   private _prevPacketsReceived: number | null = null;
   private _prevPacketsLost: number | null = null;
+
+  // Last logged local audio track snapshot, used to avoid repetitive logs.
+  private _lastLocalAudioTrackSnapshotJson: string | null = null;
 
   /** Running segment counter for multi-part reports. */
   private _segmentIndex: number = 0;
@@ -752,6 +798,14 @@ export class CallReportCollector {
         );
       }
 
+      const localAudioTrack = outboundAudio
+        ? this._getLocalAudioTrackSnapshot()
+        : undefined;
+      const localAudioSource = outboundAudio
+        ? this._getOutboundAudioSourceStats(stats, outboundAudio)
+        : undefined;
+      this._logLocalAudioTrackSnapshot(localAudioTrack, localAudioSource);
+
       this.previousStats.timestamp = now.getTime();
 
       // Check if interval is complete (end of collection period).
@@ -769,7 +823,9 @@ export class CallReportCollector {
           candidatePair,
           localCandidate,
           remoteCandidate,
-          transportStats
+          transportStats,
+          localAudioTrack,
+          localAudioSource
         );
 
         // Add to buffer with size limit
@@ -962,7 +1018,9 @@ export class CallReportCollector {
     candidatePair: ExtendedCandidatePairStats | null,
     localCandidate?: ICECandidateInfo,
     remoteCandidate?: ICECandidateInfo,
-    transportStats?: ExtendedTransportStats | null
+    transportStats?: ExtendedTransportStats | null,
+    localAudioTrack?: ILocalAudioTrackSnapshot,
+    localAudioSource?: ILocalAudioSourceStats
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -978,6 +1036,8 @@ export class CallReportCollector {
         bytesSent: outboundAudio.bytesSent,
         audioLevelAvg: this._average(this.intervalAudioLevels.outbound),
         bitrateAvg: this._average(this.intervalBitrates.outbound),
+        ...(localAudioTrack ? { localTrack: localAudioTrack } : {}),
+        ...(localAudioSource ? { mediaSource: localAudioSource } : {}),
       };
     }
 
@@ -1093,6 +1153,148 @@ export class CallReportCollector {
   }
 
   /**
+   * Resolve the local audio media-source stats backing the outbound RTP stream.
+   */
+  private _getOutboundMediaSource(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): ExtendedMediaSourceStats | undefined {
+    let mediaSource: ExtendedMediaSourceStats | undefined;
+
+    if (outboundAudio.mediaSourceId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mediaSource = (stats as any).get(outboundAudio.mediaSourceId) as
+        | ExtendedMediaSourceStats
+        | undefined;
+    }
+
+    if (!mediaSource) {
+      stats.forEach((report) => {
+        if (
+          !mediaSource &&
+          report.type === 'media-source' &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (report as any).kind === 'audio'
+        ) {
+          mediaSource = report as unknown as ExtendedMediaSourceStats;
+        }
+      });
+    }
+
+    return mediaSource;
+  }
+
+  /**
+   * Capture local sender track state. This is the missing evidence for cases
+   * where RTP bytes increase but outbound audio level remains zero.
+   */
+  private _getLocalAudioTrackSnapshot(): ILocalAudioTrackSnapshot | undefined {
+    try {
+      const sender = this.peerConnection
+        ?.getSenders()
+        .find((s) => s.track?.kind === 'audio');
+      const track = sender?.track;
+      if (!track) return undefined;
+
+      const settings = track.getSettings?.();
+      const typedSettings = settings as
+        | (MediaTrackSettings & {
+            channelCount?: number;
+            sampleRate?: number;
+            sampleSize?: number;
+            latency?: number;
+            echoCancellation?: boolean;
+            noiseSuppression?: boolean;
+            autoGainControl?: boolean;
+          })
+        | undefined;
+
+      const settingsSnapshot = this._withoutUndefined({
+        deviceId: typedSettings?.deviceId,
+        groupId: typedSettings?.groupId,
+        channelCount: typedSettings?.channelCount,
+        sampleRate: typedSettings?.sampleRate,
+        sampleSize: typedSettings?.sampleSize,
+        latency: typedSettings?.latency,
+        echoCancellation: typedSettings?.echoCancellation,
+        noiseSuppression: typedSettings?.noiseSuppression,
+        autoGainControl: typedSettings?.autoGainControl,
+      });
+
+      return this._withoutUndefined({
+        id: track.id,
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+        // contentHint is supported by modern browsers but may not exist in
+        // older TypeScript DOM typings used by consumers.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        contentHint: (track as any).contentHint,
+        ...(Object.keys(settingsSnapshot).length > 0
+          ? { settings: settingsSnapshot }
+          : {}),
+      });
+    } catch (error) {
+      logger.debug(
+        'CallReportCollector: unable to snapshot local audio track',
+        {
+          error,
+        }
+      );
+      return undefined;
+    }
+  }
+
+  /**
+   * Capture media-source counters associated with the outbound audio sender.
+   */
+  private _getOutboundAudioSourceStats(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): ILocalAudioSourceStats | undefined {
+    const mediaSource = this._getOutboundMediaSource(stats, outboundAudio);
+    if (!mediaSource) return undefined;
+
+    const snapshot = this._withoutUndefined({
+      id: mediaSource.id,
+      trackIdentifier: mediaSource.trackIdentifier,
+      audioLevel: mediaSource.audioLevel,
+      totalAudioEnergy: mediaSource.totalAudioEnergy,
+      totalSamplesDuration: mediaSource.totalSamplesDuration,
+      echoReturnLoss: mediaSource.echoReturnLoss,
+      echoReturnLossEnhancement: mediaSource.echoReturnLossEnhancement,
+    });
+
+    return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+  }
+
+  private _logLocalAudioTrackSnapshot(
+    localAudioTrack?: ILocalAudioTrackSnapshot,
+    localAudioSource?: ILocalAudioSourceStats
+  ): void {
+    if (!localAudioTrack) return;
+
+    const snapshotJson = JSON.stringify(localAudioTrack);
+    if (snapshotJson === this._lastLocalAudioTrackSnapshotJson) return;
+
+    this._lastLocalAudioTrackSnapshotJson = snapshotJson;
+    logger.debug('CallReportCollector: local audio track snapshot', {
+      localTrack: localAudioTrack,
+      mediaSource: localAudioSource,
+    });
+  }
+
+  private _withoutUndefined<T extends Record<string, unknown>>(obj: T): T {
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] === undefined) {
+        delete obj[key];
+      }
+    });
+    return obj;
+  }
+
+  /**
    * Get outbound audio level from media-source stats (Chrome 96+)
    * or compute from totalAudioEnergy deltas, or fall back to deprecated track stats.
    *
@@ -1106,29 +1308,7 @@ export class CallReportCollector {
     stats: RTCStatsReport,
     outboundAudio: ExtendedOutboundRtpStreamStats
   ): number | null {
-    // 1. Try media-source stat by ID (Chrome 96+)
-    let mediaSource: ExtendedMediaSourceStats | undefined;
-
-    if (outboundAudio.mediaSourceId) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mediaSource = (stats as any).get(outboundAudio.mediaSourceId) as
-        | ExtendedMediaSourceStats
-        | undefined;
-    }
-
-    // 2. If mediaSourceId not set or not found, iterate stats for media-source
-    if (!mediaSource) {
-      stats.forEach((report) => {
-        if (
-          !mediaSource &&
-          report.type === 'media-source' &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (report as any).kind === 'audio'
-        ) {
-          mediaSource = report as unknown as ExtendedMediaSourceStats;
-        }
-      });
-    }
+    const mediaSource = this._getOutboundMediaSource(stats, outboundAudio);
 
     // Try direct audioLevel on media-source
     if (mediaSource?.audioLevel !== undefined) {
