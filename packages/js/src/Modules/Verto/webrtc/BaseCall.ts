@@ -218,12 +218,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
-  private _inboundAnswerLockKey: string | null = null;
-
-  private static _inboundAnswerLocks: Map<
-    string,
-    { callId: string; sessionId: string }
-  > = new Map();
+  private static _inboundAnswerLocks: Map<string, BaseCall> = new Map();
 
   private _firstCandidateSent: boolean = false;
 
@@ -2043,49 +2038,49 @@ export default abstract class BaseCall implements IWebRTCCall {
       return true;
     }
 
-    const existingLock = BaseCall._inboundAnswerLocks.get(key);
+    const existingCall = BaseCall._inboundAnswerLocks.get(key);
 
-    if (existingLock && existingLock.callId !== this.id) {
-      const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
-      trigger(
-        SwEvent.Warning,
-        {
-          warning,
-          callId: this.id,
-          activeCallId: existingLock.callId,
-          sessionId: this.session.sessionid,
-          activeSessionId: existingLock.sessionId,
-        },
-        this.session.uuid
-      );
-      logger.warn(
-        `[${this.id}] answer() ignored: inbound call ${existingLock.callId} is already answering or active for this credential`
-      );
-      return false;
+    if (existingCall && existingCall.id !== this.id) {
+      if (!existingCall._hasActiveInboundAnswerLock()) {
+        BaseCall._inboundAnswerLocks.delete(key);
+      } else {
+        const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            callId: this.id,
+            activeCallId: existingCall.id,
+            sessionId: this.session.sessionid,
+            activeSessionId: existingCall.session.sessionid,
+          },
+          this.session.uuid
+        );
+        logger.warn(
+          `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active for this credential`
+        );
+        return false;
+      }
     }
 
-    BaseCall._inboundAnswerLocks.set(key, {
-      callId: this.id,
-      sessionId: this.session.sessionid,
-    });
-    this._inboundAnswerLockKey = key;
+    BaseCall._inboundAnswerLocks.set(key, this);
     return true;
   }
 
+  private _hasActiveInboundAnswerLock(): boolean {
+    return ![State.Hangup, State.Destroy, State.Purge].includes(this._state);
+  }
+
   private _releaseInboundAnswerLock() {
-    if (!this._inboundAnswerLockKey) {
+    const key = this._getInboundAnswerLockKey();
+
+    if (!key) {
       return;
     }
 
-    const existingLock = BaseCall._inboundAnswerLocks.get(
-      this._inboundAnswerLockKey
-    );
-
-    if (existingLock?.callId === this.id) {
-      BaseCall._inboundAnswerLocks.delete(this._inboundAnswerLockKey);
+    if (BaseCall._inboundAnswerLocks.get(key) === this) {
+      BaseCall._inboundAnswerLocks.delete(key);
     }
-
-    this._inboundAnswerLockKey = null;
   }
 
   private _init() {
