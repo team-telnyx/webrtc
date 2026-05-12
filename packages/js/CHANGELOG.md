@@ -1,3 +1,7 @@
+## [2.27.0-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.4...webrtc/v2.27.0-beta.0) (2026-05-11)
+
+- fix: include call id on debug report data (#619)
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs
