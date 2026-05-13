@@ -102,6 +102,14 @@ export interface IClientOptions {
   region?: string;
 
   /**
+   * When true, a failed login/authentication response marks the next socket
+   * reconnect to ask voice-sdk-proxy for a fresh b2bua-rtc target instead of
+   * reusing the last voice_sdk_id target. Normal network reconnects are not
+   * affected, preserving active call recovery behavior.
+   */
+  skipLastVoiceSdkId?: boolean;
+
+  /**
    * anonymous_login login options
    */
   anonymous_login?: {
@@ -144,17 +152,6 @@ export interface IClientOptions {
    *  Use Telnyx's Canary RTC server
    */
   useCanaryRtcServer?: boolean;
-
-  /**
-   * When reconnecting with a stored `voice_sdk_id`, append
-   * `?skip_last_voice_sdk_id=true` to the WebSocket URL so VSP routes
-   * the connection to a different b2bua-rtc instance instead of sticky-
-   * reconnecting to the same one. Useful when retrying after errors
-   * caused by stale state on a specific b2bua-rtc node.
-   *
-   * @default false
-   */
-  skipLastVoiceSdkId?: boolean;
 
   /**
    *  Environment to use for the connection.
