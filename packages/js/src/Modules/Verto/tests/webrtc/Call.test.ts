@@ -405,7 +405,7 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
-    it('should ignore another inbound answer for the same credential in this runtime', async () => {
+    it('should ignore another inbound answer when same credential has an answering call with usable peer connection', async () => {
       const initSpy = jest
         .spyOn(Peer.prototype, 'init')
         .mockResolvedValue(undefined);
@@ -431,6 +431,15 @@ describe('Call', () => {
       register(SwEvent.Warning, warningHandler, duplicateSession.uuid);
 
       await firstCall.answer();
+      firstCall.setState(State.Answering);
+      firstCall.peer = {
+        close: jest.fn(),
+        instance: {
+          signalingState: 'stable',
+          connectionState: 'connecting',
+          iceConnectionState: 'checking',
+        },
+      } as unknown as Peer;
       await duplicateCall.answer();
 
       expect(initSpy).toHaveBeenCalledTimes(1);
@@ -447,6 +456,52 @@ describe('Call', () => {
       );
 
       await firstCall.hangup({}, false);
+      deRegister(SwEvent.Warning, undefined, duplicateSession.uuid);
+    });
+
+    it('should allow another inbound answer when same credential call has a failed peer connection', async () => {
+      const initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+
+      const firstCall = new Call(session, {
+        ...defaultParams,
+        id: 'failed-peer-first-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const duplicateSession = new Verto({
+        host: 'example.fs.telnyx',
+        login: 'login',
+        passwd: 'passwd',
+      });
+      const duplicateCall = new Call(duplicateSession, {
+        ...defaultParams,
+        id: 'failed-peer-second-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, duplicateSession.uuid);
+
+      await firstCall.answer();
+      firstCall.setState(State.Active);
+      firstCall.peer = {
+        close: jest.fn(),
+        instance: {
+          signalingState: 'stable',
+          connectionState: 'failed',
+          iceConnectionState: 'failed',
+        },
+      } as unknown as Peer;
+
+      await duplicateCall.answer();
+
+      expect(initSpy).toHaveBeenCalledTimes(2);
+      expect(warningHandler).not.toHaveBeenCalled();
+
+      await firstCall.hangup({}, false);
+      await duplicateCall.hangup({}, false);
       deRegister(SwEvent.Warning, undefined, duplicateSession.uuid);
     });
 

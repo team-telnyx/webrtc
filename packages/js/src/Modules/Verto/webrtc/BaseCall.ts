@@ -218,7 +218,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
-  private static _inboundAnswerLocks: Map<string, BaseCall> = new Map();
+  private static _inboundAnswerCallsByCredential: Map<string, BaseCall> =
+    new Map();
 
   private _firstCandidateSent: boolean = false;
 
@@ -442,7 +443,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    if (!this._acquireInboundAnswerLock()) {
+    if (!this._registerInboundAnswerAttempt()) {
       return;
     }
 
@@ -1995,7 +1996,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.execute(msg);
   }
 
-  private _getInboundAnswerLockKey(): string | null {
+  private _getInboundAnswerCredentialKey(): string | null {
     if (this.options.attach || this._isRecovering) {
       return null;
     }
@@ -2031,18 +2032,18 @@ export default abstract class BaseCall implements IWebRTCCall {
     return null;
   }
 
-  private _acquireInboundAnswerLock(): boolean {
-    const key = this._getInboundAnswerLockKey();
+  private _registerInboundAnswerAttempt(): boolean {
+    const key = this._getInboundAnswerCredentialKey();
 
     if (!key) {
       return true;
     }
 
-    const existingCall = BaseCall._inboundAnswerLocks.get(key);
+    const existingCall = BaseCall._inboundAnswerCallsByCredential.get(key);
 
     if (existingCall && existingCall.id !== this.id) {
-      if (!existingCall._hasActiveInboundAnswerLock()) {
-        BaseCall._inboundAnswerLocks.delete(key);
+      if (!existingCall._isBlockingInboundAnswer()) {
+        BaseCall._inboundAnswerCallsByCredential.delete(key);
       } else {
         const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
         trigger(
@@ -2063,23 +2064,72 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     }
 
-    BaseCall._inboundAnswerLocks.set(key, this);
+    BaseCall._inboundAnswerCallsByCredential.set(key, this);
     return true;
   }
 
-  private _hasActiveInboundAnswerLock(): boolean {
-    return ![State.Hangup, State.Destroy, State.Purge].includes(this._state);
+  private _isBlockingInboundAnswer(): boolean {
+    if ([State.Hangup, State.Destroy, State.Purge].includes(this._state)) {
+      return false;
+    }
+
+    const isAnsweringOrActive = [
+      State.Answering,
+      State.Early,
+      State.Active,
+      State.Held,
+    ].includes(this._state);
+
+    if (!this._creatingPeer && !isAnsweringOrActive) {
+      return false;
+    }
+
+    if (this._creatingPeer && !this.peer?.instance) {
+      return true;
+    }
+
+    return this._hasUsablePeerConnection();
   }
 
-  private _releaseInboundAnswerLock() {
-    const key = this._getInboundAnswerLockKey();
+  private _hasUsablePeerConnection(): boolean {
+    const peerConnection = this.peer?.instance;
+
+    if (!peerConnection) {
+      return false;
+    }
+
+    if (peerConnection.signalingState === 'closed') {
+      return false;
+    }
+
+    if (
+      ['failed', 'closed', 'disconnected'].includes(
+        peerConnection.connectionState
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      ['failed', 'closed', 'disconnected'].includes(
+        peerConnection.iceConnectionState
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private _releaseInboundAnswerAttempt() {
+    const key = this._getInboundAnswerCredentialKey();
 
     if (!key) {
       return;
     }
 
-    if (BaseCall._inboundAnswerLocks.get(key) === this) {
-      BaseCall._inboundAnswerLocks.delete(key);
+    if (BaseCall._inboundAnswerCallsByCredential.get(key) === this) {
+      BaseCall._inboundAnswerCallsByCredential.delete(key);
     }
   }
 
@@ -2187,7 +2237,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
-    this._releaseInboundAnswerLock();
+    this._releaseInboundAnswerAttempt();
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
