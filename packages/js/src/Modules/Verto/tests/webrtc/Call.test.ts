@@ -405,7 +405,7 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
-    it('should ignore another inbound answer when same credential has an answering call with usable peer connection', async () => {
+    it('should ignore another inbound answer when there is an answering call with usable peer connection', async () => {
       const initSpy = jest
         .spyOn(Peer.prototype, 'init')
         .mockResolvedValue(undefined);
@@ -459,7 +459,7 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, duplicateSession.uuid);
     });
 
-    it('should allow another inbound answer when same credential call has a failed peer connection', async () => {
+    it('should allow another inbound answer when previous call has a failed peer connection', async () => {
       const initSpy = jest
         .spyOn(Peer.prototype, 'init')
         .mockResolvedValue(undefined);

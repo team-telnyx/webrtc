@@ -218,8 +218,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
-  private static _inboundAnswerCallsByCredential: Map<string, BaseCall> =
-    new Map();
+  private static _inboundAnswerCalls: Set<BaseCall> = new Set();
 
   private _firstCandidateSent: boolean = false;
 
@@ -1996,75 +1995,40 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.execute(msg);
   }
 
-  private _getInboundAnswerCredentialKey(): string | null {
-    if (this.options.attach || this._isRecovering) {
-      return null;
-    }
-
-    const {
-      env = 'production',
-      host,
-      region = '',
-      login,
-      login_token,
-      anonymous_login,
-    } = this.session.options;
-    const endpoint = host || `${env}|${region}`;
-
-    if (login) {
-      return `${endpoint}|login|${login}`;
-    }
-
-    if (login_token) {
-      return `${endpoint}|login_token|${login_token}`;
-    }
-
-    if (anonymous_login?.target_type && anonymous_login?.target_id) {
-      return [
-        endpoint,
-        'anonymous_login',
-        anonymous_login.target_type,
-        anonymous_login.target_id,
-        anonymous_login.target_version_id ?? '',
-      ].join('|');
-    }
-
-    return null;
-  }
-
   private _registerInboundAnswerAttempt(): boolean {
-    const key = this._getInboundAnswerCredentialKey();
-
-    if (!key) {
+    if (this.options.attach || this._isRecovering) {
       return true;
     }
 
-    const existingCall = BaseCall._inboundAnswerCallsByCredential.get(key);
-
-    if (existingCall && existingCall.id !== this.id) {
-      if (!existingCall._isBlockingInboundAnswer()) {
-        BaseCall._inboundAnswerCallsByCredential.delete(key);
-      } else {
-        const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
-        trigger(
-          SwEvent.Warning,
-          {
-            warning,
-            callId: this.id,
-            activeCallId: existingCall.id,
-            sessionId: this.session.sessionid,
-            activeSessionId: existingCall.session.sessionid,
-          },
-          this.session.uuid
-        );
-        logger.warn(
-          `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active for this credential`
-        );
-        return false;
+    for (const existingCall of BaseCall._inboundAnswerCalls) {
+      if (existingCall.id === this.id) {
+        continue;
       }
+
+      if (!existingCall._isBlockingInboundAnswer()) {
+        BaseCall._inboundAnswerCalls.delete(existingCall);
+        continue;
+      }
+
+      const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.id,
+          activeCallId: existingCall.id,
+          sessionId: this.session.sessionid,
+          activeSessionId: existingCall.session.sessionid,
+        },
+        this.session.uuid
+      );
+      logger.warn(
+        `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active`
+      );
+      return false;
     }
 
-    BaseCall._inboundAnswerCallsByCredential.set(key, this);
+    BaseCall._inboundAnswerCalls.add(this);
     return true;
   }
 
@@ -2122,15 +2086,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _releaseInboundAnswerAttempt() {
-    const key = this._getInboundAnswerCredentialKey();
-
-    if (!key) {
-      return;
-    }
-
-    if (BaseCall._inboundAnswerCallsByCredential.get(key) === this) {
-      BaseCall._inboundAnswerCallsByCredential.delete(key);
-    }
+    BaseCall._inboundAnswerCalls.delete(this);
   }
 
   private _init() {
