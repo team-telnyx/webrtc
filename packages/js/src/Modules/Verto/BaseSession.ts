@@ -15,6 +15,7 @@ import {
   LOGIN_FAILED,
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
+  RECONNECTION_EXHAUSTED,
 } from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
 import type { ITelnyxErrorEvent } from './util/errors';
@@ -69,6 +70,7 @@ export default abstract class BaseSession {
   protected _reconnectTimeout: any;
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
+  protected _reconnectAttempts: number = 0;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -203,6 +205,7 @@ export default abstract class BaseSession {
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
+    this._reconnectAttempts = 0;
     this.relayProtocol = null;
     this._closeConnection();
     await sessionStorage.removeItem(this.signature);
@@ -327,12 +330,28 @@ export default abstract class BaseSession {
     }
 
     this._attachListeners();
+
+    // If auto-reconnect was disabled (e.g. after exhaustion or disconnect),
+    // reset the counter so a fresh retry sequence starts.
+    if (!this._autoReconnect) {
+      this._reconnectAttempts = 0;
+    }
+
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
       logger.debug('Initiating connection to the server...');
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
+  }
+
+  /**
+   * Reset the automatic reconnection attempt counter.
+   * Call this when the connection is fully established (e.g. on REGED)
+   * or when the user manually initiates a reconnect after exhaustion.
+   */
+  public resetReconnectAttempts(): void {
+    this._reconnectAttempts = 0;
   }
 
   /**
@@ -611,6 +630,30 @@ export default abstract class BaseSession {
     }
 
     if (this._autoReconnect) {
+      const maxAttempts = this.options.maxReconnectAttempts || 0;
+
+      this._reconnectAttempts += 1;
+
+      if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
+        logger.info(
+          `Reconnection exhausted after ${maxAttempts} attempts. Stopping automatic reconnect.`
+        );
+        this._reconnectAttempts = 0;
+        this._autoReconnect = false;
+
+        const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
+        trigger(
+          SwEvent.Error,
+          { error: telnyxError, sessionId: this.sessionid },
+          this.uuid
+        );
+        return;
+      }
+
+      logger.debug(
+        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+      );
+
       this._reconnectTimeout = setTimeout(() => {
         logger.debug(
           'Calling connect due to network close and auto-reconnect enabled.'
