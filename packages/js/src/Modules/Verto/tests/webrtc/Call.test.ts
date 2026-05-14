@@ -405,7 +405,7 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
-    it('should ignore another inbound answer when there is an answering call with usable peer connection', async () => {
+    it('should ignore another inbound answer in the same session when there is an answering call with usable peer connection', async () => {
       const initSpy = jest
         .spyOn(Peer.prototype, 'init')
         .mockResolvedValue(undefined);
@@ -416,19 +416,14 @@ describe('Call', () => {
         remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
       });
 
-      const duplicateSession = new Verto({
-        host: 'example.fs.telnyx',
-        login: 'login',
-        passwd: 'passwd',
-      });
-      const duplicateCall = new Call(duplicateSession, {
+      const duplicateCall = new Call(session, {
         ...defaultParams,
         id: 'duplicate-inbound-call',
         remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
       });
 
       const warningHandler = jest.fn();
-      register(SwEvent.Warning, warningHandler, duplicateSession.uuid);
+      register(SwEvent.Warning, warningHandler, session.uuid);
 
       await firstCall.answer();
       firstCall.setState(State.Answering);
@@ -456,7 +451,7 @@ describe('Call', () => {
       );
 
       await firstCall.hangup({}, false);
-      deRegister(SwEvent.Warning, undefined, duplicateSession.uuid);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
     it('should allow another inbound answer when previous call has a failed peer connection', async () => {
@@ -470,19 +465,14 @@ describe('Call', () => {
         remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
       });
 
-      const duplicateSession = new Verto({
-        host: 'example.fs.telnyx',
-        login: 'login',
-        passwd: 'passwd',
-      });
-      const duplicateCall = new Call(duplicateSession, {
+      const duplicateCall = new Call(session, {
         ...defaultParams,
         id: 'failed-peer-second-inbound-call',
         remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
       });
 
       const warningHandler = jest.fn();
-      register(SwEvent.Warning, warningHandler, duplicateSession.uuid);
+      register(SwEvent.Warning, warningHandler, session.uuid);
 
       await firstCall.answer();
       firstCall.setState(State.Active);
@@ -502,7 +492,7 @@ describe('Call', () => {
 
       await firstCall.hangup({}, false);
       await duplicateCall.hangup({}, false);
-      deRegister(SwEvent.Warning, undefined, duplicateSession.uuid);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
     it('should release duplicate answer guard after the active call is destroyed', async () => {

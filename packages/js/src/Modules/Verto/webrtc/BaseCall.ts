@@ -218,8 +218,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
-  private static _inboundAnswerCalls: Set<BaseCall> = new Set();
-
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
@@ -2000,13 +1998,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       return true;
     }
 
-    for (const existingCall of BaseCall._inboundAnswerCalls) {
+    for (const existingCall of this._getSessionInboundAnswerCalls()) {
       if (existingCall.id === this.id) {
         continue;
       }
 
       if (!existingCall._isBlockingInboundAnswer()) {
-        BaseCall._inboundAnswerCalls.delete(existingCall);
         continue;
       }
 
@@ -2028,8 +2025,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       return false;
     }
 
-    BaseCall._inboundAnswerCalls.add(this);
     return true;
+  }
+
+  private _getSessionInboundAnswerCalls(): BaseCall[] {
+    return (Object.values(this.session.calls) as Array<BaseCall | null>)
+      .filter((call): call is BaseCall => Boolean(call))
+      .filter(
+        (call) =>
+          !call.options.attach &&
+          !call._isRecovering &&
+          call.direction === Direction.Inbound
+      );
   }
 
   private _isBlockingInboundAnswer(): boolean {
@@ -2083,10 +2090,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     return true;
-  }
-
-  private _releaseInboundAnswerAttempt() {
-    BaseCall._inboundAnswerCalls.delete(this);
   }
 
   private _init() {
@@ -2193,7 +2196,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
-    this._releaseInboundAnswerAttempt();
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
