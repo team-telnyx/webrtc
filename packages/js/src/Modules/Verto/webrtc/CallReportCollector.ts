@@ -649,6 +649,8 @@ export class CallReportCollector {
    * be using it. The next call's constructor overwrites the global anyway.
    */
   public cleanup(): void {
+    this._lastLocalAudioTrackSnapshotJson = null;
+
     if (this.logCollector) {
       this.logCollector.clear();
       this.logCollector = null;
@@ -1221,7 +1223,7 @@ export class CallReportCollector {
         autoGainControl: typedSettings?.autoGainControl,
       });
 
-      return this._withoutUndefined({
+      const snapshot = this._withoutUndefined({
         id: track.id,
         label: track.label,
         enabled: track.enabled,
@@ -1235,6 +1237,8 @@ export class CallReportCollector {
           ? { settings: settingsSnapshot }
           : {}),
       });
+
+      return Object.keys(snapshot).length > 0 ? snapshot : undefined;
     } catch (error) {
       logger.debug(
         'CallReportCollector: unable to snapshot local audio track',
@@ -1273,9 +1277,9 @@ export class CallReportCollector {
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
   ): void {
-    if (!localAudioTrack) return;
+    if (!localAudioTrack || Object.keys(localAudioTrack).length === 0) return;
 
-    const snapshotJson = JSON.stringify(localAudioTrack);
+    const snapshotJson = this._stableStringify(localAudioTrack);
     if (snapshotJson === this._lastLocalAudioTrackSnapshotJson) return;
 
     this._lastLocalAudioTrackSnapshotJson = snapshotJson;
@@ -1286,12 +1290,36 @@ export class CallReportCollector {
   }
 
   private _withoutUndefined<T extends Record<string, unknown>>(obj: T): T {
-    Object.keys(obj).forEach((key) => {
-      if (obj[key] === undefined) {
-        delete obj[key];
+    return Object.keys(obj).reduce<Record<string, unknown>>((clean, key) => {
+      const value = obj[key];
+      if (value !== undefined) {
+        clean[key] = value;
       }
-    });
-    return obj;
+      return clean;
+    }, {}) as T;
+  }
+
+  private _stableStringify(value: unknown): string {
+    return JSON.stringify(this._sortObjectKeys(value));
+  }
+
+  private _sortObjectKeys(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this._sortObjectKeys(item));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.keys(value as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((sorted, key) => {
+          sorted[key] = this._sortObjectKeys(
+            (value as Record<string, unknown>)[key]
+          );
+          return sorted;
+        }, {});
+    }
+
+    return value;
   }
 
   /**
