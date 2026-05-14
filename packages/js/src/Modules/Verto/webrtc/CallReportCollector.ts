@@ -800,12 +800,15 @@ export class CallReportCollector {
         );
       }
 
-      const localAudioTrack = outboundAudio
-        ? this._getLocalAudioTrackSnapshot()
-        : undefined;
-      const localAudioSource = outboundAudio
-        ? this._getOutboundAudioSourceStats(stats, outboundAudio)
-        : undefined;
+      let localAudioTrack: ILocalAudioTrackSnapshot | undefined;
+      let localAudioSource: ILocalAudioSourceStats | undefined;
+      if (outboundAudio) {
+        localAudioTrack = this._getLocalAudioTrackSnapshot();
+        localAudioSource = this._getOutboundAudioSourceStats(
+          stats,
+          outboundAudio
+        );
+      }
       this._logLocalAudioTrackSnapshot(localAudioTrack, localAudioSource);
 
       this.previousStats.timestamp = now.getTime();
