@@ -57,6 +57,7 @@ import {
   Role,
   State,
   VertoMethod,
+  VertoModifyAction,
 } from './constants';
 import {
   checkSubscribeResponse,
@@ -598,7 +599,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   hold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'hold',
+      action: VertoModifyAction.Hold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -632,7 +633,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   unhold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'unhold',
+      action: VertoModifyAction.Unhold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -661,7 +662,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   toggleHold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'toggleHold',
+      action: VertoModifyAction.ToggleHold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -1152,6 +1153,10 @@ export default abstract class BaseCall implements IWebRTCCall {
           } else {
             this._onRemoteSdp(params.sdp);
           }
+        } else {
+          logger.error(
+            `[${this.id}] Received Modify with missing/empty SDP — action=${params?.action}, callID=${params?.callID}. A Modify message carrying SDP must include a valid SDP payload.`
+          );
         }
         break;
       }
@@ -1437,7 +1442,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _sendIceRestartModify(sdp: string) {
     const modifyMsg = new Modify({
       sessid: this.session.sessionid,
-      action: 'updateMedia',
+      action: VertoModifyAction.UpdateMedia,
       callID: this.options.id,
       sdp,
       dialogParams: this.options,
@@ -1449,6 +1454,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.peer?.finishIceRestart();
         if (response?.sdp) {
           await this._onRemoteSdp(response.sdp);
+        } else {
+          logger.error(
+            `[${this.id}] ICE restart Modify response missing SDP — the remote answer SDP is required to complete ICE restart. The media path may not recover.`
+          );
         }
       })
       .catch((error) => {
@@ -1482,15 +1491,61 @@ export default abstract class BaseCall implements IWebRTCCall {
       const answer = await this.peer.instance.createAnswer();
       await this.peer.instance.setLocalDescription(answer);
 
-      const modifyMsg = new Modify({
-        sessid: this.session.sessionid,
-        action: 'updateMedia',
-        callID: this.options.id,
-        sdp: answer.sdp,
-        dialogParams: this.options,
-      });
-      logger.info('Server-initiated Modify: sending answer SDP');
-      await this._execute(modifyMsg);
+      if (this.options.trickleIce) {
+        // Trickle ICE: send the answer SDP immediately; candidates follow separately.
+        const modifyMsg = new Modify({
+          sessid: this.session.sessionid,
+          action: VertoModifyAction.UpdateMedia,
+          callID: this.options.id,
+          sdp: answer.sdp,
+          dialogParams: this.options,
+        });
+        logger.info(
+          'Server-initiated Modify (trickle): sending answer SDP immediately'
+        );
+        await this._execute(modifyMsg);
+      } else {
+        // Non-trickle ICE: wait until ICE gathering completes so the
+        // Modify carries a complete SDP with all candidates. Sending the
+        // answer.sdp immediately after setLocalDescription() would send
+        // an SDP without candidates for non-trickle calls.
+        const sendModify = (sdpToSend: string) => {
+          const modifyMsg = new Modify({
+            sessid: this.session.sessionid,
+            action: VertoModifyAction.UpdateMedia,
+            callID: this.options.id,
+            sdp: sdpToSend,
+            dialogParams: this.options,
+          });
+          logger.info(
+            'Server-initiated Modify (non-trickle): sending answer SDP after ICE gathering'
+          );
+          this._execute(modifyMsg).catch((error) => {
+            logger.error(
+              'Server-initiated Modify (non-trickle) failed:',
+              error
+            );
+          });
+        };
+
+        // If ICE gathering is already complete, send immediately
+        if (this.peer.instance.iceGatheringState === 'complete') {
+          sendModify(this.peer.instance.localDescription.sdp);
+        } else {
+          // Wait for ICE gathering to complete
+          const onGatheringComplete = () => {
+            this.peer.instance.removeEventListener(
+              'icegatheringstatechange',
+              onGatheringComplete
+            );
+            sendModify(this.peer.instance.localDescription.sdp);
+          };
+          this.peer.instance.addEventListener(
+            'icegatheringstatechange',
+            onGatheringComplete
+          );
+        }
+      }
     } catch (error) {
       logger.error('Failed to handle server-initiated Modify offer:', error);
     }
@@ -1891,6 +1946,17 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
+  /**
+   * Register peer connection event handlers.
+   *
+   * Previously, trickle and non-trickle ICE had separate registration methods
+   * (_registerTrickleIcePeerEvents and _registerPeerEvents). They have been
+   * consolidated into this single method so that the `onicecandidate` handler
+   * can choose the trickle vs non-trickle path *at runtime* — this is required
+   * for ICE restart, which forces non-trickle Modify even when the call was
+   * originally trickle. The check `this.options.trickleIce && !this.peer?.isIceRestarting`
+   * determines the path dynamically per-candidate.
+   */
   private _registerPeerEvents(instance: RTCPeerConnection) {
     instance.onicecandidate = (event) => {
       const useTrickle = this.options.trickleIce && !this.peer?.isIceRestarting;

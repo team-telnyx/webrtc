@@ -76,7 +76,7 @@ export default class Peer {
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
-  private _wasOffline: boolean = false;
+  private _hadOfflineEvent: boolean = false;
   private _offlineHandler: (() => void) | null = null;
 
   constructor(
@@ -105,10 +105,10 @@ export default class Peer {
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
     // Track offline events independently so ICE restart and Attach never race.
-    // _wasOffline is only cleared on peer `connected`, not on `online`.
+    // _hadOfflineEvent is only cleared on peer `connected`, not on `online`.
     if (typeof window !== 'undefined') {
       this._offlineHandler = () => {
-        this._wasOffline = true;
+        this._hadOfflineEvent = true;
       };
       window.addEventListener('offline', this._offlineHandler);
     }
@@ -292,14 +292,15 @@ export default class Peer {
 
       // ICE restart: fire only when the browser never went offline during
       // this peer's lifetime. If `window.offline` fired, the Attach flow
-      // owns recovery exclusively. _wasOffline is only cleared on `connected`,
+      // owns recovery exclusively. _hadOfflineEvent is only cleared on `connected`,
       // not on the `online` event, so there's no race with BrowserSession's
       // online handler.
+      const canRestartIceWithoutAttach =
+        !this._hadOfflineEvent && this._session.connected;
       if (
         !this._restartedIceOnConnectionStateFailed &&
         (connectionState === 'failed' || connectionState === 'disconnected') &&
-        !this._wasOffline &&
-        this._session.connected
+        canRestartIceWithoutAttach
       ) {
         this.isIceRestarting = true;
         this._restartedIceOnConnectionStateFailed = true;
@@ -323,7 +324,7 @@ export default class Peer {
           this._iceRestartTimeoutId = null;
         }, Peer.ICE_RESTART_TIMEOUT_MS);
         logger.info(
-          `ICE restart: peer ${connectionState}, no offline event detected. Creating new offer via Modify.`
+          `ICE restart: peer ${connectionState}, canRestartIceWithoutAttach=${canRestartIceWithoutAttach}. Creating new offer via Modify.`
         );
       }
     }
@@ -366,9 +367,13 @@ export default class Peer {
       this.tryCollectTimings();
 
       // Successful (re)connection — allow future ICE restarts if we fail again.
+      // Only clear the restart-gate and offline flag here; isIceRestarting
+      // must remain true until the Modify exchange completes (see
+      // _sendIceRestartModify in BaseCall) or the safety timeout fires.
+      // Calling finishIceRestart() here would clear isIceRestarting before
+      // the Modify SDP is even sent, breaking the ICE restart flow.
       this._restartedIceOnConnectionStateFailed = false;
-      this._wasOffline = false;
-      this.finishIceRestart();
+      this._hadOfflineEvent = false;
     }
 
     if (this._isTrickleIce()) {
