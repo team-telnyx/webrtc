@@ -223,6 +223,20 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  private _captureHangupCallerStack(): string[] {
+    const stack = new Error('Call.hangup caller').stack;
+
+    if (!stack) {
+      return [];
+    }
+
+    return stack
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(1, 11);
+  }
+
   constructor(
     protected session: BrowserSession,
     opts?: IVertoCallOptions
@@ -408,7 +422,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         },
         this.session.uuid
       );
-      void this.hangup({}, false);
+      void this.hangup({ initiator: 'sdk:peer-init-failed' }, false);
       return;
     }
     this._creatingPeer = false;
@@ -484,7 +498,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         },
         this.session.uuid
       );
-      await this.hangup();
+      await this.hangup({ initiator: 'sdk:peer-init-failed' }, true);
       return;
     }
     this._creatingPeer = false;
@@ -531,6 +545,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   ): Promise<void> {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
+    const stateBeforeHangup = this.state;
+    const prevStateBeforeHangup = this.prevState;
+    const callerStack = this._captureHangupCallerStack();
+    const initiator = params.initiator || 'app:call.hangup';
 
     // State-dependent default cause code:
     // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
@@ -549,6 +567,24 @@ export default abstract class BaseCall implements IWebRTCCall {
       ...(this.options.customHeaders ?? []),
       ...(params?.dialogParams?.customHeaders ?? []),
     ];
+
+    logger.debug(`[${this.id}] hangup() invoked`, {
+      callId: this.id,
+      execute,
+      state: stateBeforeHangup,
+      prevState: prevStateBeforeHangup,
+      cause: this.cause,
+      causeCode: this.causeCode,
+      initiator,
+      sipCode: this.sipCode,
+      sipReason: this.sipReason,
+      sipCallId: this.sipCallId,
+      isRecovering: Boolean(params.isRecovering),
+      hasDialogCustomHeaders: Boolean(
+        params.dialogParams?.customHeaders?.length
+      ),
+      callerStack,
+    });
 
     // If recovering from attach, set Recovering state and skip Bye
     if (params.isRecovering) {
@@ -1214,7 +1250,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
         this.stopRingback();
         this.stopRingtone();
-        void this.hangup(params, false);
+        void this.hangup(
+          { ...params, initiator: 'remote:telnyx_rtc.bye' },
+          false
+        );
         break;
     }
   }
@@ -1470,6 +1509,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:set-remote-description-failure',
             },
             true
           );
@@ -1563,7 +1603,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        void this.hangup({}, false);
+        void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
     performance.mark('send-sdp');
@@ -1595,6 +1635,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:sdp-send-failure',
             },
             true
           );
@@ -1610,7 +1651,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onTrickleIceSdp(data: RTCSessionDescription) {
     if (!data) {
       logger.error('No SDP data provided');
-      void this.hangup({}, false);
+      void this.hangup({ initiator: 'sdk:missing-local-sdp' }, false);
       return;
     }
 
@@ -1643,7 +1684,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        void this.hangup({}, false);
+        void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
 
@@ -1676,6 +1717,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:sdp-send-failure',
             },
             true
           );
@@ -1920,7 +1962,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.session.uuid
     );
 
-    void this.hangup({}, false);
+    void this.hangup({ initiator: 'sdk:media-error' }, false);
   }
 
   private _onPeerConnectionFailureError(data: {

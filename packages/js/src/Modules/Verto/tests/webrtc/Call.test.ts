@@ -14,6 +14,7 @@ Object.defineProperty(global, 'performance', {
 import { isQueued, register, deRegister } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
 import { SwEvent } from '../../util/constants';
+import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -163,6 +164,59 @@ describe('Call', () => {
     });
   });
 
+  describe('hangup caller instrumentation', () => {
+    it('should log caller stack and state metadata when hangup is invoked', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      call.setState(State.Active);
+      await call.hangup({ cause: 'NORMAL_CLEARING', causeCode: 16 }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          callId: call.id,
+          execute: false,
+          state: 'active',
+          prevState: 'new',
+          cause: 'NORMAL_CLEARING',
+          causeCode: 16,
+          initiator: 'app:call.hangup',
+          isRecovering: false,
+          hasDialogCustomHeaders: false,
+          callerStack: expect.any(Array),
+        })
+      );
+
+      const hangupLog = debugSpy.mock.calls.find(
+        ([message]) => message === `[${call.id}] hangup() invoked`
+      );
+      const hangupLogContext = hangupLog?.[1] as { callerStack: string[] };
+      expect(hangupLogContext.callerStack.length).toBeGreaterThan(0);
+      expect(hangupLogContext.callerStack.join('\n')).toContain('hangup');
+
+      debugSpy.mockRestore();
+    });
+
+    it('should log explicit hangup initiator metadata', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      await call.hangup({ initiator: 'sdk:sdp-send-failure' }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          initiator: 'sdk:sdp-send-failure',
+        })
+      );
+
+      debugSpy.mockRestore();
+    });
+  });
+
   describe('hangup cause codes', () => {
     it('should use USER_BUSY/17 when rejecting a ringing call', async () => {
       call.setState(State.Ringing);
@@ -271,7 +325,10 @@ describe('Call', () => {
 
       await call.invite();
 
-      expect(hangupSpy).toHaveBeenCalledWith({}, false);
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        false
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
@@ -298,7 +355,10 @@ describe('Call', () => {
 
       await answerCall.answer();
 
-      expect(hangupSpy).toHaveBeenCalledWith();
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        true
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 

@@ -219,7 +219,10 @@ class VertoHandler {
         logger.info(
           `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
         );
-        void existingCall.hangup({ isRecovering: true }, false);
+        void existingCall.hangup(
+          { isRecovering: true, initiator: 'sdk:attach-recovery' },
+          false
+        );
 
         logger.info(
           `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
