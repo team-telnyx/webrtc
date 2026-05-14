@@ -223,6 +223,20 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  /**
+   * Guard flag: true once _finalize() has run.
+   * Prevents double cleanup when multiple terminal events arrive for the same call.
+   */
+  private _finalized: boolean = false;
+
+  /**
+   * Returns true if this call has been finalized (resources released, removed from session).
+   * After finalization, the call is no longer usable.
+   */
+  get isFinalized(): boolean {
+    return this._finalized;
+  }
+
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -543,6 +557,18 @@ export default abstract class BaseCall implements IWebRTCCall {
     hangupParams?: IHangupParams,
     hangupExecute?: boolean
   ): Promise<void> {
+    // Guard: skip hangup if call is already finalized or in a terminal state
+    // (Hangup/Destroy). Allow if current state is Purge (forced disconnect).
+    if (
+      this._finalized ||
+      (this._state >= State.Hangup && this._state !== State.Purge)
+    ) {
+      logger.debug(
+        `[${this.id}] hangup() called but call is already in terminal state (${this.state}). Skipping.`
+      );
+      return;
+    }
+
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
     const stateBeforeHangup = this.state;
@@ -2121,6 +2147,15 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    // Idempotent guard: only run cleanup once
+    if (this._finalized) {
+      logger.debug(
+        `[${this.id}] _finalize() called but call is already finalized. Skipping.`
+      );
+      return;
+    }
+    this._finalized = true;
+
     this._stopStats();
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
