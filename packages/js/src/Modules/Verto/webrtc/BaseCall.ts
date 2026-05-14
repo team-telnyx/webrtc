@@ -1424,13 +1424,24 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.info('ICE restart: sending Modify with new offer SDP');
     this._execute(modifyMsg)
       .then(async (response) => {
-        logger.info('ICE restart Modify response received');
-        this.peer?.finishIceRestart();
         if (response?.sdp) {
+          logger.info('ICE restart Modify response received');
+          this.peer?.finishIceRestart();
           await this._onRemoteSdp(response.sdp);
         } else {
-          logger.error(
-            `[${this.id}] ICE restart Modify response missing SDP — the remote answer SDP is required to complete ICE restart. The media path may not recover.`
+          // No SDP in the response means the restart failed — treat the same
+          // as a rejected Modify.
+          logger.error('ICE restart Modify response missing SDP');
+          this.peer?.finishIceRestart();
+          const telnyxError = createTelnyxError(ICE_RESTART_FAILED);
+          trigger(
+            SwEvent.Error,
+            {
+              error: telnyxError,
+              callId: this.id,
+              sessionId: this.session.sessionid,
+            },
+            this.session.uuid
           );
         }
       })
