@@ -1429,36 +1429,27 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.peer?.finishIceRestart();
           await this._onRemoteSdp(response.sdp);
         } else {
-          // No SDP in the response means the restart failed — treat the same
-          // as a rejected Modify.
-          logger.error('ICE restart Modify response missing SDP');
-          this.peer?.finishIceRestart();
-          const telnyxError = createTelnyxError(ICE_RESTART_FAILED);
-          trigger(
-            SwEvent.Error,
-            {
-              error: telnyxError,
-              callId: this.id,
-              sessionId: this.session.sessionid,
-            },
-            this.session.uuid
-          );
+          this._onIceRestartFailed('ICE restart Modify response missing SDP');
         }
       })
       .catch((error) => {
-        logger.error('ICE restart Modify failed:', error);
-        this.peer?.finishIceRestart();
-        const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
-        trigger(
-          SwEvent.Error,
-          {
-            error: telnyxError,
-            callId: this.id,
-            sessionId: this.session.sessionid,
-          },
-          this.session.uuid
-        );
+        this._onIceRestartFailed('ICE restart Modify failed', error);
       });
+  }
+
+  private _onIceRestartFailed(message: string, error?: unknown) {
+    logger.error(message, error);
+    this.peer?.finishIceRestart();
+    const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        callId: this.id,
+        sessionId: this.session.sessionid,
+      },
+      this.session.uuid
+    );
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
