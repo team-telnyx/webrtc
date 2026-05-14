@@ -1141,21 +1141,15 @@ export default abstract class BaseCall implements IWebRTCCall {
           hasSdp: !!params?.sdp,
         });
         if (params.sdp) {
-          // If we are in stable state, this is a server-initiated offer:
-          // set it as a remote offer and generate an answer.
-          // If we are in have-local-offer (waiting for ICE restart answer),
-          // treat it as an answer. Note: client-initiated ICE restart answers
-          // normally arrive via the _sendIceRestartModify() promise, so this
-          // path handles edge cases (e.g. response arriving as a push).
-          const signalingState = this.peer?.instance?.signalingState;
-          if (signalingState === 'stable') {
-            this._handleServerModifyOffer(params.sdp);
-          } else {
-            this._onRemoteSdp(params.sdp);
-          }
+          // Server-initiated Modify offers are not supported — the b2bua-rtc
+          // does not send Modify to the client. When we receive a Modify with
+          // SDP while in have-local-offer, treat it as an answer (edge case
+          // where the ICE restart response arrives as a push instead of via
+          // the _sendIceRestartModify() promise).
+          this._onRemoteSdp(params.sdp);
         } else {
-          logger.error(
-            `[${this.id}] Received Modify with missing/empty SDP — action=${params?.action}, callID=${params?.callID}. A Modify message carrying SDP must include a valid SDP payload.`
+          logger.warn(
+            `[${this.id}] Received Modify with no SDP — action=${params?.action}, callID=${params?.callID}. Ignoring.`
           );
         }
         break;
@@ -1474,81 +1468,6 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.uuid
         );
       });
-  }
-
-  /**
-   * Handle a server-initiated Modify that carries an offer SDP.
-   * Sets the remote description as an offer and replies with an answer.
-   */
-  private async _handleServerModifyOffer(remoteSdp: string) {
-    const offerSdp = new RTCSessionDescription({
-      sdp: remoteSdp,
-      type: PeerType.Offer,
-    });
-
-    try {
-      await this.peer.instance.setRemoteDescription(offerSdp);
-      const answer = await this.peer.instance.createAnswer();
-      await this.peer.instance.setLocalDescription(answer);
-
-      if (this.options.trickleIce) {
-        // Trickle ICE: send the answer SDP immediately; candidates follow separately.
-        const modifyMsg = new Modify({
-          sessid: this.session.sessionid,
-          action: VertoModifyAction.UpdateMedia,
-          callID: this.options.id,
-          sdp: answer.sdp,
-          dialogParams: this.options,
-        });
-        logger.info(
-          'Server-initiated Modify (trickle): sending answer SDP immediately'
-        );
-        await this._execute(modifyMsg);
-      } else {
-        // Non-trickle ICE: wait until ICE gathering completes so the
-        // Modify carries a complete SDP with all candidates. Sending the
-        // answer.sdp immediately after setLocalDescription() would send
-        // an SDP without candidates for non-trickle calls.
-        const sendModify = (sdpToSend: string) => {
-          const modifyMsg = new Modify({
-            sessid: this.session.sessionid,
-            action: VertoModifyAction.UpdateMedia,
-            callID: this.options.id,
-            sdp: sdpToSend,
-            dialogParams: this.options,
-          });
-          logger.info(
-            'Server-initiated Modify (non-trickle): sending answer SDP after ICE gathering'
-          );
-          this._execute(modifyMsg).catch((error) => {
-            logger.error(
-              'Server-initiated Modify (non-trickle) failed:',
-              error
-            );
-          });
-        };
-
-        // If ICE gathering is already complete, send immediately
-        if (this.peer.instance.iceGatheringState === 'complete') {
-          sendModify(this.peer.instance.localDescription.sdp);
-        } else {
-          // Wait for ICE gathering to complete
-          const onGatheringComplete = () => {
-            this.peer.instance.removeEventListener(
-              'icegatheringstatechange',
-              onGatheringComplete
-            );
-            sendModify(this.peer.instance.localDescription.sdp);
-          };
-          this.peer.instance.addEventListener(
-            'icegatheringstatechange',
-            onGatheringComplete
-          );
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to handle server-initiated Modify offer:', error);
-    }
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
