@@ -48,3 +48,4 @@ export type {
 } from './Modules/Verto/util/constants/warnings';
 
 export * from './PreCallDiagnosis';
+export type { AudioDiagnostics } from './Modules/Verto/webrtc/BaseCall';
