@@ -1134,26 +1134,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._onRemoteSdp(params.sdp);
         break;
       }
-      case VertoMethod.Modify: {
-        logger.info('Received Modify message', {
-          callID: params?.callID,
-          action: params?.action,
-          hasSdp: !!params?.sdp,
-        });
-        if (params.sdp) {
-          // Server-initiated Modify offers are not supported — the b2bua-rtc
-          // does not send Modify to the client. When we receive a Modify with
-          // SDP while in have-local-offer, treat it as an answer (edge case
-          // where the ICE restart response arrives as a push instead of via
-          // the _sendIceRestartModify() promise).
-          this._onRemoteSdp(params.sdp);
-        } else {
-          logger.warn(
-            `[${this.id}] Received Modify with no SDP — action=${params?.action}, callID=${params?.callID}. Ignoring.`
-          );
-        }
-        break;
-      }
       case VertoMethod.Display: {
         // TODO: manage caller_id_name, caller_id_number, callee_id_name, callee_id_number
         const {
