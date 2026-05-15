@@ -1,3 +1,11 @@
+## [2.27.0-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.4...webrtc/v2.27.0-beta.1) (2026-05-15)
+
+- feat: initial restart ice implementation (#607)
+- docs: clarify SDK STUN and TURN firewall URLs (#621)
+- fix: log hangup caller metadata (#624)
+- fix: log local audio source diagnostics (#625)
+- docs: update ts docs
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs
