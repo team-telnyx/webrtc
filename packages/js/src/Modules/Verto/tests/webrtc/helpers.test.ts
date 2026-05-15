@@ -803,10 +803,10 @@ describe('Helpers browser functions', () => {
       expect(() => detachMediaStream(null, stream)).not.toThrow();
     });
 
-    it('should clear srcObject when element srcObject is null and stream is provided', () => {
+    it('should NOT clear srcObject when element srcObject is null and stream is provided (guard no-op)', () => {
       mockElement.srcObject = null;
       const stream = new MediaStream();
-      // srcObject is null !== stream, so it should NOT clear (guard kicks in)
+      // srcObject is null !== stream, so the guard kicks in and no-ops
       detachMediaStream(mockElement, stream);
       expect(mockElement.srcObject).toBeNull();
     });
