@@ -52,8 +52,9 @@ anonymous_login login options
 
 • `Optional` **callReportInterval**: `number`
 
-Interval in milliseconds for collecting call statistics.
-Stats are aggregated over each interval and stored locally until call end.
+Interval in milliseconds for collecting call statistics after the initial
+high-resolution startup window. Stats are aggregated over each interval
+and stored locally until call end.
 
 **`Default`**
 

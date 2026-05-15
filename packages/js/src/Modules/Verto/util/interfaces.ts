@@ -60,7 +60,8 @@ export interface IVertoOptions {
    */
   enableCallReports?: boolean;
   /**
-   * Interval in milliseconds for collecting call statistics.
+   * Interval in milliseconds for collecting call statistics after the initial
+   * high-resolution startup window.
    * @default 5000 (5 seconds)
    */
   callReportInterval?: number;

@@ -182,8 +182,9 @@ export interface IClientOptions {
   enableCallReports?: boolean;
 
   /**
-   * Interval in milliseconds for collecting call statistics.
-   * Stats are aggregated over each interval and stored locally until call end.
+   * Interval in milliseconds for collecting call statistics after the initial
+   * high-resolution startup window. Stats are aggregated over each interval
+   * and stored locally until call end.
    *
    * @default 5000 (5 seconds)
    */
