@@ -120,3 +120,14 @@ export enum GatewayStateType {
   EXPIRED = 'EXPIRED',
   UNREGISTER = 'UNREGISTER',
 }
+
+/**
+ * Action strings used in Verto Modify messages.
+ * @see https://github.com/team-telnyx/webrtc/blob/main/packages/js/src/Modules/Verto/messages/Verto.ts
+ */
+export enum VertoModifyAction {
+  Hold = 'hold',
+  Unhold = 'unhold',
+  ToggleHold = 'toggleHold',
+  UpdateMedia = 'updateMedia',
+}

@@ -5,7 +5,7 @@ This document outlines the network connectivity requirements for Telnyx's Voice 
 ## Connectivity checklist
 
 1. Allow [Signaling servers](#signaling-connectivity) (WebSocket TLS)
-2. Allow [STUN/TURN servers](#stunturn-connectivity) (UDP and TCP/TLS)
+2. Allow [STUN/TURN servers](#stunturn-connectivity) (UDP and TCP)
 3. Allow [Media servers](#media-server-connectivity) (UDP — B2BUA-RTC)
 4. Ensure you meet the [bandwidth requirements](#network-bandwidth-requirements)
 5. Review the [recommendations and best practices](#recommendations-and-best-practices)
@@ -77,9 +77,21 @@ The SDK uses STUN for NAT traversal (discovering the client's public-facing IP) 
 | Protocol | Source IP | Source Port | Destination | Destination Port |
 |----------|-----------|-------------|-------------|------------------|
 | STUN (UDP) | ANY | ANY | `stun.telnyx.com` | **3478** |
-| TURN (UDP) | ANY | ANY | TURN server IPs | **3478** |
-| TURN (TCP) | ANY | ANY | TURN server IPs | **3478** |
+| STUN (UDP) | ANY | ANY | `stun.l.google.com` | **19302** |
+| TURN (UDP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
+| TURN (TCP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
 | TURN relay (UDP) | ANY | ANY | TURN server IPs | **49152–65535** |
+
+### SDK ICE server URLs
+
+The JavaScript SDK's default production ICE server configuration uses the following URLs:
+
+| Type | SDK URL |
+|------|---------|
+| STUN | `stun:stun.telnyx.com:3478` |
+| STUN fallback | `stun:stun.l.google.com:19302` |
+| TURN over UDP | `turn:turn.telnyx.com:3478?transport=udp` |
+| TURN over TCP | `turn:turn.telnyx.com:3478?transport=tcp` |
 
 ### TURN server IP addresses
 
@@ -143,9 +155,14 @@ Opus is the recommended codec for WebRTC calls — it provides better audio qual
 In a typical organization network, a firewall protects internal hosts from the Internet. To use the Telnyx Voice SDK, your firewall must:
 
 1. **Allow outgoing TCP** to `rtc.telnyx.com:443` (signaling WebSocket)
-2. **Allow outgoing UDP** to STUN/TURN servers on port `3478`
-3. **Allow outgoing UDP** to media server subnets on ports `16384–32768`
-4. **Allow return traffic** for all of the above (stateful firewall)
+2. **Allow outgoing UDP** to SDK STUN server URLs:
+   - `stun:stun.telnyx.com:3478`
+   - `stun:stun.l.google.com:19302`
+3. **Allow outgoing UDP and TCP** to SDK TURN server URLs:
+   - `turn:turn.telnyx.com:3478?transport=udp`
+   - `turn:turn.telnyx.com:3478?transport=tcp`
+4. **Allow outgoing UDP** to media server subnets on ports `16384–32768`
+5. **Allow return traffic** for all of the above (stateful firewall)
 
 Telnyx **never initiates** a connection to the SDK. All connections are outbound from the client.
 
@@ -161,7 +178,7 @@ If your network blocks all UDP traffic:
      forceRelayCandidate: true,
    })
    ```
-2. Ensure TCP port **3478** (TURN TCP) is open to the TURN server IPs listed above.
+2. Ensure TCP port **3478** is open to the TURN server URL `turn:turn.telnyx.com:3478?transport=tcp` and the TURN server IPs listed above.
 
 > **Warning:** Forcing relay candidates adds latency since all media is relayed through the TURN server. Use this only when direct UDP is not possible.
 >

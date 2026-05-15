@@ -20,6 +20,7 @@ import {
   SwEvent,
   BYE_SEND_FAILED,
   HOLD_FAILED,
+  ICE_RESTART_FAILED,
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
@@ -58,6 +59,7 @@ import {
   Role,
   State,
   VertoMethod,
+  VertoModifyAction,
 } from './constants';
 import {
   checkSubscribeResponse,
@@ -198,8 +200,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceTimeout = null;
 
-  private _iceDone: boolean = false;
-
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -223,6 +223,20 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _firstNonHostCandidateSent: boolean = false;
 
   private _isRecovering: boolean = false;
+
+  private _captureHangupCallerStack(): string[] {
+    const stack = new Error('Call.hangup caller').stack;
+
+    if (!stack) {
+      return [];
+    }
+
+    return stack
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(1, 11);
+  }
 
   constructor(
     protected session: BrowserSession,
@@ -280,8 +294,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
-    this._registerTrickleIcePeerEvents =
-      this._registerTrickleIcePeerEvents.bind(this);
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -383,9 +395,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this.options.trickleIce
-        ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+      this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -409,7 +419,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         },
         this.session.uuid
       );
-      void this.hangup({}, false);
+      void this.hangup({ initiator: 'sdk:peer-init-failed' }, false);
       return;
     }
     this._creatingPeer = false;
@@ -466,9 +476,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this.options.trickleIce
-        ? this._registerTrickleIcePeerEvents
-        : this._registerPeerEvents
+      this._registerPeerEvents
     );
     try {
       await this.peer.init();
@@ -492,7 +500,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         },
         this.session.uuid
       );
-      await this.hangup();
+      await this.hangup({ initiator: 'sdk:peer-init-failed' }, true);
       return;
     }
     this._creatingPeer = false;
@@ -539,6 +547,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   ): Promise<void> {
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
+    const stateBeforeHangup = this.state;
+    const prevStateBeforeHangup = this.prevState;
+    const callerStack = this._captureHangupCallerStack();
+    const initiator = params.initiator || 'app:call.hangup';
 
     // State-dependent default cause code:
     // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
@@ -557,6 +569,24 @@ export default abstract class BaseCall implements IWebRTCCall {
       ...(this.options.customHeaders ?? []),
       ...(params?.dialogParams?.customHeaders ?? []),
     ];
+
+    logger.debug(`[${this.id}] hangup() invoked`, {
+      callId: this.id,
+      execute,
+      state: stateBeforeHangup,
+      prevState: prevStateBeforeHangup,
+      cause: this.cause,
+      causeCode: this.causeCode,
+      initiator,
+      sipCode: this.sipCode,
+      sipReason: this.sipReason,
+      sipCallId: this.sipCallId,
+      isRecovering: Boolean(params.isRecovering),
+      hasDialogCustomHeaders: Boolean(
+        params.dialogParams?.customHeaders?.length
+      ),
+      callerStack,
+    });
 
     // If recovering from attach, set Recovering state and skip Bye
     if (params.isRecovering) {
@@ -627,7 +657,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   hold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'hold',
+      action: VertoModifyAction.Hold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -661,7 +691,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   unhold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'unhold',
+      action: VertoModifyAction.Unhold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -690,7 +720,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   toggleHold(): Promise<any> {
     const msg = new Modify({
       sessid: this.session.sessionid,
-      action: 'toggleHold',
+      action: VertoModifyAction.ToggleHold,
       dialogParams: this.options,
     });
     return this._execute(msg)
@@ -1150,6 +1180,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
       case VertoMethod.Media: {
         performance.mark('telnyx-rtc-media');
+        // Media is an early-media event for the pre-Answer phase only.
+        // After Early state (including mid-call ICE restart), the answer SDP
+        // is delivered via Modify responses or the telnyx_rtc.modify path,
+        // not through Media. Applying it here would call setRemoteDescription
+        // twice and break the ICE restart flow.
         if (this._state >= State.Early) {
           return;
         }
@@ -1222,7 +1257,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
         this.stopRingback();
         this.stopRingtone();
-        void this.hangup(params, false);
+        void this.hangup(
+          { ...params, initiator: 'remote:telnyx_rtc.bye' },
+          false
+        );
         break;
     }
   }
@@ -1436,6 +1474,45 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
+  private _sendIceRestartModify(sdp: string) {
+    const modifyMsg = new Modify({
+      sessid: this.session.sessionid,
+      action: VertoModifyAction.UpdateMedia,
+      callID: this.options.id,
+      sdp,
+      dialogParams: this.options,
+    });
+    logger.info('ICE restart: sending Modify with new offer SDP');
+    this._execute(modifyMsg)
+      .then(async (response) => {
+        if (response?.sdp) {
+          logger.info('ICE restart Modify response received');
+          this.peer?.finishIceRestart();
+          await this._onRemoteSdp(response.sdp);
+        } else {
+          this._onIceRestartFailed('ICE restart Modify response missing SDP');
+        }
+      })
+      .catch((error) => {
+        this._onIceRestartFailed('ICE restart Modify failed', error);
+      });
+  }
+
+  private _onIceRestartFailed(message: string, error?: unknown) {
+    logger.error(message, error);
+    this.peer?.finishIceRestart();
+    const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        callId: this.id,
+        sessionId: this.session.sessionid,
+      },
+      this.session.uuid
+    );
+  }
+
   private async _onRemoteSdp(remoteSdp: string) {
     const sdp = new RTCSessionDescription({
       sdp: remoteSdp,
@@ -1478,6 +1555,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:set-remote-description-failure',
             },
             true
           );
@@ -1505,7 +1583,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     Object.defineProperty(this.peer, 'onSdpReadyTwice', {
       value: this._onIceSdp.bind(this),
     });
-    this._iceDone = false;
+    this.peer.iceDone = false;
     this.peer.startNegotiation();
   }
 
@@ -1514,7 +1592,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
-    this._iceDone = true;
+    if (this.peer) {
+      this.peer.iceDone = true;
+    }
 
     if (!data) {
       logger.warn(
@@ -1554,6 +1634,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       'User-Agent': `Web-${SDK_VERSION}`,
     };
 
+    // ICE restart: send Modify with new SDP regardless of original call direction
+    if (this.peer?.isIceRestarting) {
+      this._sendIceRestartModify(sdp);
+      return;
+    }
+
     switch (type) {
       case PeerType.Offer:
         this.setState(State.Requesting);
@@ -1571,7 +1657,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        void this.hangup({}, false);
+        void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
     performance.mark('send-sdp');
@@ -1603,6 +1689,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:sdp-send-failure',
             },
             true
           );
@@ -1618,7 +1705,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _onTrickleIceSdp(data: RTCSessionDescription) {
     if (!data) {
       logger.error('No SDP data provided');
-      void this.hangup({}, false);
+      void this.hangup({ initiator: 'sdk:missing-local-sdp' }, false);
       return;
     }
 
@@ -1633,6 +1720,12 @@ export default abstract class BaseCall implements IWebRTCCall {
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
     };
+
+    // ICE restart: send Modify with new SDP regardless of original call direction
+    if (this.peer?.isIceRestarting) {
+      this._sendIceRestartModify(sdp);
+      return;
+    }
 
     switch (type) {
       case PeerType.Offer:
@@ -1651,7 +1744,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       default:
         logger.error(`${this.id} - Unknown local SDP type:`, data);
-        void this.hangup({}, false);
+        void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
 
@@ -1684,6 +1777,7 @@ export default abstract class BaseCall implements IWebRTCCall {
             {
               cause: 'USER_BUSY',
               causeCode: 17,
+              initiator: 'sdk:sdp-send-failure',
             },
             true
           );
@@ -1817,45 +1911,28 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
+  /**
+   * Register peer connection event handlers.
+   *
+   * Previously, trickle and non-trickle ICE had separate registration methods
+   * (_registerTrickleIcePeerEvents and _registerPeerEvents). They have been
+   * consolidated into this single method so that the `onicecandidate` handler
+   * can choose the trickle vs non-trickle path *at runtime* — this is required
+   * for ICE restart, which forces non-trickle Modify even when the call was
+   * originally trickle. The check `this.options.trickleIce && !this.peer?.isIceRestarting`
+   * determines the path dynamically per-candidate.
+   */
   private _registerPeerEvents(instance: RTCPeerConnection) {
-    this._iceDone = false;
     instance.onicecandidate = (event) => {
-      if (this._iceDone) {
-        return;
+      const useTrickle = this.options.trickleIce && !this.peer?.isIceRestarting;
+      if (useTrickle) {
+        this._onTrickleIce(event);
+      } else {
+        if (this.peer?.iceDone) {
+          return;
+        }
+        this._onIce(event);
       }
-      this._onIce(event);
-    };
-
-    instance.onicegatheringstatechange = () => {
-      if (instance.iceGatheringState === 'complete') {
-        performance.mark('ice-gathering-completed');
-      }
-    };
-
-    instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
-      logger.debug('ICE candidate error:', event);
-      if (this.peer?.statsReporter) {
-        const details = getIceCandidateErrorDetails(event, instance);
-        this.peer.statsReporter.reportIceCandidateError(details);
-      }
-    };
-
-    //@ts-expect-error MediaStreamEvent is not defined
-    instance.addEventListener('addstream', (event: MediaStreamEvent) => {
-      this.options.remoteStream = event.stream;
-    });
-    instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream);
-      }
-    });
-  }
-
-  private _registerTrickleIcePeerEvents(instance: RTCPeerConnection) {
-    instance.onicecandidate = (event) => {
-      this._onTrickleIce(event);
     };
 
     instance.onicegatheringstatechange = (event) => {
@@ -1871,7 +1948,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     };
 
     instance.onicecandidateerror = (event: RTCPeerConnectionIceErrorEvent) => {
-      // if a candidate fails this is not fatal as long as other candidates succeed
       logger.debug('ICE candidate error:', event);
       if (this.peer?.statsReporter) {
         const details = getIceCandidateErrorDetails(event, instance);
@@ -1879,12 +1955,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       }
     };
 
-    // addstream and MediaStreamEvent are deprecated
     //@ts-expect-error MediaStreamEvent is not defined
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
-
     instance.addEventListener('track', (event: RTCTrackEvent) => {
       this.options.remoteStream = event.streams[0];
       const { remoteElement, remoteStream, screenShare } = this.options;
@@ -1928,7 +2002,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.session.uuid
     );
 
-    void this.hangup({}, false);
+    void this.hangup({ initiator: 'sdk:media-error' }, false);
   }
 
   private _onPeerConnectionFailureError(data: {
