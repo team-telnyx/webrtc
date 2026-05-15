@@ -268,6 +268,24 @@ export default class Peer {
     const { remoteElement, screenShare } = this.options;
     this.options.remoteStream = first;
 
+    // Log remote track details for audio debugging
+    if (event.track.kind === 'audio') {
+      logger.info(
+        `[${this.options.id}] Remote audio track received:`,
+        {
+          trackId: event.track.id,
+          enabled: event.track.enabled,
+          muted: event.track.muted,
+          readyState: event.track.readyState,
+          label: event.track.label,
+          streamsCount: event.streams.length,
+          streamId: first?.id ?? 'none',
+          streamActive: first?.active ?? false,
+          streamAudioTrackCount: first?.getAudioTracks().length ?? 0,
+        }
+      );
+    }
+
     if (screenShare === false) {
       attachMediaStream(remoteElement, this.options.remoteStream);
     }
@@ -660,6 +678,19 @@ export default class Peer {
       let tracks = [...audioTracks];
 
       logger.info('Local audio tracks: ', audioTracks);
+      // Log detailed local audio track info for debugging audio detection failures
+      audioTracks.forEach((track) => {
+        logger.info(
+          `[${this.options.id}] Local audio track detail:`,
+          {
+            trackId: track.id,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState,
+            label: track.label,
+          }
+        );
+      });
 
       if (audioIsMediaTrackConstraints(this.options.audio)) {
         // tells whether the constraints used to get the audio track took effect. Browsers may ignore unsupported constraints silently

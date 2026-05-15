@@ -1,4 +1,5 @@
 import { State } from './constants';
+import type { AudioDiagnostics } from './BaseCall';
 
 export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
@@ -181,6 +182,14 @@ export interface IWebRTCCall {
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   getStats: (callback: Function, constraints: any) => void;
+  /**
+   * Collects a structured snapshot of the current audio state for debugging
+   * audio detection failures (e.g., in E2E test frameworks like BBT).
+   *
+   * Includes local/remote audio track states, peer connection state,
+   * audio transceiver details, and WebRTC inbound/outbound RTP stats.
+   */
+  getAudioDiagnostics: () => Promise<AudioDiagnostics>;
   setState: (state: State) => void;
   // Privates
   handleMessage: (msg: any) => void;

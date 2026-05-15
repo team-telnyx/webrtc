@@ -15,6 +15,70 @@ import {
   Invite,
   Modify,
 } from '../messages/Verto';
+
+/**
+ * Structured audio diagnostics returned by `call.getAudioDiagnostics()`.
+ * Provides a snapshot of the audio state for debugging audio detection failures.
+ */
+export interface AudioDiagnostics {
+  /** Timestamp of the diagnostics snapshot (ISO 8601) */
+  timestamp: string;
+  /** Call ID */
+  callId: string;
+  /** Call direction: 'inbound' | 'outbound' */
+  direction: string;
+  /** Call state at time of diagnostics */
+  callState: string;
+  /** Local audio tracks info */
+  localAudioTracks: Array<{
+    id: string;
+    kind: string;
+    enabled: boolean;
+    muted: boolean;
+    readyState: MediaStreamTrackState;
+    label: string;
+  }>;
+  /** Remote audio tracks info */
+  remoteAudioTracks: Array<{
+    id: string;
+    kind: string;
+    enabled: boolean;
+    muted: boolean;
+    readyState: MediaStreamTrackState;
+    label: string;
+  }>;
+  /** RTCPeerConnection state */
+  peerConnection: {
+    connectionState: RTCPeerConnectionState | null;
+    iceConnectionState: RTCIceConnectionState | null;
+    signalingState: RTCSignalingState | null;
+    iceGatheringState: RTCIceGatheringState | null;
+  };
+  /** Audio transceivers info */
+  audioTransceivers: Array<{
+    mid: string | null;
+    direction: RTCRtpTransceiverDirection;
+    currentDirection: RTCRtpTransceiverDirection | null;
+    senderTrack: { id: string; kind: string; enabled: boolean; muted: boolean; readyState: MediaStreamTrackState } | null;
+    receiverTrack: { id: string; kind: string; enabled: boolean; muted: boolean; readyState: MediaStreamTrackState } | null;
+  }>;
+  /** WebRTC stats snapshot for audio */
+  webrtcStats: {
+    inboundAudio: Array<{
+      bytesReceived: number;
+      packetsReceived: number;
+      packetsLost: number;
+      audioLevel: number | null;
+      codecId: string | null;
+    }>;
+    outboundAudio: Array<{
+      bytesSent: number;
+      packetsSent: number;
+      audioLevel: number | null;
+      codecId: string | null;
+    }>;
+  };
+}
 import { deRegister, register, trigger } from '../services/Handler';
 import {
   SwEvent,
@@ -1006,6 +1070,131 @@ export default abstract class BaseCall implements IWebRTCCall {
     toggleAudioTracks(this.options.remoteStream);
   }
 
+  /**
+   * Collects a structured snapshot of the current audio state for debugging.
+   *
+   * Useful for diagnosing audio detection failures in E2E tests (e.g., BBT
+   * bidirectional audio checks). Returns track states, transceiver info,
+   * peer connection state, and WebRTC stats for inbound/outbound audio RTP.
+   *
+   * @returns Promise that resolves with the audio diagnostics snapshot
+   */
+  async getAudioDiagnostics(): Promise<AudioDiagnostics> {
+    const diagnostics: AudioDiagnostics = {
+      timestamp: new Date().toISOString(),
+      callId: this.id,
+      direction: this.direction ?? 'unknown',
+      callState: this.state,
+      localAudioTracks: [],
+      remoteAudioTracks: [],
+      peerConnection: {
+        connectionState: null,
+        iceConnectionState: null,
+        signalingState: null,
+        iceGatheringState: null,
+      },
+      audioTransceivers: [],
+      webrtcStats: {
+        inboundAudio: [],
+        outboundAudio: [],
+      },
+    };
+
+    // Collect local audio track info
+    if (this.options.localStream) {
+      diagnostics.localAudioTracks = this.options.localStream
+        .getAudioTracks()
+        .map((track) => ({
+          id: track.id,
+          kind: track.kind,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          label: track.label,
+        }));
+    }
+
+    // Collect remote audio track info
+    if (this.options.remoteStream) {
+      diagnostics.remoteAudioTracks = this.options.remoteStream
+        .getAudioTracks()
+        .map((track) => ({
+          id: track.id,
+          kind: track.kind,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          label: track.label,
+        }));
+    }
+
+    // Collect peer connection state
+    const pc = this.peer?.instance;
+    if (pc) {
+      diagnostics.peerConnection = {
+        connectionState: pc.connectionState,
+        iceConnectionState: pc.iceConnectionState,
+        signalingState: pc.signalingState,
+        iceGatheringState: pc.iceGatheringState,
+      };
+
+      // Collect audio transceiver info
+      diagnostics.audioTransceivers = pc.getTransceivers()
+        .filter((tr) => tr.receiver?.track?.kind === 'audio' || tr.sender?.track?.kind === 'audio')
+        .map((tr) => ({
+          mid: tr.mid,
+          direction: tr.direction,
+          currentDirection: tr.currentDirection ?? null,
+          senderTrack: tr.sender?.track
+            ? {
+                id: tr.sender.track.id,
+                kind: tr.sender.track.kind,
+                enabled: tr.sender.track.enabled,
+                muted: tr.sender.track.muted,
+                readyState: tr.sender.track.readyState,
+              }
+            : null,
+          receiverTrack: tr.receiver?.track
+            ? {
+                id: tr.receiver.track.id,
+                kind: tr.receiver.track.kind,
+                enabled: tr.receiver.track.enabled,
+                muted: tr.receiver.track.muted,
+                readyState: tr.receiver.track.readyState,
+              }
+            : null,
+        }));
+
+      // Collect WebRTC stats for audio
+      try {
+        const stats = await pc.getStats();
+        stats.forEach((report) => {
+          if (report.type === 'inbound-rtp' && report.kind === 'audio') {
+            diagnostics.webrtcStats.inboundAudio.push({
+              bytesReceived: report.bytesReceived ?? 0,
+              packetsReceived: report.packetsReceived ?? 0,
+              packetsLost: report.packetsLost ?? 0,
+              audioLevel: report.audioLevel ?? null,
+              codecId: report.codecId ?? null,
+            });
+          }
+          if (report.type === 'outbound-rtp' && report.kind === 'audio') {
+            diagnostics.webrtcStats.outboundAudio.push({
+              bytesSent: report.bytesSent ?? 0,
+              packetsSent: report.packetsSent ?? 0,
+              audioLevel: report.audioLevel ?? null,
+              codecId: report.codecId ?? null,
+            });
+          }
+        });
+      } catch (error) {
+        logger.warn('Failed to collect WebRTC stats for audio diagnostics:', error);
+      }
+    }
+
+    return diagnostics;
+  }
+
   async setBandwidthEncodingsMaxBps(max: number, _kind: string) {
     if (!this || !this.peer) {
       logger.error(
@@ -1139,6 +1328,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         ) {
           this._callReportCollector.start(this.peer.instance);
         }
+
+        // Log audio diagnostics when call becomes active for debugging
+        // audio detection failures (especially in BBT E2E tests)
+        this._logAudioStateOnActive();
         break;
       }
       case State.Destroy:
@@ -2003,6 +2196,58 @@ export default abstract class BaseCall implements IWebRTCCall {
     );
 
     void this.hangup({ initiator: 'sdk:media-error' }, false);
+  }
+
+  /**
+   * Logs audio state when call becomes active.
+   * Provides key diagnostic info for debugging audio detection failures.
+   */
+  private _logAudioStateOnActive() {
+    const localAudioTracks = this.options.localStream?.getAudioTracks() ?? [];
+    const remoteAudioTracks = this.options.remoteStream?.getAudioTracks() ?? [];
+    const pc = this.peer?.instance;
+
+    logger.info(`[${this.id}] Audio state on call active:`, {
+      localAudioTracks: localAudioTracks.length,
+      remoteAudioTracks: remoteAudioTracks.length,
+      localAudioTrackDetails: localAudioTracks.map((t) => ({
+        id: t.id,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState,
+        label: t.label,
+      })),
+      remoteAudioTrackDetails: remoteAudioTracks.map((t) => ({
+        id: t.id,
+        enabled: t.enabled,
+        muted: t.muted,
+        readyState: t.readyState,
+        label: t.label,
+      })),
+      peerConnectionState: pc
+        ? {
+            connectionState: pc.connectionState,
+            iceConnectionState: pc.iceConnectionState,
+            signalingState: pc.signalingState,
+          }
+        : 'no peer connection',
+      audioTransceivers: pc
+        ? pc
+            .getTransceivers()
+            .filter(
+              (tr) =>
+                tr.receiver?.track?.kind === 'audio' ||
+                tr.sender?.track?.kind === 'audio'
+            )
+            .map((tr) => ({
+              mid: tr.mid,
+              direction: tr.direction,
+              currentDirection: tr.currentDirection,
+              senderTrackEnabled: tr.sender?.track?.enabled ?? null,
+              receiverTrackEnabled: tr.receiver?.track?.enabled ?? null,
+            }))
+        : [],
+    });
   }
 
   private _onPeerConnectionFailureError(data: {
