@@ -12,7 +12,7 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { State } from '../../webrtc/constants';
+import { Direction, PeerType, State } from '../../webrtc/constants';
 import { SwEvent } from '../../util/constants';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
@@ -225,11 +225,21 @@ describe('Call', () => {
       expect(call.causeCode).toEqual(17);
     });
 
-    it('should use USER_BUSY/17 for a new (pre-answer) call', async () => {
+    it('should use USER_BUSY/17 for a new call without outbound direction', async () => {
       // call starts in State.New
       await call.hangup({}, false);
       expect(call.cause).toEqual('USER_BUSY');
       expect(call.causeCode).toEqual(17);
+    });
+
+    it('should use ORIGINATOR_CANCEL/487 when canceling an outbound call before answer', async () => {
+      call.direction = Direction.Outbound;
+      call.setState(State.Requesting);
+
+      await call.hangup({}, false);
+
+      expect(call.cause).toEqual('ORIGINATOR_CANCEL');
+      expect(call.causeCode).toEqual(487);
     });
 
     it('should use NORMAL_CLEARING/16 when hanging up an active call', async () => {
@@ -252,6 +262,35 @@ describe('Call', () => {
       await call.hangup({ cause: 'CUSTOM_CAUSE', causeCode: 99 }, false);
       expect(call.cause).toEqual('CUSTOM_CAUSE');
       expect(call.causeCode).toEqual(99);
+    });
+  });
+
+  describe('outbound invite response races', () => {
+    it('should not move a hung up outbound call back to trying when invite ACK arrives late', async () => {
+      let resolveInvite: (response: { node_id: string }) => void;
+      const inviteResponse = new Promise<{ node_id: string }>((resolve) => {
+        resolveInvite = resolve;
+      });
+      jest.spyOn(session, 'execute').mockReturnValue(inviteResponse);
+      const onTrickleIceSdp = (
+        Reflect.get(call, '_onTrickleIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      onTrickleIceSdp({
+        type: PeerType.Offer,
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+      });
+      expect(call.state).toEqual('requesting');
+
+      call.setState(State.Hangup);
+      resolveInvite({ node_id: 'late-node' });
+      await inviteResponse;
+      await Promise.resolve();
+
+      expect(call.state).toEqual('hangup');
     });
   });
 
