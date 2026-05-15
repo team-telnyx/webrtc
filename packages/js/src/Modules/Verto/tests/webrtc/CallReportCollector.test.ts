@@ -144,12 +144,10 @@ describe('CallReportCollector cadence', () => {
     ).toEqual(5000);
   });
 
-  it('does not slow down collection if the configured initial interval is longer than the default interval', () => {
+  it('does not slow down collection if the configured default interval is shorter than the initial cadence', () => {
     const collector = new CallReportCollector({
       enabled: true,
-      interval: 2000,
-      initialInterval: 5000,
-      initialDuration: 10000,
+      interval: 500,
     });
     const testable = collector as unknown as {
       callStartTime: Date;
@@ -157,7 +155,7 @@ describe('CallReportCollector cadence', () => {
     };
 
     expect(testable._collectionIntervalFor(testable.callStartTime)).toEqual(
-      2000
+      500
     );
   });
 
@@ -167,8 +165,6 @@ describe('CallReportCollector cadence', () => {
     const collector = new CallReportCollector({
       enabled: true,
       interval: 5000,
-      initialInterval: 1000,
-      initialDuration: 10000,
     });
     const peerConnection = {
       getStats: jest.fn().mockResolvedValue(new Map()),

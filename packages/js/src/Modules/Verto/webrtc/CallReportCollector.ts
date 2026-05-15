@@ -180,10 +180,6 @@ export interface ITransportStats {
 export interface ICallReportOptions {
   enabled: boolean;
   interval: number;
-  /** @default 1000 (1 second) */
-  initialInterval?: number;
-  /** @default 10000 (10 seconds) */
-  initialDuration?: number;
 }
 
 export interface ILogCollectorOptions {
@@ -294,6 +290,9 @@ export class CallReportCollector {
   // Track selected candidate pair ID to detect mid-call path changes
   private previousCandidatePairId: string | null = null;
 
+  private static readonly INITIAL_COLLECTION_INTERVAL_MS = 1000;
+  private static readonly INITIAL_COLLECTION_DURATION_MS = 10000;
+
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals, plus denser startup samples
 
@@ -347,11 +346,7 @@ export class CallReportCollector {
     options: ICallReportOptions,
     logCollectorOptions?: ILogCollectorOptions
   ) {
-    this.options = {
-      ...options,
-      initialInterval: options.initialInterval ?? 1000,
-      initialDuration: options.initialDuration ?? 10000,
-    };
+    this.options = options;
     this.logCollectorOptions = logCollectorOptions || {
       enabled: false,
       level: 'debug',
@@ -381,8 +376,8 @@ export class CallReportCollector {
 
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
-      initialInterval: this.options.initialInterval,
-      initialDuration: this.options.initialDuration,
+      initialInterval: CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+      initialDuration: CallReportCollector.INITIAL_COLLECTION_DURATION_MS,
       logCollectorActive: this.logCollector?.isActive() ?? false,
     });
 
@@ -694,21 +689,15 @@ export class CallReportCollector {
 
   private _collectionIntervalFor(intervalStartTime: Date): number {
     const defaultInterval = this._positiveInterval(this.options.interval, 5000);
-    const initialDuration = this._positiveInterval(
-      this.options.initialDuration,
-      0
-    );
-    const initialInterval = this._positiveInterval(
-      this.options.initialInterval,
-      defaultInterval
-    );
 
     if (
-      initialDuration > 0 &&
       intervalStartTime.getTime() - this.callStartTime.getTime() <
-        initialDuration
+      CallReportCollector.INITIAL_COLLECTION_DURATION_MS
     ) {
-      return Math.min(initialInterval, defaultInterval);
+      return Math.min(
+        CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+        defaultInterval
+      );
     }
 
     return defaultInterval;

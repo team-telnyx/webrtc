@@ -191,22 +191,6 @@ export interface IClientOptions {
   callReportInterval?: number;
 
   /**
-   * Interval in milliseconds for collecting call statistics during the first
-   * `callReportInitialDuration` milliseconds of a call.
-   *
-   * @default 1000 (1 second)
-   */
-  callReportInitialInterval?: number;
-
-  /**
-   * Duration in milliseconds for using `callReportInitialInterval` before
-   * falling back to `callReportInterval`.
-   *
-   * @default 10000 (10 seconds)
-   */
-  callReportInitialDuration?: number;
-
-  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and
