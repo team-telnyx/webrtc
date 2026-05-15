@@ -2073,6 +2073,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Initialize call report collector (stats + debug logs)
     const enableCallReports = this.session.options.enableCallReports !== false; // Default: true
     const callReportInterval = this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const callReportInitialInterval =
+      this.session.options.callReportInitialInterval ?? 1000; // Default: 1 second
+    const callReportInitialDuration =
+      this.session.options.callReportInitialDuration ?? 10000; // Default: 10 seconds
     const debugLogLevel = this.session.options.debugLogLevel || 'debug';
     const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
@@ -2081,6 +2085,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         {
           enabled: true,
           interval: callReportInterval,
+          initialInterval: callReportInitialInterval,
+          initialDuration: callReportInitialDuration,
         },
         {
           enabled: true, // Debug logs enabled when call reports are enabled

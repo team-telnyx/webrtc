@@ -182,12 +182,29 @@ export interface IClientOptions {
   enableCallReports?: boolean;
 
   /**
-   * Interval in milliseconds for collecting call statistics.
-   * Stats are aggregated over each interval and stored locally until call end.
+   * Interval in milliseconds for collecting call statistics after the initial
+   * high-resolution startup window. Stats are aggregated over each interval
+   * and stored locally until call end.
    *
    * @default 5000 (5 seconds)
    */
   callReportInterval?: number;
+
+  /**
+   * Interval in milliseconds for collecting call statistics during the first
+   * `callReportInitialDuration` milliseconds of a call.
+   *
+   * @default 1000 (1 second)
+   */
+  callReportInitialInterval?: number;
+
+  /**
+   * Duration in milliseconds for using `callReportInitialInterval` before
+   * falling back to `callReportInterval`.
+   *
+   * @default 10000 (10 seconds)
+   */
+  callReportInitialDuration?: number;
 
   /**
    * Configuration for media permissions recovery on inbound calls.

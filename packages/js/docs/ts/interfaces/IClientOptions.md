@@ -6,6 +6,8 @@ IClientOptions
 ### Properties
 
 - [anonymous_login](#anonymous_login)
+- [callReportInitialDuration](#callreportinitialduration)
+- [callReportInitialInterval](#callreportinitialinterval)
 - [callReportInterval](#callreportinterval)
 - [debug](#debug)
 - [debugOutput](#debugoutput)
@@ -52,13 +54,44 @@ anonymous_login login options
 
 • `Optional` **callReportInterval**: `number`
 
-Interval in milliseconds for collecting call statistics.
-Stats are aggregated over each interval and stored locally until call end.
+Interval in milliseconds for collecting call statistics after the initial
+high-resolution startup window. Stats are aggregated over each interval
+and stored locally until call end.
 
 **`Default`**
 
 ```ts
 5000 (5 seconds)
+```
+
+---
+
+### callReportInitialDuration
+
+• `Optional` **callReportInitialDuration**: `number`
+
+Duration in milliseconds for using `callReportInitialInterval` before
+falling back to `callReportInterval`.
+
+**`Default`**
+
+```ts
+10000 (10 seconds)
+```
+
+---
+
+### callReportInitialInterval
+
+• `Optional` **callReportInitialInterval**: `number`
+
+Interval in milliseconds for collecting call statistics during the first
+`callReportInitialDuration` milliseconds of a call.
+
+**`Default`**
+
+```ts
+1000 (1 second)
 ```
 
 ---

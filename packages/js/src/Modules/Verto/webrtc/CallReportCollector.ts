@@ -5,7 +5,7 @@
  * at the end of the call for quality analysis and debugging.
  *
  * Stats Collection Strategy (based on Twilio/Jitsi best practices):
- * - Collects stats at regular intervals (default 5 seconds)
+ * - Collects stats every second for the first 10 seconds, then at a regular interval (default 5 seconds)
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
  * - Uses in-memory buffer with size limits for long calls
@@ -180,6 +180,10 @@ export interface ITransportStats {
 export interface ICallReportOptions {
   enabled: boolean;
   interval: number;
+  /** @default 1000 (1 second) */
+  initialInterval?: number;
+  /** @default 10000 (10 seconds) */
+  initialDuration?: number;
 }
 
 export interface ILogCollectorOptions {
@@ -253,7 +257,7 @@ export class CallReportCollector {
   private options: ICallReportOptions;
   private logCollectorOptions: ILogCollectorOptions;
   private peerConnection: RTCPeerConnection | null = null;
-  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private intervalId: ReturnType<typeof setTimeout> | null = null;
   private statsBuffer: IStatsInterval[] = [];
   private intervalStartTime: Date | null = null;
   private callStartTime: Date;
@@ -291,7 +295,7 @@ export class CallReportCollector {
   private previousCandidatePairId: string | null = null;
 
   // Maximum buffer size to prevent memory issues on long calls
-  private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
+  private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals, plus denser startup samples
 
   // ── Size-aware flush ──────────────────────────────────────────────
   // Flush when stats or logs approach their buffer limits to avoid
@@ -333,6 +337,9 @@ export class CallReportCollector {
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
 
+  /** Whether stop() has been requested (prevents timer re-scheduling). */
+  private _stopped: boolean = false;
+
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAY_MS = 500;
 
@@ -340,7 +347,11 @@ export class CallReportCollector {
     options: ICallReportOptions,
     logCollectorOptions?: ILogCollectorOptions
   ) {
-    this.options = options;
+    this.options = {
+      ...options,
+      initialInterval: options.initialInterval ?? 1000,
+      initialDuration: options.initialDuration ?? 10000,
+    };
     this.logCollectorOptions = logCollectorOptions || {
       enabled: false,
       level: 'debug',
@@ -366,15 +377,16 @@ export class CallReportCollector {
 
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
+    this._stopped = false;
 
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
+      initialInterval: this.options.initialInterval,
+      initialDuration: this.options.initialDuration,
       logCollectorActive: this.logCollector?.isActive() ?? false,
     });
 
-    this.intervalId = setInterval(() => {
-      this._collectStats();
-    }, this.options.interval);
+    this._scheduleNextCollection();
   }
 
   /**
@@ -384,8 +396,10 @@ export class CallReportCollector {
    * no periodic interval has completed yet.
    */
   public async stop(): Promise<void> {
+    this._stopped = true;
+
     if (this.intervalId) {
-      clearInterval(this.intervalId);
+      clearTimeout(this.intervalId);
       this.intervalId = null;
     }
 
@@ -657,6 +671,58 @@ export class CallReportCollector {
     }
   }
 
+  private _scheduleNextCollection(): void {
+    if (
+      this._stopped ||
+      !this.peerConnection ||
+      !this.intervalStartTime ||
+      this.intervalId
+    ) {
+      return;
+    }
+
+    const interval = this._collectionIntervalFor(this.intervalStartTime);
+    this.intervalId = setTimeout(() => {
+      this.intervalId = null;
+      this._collectStats().finally(() => {
+        if (!this._stopped && this.peerConnection) {
+          this._scheduleNextCollection();
+        }
+      });
+    }, interval);
+  }
+
+  private _collectionIntervalFor(intervalStartTime: Date): number {
+    const defaultInterval = this._positiveInterval(this.options.interval, 5000);
+    const initialDuration = this._positiveInterval(
+      this.options.initialDuration,
+      0
+    );
+    const initialInterval = this._positiveInterval(
+      this.options.initialInterval,
+      defaultInterval
+    );
+
+    if (
+      initialDuration > 0 &&
+      intervalStartTime.getTime() - this.callStartTime.getTime() <
+        initialDuration
+    ) {
+      return Math.min(initialInterval, defaultInterval);
+    }
+
+    return defaultInterval;
+  }
+
+  private _positiveInterval(
+    value: number | undefined,
+    fallback: number
+  ): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? value
+      : fallback;
+  }
+
   /**
    * Collect stats from the peer connection and aggregate them.
    * @param isFinal - When true (called from stop()), always push a partial
@@ -818,7 +884,10 @@ export class CallReportCollector {
       // short calls (shorter than the collection interval) still produce
       // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-      if (isFinal || intervalDuration >= this.options.interval) {
+      const currentInterval = this._collectionIntervalFor(
+        this.intervalStartTime
+      );
+      if (isFinal || intervalDuration >= currentInterval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
           this.intervalStartTime,
