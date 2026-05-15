@@ -83,13 +83,11 @@ jest.mock('../../../../package.json', () => ({
   version: '1.0.0-test',
 }));
 
-import { deRegister as mockDeRegister, trigger as mockTrigger } from '../services/Handler';
+import { deRegister as mockDeRegister } from '../services/Handler';
 
 describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
   let session: any;
   let call: any;
-  // Track trigger calls for notification assertions
-  const getTriggerCalls = () => (mockTrigger as jest.Mock).mock.calls;
 
   const createSession = (): any => {
     const s: any = new Verto({
@@ -287,11 +285,80 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
         video: false,
       });
 
+      // Suppress unused-variable lint — calls register themselves in session.calls
+      void call1;
+      void call2;
+
       expect(Object.keys(session.calls).length).toBe(2);
 
       await session.disconnect();
 
       expect(Object.keys(session.calls).length).toBe(0);
+    });
+  });
+
+  describe('Edge case: BYE stuck in async execution', () => {
+    it('should finalize call even if BYE execution never resolves', async () => {
+      jest.useFakeTimers();
+
+      call = new Call(session, {
+        destinationNumber: '1234',
+        callerNumber: '5678',
+        audio: true,
+        video: false,
+      });
+      call.peer = {
+        close: jest.fn(),
+        instance: {
+          close: jest.fn(),
+          getStats: jest.fn(),
+        },
+      };
+      call.options.remoteStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+      call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+
+      // Make BYE execution hang forever (never resolves)
+      session.connection.send = jest.fn(() => new Promise(() => {}));
+
+      const hangupPromise = call.hangup();
+
+      // Advance past the 5s BYE timeout
+      jest.advanceTimersByTime(5000);
+
+      await hangupPromise;
+
+      // Call should be cleaned up despite BYE never completing
+      expect(call.isFinalized).toBe(true);
+      expect(session.calls[call.id]).toBeUndefined();
+
+      jest.useRealTimers();
+    });
+
+    it('should still finalize call when BYE throws an error', async () => {
+      call = new Call(session, {
+        destinationNumber: '1234',
+        callerNumber: '5678',
+        audio: true,
+        video: false,
+      });
+      call.peer = {
+        close: jest.fn(),
+        instance: {
+          close: jest.fn(),
+          getStats: jest.fn(),
+        },
+      };
+      call.options.remoteStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+      call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+
+      // Make BYE execution reject
+      session.connection.send = jest.fn(() => Promise.reject(new Error('socket closed')));
+
+      await call.hangup();
+
+      // Call should still be cleaned up even though BYE failed
+      expect(call.isFinalized).toBe(true);
+      expect(session.calls[call.id]).toBeUndefined();
     });
   });
 });

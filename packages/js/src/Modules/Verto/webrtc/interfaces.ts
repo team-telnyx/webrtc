@@ -161,6 +161,11 @@ export interface IWebRTCCall {
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params?: IHangupParams, execute?: boolean) => Promise<void>;
+  /**
+   * True once the call has been finalized (resources released, removed from session).
+   * After finalization, the call is no longer usable.
+   */
+  isFinalized: boolean;
 
   hold: () => void;
   unhold: () => void;

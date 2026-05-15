@@ -634,7 +634,20 @@ export default abstract class BaseCall implements IWebRTCCall {
         causeCode: this.causeCode,
       });
       try {
-        await this._execute(bye);
+        // Timeout guard: if the BYE execution hangs (e.g. socket stalled, server
+        // unresponsive), proceed to Destroy after 5s so the call is always cleaned up.
+        const BYE_TIMEOUT_MS = 5000;
+        await Promise.race([
+          this._execute(bye),
+          new Promise<void>((resolve) =>
+            setTimeout(() => {
+              logger.warn(
+                `[${this.id}] BYE execution timed out after ${BYE_TIMEOUT_MS}ms — proceeding to destroy.`
+              );
+              resolve();
+            }, BYE_TIMEOUT_MS)
+          ),
+        ]);
       } catch (error) {
         logger.error('telnyx_rtc.bye failed!', error);
         const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);

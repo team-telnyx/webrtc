@@ -347,4 +347,76 @@ describe('VertoHandler', () => {
       );
     });
   });
+
+  describe('VSDK-194: Session not reattached — orphaned call cleanup', () => {
+    it('should clean up active calls when reattached_sessions is empty', async () => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      expect(instance.calls[callId]).toBeDefined();
+
+      // Simulate REGED with empty reattached_sessions (b2bua-rtc has no session)
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":999,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[],"state":"REGED"}}'
+      );
+      handler.handleMessage(msg);
+
+      // Call should be cleaned up (removed from session.calls)
+      expect(instance.calls[callId]).toBeUndefined();
+    });
+
+    it('should NOT clean up calls when reattached_sessions contains the call', async () => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      expect(instance.calls[callId]).toBeDefined();
+
+      // Simulate REGED with the session reattached
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":999,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["some-session-id"],"state":"REGED"}}'
+      );
+      handler.handleMessage(msg);
+
+      // Call should NOT be cleaned up
+      expect(instance.calls[callId]).toBeDefined();
+    });
+
+    it('should not clean up calls when there are no active calls', async () => {
+      await instance.connect();
+
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":999,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[],"state":"REGED"}}'
+      );
+
+      // Should not throw
+      expect(() => handler.handleMessage(msg)).not.toThrow();
+    });
+
+    it('should emit SESSION_NOT_REATTACHED warning before cleaning up calls', async () => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      // Clear previous notifications
+      onNotification.mockClear();
+
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":999,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[],"state":"REGED"}}'
+      );
+      handler.handleMessage(msg);
+
+      // Warning should have been emitted via telnyx.error event
+      // The important thing is the call was cleaned up and a warning was emitted
+      expect(instance.calls[callId]).toBeUndefined();
+      // At least verify the trigger was called (via the warning import path)
+      expect(onNotification).toHaveBeenCalled();
+    });
+  });
 });

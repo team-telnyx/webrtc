@@ -72,9 +72,10 @@ class VertoHandler {
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
-    // W8: Session not reattached warning
+    // W8: Session not reattached
     // If the server sends reattached_sessions as an empty array and the SDK
     // has active calls, the session was not reattached after reconnection.
+    // Clean up orphaned calls that no longer have a server-side session.
     if (
       Array.isArray(params?.reattached_sessions) &&
       params.reattached_sessions.length === 0 &&
@@ -86,6 +87,20 @@ class VertoHandler {
         { warning, sessionId: session.sessionid },
         session.uuid
       );
+
+      logger.info(
+        '[VSDK-194] Session not reattached — cleaning up orphaned calls that have no server-side session.'
+      );
+      const callIds = Object.keys(session.calls);
+      for (const callId of callIds) {
+        const call = session.calls[callId];
+        if (call && !call.isFinalized) {
+          logger.debug(
+            `[VSDK-194] Cleaning up orphaned call ${callId} (state: ${call.state}) after failed reattach.`
+          );
+          call.setState(State.Destroy);
+        }
+      }
     }
 
     if (eventType === 'channelPvtData') {
