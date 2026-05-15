@@ -49,6 +49,46 @@ import {
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
+interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
+  selected?: boolean;
+  availableOutgoingBitrate?: number;
+  currentRoundTripTime?: number;
+  totalRoundTripTime?: number;
+  requestsSent?: number;
+  responsesReceived?: number;
+  packetsSent?: number;
+  packetsReceived?: number;
+  bytesSent?: number;
+  bytesReceived?: number;
+  writable?: boolean;
+}
+
+interface ExtendedTransportStats {
+  id: string;
+  type: string;
+  iceState?: string;
+  dtlsState?: string;
+  selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
+}
+
+interface ExtendedIceCandidateStats {
+  id: string;
+  type: string;
+  address?: string;
+  ip?: string;
+  port?: number;
+  candidateType?: string;
+  protocol?: string;
+  networkType?: string;
+  relayProtocol?: string;
+  url?: string;
+}
+
+interface StatsReportWithGet extends RTCStatsReport {
+  get(id: string): unknown;
+}
+
 /**
  * @ignore Hide in docs output
  */
@@ -557,14 +597,161 @@ export default class Peer {
     performance.mark('peer-creation-end');
   }
 
-  private _handleIceConnectionStateChange = () => {
-    const state = this.instance.iceConnectionState;
+  private _handleIceConnectionStateChange = async () => {
+    const peerConnection = this.instance;
+    const state = peerConnection.iceConnectionState;
     logger.debug(`[${new Date().toISOString()}] ICE Connection State`, state);
+
+    if (state === 'disconnected' || state === 'failed') {
+      await this._logIceConnectionDiagnostics(peerConnection, state);
+    }
 
     if (state === 'connected') {
       performance.mark('ice-connected');
     }
   };
+
+  private async _logIceConnectionDiagnostics(
+    peerConnection: RTCPeerConnection,
+    state: RTCIceConnectionState
+  ): Promise<void> {
+    try {
+      const stats = await peerConnection.getStats();
+      const transport = this._getTransportStats(stats);
+      const selectedPair = this._getSelectedCandidatePairStats(
+        stats,
+        transport?.selectedCandidatePairId
+      );
+      const localCandidate = selectedPair?.localCandidateId
+        ? this._getIceCandidateStats(stats, selectedPair.localCandidateId)
+        : undefined;
+      const remoteCandidate = selectedPair?.remoteCandidateId
+        ? this._getIceCandidateStats(stats, selectedPair.remoteCandidateId)
+        : undefined;
+
+      logger.warn('ICE connection state diagnostics', {
+        callId: this.options.id,
+        sessionId: this._session.sessionid,
+        iceConnectionState: state,
+        connectionState: peerConnection.connectionState,
+        signalingState: peerConnection.signalingState,
+        iceGatheringState: peerConnection.iceGatheringState,
+        transport: transport
+          ? {
+              id: transport.id,
+              iceState: transport.iceState,
+              dtlsState: transport.dtlsState,
+              selectedCandidatePairChanges:
+                transport.selectedCandidatePairChanges,
+              selectedCandidatePairId: transport.selectedCandidatePairId,
+            }
+          : undefined,
+        selectedCandidatePair: selectedPair
+          ? {
+              id: selectedPair.id,
+              state: selectedPair.state,
+              selected: selectedPair.selected,
+              nominated: selectedPair.nominated,
+              writable: selectedPair.writable,
+              requestsSent: selectedPair.requestsSent,
+              responsesReceived: selectedPair.responsesReceived,
+              currentRoundTripTime: selectedPair.currentRoundTripTime,
+              totalRoundTripTime: selectedPair.totalRoundTripTime,
+              availableOutgoingBitrate: selectedPair.availableOutgoingBitrate,
+              packetsSent: selectedPair.packetsSent,
+              packetsReceived: selectedPair.packetsReceived,
+              bytesSent: selectedPair.bytesSent,
+              bytesReceived: selectedPair.bytesReceived,
+            }
+          : undefined,
+        localCandidate: this._formatIceCandidateStats(localCandidate),
+        remoteCandidate: this._formatIceCandidateStats(remoteCandidate),
+      });
+    } catch (error) {
+      logger.warn('Unable to collect ICE connection diagnostics', {
+        callId: this.options.id,
+        sessionId: this._session.sessionid,
+        iceConnectionState: state,
+        error,
+      });
+    }
+  }
+
+  private _getTransportStats(
+    stats: RTCStatsReport
+  ): ExtendedTransportStats | undefined {
+    let transport: ExtendedTransportStats | undefined;
+    stats.forEach((report) => {
+      if (report.type === 'transport') {
+        transport = report as ExtendedTransportStats;
+      }
+    });
+    return transport;
+  }
+
+  private _getSelectedCandidatePairStats(
+    stats: RTCStatsReport,
+    selectedCandidatePairId?: string
+  ): ExtendedCandidatePairStats | undefined {
+    if (selectedCandidatePairId) {
+      const pair = this._getStatsReportById(stats, selectedCandidatePairId) as
+        | ExtendedCandidatePairStats
+        | undefined;
+      if (pair) return pair;
+    }
+
+    let selectedPair: ExtendedCandidatePairStats | undefined;
+    stats.forEach((report) => {
+      if (report.type !== 'candidate-pair') return;
+      const pair = report as ExtendedCandidatePairStats;
+      if (pair.selected || pair.nominated || pair.state === 'succeeded') {
+        selectedPair = pair;
+      }
+    });
+    return selectedPair;
+  }
+
+  private _getIceCandidateStats(
+    stats: RTCStatsReport,
+    candidateId: string
+  ): ExtendedIceCandidateStats | undefined {
+    return this._getStatsReportById(stats, candidateId) as
+      | ExtendedIceCandidateStats
+      | undefined;
+  }
+
+  private _getStatsReportById(
+    stats: RTCStatsReport,
+    id: string
+  ): unknown | undefined {
+    const statsWithGet = stats as StatsReportWithGet;
+    if (typeof statsWithGet.get === 'function') {
+      return statsWithGet.get(id);
+    }
+
+    let matchedReport: unknown | undefined;
+    stats.forEach((report) => {
+      if (report.id === id) {
+        matchedReport = report;
+      }
+    });
+    return matchedReport;
+  }
+
+  private _formatIceCandidateStats(candidate?: ExtendedIceCandidateStats) {
+    if (!candidate) return undefined;
+
+    return {
+      id: candidate.id,
+      candidateType: candidate.candidateType,
+      address: candidate.address ?? candidate.ip,
+      port: candidate.port,
+      protocol: candidate.protocol,
+      networkType: candidate.networkType,
+      relayProtocol: candidate.relayProtocol,
+      url: candidate.url,
+    };
+  }
 
   private _handleIceGatheringStateChange = () => {
     const state = this.instance.iceGatheringState;
