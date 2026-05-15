@@ -29,6 +29,7 @@ import {
   HIGH_JITTER,
   HIGH_PACKET_LOSS,
   LOW_MOS,
+  LOW_LOCAL_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
 } from '../../../Modules/Verto/util/constants/errorCodes';
@@ -311,6 +312,10 @@ export class CallReportCollector {
   private static readonly THRESHOLD_JITTER_MS = 30; // 30ms
   private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
   private static readonly THRESHOLD_MOS = 3.5;
+  // WebRTC audioLevel is linear RMS in [0, 1]. Treat near-silence as a
+  // local microphone issue only after consecutive intervals, mirroring the
+  // high-jitter warning pattern and avoiding one-off pauses in speech.
+  private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
@@ -931,6 +936,12 @@ export class CallReportCollector {
         packetLossPct > CallReportCollector.THRESHOLD_PACKET_LOSS_PCT
     );
 
+    // Local microphone audio warning — outbound audioLevelAvg is sourced from
+    // media-source audioLevel when present, or computed from totalAudioEnergy
+    // deltas as a fallback. Do not warn for an intentionally disabled/muted
+    // local track.
+    this._trackBreach(LOW_LOCAL_AUDIO, this._isLowLocalAudio(statsEntry));
+
     // MOS warning — simplified E-model
     if (
       rtt !== undefined &&
@@ -969,6 +980,19 @@ export class CallReportCollector {
       const currBytes = statsEntry.audio.outbound.bytesSent ?? 0;
       this._trackBreach(LOW_BYTES_SENT, currBytes - prevBytes === 0);
     }
+  }
+
+  private _isLowLocalAudio(statsEntry: IStatsInterval): boolean {
+    const outbound = statsEntry.audio?.outbound;
+    const audioLevel = outbound?.audioLevelAvg;
+    if (audioLevel === undefined) return false;
+
+    const localTrack = outbound?.localTrack;
+    if (localTrack?.enabled === false || localTrack?.muted === true) {
+      return false;
+    }
+
+    return audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
   }
 
   /**

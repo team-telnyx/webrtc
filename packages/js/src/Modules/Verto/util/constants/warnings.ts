@@ -103,6 +103,24 @@ export const SDK_WARNINGS = {
       'Close bandwidth-heavy applications',
     ],
   },
+  31005: {
+    name: 'LOW_LOCAL_AUDIO',
+    message: 'Low local microphone audio detected',
+    description:
+      'Local outbound audio level stayed below the acceptable threshold for multiple consecutive samples. This may indicate that the microphone is not capturing enough audio even while RTP is being sent.',
+    causes: [
+      'Microphone input level is too low',
+      'Wrong microphone selected',
+      'Microphone is obstructed or too far from the speaker',
+      'Operating system input gain is muted or very low',
+    ],
+    solutions: [
+      'Check the selected microphone',
+      'Increase microphone input gain',
+      'Move closer to the microphone',
+      'Verify the microphone is not muted at the operating system or hardware level',
+    ],
+  },
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   32001: {
