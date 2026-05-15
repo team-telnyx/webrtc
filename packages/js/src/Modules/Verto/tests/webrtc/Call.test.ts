@@ -13,7 +13,11 @@ Object.defineProperty(global, 'performance', {
 
 import { isQueued, register, deRegister } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
-import { SwEvent } from '../../util/constants';
+import {
+  ANSWER_WHILE_PEER_ACTIVE,
+  DUPLICATE_INBOUND_ANSWER,
+  SwEvent,
+} from '../../util/constants';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
@@ -395,10 +399,15 @@ describe('Call', () => {
       // _creatingPeer false means we reached the end of answer() normally,
       // not via the media-error early-return path
       expect(receiveOnlyCall['_creatingPeer']).toBe(false);
+      await receiveOnlyCall.hangup({}, false);
     });
   });
 
   describe('double answer prevention', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('should ignore second answer() when peer connection already exists', async () => {
       const answerCall = new Call(session, {
         ...defaultParams,
@@ -413,7 +422,7 @@ describe('Call', () => {
       } as unknown as Peer;
 
       const warningHandler = jest.fn();
-      register(SwEvent.Warning, warningHandler, answerCall.id);
+      register(SwEvent.Warning, warningHandler, session.uuid);
 
       await answerCall.answer();
 
@@ -421,14 +430,14 @@ describe('Call', () => {
       expect(warningHandler).toHaveBeenCalledWith(
         expect.objectContaining({
           warning: expect.objectContaining({
-            code: 33006,
+            code: ANSWER_WHILE_PEER_ACTIVE,
             name: 'ANSWER_WHILE_PEER_ACTIVE',
           }),
           callId: answerCall.id,
         })
       );
 
-      deRegister(SwEvent.Warning, undefined, answerCall.id);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
     it('should allow answer() when peer connection is closed', async () => {
@@ -441,18 +450,144 @@ describe('Call', () => {
       answerCall.peer = {
         instance: {
           signalingState: 'closed',
+          connectionState: 'closed',
+          iceConnectionState: 'closed',
         },
       } as unknown as Peer;
 
       const warningHandler = jest.fn();
-      register(SwEvent.Warning, warningHandler, answerCall.id);
+      register(SwEvent.Warning, warningHandler, session.uuid);
 
       await answerCall.answer();
 
       // Warning should NOT fire — a closed peer is allowed to be replaced
       expect(warningHandler).not.toHaveBeenCalled();
 
-      deRegister(SwEvent.Warning, undefined, answerCall.id);
+      await answerCall.hangup({}, false);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+    });
+
+    it('should ignore another inbound answer in the same session when there is an answering call with usable peer connection', async () => {
+      const initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+
+      const firstCall = new Call(session, {
+        ...defaultParams,
+        id: 'first-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const duplicateCall = new Call(session, {
+        ...defaultParams,
+        id: 'duplicate-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+
+      await firstCall.answer();
+      firstCall.setState(State.Answering);
+      firstCall.peer = {
+        close: jest.fn(),
+        instance: {
+          signalingState: 'stable',
+          connectionState: 'connecting',
+          iceConnectionState: 'checking',
+        },
+      } as unknown as Peer;
+      await duplicateCall.answer();
+
+      expect(initSpy).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: DUPLICATE_INBOUND_ANSWER,
+            name: 'DUPLICATE_INBOUND_ANSWER',
+          }),
+          callId: duplicateCall.id,
+          activeCallId: firstCall.id,
+        })
+      );
+
+      await firstCall.hangup({}, false);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+    });
+
+    it('should ignore another inbound answer when previous call has a failed peer connection', async () => {
+      const initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+
+      const firstCall = new Call(session, {
+        ...defaultParams,
+        id: 'failed-peer-first-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const duplicateCall = new Call(session, {
+        ...defaultParams,
+        id: 'failed-peer-second-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+
+      await firstCall.answer();
+      firstCall.setState(State.Active);
+      firstCall.peer = {
+        close: jest.fn(),
+        instance: {
+          signalingState: 'stable',
+          connectionState: 'failed',
+          iceConnectionState: 'failed',
+        },
+      } as unknown as Peer;
+
+      await duplicateCall.answer();
+
+      expect(initSpy).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: DUPLICATE_INBOUND_ANSWER,
+            name: 'DUPLICATE_INBOUND_ANSWER',
+          }),
+          callId: duplicateCall.id,
+          activeCallId: firstCall.id,
+        })
+      );
+
+      await firstCall.hangup({}, false);
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+    });
+
+    it('should release duplicate answer guard after the active call is destroyed', async () => {
+      const initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+
+      const firstCall = new Call(session, {
+        ...defaultParams,
+        id: 'released-first-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      const secondCall = new Call(session, {
+        ...defaultParams,
+        id: 'released-second-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      await firstCall.answer();
+      await firstCall.hangup({}, false);
+      await secondCall.answer();
+
+      expect(initSpy).toHaveBeenCalledTimes(2);
+
+      await secondCall.hangup({}, false);
     });
   });
 });

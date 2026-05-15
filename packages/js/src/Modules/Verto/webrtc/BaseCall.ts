@@ -25,6 +25,7 @@ import {
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
+  DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
 } from '../util/constants';
@@ -433,7 +434,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
-    if (this.peer?.instance && this.peer.instance.signalingState !== 'closed') {
+    if (
+      this._creatingPeer ||
+      (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
+    ) {
       const warning = createTelnyxWarning(ANSWER_WHILE_PEER_ACTIVE);
       trigger(
         SwEvent.Warning,
@@ -441,8 +445,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.uuid
       );
       logger.warn(
-        `[${this.id}] answer() ignored: peer connection already exists (signalingState: ${this.peer.instance.signalingState})`
+        `[${this.id}] answer() ignored: peer connection already exists or is being created (signalingState: ${this.peer?.instance?.signalingState ?? 'creating'})`
       );
+      return;
+    }
+
+    if (!this._registerInboundAnswerAttempt()) {
       return;
     }
 
@@ -2057,6 +2065,97 @@ export default abstract class BaseCall implements IWebRTCCall {
       msg.targetNodeId = this.nodeId;
     }
     return this.session.execute(msg);
+  }
+
+  private _registerInboundAnswerAttempt(): boolean {
+    if (this.options.attach || this._isRecovering) {
+      return true;
+    }
+
+    for (const existingCall of this._getSessionInboundAnswerCalls()) {
+      if (existingCall.id === this.id) {
+        continue;
+      }
+
+      if (!existingCall._isBlockingInboundAnswer()) {
+        continue;
+      }
+
+      const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.id,
+          activeCallId: existingCall.id,
+          sessionId: this.session.sessionid,
+          activeSessionId: existingCall.session.sessionid,
+        },
+        this.session.uuid
+      );
+      logger.warn(
+        `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active`
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  private _getSessionInboundAnswerCalls(): BaseCall[] {
+    return (Object.values(this.session.calls) as Array<BaseCall | null>)
+      .filter((call): call is BaseCall => Boolean(call))
+      .filter(
+        (call) =>
+          !call.options.attach &&
+          !call._isRecovering &&
+          call.direction === Direction.Inbound
+      );
+  }
+
+  private _isBlockingInboundAnswer(): boolean {
+    if ([State.Hangup, State.Destroy, State.Purge].includes(this._state)) {
+      return false;
+    }
+
+    const isAnsweringOrActive = [
+      State.Answering,
+      State.Early,
+      State.Active,
+      State.Held,
+    ].includes(this._state);
+
+    if (!this._creatingPeer && !isAnsweringOrActive) {
+      return false;
+    }
+
+    if (this._creatingPeer && !this.peer?.instance) {
+      return true;
+    }
+
+    return this._hasUsablePeerConnection();
+  }
+
+  private _hasUsablePeerConnection(): boolean {
+    const peerConnection = this.peer?.instance;
+
+    if (!peerConnection) {
+      return false;
+    }
+
+    if (peerConnection.signalingState === 'closed') {
+      return false;
+    }
+
+    if (peerConnection.connectionState === 'closed') {
+      return false;
+    }
+
+    if (peerConnection.iceConnectionState === 'closed') {
+      return false;
+    }
+
+    return true;
   }
 
   private _init() {

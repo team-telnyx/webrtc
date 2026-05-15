@@ -234,6 +234,23 @@ export const SDK_WARNINGS = {
       'Check that answer() is not invoked from multiple event handlers',
     ],
   },
+  33007: {
+    name: 'DUPLICATE_INBOUND_ANSWER',
+    message:
+      'Call answer ignored because another inbound call is already being answered',
+    description:
+      'answer() was called on an inbound call while another inbound call is already answering or active in this JavaScript runtime. Answering both legs can trigger SIP 486 USER_BUSY / LOSE_RACE when duplicate WebSocket registrations receive the same incoming call.',
+    causes: [
+      'Multiple TelnyxRTC instances in the same page',
+      'Application code recreating a client without disconnecting the previous instance',
+      'Duplicate inbound call notifications produced by duplicate WebSocket registrations',
+    ],
+    solutions: [
+      'Keep a single active TelnyxRTC instance for inbound call handling',
+      'Call disconnect() before replacing an SDK client instance',
+      'Only call answer() for one inbound call notification at a time',
+    ],
+  },
 
   // ── Authentication warnings (340xx) ─────────────────────────────────
   34001: {
