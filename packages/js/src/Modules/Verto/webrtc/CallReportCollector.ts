@@ -334,7 +334,8 @@ export class CallReportCollector {
   private _flushing: boolean = false;
 
   // ── Retry configuration ───────────────────────────────────────────
-  private static readonly RETRY_DELAY_MS = 500;
+  private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
+  private static readonly KEEPALIVE_BODY_LIMIT_BYTES = 60 * 1024;
 
   constructor(
     options: ICallReportOptions,
@@ -526,9 +527,9 @@ export class CallReportCollector {
   /**
    * Internal: send a payload to the call_report endpoint.
    *
-   * On network error (e.g., ERR_SOCKET_NOT_CONNECTED from Chrome reusing
-   * a stale TCP socket), retries once after a short delay. If the retry
-   * also fails, logs the error and moves on.
+   * Retries non-2xx responses and network errors (e.g.,
+   * ERR_SOCKET_NOT_CONNECTED from Chrome reusing a stale TCP socket) with
+   * bounded backoff. Throws after exhaustion so callers can record failure.
    */
   private async _sendPayload(
     payload: ICallReportPayload,
@@ -536,96 +537,96 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
-    try {
-      const wsUrl = new URL(host);
-      const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
+    const wsUrl = new URL(host);
+    const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-      const isIntermediate =
-        payload.segment !== undefined && !payload.summary.endTimestamp;
-      const label = isIntermediate
-        ? `intermediate segment ${payload.segment}`
-        : 'final report';
+    const isIntermediate =
+      payload.segment !== undefined && !payload.summary.endTimestamp;
+    const label = isIntermediate
+      ? `intermediate segment ${payload.segment}`
+      : 'final report';
 
-      logger.info(`CallReportCollector: Posting ${label}`, {
-        endpoint,
-        intervals: payload.stats.length,
-        logEntries: payload.logs?.length ?? 0,
-        callId: payload.summary.callId,
-        segment: payload.segment,
-      });
+    logger.info(`CallReportCollector: Posting ${label}`, {
+      endpoint,
+      intervals: payload.stats.length,
+      logEntries: payload.logs?.length ?? 0,
+      callId: payload.summary.callId,
+      segment: payload.segment,
+    });
 
-      // Build headers
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-call-report-id': callReportId,
-        'x-call-id': payload.summary.callId,
-      };
-      if (voiceSdkId) {
-        headers['x-voice-sdk-id'] = voiceSdkId;
-      }
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-call-report-id': callReportId,
+      'x-call-id': payload.summary.callId,
+    };
+    if (voiceSdkId) {
+      headers['x-voice-sdk-id'] = voiceSdkId;
+    }
 
-      const body = JSON.stringify(payload);
+    const body = JSON.stringify(payload);
+    const useKeepalive =
+      !isIntermediate &&
+      body.length <= CallReportCollector.KEEPALIVE_BODY_LIMIT_BYTES;
 
-      const doFetch = () => fetch(endpoint, { method: 'POST', headers, body });
+    let lastError: unknown;
 
-      const response = await doFetch();
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error(`CallReportCollector: Failed to post ${label}`, {
-          status: response.status,
-          error: errorText,
-        });
-      } else {
-        logger.info(`CallReportCollector: Successfully posted ${label}`);
-      }
-    } catch (firstError) {
-      // Network error (stale socket, DNS failure, etc.) — retry once
-      logger.warn(
-        `CallReportCollector: Network error posting call report, retrying in ${CallReportCollector.RETRY_DELAY_MS}ms`,
-        { error: firstError }
-      );
-
-      await new Promise((r) =>
-        setTimeout(r, CallReportCollector.RETRY_DELAY_MS)
-      );
-
+    for (
+      let attempt = 0;
+      attempt <= CallReportCollector.RETRY_DELAYS_MS.length;
+      attempt++
+    ) {
       try {
-        const wsUrl = new URL(host);
-        const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
-
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-          'x-call-report-id': callReportId,
-          'x-call-id': payload.summary.callId,
-        };
-        if (voiceSdkId) {
-          headers['x-voice-sdk-id'] = voiceSdkId;
-        }
-
         const response = await fetch(endpoint, {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body,
+          ...(useKeepalive ? { keepalive: true } : {}),
         });
 
         if (!response.ok) {
           const errorText = await response.text();
-          logger.error(
-            'CallReportCollector: Failed to post call report on retry',
-            { status: response.status, error: errorText }
+          const error = new Error(
+            `Call report POST failed with status ${response.status}`
           );
+          lastError = error;
+
+          logger.error(`CallReportCollector: Failed to post ${label}`, {
+            attempt: attempt + 1,
+            status: response.status,
+            error: errorText,
+          });
         } else {
-          logger.info(
-            'CallReportCollector: Successfully posted call report on retry'
-          );
+          logger.info(`CallReportCollector: Successfully posted ${label}`, {
+            attempt: attempt + 1,
+            status: response.status,
+          });
+          return;
         }
-      } catch (retryError) {
-        logger.error('CallReportCollector: Retry also failed, giving up', {
-          error: retryError,
+      } catch (error) {
+        lastError = error;
+        logger.warn(`CallReportCollector: Network error posting ${label}`, {
+          attempt: attempt + 1,
+          error,
         });
       }
+
+      const retryDelay = CallReportCollector.RETRY_DELAYS_MS[attempt];
+      if (retryDelay === undefined) {
+        break;
+      }
+
+      logger.info(`CallReportCollector: Retrying ${label} in ${retryDelay}ms`, {
+        attempt: attempt + 2,
+      });
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
     }
+
+    logger.error(`CallReportCollector: Exhausted retries posting ${label}`, {
+      error: lastError,
+    });
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Call report POST failed after retries');
   }
 
   /**
