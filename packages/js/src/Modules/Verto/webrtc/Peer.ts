@@ -56,6 +56,8 @@ export default class Peer {
   public instance: RTCPeerConnection;
   public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
+  public isIceRestarting: boolean = false;
+  public iceDone: boolean = false;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
@@ -67,6 +69,7 @@ export default class Peer {
   private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
+
   private _sleepWakeupIntervalId: ReturnType<typeof setInterval> | null = null;
   private _iceGatheringSafetyTimeout: ReturnType<typeof setTimeout> | null =
     null;
@@ -74,6 +77,10 @@ export default class Peer {
   private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
   private _firstMediaTrackMarked: boolean = false;
   private _timingsCollected: boolean = false;
+  private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
+  private _hadOfflineEvent: boolean = false;
+  private _offlineHandler: (() => void) | null = null;
 
   constructor(
     public type: PeerType,
@@ -100,6 +107,29 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
+    // Track offline events independently so ICE restart and Attach never race.
+    // _hadOfflineEvent is only cleared on peer `connected`, not on `online`.
+    if (typeof window !== 'undefined') {
+      this._offlineHandler = () => {
+        this._hadOfflineEvent = true;
+      };
+      window.addEventListener('offline', this._offlineHandler);
+    }
+  }
+
+  /**
+   * Ends the current ICE restart cycle (clears the flag and any pending timeout).
+   * Safe to call multiple times — only the first invocation has an effect.
+   */
+  public finishIceRestart() {
+    if (!this.isIceRestarting) {
+      return;
+    }
+    this.isIceRestarting = false;
+    if (this._iceRestartTimeoutId) {
+      clearTimeout(this._iceRestartTimeoutId);
+      this._iceRestartTimeoutId = null;
+    }
   }
 
   get isOffer() {
@@ -135,7 +165,7 @@ export default class Peer {
 
     this._negotiating = true;
 
-    if (this._isOffer()) {
+    if (this._isOffer() || this.isIceRestarting) {
       this._createOffer();
     } else {
       this._createAnswer();
@@ -146,7 +176,7 @@ export default class Peer {
 
     this._negotiating = true;
 
-    if (this._isOffer()) {
+    if (this._isOffer() || this.isIceRestarting) {
       await this._createOffer().then(this._trickleIceSdpFn.bind(this));
     } else {
       await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
@@ -217,7 +247,9 @@ export default class Peer {
       );
       return;
     }
-    if (this._isTrickleIce()) {
+    // ICE restart requires a complete SDP (backend doesn't support
+    // trickle ICE for Modify), so force the non-trickle path.
+    if (this._isTrickleIce() && !this.isIceRestarting) {
       this.startTrickleIceNegotiation();
     } else {
       this.startNegotiation();
@@ -251,46 +283,52 @@ export default class Peer {
 
     // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
     if (connectionState === 'failed' || connectionState === 'disconnected') {
-      const onConnectionOnline = async () => {
-        // Report detailed connection state if debug is enabled
-        if (this.isDebugEnabled && this.statsReporter) {
-          const details = await getConnectionStateDetails(
-            this.instance,
-            this._prevConnectionState
-          );
+      // Report detailed connection state if debug is enabled
+      if (this.isDebugEnabled && this.statsReporter) {
+        getConnectionStateDetails(
+          this.instance,
+          this._prevConnectionState
+        ).then((details) => {
           this.statsReporter.reportConnectionStateChange(details);
-        }
+        });
+      }
 
-        //FIXME: implement proper ICE restart flow
-        /**
-         * Restart ICE is not working since we do not handle SDP exchange after ICE restart.
-         * The proper way:
-         * 1. Create new offer
-         * 2. Set the local description to the offer
-         * 3. Send it to the remote peer
-         * 4. Wait for the remote peer to send us an answer
-         * 5. Set the remote description to the answer
-         *
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/restartIce
-         * @see https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Session_lifetime#ice_restart
-         */
-        // if (
-        //   !this._restartedIceOnConnectionStateFailed &&
-        //   connectionState === 'failed' &&
-        //   this._session.hasAutoReconnect()
-        // ) {
-        // this.instance.restartIce();
-        // this._restartedIceOnConnectionStateFailed = true;
-        // logger.info('Peer connection state failed. ICE restarted.');
-        // }
-
-        window.removeEventListener('online', onConnectionOnline);
-      };
-
-      if (navigator.onLine) {
-        onConnectionOnline();
-      } else {
-        window.addEventListener('online', onConnectionOnline);
+      // ICE restart: fire only when the browser never went offline during
+      // this peer's lifetime. If `window.offline` fired, the Attach flow
+      // owns recovery exclusively. _hadOfflineEvent is only cleared on `connected`,
+      // not on the `online` event, so there's no race with BrowserSession's
+      // online handler.
+      const canRestartIceWithoutAttach =
+        !this._hadOfflineEvent && this._session.connected;
+      if (
+        !this._restartedIceOnConnectionStateFailed &&
+        (connectionState === 'failed' || connectionState === 'disconnected') &&
+        canRestartIceWithoutAttach
+      ) {
+        this.isIceRestarting = true;
+        this._restartedIceOnConnectionStateFailed = true;
+        // Backend doesn't support trickle ICE for Modify — the
+        // onicecandidate handler in BaseCall checks isIceRestarting
+        // at runtime to use the non-trickle path.
+        this.instance.restartIce();
+        // Reset iceDone so BaseCall's icecandidate handler processes the new
+        // candidates from the restarted ICE gathering.
+        this.iceDone = false;
+        // Safety net: if the Modify exchange never completes (server drops the
+        // response, WS reconnects mid-restart, etc.), clear the flag so we don't
+        // get stuck in a permanent "restarting" state.
+        this._iceRestartTimeoutId = setTimeout(() => {
+          if (this.isIceRestarting) {
+            logger.warn(
+              'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
+            );
+            this.isIceRestarting = false;
+          }
+          this._iceRestartTimeoutId = null;
+        }, Peer.ICE_RESTART_TIMEOUT_MS);
+        logger.info(
+          `ICE restart: peer ${connectionState}, canRestartIceWithoutAttach=${canRestartIceWithoutAttach}. Creating new offer via Modify.`
+        );
       }
     }
 
@@ -330,6 +368,15 @@ export default class Peer {
     if (connectionState === 'connected') {
       performance.mark('dtls-connected');
       this.tryCollectTimings();
+
+      // Successful (re)connection — allow future ICE restarts if we fail again.
+      // Only clear the restart-gate and offline flag here; isIceRestarting
+      // must remain true until the Modify exchange completes (see
+      // _sendIceRestartModify in BaseCall) or the safety timeout fires.
+      // Calling finishIceRestart() here would clear isIceRestarting before
+      // the Modify SDP is even sent, breaking the ICE restart flow.
+      this._restartedIceOnConnectionStateFailed = false;
+      this._hadOfflineEvent = false;
     }
 
     if (this._isTrickleIce()) {
@@ -761,7 +808,7 @@ export default class Peer {
   }
 
   private async _createOffer() {
-    if (!this._isOffer()) {
+    if (!this._isOffer() && !this.isIceRestarting) {
       return;
     }
     // set default audio true, given value given in session mediaConstraints and call options may be undefined.
@@ -968,7 +1015,12 @@ export default class Peer {
   }
 
   public async close() {
+    this.finishIceRestart();
     this._clearIceGatheringSafetyTimeout();
+    if (this._offlineHandler && typeof window !== 'undefined') {
+      window.removeEventListener('offline', this._offlineHandler);
+      this._offlineHandler = null;
+    }
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;

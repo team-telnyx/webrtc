@@ -280,6 +280,23 @@ export const SDK_ERRORS = {
     ],
   },
 
+  // ── ICE restart errors (470xx) ─────────────────────────────────────
+  47001: {
+    name: 'ICE_RESTART_FAILED',
+    message: 'ICE restart failed',
+    description:
+      'The ICE restart Modify request could not be sent or the server returned an error. The media path could not be recovered via ICE restart.',
+    causes: [
+      'WebSocket connection lost during ICE restart',
+      'Server rejected the Modify request',
+      'Timeout waiting for server response',
+    ],
+    solutions: [
+      'The call may recover via WebSocket reconnect + Attach',
+      'If the call does not recover, hang up and retry',
+    ],
+  },
+
   // ── Network errors (480xx) ──────────────────────────────────────────
   48001: {
     name: 'NETWORK_OFFLINE',
