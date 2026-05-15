@@ -2166,10 +2166,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
-    // Post call report after cleanup (fire-and-forget — must not block teardown)
-    this._postCallReport().catch((error) => {
+    // Post call report after cleanup. The upload runs in the background,
+    // but the session tracks it so disconnect() can wait instead of racing
+    // teardown against the final BYE-triggered report POST.
+    const callReportUpload = this._postCallReport().catch((error) => {
       logger.error('Unexpected error in _postCallReport', { error });
     });
+    this.session.trackCallReportUpload(callReportUpload);
   }
 
   /**
@@ -2264,15 +2267,20 @@ export default abstract class BaseCall implements IWebRTCCall {
     // voice_sdk_id is stored as the reconnect token
     const voiceSdkId = getReconnectToken() || undefined;
 
-    this._callReportCollector
-      .postReport(summary, callReportId, host, voiceSdkId)
-      .catch((error) => {
-        logger.error('Failed to post call report', { error });
-      })
-      .finally(() => {
-        // Clean up log collector resources
-        this._callReportCollector?.cleanup();
-      });
+    try {
+      await this._callReportCollector.postReport(
+        summary,
+        callReportId,
+        host,
+        voiceSdkId
+      );
+    } catch (error) {
+      logger.error('Failed to post call report', { error });
+      throw error;
+    } finally {
+      // Clean up log collector resources
+      this._callReportCollector?.cleanup();
+    }
   }
 
   private _startStats(interval: number) {

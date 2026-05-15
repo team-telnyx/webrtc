@@ -5,6 +5,13 @@ import {
   ILocalAudioTrackSnapshot,
 } from '../../webrtc/CallReportCollector';
 
+type SendPayload = (
+  payload: unknown,
+  callReportId: string,
+  host: string,
+  voiceSdkId?: string
+) => Promise<void>;
+
 type TestableCallReportCollector = {
   peerConnection: {
     getSenders: () => Array<{
@@ -26,6 +33,7 @@ type TestableCallReportCollector = {
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
   ) => void;
+  _sendPayload: SendPayload;
 };
 
 const createCollector = (): TestableCallReportCollector =>
@@ -114,5 +122,135 @@ describe('CallReportCollector local audio diagnostics', () => {
         mediaSourceId: 'source-id',
       } as RTCOutboundRtpStreamStats & { mediaSourceId?: string })
     ).toBeUndefined();
+  });
+});
+
+describe('CallReportCollector call report uploads', () => {
+  let originalFetch: typeof fetch | undefined;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    jest
+      .spyOn(global, 'setTimeout')
+      .mockImplementation((callback: () => void) => {
+        callback();
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      });
+  });
+
+  afterEach(() => {
+    if (originalFetch) {
+      global.fetch = originalFetch;
+    } else {
+      delete (global as unknown as { fetch?: typeof fetch }).fetch;
+    }
+    jest.restoreAllMocks();
+  });
+
+  const payload = {
+    summary: {
+      callId: 'call-id',
+      direction: 'outbound' as const,
+      state: 'hangup',
+      startTimestamp: '2026-05-14T15:07:52.000Z',
+      endTimestamp: '2026-05-14T15:12:37.000Z',
+    },
+    stats: [],
+  };
+
+  it('retries non-2xx responses so proxy forwarding failures are not silently accepted', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        text: () => Promise.resolve('forward failed'),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 202,
+        text: () => Promise.resolve(''),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await collector._sendPayload(
+      payload,
+      'call-report-id',
+      'wss://rtc.telnyx.com',
+      'voice-sdk-id'
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries network failures and eventually succeeds', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('ERR_SOCKET_NOT_CONNECTED'))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 202,
+        text: () => Promise.resolve(''),
+      });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await collector._sendPayload(
+      payload,
+      'call-report-id',
+      'wss://rtc.telnyx.com',
+      'voice-sdk-id'
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws and logs after exhausting upload retries', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation();
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: () => Promise.resolve('forward failed'),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await expect(
+      collector._sendPayload(
+        payload,
+        'call-report-id',
+        'wss://rtc.telnyx.com',
+        'voice-sdk-id'
+      )
+    ).rejects.toThrow('Call report POST failed with status 502');
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'CallReportCollector: Exhausted retries posting final report',
+      expect.objectContaining({ error: expect.any(Error) })
+    );
+  });
+
+  it('uses keepalive for small final reports during BYE/disconnect shutdown', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      text: () => Promise.resolve(''),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await collector._sendPayload(
+      payload,
+      'call-report-id',
+      'wss://rtc.telnyx.com',
+      'voice-sdk-id'
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://rtc.telnyx.com/call_report',
+      expect.objectContaining({ keepalive: true })
+    );
   });
 });

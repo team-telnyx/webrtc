@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 import { isQueued } from '../../services/Handler';
 import BaseSession from '../../BaseSession';
 const Connection = require('../../services/Connection');
@@ -89,6 +90,24 @@ export default (instance: any) => {
           expect(instance.subscriptions).toMatchObject({});
           expect(instance.contexts).toMatchObject([]);
           done();
+        });
+
+        it('waits for pending call report uploads before closing the connection', async () => {
+          let resolveUpload!: () => void;
+          const upload = new Promise<void>((resolve) => {
+            resolveUpload = resolve;
+          });
+
+          instance.trackCallReportUpload(upload);
+          const disconnectPromise = instance.disconnect();
+          await Promise.resolve();
+
+          expect(Connection.mockClose).not.toHaveBeenCalled();
+
+          resolveUpload();
+          await disconnectPromise;
+
+          expect(Connection.mockClose).toHaveBeenCalled();
         });
       });
     });

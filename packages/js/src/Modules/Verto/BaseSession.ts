@@ -72,6 +72,8 @@ export default abstract class BaseSession {
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
+  private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
+  private _pendingCallReportUploads = new Set<Promise<void>>();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
@@ -171,6 +173,41 @@ export default abstract class BaseSession {
     this.connection.sendRawText(text);
   }
 
+  trackCallReportUpload(upload: Promise<void>): void {
+    this._pendingCallReportUploads.add(upload);
+    upload.then(
+      () => this._pendingCallReportUploads.delete(upload),
+      () => this._pendingCallReportUploads.delete(upload)
+    );
+  }
+
+  private async _drainCallReportUploads(): Promise<void> {
+    if (this._pendingCallReportUploads.size === 0) {
+      return;
+    }
+
+    const pendingUploads = Array.from(this._pendingCallReportUploads);
+    let timedOut = false;
+
+    await Promise.race([
+      Promise.all(
+        pendingUploads.map((upload) => upload.catch(() => undefined))
+      ),
+      new Promise<void>((resolve) =>
+        setTimeout(() => {
+          timedOut = true;
+          resolve();
+        }, BaseSession.CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS)
+      ),
+    ]);
+
+    if (timedOut) {
+      logger.warn('Timed out waiting for pending call report uploads', {
+        pendingCount: this._pendingCallReportUploads.size,
+      });
+    }
+  }
+
   /**
    * Validates the options passed in.
    * TelnyxRTC requires (login and password) OR login_token
@@ -204,6 +241,7 @@ export default abstract class BaseSession {
     this.subscriptions = {};
     this._autoReconnect = false;
     this.relayProtocol = null;
+    await this._drainCallReportUploads();
     this._closeConnection();
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
