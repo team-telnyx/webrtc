@@ -223,14 +223,14 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 
 #### Connectivity warnings
 
-| Code    | Name                       | Message                                               | Typical trigger                                          | Auto-recovered?            | Customer action                                        |
-| ------- | -------------------------- | ----------------------------------------------------- | -------------------------------------------------------- | -------------------------- | ------------------------------------------------------ |
-| `33001` | `ICE_CONNECTIVITY_LOST`    | Connection interrupted                                | ICE connection state became `disconnected`               | SDK attempts ICE reconnect | Show reconnecting indicator; wait for recovery         |
-| `33002` | `ICE_GATHERING_TIMEOUT`    | ICE gathering timed out                               | ICE gathering safety timeout fired                       | May self-resolve           | Check firewall/STUN/TURN config                        |
-| `33003` | `ICE_GATHERING_EMPTY`      | No ICE candidates gathered                            | No candidates were collected                             | No                         | Check network/firewall; STUN/TURN may be blocked       |
-| `33004` | `PEER_CONNECTION_FAILED`   | Connection failed                                     | Peer connection state became `failed`                    | No                         | Call likely lost; may trigger reconnection or hangup   |
-| `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available               | SDP contained only host ICE candidates                   | No                         | Check STUN/TURN config; may work on local network only |
-| `33006` | `ANSWER_WHILE_PEER_ACTIVE` | Answer attempted while peer connection already active | An answer was received while the peer was already active | No                         | Log for debugging; typically harmless                  |
+| Code    | Name                       | Message                                               | Typical trigger                                          | Auto-recovered?                           | Customer action                                                                                                                                                    |
+| ------- | -------------------------- | ----------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `33001` | `ICE_CONNECTIVITY_LOST`    | Connection interrupted                                | ICE connection state became `disconnected`               | SDK attempts ICE reconnect                | Show reconnecting indicator; wait for recovery                                                                                                                     |
+| `33002` | `ICE_GATHERING_TIMEOUT`    | ICE gathering timed out                               | ICE gathering safety timeout fired                       | May self-resolve                          | Check firewall/STUN/TURN config                                                                                                                                    |
+| `33003` | `ICE_GATHERING_EMPTY`      | No ICE candidates gathered                            | No candidates were collected                             | No                                        | Check network/firewall; STUN/TURN may be blocked                                                                                                                   |
+| `33004` | `PEER_CONNECTION_FAILED`   | Connection failed                                     | Peer connection state became `failed`                    | May recover — SDK may attempt ICE restart | Show reconnecting/degraded UI; wait for SDK recovery; only clean up after final hangup or call termination                                                         |
+| `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available               | SDP contained only host ICE candidates                   | No                                        | Check STUN/TURN config; may work on local network only                                                                                                             |
+| `33006` | `ANSWER_WHILE_PEER_ACTIVE` | Answer attempted while peer connection already active | An answer was received while the peer was already active | No                                        | Ensure `answer()` is called only once per call; disable the answer button after the first click; check that `answer()` is not invoked from multiple event handlers |
 
 #### Authentication and session warnings
 
@@ -400,20 +400,6 @@ Gateway-state retries use separate jittered delays:
 - `UNREGED` / `NOREG`: up to 5 registration retries, each delayed by a random `2` to `6` seconds. After that the SDK emits `LOGIN_FAILED` (`46001`).
 - `FAILED` / `FAIL_WAIT`: `GATEWAY_FAILED` (`45004`) is emitted on first detection. If `autoReconnect` stays enabled, the SDK retries up to 5 times with a random `2` to `6` second delay before `RECONNECTION_EXHAUSTED` (`45003`).
 
-### Limiting reconnect attempts
-
-Use `maxReconnectAttempts` to cap automatic reconnect attempts after an unexpected disconnect:
-
-```ts
-const client = new TelnyxRTC({
-  login_token: jwt,
-  autoReconnect: true,
-  maxReconnectAttempts: 10,
-});
-```
-
-When the limit is reached, `RECONNECTION_EXHAUSTED` (`45003`) is emitted and no further automatic reconnects are attempted. Call `client.connect()` manually to start a fresh retry sequence.
-
 ### Keeping media alive across socket loss
 
 If `keepConnectionAliveOnSocketClose` is `true`, the SDK will try to preserve active peer connections while signaling reconnects.
@@ -483,21 +469,28 @@ client.on(SwEvent.MediaError, (error) => {
 });
 ```
 
-**`telnyx.rtc.peerConnectionFailureError`** — Peer connection failures (peer-scoped):
+**`telnyx.rtc.peerConnectionFailureError`** — Peer connection failures (peer-scoped). The peer connection itself is not recoverable, but the call may still be recovered by the server via attach:
 
 ```ts
 client.on(SwEvent.PeerConnectionFailureError, (error) => {
   // error is a raw error object
+  // The peer connection failed, but the call may be restored automatically
+  // Show reconnecting/degraded UI; wait for a callUpdate with Recovering state
   console.error('Peer connection failure:', error);
+  showReconnectingBanner();
 });
 ```
 
-**`telnyx.rtc.peerConnectionSignalingStateClosed`** — Peer signaling state closed (peer-scoped):
+**`telnyx.rtc.peerConnectionSignalingStateClosed`** — Peer signaling state closed (peer-scoped). The peer connection is not recoverable, but the call may still be recovered through server attach:
 
 ```ts
 client.on(SwEvent.PeerConnectionSignalingStateClosed, (data) => {
-  // The call is no longer recoverable
-  console.warn('Signaling state closed, call not recoverable');
+  // The peer connection is not recoverable, but the call may recover
+  // Show reconnecting UI; only clean up after a final hangup/call update
+  console.warn(
+    'Signaling state closed — peer not recoverable, waiting for call recovery'
+  );
+  showReconnectingBanner();
 });
 ```
 
@@ -505,11 +498,11 @@ client.on(SwEvent.PeerConnectionSignalingStateClosed, (data) => {
 
 In v2.25.25, `telnyx.notification` carries both call lifecycle updates **and** error information. Error-related notification types:
 
-| `notification.type`          | Meaning                     | Fatal?                     | Customer action                                                            |
-| ---------------------------- | --------------------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `userMediaError`             | Media device access failed  | Yes (for the call)         | Prompt user for microphone permission; SDK hangs up the call automatically |
-| `peerConnectionFailureError` | Peer connection failed      | Yes (for the call)         | Show error; call is lost                                                   |
-| `signalingStateClosed`       | Peer signaling state closed | Yes (call not recoverable) | Clean up call UI; call cannot be recovered                                 |
+| `notification.type`          | Meaning                     | Fatal?                                                                     | Customer action                                                                                                                                                                      |
+| ---------------------------- | --------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `userMediaError`             | Media device access failed  | Yes (for the call)                                                         | Prompt user for microphone permission; SDK hangs up the call automatically                                                                                                           |
+| `peerConnectionFailureError` | Peer connection failed      | Peer connection not recoverable, but call may be recovered                 | Show reconnecting/degraded UI; the call may be restored automatically by the server via attach with `recovering` state; only clean up after a final hangup/call update confirms loss |
+| `signalingStateClosed`       | Peer signaling state closed | Peer connection not recoverable, but call may still be recovered by server | Show reconnecting/degraded UI; the call may recover through auto-created recovering call with the same `call_id`; only clean up after a final hangup/call update confirms loss       |
 
 Example:
 
@@ -527,12 +520,16 @@ client.on(SwEvent.Notification, (notification) => {
 
     case 'peerConnectionFailureError':
       // notification.error — raw error
-      showCallLostMessage();
+      // Peer connection failed, but the call may be recovered by the server
+      // via attach with 'recovering' state. Show degraded UI and wait.
+      showReconnectingBanner();
       break;
 
     case 'signalingStateClosed':
-      // Call is not recoverable
-      cleanUpCallUI();
+      // Peer signaling state closed — peer is not recoverable
+      // But the call may still recover through server attach
+      // Only clean up after a final hangup/callUpdate confirms loss
+      showReconnectingBanner();
       break;
 
     case 'callUpdate':
