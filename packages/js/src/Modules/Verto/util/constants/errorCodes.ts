@@ -52,6 +52,7 @@ export const TELNYX_WARNING_CODES = {
   HIGH_JITTER: 31002,
   HIGH_PACKET_LOSS: 31003,
   LOW_MOS: 31004,
+  LOW_LOCAL_AUDIO: 31005,
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   LOW_BYTES_RECEIVED: 32001,
@@ -104,6 +105,7 @@ export const {
   HIGH_JITTER,
   HIGH_PACKET_LOSS,
   LOW_MOS,
+  LOW_LOCAL_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   ICE_CONNECTIVITY_LOST,
