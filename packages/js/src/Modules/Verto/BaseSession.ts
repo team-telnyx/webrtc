@@ -31,7 +31,7 @@ import {
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
 import logger, { setConsoleLoggerMinLevel } from './util/logger';
-import { getReconnectToken } from './util/reconnect';
+import { getReconnectToken, clearReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
@@ -115,13 +115,25 @@ export default abstract class BaseSession {
     if (sessionReportingEnabled) {
       this._sessionReportCollector = createSessionReportCollector({
         enabled: true,
-        maxSessionDurationMinutes: this.options.sessionReportMaxDurationMinutes ?? 10,
+        maxSessionDurationMinutes:
+          this.options.sessionReportMaxDurationMinutes ?? 10,
         logCollector: {
           enabled: true,
           level: 'debug',
           maxEntries: 500,
         },
       });
+
+      this._sessionReportCollector.onMaxDurationReached = () => {
+        this.postSessionReport('max_duration_reached').catch((error) => {
+          logger.error(
+            'BaseSession: Failed to post max duration session report',
+            {
+              error,
+            }
+          );
+        });
+      };
 
       logger.debug('BaseSession: Session reporting initialized');
     }
@@ -150,7 +162,9 @@ export default abstract class BaseSession {
    * @param reason - Why the report is being posted
    * @returns true if a report was posted, false if skipped
    */
-  public async postSessionReport(reason: string = 'session_end'): Promise<boolean> {
+  public async postSessionReport(
+    reason: string = 'session_end'
+  ): Promise<boolean> {
     if (!this._sessionReportCollector) {
       return false;
     }
@@ -165,6 +179,7 @@ export default abstract class BaseSession {
       reason,
       this.connection.host,
       this.sessionid,
+      this.callReportId ?? undefined,
       this.options.login,
       getReconnectToken() ?? undefined,
       this.region ?? undefined,
@@ -172,7 +187,10 @@ export default abstract class BaseSession {
     );
 
     if (posted) {
-      logger.info('BaseSession: Session report posted', { reason, sessionId: this.sessionid });
+      logger.info('BaseSession: Session report posted', {
+        reason,
+        sessionId: this.sessionid,
+      });
     }
 
     return posted;
@@ -181,7 +199,7 @@ export default abstract class BaseSession {
   /**
    * Record a session event for reporting
    */
-  protected _recordSessionEvent(
+  public recordSessionEvent(
     type: import('./webrtc/SessionReportCollector').SessionEventType,
     message?: string,
     details?: Record<string, unknown>
@@ -192,7 +210,7 @@ export default abstract class BaseSession {
   /**
    * Record a session error for reporting
    */
-  protected _recordSessionError(
+  public recordSessionError(
     message: string,
     code?: number,
     type?: string,
@@ -455,7 +473,7 @@ export default abstract class BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
-    this._recordSessionError(
+    this.recordSessionError(
       error?.message || 'Login failed',
       error?.code,
       'login_failed',
@@ -468,6 +486,15 @@ export default abstract class BaseSession {
       { error: telnyxError, sessionId: this.sessionid },
       this.uuid
     );
+  }
+
+  /**
+   * Clears the reconnect token from sessionStorage.
+   * This forces the next connection to pick a new b2bua-rtc instance
+   * via weighted round-robin instead of sticking to the same one.
+   */
+  public clearReconnectToken(): void {
+    clearReconnectToken();
   }
 
   /**
@@ -603,7 +630,7 @@ export default abstract class BaseSession {
       return;
     }
 
-    this._recordSessionEvent('login', 'Login attempt started', {
+    this.recordSessionEvent('login', 'Login attempt started', {
       hasCreds: !!creds,
       reconnection: !!getReconnectToken(),
     });
@@ -694,7 +721,7 @@ export default abstract class BaseSession {
 
     if (response) {
       this.sessionid = response.sessid;
-      this._recordSessionEvent('login_success', 'Login successful', {
+      this.recordSessionEvent('login_success', 'Login successful', {
         sessid: response.sessid,
         reconnection: !!getReconnectToken(),
       });
@@ -708,7 +735,7 @@ export default abstract class BaseSession {
    * @return void
    */
   protected async _onSocketOpen() {
-    this._recordSessionEvent('socket_open', 'WebSocket connection opened');
+    this.recordSessionEvent('socket_open', 'WebSocket connection opened');
   }
 
   /**

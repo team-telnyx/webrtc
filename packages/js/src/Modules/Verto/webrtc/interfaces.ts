@@ -21,6 +21,8 @@ export interface IHangupParams {
   };
   /** When true, sets call to Recovering state for reconnection flow */
   isRecovering?: boolean;
+  /** Structured source label for hangup attribution in logs/call reports */
+  initiator?: string;
 }
 
 export interface IVertoCallOptions {

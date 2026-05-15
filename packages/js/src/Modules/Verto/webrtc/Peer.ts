@@ -16,7 +16,10 @@ import {
   createTelnyxError,
   createTelnyxWarning,
 } from '../util/errors';
-import { MEDIA_GET_USER_MEDIA_FAILED } from '../util/constants/errorCodes';
+import {
+  MEDIA_GET_USER_MEDIA_FAILED,
+  PEER_CLOSED_DURING_INIT,
+} from '../util/constants/errorCodes';
 import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
@@ -399,6 +402,13 @@ export default class Peer {
         type: PeerType.Offer,
       });
       performance.mark('set-remote-description');
+
+      // Race condition guard: close() may have run during the await above,
+      // setting this.instance to null. Throw a structured error so the caller
+      // can handle it properly.
+      if (!this.instance) {
+        throw createTelnyxError(PEER_CLOSED_DURING_INIT);
+      }
     }
 
     const isReceiveOnly =
@@ -469,6 +479,13 @@ export default class Peer {
         return null;
       }
     );
+
+    // Race condition guard: close() may have run during any of the awaits above
+    // (getUserMedia prompt, media recovery flow, etc.), setting this.instance
+    // to null. Throw a structured error so the caller can handle it properly.
+    if (!this.instance) {
+      throw createTelnyxError(PEER_CLOSED_DURING_INIT);
+    }
 
     if (!this.options.localStream && !isReceiveOnly) {
       const telnyxError = createTelnyxError(
@@ -563,6 +580,14 @@ export default class Peer {
   }
   async init() {
     await this.createPeerConnection();
+
+    // Race condition guard: close() may have run during createPeerConnection()
+    // (e.g. setRemoteDescription, getUserMedia, media recovery flow),
+    // setting this.instance to null. Throw a structured error so the caller
+    // can handle it properly.
+    if (!this.instance) {
+      throw createTelnyxError(PEER_CLOSED_DURING_INIT);
+    }
 
     if (this.isDebugEnabled) {
       this.statsReporter = createWebRTCStatsReporter(

@@ -1,3 +1,14 @@
+## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
+
+- docs: update ts docs
+- feat: add skipLastVoiceSdkId option for voice-sdk-proxy PR #122 (#616)
+- fix: prevent double answer when peer connection already exists (#614)
+- chore: release webrtc@2.26.3 (#613)
+
+## [2.26.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.3) (2026-04-24)
+
+- feat: expose clearReconnectToken() to break b2bua-rtc stickiness on retry (#610)
+
 ## [2.26.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1...webrtc/v2.26.2) (2026-04-13)
 
 ### Region & Datacenter Visibility

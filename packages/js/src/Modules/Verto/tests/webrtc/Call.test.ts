@@ -11,8 +11,10 @@ Object.defineProperty(global, 'performance', {
   },
 });
 
-import { isQueued } from '../../services/Handler';
+import { isQueued, register, deRegister } from '../../services/Handler';
 import { State } from '../../webrtc/constants';
+import { SwEvent } from '../../util/constants';
+import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -162,6 +164,59 @@ describe('Call', () => {
     });
   });
 
+  describe('hangup caller instrumentation', () => {
+    it('should log caller stack and state metadata when hangup is invoked', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      call.setState(State.Active);
+      await call.hangup({ cause: 'NORMAL_CLEARING', causeCode: 16 }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          callId: call.id,
+          execute: false,
+          state: 'active',
+          prevState: 'new',
+          cause: 'NORMAL_CLEARING',
+          causeCode: 16,
+          initiator: 'app:call.hangup',
+          isRecovering: false,
+          hasDialogCustomHeaders: false,
+          callerStack: expect.any(Array),
+        })
+      );
+
+      const hangupLog = debugSpy.mock.calls.find(
+        ([message]) => message === `[${call.id}] hangup() invoked`
+      );
+      const hangupLogContext = hangupLog?.[1] as { callerStack: string[] };
+      expect(hangupLogContext.callerStack.length).toBeGreaterThan(0);
+      expect(hangupLogContext.callerStack.join('\n')).toContain('hangup');
+
+      debugSpy.mockRestore();
+    });
+
+    it('should log explicit hangup initiator metadata', async () => {
+      const debugSpy = jest
+        .spyOn(logger, 'debug')
+        .mockImplementation(jest.fn());
+
+      await call.hangup({ initiator: 'sdk:sdp-send-failure' }, false);
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        `[${call.id}] hangup() invoked`,
+        expect.objectContaining({
+          initiator: 'sdk:sdp-send-failure',
+        })
+      );
+
+      debugSpy.mockRestore();
+    });
+  });
+
   describe('hangup cause codes', () => {
     it('should use USER_BUSY/17 when rejecting a ringing call', async () => {
       call.setState(State.Ringing);
@@ -270,7 +325,10 @@ describe('Call', () => {
 
       await call.invite();
 
-      expect(hangupSpy).toHaveBeenCalledWith({}, false);
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        false
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
@@ -297,7 +355,10 @@ describe('Call', () => {
 
       await answerCall.answer();
 
-      expect(hangupSpy).toHaveBeenCalledWith();
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:peer-init-failed' },
+        true
+      );
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
@@ -334,6 +395,64 @@ describe('Call', () => {
       // _creatingPeer false means we reached the end of answer() normally,
       // not via the media-error early-return path
       expect(receiveOnlyCall['_creatingPeer']).toBe(false);
+    });
+  });
+
+  describe('double answer prevention', () => {
+    it('should ignore second answer() when peer connection already exists', async () => {
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      // Mock a peer with an active (non-closed) RTCPeerConnection
+      answerCall.peer = {
+        instance: {
+          signalingState: 'stable',
+        },
+      } as unknown as Peer;
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, answerCall.id);
+
+      await answerCall.answer();
+
+      expect(warningHandler).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: 33006,
+            name: 'ANSWER_WHILE_PEER_ACTIVE',
+          }),
+          callId: answerCall.id,
+        })
+      );
+
+      deRegister(SwEvent.Warning, undefined, answerCall.id);
+    });
+
+    it('should allow answer() when peer connection is closed', async () => {
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      // Mock a peer with a closed RTCPeerConnection
+      answerCall.peer = {
+        instance: {
+          signalingState: 'closed',
+        },
+      } as unknown as Peer;
+
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, answerCall.id);
+
+      await answerCall.answer();
+
+      // Warning should NOT fire — a closed peer is allowed to be replaced
+      expect(warningHandler).not.toHaveBeenCalled();
+
+      deRegister(SwEvent.Warning, undefined, answerCall.id);
     });
   });
 });

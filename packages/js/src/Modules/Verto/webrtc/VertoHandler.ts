@@ -174,7 +174,7 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session._recordSessionEvent('ping', 'Ping received from server');
+        this.session.recordSessionEvent('ping', 'Ping received from server');
         this.session.execute(messagePing);
         break;
       }
@@ -220,7 +220,10 @@ class VertoHandler {
         logger.info(
           `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
         );
-        void existingCall.hangup({ isRecovering: true }, false);
+        void existingCall.hangup(
+          { isRecovering: true, initiator: 'sdk:attach-recovery' },
+          false
+        );
 
         logger.info(
           `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
@@ -258,7 +261,7 @@ class VertoHandler {
       case VertoMethod.ClientReady:
         // We need to send a GatewayState to make sure that the user is registered
         // to avoid GATEWAY_DOWN when the user tries to make a new call
-        this.session._recordSessionEvent('client_ready', 'Client ready received', {
+        this.session.recordSessionEvent('client_ready', 'Client ready received', {
           reattached_sessions: params?.reattached_sessions,
         });
         this.session.execute(messageToCheckRegisterState);
@@ -306,7 +309,7 @@ class VertoHandler {
                 );
 
                 // Record successful registration
-                session._recordSessionEvent('client_ready', 'Gateway registered (REGED)', {
+                session.recordSessionEvent('client_ready', 'Gateway registered (REGED)', {
                   region: session.region,
                   dc: session.dc,
                   callReportId: session.callReportId,

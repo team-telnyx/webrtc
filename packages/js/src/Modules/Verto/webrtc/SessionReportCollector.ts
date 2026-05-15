@@ -88,6 +88,8 @@ export interface ISessionSummary {
   voiceSdkId?: string;
   /** SDK version */
   sdkVersion: string;
+  /** Call report id issued by voice-sdk-proxy during registration */
+  callReportId?: string;
   /** Session start timestamp */
   startTimestamp: string;
   /** Session end timestamp */
@@ -114,6 +116,14 @@ export interface ISessionSummary {
  * Session report payload sent to voice-sdk-proxy
  */
 export interface ISessionReportPayload {
+  /** Marker used by voice-sdk-proxy and downstream tooling */
+  session_report: true;
+  /** Call report id issued by voice-sdk-proxy during registration */
+  call_report_id: string;
+  /** SDK session id, duplicated at top level for routing/storage */
+  session_id: string;
+  /** Optional voice SDK id for correlation */
+  voice_sdk_id?: string;
   summary: ISessionSummary;
   /** Session events (login, clientReady, etc.) */
   events: ISessionEvent[];
@@ -167,6 +177,12 @@ export class SessionReportCollector {
    */
   public onReportFailed: ((error: Error) => void) | null = null;
 
+  /**
+   * Callback invoked when the max session duration timer fires.
+   * BaseSession owns the connection/correlation context needed to post.
+   */
+  public onMaxDurationReached: (() => void) | null = null;
+
   constructor(options: Partial<ISessionReportOptions> = {}) {
     this.options = {
       ...DEFAULT_OPTIONS,
@@ -205,9 +221,9 @@ export class SessionReportCollector {
     const delayMs = this.options.maxSessionDurationMinutes * 60 * 1000;
     this._maxDurationTimer = setTimeout(() => {
       logger.info(
-        'SessionReportCollector: Max duration reached, posting report'
+        'SessionReportCollector: Max duration reached, requesting report'
       );
-      this.postSessionReport('max_duration_reached');
+      this.onMaxDurationReached?.();
     }, delayMs);
   }
 
@@ -305,6 +321,7 @@ export class SessionReportCollector {
    * @param reason - Why the report is being posted (for logging)
    * @param host - The WebSocket host URL
    * @param sessionId - The Verto session ID
+   * @param callReportId - The call_report_id issued by voice-sdk-proxy
    * @param userId - The user ID/login
    * @param voiceSdkId - The voice SDK ID (reconnect token)
    * @param region - Optional region info
@@ -315,6 +332,7 @@ export class SessionReportCollector {
     reason: string,
     host: string,
     sessionId: string,
+    callReportId?: string,
     userId?: string,
     voiceSdkId?: string,
     region?: string,
@@ -342,6 +360,13 @@ export class SessionReportCollector {
       return false;
     }
 
+    if (!callReportId) {
+      logger.debug(
+        'SessionReportCollector: Skipping report - call_report_id not available'
+      );
+      return false;
+    }
+
     this._reportPosted = true;
     this._clearMaxDurationTimer();
     this.sessionEndTime = new Date();
@@ -354,7 +379,15 @@ export class SessionReportCollector {
     });
 
     try {
-      await this._sendReport(host, sessionId, userId, voiceSdkId, region, dc);
+      await this._sendReport(
+        host,
+        sessionId,
+        callReportId,
+        userId,
+        voiceSdkId,
+        region,
+        dc
+      );
       this.onReportPosted?.();
       return true;
     } catch (error) {
@@ -374,6 +407,7 @@ export class SessionReportCollector {
   private async _sendReport(
     host: string,
     sessionId: string,
+    callReportId: string,
     userId?: string,
     voiceSdkId?: string,
     region?: string,
@@ -383,8 +417,13 @@ export class SessionReportCollector {
     const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
     const payload: ISessionReportPayload = {
+      session_report: true,
+      call_report_id: callReportId,
+      session_id: sessionId,
+      ...(voiceSdkId && { voice_sdk_id: voiceSdkId }),
       summary: {
         sessionId,
+        callReportId,
         ...(userId && { userId }),
         ...(voiceSdkId && { voiceSdkId }),
         sdkVersion: pkg.version,
@@ -407,6 +446,7 @@ export class SessionReportCollector {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-session-report': 'true',
+      'x-call-report-id': callReportId,
     };
 
     if (voiceSdkId) {

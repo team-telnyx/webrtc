@@ -174,7 +174,7 @@ export default abstract class BrowserSession extends BaseSession {
 
       call.setState(State.Purge);
       logger.info('Start hangup for ', call);
-      await call.hangup({}, true);
+      await call.hangup({ initiator: 'app:client.disconnect' }, true);
     }
 
     this.calls = {};
@@ -196,7 +196,7 @@ export default abstract class BrowserSession extends BaseSession {
       const call = this.calls[key];
 
       call.setState(State.Purge);
-      void call.hangup({}, false);
+      void call.hangup({ initiator: 'sdk:server-disconnect' }, false);
     }
 
     this.calls = {};
