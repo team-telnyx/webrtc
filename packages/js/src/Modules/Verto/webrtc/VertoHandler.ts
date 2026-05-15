@@ -279,6 +279,7 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
+                this.session.resetReconnectAttempts();
 
                 // Capture call_report_id for SDK call reporting
                 const callReportId = msg?.result?.params?.call_report_id;
