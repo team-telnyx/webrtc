@@ -2130,8 +2130,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options;
     stopStream(remoteStream);
     stopStream(localStream);
-    detachMediaStream(remoteElement);
-    detachMediaStream(localElement);
+    detachMediaStream(remoteElement, remoteStream);
+    detachMediaStream(localElement, localStream);
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
