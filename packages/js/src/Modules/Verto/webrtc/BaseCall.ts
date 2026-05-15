@@ -633,12 +633,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         cause: this.cause,
         causeCode: this.causeCode,
       });
-      try {
-        // Timeout guard: if the BYE execution hangs (e.g. socket stalled, server
-        // unresponsive), proceed to Destroy after 5s so the call is always cleaned up.
-        const BYE_TIMEOUT_MS = 5000;
-        let byeTimeout: ReturnType<typeof setTimeout> | undefined;
+      // Timeout guard: if the BYE execution hangs (e.g. socket stalled, server
+      // unresponsive), proceed to Destroy after 5s so the call is always cleaned up.
+      const BYE_TIMEOUT_MS = 5000;
+      let byeTimeout: ReturnType<typeof setTimeout> | undefined;
 
+      try {
         await Promise.race([
           this._execute(bye),
           new Promise<void>((resolve) => {
@@ -650,11 +650,6 @@ export default abstract class BaseCall implements IWebRTCCall {
             }, BYE_TIMEOUT_MS);
           }),
         ]);
-
-        // Clear the timeout if BYE resolved/rejected before the timer fired
-        if (byeTimeout) {
-          clearTimeout(byeTimeout);
-        }
       } catch (error) {
         logger.error('telnyx_rtc.bye failed!', error);
         const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
@@ -667,6 +662,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           this.session.uuid
         );
+      } finally {
+        // Always clear the timeout — whether BYE resolved, rejected, or timed out
+        if (byeTimeout) {
+          clearTimeout(byeTimeout);
+        }
       }
     }
 

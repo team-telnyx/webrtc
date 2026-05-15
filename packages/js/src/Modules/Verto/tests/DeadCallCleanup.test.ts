@@ -335,6 +335,8 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
     });
 
     it('should still finalize call when BYE throws an error', async () => {
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
       call = new Call(session, {
         destinationNumber: '1234',
         callerNumber: '5678',
@@ -359,6 +361,10 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       // Call should still be cleaned up even though BYE failed
       expect(call.isFinalized).toBe(true);
       expect(session.calls[call.id]).toBeUndefined();
+      // Timeout should be cleared even on rejection path (finally block)
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      clearTimeoutSpy.mockRestore();
     });
 
     it('should clear the BYE timeout when BYE resolves before timeout', async () => {
