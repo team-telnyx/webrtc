@@ -174,6 +174,7 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
+        this.session.recordSessionEvent('ping', 'Ping received from server');
         this.session.execute(messagePing);
         break;
       }
@@ -260,6 +261,9 @@ class VertoHandler {
       case VertoMethod.ClientReady:
         // We need to send a GatewayState to make sure that the user is registered
         // to avoid GATEWAY_DOWN when the user tries to make a new call
+        this.session.recordSessionEvent('client_ready', 'Client ready received', {
+          reattached_sessions: params?.reattached_sessions,
+        });
         this.session.execute(messageToCheckRegisterState);
         break;
 
@@ -303,6 +307,13 @@ class VertoHandler {
                 logger.info(
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
+
+                // Record successful registration
+                session.recordSessionEvent('client_ready', 'Gateway registered (REGED)', {
+                  region: session.region,
+                  dc: session.dc,
+                  callReportId: session.callReportId,
+                });
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
