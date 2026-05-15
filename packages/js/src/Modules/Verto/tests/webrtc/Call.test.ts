@@ -455,4 +455,46 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, answerCall.id);
     });
   });
+
+  describe('_finalize() conditional detach', () => {
+    it('should detach media elements when srcObject matches the call stream', () => {
+      const remoteStream = new MediaStream();
+      const localStream = new MediaStream();
+      const remoteElement = document.createElement('audio');
+      const localElement = document.createElement('audio');
+      remoteElement.srcObject = remoteStream;
+      localElement.srcObject = localStream;
+
+      call.options.remoteStream = remoteStream;
+      call.options.localStream = localStream;
+      call.options.remoteElement = remoteElement;
+      call.options.localElement = localElement;
+
+      call['_finalize']();
+
+      expect(remoteElement.srcObject).toBeNull();
+      expect(localElement.srcObject).toBeNull();
+    });
+
+    it('should NOT detach media elements when srcObject has been reattached to a different stream', () => {
+      const callStream = new MediaStream();
+      const otherStream = new MediaStream();
+      const remoteElement = document.createElement('audio');
+      const localElement = document.createElement('audio');
+      // Element now points to a different stream (e.g., a new active call)
+      remoteElement.srcObject = otherStream;
+      localElement.srcObject = otherStream;
+
+      call.options.remoteStream = callStream;
+      call.options.localStream = callStream;
+      call.options.remoteElement = remoteElement;
+      call.options.localElement = localElement;
+
+      call['_finalize']();
+
+      // The element should NOT have been cleared — it belongs to a different call
+      expect(remoteElement.srcObject).toBe(otherStream);
+      expect(localElement.srcObject).toBe(otherStream);
+    });
+  });
 });

@@ -13,6 +13,9 @@ import {
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
+import {
+  detachMediaStream,
+} from '../../util/webrtc';
 
 describe('Helpers browser functions', () => {
   describe('findElementByType', () => {
@@ -763,5 +766,49 @@ describe('Helpers browser functions', () => {
     // navigator.mediaDevices is reset between describe blocks in this test file.
     // The fallback logic is tested via the isDeviceNotFoundError and
     // getConstraintsWithoutDeviceId unit tests above.
+  });
+
+  describe('detachMediaStream', () => {
+    let mockElement: HTMLMediaElement;
+
+    beforeEach(() => {
+      mockElement = document.createElement('audio');
+    });
+
+    it('should clear srcObject when element is attached to the matching stream', () => {
+      const stream = new MediaStream();
+      mockElement.srcObject = stream;
+      detachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBeNull();
+    });
+
+    it('should NOT clear srcObject when element is attached to a different stream', () => {
+      const callStream = new MediaStream();
+      const otherStream = new MediaStream();
+      mockElement.srcObject = otherStream;
+      detachMediaStream(mockElement, callStream);
+      expect(mockElement.srcObject).toBe(otherStream);
+    });
+
+    it('should clear srcObject when no stream is provided (backward compatible)', () => {
+      const stream = new MediaStream();
+      mockElement.srcObject = stream;
+      detachMediaStream(mockElement);
+      expect(mockElement.srcObject).toBeNull();
+    });
+
+    it('should be a no-op when element is null (graceful)', () => {
+      const stream = new MediaStream();
+      // Passing null tag should not throw
+      expect(() => detachMediaStream(null, stream)).not.toThrow();
+    });
+
+    it('should NOT clear srcObject when element srcObject is null and stream is provided (guard no-op)', () => {
+      mockElement.srcObject = null;
+      const stream = new MediaStream();
+      // srcObject is null !== stream, so the guard kicks in and no-ops
+      detachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBeNull();
+    });
   });
 });
