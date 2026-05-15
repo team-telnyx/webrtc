@@ -2147,19 +2147,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       return false;
     }
 
-    if (
-      ['failed', 'closed', 'disconnected'].includes(
-        peerConnection.connectionState
-      )
-    ) {
+    if (peerConnection.connectionState === 'closed') {
       return false;
     }
 
-    if (
-      ['failed', 'closed', 'disconnected'].includes(
-        peerConnection.iceConnectionState
-      )
-    ) {
+    if (peerConnection.iceConnectionState === 'closed') {
       return false;
     }
 

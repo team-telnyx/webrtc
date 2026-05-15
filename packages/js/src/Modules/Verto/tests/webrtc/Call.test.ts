@@ -450,6 +450,8 @@ describe('Call', () => {
       answerCall.peer = {
         instance: {
           signalingState: 'closed',
+          connectionState: 'closed',
+          iceConnectionState: 'closed',
         },
       } as unknown as Peer;
 
@@ -514,7 +516,7 @@ describe('Call', () => {
       deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
-    it('should allow another inbound answer when previous call has a failed peer connection', async () => {
+    it('should ignore another inbound answer when previous call has a failed peer connection', async () => {
       const initSpy = jest
         .spyOn(Peer.prototype, 'init')
         .mockResolvedValue(undefined);
@@ -547,11 +549,19 @@ describe('Call', () => {
 
       await duplicateCall.answer();
 
-      expect(initSpy).toHaveBeenCalledTimes(2);
-      expect(warningHandler).not.toHaveBeenCalled();
+      expect(initSpy).toHaveBeenCalledTimes(1);
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: DUPLICATE_INBOUND_ANSWER,
+            name: 'DUPLICATE_INBOUND_ANSWER',
+          }),
+          callId: duplicateCall.id,
+          activeCallId: firstCall.id,
+        })
+      );
 
       await firstCall.hangup({}, false);
-      await duplicateCall.hangup({}, false);
       deRegister(SwEvent.Warning, undefined, session.uuid);
     });
 
