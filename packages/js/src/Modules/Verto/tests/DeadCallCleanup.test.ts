@@ -360,5 +360,46 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       expect(call.isFinalized).toBe(true);
       expect(session.calls[call.id]).toBeUndefined();
     });
+
+    it('should clear the BYE timeout when BYE resolves before timeout', async () => {
+      jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+      call = new Call(session, {
+        destinationNumber: '1234',
+        callerNumber: '5678',
+        audio: true,
+        video: false,
+      });
+      call.peer = {
+        close: jest.fn(),
+        instance: {
+          close: jest.fn(),
+          getStats: jest.fn(),
+        },
+      };
+      call.options.remoteStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+      call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
+
+      // Make BYE resolve quickly
+      session.connection.send = jest.fn(() => Promise.resolve({ node_id: 'test' }));
+
+      await call.hangup();
+
+      // Call should be finalized
+      expect(call.isFinalized).toBe(true);
+
+      // The timeout was set and then cleared because BYE resolved first
+      expect(setTimeoutSpy).toHaveBeenCalledWith(
+        expect.any(Function),
+        5000
+      );
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
+      jest.useRealTimers();
+    });
   });
 });
