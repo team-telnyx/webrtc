@@ -305,6 +305,55 @@ describe('VertoHandler', () => {
     });
   });
 
+  describe('resetReconnectAttempts on gateway state', () => {
+    it('should NOT reset reconnect attempts on REGISTER', () => {
+      (instance as any)._reconnectAttempts = 3;
+      instance.connection.previousGatewayState = '';
+
+      const registerMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-1","result":{"params":{"state":"REGISTER"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(registerMsg);
+
+      expect((instance as any)._reconnectAttempts).toBe(3);
+    });
+
+    it('should reset reconnect attempts on REGED', () => {
+      (instance as any)._reconnectAttempts = 3;
+      instance.connection.previousGatewayState = '';
+
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-2","result":{"params":{"state":"REGED"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(regedMsg);
+
+      expect((instance as any)._reconnectAttempts).toBe(0);
+    });
+
+    it('REGISTER followed by socket close should preserve attempt count', () => {
+      (instance as any)._reconnectAttempts = 2;
+      instance.connection.previousGatewayState = '';
+
+      // REGISTER does not reset attempts
+      const registerMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-3","result":{"params":{"state":"REGISTER"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(registerMsg);
+      expect((instance as any)._reconnectAttempts).toBe(2);
+
+      // Socket closes before REGED — attempts still intact
+      instance.connection.previousGatewayState = '';
+      (instance as any)._reconnectAttempts = 3;
+
+      // Then REGED arrives — now reset
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-4","result":{"params":{"state":"REGED"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(regedMsg);
+      expect((instance as any)._reconnectAttempts).toBe(0);
+    });
+  });
+
   describe('should fire telnyx.ready again after socket reconnection', () => {
     it('fires telnyx.ready again when previousGatewayState is reset after socket close', () => {
       const regedMsg = JSON.parse(
