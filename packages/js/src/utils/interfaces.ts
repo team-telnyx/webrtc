@@ -183,11 +183,20 @@ export interface IClientOptions {
 
   /**
    * Interval in milliseconds for collecting call statistics.
-   * Stats are aggregated over each interval and stored locally until call end.
+   * Stats are aggregated over each interval and submitted as intermediate
+   * reports while the call is active.
    *
    * @default 5000 (5 seconds)
    */
   callReportInterval?: number;
+
+  /**
+   * Interval in milliseconds for submitting intermediate call reports while a call is active.
+   * Set to 0 to disable time-based intermediate reports.
+   *
+   * @default 180000 (3 minutes)
+   */
+  callReportFlushInterval?: number;
 
   /**
    * Configuration for media permissions recovery on inbound calls.

@@ -65,6 +65,12 @@ export interface IVertoOptions {
    */
   callReportInterval?: number;
   /**
+   * Interval in milliseconds for submitting intermediate call reports while a call is active.
+   * Set to 0 to disable time-based intermediate reports.
+   * @default 180000 (3 minutes)
+   */
+  callReportFlushInterval?: number;
+  /**
    * Minimum log level to capture for call reports.
    * @default 'debug'
    */

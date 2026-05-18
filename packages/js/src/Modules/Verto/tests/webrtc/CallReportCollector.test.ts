@@ -14,6 +14,7 @@ type SendPayload = (
 
 type TestableCallReportCollector = {
   peerConnection: {
+    getStats?: () => Promise<RTCStatsReport>;
     getSenders: () => Array<{
       track?: Partial<MediaStreamTrack> & {
         kind?: string;
@@ -22,7 +23,9 @@ type TestableCallReportCollector = {
       };
     }>;
   } | null;
+  onFlushNeeded: (() => void) | null;
   cleanup: () => void;
+  _collectStats: (isFinal?: boolean) => Promise<void>;
   _withoutUndefined: <T extends Record<string, unknown>>(obj: T) => T;
   _getLocalAudioTrackSnapshot: () => ILocalAudioTrackSnapshot | undefined;
   _getOutboundAudioSourceStats: (
@@ -33,6 +36,7 @@ type TestableCallReportCollector = {
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
   ) => void;
+  sendPayload: SendPayload;
   _sendPayload: SendPayload;
 };
 
@@ -122,6 +126,31 @@ describe('CallReportCollector local audio diagnostics', () => {
         mediaSourceId: 'source-id',
       } as RTCOutboundRtpStreamStats & { mediaSourceId?: string })
     ).toBeUndefined();
+  });
+});
+
+describe('CallReportCollector intermediate flushes', () => {
+  it('requests time-based intermediate flushes while a call is active', async () => {
+    const collector = new CallReportCollector({
+      enabled: true,
+      interval: 5000,
+      intermediateReportInterval: 10000,
+    }) as unknown as TestableCallReportCollector;
+    const flushSpy = jest.fn();
+    collector.onFlushNeeded = flushSpy;
+    collector.peerConnection = {
+      getStats: () => Promise.resolve(new Map() as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+    (
+      collector as unknown as { _lastIntermediateFlushTime: Date }
+    )._lastIntermediateFlushTime = new Date(Date.now() - 10000);
+
+    await collector._collectStats(true);
+
+    expect(flushSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -252,5 +281,24 @@ describe('CallReportCollector call report uploads', () => {
       'https://rtc.telnyx.com/call_report',
       expect.objectContaining({ keepalive: true })
     );
+  });
+
+  it('does not use keepalive for intermediate reports during active calls', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      text: () => Promise.resolve(''),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await collector.sendPayload(
+      { ...payload, segment: 0 },
+      'call-report-id',
+      'wss://rtc.telnyx.com',
+      'voice-sdk-id'
+    );
+
+    expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('keepalive');
   });
 });

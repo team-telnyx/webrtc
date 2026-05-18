@@ -9,7 +9,7 @@
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
  * - Uses in-memory buffer with size limits for long calls
- * - Posts aggregated stats to voice-sdk-proxy on call end
+ * - Posts intermediate segments during active calls and a final segment on call end
  */
 
 import logger from '../../../Modules/Verto/util/logger';
@@ -180,6 +180,11 @@ export interface ITransportStats {
 export interface ICallReportOptions {
   enabled: boolean;
   interval: number;
+  /**
+   * Interval in milliseconds for posting intermediate reports while a call is active.
+   * Set to 0 to disable time-based intermediate flushes.
+   */
+  intermediateReportInterval?: number;
 }
 
 export interface ILogCollectorOptions {
@@ -293,13 +298,14 @@ export class CallReportCollector {
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
 
-  // ── Size-aware flush ──────────────────────────────────────────────
+  // ── Intermediate flush ────────────────────────────────────────────
   // Flush when stats or logs approach their buffer limits to avoid
   // hitting the server's 2 MB body limit or dropping oldest entries.
   private static readonly STATS_FLUSH_THRESHOLD = 300; // flush before 360 max
   private static readonly LOGS_FLUSH_THRESHOLD = 800; // flush before 1000 max
+  private static readonly DEFAULT_INTERMEDIATE_REPORT_INTERVAL_MS = 180_000;
 
-  /** Callback invoked when stats or logs approach their buffer limits. */
+  /** Callback invoked when buffered data should be posted as an intermediate report. */
   public onFlushNeeded: (() => void) | null = null;
 
   /** Callback invoked when a quality warning threshold is breached. */
@@ -330,6 +336,9 @@ export class CallReportCollector {
   /** Running segment counter for multi-part reports. */
   private _segmentIndex: number = 0;
 
+  /** Timestamp of the last intermediate flush request. */
+  private _lastIntermediateFlushTime: Date;
+
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
 
@@ -348,6 +357,7 @@ export class CallReportCollector {
       maxEntries: 1000,
     };
     this.callStartTime = new Date();
+    this._lastIntermediateFlushTime = this.callStartTime;
 
     // Create log collector if enabled — start immediately to capture setup/negotiation logs
     if (this.logCollectorOptions.enabled) {
@@ -367,6 +377,7 @@ export class CallReportCollector {
 
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
+    this._lastIntermediateFlushTime = this.intervalStartTime;
 
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
@@ -433,6 +444,8 @@ export class CallReportCollector {
       const logs = this.logCollector?.drain() ?? [];
 
       const now = new Date();
+      this._lastIntermediateFlushTime = now;
+
       const payload: ICallReportPayload = {
         summary: {
           ...summary,
@@ -508,7 +521,7 @@ export class CallReportCollector {
       ...(isMultiSegment ? { segment } : {}),
     };
 
-    await this._sendPayload(payload, callReportId, host, voiceSdkId);
+    await this._sendPayload(payload, callReportId, host, voiceSdkId, true);
   }
 
   /**
@@ -521,7 +534,7 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
-    await this._sendPayload(payload, callReportId, host, voiceSdkId);
+    await this._sendPayload(payload, callReportId, host, voiceSdkId, false);
   }
 
   /**
@@ -535,16 +548,15 @@ export class CallReportCollector {
     payload: ICallReportPayload,
     callReportId: string,
     host: string,
-    voiceSdkId?: string
+    voiceSdkId?: string,
+    isFinalReport: boolean = true
   ): Promise<void> {
     const wsUrl = new URL(host);
     const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
 
-    const isIntermediate =
-      payload.segment !== undefined && !payload.summary.endTimestamp;
-    const label = isIntermediate
-      ? `intermediate segment ${payload.segment}`
-      : 'final report';
+    const label = isFinalReport
+      ? 'final report'
+      : `intermediate segment ${payload.segment}`;
 
     logger.info(`CallReportCollector: Posting ${label}`, {
       endpoint,
@@ -565,7 +577,7 @@ export class CallReportCollector {
 
     const body = JSON.stringify(payload);
     const useKeepalive =
-      !isIntermediate &&
+      isFinalReport &&
       body.length <= CallReportCollector.KEEPALIVE_BODY_LIMIT_BYTES;
 
     let lastError: unknown;
@@ -843,31 +855,11 @@ export class CallReportCollector {
           );
         }
 
-        // Check if stats or logs are approaching buffer limits and flush early
-        if (this.onFlushNeeded && !this._flushing) {
-          const statsCount = this.statsBuffer.length;
-          const logCount = this.logCollector?.getLogCount() ?? 0;
-          if (
-            statsCount >= CallReportCollector.STATS_FLUSH_THRESHOLD ||
-            logCount >= CallReportCollector.LOGS_FLUSH_THRESHOLD
-          ) {
-            logger.info(
-              'CallReportCollector: Approaching buffer limits, requesting flush',
-              { statsIntervals: statsCount, logEntries: logCount }
-            );
-            try {
-              this.onFlushNeeded();
-            } catch (err) {
-              logger.error(
-                'CallReportCollector: onFlushNeeded callback error',
-                { error: err }
-              );
-            }
-          }
-        }
-
-        // Check quality warning thresholds
+        // Check quality warning thresholds before flushing the buffer so
+        // delta-based checks can compare against the previous interval.
         this._checkQualityWarnings(statsEntry, inboundAudio);
+
+        this._requestIntermediateFlushIfNeeded(now);
 
         // Reset interval
         this.intervalStartTime = now;
@@ -875,6 +867,57 @@ export class CallReportCollector {
       }
     } catch (error) {
       logger.error('CallReportCollector: Error collecting stats', { error });
+    }
+  }
+
+  private _getIntermediateReportInterval(): number {
+    return (
+      this.options.intermediateReportInterval ??
+      CallReportCollector.DEFAULT_INTERMEDIATE_REPORT_INTERVAL_MS
+    );
+  }
+
+  private _requestIntermediateFlushIfNeeded(now: Date): void {
+    if (!this.onFlushNeeded || this._flushing || this.statsBuffer.length === 0) {
+      return;
+    }
+
+    const statsCount = this.statsBuffer.length;
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    const intermediateReportInterval = this._getIntermediateReportInterval();
+    const msSinceLastFlush =
+      now.getTime() - this._lastIntermediateFlushTime.getTime();
+
+    let reason: 'buffer-limit' | 'safety-interval' | null = null;
+    if (
+      statsCount >= CallReportCollector.STATS_FLUSH_THRESHOLD ||
+      logCount >= CallReportCollector.LOGS_FLUSH_THRESHOLD
+    ) {
+      reason = 'buffer-limit';
+    } else if (
+      intermediateReportInterval > 0 &&
+      msSinceLastFlush >= intermediateReportInterval
+    ) {
+      reason = 'safety-interval';
+    }
+
+    if (!reason) return;
+
+    logger.info('CallReportCollector: Requesting intermediate report flush', {
+      reason,
+      statsIntervals: statsCount,
+      logEntries: logCount,
+      msSinceLastFlush,
+    });
+
+    this._lastIntermediateFlushTime = now;
+
+    try {
+      this.onFlushNeeded();
+    } catch (err) {
+      logger.error('CallReportCollector: onFlushNeeded callback error', {
+        error: err,
+      });
     }
   }
 

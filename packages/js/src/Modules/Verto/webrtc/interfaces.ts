@@ -161,6 +161,7 @@ export interface IWebRTCCall {
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params?: IHangupParams, execute?: boolean) => Promise<void>;
+  flushIntermediateCallReport?: (reason?: string) => void;
 
   hold: () => void;
   unhold: () => void;

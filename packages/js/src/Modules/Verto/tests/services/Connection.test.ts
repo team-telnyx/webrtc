@@ -11,6 +11,7 @@ jest.unmock('../../services/Connection');
 import Connection, { setWebSocket } from '../../services/Connection';
 import { trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
+import { setReconnectToken } from '../../util/reconnect';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
@@ -65,6 +66,12 @@ class MockWebSocket {
       this.onerror(error);
     }
   }
+
+  simulateMessage(data: unknown) {
+    if (this.onmessage) {
+      this.onmessage({ data: JSON.stringify(data) });
+    }
+  }
 }
 
 describe('Connection - Safety Timeout', () => {
@@ -83,6 +90,7 @@ describe('Connection - Safety Timeout', () => {
     mockSession = {
       uuid: 'test-uuid',
       sessionid: 'test-session',
+      voiceSdkId: null,
       options: {
         host: 'wss://test.telnyx.com',
         login: 'test-login',
@@ -360,6 +368,19 @@ describe('Connection - Safety Timeout', () => {
         { type: 'open' },
         mockSession.uuid
       );
+    });
+  });
+
+  describe('onmessage event', () => {
+    it('stores voice_sdk_id on the owning session when received', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      const ws = (connection as any)._wsClient;
+      ws.simulateMessage({ id: 'message-id', voice_sdk_id: 'voice-sdk-id' });
+
+      expect(mockSession.voiceSdkId).toBe('voice-sdk-id');
+      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id');
     });
   });
 

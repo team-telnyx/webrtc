@@ -39,7 +39,6 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
-import { getReconnectToken } from '../util/reconnect';
 import {
   attachMediaStream,
   getUserMedia,
@@ -2105,6 +2104,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Initialize call report collector (stats + debug logs)
     const enableCallReports = this.session.options.enableCallReports !== false; // Default: true
     const callReportInterval = this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const callReportFlushInterval =
+      this.session.options.callReportFlushInterval ?? 180_000; // Default: 3 minutes
     const debugLogLevel = this.session.options.debugLogLevel || 'debug';
     const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
@@ -2113,6 +2114,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         {
           enabled: true,
           interval: callReportInterval,
+          intermediateReportInterval: callReportFlushInterval,
         },
         {
           enabled: true, // Debug logs enabled when call reports are enabled
@@ -2175,12 +2177,20 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.trackCallReportUpload(callReportUpload);
   }
 
+  private _getCallReportVoiceSdkId(): string | undefined {
+    return this.session.voiceSdkId || undefined;
+  }
+
   /**
    * Flush an intermediate call report segment mid-call.
-   * Called by the CallReportCollector when the estimated payload size
-   * approaches the server's 2 MB limit.
+   * Used for periodic safety flushes, buffer-limit flushes, and socket-close
+   * safety flushes without falsely finalizing the call.
    */
-  private _flushIntermediateReport() {
+  public flushIntermediateCallReport(reason: string = 'manual') {
+    this._flushIntermediateReport(reason);
+  }
+
+  private _flushIntermediateReport(reason: string = 'buffer-limit') {
     if (!this._callReportCollector) return;
 
     const callReportId = this.session.callReportId;
@@ -2215,16 +2225,24 @@ export default abstract class BaseCall implements IWebRTCCall {
     const payload = this._callReportCollector.flush(summary);
     if (!payload) return;
 
-    const voiceSdkId = getReconnectToken() || undefined;
+    logger.info('Flushing intermediate call report', {
+      callId: this.id,
+      reason,
+      segment: payload.segment,
+    });
 
-    // Fire-and-forget — don't block the stats collection interval
-    this._callReportCollector
+    const voiceSdkId = this._getCallReportVoiceSdkId();
+
+    // Fire-and-forget — don't block the stats collection interval,
+    // but track the upload so disconnect() can drain in-flight reports.
+    const upload = this._callReportCollector
       .sendPayload(payload, callReportId, host, voiceSdkId)
       .catch((error) => {
         logger.error('Failed to post intermediate call report segment', {
           error,
         });
       });
+    this.session.trackCallReportUpload(upload);
   }
 
   private async _postCallReport() {
@@ -2264,8 +2282,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    // voice_sdk_id is stored as the reconnect token
-    const voiceSdkId = getReconnectToken() || undefined;
+    const voiceSdkId = this._getCallReportVoiceSdkId();
 
     try {
       await this._callReportCollector.postReport(

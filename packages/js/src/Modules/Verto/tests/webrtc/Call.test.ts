@@ -217,6 +217,77 @@ describe('Call', () => {
     });
   });
 
+  describe('call report uploads', () => {
+    it('uses the owning session voice_sdk_id when posting the report', async () => {
+      (session.connection as unknown as { host?: string }).host =
+        'wss://rtc.telnyx.com';
+      session.callReportId = 'call-report-id';
+      session.voiceSdkId = 'owning-session-voice-sdk-id';
+
+      const collector = {
+        stop: jest.fn().mockResolvedValue(undefined),
+        postReport: jest.fn().mockResolvedValue(undefined),
+        cleanup: jest.fn(),
+      };
+      (
+        call as unknown as { _callReportCollector: typeof collector }
+      )._callReportCollector = collector;
+
+      await (
+        call as unknown as { _postCallReport: () => Promise<void> }
+      )._postCallReport();
+
+      expect(collector.postReport).toHaveBeenCalledWith(
+        expect.objectContaining({ callId: call.id }),
+        'call-report-id',
+        'wss://rtc.telnyx.com',
+        'owning-session-voice-sdk-id'
+      );
+      expect(collector.cleanup).toHaveBeenCalled();
+    });
+
+    it('submits and tracks intermediate reports with the owning session voice_sdk_id', () => {
+      (session.connection as unknown as { host?: string }).host =
+        'wss://rtc.telnyx.com';
+      session.callReportId = 'call-report-id';
+      session.voiceSdkId = 'owning-session-voice-sdk-id';
+      const payload = {
+        summary: { callId: call.id },
+        stats: [
+          {
+            intervalStartUtc: '2026-05-18T14:00:00.000Z',
+            intervalEndUtc: '2026-05-18T14:00:05.000Z',
+          },
+        ],
+        segment: 0,
+      };
+      const collector = {
+        flush: jest.fn().mockReturnValue(payload),
+        sendPayload: jest.fn().mockResolvedValue(undefined),
+      };
+      const trackSpy = jest.spyOn(session, 'trackCallReportUpload');
+      (
+        call as unknown as { _callReportCollector: typeof collector }
+      )._callReportCollector = collector;
+
+      (
+        call as unknown as { _flushIntermediateReport: () => void }
+      )._flushIntermediateReport();
+
+      expect(collector.sendPayload).toHaveBeenCalledWith(
+        payload,
+        'call-report-id',
+        'wss://rtc.telnyx.com',
+        'owning-session-voice-sdk-id'
+      );
+      expect(trackSpy).toHaveBeenCalledTimes(1);
+      expect(trackSpy.mock.calls[0][0]).toHaveProperty(
+        'then',
+        expect.any(Function)
+      );
+    });
+  });
+
   describe('hangup cause codes', () => {
     it('should use USER_BUSY/17 when rejecting a ringing call', async () => {
       call.setState(State.Ringing);

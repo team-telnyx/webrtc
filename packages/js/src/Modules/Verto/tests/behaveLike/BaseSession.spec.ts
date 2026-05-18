@@ -82,6 +82,50 @@ export default (instance: any) => {
       describe('unsubscribe', () => {});
       describe('broadcast', () => {});
 
+      describe('.onNetworkClose()', () => {
+        it('flushes active call reports as intermediate reports on socket close', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({ code: 1000 });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith(
+            'socket-close'
+          );
+        });
+
+        it('flushes active call reports as intermediate reports on socket errors', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({ error: new Error('socket error') });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith(
+            'socket-error'
+          );
+        });
+
+        it('marks abnormal socket closes when flushing intermediate call reports', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({ code: 1006 });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith(
+            'socket-abnormal-close'
+          );
+        });
+      });
+
       describe('.disconnect()', () => {
         it('should close the connection', async (done) => {
           await instance.disconnect();
