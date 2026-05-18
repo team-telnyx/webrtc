@@ -646,44 +646,12 @@ export default abstract class BaseSession {
    */
   protected async _onSocketOpen() {}
 
-  private _flushIntermediateCallReports(reason: string): void {
-    const calls = (this as unknown as {
-      calls?: Record<
-        string,
-        { id?: string; flushIntermediateCallReport?: (reason?: string) => void }
-      >;
-    }).calls;
-
-    if (!calls) return;
-
-    Object.values(calls).forEach((call) => {
-      if (!call?.flushIntermediateCallReport) return;
-
-      try {
-        call.flushIntermediateCallReport(reason);
-      } catch (error) {
-        logger.error('Failed to flush intermediate call report', {
-          callId: call.id,
-          reason,
-          error,
-        });
-      }
-    });
-  }
-
   /**
    * Callback when the ws connection is going to close or get an error
    * @return void
    * @private
    */
-  public onNetworkClose(event?: { code?: number; error?: unknown }): void {
-    const flushReason = event?.error
-      ? 'socket-error'
-      : event?.code === 1006
-        ? 'socket-abnormal-close'
-        : 'socket-close';
-    this._flushIntermediateCallReports(flushReason);
-
+  public onNetworkClose(): void {
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }

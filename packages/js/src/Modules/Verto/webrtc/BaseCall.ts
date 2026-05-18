@@ -2292,14 +2292,10 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Flush an intermediate call report segment mid-call.
-   * Used for periodic safety flushes, buffer-limit flushes, and socket-close
-   * safety flushes without falsely finalizing the call.
+   * Used for periodic safety flushes and buffer-limit flushes without falsely
+   * finalizing the call.
    */
-  public flushIntermediateCallReport(reason: string = 'manual') {
-    this._flushIntermediateReport(reason);
-  }
-
-  private _flushIntermediateReport(reason: string = 'buffer-limit') {
+  private _flushIntermediateReport() {
     if (!this._callReportCollector) return;
 
     const callReportId = this.session.callReportId;
@@ -2333,12 +2329,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const payload = this._callReportCollector.flush(summary);
     if (!payload) return;
-
-    logger.info('Flushing intermediate call report', {
-      callId: this.id,
-      reason,
-      segment: payload.segment,
-    });
 
     const voiceSdkId = this._getCallReportVoiceSdkId();
 
