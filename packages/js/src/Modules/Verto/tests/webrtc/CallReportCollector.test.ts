@@ -3,6 +3,7 @@ import { LOW_LOCAL_AUDIO } from '../../util/constants/errorCodes';
 import type { ITelnyxWarning } from '../../util/constants/warnings';
 import {
   CallReportCollector,
+  type ICallReportPayload,
   type ILocalAudioSourceStats,
   type ILocalAudioTrackSnapshot,
   type IStatsInterval,
@@ -29,6 +30,10 @@ type TestableCallReportCollector = {
   onFlushNeeded: (() => void) | null;
   cleanup: () => void;
   _collectStats: (isFinal?: boolean) => Promise<void>;
+  flush: (
+    summary: { callId: string },
+    flushReason?: ICallReportPayload['flushReason']
+  ) => ICallReportPayload | null;
   onWarning: ((warning: ITelnyxWarning) => void) | null;
   _withoutUndefined: <T extends Record<string, unknown>>(obj: T) => T;
   _checkQualityWarnings: (
@@ -72,6 +77,45 @@ const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
       },
     },
   },
+});
+
+describe('CallReportCollector intermediate reports', () => {
+  it('includes flush reason metadata in intermediate report payloads', () => {
+    const collector = createCollector();
+    const statsEntry = createStatsEntry(0.5);
+    (collector as unknown as { statsBuffer: IStatsInterval[] }).statsBuffer = [
+      statsEntry,
+    ];
+
+    const payload = collector.flush(
+      { callId: 'call-id' },
+      {
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network changed',
+          wasClean: false,
+        },
+      }
+    );
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        segment: 0,
+        stats: [statsEntry],
+        flushReason: {
+          type: 'socket-close',
+          socketClose: {
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
+          },
+        },
+      })
+    );
+  });
 });
 
 describe('CallReportCollector local audio diagnostics', () => {

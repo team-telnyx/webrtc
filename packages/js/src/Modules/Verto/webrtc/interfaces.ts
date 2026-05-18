@@ -1,3 +1,4 @@
+import type { ICallReportFlushReason } from './CallReportCollector';
 import { State } from './constants';
 
 export interface IMediaSettings {
@@ -161,6 +162,7 @@ export interface IWebRTCCall {
   invite: () => void;
   answer: (params: AnswerParams) => void;
   hangup: (params?: IHangupParams, execute?: boolean) => Promise<void>;
+  flushIntermediateCallReport?: (reason?: ICallReportFlushReason) => void;
 
   hold: () => void;
   unhold: () => void;
