@@ -43,7 +43,6 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
-import { getReconnectToken } from '../util/reconnect';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -2209,6 +2208,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Initialize call report collector (stats + debug logs)
     const enableCallReports = this.session.options.enableCallReports !== false; // Default: true
     const callReportInterval = this.session.options.callReportInterval || 5000; // Default: 5 seconds
+    const callReportFlushInterval =
+      this.session.options.callReportFlushInterval ?? 180_000; // Default: 3 minutes
     const debugLogLevel = this.session.options.debugLogLevel || 'debug';
     const debugLogMaxEntries = this.session.options.debugLogMaxEntries || 1000;
 
@@ -2217,6 +2218,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         {
           enabled: true,
           interval: callReportInterval,
+          intermediateReportInterval: callReportFlushInterval,
         },
         {
           enabled: true, // Debug logs enabled when call reports are enabled
@@ -2278,16 +2280,23 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
-    // Post call report after cleanup (fire-and-forget — must not block teardown)
-    this._postCallReport().catch((error) => {
+    // Post call report after cleanup. The upload runs in the background,
+    // but the session tracks it so disconnect() can wait instead of racing
+    // teardown against the final BYE-triggered report POST.
+    const callReportUpload = this._postCallReport().catch((error) => {
       logger.error('Unexpected error in _postCallReport', { error });
     });
+    this.session.trackCallReportUpload(callReportUpload);
+  }
+
+  private _getCallReportVoiceSdkId(): string | undefined {
+    return this.session.callReportVoiceSdkId || undefined;
   }
 
   /**
    * Flush an intermediate call report segment mid-call.
-   * Used for size-limit and socket-close safety flushes without falsely
-   * finalizing the call.
+   * Used for periodic, size-limit, and socket-close safety flushes without
+   * falsely finalizing the call.
    */
   public flushIntermediateCallReport(
     flushReason: ICallReportFlushReason = { type: 'manual' }
@@ -2338,16 +2347,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       segment: payload.segment,
     });
 
-    const voiceSdkId = getReconnectToken() || undefined;
+    const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
-    // Fire-and-forget — don't block the stats collection interval
-    this._callReportCollector
-      .sendPayload(payload, callReportId, host, voiceSdkId)
+    // Fire-and-forget — don't block the stats collection interval,
+    // but track the upload so disconnect() can drain in-flight reports.
+    const upload = this._callReportCollector
+      .sendPayload(payload, callReportId, host, callReportVoiceSdkId)
       .catch((error) => {
         logger.error('Failed to post intermediate call report segment', {
           error,
         });
       });
+    this.session.trackCallReportUpload(upload);
   }
 
   private async _postCallReport() {
@@ -2387,18 +2398,22 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    // voice_sdk_id is stored as the reconnect token
-    const voiceSdkId = getReconnectToken() || undefined;
+    const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
-    this._callReportCollector
-      .postReport(summary, callReportId, host, voiceSdkId)
-      .catch((error) => {
-        logger.error('Failed to post call report', { error });
-      })
-      .finally(() => {
-        // Clean up log collector resources
-        this._callReportCollector?.cleanup();
-      });
+    try {
+      await this._callReportCollector.postReport(
+        summary,
+        callReportId,
+        host,
+        callReportVoiceSdkId
+      );
+    } catch (error) {
+      logger.error('Failed to post call report', { error });
+      throw error;
+    } finally {
+      // Clean up log collector resources
+      this._callReportCollector?.cleanup();
+    }
   }
 
   private _startStats(interval: number) {
