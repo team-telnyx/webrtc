@@ -37,6 +37,7 @@ const createCollector = (): TestableCallReportCollector =>
 describe('CallReportCollector local audio diagnostics', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.useRealTimers();
   });
 
   it('removes undefined values without mutating the input object', () => {
@@ -114,5 +115,65 @@ describe('CallReportCollector local audio diagnostics', () => {
         mediaSourceId: 'source-id',
       } as RTCOutboundRtpStreamStats & { mediaSourceId?: string })
     ).toBeUndefined();
+  });
+});
+
+describe('CallReportCollector cadence', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it('defaults to 1 second intervals during the first 10 seconds, then the default interval', () => {
+    const collector = new CallReportCollector({
+      enabled: true,
+      interval: 5000,
+    });
+    const testable = collector as unknown as {
+      callStartTime: Date;
+      _collectionIntervalFor: (intervalStartTime: Date) => number;
+    };
+    const callStart = testable.callStartTime.getTime();
+
+    expect(testable._collectionIntervalFor(new Date(callStart))).toEqual(1000);
+    expect(testable._collectionIntervalFor(new Date(callStart + 9000))).toEqual(
+      1000
+    );
+    expect(
+      testable._collectionIntervalFor(new Date(callStart + 10000))
+    ).toEqual(5000);
+  });
+
+  it('does not slow down collection if the configured default interval is shorter than the initial cadence', () => {
+    const collector = new CallReportCollector({
+      enabled: true,
+      interval: 500,
+    });
+    const testable = collector as unknown as {
+      callStartTime: Date;
+      _collectionIntervalFor: (intervalStartTime: Date) => number;
+    };
+
+    expect(testable._collectionIntervalFor(testable.callStartTime)).toEqual(
+      500
+    );
+  });
+
+  it('collects a final stats interval for calls shorter than the current cadence interval', async () => {
+    jest.useFakeTimers();
+
+    const collector = new CallReportCollector({
+      enabled: true,
+      interval: 5000,
+    });
+    const peerConnection = {
+      getStats: jest.fn().mockResolvedValue(new Map()),
+    } as unknown as RTCPeerConnection;
+
+    collector.start(peerConnection);
+    await collector.stop();
+
+    expect(peerConnection.getStats).toHaveBeenCalledTimes(1);
+    expect(collector.getStatsBuffer()).toHaveLength(1);
   });
 });
