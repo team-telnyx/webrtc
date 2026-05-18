@@ -6,6 +6,7 @@ IClientOptions
 ### Properties
 
 - [anonymous_login](#anonymous_login)
+- [callReportFlushInterval](#callreportflushinterval)
 - [callReportInterval](#callreportinterval)
 - [debug](#debug)
 - [debugOutput](#debugoutput)
@@ -16,6 +17,7 @@ IClientOptions
 - [keepConnectionAliveOnSocketClose](#keepconnectionaliveonsocketclose)
 - [login](#login)
 - [login_token](#login_token)
+- [maxReconnectAttempts](#maxreconnectattempts)
 - [mediaPermissionsRecovery](#mediapermissionsrecovery)
 - [mutedMicOnStart](#mutedmiconstart)
 - [password](#password)
@@ -48,13 +50,28 @@ anonymous_login login options
 
 ---
 
+### callReportFlushInterval
+
+• `Optional` **callReportFlushInterval**: `number`
+
+Interval in milliseconds for submitting intermediate call reports while a call is active.
+Set to 0 to disable time-based intermediate reports.
+
+**`Default`**
+
+```ts
+180000 (3 minutes)
+```
+
+---
+
 ### callReportInterval
 
 • `Optional` **callReportInterval**: `number`
 
 Interval in milliseconds for collecting call statistics after the initial
 high-resolution startup window. Stats are aggregated over each interval
-and stored locally until call end.
+and submitted as intermediate reports while the call is active.
 
 **`Default`**
 
@@ -147,6 +164,27 @@ The `username` to authenticate with your SIP Connection.
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
+
+---
+
+### maxReconnectAttempts
+
+• `Optional` **maxReconnectAttempts**: `number`
+
+Maximum number of automatic socket reconnection attempts after an unexpected
+disconnect. When the limit is reached, no further automatic reconnects are
+scheduled and a `telnyx.error` event with code `RECONNECTION_EXHAUSTED` (45003)
+is emitted. A manual `connect()` call resets the counter and starts a fresh
+retry sequence.
+
+Set to `0` to allow unlimited automatic reconnect attempts.
+When omitted, defaults to `10`.
+
+**`Default`**
+
+```ts
+10;
+```
 
 ---
 

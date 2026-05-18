@@ -44,6 +44,10 @@ client.off('telnyx.notification');
 
 - [constructor](#constructor)
 
+### Properties
+
+- [callReportVoiceSdkId](#callreportvoicesdkid)
+
 ### Accessors
 
 - [connected](#connected)
@@ -71,6 +75,7 @@ client.off('telnyx.notification');
 - [newCall](#newcall)
 - [off](#off)
 - [on](#on)
+- [resetReconnectAttempts](#resetreconnectattempts)
 - [serverDisconnect](#serverdisconnect)
 - [setAudioSettings](#setaudiosettings)
 - [webRTCInfo](#webrtcinfo)
@@ -143,6 +148,18 @@ The corresponding HTML:
 #### Overrides
 
 TelnyxRTCClient.constructor
+
+## Properties
+
+### callReportVoiceSdkId
+
+• **callReportVoiceSdkId**: `string` = `null`
+
+voice_sdk_id used when posting call report payloads for this session.
+
+#### Inherited from
+
+TelnyxRTCClient.callReportVoiceSdkId
 
 ## Accessors
 
@@ -1150,6 +1167,24 @@ client
 #### Inherited from
 
 TelnyxRTCClient.on
+
+---
+
+### resetReconnectAttempts
+
+▸ **resetReconnectAttempts**(): `void`
+
+Reset the automatic reconnection attempt counter.
+Call this when the connection is fully established (e.g. on REGED)
+or when the user manually initiates a reconnect after exhaustion.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.resetReconnectAttempts
 
 ---
 

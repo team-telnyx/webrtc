@@ -1,3 +1,8 @@
+## [2.27.0-beta.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0-beta.3...webrtc/v2.27.0-beta.4) (2026-05-18)
+
+- fix: flush call reports on socket close (#639)
+- fix: retry failed call report uploads (#635)
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs

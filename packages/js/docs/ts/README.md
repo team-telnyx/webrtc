@@ -1,5 +1,9 @@
 ## Table of contents
 
+### Enumerations
+
+- [VertoModifyAction](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/enums/VertoModifyAction.md)
+
 ### Call Classes
 
 - [Call](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/Call.md)
@@ -22,6 +26,8 @@
 - [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
 - [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
 - [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
+- [ILocalAudioSourceStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioSourceStats.md)
+- [ILocalAudioTrackSnapshot](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioTrackSnapshot.md)
 - [ITransportStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ITransportStats.md)
 - [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
 - [PreCallDiagnosisOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md)
@@ -32,6 +38,7 @@
 
 ### Functions
 
+- [callMarkName](#callmarkname)
 - [clearCallMarks](#clearcallmarks)
 - [collectCallEstablishmentTimings](#collectcallestablishmenttimings)
 - [getConstraintsWithoutDeviceId](#getconstraintswithoutdeviceid)
@@ -40,11 +47,41 @@
 
 ## Functions
 
+### callMarkName
+
+▸ **callMarkName**(`callId`, `suffix`): `string`
+
+Build a call-scoped performance mark name.
+Format: `telnyx:call:{callId}:{suffix}`
+
+Scoping marks by call_id prevents stale marks from a previous call
+from being picked up by a subsequent call's timing collection.
+
+#### Parameters
+
+| Name     | Type     |
+| :------- | :------- |
+| `callId` | `string` |
+| `suffix` | `string` |
+
+#### Returns
+
+`string`
+
+---
+
 ### clearCallMarks
 
-▸ **clearCallMarks**(): `void`
+▸ **clearCallMarks**(`callId`): `void`
 
-Clear all call establishment performance marks.
+Clear all call establishment performance marks for a given call.
+Marks are scoped by call_id, so only marks belonging to this call are removed.
+
+#### Parameters
+
+| Name     | Type     |
+| :------- | :------- |
+| `callId` | `string` |
 
 #### Returns
 
@@ -54,17 +91,18 @@ Clear all call establishment performance marks.
 
 ### collectCallEstablishmentTimings
 
-▸ **collectCallEstablishmentTimings**(`mode`, `direction`): [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
+▸ **collectCallEstablishmentTimings**(`callId`, `mode`, `direction`): [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
 
 Collect all call establishment timings from performance marks.
 All times are measured from the 'new-call-start' mark.
 
 #### Parameters
 
-| Name        | Type                           | Description                         |
-| :---------- | :----------------------------- | :---------------------------------- |
-| `mode`      | `"trickle"` \| `"non-trickle"` | 'trickle' or 'non-trickle' ICE mode |
-| `direction` | `"inbound"` \| `"outbound"`    | 'outbound' or 'inbound'             |
+| Name        | Type                           | Description                          |
+| :---------- | :----------------------------- | :----------------------------------- |
+| `callId`    | `string`                       | The call ID to scope mark lookups to |
+| `mode`      | `"trickle"` \| `"non-trickle"` | 'trickle' or 'non-trickle' ICE mode  |
+| `direction` | `"inbound"` \| `"outbound"`    | 'outbound' or 'inbound'              |
 
 #### Returns
 
