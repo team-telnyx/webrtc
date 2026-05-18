@@ -21,6 +21,7 @@ import {
   PEER_CLOSED_DURING_INIT,
 } from '../util/constants/errorCodes';
 import {
+  callMarkName,
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
   clearCallMarks,
@@ -161,7 +162,7 @@ export default class Peer {
   }
 
   startNegotiation() {
-    performance.mark('start-negotiation');
+    performance.mark(callMarkName(this.options.id, 'start-negotiation'));
 
     this._negotiating = true;
 
@@ -172,7 +173,7 @@ export default class Peer {
     }
   }
   async startTrickleIceNegotiation() {
-    performance.mark('start-negotiation');
+    performance.mark(callMarkName(this.options.id, 'start-negotiation'));
 
     this._negotiating = true;
 
@@ -258,7 +259,9 @@ export default class Peer {
 
   private handleTrackEvent(event: RTCTrackEvent) {
     if (!this._firstMediaTrackMarked) {
-      performance.mark('first-remote-media-track');
+      performance.mark(
+        callMarkName(this.options.id, 'first-remote-media-track')
+      );
       this._firstMediaTrackMarked = true;
     }
 
@@ -366,7 +369,7 @@ export default class Peer {
     this._prevConnectionState = connectionState;
 
     if (connectionState === 'connected') {
-      performance.mark('dtls-connected');
+      performance.mark(callMarkName(this.options.id, 'dtls-connected'));
       this.tryCollectTimings();
 
       // Successful (re)connection — allow future ICE restarts if we fail again.
@@ -381,7 +384,9 @@ export default class Peer {
 
     if (this._isTrickleIce()) {
       if (connectionState === 'connecting') {
-        performance.mark('peer-connection-connecting');
+        performance.mark(
+          callMarkName(this.options.id, 'peer-connection-connecting')
+        );
       }
 
       if (connectionState === 'connected') {
@@ -389,7 +394,9 @@ export default class Peer {
         // so also clear the safety timeout when the connection succeeds.
         this._clearIceGatheringSafetyTimeout();
 
-        performance.mark('peer-connection-connected');
+        performance.mark(
+          callMarkName(this.options.id, 'peer-connection-connected')
+        );
       }
     }
   };
@@ -404,16 +411,23 @@ export default class Peer {
       return;
     }
     const callActiveExists =
-      performance.getEntriesByName('call-active', 'mark').length > 0;
+      performance.getEntriesByName(
+        callMarkName(this.options.id, 'call-active'),
+        'mark'
+      ).length > 0;
     if (!callActiveExists || this.instance.connectionState !== 'connected') {
       return;
     }
     this._timingsCollected = true;
     const mode = this._isTrickleIce() ? 'trickle' : 'non-trickle';
     const direction = this.isOffer ? 'outbound' : 'inbound';
-    const timings = collectCallEstablishmentTimings(mode, direction);
+    const timings = collectCallEstablishmentTimings(
+      this.options.id,
+      mode,
+      direction
+    );
     logCallEstablishmentTimings(timings);
-    clearCallMarks();
+    clearCallMarks(this.options.id);
   }
 
   private async createPeerConnection() {
@@ -448,7 +462,7 @@ export default class Peer {
         sdp: this.options.remoteSdp,
         type: PeerType.Offer,
       });
-      performance.mark('set-remote-description');
+      performance.mark(callMarkName(this.options.id, 'set-remote-description'));
 
       // Race condition guard: close() may have run during the await above,
       // setting this.instance to null. Throw a structured error so the caller
@@ -544,7 +558,7 @@ export default class Peer {
       throw telnyxError;
     }
 
-    performance.mark('get-user-media');
+    performance.mark(callMarkName(this.options.id, 'get-user-media'));
 
     if (
       this.options.mutedMicOnStart &&
@@ -554,7 +568,7 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
-    performance.mark('peer-creation-end');
+    performance.mark(callMarkName(this.options.id, 'peer-creation-end'));
   }
 
   private _handleIceConnectionStateChange = () => {
@@ -562,7 +576,7 @@ export default class Peer {
     logger.debug(`[${new Date().toISOString()}] ICE Connection State`, state);
 
     if (state === 'connected') {
-      performance.mark('ice-connected');
+      performance.mark(callMarkName(this.options.id, 'ice-connected'));
     }
   };
 
@@ -821,10 +835,10 @@ export default class Peer {
 
     try {
       const offer = await this.instance.createOffer(this._constraints);
-      performance.mark('create-offer');
+      performance.mark(callMarkName(this.options.id, 'create-offer'));
       await this._setLocalDescription(offer);
-      performance.mark('set-local-description');
-      performance.mark('ice-gathering-started');
+      performance.mark(callMarkName(this.options.id, 'set-local-description'));
+      performance.mark(callMarkName(this.options.id, 'ice-gathering-started'));
 
       if (!this._isTrickleIce()) {
         this._sdpReady();
@@ -895,10 +909,10 @@ export default class Peer {
 
     try {
       const answer = await this.instance.createAnswer();
-      performance.mark('create-answer');
+      performance.mark(callMarkName(this.options.id, 'create-answer'));
       await this._setLocalDescription(answer);
-      performance.mark('set-local-description');
-      performance.mark('ice-gathering-started');
+      performance.mark(callMarkName(this.options.id, 'set-local-description'));
+      performance.mark(callMarkName(this.options.id, 'ice-gathering-started'));
 
       return answer;
     } catch (error) {
@@ -1015,6 +1029,11 @@ export default class Peer {
   }
 
   public async close() {
+    // Clear call marks when the peer closes to prevent stale marks
+    // from leaking into a subsequent call's timing calculation.
+    // This covers cleanup paths that don't go through tryCollectTimings()
+    // (e.g. early hangup, call failure, signaling state closed).
+    clearCallMarks(this.options.id);
     this.finishIceRestart();
     this._clearIceGatheringSafetyTimeout();
     if (this._offlineHandler && typeof window !== 'undefined') {

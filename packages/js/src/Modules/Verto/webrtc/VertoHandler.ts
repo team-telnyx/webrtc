@@ -2,6 +2,7 @@ import logger from '../util/logger';
 import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
+import { callMarkName } from './CallEstablishmentTimings';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
 import {
@@ -147,7 +148,7 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
-      performance.mark('new-call-start');
+      performance.mark(callMarkName(callOptions.id, 'new-call-start'));
       const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;

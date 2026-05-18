@@ -5,6 +5,7 @@ import {
   IVertoOptions,
 } from './util/interfaces';
 import { IVertoCallOptions } from './webrtc/interfaces';
+import { callMarkName } from './webrtc/CallEstablishmentTimings';
 import Call from './webrtc/Call';
 import VertoHandler from './webrtc/VertoHandler';
 import {
@@ -61,7 +62,7 @@ export default class Verto extends BrowserSession {
       throw telnyxError;
     }
     const call = new Call(this, options);
-    performance.mark('new-call-start');
+    performance.mark(callMarkName(call.id, 'new-call-start'));
     call.invite();
     return call;
   }
