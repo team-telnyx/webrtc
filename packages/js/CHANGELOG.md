@@ -1,3 +1,11 @@
+## [2.27.0-beta.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0-beta.2...webrtc/v2.27.0-beta.3) (2026-05-18)
+
+- VSUP-65: Fix stale call establishment timing marks (#637)
+- feat: warn on low local audio (#634)
+- fix: collect initial call report stats every second (#633)
+- VSDK-197: Add maxReconnectAttempts option for socket reconnection limit (#629)
+- VSDK-199: detach media elements on call finalization (#628)
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs

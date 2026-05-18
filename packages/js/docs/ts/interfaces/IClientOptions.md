@@ -16,6 +16,7 @@ IClientOptions
 - [keepConnectionAliveOnSocketClose](#keepconnectionaliveonsocketclose)
 - [login](#login)
 - [login_token](#login_token)
+- [maxReconnectAttempts](#maxreconnectattempts)
 - [mediaPermissionsRecovery](#mediapermissionsrecovery)
 - [mutedMicOnStart](#mutedmiconstart)
 - [password](#password)
@@ -147,6 +148,27 @@ The `username` to authenticate with your SIP Connection.
 
 The JSON Web Token (JWT) to authenticate with your SIP Connection.
 This is the recommended authentication strategy. [See how to create one](https://developers.telnyx.com/docs/v2/webrtc/quickstart).
+
+---
+
+### maxReconnectAttempts
+
+• `Optional` **maxReconnectAttempts**: `number`
+
+Maximum number of automatic socket reconnection attempts after an unexpected
+disconnect. When the limit is reached, no further automatic reconnects are
+scheduled and a `telnyx.error` event with code `RECONNECTION_EXHAUSTED` (45003)
+is emitted. A manual `connect()` call resets the counter and starts a fresh
+retry sequence.
+
+Set to `0` to allow unlimited automatic reconnect attempts.
+When omitted, defaults to `10`.
+
+**`Default`**
+
+```ts
+10;
+```
 
 ---
 
