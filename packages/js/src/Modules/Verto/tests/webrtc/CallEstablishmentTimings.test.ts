@@ -276,5 +276,43 @@ describe('CallEstablishmentTimings', () => {
       expect(timings2.steps[0].label).toBe('Remote side ringing');
       expect(timings2.steps[1].label).toBe('Call is active');
     });
+
+    it('should clear marks even when no peer was created (peerless teardown)', () => {
+      // Simulate: inbound invite marks new-call-start, but the call is
+      // rejected/terminated before answer() creates a peer.
+      // _finalize() should still clear the marks.
+      const callId = 'peerless-call';
+
+      performance.mark(callMarkName(callId, 'new-call-start'));
+      performance.mark(callMarkName(callId, 'ringing'));
+
+      // Simulate _finalize() clearing marks (no peer close involved)
+      clearCallMarks(callId);
+
+      // Marks for this call should be gone
+      expect(
+        performance.getEntriesByName(
+          callMarkName(callId, 'new-call-start'),
+          'mark'
+        ).length
+      ).toBe(0);
+      expect(
+        performance.getEntriesByName(callMarkName(callId, 'ringing'), 'mark')
+          .length
+      ).toBe(0);
+
+      // A subsequent call with a different ID should not be affected
+      const nextCallId = 'after-peerless';
+      performance.mark(callMarkName(nextCallId, 'new-call-start'));
+      performance.mark(callMarkName(nextCallId, 'ringing'));
+      performance.mark(callMarkName(nextCallId, 'call-active'));
+
+      const timings = collectCallEstablishmentTimings(
+        nextCallId,
+        'trickle',
+        'outbound'
+      );
+      expect(timings.steps).toHaveLength(2);
+    });
   });
 });

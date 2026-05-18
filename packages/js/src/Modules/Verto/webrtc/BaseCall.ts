@@ -49,7 +49,7 @@ import {
 } from '../util/webrtc';
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
-import { callMarkName } from './CallEstablishmentTimings';
+import { callMarkName, clearCallMarks } from './CallEstablishmentTimings';
 import Peer from './Peer';
 import {
   ConferenceAction,
@@ -2254,6 +2254,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+
+    // Clear call marks at the call lifecycle level so cleanup runs even when
+    // no peer was created (e.g. inbound invite rejected before answer()).
+    // Peer.close() also clears marks as defense-in-depth.
+    clearCallMarks(this.id);
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
