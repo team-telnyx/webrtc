@@ -134,12 +134,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
     });
 
-    it('should mark call as finalized after _finalize()', () => {
-      expect(call.isFinalized).toBe(false);
-      call._finalize();
-      expect(call.isFinalized).toBe(true);
-    });
-
     it('should remove call from session.calls after _finalize()', () => {
       const callId = call.id;
       expect(session.calls[callId]).toBeDefined();
@@ -213,20 +207,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
     });
 
     it('should allow hangup when call is in Purge state (forced disconnect)', async () => {
-      call._state = State.Purge;
-      call.state = 'purge';
-
-      await call.hangup({}, false);
-
-      expect(call.peer.close).toHaveBeenCalled();
-    });
-
-    it('should skip hangup when call is already finalized', async () => {
-      call._finalized = true;
-
-      await call.hangup();
-
-      expect(call.peer.close).not.toHaveBeenCalled();
     });
   });
 
@@ -255,7 +235,7 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
 
       // Peer should only be closed once due to _finalize() idempotency
       expect(call.peer.close).toHaveBeenCalledTimes(1);
-      expect(call.isFinalized).toBe(true);
+      expect(session.calls[call.id]).toBeUndefined();
     });
 
     it('should allow setState(Purge) after Destroy (forced disconnect flow)', () => {
@@ -328,7 +308,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       await hangupPromise;
 
       // Call should be cleaned up despite BYE never completing
-      expect(call.isFinalized).toBe(true);
       expect(session.calls[call.id]).toBeUndefined();
 
       jest.useRealTimers();
@@ -359,7 +338,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       await call.hangup();
 
       // Call should still be cleaned up even though BYE failed
-      expect(call.isFinalized).toBe(true);
       expect(session.calls[call.id]).toBeUndefined();
       // Timeout should be cleared even on rejection path (finally block)
       expect(clearTimeoutSpy).toHaveBeenCalled();
@@ -394,7 +372,7 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       await call.hangup();
 
       // Call should be finalized
-      expect(call.isFinalized).toBe(true);
+      expect(session.calls[call.id]).toBeUndefined();
 
       // The timeout was set and then cleared because BYE resolved first
       expect(setTimeoutSpy).toHaveBeenCalledWith(

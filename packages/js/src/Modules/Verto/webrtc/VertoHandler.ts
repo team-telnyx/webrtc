@@ -94,7 +94,7 @@ class VertoHandler {
       const callIds = Object.keys(session.calls);
       for (const callId of callIds) {
         const call = session.calls[callId];
-        if (call && !call.isFinalized) {
+        if (call) {
           logger.debug(
             `Cleaning up orphaned call ${callId} (state: ${call.state}) after failed reattach.`
           );
