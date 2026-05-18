@@ -42,6 +42,7 @@
 <a href="IClientOptions.html#keepConnectionAliveOnSocketClose" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close?</span></a>
 <a href="IClientOptions.html#login" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login?</span></a>
 <a href="IClientOptions.html#login_token" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login_<wbr/>token?</span></a>
+<a href="IClientOptions.html#maxReconnectAttempts" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>max<wbr/>Reconnect<wbr/>Attempts?</span></a>
 <a href="IClientOptions.html#mediaPermissionsRecovery" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>media<wbr/>Permissions<wbr/>Recovery?</span></a>
 <a href="IClientOptions.html#mutedMicOnStart" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>muted<wbr/>Mic<wbr/>On<wbr/>Start?</span></a>
 <a href="IClientOptions.html#password" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>password?</span></a>
@@ -166,6 +167,21 @@ when the WebSocket connection is closed unexpectedly (e.g. network interruption,
 This is the recommended authentication strategy. <a href="https://developers.telnyx.com/docs/v2/webrtc/quickstart">See how to create one</a>.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
+<section class="tsd-panel tsd-member"><a id="maxReconnectAttempts" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>max<wbr/>Reconnect<wbr/>Attempts</span><a href="#maxReconnectAttempts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">max<wbr/>Reconnect<wbr/>Attempts</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
+<div class="tsd-comment tsd-typography"><p>Maximum number of automatic socket reconnection attempts after an unexpected
+disconnect. When the limit is reached, no further automatic reconnects are
+scheduled and a <code>telnyx.error</code> event with code <code>RECONNECTION_EXHAUSTED</code> (45003)
+is emitted. A manual <code>connect()</code> call resets the counter and starts a fresh
+retry sequence.</p>
+<p>Set to <code>0</code> to allow unlimited automatic reconnect attempts.
+When omitted, defaults to <code>10</code>.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-8">10</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="mediaPermissionsRecovery" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>media<wbr/>Permissions<wbr/>Recovery</span><a href="#mediaPermissionsRecovery" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">media<wbr/>Permissions<wbr/>Recovery</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">enabled</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">onError</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">onSuccess</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">timeout</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span></div>
@@ -326,6 +342,7 @@ caused by stale state on a specific b2bua-rtc node.</p>
 <li><a href="#keepConnectionAliveOnSocketClose" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span></a></li>
 <li><a href="#login" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login</span></a></li>
 <li><a href="#login_token" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login_<wbr/>token</span></a></li>
+<li><a href="#maxReconnectAttempts" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>max<wbr/>Reconnect<wbr/>Attempts</span></a></li>
 <li><a href="#mediaPermissionsRecovery" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>media<wbr/>Permissions<wbr/>Recovery</span></a></li>
 <li><a href="#mutedMicOnStart" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>muted<wbr/>Mic<wbr/>On<wbr/>Start</span></a></li>
 <li><a href="#password" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>password</span></a></li>
