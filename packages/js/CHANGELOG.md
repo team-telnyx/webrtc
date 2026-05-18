@@ -1,3 +1,9 @@
+## Unreleased
+
+- feat: add `LOW_LOCAL_AUDIO` warning subtypes (`initial_silence`, `sustained_silence`) and diagnostic `details` so clients can distinguish low local microphone audio causes.
+- feat: include outbound call-report `audioLevelSource` / `audioLevelSources` diagnostics for WebRTC stats sources (`media-source.audioLevel`, `media-source.energy`, `track.audioLevel`).
+- docs: document structured warning `subtype` / `details` fields and low local audio diagnostics.
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs

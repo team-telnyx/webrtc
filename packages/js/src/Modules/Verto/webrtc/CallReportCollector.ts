@@ -78,6 +78,24 @@ interface ExtendedMediaSourceStats {
   echoReturnLossEnhancement?: number;
 }
 
+export type AudioLevelSource =
+  | 'media-source.audioLevel'
+  | 'media-source.energy'
+  | 'track.audioLevel';
+
+type LowLocalAudioSubtype = 'initial_silence' | 'sustained_silence';
+
+interface AudioLevelSample {
+  level: number;
+  source: AudioLevelSource;
+  availableSources: AudioLevelSource[];
+}
+
+interface WarningEmitOptions {
+  subtype?: string;
+  details?: Record<string, unknown>;
+}
+
 /**
  * Local audio track metadata captured from the RTCRtpSender track.
  * Useful to distinguish RTP carrying silence from muted/ended/wrong inputs.
@@ -197,6 +215,8 @@ export interface IStatsInterval {
       packetsSent?: number;
       bytesSent?: number;
       audioLevelAvg?: number;
+      audioLevelSource?: AudioLevelSource;
+      audioLevelSources?: AudioLevelSource[];
       bitrateAvg?: number;
       localTrack?: ILocalAudioTrackSnapshot;
       mediaSource?: ILocalAudioSourceStats;
@@ -265,6 +285,9 @@ export class CallReportCollector {
   private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
     outbound: [],
     inbound: [],
+  };
+  private intervalAudioLevelSources: { outbound: AudioLevelSource[] } = {
+    outbound: [],
   };
   private intervalJitters: number[] = [];
   private intervalRTTs: number[] = [];
@@ -778,9 +801,15 @@ export class CallReportCollector {
       if (outboundAudio) {
         // Outbound audioLevel: available on the media-source stat (Chrome 96+)
         // or on the deprecated track stat as fallback
-        const audioLevel = this._getOutboundAudioLevel(stats, outboundAudio);
+        const audioLevel = this._getOutboundAudioLevelSample(
+          stats,
+          outboundAudio
+        );
         if (audioLevel !== null) {
-          this.intervalAudioLevels.outbound.push(audioLevel);
+          this.intervalAudioLevels.outbound.push(audioLevel.level);
+          this.intervalAudioLevelSources.outbound.push(
+            ...audioLevel.availableSources
+          );
         }
 
         // Calculate bitrate
@@ -1054,6 +1083,8 @@ export class CallReportCollector {
   private _trackLowLocalAudio(statsEntry: IStatsInterval): void {
     const outbound = statsEntry.audio?.outbound;
     const audioLevel = outbound?.audioLevelAvg;
+    const audioLevelSource = outbound?.audioLevelSource;
+    const audioLevelSources = outbound?.audioLevelSources;
     const localTrack = outbound?.localTrack;
 
     if (
@@ -1075,7 +1106,15 @@ export class CallReportCollector {
     }
 
     if (!this._hasConfirmedLocalAudio) {
-      this._trackBreach(LOW_LOCAL_AUDIO, true);
+      this._trackBreach(LOW_LOCAL_AUDIO, true, {
+        subtype: 'initial_silence',
+        details: this._lowLocalAudioDetails(
+          'initial_silence',
+          audioLevel,
+          audioLevelSource,
+          audioLevelSources
+        ),
+      });
       return;
     }
 
@@ -1086,8 +1125,34 @@ export class CallReportCollector {
       this._confirmedLocalAudioSilenceMs >=
       CallReportCollector.CONFIRMED_LOCAL_AUDIO_SILENCE_MS
     ) {
-      this._emitWarningOncePerEpisode(LOW_LOCAL_AUDIO);
+      this._emitWarningOncePerEpisode(LOW_LOCAL_AUDIO, {
+        subtype: 'sustained_silence',
+        details: this._lowLocalAudioDetails(
+          'sustained_silence',
+          audioLevel,
+          audioLevelSource,
+          audioLevelSources,
+          this._confirmedLocalAudioSilenceMs
+        ),
+      });
     }
+  }
+
+  private _lowLocalAudioDetails(
+    subtype: LowLocalAudioSubtype,
+    audioLevel: number,
+    audioLevelSource?: AudioLevelSource,
+    audioLevelSources?: AudioLevelSource[],
+    silenceDurationMs?: number
+  ): Record<string, unknown> {
+    return this._withoutUndefined({
+      subtype,
+      audioLevel,
+      audioLevelSource,
+      audioLevelSources,
+      threshold: CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL,
+      silenceDurationMs,
+    });
   }
 
   private _resetLowLocalAudioWarning(): void {
@@ -1112,7 +1177,11 @@ export class CallReportCollector {
    * condition persists — so consumers know the issue is ongoing.
    * Resets when the condition clears.
    */
-  private _trackBreach(code: SdkWarningCode, isBreach: boolean): void {
+  private _trackBreach(
+    code: SdkWarningCode,
+    isBreach: boolean,
+    options?: WarningEmitOptions
+  ): void {
     if (isBreach) {
       this._breachCounters[code] = (this._breachCounters[code] ?? 0) + 1;
       if (
@@ -1124,7 +1193,7 @@ export class CallReportCollector {
         const lastEmitted = this._lastWarningEmitted[code] ?? 0;
         if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
           this._lastWarningEmitted[code] = now;
-          this._emitWarning(code);
+          this._emitWarning(code, options);
         }
       }
     } else {
@@ -1135,19 +1204,25 @@ export class CallReportCollector {
     }
   }
 
-  private _emitWarningOncePerEpisode(code: SdkWarningCode): void {
+  private _emitWarningOncePerEpisode(
+    code: SdkWarningCode,
+    options?: WarningEmitOptions
+  ): void {
     if (this._activeWarnings.has(code)) return;
 
     this._activeWarnings.add(code);
     this._lastWarningEmitted[code] = Date.now();
-    this._emitWarning(code);
+    this._emitWarning(code, options);
   }
 
-  private _emitWarning(code: SdkWarningCode): void {
+  private _emitWarning(
+    code: SdkWarningCode,
+    options?: WarningEmitOptions
+  ): void {
     try {
-      const warning = createTelnyxWarning(code);
+      const warning = createTelnyxWarning(code, options);
       logger.warn(
-        `CallReportCollector: warning ${warning.code}: ${warning.message}`
+        `CallReportCollector: warning ${warning.code}${warning.subtype ? `/${warning.subtype}` : ''}: ${warning.message}`
       );
       this.onWarning?.(warning);
     } catch (err) {
@@ -1185,6 +1260,10 @@ export class CallReportCollector {
         packetsSent: outboundAudio.packetsSent,
         bytesSent: outboundAudio.bytesSent,
         audioLevelAvg: this._average(this.intervalAudioLevels.outbound),
+        audioLevelSource: this.intervalAudioLevelSources.outbound[0],
+        audioLevelSources: this._unique(
+          this.intervalAudioLevelSources.outbound
+        ),
         bitrateAvg: this._average(this.intervalBitrates.outbound),
         ...(localAudioTrack ? { localTrack: localAudioTrack } : {}),
         ...(localAudioSource ? { mediaSource: localAudioSource } : {}),
@@ -1484,27 +1563,69 @@ export class CallReportCollector {
     stats: RTCStatsReport,
     outboundAudio: ExtendedOutboundRtpStreamStats
   ): number | null {
+    return (
+      this._getOutboundAudioLevelSample(stats, outboundAudio)?.level ?? null
+    );
+  }
+
+  private _getOutboundAudioLevelSample(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): AudioLevelSample | null {
     const mediaSource = this._getOutboundMediaSource(stats, outboundAudio);
+    const availableSources: AudioLevelSource[] = [];
+    let energyLevel: number | null = null;
 
-    // Try direct audioLevel on media-source
-    if (mediaSource?.audioLevel !== undefined) {
-      return mediaSource.audioLevel;
-    }
-
-    // 3. Compute RMS audio level from totalAudioEnergy deltas on media-source
+    // Compute energy deltas whenever available so we both expose the source
+    // and keep previous energy counters warm if direct audioLevel disappears.
     if (mediaSource) {
-      const level = this._computeAudioLevelFromEnergy(
+      energyLevel = this._computeAudioLevelFromEnergy(
         mediaSource.totalAudioEnergy,
         mediaSource.totalSamplesDuration,
         'outbound'
       );
-      if (level !== null) {
-        return level;
+      if (energyLevel !== null) {
+        availableSources.push('media-source.energy');
       }
     }
 
+    const trackAudioLevel = this._getTrackAudioLevel(
+      stats,
+      outboundAudio.trackId
+    );
+    if (trackAudioLevel !== null) {
+      availableSources.push('track.audioLevel');
+    }
+
+    // Try direct audioLevel on media-source
+    if (mediaSource?.audioLevel !== undefined) {
+      availableSources.unshift('media-source.audioLevel');
+      return {
+        level: mediaSource.audioLevel,
+        source: 'media-source.audioLevel',
+        availableSources,
+      };
+    }
+
+    // 3. Compute RMS audio level from totalAudioEnergy deltas on media-source
+    if (energyLevel !== null) {
+      return {
+        level: energyLevel,
+        source: 'media-source.energy',
+        availableSources,
+      };
+    }
+
     // 4. Deprecated track stat fallback (legacy browsers only)
-    return this._getTrackAudioLevel(stats, outboundAudio.trackId);
+    if (trackAudioLevel !== null) {
+      return {
+        level: trackAudioLevel,
+        source: 'track.audioLevel',
+        availableSources,
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -1623,11 +1744,18 @@ export class CallReportCollector {
     return parseFloat((sum / values.length).toFixed(4));
   }
 
+  private _unique<T extends string>(values: T[]): T[] | undefined {
+    if (values.length === 0) return undefined;
+
+    return values.filter((value, index) => values.indexOf(value) === index);
+  }
+
   /**
    * Reset interval accumulators for next collection period
    */
   private _resetIntervalAccumulators(): void {
     this.intervalAudioLevels = { outbound: [], inbound: [] };
+    this.intervalAudioLevelSources = { outbound: [] };
     this.intervalJitters = [];
     this.intervalRTTs = [];
     this.intervalBitrates = { outbound: [], inbound: [] };

@@ -19,6 +19,8 @@ export interface ITelnyxWarning {
   code: SdkWarningCode;
   /** Machine-readable name in UPPER_SNAKE_CASE */
   name: string;
+  /** Optional machine-readable subtype for warnings that have multiple causes */
+  subtype?: string;
   /** Short human-readable message for UI alerts */
   message: string;
   /** Full explanation of the warning */
@@ -27,6 +29,8 @@ export interface ITelnyxWarning {
   causes: string[];
   /** Suggested remediation steps */
   solutions: string[];
+  /** Optional diagnostic context for consumers that want richer UI/logging */
+  details?: Record<string, unknown>;
 }
 
 export interface ITelnyxWarningEvent {
@@ -306,6 +310,15 @@ export type SdkWarningCode = keyof typeof SDK_WARNINGS;
 
 type WarningEntry = (typeof SDK_WARNINGS)[SdkWarningCode];
 
+export interface ITelnyxWarningOptions {
+  /** Optional override for the default message */
+  message?: string;
+  /** Optional machine-readable subtype for warnings that have multiple causes */
+  subtype?: string;
+  /** Optional diagnostic context for consumers that want richer UI/logging */
+  details?: Record<string, unknown>;
+}
+
 /**
  * Creates a warning object from a registered warning code.
  *
@@ -315,15 +328,21 @@ type WarningEntry = (typeof SDK_WARNINGS)[SdkWarningCode];
  */
 export function createTelnyxWarning(
   code: SdkWarningCode,
-  message?: string
+  messageOrOptions?: string | ITelnyxWarningOptions
 ): ITelnyxWarning {
   const entry: WarningEntry = SDK_WARNINGS[code];
+  const options =
+    typeof messageOrOptions === 'string'
+      ? { message: messageOrOptions }
+      : (messageOrOptions ?? {});
   return {
     code,
     name: entry.name,
-    message: message || entry.message,
+    ...(options.subtype ? { subtype: options.subtype } : {}),
+    message: options.message || entry.message,
     description: entry.description,
     causes: [...entry.causes],
     solutions: [...entry.solutions],
+    ...(options.details ? { details: { ...options.details } } : {}),
   };
 }
