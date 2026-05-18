@@ -180,8 +180,8 @@ export interface IClientOptions {
    * retry sequence.
    *
    * Set to `0` to allow unlimited automatic reconnect attempts.
-   * When omitted, defaults to `5`.
-   * @default 5
+   * When omitted, defaults to `10`.
+   * @default 10
    */
   maxReconnectAttempts?: number;
 

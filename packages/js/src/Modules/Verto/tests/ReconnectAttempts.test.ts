@@ -63,20 +63,20 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
   });
 
   describe('default behavior', () => {
-    it('should default to 5 reconnection attempts when maxReconnectAttempts is omitted', () => {
+    it('should default to 10 reconnection attempts when maxReconnectAttempts is omitted', () => {
       delete session.options.maxReconnectAttempts;
 
-      // Omitted option defaults to 5 via ?? operator
-      for (let i = 0; i < 5; i++) {
+      // Omitted option defaults to 10 via ?? operator
+      for (let i = 0; i < 10; i++) {
         session.onNetworkClose();
         jest.runAllTimers();
       }
 
-      // 5 attempts should still be within the limit
-      expect(session._reconnectAttempts).toBe(5);
+      // 10 attempts should still be within the limit
+      expect(session._reconnectAttempts).toBe(10);
       expect(session._autoReconnect).toBe(true);
 
-      // The 6th onNetworkClose should exceed the default limit of 5
+      // The 11th onNetworkClose should exceed the default limit of 10
       session.onNetworkClose();
       expect(session._autoReconnect).toBe(false);
     });
