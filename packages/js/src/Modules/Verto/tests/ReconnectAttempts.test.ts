@@ -62,8 +62,26 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     jest.useRealTimers();
   });
 
-  describe('default behavior (maxReconnectAttempts = 0, unlimited)', () => {
-    it('should allow unlimited reconnection attempts when maxReconnectAttempts is 0', () => {
+  describe('default behavior', () => {
+    it('should default to 5 reconnection attempts when maxReconnectAttempts is omitted', () => {
+      delete session.options.maxReconnectAttempts;
+
+      // Omitted option defaults to 5 via ?? operator
+      for (let i = 0; i < 5; i++) {
+        session.onNetworkClose();
+        jest.runAllTimers();
+      }
+
+      // 5 attempts should still be within the limit
+      expect(session._reconnectAttempts).toBe(5);
+      expect(session._autoReconnect).toBe(true);
+
+      // The 6th onNetworkClose should exceed the default limit of 5
+      session.onNetworkClose();
+      expect(session._autoReconnect).toBe(false);
+    });
+
+    it('should allow unlimited reconnection attempts when maxReconnectAttempts is explicitly 0', () => {
       session.options.maxReconnectAttempts = 0;
 
       for (let i = 0; i < 20; i++) {
@@ -72,18 +90,6 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       }
 
       expect(session._reconnectAttempts).toBe(20);
-      expect(session._autoReconnect).toBe(true);
-    });
-
-    it('should allow unlimited reconnection attempts when maxReconnectAttempts is not set', () => {
-      delete session.options.maxReconnectAttempts;
-
-      for (let i = 0; i < 15; i++) {
-        session.onNetworkClose();
-        jest.runAllTimers();
-      }
-
-      expect(session._reconnectAttempts).toBe(15);
       expect(session._autoReconnect).toBe(true);
     });
   });
@@ -159,6 +165,11 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.onNetworkClose();
 
       expect(session._autoReconnect).toBe(false);
+
+      // Advance timers and verify connect is NOT called again
+      const callCountBefore = mockConnection.connect.mock.calls.length;
+      jest.runAllTimers();
+      expect(mockConnection.connect.mock.calls.length).toBe(callCountBefore);
     });
 
     it('should allow manual connect() after exhaustion', () => {
@@ -174,6 +185,76 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.connect();
       expect(session._autoReconnect).toBe(true);
       expect(session._reconnectAttempts).toBe(0);
+    });
+  });
+
+  describe('unhealthy reconnect (socket opens but closes before REGED)', () => {
+    it('should not reset attempts when socket opens during auto-reconnect without REGED', () => {
+      session.options.maxReconnectAttempts = 3;
+
+      // Attempt 1: network closes, auto-reconnect timer fires connect()
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(1);
+
+      // Auto-reconnect calls connect() — socket opens, but _autoReconnect
+      // is still true so connect() does NOT reset the counter
+      jest.runAllTimers();
+      session.connect(); // simulate reconnect connect() call
+      expect(session._reconnectAttempts).toBe(1); // unchanged
+
+      // Socket closes before REGED — this is NOT a reset, attempts continue
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(2);
+
+      // Attempt 3: another connect() without REGED
+      jest.runAllTimers();
+      session.connect();
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(3);
+
+      // Attempt 4 exceeds limit → exhaustion
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(session._autoReconnect).toBe(false);
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+        }),
+        session.uuid
+      );
+    });
+
+    it('should reset attempts after confirmed REGED and start a fresh bounded sequence', () => {
+      session.options.maxReconnectAttempts = 3;
+
+      // Attempt 1-2: network closes trigger reconnects
+      session.onNetworkClose();
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(2);
+
+      // Socket opens, REGED received → resetReconnectAttempts() is called
+      // (in production this is called by VertoHandler on REGED)
+      session.resetReconnectAttempts();
+      expect(session._reconnectAttempts).toBe(0);
+
+      // Next network close starts a fresh bounded sequence
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(1);
+      expect(session._autoReconnect).toBe(true);
+
+      // Can go through the full limit again
+      jest.runAllTimers();
+      session.onNetworkClose();
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(session._reconnectAttempts).toBe(3);
+      expect(session._autoReconnect).toBe(true);
+
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(session._autoReconnect).toBe(false);
     });
   });
 
