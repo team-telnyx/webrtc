@@ -313,9 +313,12 @@ export class CallReportCollector {
   private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
   private static readonly THRESHOLD_MOS = 3.5;
   // WebRTC audioLevel is linear RMS in [0, 1]. Treat near-silence as a
-  // local microphone issue only after consecutive intervals, mirroring the
-  // high-jitter warning pattern and avoiding one-off pauses in speech.
+  // local microphone issue only before the microphone has produced a real
+  // audio sample. Once local audio has been confirmed, only warn again after
+  // a long continuous silence window to avoid false positives during natural
+  // agent/customer pauses.
   private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
+  private static readonly CONFIRMED_LOCAL_AUDIO_SILENCE_MS = 30_000;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
@@ -331,6 +334,13 @@ export class CallReportCollector {
 
   // Last logged local audio track snapshot, used to avoid repetitive logs.
   private _lastLocalAudioTrackSnapshotJson: string | null = null;
+
+  // Local audio warning state. Before confirmation, low audio warns quickly so
+  // broken microphone setup is surfaced early. After the SDK sees real local
+  // audio, short silence windows are expected in live calls and only long
+  // continuous silence should warn again.
+  private _hasConfirmedLocalAudio: boolean = false;
+  private _confirmedLocalAudioSilenceMs: number = 0;
 
   /** Running segment counter for multi-part reports. */
   private _segmentIndex: number = 0;
@@ -939,8 +949,9 @@ export class CallReportCollector {
     // Local microphone audio warning — outbound audioLevelAvg is sourced from
     // media-source audioLevel when present, or computed from totalAudioEnergy
     // deltas as a fallback. Do not warn for an intentionally disabled/muted
-    // local track.
-    this._trackBreach(LOW_LOCAL_AUDIO, this._isLowLocalAudio(statsEntry));
+    // local track. Once any real local audio has been observed, avoid warning
+    // on normal 5-10s pauses; require a long continuous silence window instead.
+    this._trackLowLocalAudio(statsEntry);
 
     // MOS warning — simplified E-model
     if (
@@ -982,17 +993,58 @@ export class CallReportCollector {
     }
   }
 
-  private _isLowLocalAudio(statsEntry: IStatsInterval): boolean {
+  private _trackLowLocalAudio(statsEntry: IStatsInterval): void {
     const outbound = statsEntry.audio?.outbound;
     const audioLevel = outbound?.audioLevelAvg;
-    if (audioLevel === undefined) return false;
-
     const localTrack = outbound?.localTrack;
-    if (localTrack?.enabled === false || localTrack?.muted === true) {
-      return false;
+
+    if (
+      audioLevel === undefined ||
+      localTrack?.enabled === false ||
+      localTrack?.muted === true
+    ) {
+      this._resetLowLocalAudioWarning();
+      return;
     }
 
-    return audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
+    const isLow = audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
+
+    if (!isLow) {
+      this._hasConfirmedLocalAudio = true;
+      this._confirmedLocalAudioSilenceMs = 0;
+      this._trackBreach(LOW_LOCAL_AUDIO, false);
+      return;
+    }
+
+    if (!this._hasConfirmedLocalAudio) {
+      this._trackBreach(LOW_LOCAL_AUDIO, true);
+      return;
+    }
+
+    this._confirmedLocalAudioSilenceMs +=
+      this._getStatsIntervalDurationMs(statsEntry);
+
+    if (
+      this._confirmedLocalAudioSilenceMs >=
+      CallReportCollector.CONFIRMED_LOCAL_AUDIO_SILENCE_MS
+    ) {
+      this._emitWarningOncePerEpisode(LOW_LOCAL_AUDIO);
+    }
+  }
+
+  private _resetLowLocalAudioWarning(): void {
+    this._confirmedLocalAudioSilenceMs = 0;
+    this._trackBreach(LOW_LOCAL_AUDIO, false);
+  }
+
+  private _getStatsIntervalDurationMs(statsEntry: IStatsInterval): number {
+    const start = new Date(statsEntry.intervalStartUtc).getTime();
+    const end = new Date(statsEntry.intervalEndUtc).getTime();
+    const duration = end - start;
+
+    return Number.isFinite(duration) && duration > 0
+      ? duration
+      : this.options.interval;
   }
 
   /**
@@ -1014,18 +1066,7 @@ export class CallReportCollector {
         const lastEmitted = this._lastWarningEmitted[code] ?? 0;
         if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
           this._lastWarningEmitted[code] = now;
-          try {
-            const warning = createTelnyxWarning(code);
-            logger.warn(
-              `CallReportCollector: warning ${warning.code}: ${warning.message}`
-            );
-            this.onWarning?.(warning);
-          } catch (err) {
-            logger.error(
-              `CallReportCollector: Failed to emit warning ${code}`,
-              { error: err }
-            );
-          }
+          this._emitWarning(code);
         }
       }
     } else {
@@ -1033,6 +1074,28 @@ export class CallReportCollector {
       this._breachCounters[code] = 0;
       this._activeWarnings.delete(code);
       delete this._lastWarningEmitted[code];
+    }
+  }
+
+  private _emitWarningOncePerEpisode(code: SdkWarningCode): void {
+    if (this._activeWarnings.has(code)) return;
+
+    this._activeWarnings.add(code);
+    this._lastWarningEmitted[code] = Date.now();
+    this._emitWarning(code);
+  }
+
+  private _emitWarning(code: SdkWarningCode): void {
+    try {
+      const warning = createTelnyxWarning(code);
+      logger.warn(
+        `CallReportCollector: warning ${warning.code}: ${warning.message}`
+      );
+      this.onWarning?.(warning);
+    } catch (err) {
+      logger.error(`CallReportCollector: Failed to emit warning ${code}`, {
+        error: err,
+      });
     }
   }
 

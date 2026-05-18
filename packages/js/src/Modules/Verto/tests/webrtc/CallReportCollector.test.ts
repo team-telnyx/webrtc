@@ -202,6 +202,43 @@ describe('CallReportCollector local audio diagnostics', () => {
     );
   });
 
+  it('does not emit low local audio warning during short silence after local audio is confirmed', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    collector._checkQualityWarnings(createStatsEntry(0.01), null);
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it('emits low local audio warning again only after long silence once local audio is confirmed', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    expect(onWarning).toHaveBeenCalledTimes(1);
+
+    collector._checkQualityWarnings(createStatsEntry(0.01), null);
+
+    for (let i = 0; i < 5; i += 1) {
+      collector._checkQualityWarnings(createStatsEntry(0), null);
+    }
+    expect(onWarning).toHaveBeenCalledTimes(1);
+
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    expect(onWarning).toHaveBeenCalledTimes(2);
+
+    collector._checkQualityWarnings(createStatsEntry(0), null);
+    expect(onWarning).toHaveBeenCalledTimes(2);
+  });
+
   it('does not emit low local audio warning for disabled local tracks', () => {
     const collector = createCollector();
     const onWarning = jest.fn();

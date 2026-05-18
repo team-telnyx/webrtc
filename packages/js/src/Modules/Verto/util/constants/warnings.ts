@@ -107,7 +107,7 @@ export const SDK_WARNINGS = {
     name: 'LOW_LOCAL_AUDIO',
     message: 'Low local microphone audio detected',
     description:
-      'Local outbound audio level stayed below the acceptable threshold for multiple consecutive samples. This may indicate that the microphone is not capturing enough audio even while RTP is being sent.',
+      'Local outbound audio level stayed below the acceptable threshold before the microphone produced real audio, or stayed silent for a long continuous window after audio was confirmed. This may indicate that the microphone is not capturing enough audio even while RTP is being sent.',
     causes: [
       'Microphone input level is too low',
       'Wrong microphone selected',
