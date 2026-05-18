@@ -1,5 +1,5 @@
 import logger from '../util/logger';
-import { createTelnyxError, createTelnyxWarning } from '../util/errors';
+import { createTelnyxError } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { checkSubscribeResponse } from './helpers';
@@ -81,24 +81,24 @@ class VertoHandler {
       params.reattached_sessions.length === 0 &&
       Object.keys(session.calls).length > 0
     ) {
-      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+      const error = createTelnyxError(SESSION_NOT_REATTACHED);
       trigger(
-        SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
+        SwEvent.Error,
+        { error, sessionId: session.sessionid },
         session.uuid
       );
 
       logger.info(
-        '[VSDK-194] Session not reattached — cleaning up orphaned calls that have no server-side session.'
+        'Session not reattached — cleaning up orphaned calls that have no server-side session.'
       );
       const callIds = Object.keys(session.calls);
       for (const callId of callIds) {
         const call = session.calls[callId];
         if (call && !call.isFinalized) {
           logger.debug(
-            `[VSDK-194] Cleaning up orphaned call ${callId} (state: ${call.state}) after failed reattach.`
+            `Cleaning up orphaned call ${callId} (state: ${call.state}) after failed reattach.`
           );
-          call.setState(State.Destroy);
+          void call.hangup({}, false);
         }
       }
     }

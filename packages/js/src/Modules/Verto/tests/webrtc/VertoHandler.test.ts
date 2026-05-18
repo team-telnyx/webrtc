@@ -398,7 +398,7 @@ describe('VertoHandler', () => {
       expect(() => handler.handleMessage(msg)).not.toThrow();
     });
 
-    it('should emit SESSION_NOT_REATTACHED warning before cleaning up calls', async () => {
+    it('should emit SESSION_NOT_REATTACHED error before cleaning up calls', async () => {
       await instance.connect();
       const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
       _setupCall({ id: callId });
@@ -412,10 +412,10 @@ describe('VertoHandler', () => {
       );
       handler.handleMessage(msg);
 
-      // Warning should have been emitted via telnyx.error event
-      // The important thing is the call was cleaned up and a warning was emitted
+      // Error should have been emitted via telnyx.error event
+      // The important thing is the call was cleaned up and an error was emitted
       expect(instance.calls[callId]).toBeUndefined();
-      // At least verify the trigger was called (via the warning import path)
+      // At least verify the trigger was called (via the error import path)
       expect(onNotification).toHaveBeenCalled();
     });
   });

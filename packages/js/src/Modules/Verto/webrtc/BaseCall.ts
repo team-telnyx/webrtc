@@ -80,6 +80,7 @@ import {
   IWebRTCCall,
 } from './interfaces';
 const SDK_VERSION = pkg.version;
+const BYE_TIMEOUT_MS = 5000;
 
 /**
  * @ignore Hide in docs output
@@ -635,7 +636,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
       // Timeout guard: if the BYE execution hangs (e.g. socket stalled, server
       // unresponsive), proceed to Destroy after 5s so the call is always cleaned up.
-      const BYE_TIMEOUT_MS = 5000;
       let byeTimeout: ReturnType<typeof setTimeout> | undefined;
 
       try {

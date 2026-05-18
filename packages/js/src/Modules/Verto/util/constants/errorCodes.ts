@@ -39,6 +39,9 @@ export const TELNYX_ERROR_CODES = {
   // ── Network errors (480xx) ──────────────────────────────────────────
   NETWORK_OFFLINE: 48001,
 
+  // ── Session errors (485xx) ──────────────────────────────────────────
+  SESSION_NOT_REATTACHED: 48501,
+
   // ── General / catch-all errors (490xx) ──────────────────────────────
   UNEXPECTED_ERROR: 49001,
 } as const;
@@ -64,9 +67,6 @@ export const TELNYX_WARNING_CODES = {
 
   // ── Authentication warnings (340xx) ─────────────────────────────────
   TOKEN_EXPIRING_SOON: 34001,
-
-  // ── Session / reconnection warnings (350xx) ─────────────────────────
-  SESSION_NOT_REATTACHED: 35001,
 } as const;
 
 // Extract constants to simplify how we use them internally
@@ -92,6 +92,7 @@ export const {
   INVALID_CREDENTIALS,
   AUTHENTICATION_REQUIRED,
   NETWORK_OFFLINE,
+  SESSION_NOT_REATTACHED,
   UNEXPECTED_ERROR,
 } = TELNYX_ERROR_CODES;
 
@@ -109,7 +110,6 @@ export const {
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
   TOKEN_EXPIRING_SOON,
-  SESSION_NOT_REATTACHED,
 } = TELNYX_WARNING_CODES;
 
 /**
