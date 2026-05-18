@@ -544,17 +544,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     hangupParams?: IHangupParams,
     hangupExecute?: boolean
   ): Promise<void> {
-    // Guard: skip hangup if call is already in a terminal state
-    // (Hangup/Destroy). Allow if current state is Purge (forced disconnect).
-    if (
-      this._state >= State.Hangup && this._state !== State.Purge
-    ) {
-      logger.debug(
-        `[${this.id}] hangup() called but call is already in terminal state (${this.state}). Skipping.`
-      );
-      return;
-    }
-
     const params = hangupParams || {};
     const execute = hangupExecute === false ? false : true;
     const stateBeforeHangup = this.state;

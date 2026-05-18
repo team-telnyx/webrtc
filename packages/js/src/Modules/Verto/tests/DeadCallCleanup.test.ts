@@ -162,24 +162,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
     });
 
-    it('should skip hangup when call is already in Hangup state', async () => {
-      call._state = State.Hangup;
-      call.state = 'hangup';
-
-      await call.hangup();
-
-      expect(call.peer.close).not.toHaveBeenCalled();
-    });
-
-    it('should skip hangup when call is already in Destroy state', async () => {
-      call._state = State.Destroy;
-      call.state = 'destroy';
-
-      await call.hangup();
-
-      expect(call.peer.close).not.toHaveBeenCalled();
-    });
-
     it('should allow hangup when call is in Purge state (forced disconnect)', async () => {
     });
   });
