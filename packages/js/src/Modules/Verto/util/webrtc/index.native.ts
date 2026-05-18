@@ -24,7 +24,8 @@ const streamIsValid = (stream: MediaStream) =>
 const getSupportedConstraints = () => ({});
 
 const attachMediaStream = (htmlElementId: string, stream: MediaStream) => null;
-const detachMediaStream = (htmlElementId: string) => null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const detachMediaStream = (htmlElementId: string, _stream?: MediaStream) => null;
 
 const muteMediaElement = (htmlElementId: string) => null;
 const unmuteMediaElement = (htmlElementId: string) => null;

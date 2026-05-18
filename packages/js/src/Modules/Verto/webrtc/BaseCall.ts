@@ -43,6 +43,7 @@ import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import {
   attachMediaStream,
+  detachMediaStream,
   getUserMedia,
   setMediaElementSinkId,
   stopStream,
@@ -2256,9 +2257,12 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
-    const { remoteStream, localStream } = this.options;
+    const { remoteStream, localStream, remoteElement, localElement } =
+      this.options;
     stopStream(remoteStream);
     stopStream(localStream);
+    detachMediaStream(remoteElement, remoteStream);
+    detachMediaStream(localElement, localStream);
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
