@@ -50,6 +50,7 @@ import {
 } from '../util/webrtc';
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
+import { callMarkName, clearCallMarks } from './CallEstablishmentTimings';
 import Peer from './Peer';
 import {
   ConferenceAction,
@@ -390,7 +391,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark('new-peer');
+    performance.mark(callMarkName(this.id, 'new-peer'));
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
@@ -455,7 +456,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    performance.mark('answer-called');
+    performance.mark(callMarkName(this.id, 'answer-called'));
     this._creatingPeer = true;
     this.stopRingtone();
 
@@ -471,7 +472,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark('new-peer');
+    performance.mark(callMarkName(this.id, 'new-peer'));
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
@@ -1116,7 +1117,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case State.Active: {
-        performance.mark('call-active');
+        performance.mark(callMarkName(this.id, 'call-active'));
         this.peer?.tryCollectTimings();
 
         // Clear recovery flag when call becomes active again
@@ -1155,7 +1156,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (method) {
       case VertoMethod.Answer: {
-        performance.mark('telnyx-rtc-answer');
+        performance.mark(callMarkName(this.id, 'telnyx-rtc-answer'));
         this.gotAnswer = true;
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1180,7 +1181,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Media: {
-        performance.mark('telnyx-rtc-media');
+        performance.mark(callMarkName(this.id, 'telnyx-rtc-media'));
         // Media is an early-media event for the pre-Answer phase only.
         // After Early state (including mid-call ICE restart), the answer SDP
         // is delivered via Modify responses or the telnyx_rtc.modify path,
@@ -1234,7 +1235,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Ringing: {
-        performance.mark('ringing');
+        performance.mark(callMarkName(this.id, 'ringing'));
         this.playRingback();
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1523,7 +1524,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
-        performance.mark('set-remote-description');
+        performance.mark(callMarkName(this.id, 'set-remote-description'));
         if (this.options.trickleIce) {
           this._isRemoteDescriptionSet = true;
           this._flushPendingTrickleIceCandidates();
@@ -1625,7 +1626,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
     }
 
-    performance.mark('ice-gathering-end');
+    performance.mark(callMarkName(this.id, 'ice-gathering-end'));
     let msg = null;
 
     const tmpParams = {
@@ -1661,7 +1662,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
-    performance.mark('send-sdp');
+    performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1749,7 +1750,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         return;
     }
 
-    performance.mark('send-sdp');
+    performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1879,14 +1880,14 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   private _trackCandidateMarks(candidate: RTCIceCandidate) {
     if (!this._firstCandidateSent) {
-      performance.mark('first-candidate');
+      performance.mark(callMarkName(this.id, 'first-candidate'));
       this._firstCandidateSent = true;
     }
 
     if (!this._firstNonHostCandidateSent) {
       const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
       if (candidateType && candidateType !== 'host') {
-        performance.mark('first-non-host-candidate');
+        performance.mark(callMarkName(this.id, 'first-non-host-candidate'));
         this._firstNonHostCandidateSent = true;
       }
     }
@@ -1944,7 +1945,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
-        performance.mark('ice-gathering-completed');
+        performance.mark(callMarkName(this.id, 'ice-gathering-completed'));
       }
     };
 
@@ -2254,6 +2255,11 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+
+    // Clear call marks at the call lifecycle level so cleanup runs even when
+    // no peer was created (e.g. inbound invite rejected before answer()).
+    // Peer.close() also clears marks as defense-in-depth.
+    clearCallMarks(this.id);
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();

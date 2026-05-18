@@ -68,6 +68,17 @@ const MARK_LABELS: Record<string, string> = {
 };
 
 /**
+ * Build a call-scoped performance mark name.
+ * Format: `telnyx:call:{callId}:{suffix}`
+ *
+ * Scoping marks by call_id prevents stale marks from a previous call
+ * from being picked up by a subsequent call's timing collection.
+ */
+export function callMarkName(callId: string, suffix: string): string {
+  return `telnyx:call:${callId}:${suffix}`;
+}
+
+/**
  * Safely get the timestamp of a performance mark.
  * Returns undefined if the mark doesn't exist.
  */
@@ -87,14 +98,17 @@ function getMarkTime(markName: string): number | undefined {
  * Collect all call establishment timings from performance marks.
  * All times are measured from the 'new-call-start' mark.
  *
+ * @param callId - The call ID to scope mark lookups to
  * @param mode - 'trickle' or 'non-trickle' ICE mode
  * @param direction - 'outbound' or 'inbound'
  */
 export function collectCallEstablishmentTimings(
+  callId: string,
   mode: 'trickle' | 'non-trickle',
   direction: 'outbound' | 'inbound'
 ): ICallEstablishmentTimings {
-  const startTime = getMarkTime('new-call-start');
+  const startMark = callMarkName(callId, 'new-call-start');
+  const startTime = getMarkTime(startMark);
 
   if (startTime === undefined) {
     return { mode, direction, steps: [] };
@@ -105,7 +119,7 @@ export function collectCallEstablishmentTimings(
 
   for (const suffix of MARK_SUFFIXES) {
     if (suffix === 'new-call-start') continue; // skip the start point itself
-    const time = getMarkTime(suffix);
+    const time = getMarkTime(callMarkName(callId, suffix));
     if (time !== undefined) {
       raw.push({
         label: MARK_LABELS[suffix] || suffix,
@@ -190,12 +204,13 @@ export function logCallEstablishmentTimings(
 }
 
 /**
- * Clear all call establishment performance marks.
+ * Clear all call establishment performance marks for a given call.
+ * Marks are scoped by call_id, so only marks belonging to this call are removed.
  */
-export function clearCallMarks(): void {
+export function clearCallMarks(callId: string): void {
   for (const suffix of MARK_SUFFIXES) {
     try {
-      performance.clearMarks(suffix);
+      performance.clearMarks(callMarkName(callId, suffix));
     } catch {
       logger.warn('Clearing performance marks is failed');
     }
