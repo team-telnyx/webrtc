@@ -141,32 +141,6 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       call._finalize();
       expect(session.calls[callId]).toBeUndefined();
     });
-
-    it('should close peer only once when _finalize() is called multiple times', () => {
-      call._finalize();
-      call._finalize();
-      call._finalize();
-
-      expect(call.peer.close).toHaveBeenCalledTimes(1);
-    });
-
-    it('should not throw when _finalize() is called multiple times', () => {
-      expect(() => {
-        call._finalize();
-        call._finalize();
-        call._finalize();
-      }).not.toThrow();
-    });
-
-    it('should only deRegister handlers once when _finalize() is called multiple times', () => {
-      call._finalize();
-      const deRegisterCountAfterFirst = (mockDeRegister as jest.Mock).mock.calls.length;
-
-      call._finalize();
-      const deRegisterCountAfterSecond = (mockDeRegister as jest.Mock).mock.calls.length;
-
-      expect(deRegisterCountAfterSecond).toBe(deRegisterCountAfterFirst);
-    });
   });
 
   describe('hangup() idempotency', () => {
@@ -229,12 +203,9 @@ describe('BaseCall - Dead Call Cleanup (VSDK-194)', () => {
       call.options.localStream = { getTracks: () => [], getAudioTracks: () => [], getVideoTracks: () => [] };
     });
 
-    it('should not double-finalize when setState(Destroy) is called twice', () => {
-      call.setState(State.Destroy);
+    it('should remove call from session.calls when setState(Destroy) is called', () => {
       call.setState(State.Destroy);
 
-      // Peer should only be closed once due to _finalize() idempotency
-      expect(call.peer.close).toHaveBeenCalledTimes(1);
       expect(session.calls[call.id]).toBeUndefined();
     });
 

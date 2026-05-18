@@ -224,13 +224,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
-  /**
-   * Guard flag: true once _finalize() has run.
-   * Prevents double cleanup when multiple terminal events arrive for the same call.
-   * @internal
-   */
-  private _finalized: boolean = false;
-
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -2159,15 +2152,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
-    // Idempotent guard: only run cleanup once
-    if (this._finalized) {
-      logger.debug(
-        `[${this.id}] _finalize() called but call is already finalized. Skipping.`
-      );
-      return;
-    }
-    this._finalized = true;
-
     this._stopStats();
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
