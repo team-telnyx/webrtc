@@ -242,12 +242,25 @@ export interface ICallSummary {
   endTimestamp?: string;
 }
 
+export interface ICallReportFlushReason {
+  type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
+  socketClose?: {
+    code?: number;
+    codeName?: string;
+    reason?: string;
+    wasClean?: boolean;
+    error?: string;
+  };
+}
+
 export interface ICallReportPayload {
   summary: ICallSummary;
   stats: IStatsInterval[];
   logs?: ILogEntry[];
   /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
   segment?: number;
+  /** Why this intermediate segment was flushed. */
+  flushReason?: ICallReportFlushReason;
 }
 
 export class CallReportCollector {
@@ -441,7 +454,10 @@ export class CallReportCollector {
    *
    * The caller is responsible for posting the returned payload.
    */
-  public flush(summary: ICallSummary): ICallReportPayload | null {
+  public flush(
+    summary: ICallSummary,
+    flushReason?: ICallReportFlushReason
+  ): ICallReportPayload | null {
     if (this._flushing || this.statsBuffer.length === 0) {
       return null;
     }
@@ -467,6 +483,7 @@ export class CallReportCollector {
         stats,
         ...(logs.length > 0 ? { logs } : {}),
         segment,
+        ...(flushReason ? { flushReason } : {}),
       };
 
       logger.info('CallReportCollector: Flushed intermediate segment', {
@@ -474,6 +491,7 @@ export class CallReportCollector {
         intervals: stats.length,
         logEntries: logs.length,
         callId: summary.callId,
+        flushReason,
       });
 
       return payload;

@@ -4,7 +4,10 @@ import pkg from '../../../../package.json';
 import BrowserSession from '../BrowserSession';
 import BaseMessage from '../messages/BaseMessage';
 
-import { CallReportCollector } from './CallReportCollector';
+import {
+  CallReportCollector,
+  type ICallReportFlushReason,
+} from './CallReportCollector';
 import {
   Answer,
   Attach,
@@ -2283,10 +2286,18 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Flush an intermediate call report segment mid-call.
-   * Called by the CallReportCollector when the estimated payload size
-   * approaches the server's 2 MB limit.
+   * Used for size-limit and socket-close safety flushes without falsely
+   * finalizing the call.
    */
-  private _flushIntermediateReport() {
+  public flushIntermediateCallReport(
+    flushReason: ICallReportFlushReason = { type: 'manual' }
+  ) {
+    this._flushIntermediateReport(flushReason);
+  }
+
+  private _flushIntermediateReport(
+    flushReason: ICallReportFlushReason = { type: 'buffer-limit' }
+  ) {
     if (!this._callReportCollector) return;
 
     const callReportId = this.session.callReportId;
@@ -2318,8 +2329,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       sdkVersion: SDK_VERSION,
     };
 
-    const payload = this._callReportCollector.flush(summary);
+    const payload = this._callReportCollector.flush(summary, flushReason);
     if (!payload) return;
+
+    logger.info('Flushing intermediate call report', {
+      callId: this.id,
+      flushReason,
+      segment: payload.segment,
+    });
 
     const voiceSdkId = getReconnectToken() || undefined;
 

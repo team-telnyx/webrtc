@@ -16,6 +16,7 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  WS_CLOSE_CODES,
 } from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
 import type { ITelnyxErrorEvent } from './util/errors';
@@ -37,6 +38,7 @@ import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
+import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 
 /**
@@ -607,12 +609,86 @@ export default abstract class BaseSession {
    */
   protected async _onSocketOpen() {}
 
+  private _flushIntermediateCallReports(
+    flushReason: ICallReportFlushReason
+  ): void {
+    const calls = (this as unknown as {
+      calls?: Record<
+        string,
+        {
+          id?: string;
+          flushIntermediateCallReport?: (
+            flushReason?: ICallReportFlushReason
+          ) => void;
+        }
+      >;
+    }).calls;
+
+    if (!calls) return;
+
+    Object.values(calls).forEach((call) => {
+      if (!call?.flushIntermediateCallReport) return;
+
+      try {
+        call.flushIntermediateCallReport(flushReason);
+      } catch (error) {
+        logger.error('Failed to flush intermediate call report', {
+          callId: call.id,
+          flushReason,
+          error,
+        });
+      }
+    });
+  }
+
   /**
    * Callback when the ws connection is going to close or get an error
    * @return void
    * @private
    */
-  public onNetworkClose(): void {
+  private _getSocketCloseCodeName(code?: number): string | undefined {
+    if (code === undefined) return undefined;
+
+    const match = Object.entries(WS_CLOSE_CODES).find(
+      ([, value]) => value === code
+    );
+    return match?.[0];
+  }
+
+  private _getSocketCloseError(error?: unknown): string | undefined {
+    if (!error) return undefined;
+    if (error instanceof Error) return error.message;
+    return String(error);
+  }
+
+  private _createSocketCloseFlushReason(event?: {
+    code?: number;
+    reason?: string;
+    wasClean?: boolean;
+    error?: unknown;
+  }): ICallReportFlushReason {
+    return {
+      type: event?.error ? 'socket-error' : 'socket-close',
+      socketClose: {
+        code: event?.code,
+        codeName: this._getSocketCloseCodeName(event?.code),
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+        error: this._getSocketCloseError(event?.error),
+      },
+    };
+  }
+
+  public onNetworkClose(event?: {
+    code?: number;
+    reason?: string;
+    wasClean?: boolean;
+    error?: unknown;
+  }): void {
+    this._flushIntermediateCallReports(
+      this._createSocketCloseFlushReason(event)
+    );
+
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }

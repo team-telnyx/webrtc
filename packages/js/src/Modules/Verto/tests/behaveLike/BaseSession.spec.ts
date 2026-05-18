@@ -81,6 +81,75 @@ export default (instance: any) => {
       describe('unsubscribe', () => {});
       describe('broadcast', () => {});
 
+      describe('.onNetworkClose()', () => {
+        it('flushes active call reports as intermediate reports on socket close', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({
+            code: 1000,
+            reason: 'normal',
+            wasClean: true,
+          });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith({
+            type: 'socket-close',
+            socketClose: {
+              code: 1000,
+              codeName: 'NORMAL_CLOSURE',
+              reason: 'normal',
+              wasClean: true,
+              error: undefined,
+            },
+          });
+        });
+
+        it('flushes active call reports as intermediate reports on socket errors', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({ error: new Error('socket error') });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith({
+            type: 'socket-error',
+            socketClose: {
+              code: undefined,
+              codeName: undefined,
+              reason: undefined,
+              wasClean: undefined,
+              error: 'socket error',
+            },
+          });
+        });
+
+        it('marks abnormal socket closes when flushing intermediate call reports', () => {
+          const flushIntermediateCallReport = jest.fn();
+          instance._autoReconnect = false;
+          instance.calls = {
+            'call-id': { id: 'call-id', flushIntermediateCallReport },
+          };
+
+          instance.onNetworkClose({ code: 1006 });
+
+          expect(flushIntermediateCallReport).toHaveBeenCalledWith({
+            type: 'socket-close',
+            socketClose: {
+              code: 1006,
+              codeName: 'ABNORMAL_CLOSURE',
+              reason: undefined,
+              wasClean: undefined,
+              error: undefined,
+            },
+          });
+        });
+      });
+
       describe('.disconnect()', () => {
         it('should close the connection', async (done) => {
           await instance.disconnect();
