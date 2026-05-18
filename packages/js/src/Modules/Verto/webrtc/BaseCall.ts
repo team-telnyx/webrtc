@@ -2287,7 +2287,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _getCallReportVoiceSdkId(): string | undefined {
-    return this.session.voiceSdkId || undefined;
+    return this.session.callReportVoiceSdkId || undefined;
   }
 
   /**
@@ -2330,12 +2330,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     const payload = this._callReportCollector.flush(summary);
     if (!payload) return;
 
-    const voiceSdkId = this._getCallReportVoiceSdkId();
+    const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
     // Fire-and-forget — don't block the stats collection interval,
     // but track the upload so disconnect() can drain in-flight reports.
     const upload = this._callReportCollector
-      .sendPayload(payload, callReportId, host, voiceSdkId)
+      .sendPayload(payload, callReportId, host, callReportVoiceSdkId)
       .catch((error) => {
         logger.error('Failed to post intermediate call report segment', {
           error,
@@ -2381,14 +2381,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
-    const voiceSdkId = this._getCallReportVoiceSdkId();
+    const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
     try {
       await this._callReportCollector.postReport(
         summary,
         callReportId,
         host,
-        voiceSdkId
+        callReportVoiceSdkId
       );
     } catch (error) {
       logger.error('Failed to post call report', { error });

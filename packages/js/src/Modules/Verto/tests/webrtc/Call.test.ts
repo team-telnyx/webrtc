@@ -226,7 +226,7 @@ describe('Call', () => {
       (session.connection as unknown as { host?: string }).host =
         'wss://rtc.telnyx.com';
       session.callReportId = 'call-report-id';
-      session.voiceSdkId = 'owning-session-voice-sdk-id';
+      session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
 
       const collector = {
         stop: jest.fn().mockResolvedValue(undefined),
@@ -254,7 +254,7 @@ describe('Call', () => {
       (session.connection as unknown as { host?: string }).host =
         'wss://rtc.telnyx.com';
       session.callReportId = 'call-report-id';
-      session.voiceSdkId = 'owning-session-voice-sdk-id';
+      session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
       const payload = {
         summary: { callId: call.id },
         stats: [

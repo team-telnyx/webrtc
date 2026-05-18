@@ -90,7 +90,7 @@ describe('Connection - Safety Timeout', () => {
     mockSession = {
       uuid: 'test-uuid',
       sessionid: 'test-session',
-      voiceSdkId: null,
+      callReportVoiceSdkId: null,
       options: {
         host: 'wss://test.telnyx.com',
         login: 'test-login',
@@ -372,14 +372,14 @@ describe('Connection - Safety Timeout', () => {
   });
 
   describe('onmessage event', () => {
-    it('stores voice_sdk_id on the owning session when received', async () => {
+    it('stores call report voice_sdk_id on the owning session when received', async () => {
       connection.connect();
       await Promise.resolve();
 
       const ws = (connection as any)._wsClient;
       ws.simulateMessage({ id: 'message-id', voice_sdk_id: 'voice-sdk-id' });
 
-      expect(mockSession.voiceSdkId).toBe('voice-sdk-id');
+      expect(mockSession.callReportVoiceSdkId).toBe('voice-sdk-id');
       expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id');
     });
   });

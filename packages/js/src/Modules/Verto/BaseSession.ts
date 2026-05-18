@@ -59,7 +59,8 @@ export default abstract class BaseSession {
   public invalidMethodErrorCode = -32601;
   public authenticationRequiredErrorCode = -32000;
   public callReportId: string | null = null;
-  public voiceSdkId: string | null = null;
+  /** voice_sdk_id used when posting call report payloads for this session. */
+  public callReportVoiceSdkId: string | null = null;
   public dc: string | null = null;
   public region: string | null = null;
 
