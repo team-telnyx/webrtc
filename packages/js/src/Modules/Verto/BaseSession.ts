@@ -630,7 +630,7 @@ export default abstract class BaseSession {
     }
 
     if (this._autoReconnect) {
-      const maxAttempts = this.options.maxReconnectAttempts || 0;
+      const maxAttempts = this.options.maxReconnectAttempts ?? 5;
 
       this._reconnectAttempts += 1;
 

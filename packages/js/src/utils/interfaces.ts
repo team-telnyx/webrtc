@@ -179,8 +179,9 @@ export interface IClientOptions {
    * is emitted. A manual `connect()` call resets the counter and starts a fresh
    * retry sequence.
    *
-   * Set to `0` or omit to allow unlimited automatic reconnect attempts (default).
-   * @default 0 (unlimited)
+   * Set to `0` to allow unlimited automatic reconnect attempts.
+   * When omitted, defaults to `5`.
+   * @default 5
    */
   maxReconnectAttempts?: number;
 
