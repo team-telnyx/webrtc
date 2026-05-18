@@ -279,7 +279,15 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
-                this.session.resetReconnectAttempts();
+
+                // Only reset reconnect attempts on confirmed healthy
+                // registration (REGED). REGISTER alone does not guarantee
+                // the session is fully established — the socket could
+                // still close before REGED, masking an unhealthy
+                // reconnect loop if we reset too early.
+                if (gateWayState === GatewayStateType.REGED) {
+                  this.session.resetReconnectAttempts();
+                }
 
                 // Capture call_report_id for SDK call reporting
                 const callReportId = msg?.result?.params?.call_report_id;
