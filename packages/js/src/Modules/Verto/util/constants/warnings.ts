@@ -103,6 +103,24 @@ export const SDK_WARNINGS = {
       'Close bandwidth-heavy applications',
     ],
   },
+  31005: {
+    name: 'LOW_LOCAL_AUDIO',
+    message: 'Low local microphone audio detected',
+    description:
+      'Local outbound audio level stayed below the acceptable threshold before the microphone produced real audio, or stayed silent for a long continuous window after audio was confirmed. This may indicate that the microphone is not capturing enough audio even while RTP is being sent.',
+    causes: [
+      'Microphone input level is too low',
+      'Wrong microphone selected',
+      'Microphone is obstructed or too far from the speaker',
+      'Operating system input gain is muted or very low',
+    ],
+    solutions: [
+      'Check the selected microphone',
+      'Increase microphone input gain',
+      'Move closer to the microphone',
+      'Verify the microphone is not muted at the operating system or hardware level',
+    ],
+  },
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   32001: {
@@ -232,6 +250,23 @@ export const SDK_WARNINGS = {
       'Ensure answer() is called only once per call',
       'Disable the answer button after the first click',
       'Check that answer() is not invoked from multiple event handlers',
+    ],
+  },
+  33007: {
+    name: 'DUPLICATE_INBOUND_ANSWER',
+    message:
+      'Call answer ignored because another inbound call is already being answered',
+    description:
+      'answer() was called on an inbound call while another inbound call is already answering or active in this JavaScript runtime. Answering both legs can trigger SIP 486 USER_BUSY / LOSE_RACE when duplicate WebSocket registrations receive the same incoming call.',
+    causes: [
+      'Multiple TelnyxRTC instances in the same page',
+      'Application code recreating a client without disconnecting the previous instance',
+      'Duplicate inbound call notifications produced by duplicate WebSocket registrations',
+    ],
+    solutions: [
+      'Keep a single active TelnyxRTC instance for inbound call handling',
+      'Call disconnect() before replacing an SDK client instance',
+      'Only call answer() for one inbound call notification at a time',
     ],
   },
 

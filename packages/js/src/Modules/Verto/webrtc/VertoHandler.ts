@@ -2,6 +2,7 @@ import logger from '../util/logger';
 import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
+import { callMarkName } from './CallEstablishmentTimings';
 import { checkSubscribeResponse } from './helpers';
 import { Result } from '../messages/Verto';
 import {
@@ -147,7 +148,7 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
-      performance.mark('new-call-start');
+      performance.mark(callMarkName(callOptions.id, 'new-call-start'));
       const call = new Call(session, callOptions);
       call.nodeId = this.nodeId;
       return call;
@@ -279,6 +280,15 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
+
+                // Only reset reconnect attempts on confirmed healthy
+                // registration (REGED). REGISTER alone does not guarantee
+                // the session is fully established — the socket could
+                // still close before REGED, masking an unhealthy
+                // reconnect loop if we reset too early.
+                if (gateWayState === GatewayStateType.REGED) {
+                  this.session.resetReconnectAttempts();
+                }
 
                 // Capture call_report_id for SDK call reporting
                 const callReportId = msg?.result?.params?.call_report_id;

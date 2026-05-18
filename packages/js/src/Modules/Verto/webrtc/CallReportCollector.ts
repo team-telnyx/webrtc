@@ -5,7 +5,7 @@
  * at the end of the call for quality analysis and debugging.
  *
  * Stats Collection Strategy (based on Twilio/Jitsi best practices):
- * - Collects stats at regular intervals (default 5 seconds)
+ * - Collects stats every second for the first 10 seconds, then at a regular interval (default 5 seconds)
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
  * - Uses in-memory buffer with size limits for long calls
@@ -29,6 +29,7 @@ import {
   HIGH_JITTER,
   HIGH_PACKET_LOSS,
   LOW_MOS,
+  LOW_LOCAL_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
 } from '../../../Modules/Verto/util/constants/errorCodes';
@@ -258,7 +259,7 @@ export class CallReportCollector {
   private options: ICallReportOptions;
   private logCollectorOptions: ILogCollectorOptions;
   private peerConnection: RTCPeerConnection | null = null;
-  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private intervalId: ReturnType<typeof setTimeout> | null = null;
   private statsBuffer: IStatsInterval[] = [];
   private intervalStartTime: Date | null = null;
   private callStartTime: Date;
@@ -295,8 +296,11 @@ export class CallReportCollector {
   // Track selected candidate pair ID to detect mid-call path changes
   private previousCandidatePairId: string | null = null;
 
+  private static readonly INITIAL_COLLECTION_INTERVAL_MS = 1000;
+  private static readonly INITIAL_COLLECTION_DURATION_MS = 10000;
+
   // Maximum buffer size to prevent memory issues on long calls
-  private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals
+  private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals, plus denser startup samples
 
   // ── Intermediate flush ────────────────────────────────────────────
   // Flush when stats or logs approach their buffer limits to avoid
@@ -317,6 +321,13 @@ export class CallReportCollector {
   private static readonly THRESHOLD_JITTER_MS = 30; // 30ms
   private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
   private static readonly THRESHOLD_MOS = 3.5;
+  // WebRTC audioLevel is linear RMS in [0, 1]. Treat near-silence as a
+  // local microphone issue only before the microphone has produced a real
+  // audio sample. Once local audio has been confirmed, only warn again after
+  // a long continuous silence window to avoid false positives during natural
+  // agent/customer pauses.
+  private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
+  private static readonly CONFIRMED_LOCAL_AUDIO_SILENCE_MS = 30_000;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
@@ -333,6 +344,13 @@ export class CallReportCollector {
   // Last logged local audio track snapshot, used to avoid repetitive logs.
   private _lastLocalAudioTrackSnapshotJson: string | null = null;
 
+  // Local audio warning state. Before confirmation, low audio warns quickly so
+  // broken microphone setup is surfaced early. After the SDK sees real local
+  // audio, short silence windows are expected in live calls and only long
+  // continuous silence should warn again.
+  private _hasConfirmedLocalAudio: boolean = false;
+  private _confirmedLocalAudioSilenceMs: number = 0;
+
   /** Running segment counter for multi-part reports. */
   private _segmentIndex: number = 0;
 
@@ -341,6 +359,9 @@ export class CallReportCollector {
 
   /** Whether a flush is already in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
+
+  /** Whether stop() has been requested (prevents timer re-scheduling). */
+  private _stopped: boolean = false;
 
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
@@ -378,15 +399,16 @@ export class CallReportCollector {
     this.peerConnection = peerConnection;
     this.intervalStartTime = new Date();
     this._lastIntermediateFlushTime = this.intervalStartTime;
+    this._stopped = false;
 
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
+      initialInterval: CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+      initialDuration: CallReportCollector.INITIAL_COLLECTION_DURATION_MS,
       logCollectorActive: this.logCollector?.isActive() ?? false,
     });
 
-    this.intervalId = setInterval(() => {
-      this._collectStats();
-    }, this.options.interval);
+    this._scheduleNextCollection();
   }
 
   /**
@@ -396,8 +418,10 @@ export class CallReportCollector {
    * no periodic interval has completed yet.
    */
   public async stop(): Promise<void> {
+    this._stopped = true;
+
     if (this.intervalId) {
-      clearInterval(this.intervalId);
+      clearTimeout(this.intervalId);
       this.intervalId = null;
     }
 
@@ -670,6 +694,52 @@ export class CallReportCollector {
     }
   }
 
+  private _scheduleNextCollection(): void {
+    if (
+      this._stopped ||
+      !this.peerConnection ||
+      !this.intervalStartTime ||
+      this.intervalId
+    ) {
+      return;
+    }
+
+    const interval = this._collectionIntervalFor(this.intervalStartTime);
+    this.intervalId = setTimeout(() => {
+      this.intervalId = null;
+      this._collectStats().finally(() => {
+        if (!this._stopped && this.peerConnection) {
+          this._scheduleNextCollection();
+        }
+      });
+    }, interval);
+  }
+
+  private _collectionIntervalFor(intervalStartTime: Date): number {
+    const defaultInterval = this._positiveInterval(this.options.interval, 5000);
+
+    if (
+      intervalStartTime.getTime() - this.callStartTime.getTime() <
+      CallReportCollector.INITIAL_COLLECTION_DURATION_MS
+    ) {
+      return Math.min(
+        CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+        defaultInterval
+      );
+    }
+
+    return defaultInterval;
+  }
+
+  private _positiveInterval(
+    value: number | undefined,
+    fallback: number
+  ): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? value
+      : fallback;
+  }
+
   /**
    * Collect stats from the peer connection and aggregate them.
    * @param isFinal - When true (called from stop()), always push a partial
@@ -831,7 +901,10 @@ export class CallReportCollector {
       // short calls (shorter than the collection interval) still produce
       // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-      if (isFinal || intervalDuration >= this.options.interval) {
+      const currentInterval = this._collectionIntervalFor(
+        this.intervalStartTime
+      );
+      if (isFinal || intervalDuration >= currentInterval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
           this.intervalStartTime,
@@ -975,6 +1048,13 @@ export class CallReportCollector {
         packetLossPct > CallReportCollector.THRESHOLD_PACKET_LOSS_PCT
     );
 
+    // Local microphone audio warning — outbound audioLevelAvg is sourced from
+    // media-source audioLevel when present, or computed from totalAudioEnergy
+    // deltas as a fallback. Do not warn for an intentionally disabled/muted
+    // local track. Once any real local audio has been observed, avoid warning
+    // on normal 5-10s pauses; require a long continuous silence window instead.
+    this._trackLowLocalAudio(statsEntry);
+
     // MOS warning — simplified E-model
     if (
       rtt !== undefined &&
@@ -1015,6 +1095,60 @@ export class CallReportCollector {
     }
   }
 
+  private _trackLowLocalAudio(statsEntry: IStatsInterval): void {
+    const outbound = statsEntry.audio?.outbound;
+    const audioLevel = outbound?.audioLevelAvg;
+    const localTrack = outbound?.localTrack;
+
+    if (
+      audioLevel === undefined ||
+      localTrack?.enabled === false ||
+      localTrack?.muted === true
+    ) {
+      this._resetLowLocalAudioWarning();
+      return;
+    }
+
+    const isLow = audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
+
+    if (!isLow) {
+      this._hasConfirmedLocalAudio = true;
+      this._confirmedLocalAudioSilenceMs = 0;
+      this._trackBreach(LOW_LOCAL_AUDIO, false);
+      return;
+    }
+
+    if (!this._hasConfirmedLocalAudio) {
+      this._trackBreach(LOW_LOCAL_AUDIO, true);
+      return;
+    }
+
+    this._confirmedLocalAudioSilenceMs +=
+      this._getStatsIntervalDurationMs(statsEntry);
+
+    if (
+      this._confirmedLocalAudioSilenceMs >=
+      CallReportCollector.CONFIRMED_LOCAL_AUDIO_SILENCE_MS
+    ) {
+      this._emitWarningOncePerEpisode(LOW_LOCAL_AUDIO);
+    }
+  }
+
+  private _resetLowLocalAudioWarning(): void {
+    this._confirmedLocalAudioSilenceMs = 0;
+    this._trackBreach(LOW_LOCAL_AUDIO, false);
+  }
+
+  private _getStatsIntervalDurationMs(statsEntry: IStatsInterval): number {
+    const start = new Date(statsEntry.intervalStartUtc).getTime();
+    const end = new Date(statsEntry.intervalEndUtc).getTime();
+    const duration = end - start;
+
+    return Number.isFinite(duration) && duration > 0
+      ? duration
+      : this.options.interval;
+  }
+
   /**
    * Track consecutive breaches for a warning code.
    * Emits the warning when the threshold is met, then re-emits
@@ -1034,18 +1168,7 @@ export class CallReportCollector {
         const lastEmitted = this._lastWarningEmitted[code] ?? 0;
         if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
           this._lastWarningEmitted[code] = now;
-          try {
-            const warning = createTelnyxWarning(code);
-            logger.warn(
-              `CallReportCollector: warning ${warning.code}: ${warning.message}`
-            );
-            this.onWarning?.(warning);
-          } catch (err) {
-            logger.error(
-              `CallReportCollector: Failed to emit warning ${code}`,
-              { error: err }
-            );
-          }
+          this._emitWarning(code);
         }
       }
     } else {
@@ -1053,6 +1176,28 @@ export class CallReportCollector {
       this._breachCounters[code] = 0;
       this._activeWarnings.delete(code);
       delete this._lastWarningEmitted[code];
+    }
+  }
+
+  private _emitWarningOncePerEpisode(code: SdkWarningCode): void {
+    if (this._activeWarnings.has(code)) return;
+
+    this._activeWarnings.add(code);
+    this._lastWarningEmitted[code] = Date.now();
+    this._emitWarning(code);
+  }
+
+  private _emitWarning(code: SdkWarningCode): void {
+    try {
+      const warning = createTelnyxWarning(code);
+      logger.warn(
+        `CallReportCollector: warning ${warning.code}: ${warning.message}`
+      );
+      this.onWarning?.(warning);
+    } catch (err) {
+      logger.error(`CallReportCollector: Failed to emit warning ${code}`, {
+        error: err,
+      });
     }
   }
 

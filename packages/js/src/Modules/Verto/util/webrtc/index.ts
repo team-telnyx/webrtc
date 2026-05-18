@@ -49,9 +49,12 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   element.srcObject = stream;
 };
 
-const detachMediaStream = (tag: any) => {
+const detachMediaStream = (tag: any, stream?: MediaStream) => {
   const element = findElementByType(tag);
   if (element) {
+    if (stream && element.srcObject !== stream) {
+      return;
+    }
     element.srcObject = null;
   }
 };

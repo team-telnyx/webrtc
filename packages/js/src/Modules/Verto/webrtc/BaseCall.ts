@@ -25,6 +25,7 @@ import {
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
+  DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
 } from '../util/constants';
@@ -41,12 +42,14 @@ import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
 import {
   attachMediaStream,
+  detachMediaStream,
   getUserMedia,
   setMediaElementSinkId,
   stopStream,
 } from '../util/webrtc';
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
+import { callMarkName, clearCallMarks } from './CallEstablishmentTimings';
 import Peer from './Peer';
 import {
   ConferenceAction,
@@ -387,7 +390,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark('new-peer');
+    performance.mark(callMarkName(this.id, 'new-peer'));
     this.peer = new Peer(
       PeerType.Offer,
       this.options,
@@ -432,7 +435,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
-    if (this.peer?.instance && this.peer.instance.signalingState !== 'closed') {
+    if (
+      this._creatingPeer ||
+      (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
+    ) {
       const warning = createTelnyxWarning(ANSWER_WHILE_PEER_ACTIVE);
       trigger(
         SwEvent.Warning,
@@ -440,12 +446,16 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.uuid
       );
       logger.warn(
-        `[${this.id}] answer() ignored: peer connection already exists (signalingState: ${this.peer.instance.signalingState})`
+        `[${this.id}] answer() ignored: peer connection already exists or is being created (signalingState: ${this.peer?.instance?.signalingState ?? 'creating'})`
       );
       return;
     }
 
-    performance.mark('answer-called');
+    if (!this._registerInboundAnswerAttempt()) {
+      return;
+    }
+
+    performance.mark(callMarkName(this.id, 'answer-called'));
     this._creatingPeer = true;
     this.stopRingtone();
 
@@ -461,7 +471,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
-    performance.mark('new-peer');
+    performance.mark(callMarkName(this.id, 'new-peer'));
     this.peer = new Peer(
       PeerType.Answer,
       this.options,
@@ -1106,7 +1116,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case State.Active: {
-        performance.mark('call-active');
+        performance.mark(callMarkName(this.id, 'call-active'));
         this.peer?.tryCollectTimings();
 
         // Clear recovery flag when call becomes active again
@@ -1145,7 +1155,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     switch (method) {
       case VertoMethod.Answer: {
-        performance.mark('telnyx-rtc-answer');
+        performance.mark(callMarkName(this.id, 'telnyx-rtc-answer'));
         this.gotAnswer = true;
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1170,7 +1180,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Media: {
-        performance.mark('telnyx-rtc-media');
+        performance.mark(callMarkName(this.id, 'telnyx-rtc-media'));
         // Media is an early-media event for the pre-Answer phase only.
         // After Early state (including mid-call ICE restart), the answer SDP
         // is delivered via Modify responses or the telnyx_rtc.modify path,
@@ -1224,7 +1234,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Ringing: {
-        performance.mark('ringing');
+        performance.mark(callMarkName(this.id, 'ringing'));
         this.playRingback();
         if (params.telnyx_call_control_id) {
           this.options.telnyxCallControlId = params.telnyx_call_control_id;
@@ -1513,7 +1523,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     await this.peer.instance
       .setRemoteDescription(sdp)
       .then(() => {
-        performance.mark('set-remote-description');
+        performance.mark(callMarkName(this.id, 'set-remote-description'));
         if (this.options.trickleIce) {
           this._isRemoteDescriptionSet = true;
           this._flushPendingTrickleIceCandidates();
@@ -1615,7 +1625,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
     }
 
-    performance.mark('ice-gathering-end');
+    performance.mark(callMarkName(this.id, 'ice-gathering-end'));
     let msg = null;
 
     const tmpParams = {
@@ -1651,7 +1661,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         void this.hangup({ initiator: 'sdk:unknown-local-sdp-type' }, false);
         return;
     }
-    performance.mark('send-sdp');
+    performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1739,7 +1749,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         return;
     }
 
-    performance.mark('send-sdp');
+    performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
         const { node_id = null } = response;
@@ -1869,14 +1879,14 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   private _trackCandidateMarks(candidate: RTCIceCandidate) {
     if (!this._firstCandidateSent) {
-      performance.mark('first-candidate');
+      performance.mark(callMarkName(this.id, 'first-candidate'));
       this._firstCandidateSent = true;
     }
 
     if (!this._firstNonHostCandidateSent) {
       const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
       if (candidateType && candidateType !== 'host') {
-        performance.mark('first-non-host-candidate');
+        performance.mark(callMarkName(this.id, 'first-non-host-candidate'));
         this._firstNonHostCandidateSent = true;
       }
     }
@@ -1934,7 +1944,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
-        performance.mark('ice-gathering-completed');
+        performance.mark(callMarkName(this.id, 'ice-gathering-completed'));
       }
     };
 
@@ -2058,6 +2068,97 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.execute(msg);
   }
 
+  private _registerInboundAnswerAttempt(): boolean {
+    if (this.options.attach || this._isRecovering) {
+      return true;
+    }
+
+    for (const existingCall of this._getSessionInboundAnswerCalls()) {
+      if (existingCall.id === this.id) {
+        continue;
+      }
+
+      if (!existingCall._isBlockingInboundAnswer()) {
+        continue;
+      }
+
+      const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.id,
+          activeCallId: existingCall.id,
+          sessionId: this.session.sessionid,
+          activeSessionId: existingCall.session.sessionid,
+        },
+        this.session.uuid
+      );
+      logger.warn(
+        `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active`
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  private _getSessionInboundAnswerCalls(): BaseCall[] {
+    return (Object.values(this.session.calls) as Array<BaseCall | null>)
+      .filter((call): call is BaseCall => Boolean(call))
+      .filter(
+        (call) =>
+          !call.options.attach &&
+          !call._isRecovering &&
+          call.direction === Direction.Inbound
+      );
+  }
+
+  private _isBlockingInboundAnswer(): boolean {
+    if ([State.Hangup, State.Destroy, State.Purge].includes(this._state)) {
+      return false;
+    }
+
+    const isAnsweringOrActive = [
+      State.Answering,
+      State.Early,
+      State.Active,
+      State.Held,
+    ].includes(this._state);
+
+    if (!this._creatingPeer && !isAnsweringOrActive) {
+      return false;
+    }
+
+    if (this._creatingPeer && !this.peer?.instance) {
+      return true;
+    }
+
+    return this._hasUsablePeerConnection();
+  }
+
+  private _hasUsablePeerConnection(): boolean {
+    const peerConnection = this.peer?.instance;
+
+    if (!peerConnection) {
+      return false;
+    }
+
+    if (peerConnection.signalingState === 'closed') {
+      return false;
+    }
+
+    if (peerConnection.connectionState === 'closed') {
+      return false;
+    }
+
+    if (peerConnection.iceConnectionState === 'closed') {
+      return false;
+    }
+
+    return true;
+  }
+
   private _init() {
     const {
       id,
@@ -2157,11 +2258,19 @@ export default abstract class BaseCall implements IWebRTCCall {
   protected _finalize() {
     this._stopStats();
 
+    // Clear call marks at the call lifecycle level so cleanup runs even when
+    // no peer was created (e.g. inbound invite rejected before answer()).
+    // Peer.close() also clears marks as defense-in-depth.
+    clearCallMarks(this.id);
+
     logger.debug(`[${this.id}] Closing peer from _finalize`);
     this.peer?.close();
-    const { remoteStream, localStream } = this.options;
+    const { remoteStream, localStream, remoteElement, localElement } =
+      this.options;
     stopStream(remoteStream);
     stopStream(localStream);
+    detachMediaStream(remoteElement, remoteStream);
+    detachMediaStream(localElement, localStream);
     deRegister(SwEvent.MediaError, null, this.id);
     deRegister(SwEvent.PeerConnectionFailureError, null, this.id);
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);

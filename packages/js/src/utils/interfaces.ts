@@ -173,6 +173,19 @@ export interface IClientOptions {
   mutedMicOnStart?: boolean;
 
   /**
+   * Maximum number of automatic socket reconnection attempts after an unexpected
+   * disconnect. When the limit is reached, no further automatic reconnects are
+   * scheduled and a `telnyx.error` event with code `RECONNECTION_EXHAUSTED` (45003)
+   * is emitted. A manual `connect()` call resets the counter and starts a fresh
+   * retry sequence.
+   *
+   * Set to `0` to allow unlimited automatic reconnect attempts.
+   * When omitted, defaults to `10`.
+   * @default 10
+   */
+  maxReconnectAttempts?: number;
+
+  /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, WebRTC stats are collected periodically during calls
    * and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
@@ -182,9 +195,9 @@ export interface IClientOptions {
   enableCallReports?: boolean;
 
   /**
-   * Interval in milliseconds for collecting call statistics.
-   * Stats are aggregated over each interval and submitted as intermediate
-   * reports while the call is active.
+   * Interval in milliseconds for collecting call statistics after the initial
+   * high-resolution startup window. Stats are aggregated over each interval
+   * and submitted as intermediate reports while the call is active.
    *
    * @default 5000 (5 seconds)
    */
