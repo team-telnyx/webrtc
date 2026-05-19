@@ -198,7 +198,7 @@ export const SDK_ERRORS = {
     name: 'RECONNECTION_EXHAUSTED',
     message: 'Reconnect attempt budget exhausted',
     description:
-      'One automatic reconnection attempt window has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt. If the close was not intentional, the SDK starts a fresh reconnect window automatically.',
+      'The automatic reconnection budget has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt, then stopped automatic reconnecting. Manual reconnection is required.',
     causes: [
       'Prolonged network outage',
       'Server unreachable',
@@ -206,8 +206,8 @@ export const SDK_ERRORS = {
     ],
     solutions: [
       'Check network connectivity',
-      'Wait for automatic reconnection unless the user intentionally disconnects',
-      'Notify the user that the connection is still being retried',
+      'Call client.connect() to start a new manual reconnect sequence',
+      'Start a new call if an active call could not be recovered',
     ],
   },
 

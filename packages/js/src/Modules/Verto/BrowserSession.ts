@@ -84,7 +84,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   get reconnectDelay() {
-    return 1000;
+    return super.reconnectDelay;
   }
 
   public getLastOfflineDurationMs(): number | null {

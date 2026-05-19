@@ -318,20 +318,36 @@ export const SDK_WARNINGS = {
       'Reduce offline gaps or increase the server retention window if longer recovery is required',
     ],
   },
+  35003: {
+    name: 'ACTIVE_CALL_RECONNECTING',
+    message: 'Active call reconnect is still retrying',
+    description:
+      'The SDK has not restored the WebSocket after several attempts while at least one call is still locally recoverable. Automatic reconnect is still running with the active-call retry budget.',
+    causes: [
+      'Temporary network outage',
+      'Server unreachable',
+      'Firewall or proxy blocking reconnect attempts',
+    ],
+    solutions: [
+      'Keep the call UI in a recovering state while automatic reconnect continues',
+      'Notify the user that call recovery is still being attempted',
+      'If reconnect later exhausts, require a manual reconnect or a new call',
+    ],
+  },
   45003: {
     name: 'RECONNECTION_EXHAUSTED',
     message: 'Reconnect attempt budget exhausted',
     description:
-      'One automatic reconnection attempt window has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt. If the close was not intentional, the SDK starts a fresh reconnect window automatically.',
+      'The automatic reconnection budget has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt, then stopped automatic reconnecting. Manual reconnection is required.',
     causes: [
       'Prolonged network outage',
       'Server unreachable',
       'Firewall or proxy blocking reconnection',
     ],
     solutions: [
-      'Wait for automatic reconnection unless the user intentionally disconnects',
-      'Notify the user that the connection is still being retried',
       'Check network connectivity',
+      'Call client.connect() to start a new manual reconnect sequence',
+      'Start a new call if an active call could not be recovered',
     ],
   },
 } as const;

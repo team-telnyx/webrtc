@@ -9,8 +9,10 @@ import { trigger } from '../services/Handler';
 import {
   SwEvent,
   RECONNECTION_EXHAUSTED,
+  ACTIVE_CALL_RECONNECTING,
   WEBSOCKET_UNEXPECTED_CLOSE,
 } from '../util/constants';
+import { State } from '../webrtc/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -82,8 +84,17 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
 
       // The 11th onNetworkClose should exceed the default limit of 10
       session.onNetworkClose();
-      expect(session._autoReconnect).toBe(true);
-      expect(session._reconnectAttempts).toBe(0);
+      expect(session._autoReconnect).toBe(false);
+      expect(session._reconnectAttempts).toBe(11);
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+          reconnecting: false,
+          maxReconnectAttempts: 10,
+        }),
+        session.uuid
+      );
     });
 
     it('should allow unlimited reconnection attempts when maxReconnectAttempts is explicitly 0', () => {
@@ -111,7 +122,7 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       expect(session._reconnectAttempts).toBe(2);
     });
 
-    it('should reset attempt window and keep reconnecting after maxReconnectAttempts is reached', () => {
+    it('should stop automatic reconnect after maxReconnectAttempts is reached', () => {
       session.options.maxReconnectAttempts = 3;
 
       session.onNetworkClose();
@@ -130,11 +141,11 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
 
       jest.runAllTimers();
       session.onNetworkClose();
-      expect(session._autoReconnect).toBe(true);
-      expect(session._reconnectAttempts).toBe(0);
+      expect(session._autoReconnect).toBe(false);
+      expect(session._reconnectAttempts).toBe(4);
     });
 
-    it('should emit RECONNECTION_EXHAUSTED warning when limit is reached', () => {
+    it('should emit RECONNECTION_EXHAUSTED error when limit is reached', () => {
       session.options.maxReconnectAttempts = 2;
 
       session.onNetworkClose();
@@ -144,39 +155,38 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.onNetworkClose();
 
       expect(mockTrigger).toHaveBeenCalledWith(
-        SwEvent.Warning,
+        SwEvent.Error,
         expect.objectContaining({
-          warning: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
-          reconnecting: true,
+          error: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+          reconnecting: false,
         }),
         session.uuid
       );
     });
 
-    it('should reset _reconnectAttempts to 0 after exhaustion', () => {
+    it('should keep _reconnectAttempts until manual connect or REGED reset after exhaustion', () => {
       session.options.maxReconnectAttempts = 1;
 
       session.onNetworkClose();
       jest.runAllTimers();
       session.onNetworkClose();
 
-      expect(session._reconnectAttempts).toBe(0);
-      expect(session._autoReconnect).toBe(true);
+      expect(session._reconnectAttempts).toBe(2);
+      expect(session._autoReconnect).toBe(false);
     });
 
-    it('should schedule a fresh reconnect timeout after exhaustion', () => {
+    it('should not schedule a fresh reconnect timeout after exhaustion', () => {
       session.options.maxReconnectAttempts = 1;
 
       session.onNetworkClose();
       jest.runAllTimers();
       session.onNetworkClose();
 
-      expect(session._autoReconnect).toBe(true);
+      expect(session._autoReconnect).toBe(false);
 
-      // Advance timers and verify connect continues after the warning cycle
       const callCountBefore = mockConnection.connect.mock.calls.length;
       jest.runAllTimers();
-      expect(mockConnection.connect.mock.calls.length).toBe(callCountBefore + 1);
+      expect(mockConnection.connect.mock.calls.length).toBe(callCountBefore);
     });
 
     it('should allow manual connect() after exhaustion', () => {
@@ -186,9 +196,8 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.onNetworkClose();
       jest.runAllTimers();
       session.onNetworkClose();
-      expect(session._autoReconnect).toBe(true);
+      expect(session._autoReconnect).toBe(false);
 
-      // Manual connect during auto-reconnect preserves the current reconnect state
       session.connect();
       expect(session._autoReconnect).toBe(true);
       expect(session._reconnectAttempts).toBe(0);
@@ -289,16 +298,16 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.onNetworkClose();
       expect(session._reconnectAttempts).toBe(3);
 
-      // Attempt 4 exceeds limit → warning cycle resets and reconnect continues
+      // Attempt 4 exceeds limit → automatic reconnect stops
       jest.runAllTimers();
       session.onNetworkClose();
-      expect(session._autoReconnect).toBe(true);
-      expect(session._reconnectAttempts).toBe(0);
+      expect(session._autoReconnect).toBe(false);
+      expect(session._reconnectAttempts).toBe(4);
       expect(mockTrigger).toHaveBeenCalledWith(
-        SwEvent.Warning,
+        SwEvent.Error,
         expect.objectContaining({
-          warning: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
-          reconnecting: true,
+          error: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+          reconnecting: false,
         }),
         session.uuid
       );
@@ -333,8 +342,86 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
 
       jest.runAllTimers();
       session.onNetworkClose();
+      expect(session._autoReconnect).toBe(false);
+      expect(session._reconnectAttempts).toBe(4);
+    });
+  });
+
+  describe('active call reconnect budget', () => {
+    beforeEach(() => {
+      session.calls = {
+        active: { state: State.Active, signalingStateClosed: false },
+      };
+    });
+
+    it('uses the larger active-call budget with the same reconnect counter', () => {
+      session.options.maxReconnectAttempts = 3;
+
+      for (let i = 0; i < 36; i++) {
+        session.onNetworkClose();
+        jest.runAllTimers();
+      }
+
+      expect(session._reconnectAttempts).toBe(36);
       expect(session._autoReconnect).toBe(true);
-      expect(session._reconnectAttempts).toBe(0);
+
+      session.onNetworkClose();
+
+      expect(session._autoReconnect).toBe(false);
+      expect(session._reconnectAttempts).toBe(37);
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+          reconnecting: false,
+          maxReconnectAttempts: 36,
+        }),
+        session.uuid
+      );
+    });
+
+    it('emits a non-exhaustion warning while an active call is still retrying', () => {
+      session.options.maxReconnectAttempts = 3;
+
+      for (let i = 0; i < 5; i++) {
+        session.onNetworkClose();
+        jest.runAllTimers();
+      }
+
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Warning,
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: ACTIVE_CALL_RECONNECTING }),
+          reconnecting: true,
+          reconnectAttempts: 5,
+          maxReconnectAttempts: 36,
+        }),
+        session.uuid
+      );
+      expect(mockTrigger).not.toHaveBeenCalledWith(
+        SwEvent.Warning,
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: RECONNECTION_EXHAUSTED }),
+        }),
+        session.uuid
+      );
+    });
+
+    it('uses exponential backoff capped at five seconds', () => {
+      session.onNetworkClose();
+      expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), 1000);
+
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), 2000);
+
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), 4000);
+
+      jest.runAllTimers();
+      session.onNetworkClose();
+      expect(setTimeout).toHaveBeenLastCalledWith(expect.any(Function), 5000);
     });
   });
 

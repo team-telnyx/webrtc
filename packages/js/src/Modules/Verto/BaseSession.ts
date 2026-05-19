@@ -16,6 +16,7 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  ACTIVE_CALL_RECONNECTING,
   WEBSOCKET_UNEXPECTED_CLOSE,
   WS_CLOSE_CODES,
 } from './util/constants';
@@ -28,7 +29,6 @@ import {
   isFunction,
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
-  randomInt,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -41,7 +41,7 @@ import { getReconnectToken, clearReconnectToken } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
-import { ERROR_TYPE } from './webrtc/constants';
+import { ERROR_TYPE, State } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 
@@ -50,6 +50,11 @@ import type { ITelnyxWarningEvent } from './util/constants/warnings';
  * Using intervals here that are in between both to make sure we don't let the session expire without acting first.
  */
 const KEEPALIVE_INTERVAL = 35 * 1000;
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 10;
+const ACTIVE_CALL_MAX_RECONNECT_ATTEMPTS = 36;
+const ACTIVE_CALL_RECONNECT_WARNING_ATTEMPT = 5;
+const RECONNECT_INITIAL_DELAY_MS = 1000;
+const RECONNECT_MAX_DELAY_MS = 5000;
 
 type ExecuteOptions = { timeoutMs?: number };
 type ExecuteQueueItem = {
@@ -139,7 +144,7 @@ export default abstract class BaseSession {
   }
 
   get reconnectDelay() {
-    return randomInt(2, 6) * 1000;
+    return this._calculateReconnectDelay(this._reconnectAttempts);
   }
 
   /**
@@ -147,8 +152,8 @@ export default abstract class BaseSession {
    * @return Promise that will resolve/reject depending on the server response
    * @ignore
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   execute(msg: BaseMessage, options: ExecuteOptions = {}): Promise<any> {
-    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (this._idle) {
       return new Promise((resolve) =>
         this._executeQueue.push({ resolve, msg, options })
@@ -777,6 +782,79 @@ export default abstract class BaseSession {
     );
   }
 
+  private _hasRecoverableActiveCall(): boolean {
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          { state?: State; signalingStateClosed?: boolean }
+        >;
+      }
+    ).calls;
+
+    if (!calls) return false;
+
+    return Object.values(calls).some((call) => {
+      if (!call) return false;
+      if (call.signalingStateClosed) return false;
+      return ![State.Hangup, State.Destroy, State.Purge].includes(call.state);
+    });
+  }
+
+  private _getReconnectAttemptLimit(hasActiveCall: boolean): number {
+    const configuredMax =
+      this.options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
+
+    if (configuredMax === 0) {
+      return 0;
+    }
+
+    return hasActiveCall
+      ? Math.max(configuredMax, ACTIVE_CALL_MAX_RECONNECT_ATTEMPTS)
+      : configuredMax;
+  }
+
+  private _calculateReconnectDelay(attempt: number): number {
+    if (attempt <= 1) {
+      return RECONNECT_INITIAL_DELAY_MS;
+    }
+
+    return Math.min(
+      RECONNECT_INITIAL_DELAY_MS * 2 ** (attempt - 1),
+      RECONNECT_MAX_DELAY_MS
+    );
+  }
+
+  private _emitActiveCallReconnectingWarning(maxAttempts: number): void {
+    const telnyxWarning = createTelnyxWarning(ACTIVE_CALL_RECONNECTING);
+    trigger(
+      SwEvent.Warning,
+      {
+        warning: telnyxWarning,
+        sessionId: this.sessionid,
+        reconnecting: true,
+        reconnectAttempts: this._reconnectAttempts,
+        maxReconnectAttempts: maxAttempts,
+      },
+      this.uuid
+    );
+  }
+
+  private _emitReconnectionExhaustedError(maxAttempts: number): void {
+    const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        sessionId: this.sessionid,
+        reconnecting: false,
+        reconnectAttempts: this._reconnectAttempts,
+        maxReconnectAttempts: maxAttempts,
+      },
+      this.uuid
+    );
+  }
+
   public onNetworkClose(event?: {
     code?: number;
     reason?: string;
@@ -814,38 +892,38 @@ export default abstract class BaseSession {
     }
 
     if (this._autoReconnect) {
-      const maxAttempts = this.options.maxReconnectAttempts ?? 10;
+      const hasActiveCall = this._hasRecoverableActiveCall();
+      const maxAttempts = this._getReconnectAttemptLimit(hasActiveCall);
 
       this._reconnectAttempts += 1;
 
       if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
         logger.info(
-          `Reconnection attempt budget exhausted after ${maxAttempts} attempts. Starting a fresh automatic reconnect cycle.`
+          `Reconnection attempt budget exhausted after ${maxAttempts} attempts. Stopping automatic reconnect; manual reconnect is required.`
         );
-        this._reconnectAttempts = 0;
-
-        const telnyxWarning = createTelnyxWarning(RECONNECTION_EXHAUSTED);
-        trigger(
-          SwEvent.Warning,
-          {
-            warning: telnyxWarning,
-            sessionId: this.sessionid,
-            reconnecting: true,
-          },
-          this.uuid
-        );
-      } else {
-        logger.debug(
-          `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
-        );
+        this._autoReconnect = false;
+        this._emitReconnectionExhaustedError(maxAttempts);
+        return;
       }
 
+      if (
+        hasActiveCall &&
+        this._reconnectAttempts === ACTIVE_CALL_RECONNECT_WARNING_ATTEMPT
+      ) {
+        this._emitActiveCallReconnectingWarning(maxAttempts);
+      }
+
+      logger.debug(
+        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+      );
+
+      const reconnectDelay = this.reconnectDelay;
       this._reconnectTimeout = setTimeout(() => {
         logger.debug(
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, this.reconnectDelay);
+      }, reconnectDelay);
     }
   }
 

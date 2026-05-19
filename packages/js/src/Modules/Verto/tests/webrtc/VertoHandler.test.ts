@@ -419,6 +419,21 @@ describe('VertoHandler', () => {
     });
   });
 
+  describe('gateway failure reconnect', () => {
+    it('forces socketDisconnect so the shared reconnect attempt budget handles gateway FAILED', () => {
+      instance.connection.previousGatewayState = '';
+      instance.socketDisconnect = jest.fn();
+
+      const failedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gateway-failed","result":{"params":{"state":"FAILED"},"sessid":"sess1"}}'
+      );
+
+      handler.handleMessage(failedMsg);
+
+      expect(instance.socketDisconnect).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('should fire telnyx.ready again after socket reconnection', () => {
     it('fires telnyx.ready again when previousGatewayState is reset after socket close', () => {
       const regedMsg = JSON.parse(
