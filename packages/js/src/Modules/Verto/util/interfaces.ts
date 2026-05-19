@@ -121,6 +121,13 @@ export interface IVertoOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * Opt-in outbound audio startup warm-up (client-level default).
+   * Can be overridden per-call via IVertoCallOptions.audioWarmup.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  audioWarmup?: boolean | Record<string, any>;
 }
 export interface ILoginParams {
   login?: string;

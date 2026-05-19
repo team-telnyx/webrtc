@@ -287,6 +287,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         keepConnectionAliveOnSocketClose:
           options.keepConnectionAliveOnSocketClose,
         mutedMicOnStart: options.mutedMicOnStart,
+        audioWarmup: options.audioWarmup,
       },
       opts
     );

@@ -257,6 +257,39 @@ export interface IClientOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * Opt-in outbound audio startup warm-up.
+   * When enabled, initial outbound audio is sent at zero gain for a short
+   * configurable window so first real speech is not exposed to startup
+   * encoder/jitter-buffer/playout instability.
+   *
+   * - `undefined` / `false`: current behavior, no transform.
+   * - `true`: enabled with defaults (durationMs=750, fadeInMs=100).
+   * - object: enabled unless `enabled === false`; apply provided durations.
+   *
+   * Can be overridden per-call via `ICallOptions.audioWarmup`.
+   */
+  audioWarmup?: boolean | IAudioWarmupOptions;
+}
+
+/**
+ * Configuration for outbound audio startup warm-up.
+ * When enabled, initial outbound audio is sent at zero gain for a short
+ * configurable window so first real speech is not exposed to startup
+ * encoder/jitter-buffer/playout instability.
+ *
+ * - `undefined` / `false`: current behavior, no transform.
+ * - `true`: enabled with defaults (durationMs=750, fadeInMs=100).
+ * - object: enabled unless `enabled === false`; apply provided durations.
+ */
+export interface IAudioWarmupOptions {
+  /** Enable outbound audio startup warm-up. Defaults to false. */
+  enabled?: boolean;
+  /** Duration in ms to hold gain at zero before release. Default 750, max 3000. */
+  durationMs?: number;
+  /** Fade-in duration in ms when releasing gain from 0 to 1. Default 100, max 1000. */
+  fadeInMs?: number;
 }
 
 /**
@@ -396,6 +429,17 @@ export interface ICallOptions {
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
+
+  /**
+   * Opt-in outbound audio startup warm-up for this call.
+   * Overrides the client-level `audioWarmup` setting.
+   *
+   * - `undefined`: use client-level setting (default).
+   * - `false`: disable warm-up for this call even if enabled at client level.
+   * - `true`: enabled with defaults (durationMs=750, fadeInMs=100).
+   * - object: enabled unless `enabled === false`; apply provided durations.
+   */
+  audioWarmup?: boolean | IAudioWarmupOptions;
 }
 
 /**

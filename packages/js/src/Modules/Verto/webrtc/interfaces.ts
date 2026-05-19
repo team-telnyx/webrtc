@@ -1,18 +1,11 @@
 import type { ICallReportFlushReason } from './CallReportCollector';
 import { State } from './constants';
+export type { IAudioWarmupOptions } from '../../../utils/interfaces';
+import type { IAudioWarmupOptions } from '../../../utils/interfaces';
 
 export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
-}
-
-export interface IAudioWarmupOptions {
-  /** Enable outbound audio startup warm-up. Defaults to false. */
-  enabled?: boolean;
-  /** Duration in ms to hold gain at zero before release. Default 750, max 3000. */
-  durationMs?: number;
-  /** Fade-in duration in ms when releasing gain from 0 to 1. Default 100, max 1000. */
-  fadeInMs?: number;
 }
 export interface IHangupParams {
   /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
