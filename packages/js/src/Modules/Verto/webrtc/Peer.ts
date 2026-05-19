@@ -48,6 +48,7 @@ import {
   getPreferredCodecs,
   getUserMedia,
 } from './helpers';
+import { createAudioWarmupStream, AudioWarmupController } from './AudioWarmup';
 import { IVertoCallOptions } from './interfaces';
 
 /**
@@ -82,6 +83,7 @@ export default class Peer {
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
   private _hadOfflineEvent: boolean = false;
   private _offlineHandler: (() => void) | null = null;
+  public _audioWarmupController?: AudioWarmupController;
 
   constructor(
     public type: PeerType,
@@ -372,6 +374,11 @@ export default class Peer {
       performance.mark(callMarkName(this.options.id, 'dtls-connected'));
       this.tryCollectTimings();
 
+      // Release audio warm-up when peer connection is established
+      if (this._audioWarmupController?.active) {
+        this._audioWarmupController.release();
+      }
+
       // Successful (re)connection — allow future ICE restarts if we fail again.
       // Only clear the restart-gate and offline flag here; isIceRestarting
       // must remain true until the Modify exchange completes (see
@@ -577,6 +584,12 @@ export default class Peer {
 
     if (state === 'connected') {
       performance.mark(callMarkName(this.options.id, 'ice-connected'));
+
+      // Release audio warm-up when ICE is connected (fallback if connectionState
+      // event is not fired or fires late)
+      if (this._audioWarmupController?.active) {
+        this._audioWarmupController.release();
+      }
     }
   };
 
@@ -670,7 +683,22 @@ export default class Peer {
     } = this.options;
 
     if (streamIsValid(localStream)) {
-      const audioTracks = localStream.getAudioTracks();
+      // Create warm-up stream if audioWarmup is enabled.
+      // The warm-up stream replaces audio tracks with WebAudio destination
+      // tracks at zero gain; video tracks pass through unchanged.
+      // The original localStream is kept for local preview.
+      const warmup = createAudioWarmupStream(
+        localStream,
+        this.options.audioWarmup,
+        this.options.userVariables
+      );
+      const senderStream = warmup?.stream || localStream;
+
+      if (warmup) {
+        this._audioWarmupController = warmup;
+      }
+
+      const audioTracks = senderStream.getAudioTracks();
       let tracks = [...audioTracks];
 
       logger.info('Local audio tracks: ', audioTracks);
@@ -686,7 +714,7 @@ export default class Peer {
       }
 
       if (!!this.options.video) {
-        const videoTracks = localStream.getVideoTracks();
+        const videoTracks = senderStream.getVideoTracks();
         tracks = [...audioTracks, ...videoTracks];
 
         logger.info('Local video tracks: ', videoTracks);
@@ -710,7 +738,7 @@ export default class Peer {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {
           direction: 'sendrecv',
-          streams: [localStream],
+          streams: [senderStream],
         };
 
         tracks.forEach((track) => {
@@ -745,7 +773,7 @@ export default class Peer {
             this.options.userVariables.cameraLabel = track.label;
           }
 
-          this.instance.addTrack(track, localStream);
+          this.instance.addTrack(track, senderStream);
         });
 
         this.instance.getTransceivers().forEach((trans) => {
@@ -760,7 +788,7 @@ export default class Peer {
         // Fallback to legacy addStream ..
         // addStream is deprecated
         // @ts-expect-error addStream does not exist on RTCPeerConnection
-        this.instance.addStream(localStream);
+        this.instance.addStream(senderStream);
       }
 
       if (screenShare === false) {
@@ -1029,6 +1057,12 @@ export default class Peer {
   }
 
   public async close() {
+    // Cleanup audio warm-up controller
+    if (this._audioWarmupController) {
+      this._audioWarmupController.cleanup();
+      this._audioWarmupController = undefined;
+    }
+
     // Clear call marks when the peer closes to prevent stale marks
     // from leaking into a subsequent call's timing calculation.
     // This covers cleanup paths that don't go through tryCollectTimings()

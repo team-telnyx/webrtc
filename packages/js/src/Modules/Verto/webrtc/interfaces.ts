@@ -5,6 +5,15 @@ export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
 }
+
+export interface IAudioWarmupOptions {
+  /** Enable outbound audio startup warm-up. Defaults to false. */
+  enabled?: boolean;
+  /** Duration in ms to hold gain at zero before release. Default 750, max 3000. */
+  durationMs?: number;
+  /** Fade-in duration in ms when releasing gain from 0 to 1. Default 100, max 1000. */
+  fadeInMs?: number;
+}
 export interface IHangupParams {
   /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
   cause?: string;
@@ -96,6 +105,17 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
+  /**
+   * Opt-in outbound audio startup warm-up.
+   * When enabled, initial outbound audio is sent at zero gain for a short
+   * configurable window so first real speech is not exposed to startup
+   * encoder/jitter-buffer/playout instability.
+   *
+   * - `undefined` / `false`: current behavior, no transform.
+   * - `true`: enabled with defaults (durationMs=750, fadeInMs=100).
+   * - object: enabled unless `enabled === false`; apply provided durations.
+   */
+  audioWarmup?: boolean | IAudioWarmupOptions;
 }
 
 export interface IStatsBinding {

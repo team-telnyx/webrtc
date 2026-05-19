@@ -866,6 +866,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       sender.replaceTrack(audioTrack);
       this.options.micId = deviceId;
 
+      // Cleanup warm-up controller when audio input device changes.
+      // The warm-up is a startup-only transform; after setAudioInDevice(),
+      // the sender uses the raw new audio track directly (no WebAudio pipeline).
+      if (this.peer?._audioWarmupController) {
+        this.peer._audioWarmupController.cleanup();
+        this.peer._audioWarmupController = undefined;
+      }
+
       const { localStream } = this.options;
       localStream.getAudioTracks().forEach((t) => t.stop());
       localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
