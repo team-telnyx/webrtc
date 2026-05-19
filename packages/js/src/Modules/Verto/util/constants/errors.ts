@@ -311,7 +311,7 @@ export const SDK_ERRORS = {
       'Timeout waiting for server response',
     ],
     solutions: [
-      'The call may recover via WebSocket reconnect + Attach',
+      'The SDK retries the ICE restart Modify request while the retry budget remains',
       'If the call does not recover, hang up and retry',
     ],
   },

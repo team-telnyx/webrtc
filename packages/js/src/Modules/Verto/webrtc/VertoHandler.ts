@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  SERVER_SIDE_SESSION_EXPIRED,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -81,12 +82,36 @@ class VertoHandler {
       params.reattached_sessions.length === 0 &&
       Object.keys(session.calls).length > 0
     ) {
+      const activeCallIds = Object.keys(session.calls);
       const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
       trigger(
         SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
+        { warning, sessionId: session.sessionid, activeCallIds },
         session.uuid
       );
+
+      const offlineDurationMs = session.getLastOfflineDurationMs();
+      const retentionWindowMs = session.getServerSessionRetentionWindowMs();
+      if (
+        offlineDurationMs !== null &&
+        offlineDurationMs >= retentionWindowMs
+      ) {
+        const retentionWarning = createTelnyxWarning(
+          SERVER_SIDE_SESSION_EXPIRED
+        );
+        trigger(
+          SwEvent.Warning,
+          {
+            warning: retentionWarning,
+            sessionId: session.sessionid,
+            activeCallIds,
+            offlineDurationMs,
+            retentionWindowMs,
+            reconnecting: false,
+          },
+          session.uuid
+        );
+      }
     }
 
     if (eventType === 'channelPvtData') {
@@ -423,8 +448,11 @@ class VertoHandler {
 
                   if (this.session.options.keepConnectionAliveOnSocketClose) {
                     // Check if any call has a recoverable peer connection (signalingStateClosed === false)
-                    const hasRecoverablePeer = Object.values(session.calls).some(
-                      (call) => call.peer?.instance && !call.signalingStateClosed
+                    const hasRecoverablePeer = Object.values(
+                      session.calls
+                    ).some(
+                      (call) =>
+                        call.peer?.instance && !call.signalingStateClosed
                     );
 
                     if (hasRecoverablePeer) {

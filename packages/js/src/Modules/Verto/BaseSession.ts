@@ -51,6 +51,13 @@ import type { ITelnyxWarningEvent } from './util/constants/warnings';
  */
 const KEEPALIVE_INTERVAL = 35 * 1000;
 
+type ExecuteOptions = { timeoutMs?: number };
+type ExecuteQueueItem = {
+  resolve?: (value?: unknown) => void;
+  msg: BaseMessage | string;
+  options?: ExecuteOptions;
+};
+
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
   public sessionid: string = '';
@@ -88,8 +95,7 @@ export default abstract class BaseSession {
     'NO_SOCKET_OPEN: client is active but no WebSocket is open';
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
-  private _executeQueue: { resolve?: Function; msg: any }[] = [];
+  private _executeQueue: ExecuteQueueItem[] = [];
   private _pong: boolean;
   private registerAgent: RegisterAgent;
 
@@ -141,23 +147,27 @@ export default abstract class BaseSession {
    * @return Promise that will resolve/reject depending on the server response
    * @ignore
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  execute(msg: BaseMessage): Promise<any> {
+  execute(msg: BaseMessage, options: ExecuteOptions = {}): Promise<any> {
+    // eslint-disable-line @typescript-eslint/no-explicit-any
     if (this._idle) {
       return new Promise((resolve) =>
-        this._executeQueue.push({ resolve, msg })
+        this._executeQueue.push({ resolve, msg, options })
       );
     }
     if (!this.connected) {
       return new Promise((resolve) => {
-        this._executeQueue.push({ resolve, msg });
+        this._executeQueue.push({ resolve, msg, options });
         logger.debug(
           'Calling connect from execute since not currently connected.'
         );
         this.connect();
       });
     }
-    return this.connection.send(msg).catch(async (error) => {
+    const sendPromise = options.timeoutMs
+      ? this.connection.send(msg, options)
+      : this.connection.send(msg);
+
+    return sendPromise.catch(async (error) => {
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
           const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
@@ -930,11 +940,11 @@ export default abstract class BaseSession {
    * @return void
    */
   private _emptyExecuteQueues() {
-    this._executeQueue.forEach(({ resolve, msg }) => {
+    this._executeQueue.forEach(({ resolve, msg, options }) => {
       if (typeof msg === 'string') {
         this.executeRaw(msg);
       } else {
-        resolve(this.execute(msg));
+        resolve(this.execute(msg, options));
       }
     });
   }

@@ -9,7 +9,7 @@
 jest.unmock('../../services/Connection');
 
 import Connection, { setWebSocket } from '../../services/Connection';
-import { trigger } from '../../services/Handler';
+import { deRegister, registerOnce, trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
 import { setReconnectToken } from '../../util/reconnect';
 
@@ -402,6 +402,58 @@ describe('Connection - Safety Timeout', () => {
 
       expect(mockSession.callReportVoiceSdkId).toBe('voice-sdk-id');
       expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id');
+    });
+  });
+
+  describe('send() response timeout', () => {
+    const request = {
+      id: 'modify-request-id',
+      jsonrpc: '2.0',
+      method: 'telnyx_rtc.modify',
+      params: {},
+    };
+
+    it('rejects and deregisters the request handler when no response arrives by id before timeout', async () => {
+      connection.connect();
+      await Promise.resolve();
+      const ws = (connection as any)._wsClient;
+      const sendSpy = jest.spyOn(ws, 'send');
+
+      const promise = connection.send({ request }, { timeoutMs: 15000 });
+      jest.advanceTimersByTime(15000);
+
+      await expect(promise).rejects.toMatchObject({
+        name: 'RequestTimeoutError',
+        message:
+          'Request modify-request-id timed out before a response was received',
+      });
+      expect(registerOnce).toHaveBeenCalledWith(
+        'modify-request-id',
+        expect.any(Function)
+      );
+      expect(deRegister).toHaveBeenCalledWith(
+        'modify-request-id',
+        expect.any(Function)
+      );
+      expect(sendSpy).toHaveBeenCalledWith(JSON.stringify(request));
+    });
+
+    it('resolves only through the registered callback for the matching request id', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      const promise = connection.send({ request }, { timeoutMs: 15000 });
+      const [[registeredId, callback]] = (registerOnce as jest.Mock).mock.calls;
+      expect(registeredId).toBe('modify-request-id');
+
+      callback({
+        id: 'modify-request-id',
+        result: { sdp: 'v=0' },
+      });
+
+      await expect(promise).resolves.toEqual({ sdp: 'v=0' });
+      jest.advanceTimersByTime(15000);
+      await expect(promise).resolves.toEqual({ sdp: 'v=0' });
     });
   });
 

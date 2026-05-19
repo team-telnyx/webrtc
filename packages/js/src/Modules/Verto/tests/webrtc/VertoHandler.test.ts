@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 Object.defineProperty(global, 'performance', {
   writable: true,
   value: {
@@ -15,7 +16,12 @@ import BrowserSession from '../../BrowserSession';
 import VertoHandler from '../../webrtc/VertoHandler';
 import Call from '../../webrtc/Call';
 import { State } from '../../webrtc/constants';
-const Connection = require('../../services/Connection');
+import {
+  SwEvent,
+  SESSION_NOT_REATTACHED,
+  SERVER_SIDE_SESSION_EXPIRED,
+} from '../../util/constants';
+const { mockSend } = jest.requireMock('../../services/Connection');
 import Verto from '../..';
 
 const DEFAULT_PARAMS = {
@@ -30,6 +36,7 @@ describe('VertoHandler', () => {
   let handler: VertoHandler;
   let call: Call;
   const onNotification = jest.fn();
+  const onWarning = jest.fn();
 
   const _setupCall = (params: any = {}) => {
     call = new Call(instance, { ...DEFAULT_PARAMS, ...params });
@@ -44,11 +51,15 @@ describe('VertoHandler', () => {
       token: 'token',
     });
     onNotification.mockClear();
+    onWarning.mockClear();
     instance.on('telnyx.notification', (notification) => {
       onNotification(notification);
     });
     instance.on('telnyx.ready', (notification) => {
       onNotification(notification);
+    });
+    instance.on(SwEvent.Warning, (warning) => {
+      onWarning(warning);
     });
     handler = new VertoHandler(instance);
   });
@@ -56,6 +67,7 @@ describe('VertoHandler', () => {
   afterEach(() => {
     instance.off('telnyx.notification');
     instance.off('telnyx.ready');
+    instance.off(SwEvent.Warning);
 
     Object.keys(instance.calls).forEach((k) =>
       instance.calls[k].setState(State.Purge)
@@ -115,7 +127,7 @@ describe('VertoHandler', () => {
       await instance.connect();
       _setupCall({ id: 'e2fda6dc-fc9d-4d77-8096-53bb502443b6' });
       call.handleMessage = jest.fn();
-      Connection.mockSend.mockClear();
+      mockSend.mockClear();
       done();
     });
 
@@ -126,7 +138,7 @@ describe('VertoHandler', () => {
         );
         handler.handleMessage(msg);
         expect(call.handleMessage).toBeCalledTimes(1);
-        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+        expect(mockSend).toHaveBeenLastCalledWith({
           request: {
             jsonrpc: '2.0',
             id: 4403,
@@ -143,7 +155,7 @@ describe('VertoHandler', () => {
         );
         handler.handleMessage(msg);
         expect(call.handleMessage).toBeCalledTimes(1);
-        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+        expect(mockSend).toHaveBeenLastCalledWith({
           request: {
             jsonrpc: '2.0',
             id: 4404,
@@ -225,6 +237,59 @@ describe('VertoHandler', () => {
       expect(instance.calls[oldCallId]).toBeDefined();
 
       Call.prototype.answer = originalAnswer;
+      done();
+    });
+  });
+
+  describe('reattached_sessions recovery warnings', () => {
+    it('emits SESSION_NOT_REATTACHED when server returns an empty reattached_sessions list with active calls', async (done) => {
+      await instance.connect();
+      const callId = 'active-call-for-reattach-warning';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+        )
+      );
+
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: SESSION_NOT_REATTACHED }),
+          activeCallIds: [callId],
+        })
+      );
+      done();
+    });
+
+    it('emits SERVER_SIDE_SESSION_EXPIRED when the offline gap exceeded the retention window', async (done) => {
+      await instance.connect();
+      const callId = 'active-call-for-retention-warning';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      jest.spyOn(instance, 'getLastOfflineDurationMs').mockReturnValue(65000);
+      jest
+        .spyOn(instance, 'getServerSessionRetentionWindowMs')
+        .mockReturnValue(60000);
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":38,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+        )
+      );
+
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: SERVER_SIDE_SESSION_EXPIRED,
+          }),
+          activeCallIds: [callId],
+          offlineDurationMs: 65000,
+          retentionWindowMs: 60000,
+          reconnecting: false,
+        })
+      );
       done();
     });
   });

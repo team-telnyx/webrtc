@@ -79,7 +79,7 @@ export default class Peer {
   private _firstMediaTrackMarked: boolean = false;
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
+  public static readonly ICE_RESTART_TIMEOUT_MS = 15000;
   private _hadOfflineEvent: boolean = false;
   private _offlineHandler: (() => void) | null = null;
 
@@ -88,7 +88,8 @@ export default class Peer {
     private options: IVertoCallOptions,
     session: BrowserSession,
     trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void,
-    registerPeerEvents: (instance: RTCPeerConnection) => void
+    registerPeerEvents: (instance: RTCPeerConnection) => void,
+    private _onIceRestartTimeout?: () => void
   ) {
     logger.debug('New Peer with type:', this.type, 'Options:', this.options);
 
@@ -318,14 +319,18 @@ export default class Peer {
         // candidates from the restarted ICE gathering.
         this.iceDone = false;
         // Safety net: if the Modify exchange never completes (server drops the
-        // response, WS reconnects mid-restart, etc.), clear the flag so we don't
-        // get stuck in a permanent "restarting" state.
+        // response, WS reconnects mid-restart, etc.), let the call retry the
+        // Modify exchange within its own retry budget.
         this._iceRestartTimeoutId = setTimeout(() => {
           if (this.isIceRestarting) {
             logger.warn(
-              'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
+              'ICE restart: Modify exchange timed out, retrying Modify if budget remains'
             );
-            this.isIceRestarting = false;
+            if (this._onIceRestartTimeout) {
+              this._onIceRestartTimeout();
+            } else {
+              this.finishIceRestart();
+            }
           }
           this._iceRestartTimeoutId = null;
         }, Peer.ICE_RESTART_TIMEOUT_MS);

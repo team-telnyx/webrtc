@@ -68,6 +68,12 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _wasOffline: boolean = false;
 
+  private _offlineSinceMs: number | null = null;
+
+  private _lastOfflineDurationMs: number | null = null;
+
+  public static readonly SERVER_SESSION_RETENTION_WINDOW_MS = 60000;
+
   constructor(options: IVertoOptions) {
     super(options);
     this._videoConstraints = options.video || false;
@@ -79,6 +85,17 @@ export default abstract class BrowserSession extends BaseSession {
 
   get reconnectDelay() {
     return 1000;
+  }
+
+  public getLastOfflineDurationMs(): number | null {
+    if (this._wasOffline && this._offlineSinceMs !== null) {
+      return Date.now() - this._offlineSinceMs;
+    }
+    return this._lastOfflineDurationMs;
+  }
+
+  public getServerSessionRetentionWindowMs(): number {
+    return BrowserSession.SERVER_SESSION_RETENTION_WINDOW_MS;
   }
 
   async getIsRegistered(): Promise<boolean> {
@@ -791,6 +808,10 @@ export default abstract class BrowserSession extends BaseSession {
        * Therefore, reconnect to be safe.
        */
       if (this._wasOffline) {
+        if (this._offlineSinceMs !== null) {
+          this._lastOfflineDurationMs = Date.now() - this._offlineSinceMs;
+          this._offlineSinceMs = null;
+        }
         logger.debug(
           `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
         );
@@ -802,6 +823,9 @@ export default abstract class BrowserSession extends BaseSession {
 
     this._offlineHandler = () => {
       this._wasOffline = true;
+      if (this._offlineSinceMs === null) {
+        this._offlineSinceMs = Date.now();
+      }
       logger.debug(`Network connectivity lost for session ${this.sessionid}`);
 
       const telnyxError = createTelnyxError(NETWORK_OFFLINE);

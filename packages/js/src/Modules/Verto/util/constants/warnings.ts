@@ -302,6 +302,22 @@ export const SDK_WARNINGS = {
       'Investigate why the session was not preserved on the server',
     ],
   },
+  35002: {
+    name: 'SERVER_SIDE_SESSION_EXPIRED',
+    message: 'Server-side call session expired during reconnect',
+    description:
+      'The browser was offline beyond the server-side retention window and the server could not reattach the existing call session. Automatic WebSocket reconnect can restore signaling connectivity, but it cannot recover the original call once the server has discarded that call state.',
+    causes: [
+      'Device/network stayed offline longer than the server retains reconnectable call state',
+      'b2bua-rtc/VSP timed out the session before the client reconnected',
+      'Server-side call state was removed before Attach recovery could complete',
+    ],
+    solutions: [
+      'Terminate the local call and show a call-lost state to the user',
+      'Start a new call after connectivity is restored',
+      'Reduce offline gaps or increase the server retention window if longer recovery is required',
+    ],
+  },
   45003: {
     name: 'RECONNECTION_EXHAUSTED',
     message: 'Reconnect attempt budget exhausted',
