@@ -12,14 +12,20 @@ const SAFETY_TIMEOUT_MARGIN_MS = 2000;
 /**
  * Controller returned by createAudioWarmupStream.
  * - stream: the MediaStream to add to RTCPeerConnection (contains destination audio + original video)
- * - release: ramp gain from 0 to 1 (call when peer connected)
+ * - scheduleRelease: called when peer connects; waits durationMs then ramps gain 0→1 over fadeInMs
+ * - release: immediately ramp gain from 0 to 1 (used by safety timeout or forced release)
  * - cleanup: disconnect nodes, close/suspend AudioContext, clear timers
  * - active: whether the warm-up is still active (not yet released/cleaned up)
  */
 export type AudioWarmupController = {
   stream: MediaStream;
+  /** Schedule delayed release: wait durationMs then ramp gain 0→1. Call on peer connected. */
+  scheduleRelease: () => void;
+  /** Immediate release: ramp gain 0→1 now. Used by safety timeout or forced release. */
   release: () => void;
+  /** Cleanup WebAudio nodes, close AudioContext, clear all timers. */
   cleanup: () => void;
+  /** Whether warm-up gain is still at 0 (not yet released or faded in). */
   active: boolean;
 };
 
@@ -45,8 +51,25 @@ export function normalizeAudioWarmupOptions(
 }
 
 /**
+ * Resolve the AudioContext constructor for cross-browser support.
+ * Safari uses webkitAudioContext; Chrome/Firefox/Edge use AudioContext.
+ */
+function getAudioContextConstructor(): (new () => AudioContext) | null {
+  if (typeof AudioContext !== 'undefined') {
+    return AudioContext;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const wkt = (window as any).webkitAudioContext;
+  if (typeof wkt !== 'undefined') {
+    return wkt;
+  }
+  return null;
+}
+
+/**
  * Create a WebAudio-based warm-up stream that sends initial outbound audio at
- * zero gain, then ramps to full gain on release().
+ * zero gain. When the peer connects, call scheduleRelease() which waits
+ * durationMs then ramps gain to full over fadeInMs.
  *
  * - Returns null if disabled, no audio track, AudioContext unavailable, or
  *   if any WebAudio error occurs (non-fatal fallback).
@@ -79,11 +102,17 @@ export function createAudioWarmupStream(
     userVariables.microphoneLabel = originalLabel;
   }
 
+  const AudioContextCtor = getAudioContextConstructor();
+  if (!AudioContextCtor) {
+    logger.warn('Audio warmup fallback: AudioContext unavailable');
+    return null;
+  }
+
   let audioContext: AudioContext;
   try {
-    audioContext = new AudioContext();
+    audioContext = new AudioContextCtor();
   } catch {
-    logger.warn('Audio warmup fallback: AudioContext unavailable');
+    logger.warn('Audio warmup fallback: AudioContext constructor failed');
     return null;
   }
 
@@ -109,44 +138,99 @@ export function createAudioWarmupStream(
 
     let _active = true;
     let _cleanedUp = false;
+    let _releaseScheduled = false;
+    let _released = false;
+    let scheduleTimeoutId: ReturnType<typeof setTimeout> | null = null;
     let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-    let released = false;
+    let activeCheckTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    /**
+     * Immediately ramp gain from 0 to 1 over fadeInMs.
+     * Used by scheduleRelease (after delay) and safety timeout.
+     */
+    const doRampRelease = () => {
+      if (_released) {
+        return;
+      }
+      _released = true;
+
+      try {
+        const now = audioContext.currentTime;
+        gainNode.gain.setValueAtTime(0, now);
+        gainNode.gain.linearRampToValueAtTime(1, now + config.fadeInMs / 1000);
+        logger.info('Audio warmup released');
+      } catch (e) {
+        logger.warn('Audio warmup fallback: gain ramp failed', e);
+      }
+
+      // Mark as no longer active after fade-in completes
+      activeCheckTimeoutId = setTimeout(() => {
+        _active = false;
+        controller.active = false;
+      }, config.fadeInMs + 50);
+    };
+
+    const clearAllTimers = () => {
+      if (scheduleTimeoutId !== null) {
+        clearTimeout(scheduleTimeoutId);
+        scheduleTimeoutId = null;
+      }
+      if (safetyTimeoutId !== null) {
+        clearTimeout(safetyTimeoutId);
+        safetyTimeoutId = null;
+      }
+      if (activeCheckTimeoutId !== null) {
+        clearTimeout(activeCheckTimeoutId);
+        activeCheckTimeoutId = null;
+      }
+    };
 
     const controller: AudioWarmupController = {
       stream: senderStream,
       active: true,
-      release: () => {
-        if (!_active || released) {
+
+      /**
+       * Schedule delayed release: wait durationMs then ramp gain 0→1.
+       * Call this when peer connects (connectionState or iceConnectionState === 'connected').
+       * Duplicate calls are no-ops (only the first schedules the timer).
+       */
+      scheduleRelease: () => {
+        if (!_active || _releaseScheduled || _cleanedUp) {
           return;
         }
-        released = true;
+        _releaseScheduled = true;
 
-        // Clear safety timeout if release triggered by connected state
+        // Clear safety timeout — connected state means media path is up,
+        // and we now control release timing ourselves
         if (safetyTimeoutId !== null) {
           clearTimeout(safetyTimeoutId);
           safetyTimeoutId = null;
         }
 
-        try {
-          const now = audioContext.currentTime;
-          gainNode.gain.setValueAtTime(0, now);
-          gainNode.gain.linearRampToValueAtTime(1, now + config.fadeInMs / 1000);
-          logger.info('Audio warmup released');
-        } catch (e) {
-          logger.warn('Audio warmup fallback: gain ramp failed', e);
+        logger.info(
+          `Audio warmup release scheduled on peer connected, waiting ${config.durationMs}ms`
+        );
+
+        scheduleTimeoutId = setTimeout(() => {
+          scheduleTimeoutId = null;
+          doRampRelease();
+        }, config.durationMs);
+      },
+
+      /**
+       * Immediate release: ramp gain 0→1 now.
+       * Used by safety timeout or forced release.
+       */
+      release: () => {
+        if (!_active || _cleanedUp) {
+          return;
         }
 
-        // Mark as no longer active after fade-in completes
-        setTimeout(() => {
-          _active = false;
-          controller.active = false;
-        }, config.fadeInMs + 50);
-      },
-      cleanup: () => {
-        if (_cleanedUp) {
-          return; // Already cleaned up
+        // Clear schedule timeout if one was set
+        if (scheduleTimeoutId !== null) {
+          clearTimeout(scheduleTimeoutId);
+          scheduleTimeoutId = null;
         }
-        _cleanedUp = true;
 
         // Clear safety timeout
         if (safetyTimeoutId !== null) {
@@ -154,8 +238,19 @@ export function createAudioWarmupStream(
           safetyTimeoutId = null;
         }
 
+        doRampRelease();
+      },
+
+      cleanup: () => {
+        if (_cleanedUp) {
+          return; // Already cleaned up
+        }
+        _cleanedUp = true;
+
+        clearAllTimers();
+
         _active = false;
-        released = true;
+        _released = true;
         controller.active = false;
 
         try {
@@ -175,9 +270,10 @@ export function createAudioWarmupStream(
       },
     };
 
-    // Safety timeout: if connection state event is missed, release anyway
+    // Safety timeout: if connection state event is never received, release anyway.
+    // This ensures we never leave outbound audio permanently silent.
     safetyTimeoutId = setTimeout(() => {
-      if (_active && !released) {
+      if (_active && !_released && !_releaseScheduled) {
         logger.info('Audio warmup fallback: safety timeout');
         controller.release();
       }

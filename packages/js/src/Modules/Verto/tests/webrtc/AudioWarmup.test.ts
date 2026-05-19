@@ -39,6 +39,7 @@ let AudioContextMock: jest.Mock;
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
+  jest.clearAllTimers();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   AudioContextMock = jest.fn(() => mockAudioContext) as any;
@@ -55,6 +56,10 @@ beforeEach(() => {
   mockSource.connect.mockReset();
   mockSource.disconnect.mockReset();
   mockAudioContext.close.mockReset().mockReturnValue(Promise.resolve());
+  // Restore createGain in case a previous test overwrote it
+  mockAudioContext.createGain = jest.fn(() => mockGainNode);
+  mockAudioContext.createMediaStreamSource.mockReset().mockReturnValue(mockSource);
+  mockAudioContext.createMediaStreamDestination.mockReset().mockReturnValue(mockDestination);
 });
 
 afterEach(() => {
@@ -240,122 +245,294 @@ describe('createAudioWarmupStream', () => {
   it('preserves microphoneLabel in userVariables from original track', () => {
     const stream = createMockStream();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userVariables: Record<string, any> = {};
+    const userVariables: Record<string, any> = {};
     createAudioWarmupStream(stream, true, userVariables);
 
     expect(userVariables.microphoneLabel).toBe('mock-microphone');
   });
 
-  it('release() ramps gain from 0 to 1', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, {
-      enabled: true,
-      fadeInMs: 100,
+  // ============================================================
+  // scheduleRelease() — delayed release after durationMs
+  // ============================================================
+
+  describe('scheduleRelease', () => {
+    it('gain is still 0 immediately after scheduleRelease (before durationMs)', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
+
+      // Clear initial gain setup calls
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      controller!.scheduleRelease();
+
+      // Immediately after scheduleRelease, no ramp should be scheduled yet
+      expect(mockGainNode.gain.setValueAtTime).not.toHaveBeenCalled();
+      expect(mockGainNode.gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+      expect(controller!.active).toBe(true);
     });
 
-    // Clear the initial setValueAtTime call
-    mockGainNode.gain.setValueAtTime.mockClear();
-    mockGainNode.gain.linearRampToValueAtTime.mockClear();
+    it('ramps gain 0→1 after durationMs elapses', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
 
-    controller!.release();
+      controller!.scheduleRelease();
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
 
-    expect(mockGainNode.gain.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
-    expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
-  });
+      // Advance past durationMs
+      jest.advanceTimersByTime(750);
 
-  it('release() is idempotent', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, true);
-
-    controller!.release();
-    mockGainNode.gain.setValueAtTime.mockClear();
-    mockGainNode.gain.linearRampToValueAtTime.mockClear();
-
-    // Second call should be a no-op
-    controller!.release();
-    expect(mockGainNode.gain.setValueAtTime).not.toHaveBeenCalled();
-  });
-
-  it('cleanup() disconnects nodes and closes AudioContext', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, true);
-
-    controller!.cleanup();
-
-    expect(mockSource.disconnect).toHaveBeenCalled();
-    expect(mockGainNode.disconnect).toHaveBeenCalled();
-    expect(mockAudioContext.close).toHaveBeenCalled();
-    expect(controller!.active).toBe(false);
-  });
-
-  it('cleanup() is idempotent', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, true);
-
-    controller!.cleanup();
-    mockSource.disconnect.mockClear();
-    mockGainNode.disconnect.mockClear();
-    mockAudioContext.close.mockClear();
-
-    controller!.cleanup();
-    expect(mockSource.disconnect).not.toHaveBeenCalled();
-  });
-
-  it('safety timeout triggers release if not already released', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, {
-      enabled: true,
-      durationMs: 750,
+      // Now the ramp should be scheduled
+      expect(mockGainNode.gain.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
-    // Advance time past duration + safety margin (750 + 2000 = 2750ms)
-    jest.advanceTimersByTime(2800);
+    it('does not schedule double release on duplicate scheduleRelease calls', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
 
-    // Should have triggered release via safety timeout
-    expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
+      // Call scheduleRelease multiple times
+      controller!.scheduleRelease();
+      controller!.scheduleRelease();
+      controller!.scheduleRelease();
 
-    // Advance past the fade-in + 50ms delay after release
-    jest.advanceTimersByTime(200);
-    expect(controller!.active).toBe(false);
-  });
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
 
-  it('safety timeout is cleared when release() is called explicitly', () => {
-    const stream = createMockStream();
-    const controller = createAudioWarmupStream(stream, {
-      enabled: true,
-      durationMs: 750,
+      // Advance past durationMs
+      jest.advanceTimersByTime(750);
+
+      // Only one ramp should occur
+      expect(mockGainNode.gain.setValueAtTime).toHaveBeenCalledTimes(1);
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledTimes(1);
     });
 
-    // Release before safety timeout
-    controller!.release();
-    mockGainNode.gain.setValueAtTime.mockClear();
-    mockGainNode.gain.linearRampToValueAtTime.mockClear();
+    it('marks active as false after durationMs + fadeInMs', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
 
-    // Advance past safety timeout
-    jest.advanceTimersByTime(3000);
+      controller!.scheduleRelease();
 
-    // No extra ramp calls from safety timeout
-    expect(mockGainNode.gain.setValueAtTime).not.toHaveBeenCalled();
+      // After durationMs
+      jest.advanceTimersByTime(750);
+      expect(controller!.active).toBe(true); // still during fade-in
+
+      // After fade-in + buffer
+      jest.advanceTimersByTime(200);
+      expect(controller!.active).toBe(false);
+    });
   });
 
-  it('returns null when AudioContext constructor throws', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (global as any).AudioContext = jest.fn(() => {
-      throw new Error('AudioContext not available');
+  // ============================================================
+  // release() — immediate release
+  // ============================================================
+
+  describe('release', () => {
+    it('immediately ramps gain from 0 to 1', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        fadeInMs: 100,
+      });
+
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      controller!.release();
+
+      expect(mockGainNode.gain.setValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
     });
 
-    const stream = createMockStream();
-    const result = createAudioWarmupStream(stream, true);
-    expect(result).toBeNull();
+    it('is idempotent', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, true);
+
+      controller!.release();
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      // Second call should be a no-op
+      controller!.release();
+      expect(mockGainNode.gain.setValueAtTime).not.toHaveBeenCalled();
+    });
+
+    it('cancels scheduled release when called after scheduleRelease', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
+
+      controller!.scheduleRelease();
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      // Immediate release should cancel the scheduled one and ramp now
+      controller!.release();
+
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
+
+      // Record the call count after release()
+      const rampCallCount = mockGainNode.gain.linearRampToValueAtTime.mock.calls.length;
+
+      // Advancing past durationMs should NOT trigger additional ramp calls
+      jest.advanceTimersByTime(800);
+      expect(mockGainNode.gain.linearRampToValueAtTime.mock.calls.length).toBe(rampCallCount);
+    });
   });
 
-  it('returns null when WebAudio setup throws (createGain)', () => {
-    mockAudioContext.createGain = jest.fn(() => {
-      throw new Error('createGain failed');
+  // ============================================================
+  // cleanup()
+  // ============================================================
+
+  describe('cleanup', () => {
+    it('disconnects nodes and closes AudioContext', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, true);
+
+      controller!.cleanup();
+
+      expect(mockSource.disconnect).toHaveBeenCalled();
+      expect(mockGainNode.disconnect).toHaveBeenCalled();
+      expect(mockAudioContext.close).toHaveBeenCalled();
+      expect(controller!.active).toBe(false);
     });
 
-    const stream = createMockStream();
-    const result = createAudioWarmupStream(stream, true);
-    expect(result).toBeNull();
+    it('is idempotent', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, true);
+
+      controller!.cleanup();
+      mockSource.disconnect.mockClear();
+      mockGainNode.disconnect.mockClear();
+      mockAudioContext.close.mockClear();
+
+      controller!.cleanup();
+      expect(mockSource.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('cancels scheduled release', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+        fadeInMs: 100,
+      });
+
+      controller!.scheduleRelease();
+      controller!.cleanup();
+
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      // Advancing past durationMs should NOT trigger ramp after cleanup
+      jest.advanceTimersByTime(750);
+      expect(mockGainNode.gain.setValueAtTime).not.toHaveBeenCalled();
+      expect(mockGainNode.gain.linearRampToValueAtTime).not.toHaveBeenCalled();
+    });
+  });
+
+  // ============================================================
+  // Safety timeout — fallback if connected event never arrives
+  // ============================================================
+
+  describe('safety timeout', () => {
+    it('triggers immediate release if connected never arrives', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+      });
+
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      // Advance time past duration + safety margin (750 + 2000 = 2750ms)
+      jest.advanceTimersByTime(2800);
+
+      // Should have triggered release via safety timeout
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledWith(1, expect.any(Number));
+
+      // Advance past the fade-in + 50ms delay after release
+      jest.advanceTimersByTime(200);
+      expect(controller!.active).toBe(false);
+    });
+
+    it('is cancelled when scheduleRelease is called', () => {
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, {
+        enabled: true,
+        durationMs: 750,
+      });
+
+      // Simulate peer connected → scheduleRelease
+      controller!.scheduleRelease();
+
+      mockGainNode.gain.setValueAtTime.mockClear();
+      mockGainNode.gain.linearRampToValueAtTime.mockClear();
+
+      // Advance past the safety timeout window
+      jest.advanceTimersByTime(3000);
+
+      // Only one ramp from scheduleRelease, not an extra one from safety timeout
+      expect(mockGainNode.gain.linearRampToValueAtTime).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ============================================================
+  // Fallback / error cases
+  // ============================================================
+
+  describe('fallback', () => {
+    it('returns null when AudioContext constructor throws', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (global as any).AudioContext = jest.fn(() => {
+        throw new Error('AudioContext not available');
+      });
+
+      const stream = createMockStream();
+      const result = createAudioWarmupStream(stream, true);
+      expect(result).toBeNull();
+    });
+
+    it('returns null when WebAudio setup throws (createGain)', () => {
+      mockAudioContext.createGain = jest.fn(() => {
+        throw new Error('createGain failed');
+      });
+
+      const stream = createMockStream();
+      const result = createAudioWarmupStream(stream, true);
+      expect(result).toBeNull();
+    });
+
+    it('webitAudioContext fallback is supported in getAudioContextConstructor', () => {
+      // The getAudioContextConstructor() function checks window.AudioContext first,
+      // then falls back to window.webkitAudioContext for Safari compatibility.
+      // Full browser integration testing is needed to verify Safari behavior.
+      // Here we just confirm the normal path still works.
+      const stream = createMockStream();
+      const controller = createAudioWarmupStream(stream, true);
+      expect(controller).not.toBeNull();
+      expect(AudioContextMock).toHaveBeenCalled();
+    });
   });
 });

@@ -83,7 +83,7 @@ export default class Peer {
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
   private _hadOfflineEvent: boolean = false;
   private _offlineHandler: (() => void) | null = null;
-  public _audioWarmupController?: AudioWarmupController;
+  private _audioWarmupController?: AudioWarmupController;
 
   constructor(
     public type: PeerType,
@@ -376,7 +376,7 @@ export default class Peer {
 
       // Release audio warm-up when peer connection is established
       if (this._audioWarmupController?.active) {
-        this._audioWarmupController.release();
+        this._audioWarmupController.scheduleRelease();
       }
 
       // Successful (re)connection — allow future ICE restarts if we fail again.
@@ -588,7 +588,7 @@ export default class Peer {
       // Release audio warm-up when ICE is connected (fallback if connectionState
       // event is not fired or fires late)
       if (this._audioWarmupController?.active) {
-        this._audioWarmupController.release();
+        this._audioWarmupController.scheduleRelease();
       }
     }
   };
@@ -1056,12 +1056,21 @@ export default class Peer {
     );
   }
 
-  public async close() {
-    // Cleanup audio warm-up controller
+  /**
+   * Cleanup the audio warm-up controller and disconnect the WebAudio pipeline.
+   * Called by BaseCall.setAudioInDevice() when the audio input device changes
+   * after startup (warm-up is a startup-only transform).
+   */
+  public cleanupAudioWarmup() {
     if (this._audioWarmupController) {
       this._audioWarmupController.cleanup();
       this._audioWarmupController = undefined;
     }
+  }
+
+  public async close() {
+    // Cleanup audio warm-up controller
+    this.cleanupAudioWarmup();
 
     // Clear call marks when the peer closes to prevent stale marks
     // from leaking into a subsequent call's timing calculation.
