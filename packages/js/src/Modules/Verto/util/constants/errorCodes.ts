@@ -71,8 +71,9 @@ export const TELNYX_WARNING_CODES = {
   // ── Authentication warnings (340xx) ─────────────────────────────────
   TOKEN_EXPIRING_SOON: 34001,
 
-  // ── Session / reconnection warnings (350xx) ─────────────────────────
+  // ── Session / reconnection warnings (350xx / 450xx) ─────────────────
   SESSION_NOT_REATTACHED: 35001,
+  RECONNECTION_EXHAUSTED: 45003,
 } as const;
 
 // Extract constants to simplify how we use them internally

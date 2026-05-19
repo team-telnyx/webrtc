@@ -354,6 +354,26 @@ describe('Connection - Safety Timeout', () => {
         mockSession.uuid
       );
     });
+
+    it('should not emit SocketClose after SocketError for the same failed socket', async () => {
+      connection.connect();
+      await Promise.resolve();
+
+      const ws = (connection as any)._wsClient;
+
+      ws.simulateError({ type: 'error', message: 'Network is down' });
+      ws.simulateClose(1006, 'network down');
+
+      const socketErrorCalls = (trigger as jest.Mock).mock.calls.filter(
+        (call) => call[0] === SwEvent.SocketError
+      );
+      const socketCloseCalls = (trigger as jest.Mock).mock.calls.filter(
+        (call) => call[0] === SwEvent.SocketClose
+      );
+
+      expect(socketErrorCalls).toHaveLength(1);
+      expect(socketCloseCalls).toHaveLength(0);
+    });
   });
 
   describe('onopen event', () => {

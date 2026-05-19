@@ -1,8 +1,9 @@
 /**
  * SDK error code registry.
  *
- * All entries are surfaced via `SwEvent.Error` ('telnyx.error') with level 'error'.
- * These represent unrecoverable failures that terminate or prevent a call.
+ * Entries are surfaced via `SwEvent.Error` ('telnyx.error') with level 'error'
+ * when they represent fatal/blocking failures. Some transport codes also have
+ * recoverable `SwEvent.Warning` ('telnyx.warning') variants.
  *
  * Code ranges:
  * - 400xx — SDP negotiation errors
@@ -195,9 +196,9 @@ export const SDK_ERRORS = {
 
   45003: {
     name: 'RECONNECTION_EXHAUSTED',
-    message: 'Unable to reconnect to server',
+    message: 'Reconnect attempt budget exhausted',
     description:
-      'All automatic reconnection attempts have been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt.',
+      'One automatic reconnection attempt window has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt. If the close was not intentional, the SDK starts a fresh reconnect window automatically.',
     causes: [
       'Prolonged network outage',
       'Server unreachable',
@@ -205,8 +206,8 @@ export const SDK_ERRORS = {
     ],
     solutions: [
       'Check network connectivity',
-      'Call client.disconnect() and client.connect() to manually retry',
-      'Notify the user that the connection was lost',
+      'Wait for automatic reconnection unless the user intentionally disconnects',
+      'Notify the user that the connection is still being retried',
     ],
   },
 

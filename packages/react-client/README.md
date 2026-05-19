@@ -60,6 +60,7 @@ function Phone() {
   useCallbacks({
     onReady: () => console.log('client ready'),
     onError: () => console.log('client registration error'),
+    onWarning: () => console.log('client warning'),
     onSocketError: () => console.log('client socket error'),
     onSocketClose: () => console.log('client disconnected'),
     onNotification: (x) => console.log('received notification:', x),

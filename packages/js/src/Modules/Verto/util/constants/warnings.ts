@@ -11,7 +11,7 @@
  * - 320xx — Connection / data-flow warnings
  * - 330xx — Call connection warnings
  * - 340xx — Authentication warnings
- * - 350xx — Session / reconnection warnings
+ * - 350xx / 450xx — Session / reconnection warnings
  */
 
 export interface ITelnyxWarning {
@@ -36,6 +36,8 @@ export interface ITelnyxWarningEvent {
   sessionId: string;
   /** Call identifier when the warning is associated with a call */
   callId?: string;
+  /** Whether the SDK will attempt or continue automatic reconnection */
+  reconnecting?: boolean;
 }
 
 export const SDK_WARNINGS = {
@@ -283,7 +285,7 @@ export const SDK_WARNINGS = {
     ],
   },
 
-  // ── Session / reconnection warnings (350xx) ─────────────────────────
+  // ── Session / reconnection warnings (350xx / 450xx) ─────────────────
   35001: {
     name: 'SESSION_NOT_REATTACHED',
     message: 'Active call lost after reconnect',
@@ -298,6 +300,22 @@ export const SDK_WARNINGS = {
       'Terminate the local call and notify the user',
       'Start a new call',
       'Investigate why the session was not preserved on the server',
+    ],
+  },
+  45003: {
+    name: 'RECONNECTION_EXHAUSTED',
+    message: 'Reconnect attempt budget exhausted',
+    description:
+      'One automatic reconnection attempt window has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt. If the close was not intentional, the SDK starts a fresh reconnect window automatically.',
+    causes: [
+      'Prolonged network outage',
+      'Server unreachable',
+      'Firewall or proxy blocking reconnection',
+    ],
+    solutions: [
+      'Wait for automatic reconnection unless the user intentionally disconnects',
+      'Notify the user that the connection is still being retried',
+      'Check network connectivity',
     ],
   },
 } as const;

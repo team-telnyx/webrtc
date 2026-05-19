@@ -810,23 +810,25 @@ export default abstract class BaseSession {
 
       if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
         logger.info(
-          `Reconnection exhausted after ${maxAttempts} attempts. Stopping automatic reconnect.`
+          `Reconnection attempt budget exhausted after ${maxAttempts} attempts. Starting a fresh automatic reconnect cycle.`
         );
         this._reconnectAttempts = 0;
-        this._autoReconnect = false;
 
-        const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
+        const telnyxWarning = createTelnyxWarning(RECONNECTION_EXHAUSTED);
         trigger(
-          SwEvent.Error,
-          { error: telnyxError, sessionId: this.sessionid },
+          SwEvent.Warning,
+          {
+            warning: telnyxWarning,
+            sessionId: this.sessionid,
+            reconnecting: true,
+          },
           this.uuid
         );
-        return;
+      } else {
+        logger.debug(
+          `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+        );
       }
-
-      logger.debug(
-        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
-      );
 
       this._reconnectTimeout = setTimeout(() => {
         logger.debug(

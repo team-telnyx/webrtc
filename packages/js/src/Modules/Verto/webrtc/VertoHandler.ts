@@ -401,53 +401,50 @@ class VertoHandler {
                 this.retriedConnect += 1;
                 if (this.retriedConnect === RETRY_CONNECT_TIME) {
                   this.retriedConnect = 0;
-                  const telnyxError = createTelnyxError(
-                    45003,
-                    new Error('Connection Retry Failed')
+                  const telnyxWarning = createTelnyxWarning(
+                    RECONNECTION_EXHAUSTED,
+                    'Connection retry window exhausted'
                   );
                   trigger(
-                    SwEvent.Error,
+                    SwEvent.Warning,
                     {
-                      error: telnyxError,
+                      warning: telnyxWarning,
                       sessionId: session.sessionid,
+                      reconnecting: true,
                     },
                     session.uuid
                   );
-                  break;
-                } else {
-                  setTimeout(() => {
-                    logger.debug(
-                      `Reconnecting... Retry ${this.retriedConnect} of ${RETRY_CONNECT_TIME}`
+                }
+
+                setTimeout(() => {
+                  logger.debug(
+                    `Reconnecting... Retry ${this.retriedConnect} of ${RETRY_CONNECT_TIME}`
+                  );
+
+                  if (this.session.options.keepConnectionAliveOnSocketClose) {
+                    // Check if any call has a recoverable peer connection (signalingStateClosed === false)
+                    const hasRecoverablePeer = Object.values(session.calls).some(
+                      (call) => call.peer?.instance && !call.signalingStateClosed
                     );
 
-                    if (this.session.options.keepConnectionAliveOnSocketClose) {
-                      // Check if any call has a recoverable peer connection (signalingStateClosed === false)
-                      const hasRecoverablePeer = Object.values(
-                        session.calls
-                      ).some(
-                        (call) =>
-                          call.peer?.instance && !call.signalingStateClosed
+                    if (hasRecoverablePeer) {
+                      logger.debug(
+                        'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
                       );
-
-                      if (hasRecoverablePeer) {
-                        logger.debug(
-                          'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
-                        );
-                        this.session.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
-                        return;
-                      } else {
-                        logger.debug(
-                          'keepConnectionAliveOnSocketClose is set but all peer connections have signalingState closed, doing full reconnect'
-                        );
-                      }
+                      this.session.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
+                      return;
+                    } else {
+                      logger.debug(
+                        'keepConnectionAliveOnSocketClose is set but all peer connections have signalingState closed, doing full reconnect'
+                      );
                     }
+                  }
 
-                    this.session.disconnect().then(() => {
-                      this.session.clearConnection();
-                      this.session.connect();
-                    });
-                  }, this.reconnectDelay());
-                }
+                  this.session.disconnect().then(() => {
+                    this.session.clearConnection();
+                    this.session.connect();
+                  });
+                }, this.reconnectDelay());
               }
               break;
             }

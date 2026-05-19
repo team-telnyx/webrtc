@@ -73,7 +73,7 @@ export interface ITelnyxStandardErrorEvent {
   callId?: string;
   /** WebSocket close/error metadata for transport errors */
   socketClose?: ITelnyxSocketCloseDetails;
-  /** Whether the SDK will attempt automatic reconnection */
+  /** Whether the SDK will attempt or continue automatic reconnection */
   reconnecting?: boolean;
   /** Non-recoverable errors omit recovery helpers */
   recoverable?: false;

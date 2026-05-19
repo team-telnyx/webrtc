@@ -217,6 +217,11 @@ export default class Connection {
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
+
+      // WebSocket connection failures usually emit `error` followed by `close`.
+      // Treat the first terminal event as authoritative and detach handlers so a
+      // single failed reconnect attempt is not counted twice by BaseSession.
+      this._deregisterSocketEvents(ws);
       this._safetyCleanupSocket(ws, 'error');
 
       // Emit structured error alongside the legacy SocketError
