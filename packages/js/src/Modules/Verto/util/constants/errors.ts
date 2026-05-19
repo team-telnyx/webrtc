@@ -227,6 +227,24 @@ export const SDK_ERRORS = {
     ],
   },
 
+  45005: {
+    name: 'WEBSOCKET_UNEXPECTED_CLOSE',
+    message: 'WebSocket closed unexpectedly',
+    description:
+      'The SDK client was active but the WebSocket was closed or missing without an intentional disconnect. The SDK will attempt to reopen the signaling connection when automatic reconnection is enabled.',
+    causes: [
+      'Network interruption',
+      'Server closed the connection',
+      'Browser did not surface the close immediately',
+      'Idle timeout or proxy timeout',
+    ],
+    solutions: [
+      'Inspect the socketClose field for code, reason, and clean-close status',
+      'Check network connectivity and browser online/offline events',
+      'SDK will attempt automatic reconnection if configured',
+    ],
+  },
+
   // ── Authentication errors (460xx) ───────────────────────────────────
   46001: {
     name: 'LOGIN_FAILED',

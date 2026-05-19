@@ -165,6 +165,8 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async disconnect() {
+    this._markNextSocketCloseExpected();
+
     logger.info(
       '[disconnect] Client-initiated disconnect — setting Purge with BYE on all active calls.'
     );
@@ -206,6 +208,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   socketDisconnect() {
+    this._markNextSocketCloseExpected();
     this._closeConnection();
   }
 

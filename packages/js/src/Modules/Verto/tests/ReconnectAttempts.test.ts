@@ -6,7 +6,11 @@
 
 import BaseSession from '../BaseSession';
 import { trigger } from '../services/Handler';
-import { SwEvent, RECONNECTION_EXHAUSTED } from '../util/constants';
+import {
+  SwEvent,
+  RECONNECTION_EXHAUSTED,
+  WEBSOCKET_UNEXPECTED_CLOSE,
+} from '../util/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -188,6 +192,76 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     });
   });
 
+  describe('unexpected socket closure detection', () => {
+    it('should emit WEBSOCKET_UNEXPECTED_CLOSE with socket close metadata', () => {
+      session.onNetworkClose({
+        code: 1006,
+        reason: 'proxy timeout',
+        wasClean: false,
+      });
+
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: WEBSOCKET_UNEXPECTED_CLOSE }),
+          socketClose: expect.objectContaining({
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'proxy timeout',
+            wasClean: false,
+          }),
+          reconnecting: true,
+        }),
+        session.uuid
+      );
+    });
+
+    it('should not emit WEBSOCKET_UNEXPECTED_CLOSE for expected socket closes', () => {
+      session._markNextSocketCloseExpected();
+
+      session.onNetworkClose({
+        code: 1000,
+        reason: 'intentional reconnect',
+        wasClean: true,
+      });
+
+      expect(mockTrigger).not.toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: WEBSOCKET_UNEXPECTED_CLOSE }),
+        }),
+        session.uuid
+      );
+    });
+
+    it('should detect an active client with no open WebSocket during keepalive', () => {
+      session._pong = false;
+      mockConnection.isAlive = false;
+      session._idle = false;
+
+      session._resetKeepAlive();
+
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Error,
+        expect.objectContaining({
+          error: expect.objectContaining({ code: WEBSOCKET_UNEXPECTED_CLOSE }),
+          socketClose: expect.objectContaining({
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'NO_SOCKET_OPEN: client is active but no WebSocket is open',
+            wasClean: false,
+          }),
+          reconnecting: true,
+        }),
+        session.uuid
+      );
+      expect(session._reconnectAttempts).toBe(1);
+
+      jest.runOnlyPendingTimers();
+      expect(mockConnection.connect).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('unhealthy reconnect (socket opens but closes before REGED)', () => {
     it('should not reset attempts when socket opens during auto-reconnect without REGED', () => {
       session.options.maxReconnectAttempts = 3;
@@ -280,6 +354,7 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       await session.disconnect();
       expect(session._reconnectAttempts).toBe(0);
       expect(session._autoReconnect).toBe(false);
+      expect(session._socketCloseExpected).toBe(true);
     });
   });
 

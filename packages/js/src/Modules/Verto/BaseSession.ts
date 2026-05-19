@@ -16,10 +16,14 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  WEBSOCKET_UNEXPECTED_CLOSE,
   WS_CLOSE_CODES,
 } from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
-import type { ITelnyxErrorEvent } from './util/errors';
+import type {
+  ITelnyxErrorEvent,
+  ITelnyxSocketCloseDetails,
+} from './util/errors';
 import {
   isFunction,
   isValidAnonymousLoginOptions,
@@ -75,10 +79,13 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
+  protected _socketCloseExpected: boolean = false;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
+  private static readonly NO_SOCKET_OPEN_CLOSE_REASON =
+    'NO_SOCKET_OPEN: client is active but no WebSocket is open';
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
@@ -246,6 +253,7 @@ export default abstract class BaseSession {
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
+    this._markNextSocketCloseExpected();
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
     await this._drainCallReportUploads();
@@ -299,6 +307,10 @@ export default abstract class BaseSession {
     callback: (event: ITelnyxWarningEvent) => void
   ): this;
   on(
+    eventName: SwEvent.SocketClose | 'telnyx.socket.close',
+    callback: (event: ITelnyxSocketCloseDetails) => void
+  ): this;
+  on(
     eventName: SwEvent.Notification | 'telnyx.notification',
     callback: (event: INotification) => void
   ): this;
@@ -348,6 +360,10 @@ export default abstract class BaseSession {
     callback?: (event: ITelnyxWarningEvent) => void
   ): this;
   off(
+    eventName: SwEvent.SocketClose | 'telnyx.socket.close',
+    callback?: (event: ITelnyxSocketCloseDetails) => void
+  ): this;
+  off(
     eventName: SwEvent.Notification | 'telnyx.notification',
     callback?: (event: INotification) => void
   ): this;
@@ -380,6 +396,7 @@ export default abstract class BaseSession {
     }
 
     this._autoReconnect = true;
+    this._socketCloseExpected = false;
     if (!this.connection.isAlive) {
       logger.debug('Initiating connection to the server...');
       this.connection.connect();
@@ -652,17 +669,19 @@ export default abstract class BaseSession {
   private _flushIntermediateCallReports(
     flushReason: ICallReportFlushReason
   ): void {
-    const calls = (this as unknown as {
-      calls?: Record<
-        string,
-        {
-          id?: string;
-          flushIntermediateCallReport?: (
-            flushReason?: ICallReportFlushReason
-          ) => void;
-        }
-      >;
-    }).calls;
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          {
+            id?: string;
+            flushIntermediateCallReport?: (
+              flushReason?: ICallReportFlushReason
+            ) => void;
+          }
+        >;
+      }
+    ).calls;
 
     if (!calls) return;
 
@@ -701,6 +720,21 @@ export default abstract class BaseSession {
     return String(error);
   }
 
+  private _createSocketCloseDetails(event?: {
+    code?: number;
+    reason?: string;
+    wasClean?: boolean;
+    error?: unknown;
+  }): ITelnyxSocketCloseDetails {
+    return {
+      code: event?.code,
+      codeName: this._getSocketCloseCodeName(event?.code),
+      reason: event?.reason,
+      wasClean: event?.wasClean,
+      error: this._getSocketCloseError(event?.error),
+    };
+  }
+
   private _createSocketCloseFlushReason(event?: {
     code?: number;
     reason?: string;
@@ -709,14 +743,28 @@ export default abstract class BaseSession {
   }): ICallReportFlushReason {
     return {
       type: event?.error ? 'socket-error' : 'socket-close',
-      socketClose: {
-        code: event?.code,
-        codeName: this._getSocketCloseCodeName(event?.code),
-        reason: event?.reason,
-        wasClean: event?.wasClean,
-        error: this._getSocketCloseError(event?.error),
-      },
+      socketClose: this._createSocketCloseDetails(event),
     };
+  }
+
+  private _emitUnexpectedSocketCloseError(event?: {
+    code?: number;
+    reason?: string;
+    wasClean?: boolean;
+    error?: unknown;
+  }): void {
+    const telnyxError = createTelnyxError(WEBSOCKET_UNEXPECTED_CLOSE);
+
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        sessionId: this.sessionid,
+        socketClose: this._createSocketCloseDetails(event),
+        reconnecting: this._autoReconnect,
+      },
+      this.uuid
+    );
   }
 
   public onNetworkClose(event?: {
@@ -725,9 +773,19 @@ export default abstract class BaseSession {
     wasClean?: boolean;
     error?: unknown;
   }): void {
+    const expectedSocketClose = this._socketCloseExpected;
+    this._socketCloseExpected = false;
+
     this._flushIntermediateCallReports(
       this._createSocketCloseFlushReason(event)
     );
+
+    // SocketError already emits WEBSOCKET_ERROR from Connection.onerror. For
+    // close events, emit a structured telnyx.error unless this close was
+    // explicitly requested by the SDK/user (disconnect or forced reconnect).
+    if (!expectedSocketClose && !event?.error) {
+      this._emitUnexpectedSocketCloseError(event);
+    }
 
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
@@ -892,8 +950,24 @@ export default abstract class BaseSession {
     }
   }
 
+  protected _markNextSocketCloseExpected(): void {
+    this._socketCloseExpected = true;
+  }
+
   private _resetKeepAlive() {
     if (this._pong === false) {
+      if (this._autoReconnect && !this._idle && !this.connection?.isAlive) {
+        logger.warn(
+          'Client is active but no WebSocket is open; starting reconnect flow'
+        );
+        this.onNetworkClose({
+          code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
+          reason: BaseSession.NO_SOCKET_OPEN_CLOSE_REASON,
+          wasClean: false,
+        });
+        return;
+      }
+
       logger.warn('No ping/pong received, forcing PING ACK to keep alive');
       this.execute(new Ping(getReconnectToken()));
     }

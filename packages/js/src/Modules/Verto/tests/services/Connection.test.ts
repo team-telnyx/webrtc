@@ -96,6 +96,7 @@ describe('Connection - Safety Timeout', () => {
         login: 'test-login',
         password: 'test-password',
       },
+      hasAutoReconnect: jest.fn(() => true),
     };
 
     connection = new Connection(mockSession);

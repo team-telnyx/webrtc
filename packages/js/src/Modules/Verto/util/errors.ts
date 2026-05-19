@@ -51,6 +51,19 @@ export interface ITelnyxMediaError extends Omit<ITelnyxError, 'code'> {
   code: TelnyxMediaErrorCode;
 }
 
+export interface ITelnyxSocketCloseDetails {
+  /** WebSocket close code, when supplied by the browser */
+  code?: number;
+  /** SDK name for the close code, when recognized */
+  codeName?: string;
+  /** WebSocket close reason, when supplied by the browser */
+  reason?: string;
+  /** Browser clean-close flag, when supplied */
+  wasClean?: boolean;
+  /** WebSocket error details, when the close was triggered by an error */
+  error?: string;
+}
+
 export interface ITelnyxStandardErrorEvent {
   /** Structured SDK error */
   error: ITelnyxError;
@@ -58,6 +71,10 @@ export interface ITelnyxStandardErrorEvent {
   sessionId: string;
   /** Call identifier when the error is associated with a call */
   callId?: string;
+  /** WebSocket close/error metadata for transport errors */
+  socketClose?: ITelnyxSocketCloseDetails;
+  /** Whether the SDK will attempt automatic reconnection */
+  reconnecting?: boolean;
   /** Non-recoverable errors omit recovery helpers */
   recoverable?: false;
 }

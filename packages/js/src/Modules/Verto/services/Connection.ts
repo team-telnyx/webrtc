@@ -223,7 +223,12 @@ export default class Connection {
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);
       trigger(
         SwEvent.Error,
-        { error: telnyxError, sessionId: this.session.sessionid },
+        {
+          error: telnyxError,
+          sessionId: this.session.sessionid,
+          socketClose: { error: String(event) },
+          reconnecting: this.session.hasAutoReconnect(),
+        },
         this.session.uuid
       );
 
