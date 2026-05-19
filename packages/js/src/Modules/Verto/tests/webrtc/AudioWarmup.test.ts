@@ -251,6 +251,27 @@ describe('createAudioWarmupStream', () => {
     expect(userVariables.microphoneLabel).toBe('mock-microphone');
   });
 
+  it('senderStream destination track label differs from original mic label', () => {
+    // Documents that Peer.ts must guard against overwriting microphoneLabel
+    // with the destination track label when iterating senderStream tracks.
+    const stream = createMockStream();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userVariables: Record<string, any> = {};
+    const controller = createAudioWarmupStream(stream, true, userVariables);
+
+    // userVariables has the original mic label
+    expect(userVariables.microphoneLabel).toBe('mock-microphone');
+
+    // But the senderStream audio track has the destination's label
+    const senderAudioTrack = controller!.stream.getAudioTracks()[0];
+    expect(senderAudioTrack.label).toBe('destination-audio');
+    expect(senderAudioTrack.label).not.toBe('mock-microphone');
+
+    // If Peer.ts naively did `userVariables.microphoneLabel = track.label`
+    // on the senderStream audio track, it would overwrite the real label.
+    // Peer.ts must skip this assignment when warm-up is active.
+  });
+
   // ============================================================
   // scheduleRelease() — delayed release after durationMs
   // ============================================================

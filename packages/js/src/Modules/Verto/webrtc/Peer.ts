@@ -743,7 +743,12 @@ export default class Peer {
 
         tracks.forEach((track) => {
           if (track.kind === 'audio') {
-            this.options.userVariables.microphoneLabel = track.label;
+            // When warm-up is active, microphoneLabel was already set from
+            // the original track by createAudioWarmupStream. Don't overwrite
+            // it with the synthetic destination track label.
+            if (!this._audioWarmupController) {
+              this.options.userVariables.microphoneLabel = track.label;
+            }
           }
           if (track.kind === 'video') {
             this.options.userVariables.cameraLabel = track.label;
@@ -767,7 +772,12 @@ export default class Peer {
 
         tracks.forEach((track) => {
           if (track.kind === 'audio') {
-            this.options.userVariables.microphoneLabel = track.label;
+            // When warm-up is active, microphoneLabel was already set from
+            // the original track by createAudioWarmupStream. Don't overwrite
+            // it with the synthetic destination track label.
+            if (!this._audioWarmupController) {
+              this.options.userVariables.microphoneLabel = track.label;
+            }
           }
           if (track.kind === 'video') {
             this.options.userVariables.cameraLabel = track.label;
