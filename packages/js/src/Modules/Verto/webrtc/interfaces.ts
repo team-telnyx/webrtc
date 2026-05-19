@@ -183,6 +183,7 @@ export interface IWebRTCCall {
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   getStats: (callback: Function, constraints: any) => void;
+  shouldForceRelayCandidateForRecovery?: () => boolean;
   setState: (state: State) => void;
   // Privates
   handleMessage: (msg: any) => void;

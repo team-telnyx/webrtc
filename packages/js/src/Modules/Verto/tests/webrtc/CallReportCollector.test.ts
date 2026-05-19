@@ -53,6 +53,7 @@ type TestableCallReportCollector = {
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
   ) => void;
+  shouldForceRelayCandidateForRecovery: () => boolean;
   sendPayload: SendPayload;
   _sendPayload: SendPayload;
 };
@@ -115,6 +116,89 @@ describe('CallReportCollector intermediate reports', () => {
         },
       })
     );
+  });
+});
+
+describe('CallReportCollector relay recovery detection', () => {
+  const vpnStats = (
+    overrides: Partial<IStatsInterval> = {}
+  ): IStatsInterval => ({
+    intervalStartUtc: '2026-05-19T21:10:00.000Z',
+    intervalEndUtc: '2026-05-19T21:10:05.000Z',
+    audio: {
+      outbound: { bytesSent: 1000 },
+      inbound: { bytesReceived: 1000 },
+    },
+    ice: {
+      local: { candidateType: 'srflx', networkType: 'vpn' },
+      writable: true,
+      requestsSent: 10,
+      responsesReceived: 10,
+    },
+    transport: { iceState: 'connected' },
+    ...overrides,
+  });
+
+  it('requests relay recovery for a stalled non-relay VPN media path', () => {
+    const collector = createCollector();
+    (collector as unknown as { statsBuffer: IStatsInterval[] }).statsBuffer = [
+      vpnStats(),
+      vpnStats({
+        audio: {
+          outbound: { bytesSent: 2000 },
+          inbound: { bytesReceived: 1000 },
+        },
+        ice: {
+          local: { candidateType: 'srflx', networkType: 'vpn' },
+          writable: false,
+          requestsSent: 20,
+          responsesReceived: 10,
+        },
+        transport: { iceState: 'disconnected' },
+      }),
+    ];
+
+    expect(collector.shouldForceRelayCandidateForRecovery()).toBe(true);
+  });
+
+  it('does not request relay recovery for an already selected relay candidate', () => {
+    const collector = createCollector();
+    (collector as unknown as { statsBuffer: IStatsInterval[] }).statsBuffer = [
+      vpnStats({
+        ice: {
+          local: { candidateType: 'relay', networkType: 'vpn' },
+          writable: false,
+        },
+      }),
+      vpnStats({
+        ice: {
+          local: { candidateType: 'relay', networkType: 'vpn' },
+          writable: false,
+        },
+      }),
+    ];
+
+    expect(collector.shouldForceRelayCandidateForRecovery()).toBe(false);
+  });
+
+  it('does not request relay recovery for non-VPN candidate paths', () => {
+    const collector = createCollector();
+    (collector as unknown as { statsBuffer: IStatsInterval[] }).statsBuffer = [
+      vpnStats({
+        ice: {
+          local: { candidateType: 'srflx', networkType: 'wifi' },
+          writable: false,
+        },
+      }),
+      vpnStats({
+        ice: {
+          local: { candidateType: 'srflx', networkType: 'wifi' },
+          writable: false,
+        },
+      }),
+    ];
+
+    expect(collector.shouldForceRelayCandidateForRecovery()).toBe(false);
   });
 });
 

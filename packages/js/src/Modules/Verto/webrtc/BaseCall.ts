@@ -387,6 +387,16 @@ export default abstract class BaseCall implements IWebRTCCall {
     return !isAudioTrackEnabled(this.options.localStream);
   }
 
+  shouldForceRelayCandidateForRecovery(): boolean {
+    if (this.options.forceRelayCandidate) {
+      return false;
+    }
+
+    return (
+      this._callReportCollector?.shouldForceRelayCandidateForRecovery() ?? false
+    );
+  }
+
   async invite() {
     this._creatingPeer = true;
     this.direction = Direction.Outbound;

@@ -178,6 +178,34 @@ describe('VertoHandler', () => {
       done();
     });
 
+    it('should force relay on the recovered call only when the previous call reports a VPN media-path stall', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4408,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(call.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
+        1
+      );
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
     it('should NOT set recoveredCallId when no existing call (fresh attach)', async (done) => {
       await instance.connect();
       const callId = 'fresh-call-id-1234';
