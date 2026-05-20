@@ -12,7 +12,7 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { State } from '../../webrtc/constants';
+import { Direction, State } from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
@@ -300,11 +300,21 @@ describe('Call', () => {
       expect(call.causeCode).toEqual(17);
     });
 
-    it('should use USER_BUSY/17 for a new (pre-answer) call', async () => {
+    it('should use USER_BUSY/17 for a new call without outbound direction', async () => {
       // call starts in State.New
       await call.hangup({}, false);
       expect(call.cause).toEqual('USER_BUSY');
       expect(call.causeCode).toEqual(17);
+    });
+
+    it('should use ORIGINATOR_CANCEL/487 when canceling an outbound call before answer', async () => {
+      call.direction = Direction.Outbound;
+      call.setState(State.Requesting);
+
+      await call.hangup({}, false);
+
+      expect(call.cause).toEqual('ORIGINATOR_CANCEL');
+      expect(call.causeCode).toEqual(487);
     });
 
     it('should use NORMAL_CLEARING/16 when hanging up an active call', async () => {

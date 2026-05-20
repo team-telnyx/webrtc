@@ -556,13 +556,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     const callerStack = this._captureHangupCallerStack();
     const initiator = params.initiator || 'app:call.hangup';
 
-    // State-dependent default cause code:
-    // - Pre-answer states (never answered) → USER_BUSY/17 (signals rejection, prevents TeXML retries)
-    // - Post-answer states (active call) → NORMAL_CLEARING/16
-    const defaults =
-      this._state < State.Active
-        ? { cause: 'USER_BUSY', causeCode: 17 }
-        : { cause: 'NORMAL_CLEARING', causeCode: 16 };
+    const defaults = this._getDefaultHangupCause();
 
     this.cause = params.cause || defaults.cause;
     this.causeCode = params.causeCode || defaults.causeCode;
@@ -1097,6 +1091,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       const STATS_INTERVAL = 2000;
       this._startStats(STATS_INTERVAL);
     }
+  }
+
+  private _getDefaultHangupCause(): { cause: string; causeCode: number } {
+    if (this._state >= State.Active) {
+      return { cause: 'NORMAL_CLEARING', causeCode: 16 };
+    }
+
+    if (this.direction === Direction.Outbound) {
+      return { cause: 'ORIGINATOR_CANCEL', causeCode: 487 };
+    }
+
+    return { cause: 'USER_BUSY', causeCode: 17 };
   }
 
   setState(state: State): void {
