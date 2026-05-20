@@ -1075,6 +1075,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.setBandwidthEncodingsMaxBps(max, 'video');
   }
 
+  private _isTerminatingOrTerminated(): boolean {
+    return [State.Hangup, State.Destroy, State.Purge].includes(this._state);
+  }
+
   /**
    * Registers callback for stats.
    *
@@ -1667,6 +1671,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
+        if (this._isTerminatingOrTerminated()) {
+          logger.debug(
+            `[${this.id}] Ignoring ${type} response because call is ${this.state}`
+          );
+          return;
+        }
         const { node_id = null } = response;
         this._targetNodeId = node_id;
         if (type === PeerType.Offer) {
@@ -1755,6 +1765,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     performance.mark(callMarkName(this.id, 'send-sdp'));
     this._execute(msg)
       .then((response) => {
+        if (this._isTerminatingOrTerminated()) {
+          logger.debug(
+            `[${this.id}] Ignoring ${type} response because call is ${this.state}`
+          );
+          return;
+        }
         const { node_id = null } = response;
         this._targetNodeId = node_id;
         if (type === PeerType.Offer) {
