@@ -392,6 +392,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       return false;
     }
 
+    if (!this.recoveredCallId) {
+      return false;
+    }
+
     return (
       this._callReportCollector?.shouldForceRelayCandidateForRecovery() ?? false
     );

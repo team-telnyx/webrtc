@@ -178,12 +178,19 @@ describe('VertoHandler', () => {
       done();
     });
 
-    it('should force relay on the recovered call only when the previous call reports a VPN media-path stall', async (done) => {
+    it('should not force relay on the first recovered call even when the previous call reports a VPN media-path stall', async (done) => {
       await instance.connect();
       const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
       _setupCall({ id: callId });
       call.setState(State.Active);
-      call.shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+      const shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+      (
+        call as unknown as {
+          _callReportCollector: {
+            shouldForceRelayCandidateForRecovery: jest.Mock;
+          };
+        }
+      )._callReportCollector = { shouldForceRelayCandidateForRecovery };
 
       // Mock answer to prevent actual WebRTC peer creation
       const originalAnswer = Call.prototype.answer;
@@ -195,9 +202,40 @@ describe('VertoHandler', () => {
       handler.handleMessage(msg);
 
       const newCall = instance.calls[callId];
-      expect(call.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
-        1
+      expect(shouldForceRelayCandidateForRecovery).not.toHaveBeenCalled();
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(false);
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should force relay only when an already recovered call reports the recovery path is still stalled', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId, recoveredCallId: callId });
+      call.setState(State.Active);
+      const shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+      (
+        call as unknown as {
+          _callReportCollector: {
+            shouldForceRelayCandidateForRecovery: jest.Mock;
+          };
+        }
+      )._callReportCollector = { shouldForceRelayCandidateForRecovery };
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4409,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
       );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(1);
       expect(newCall).toBeDefined();
       expect(newCall.options.forceRelayCandidate).toBe(true);
       expect(newCall.recoveredCallId).toEqual(callId);

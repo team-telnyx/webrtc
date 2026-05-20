@@ -227,7 +227,7 @@ class VertoHandler {
 
         if (forceRelayCandidateForRecovery) {
           logger.warn(
-            `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate for recovery after VPN media-path stall`
+            `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
           );
         }
 
