@@ -24,6 +24,53 @@ const isDeviceNotFoundError = (error: Error): boolean => {
  * Remove deviceId constraints from constraints to fallback to default device
  * Returns null if no deviceId was specified (no fallback possible)
  */
+const getRelaxedDeviceIdConstraint = (
+  deviceId: ConstrainDOMString
+): ConstrainDOMString | null => {
+  if (
+    typeof deviceId === 'object' &&
+    !Array.isArray(deviceId) &&
+    deviceId !== null &&
+    'exact' in deviceId &&
+    isDefined(deviceId.exact)
+  ) {
+    return { ideal: deviceId.exact };
+  }
+
+  return null;
+};
+
+const getConstraintsWithIdealDeviceId = (
+  constraints: MediaStreamConstraints
+): MediaStreamConstraints | null => {
+  const { audio, video } = constraints;
+  let hasExactDeviceId = false;
+  let newAudio: boolean | MediaTrackConstraints = audio;
+  let newVideo: boolean | MediaTrackConstraints = video;
+
+  if (typeof audio === 'object' && audio !== null && 'deviceId' in audio) {
+    const relaxedDeviceId = getRelaxedDeviceIdConstraint(audio.deviceId);
+    if (relaxedDeviceId) {
+      hasExactDeviceId = true;
+      newAudio = { ...audio, deviceId: relaxedDeviceId };
+    }
+  }
+
+  if (typeof video === 'object' && video !== null && 'deviceId' in video) {
+    const relaxedDeviceId = getRelaxedDeviceIdConstraint(video.deviceId);
+    if (relaxedDeviceId) {
+      hasExactDeviceId = true;
+      newVideo = { ...video, deviceId: relaxedDeviceId };
+    }
+  }
+
+  if (!hasExactDeviceId) {
+    return null;
+  }
+
+  return { audio: newAudio, video: newVideo };
+};
+
 const getConstraintsWithoutDeviceId = (
   constraints: MediaStreamConstraints
 ): MediaStreamConstraints | null => {
@@ -68,16 +115,20 @@ const getUserMedia = async (
 
     // Check if this is a device-specific error that might be recoverable
     if (isDeviceNotFoundError(error)) {
-      const fallbackConstraints = getConstraintsWithoutDeviceId(constraints);
-      if (fallbackConstraints) {
+      const fallbackConstraints = [
+        getConstraintsWithIdealDeviceId(constraints),
+        getConstraintsWithoutDeviceId(constraints),
+      ].filter(Boolean) as MediaStreamConstraints[];
+
+      for (const fallbackConstraintsItem of fallbackConstraints) {
         logger.warn(
-          'Device not found or not readable, falling back to default device'
+          'Device not found or not readable, retrying getUserMedia with relaxed device constraints',
+          fallbackConstraintsItem
         );
         try {
-          return await WebRTC.getUserMedia(fallbackConstraints);
+          return await WebRTC.getUserMedia(fallbackConstraintsItem);
         } catch (fallbackError) {
           logger.error('Fallback getUserMedia also failed: ', fallbackError);
-          throw error; // Throw original error
         }
       }
     }
@@ -851,5 +902,6 @@ export {
   getPreferredCodecs,
   // Exported for testing
   isDeviceNotFoundError,
+  getConstraintsWithIdealDeviceId,
   getConstraintsWithoutDeviceId,
 };

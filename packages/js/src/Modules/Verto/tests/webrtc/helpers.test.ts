@@ -11,6 +11,7 @@ import {
   SUPPORTED_WEBRTC,
   getUserMedia,
   isDeviceNotFoundError,
+  getConstraintsWithIdealDeviceId,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
 import {
@@ -687,6 +688,32 @@ describe('Helpers browser functions', () => {
     it('should return false for generic Error', () => {
       const error = new Error('Generic error');
       expect(isDeviceNotFoundError(error)).toBe(false);
+    });
+  });
+
+  describe('getConstraintsWithIdealDeviceId', () => {
+    it('should relax exact audio deviceId to ideal', () => {
+      const constraints = {
+        audio: { deviceId: { exact: 'mic-123' }, echoCancellation: true },
+        video: false,
+      };
+
+      expect(getConstraintsWithIdealDeviceId(constraints)).toEqual({
+        audio: {
+          deviceId: { ideal: 'mic-123' },
+          echoCancellation: true,
+        },
+        video: false,
+      });
+    });
+
+    it('should return null when deviceId is already non-exact', () => {
+      const constraints = {
+        audio: { deviceId: { ideal: 'mic-123' } },
+        video: false,
+      };
+
+      expect(getConstraintsWithIdealDeviceId(constraints)).toBeNull();
     });
   });
 
