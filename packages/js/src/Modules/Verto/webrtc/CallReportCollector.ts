@@ -32,6 +32,7 @@ import {
   LOW_LOCAL_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
 
 /**
@@ -985,6 +986,7 @@ export class CallReportCollector {
               current: currentCandidatePairSnapshot,
             }
           );
+          this._emitWarning(ICE_CANDIDATE_PAIR_CHANGED);
         }
         this.previousCandidatePairSnapshot = currentCandidatePairSnapshot;
       }
