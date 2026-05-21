@@ -67,7 +67,7 @@ export interface ITelnyxMediaRecoveryErrorEvent {
   error: ITelnyxMediaError;
   /** Current SDK session identifier */
   sessionId: string;
-  /** Inbound call being recovered */
+  /** Call being recovered */
   callId: string;
   /** Indicates that the app can still recover by resuming the flow */
   recoverable: true;

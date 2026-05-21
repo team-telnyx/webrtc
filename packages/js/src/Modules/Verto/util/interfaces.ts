@@ -105,11 +105,11 @@ export interface IVertoOptions {
   skipLastVoiceSdkId?: boolean;
 
   /**
-   * Configuration for media permissions recovery on inbound calls.
-   * When enabled and the initial `getUserMedia` call fails while answering,
-   * the SDK emits a recoverable `telnyx.error` event with `resume()` and
-   * `reject()` callbacks so the app can prompt the user to fix permissions
-   * before the call fails.
+   * Configuration for media permissions recovery on inbound and outbound calls.
+   * When enabled and the initial `getUserMedia` call fails while creating local
+   * media, the SDK emits a recoverable `telnyx.error` event with `resume()` and
+   * `reject()` callbacks so the app can prompt the user to fix permissions or
+   * reconnect/select a microphone before the call fails.
    */
   mediaPermissionsRecovery?: {
     /** Enable the recovery flow. */
