@@ -691,10 +691,82 @@ export class CallReportCollector {
   }
 
   /**
+   * Detect the VPN media-path stall seen during browser network/VPN flaps.
+   *
+   * This intentionally stays narrow: only a non-relay VPN selected pair can
+   * request relay-only recovery, and only when the latest stats show either
+   * stalled ICE checks or one-way media symptoms. TURN candidates being present
+   * is not enough by itself; browsers prefer direct/srflx pairs while ICE still
+   * considers them viable.
+   */
+  public shouldForceRelayCandidateForRecovery(): boolean {
+    if (this.statsBuffer.length < 2) {
+      return false;
+    }
+
+    const latest = this.statsBuffer[this.statsBuffer.length - 1];
+    const previous = this.statsBuffer[this.statsBuffer.length - 2];
+    const latestLocalCandidate = latest.ice?.local;
+
+    const isVpnNonRelayPath =
+      latestLocalCandidate?.networkType === 'vpn' &&
+      latestLocalCandidate?.candidateType !== 'relay';
+
+    if (!isVpnNonRelayPath) {
+      return false;
+    }
+
+    const iceNotWritable = latest.ice?.writable === false;
+    const iceTransportFailed =
+      latest.transport?.iceState === 'disconnected' ||
+      latest.transport?.iceState === 'failed';
+
+    const requestsSentDelta = this._positiveDelta(
+      latest.ice?.requestsSent,
+      previous.ice?.requestsSent
+    );
+    const responsesReceivedDelta = this._positiveDelta(
+      latest.ice?.responsesReceived,
+      previous.ice?.responsesReceived
+    );
+    const iceChecksStalled =
+      requestsSentDelta > 0 && responsesReceivedDelta === 0;
+
+    const outboundBytesDelta = this._positiveDelta(
+      latest.audio?.outbound?.bytesSent,
+      previous.audio?.outbound?.bytesSent
+    );
+    const inboundBytesDelta = this._positiveDelta(
+      latest.audio?.inbound?.bytesReceived,
+      previous.audio?.inbound?.bytesReceived
+    );
+    const inboundMediaStalled =
+      outboundBytesDelta > 0 && inboundBytesDelta === 0;
+
+    return (
+      iceNotWritable ||
+      iceTransportFailed ||
+      iceChecksStalled ||
+      inboundMediaStalled
+    );
+  }
+
+  /**
    * Get the collected logs (for debugging)
    */
   public getLogs(): ILogEntry[] {
     return this.logCollector?.getLogs() ?? [];
+  }
+
+  private _positiveDelta(
+    latest: number | undefined,
+    previous: number | undefined
+  ): number {
+    if (latest === undefined || previous === undefined) {
+      return 0;
+    }
+
+    return Math.max(0, latest - previous);
   }
 
   /**
@@ -969,7 +1041,11 @@ export class CallReportCollector {
   }
 
   private _requestIntermediateFlushIfNeeded(now: Date): void {
-    if (!this.onFlushNeeded || this._flushing || this.statsBuffer.length === 0) {
+    if (
+      !this.onFlushNeeded ||
+      this._flushing ||
+      this.statsBuffer.length === 0
+    ) {
       return;
     }
 

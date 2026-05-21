@@ -93,7 +93,10 @@ class VertoHandler {
       return this._handlePvtEvent(params.pvtData);
     }
 
-    const _buildCall = (recoveredCallId?: string) => {
+    const _buildCall = (
+      recoveredCallId?: string,
+      forceRelayCandidateForRecovery?: boolean
+    ) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -111,7 +114,10 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
-        forceRelayCandidate: session.options.forceRelayCandidate ?? false,
+        forceRelayCandidate:
+          forceRelayCandidateForRecovery ||
+          session.options.forceRelayCandidate ||
+          false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
       };
@@ -216,6 +222,14 @@ class VertoHandler {
         }
 
         const recoveredCallId = existingCall.id;
+        const forceRelayCandidateForRecovery =
+          existingCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+
+        if (forceRelayCandidateForRecovery) {
+          logger.warn(
+            `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+          );
+        }
 
         logger.info(
           `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
@@ -228,7 +242,10 @@ class VertoHandler {
         logger.info(
           `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
         );
-        const call = _buildCall(recoveredCallId);
+        const call = _buildCall(
+          recoveredCallId,
+          forceRelayCandidateForRecovery
+        );
         call.answer();
         this._ack(id, method);
         break;
