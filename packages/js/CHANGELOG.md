@@ -1,3 +1,8 @@
+## [2.27.0-beta.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0-beta.4...webrtc/v2.27.0-beta.5) (2026-05-21)
+
+- fix: recover VPN media stalls over relay (#642)
+- fix: ignore late SDP responses after hangup (#643)
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs
