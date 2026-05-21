@@ -18,7 +18,7 @@ import {
 import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
-import { registerOnce, trigger } from './Handler';
+import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
   typeof WebSocket !== 'undefined' ? WebSocket : null;
@@ -165,17 +165,36 @@ export default class Connection {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  send(bladeObj: any): Promise<any> {
+  send(bladeObj: any, options: { timeoutMs?: number } = {}): Promise<any> {
     const { request } = bladeObj;
     const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
       }
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      registerOnce(request.id, (response: any) => {
+      const handleResponse = (response: any) => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         const { result, error } = destructResponse(response);
         return error ? reject(error) : resolve(result);
-      });
+      };
+
+      registerOnce(request.id, handleResponse);
+
+      if (options.timeoutMs && options.timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          deRegister(request.id, handleResponse);
+          const error = new Error(
+            `Request ${request.id} timed out before a response was received`
+          );
+          error.name = 'RequestTimeoutError';
+          reject(error);
+        }, options.timeoutMs);
+      }
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     this._wsClient?.send(JSON.stringify(request));
@@ -217,13 +236,23 @@ export default class Connection {
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
+
+      // WebSocket connection failures usually emit `error` followed by `close`.
+      // Treat the first terminal event as authoritative and detach handlers so a
+      // single failed reconnect attempt is not counted twice by BaseSession.
+      this._deregisterSocketEvents(ws);
       this._safetyCleanupSocket(ws, 'error');
 
       // Emit structured error alongside the legacy SocketError
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);
       trigger(
         SwEvent.Error,
-        { error: telnyxError, sessionId: this.session.sessionid },
+        {
+          error: telnyxError,
+          sessionId: this.session.sessionid,
+          socketClose: { error: String(event) },
+          reconnecting: this.session.hasAutoReconnect(),
+        },
         this.session.uuid
       );
 

@@ -11,7 +11,7 @@
  * - 320xx — Connection / data-flow warnings
  * - 330xx — Call connection warnings
  * - 340xx — Authentication warnings
- * - 350xx — Session / reconnection warnings
+ * - 350xx / 450xx — Session / reconnection warnings
  */
 
 export interface ITelnyxWarning {
@@ -36,6 +36,8 @@ export interface ITelnyxWarningEvent {
   sessionId: string;
   /** Call identifier when the warning is associated with a call */
   callId?: string;
+  /** Whether the SDK will attempt or continue automatic reconnection */
+  reconnecting?: boolean;
 }
 
 export const SDK_WARNINGS = {
@@ -283,7 +285,7 @@ export const SDK_WARNINGS = {
     ],
   },
 
-  // ── Session / reconnection warnings (350xx) ─────────────────────────
+  // ── Session / reconnection warnings (350xx / 450xx) ─────────────────
   35001: {
     name: 'SESSION_NOT_REATTACHED',
     message: 'Active call lost after reconnect',
@@ -298,6 +300,54 @@ export const SDK_WARNINGS = {
       'Terminate the local call and notify the user',
       'Start a new call',
       'Investigate why the session was not preserved on the server',
+    ],
+  },
+  35002: {
+    name: 'SERVER_SIDE_SESSION_EXPIRED',
+    message: 'Server-side call session expired during reconnect',
+    description:
+      'The browser was offline beyond the server-side retention window and the server could not reattach the existing call session. Automatic WebSocket reconnect can restore signaling connectivity, but it cannot recover the original call once the server has discarded that call state.',
+    causes: [
+      'Device/network stayed offline longer than the server retains reconnectable call state',
+      'b2bua-rtc/VSP timed out the session before the client reconnected',
+      'Server-side call state was removed before Attach recovery could complete',
+    ],
+    solutions: [
+      'Terminate the local call and show a call-lost state to the user',
+      'Start a new call after connectivity is restored',
+      'Reduce offline gaps or increase the server retention window if longer recovery is required',
+    ],
+  },
+  35003: {
+    name: 'ACTIVE_CALL_RECONNECTING',
+    message: 'Active call reconnect is still retrying',
+    description:
+      'The SDK has not restored the WebSocket after several attempts while at least one call is still locally recoverable. Automatic reconnect is still running with the active-call retry budget.',
+    causes: [
+      'Temporary network outage',
+      'Server unreachable',
+      'Firewall or proxy blocking reconnect attempts',
+    ],
+    solutions: [
+      'Keep the call UI in a recovering state while automatic reconnect continues',
+      'Notify the user that call recovery is still being attempted',
+      'If reconnect later exhausts, require a manual reconnect or a new call',
+    ],
+  },
+  45003: {
+    name: 'RECONNECTION_EXHAUSTED',
+    message: 'Reconnect attempt budget exhausted',
+    description:
+      'The automatic reconnection budget has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt, then stopped automatic reconnecting. Manual reconnection is required.',
+    causes: [
+      'Prolonged network outage',
+      'Server unreachable',
+      'Firewall or proxy blocking reconnection',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Call client.connect() to start a new manual reconnect sequence',
+      'Start a new call if an active call could not be recovered',
     ],
   },
 } as const;

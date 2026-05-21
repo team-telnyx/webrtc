@@ -1,8 +1,9 @@
 /**
  * SDK error code registry.
  *
- * All entries are surfaced via `SwEvent.Error` ('telnyx.error') with level 'error'.
- * These represent unrecoverable failures that terminate or prevent a call.
+ * Entries are surfaced via `SwEvent.Error` ('telnyx.error') with level 'error'
+ * when they represent fatal/blocking failures. Some transport codes also have
+ * recoverable `SwEvent.Warning` ('telnyx.warning') variants.
  *
  * Code ranges:
  * - 400xx — SDP negotiation errors
@@ -195,9 +196,9 @@ export const SDK_ERRORS = {
 
   45003: {
     name: 'RECONNECTION_EXHAUSTED',
-    message: 'Unable to reconnect to server',
+    message: 'Reconnect attempt budget exhausted',
     description:
-      'All automatic reconnection attempts have been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt.',
+      'The automatic reconnection budget has been exhausted. The SDK tried to re-establish the WebSocket connection multiple times but failed on every attempt, then stopped automatic reconnecting. Manual reconnection is required.',
     causes: [
       'Prolonged network outage',
       'Server unreachable',
@@ -205,8 +206,8 @@ export const SDK_ERRORS = {
     ],
     solutions: [
       'Check network connectivity',
-      'Call client.disconnect() and client.connect() to manually retry',
-      'Notify the user that the connection was lost',
+      'Call client.connect() to start a new manual reconnect sequence',
+      'Start a new call if an active call could not be recovered',
     ],
   },
 
@@ -224,6 +225,24 @@ export const SDK_ERRORS = {
       'Wait for automatic reconnection (if autoReconnect is enabled)',
       'Call client.disconnect() and client.connect() to manually retry',
       'Check Telnyx service status',
+    ],
+  },
+
+  45005: {
+    name: 'WEBSOCKET_UNEXPECTED_CLOSE',
+    message: 'WebSocket closed unexpectedly',
+    description:
+      'The SDK client was active but the WebSocket was closed or missing without an intentional disconnect. The SDK will attempt to reopen the signaling connection when automatic reconnection is enabled.',
+    causes: [
+      'Network interruption',
+      'Server closed the connection',
+      'Browser did not surface the close immediately',
+      'Idle timeout or proxy timeout',
+    ],
+    solutions: [
+      'Inspect the socketClose field for code, reason, and clean-close status',
+      'Check network connectivity and browser online/offline events',
+      'SDK will attempt automatic reconnection if configured',
     ],
   },
 
@@ -292,7 +311,7 @@ export const SDK_ERRORS = {
       'Timeout waiting for server response',
     ],
     solutions: [
-      'The call may recover via WebSocket reconnect + Attach',
+      'The SDK retries the ICE restart Modify request while the retry budget remains',
       'If the call does not recover, hang up and retry',
     ],
   },

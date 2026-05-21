@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 Object.defineProperty(global, 'performance', {
   writable: true,
   value: {
@@ -16,12 +17,17 @@ import { PeerType, State } from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
+  ICE_RESTART_FAILED,
   SwEvent,
 } from '../../util/constants';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
+
+const { connected: mockConnectionConnected } = jest.requireMock(
+  '../../services/Connection'
+);
 
 function getBitrate(call: Call, trackKind: string) {
   if (!call || !call.peer) {
@@ -69,6 +75,7 @@ describe('Call', () => {
     });
     await session.connect().catch(console.error);
     call = new Call(session, defaultParams);
+    (mockConnectionConnected as jest.Mock).mockReturnValue(true);
     done();
   });
 
@@ -92,6 +99,175 @@ describe('Call', () => {
     it('should set a listener for the notifications', () => {
       call = new Call(session, { ...defaultParams, onNotification: noop });
       expect(isQueued('telnyx.notification', call.id)).toEqual(true);
+    });
+  });
+
+  describe('ICE restart Modify failure fallback', () => {
+    const flushMicrotasks = async () => {
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+      }
+    };
+
+    const attachMinimalPeer = () => {
+      call.peer = {
+        isIceRestarting: true,
+        finishIceRestart: jest.fn(function () {
+          call.peer.isIceRestarting = false;
+        }),
+      } as any;
+    };
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      (mockConnectionConnected as jest.Mock).mockReturnValue(true);
+      session.off(SwEvent.Error);
+    });
+
+    it('retries Modify timeouts until the send attempt budget is exhausted without forcing reconnect/Attach fallback', async () => {
+      const onError = jest.fn();
+      const timeoutError = new Error('request timed out');
+      timeoutError.name = 'RequestTimeoutError';
+      attachMinimalPeer();
+      session.socketDisconnect = jest.fn();
+      session.execute = jest.fn(() => Promise.reject(timeoutError)) as any;
+      session.on(SwEvent.Error, onError);
+
+      (call as any)._sendIceRestartModify('v=0');
+      await flushMicrotasks();
+
+      expect(session.execute).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(2);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(3);
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: ICE_RESTART_FAILED }),
+          callId: call.id,
+          iceRestart: expect.objectContaining({
+            requestId: expect.any(String),
+            requestReachedServer: false,
+            sendAttempts: 3,
+            maxSendAttempts: 3,
+            fallback: null,
+          }),
+        })
+      );
+      expect(session.socketDisconnect).not.toHaveBeenCalled();
+    });
+
+    it('waits for the socket to reconnect before consuming a Modify send attempt', async () => {
+      const onError = jest.fn();
+      attachMinimalPeer();
+      (mockConnectionConnected as jest.Mock).mockReturnValue(false);
+      session.socketDisconnect = jest.fn();
+      session.execute = jest.fn(() => Promise.resolve({ sdp: 'v=0' })) as any;
+      session.on(SwEvent.Error, onError);
+
+      (call as any)._sendIceRestartModify('v=0');
+      await flushMicrotasks();
+
+      expect(session.execute).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+
+      (mockConnectionConnected as jest.Mock).mockReturnValue(true);
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+
+      expect(session.execute).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+      expect(session.socketDisconnect).not.toHaveBeenCalled();
+    });
+
+    it('retries Modify responses without SDP until the send attempt budget is exhausted', async () => {
+      const onError = jest.fn();
+      attachMinimalPeer();
+      session.socketDisconnect = jest.fn();
+      session.execute = jest.fn(() => Promise.resolve({})) as any;
+      session.on(SwEvent.Error, onError);
+
+      (call as any)._sendIceRestartModify('v=0');
+      await flushMicrotasks();
+
+      expect(session.execute).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(2);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(3);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: ICE_RESTART_FAILED }),
+          callId: call.id,
+          iceRestart: expect.objectContaining({
+            requestId: expect.any(String),
+            requestReachedServer: true,
+            sendAttempts: 3,
+            maxSendAttempts: 3,
+            fallback: null,
+          }),
+        })
+      );
+      expect(session.socketDisconnect).not.toHaveBeenCalled();
+    });
+
+    it('retries rejected Modify responses until the send attempt budget is exhausted', async () => {
+      const onError = jest.fn();
+      const serverError = new Error('modify rejected');
+      attachMinimalPeer();
+      session.socketDisconnect = jest.fn();
+      session.execute = jest.fn(() => Promise.reject(serverError)) as any;
+      session.on(SwEvent.Error, onError);
+
+      (call as any)._sendIceRestartModify('v=0');
+      await flushMicrotasks();
+
+      expect(session.execute).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(2);
+      expect(onError).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1000);
+      await flushMicrotasks();
+      expect(session.execute).toHaveBeenCalledTimes(3);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: ICE_RESTART_FAILED }),
+          callId: call.id,
+          iceRestart: expect.objectContaining({
+            requestId: expect.any(String),
+            requestReachedServer: true,
+            sendAttempts: 3,
+            maxSendAttempts: 3,
+            fallback: null,
+          }),
+        })
+      );
+      expect(session.socketDisconnect).not.toHaveBeenCalled();
     });
   });
 

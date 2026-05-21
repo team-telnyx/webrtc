@@ -30,6 +30,7 @@ export const TELNYX_ERROR_CODES = {
   WEBSOCKET_ERROR: 45002,
   RECONNECTION_EXHAUSTED: 45003,
   GATEWAY_FAILED: 45004,
+  WEBSOCKET_UNEXPECTED_CLOSE: 45005,
 
   // ── Authentication errors (460xx) ───────────────────────────────────
   LOGIN_FAILED: 46001,
@@ -70,8 +71,11 @@ export const TELNYX_WARNING_CODES = {
   // ── Authentication warnings (340xx) ─────────────────────────────────
   TOKEN_EXPIRING_SOON: 34001,
 
-  // ── Session / reconnection warnings (350xx) ─────────────────────────
+  // ── Session / reconnection warnings (350xx / 450xx) ─────────────────
   SESSION_NOT_REATTACHED: 35001,
+  SERVER_SIDE_SESSION_EXPIRED: 35002,
+  ACTIVE_CALL_RECONNECTING: 35003,
+  RECONNECTION_EXHAUSTED: 45003,
 } as const;
 
 // Extract constants to simplify how we use them internally
@@ -93,6 +97,7 @@ export const {
   WEBSOCKET_ERROR,
   RECONNECTION_EXHAUSTED,
   GATEWAY_FAILED,
+  WEBSOCKET_UNEXPECTED_CLOSE,
   LOGIN_FAILED,
   INVALID_CREDENTIALS,
   AUTHENTICATION_REQUIRED,
@@ -118,6 +123,8 @@ export const {
   DUPLICATE_INBOUND_ANSWER,
   TOKEN_EXPIRING_SOON,
   SESSION_NOT_REATTACHED,
+  SERVER_SIDE_SESSION_EXPIRED,
+  ACTIVE_CALL_RECONNECTING,
 } = TELNYX_WARNING_CODES;
 
 /**

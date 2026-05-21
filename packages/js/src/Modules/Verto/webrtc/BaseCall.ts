@@ -87,6 +87,8 @@ import {
   IWebRTCCall,
 } from './interfaces';
 const SDK_VERSION = pkg.version;
+const ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS = 3;
+const ICE_RESTART_MODIFY_RETRY_DELAY_MS = 1000;
 
 /**
  * @ignore Hide in docs output
@@ -228,6 +230,19 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  private _iceRestartModifyRequestId: string | null = null;
+
+  private _iceRestartFailureHandled: boolean = false;
+
+  private _iceRestartModifySdp: string | null = null;
+
+  private _iceRestartModifySendAttempts: number = 0;
+
+  private _iceRestartModifyInFlight: boolean = false;
+
+  private _iceRestartModifyRetryTimeout: ReturnType<typeof setTimeout> | null =
+    null;
+
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -297,6 +312,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._onPeerConnectionSignalingStateClosed =
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
+    this._onIceRestartTimeout = this._onIceRestartTimeout.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
     this._init();
 
@@ -413,7 +429,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this._registerPeerEvents
+      this._registerPeerEvents,
+      this._onIceRestartTimeout
     );
     try {
       await this.peer.init();
@@ -494,7 +511,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options,
       this.session,
       this._onTrickleIceSdp,
-      this._registerPeerEvents
+      this._registerPeerEvents,
+      this._onIceRestartTimeout
     );
     try {
       await this.peer.init();
@@ -613,6 +631,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._finalize();
       return;
     }
+
+    this._resetIceRestartModifyState();
 
     this.setState(State.Hangup);
 
@@ -1497,30 +1517,174 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _sendIceRestartModify(sdp: string) {
+    this._iceRestartModifySdp = sdp;
+    this._iceRestartModifySendAttempts = 0;
+    this._iceRestartFailureHandled = false;
+    this._clearIceRestartModifyRetry();
+    this._tryIceRestartModify();
+  }
+
+  private _tryIceRestartModify() {
+    if (!this.peer?.isIceRestarting || !this._iceRestartModifySdp) {
+      return;
+    }
+
+    if (this._iceRestartModifyInFlight) {
+      return;
+    }
+
+    if (!this.session.connected) {
+      this._scheduleIceRestartModifyRetry(
+        'ICE restart Modify failed: WebSocket is not connected',
+        new Error('WebSocket is not connected'),
+        { requestId: null, requestReachedServer: false }
+      );
+      return;
+    }
+
+    if (
+      this._iceRestartModifySendAttempts >= ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS
+    ) {
+      this._onIceRestartFailed(
+        `ICE restart Modify failed after ${ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS} send attempts`,
+        new Error('ICE restart Modify send attempts exhausted'),
+        {
+          requestId: this._iceRestartModifyRequestId,
+          requestReachedServer: false,
+        }
+      );
+      return;
+    }
+
     const modifyMsg = new Modify({
       sessid: this.session.sessionid,
       action: VertoModifyAction.UpdateMedia,
       callID: this.options.id,
-      sdp,
+      sdp: this._iceRestartModifySdp,
       dialogParams: this.options,
     });
-    logger.info('ICE restart: sending Modify with new offer SDP');
-    this._execute(modifyMsg)
+    const requestId = modifyMsg.request?.id;
+    this._iceRestartModifyRequestId = requestId;
+    this._iceRestartModifySendAttempts += 1;
+    this._iceRestartModifyInFlight = true;
+
+    logger.info(
+      `ICE restart: sending Modify with new offer SDP (attempt ${this._iceRestartModifySendAttempts}/${ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS})`
+    );
+    Promise.resolve()
+      .then(() =>
+        this._execute(modifyMsg, { timeoutMs: Peer.ICE_RESTART_TIMEOUT_MS })
+      )
       .then(async (response) => {
+        if (this._iceRestartModifyRequestId !== requestId) {
+          return;
+        }
+        this._iceRestartModifyInFlight = false;
         if (response?.sdp) {
           logger.info('ICE restart Modify response received');
+          this._resetIceRestartModifyState();
           this.peer?.finishIceRestart();
           await this._onRemoteSdp(response.sdp);
         } else {
-          this._onIceRestartFailed('ICE restart Modify response missing SDP');
+          this._scheduleIceRestartModifyRetry(
+            'ICE restart Modify response missing SDP',
+            new Error('ICE restart Modify response missing SDP'),
+            { requestId, requestReachedServer: true }
+          );
         }
       })
       .catch((error) => {
-        this._onIceRestartFailed('ICE restart Modify failed', error);
+        if (this._iceRestartModifyRequestId !== requestId) {
+          return;
+        }
+        this._iceRestartModifyInFlight = false;
+        const requestReachedServer = error?.name !== 'RequestTimeoutError';
+        this._scheduleIceRestartModifyRetry(
+          requestReachedServer
+            ? 'ICE restart Modify failed'
+            : 'ICE restart Modify response timed out',
+          error,
+          { requestId, requestReachedServer }
+        );
       });
   }
 
-  private _onIceRestartFailed(message: string, error?: unknown) {
+  private _onIceRestartTimeout() {
+    if (this._iceRestartModifyInFlight) {
+      return;
+    }
+
+    this._scheduleIceRestartModifyRetry(
+      'ICE restart Modify exchange timed out before a request completed',
+      new Error('ICE restart Modify response timed out'),
+      {
+        requestId: this._iceRestartModifyRequestId,
+        requestReachedServer: false,
+      }
+    );
+  }
+
+  private _scheduleIceRestartModifyRetry(
+    message: string,
+    error: unknown,
+    options: {
+      requestId?: string | null;
+      requestReachedServer?: boolean;
+    }
+  ) {
+    if (this._iceRestartFailureHandled || !this.peer?.isIceRestarting) {
+      return;
+    }
+
+    if (
+      this._iceRestartModifySendAttempts >= ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS
+    ) {
+      this._onIceRestartFailed(message, error, options);
+      return;
+    }
+
+    if (this._iceRestartModifyRetryTimeout) {
+      return;
+    }
+
+    logger.warn(
+      `${message}; retrying ICE restart Modify in ${ICE_RESTART_MODIFY_RETRY_DELAY_MS}ms`
+    );
+    this._iceRestartModifyRetryTimeout = setTimeout(() => {
+      this._iceRestartModifyRetryTimeout = null;
+      this._tryIceRestartModify();
+    }, ICE_RESTART_MODIFY_RETRY_DELAY_MS);
+  }
+
+  private _clearIceRestartModifyRetry() {
+    if (this._iceRestartModifyRetryTimeout) {
+      clearTimeout(this._iceRestartModifyRetryTimeout);
+      this._iceRestartModifyRetryTimeout = null;
+    }
+  }
+
+  private _resetIceRestartModifyState() {
+    this._clearIceRestartModifyRetry();
+    this._iceRestartModifyRequestId = null;
+    this._iceRestartModifySdp = null;
+    this._iceRestartModifySendAttempts = 0;
+    this._iceRestartModifyInFlight = false;
+    this._iceRestartFailureHandled = false;
+  }
+
+  private _onIceRestartFailed(
+    message: string,
+    error?: unknown,
+    options: {
+      requestId?: string | null;
+      requestReachedServer?: boolean;
+    } = {}
+  ) {
+    if (this._iceRestartFailureHandled) {
+      return;
+    }
+    this._iceRestartFailureHandled = true;
+
     logger.error(message, error);
     this.peer?.finishIceRestart();
     const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
@@ -1530,9 +1694,18 @@ export default abstract class BaseCall implements IWebRTCCall {
         error: telnyxError,
         callId: this.id,
         sessionId: this.session.sessionid,
+        iceRestart: {
+          requestId: options.requestId,
+          requestReachedServer: options.requestReachedServer,
+          sendAttempts: this._iceRestartModifySendAttempts,
+          maxSendAttempts: ICE_RESTART_MODIFY_MAX_SEND_ATTEMPTS,
+          fallback: null,
+        },
       },
       this.session.uuid
     );
+
+    this._resetIceRestartModifyState();
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
@@ -2094,11 +2267,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  private _execute(msg: BaseMessage) {
+  private _execute(msg: BaseMessage, options: { timeoutMs?: number } = {}) {
     if (this.nodeId) {
       msg.targetNodeId = this.nodeId;
     }
-    return this.session.execute(msg);
+    return options.timeoutMs
+      ? this.session.execute(msg, options)
+      : this.session.execute(msg);
   }
 
   private _registerInboundAnswerAttempt(): boolean {
@@ -2289,6 +2464,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    this._resetIceRestartModifyState();
     this._stopStats();
 
     // Clear call marks at the call lifecycle level so cleanup runs even when

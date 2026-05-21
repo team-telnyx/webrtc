@@ -26,8 +26,8 @@ Use `telnyx.ready` to know when the client is authenticated and the gateway is r
 | Event | Purpose | Recommended use |
 | --- | --- | --- |
 | `telnyx.ready` | Client is authenticated and gateway reached `REGISTER` or `REGED` | Enable calling UI and flush any reconnect state |
-| `telnyx.error` | Fatal or blocking SDK errors | Show actionable errors, retry, re-authenticate, or fail the current action |
-| `telnyx.warning` | Non-fatal quality, connectivity, and token warnings | Show degraded-state UI and collect telemetry |
+| `telnyx.error` | Fatal, blocking, or recoverable SDK errors | Show actionable errors, retry, re-authenticate, fail the current action, or track reconnect when `reconnecting: true` |
+| `telnyx.warning` | Non-fatal quality, connectivity, token, and reconnect-cycle warnings | Show degraded-state UI and collect telemetry |
 | `telnyx.notification` | Call lifecycle updates and compatibility notifications | Drive call UI and hangup handling |
 | `telnyx.socket.close` | Raw WebSocket close event | Log close codes and monitor reconnect behavior |
 | `telnyx.socket.error` | Raw WebSocket error wrapper | Log opaque socket failures alongside `sessionId` |
@@ -60,6 +60,8 @@ interface ITelnyxStandardErrorEvent {
   error: ITelnyxError;
   sessionId: string;
   callId?: string;
+  socketClose?: ITelnyxSocketCloseDetails;
+  reconnecting?: boolean;
   recoverable?: false;
 }
 
@@ -173,6 +175,7 @@ interface ITelnyxWarningEvent {
   warning: ITelnyxWarning;
   sessionId: string;
   callId?: string;
+  reconnecting?: boolean;
 }
 ```
 
@@ -231,6 +234,7 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 | --- | --- | --- | --- |
 | `34001` | `TOKEN_EXPIRING_SOON` | Authentication token expiring soon | JWT expires within 120 seconds |
 | `35001` | `SESSION_NOT_REATTACHED` | Active call lost after reconnect | Server returned an empty `reattached_sessions` list while calls still existed locally |
+| `45003` | `RECONNECTION_EXHAUSTED` | Reconnect attempt budget exhausted | A reconnect retry window was exhausted; SDK resets the counter and keeps retrying |
 
 ## Notifications (`telnyx.notification`)
 
@@ -362,7 +366,7 @@ Useful close codes:
 }
 ```
 
-This event is intentionally low-detail because browsers expose very little information for WebSocket errors. The SDK also emits `telnyx.error` with code `45002` (`WEBSOCKET_ERROR`) when `ws.onerror` fires.
+This event is intentionally low-detail because browsers expose very little information for WebSocket errors. The SDK also emits `telnyx.error` with code `45002` (`WEBSOCKET_ERROR`) and `reconnecting: true` when `ws.onerror` fires while automatic reconnect is enabled.
 
 ### Connection state helpers
 
@@ -399,14 +403,16 @@ The previous version of this document described a generic exponential-backoff fl
 1. On `telnyx.socket.close` or `telnyx.socket.error`, the SDK clears subscriptions and resets gateway readiness state.
 2. If `autoReconnect` is enabled, the browser session schedules `connect()` after `client.reconnectDelay`.
 3. In the browser session, `reconnectDelay` is currently `1000` ms.
-4. When the gateway reports `REGISTER` or `REGED` again, the SDK emits `telnyx.ready` again.
+4. Unexpected socket closures emit `telnyx.error` with code `WEBSOCKET_UNEXPECTED_CLOSE` (`45005`) and `reconnecting: true`.
+5. When one `maxReconnectAttempts` window is exhausted, the SDK emits `telnyx.warning` with code `RECONNECTION_EXHAUSTED` (`45003`), resets the counter, and starts a fresh automatic retry window.
+6. When the gateway reports `REGISTER` or `REGED` again, the SDK emits `telnyx.ready` again.
 
 ### Gateway retry behavior
 
 Gateway-state retries use separate jittered delays:
 
 - `UNREGED` / `NOREG`: up to 5 registration retries, each delayed by a random `2` to `6` seconds. After that the SDK emits `LOGIN_FAILED` (`46001`).
-- `FAILED` / `FAIL_WAIT`: `GATEWAY_FAILED` (`45004`) is emitted on first detection. If `autoReconnect` stays enabled, the SDK retries up to 5 times with a random `2` to `6` second delay before `RECONNECTION_EXHAUSTED` (`45003`).
+- `FAILED` / `FAIL_WAIT`: `GATEWAY_FAILED` (`45004`) is emitted on first detection. If `autoReconnect` stays enabled, the SDK retries in windows of 5 attempts with a random `2` to `6` second delay. Each exhausted window emits `telnyx.warning` with `RECONNECTION_EXHAUSTED` (`45003`) and then retries continue.
 
 ### Keeping media alive across socket loss
 

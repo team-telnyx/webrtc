@@ -173,13 +173,14 @@ export interface IClientOptions {
   mutedMicOnStart?: boolean;
 
   /**
-   * Maximum number of automatic socket reconnection attempts after an unexpected
-   * disconnect. When the limit is reached, no further automatic reconnects are
-   * scheduled and a `telnyx.error` event with code `RECONNECTION_EXHAUSTED` (45003)
-   * is emitted. A manual `connect()` call resets the counter and starts a fresh
-   * retry sequence.
+   * Maximum number of automatic socket reconnection attempts per retry window
+   * after an unexpected disconnect. When the limit is reached, a `telnyx.warning`
+   * event with code `RECONNECTION_EXHAUSTED` (45003) and `reconnecting: true` is
+   * emitted, the counter resets, and the SDK starts a fresh automatic retry
+   * window. Call `disconnect()` to intentionally stop reconnecting.
    *
-   * Set to `0` to allow unlimited automatic reconnect attempts.
+   * Set to `0` to skip windowed exhaustion events and allow unlimited automatic
+   * reconnect attempts in a single window.
    * When omitted, defaults to `10`.
    * @default 10
    */

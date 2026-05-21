@@ -5,6 +5,7 @@ import TelnyxRTCContext from './TelnyxRTCContext';
 interface IProps {
   onReady?: (client?: TelnyxRTC) => any;
   onError?: (e?: any) => any;
+  onWarning?: (e?: any) => any;
   onSocketError?: (e?: any) => any;
   onSocketClose?: (e?: any) => any;
   onNotification?: (e: INotification) => any;
@@ -21,6 +22,7 @@ interface IProps {
  *   useCallbacks({
  *     onReady: () => console.log('client ready'),
  *     onError: () => console.log('client registration error'),
+ *     onWarning: () => console.log('client warning'),
  *     onNotification: (x) => console.log('received notification:', x),
  *   });
  *
@@ -39,6 +41,10 @@ function useCallbacks(props?: IProps): null {
 
       if (props?.onError) {
         telnyxClient.on('telnyx.error', props.onError);
+      }
+
+      if (props?.onWarning) {
+        telnyxClient.on('telnyx.warning', props.onWarning);
       }
 
       if (props?.onNotification) {

@@ -48,11 +48,19 @@ const initTelnyxRTC = ({
     ...clientOptions,
   });
 
-  session.on('telnyx.error', () => {
+  session.on('telnyx.error', (event: any) => {
+    if (event?.reconnecting || event?.recoverable) {
+      return;
+    }
+
     session?.disconnect();
   });
 
-  session.on('telnyx.socket.error', () => {
+  session.on('telnyx.socket.error', (event: any) => {
+    if ((session as any)?.hasAutoReconnect?.() || event?.reconnecting) {
+      return;
+    }
+
     session?.disconnect();
   });
 
@@ -82,6 +90,7 @@ function useTelnyxRTC(
       client?.disconnect();
       client?.off('telnyx.ready');
       client?.off('telnyx.error');
+      client?.off('telnyx.warning');
       client?.off('telnyx.notification');
       client?.off('telnyx.socket.close');
       client?.off('telnyx.socket.error');

@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  SERVER_SIDE_SESSION_EXPIRED,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -33,11 +34,8 @@ import { Ping } from '../messages/verto/Ping';
  */
 
 const RETRY_REGISTER_TIME = 5;
-const RETRY_CONNECT_TIME = 5;
 class VertoHandler {
   public nodeId: string;
-
-  retriedConnect = 0;
 
   retriedRegister = 0;
 
@@ -81,12 +79,36 @@ class VertoHandler {
       params.reattached_sessions.length === 0 &&
       Object.keys(session.calls).length > 0
     ) {
+      const activeCallIds = Object.keys(session.calls);
       const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
       trigger(
         SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
+        { warning, sessionId: session.sessionid, activeCallIds },
         session.uuid
       );
+
+      const offlineDurationMs = session.getLastOfflineDurationMs();
+      const retentionWindowMs = session.getServerSessionRetentionWindowMs();
+      if (
+        offlineDurationMs !== null &&
+        offlineDurationMs >= retentionWindowMs
+      ) {
+        const retentionWarning = createTelnyxWarning(
+          SERVER_SIDE_SESSION_EXPIRED
+        );
+        trigger(
+          SwEvent.Warning,
+          {
+            warning: retentionWarning,
+            sessionId: session.sessionid,
+            activeCallIds,
+            offlineDurationMs,
+            retentionWindowMs,
+            reconnecting: false,
+          },
+          session.uuid
+        );
+      }
     }
 
     if (eventType === 'channelPvtData') {
@@ -395,9 +417,8 @@ class VertoHandler {
                 );
 
                 if (!this.session.hasAutoReconnect()) {
-                  this.retriedConnect = 0;
                   const originalError = new ErrorResponse(
-                    `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
+                    'Gateway failed and automatic reconnect is disabled',
                     'FAILED|FAIL_WAIT'
                   );
                   const telnyxError = createTelnyxError(
@@ -415,56 +436,10 @@ class VertoHandler {
                   break;
                 }
 
-                this.retriedConnect += 1;
-                if (this.retriedConnect === RETRY_CONNECT_TIME) {
-                  this.retriedConnect = 0;
-                  const telnyxError = createTelnyxError(
-                    45003,
-                    new Error('Connection Retry Failed')
-                  );
-                  trigger(
-                    SwEvent.Error,
-                    {
-                      error: telnyxError,
-                      sessionId: session.sessionid,
-                    },
-                    session.uuid
-                  );
-                  break;
-                } else {
-                  setTimeout(() => {
-                    logger.debug(
-                      `Reconnecting... Retry ${this.retriedConnect} of ${RETRY_CONNECT_TIME}`
-                    );
-
-                    if (this.session.options.keepConnectionAliveOnSocketClose) {
-                      // Check if any call has a recoverable peer connection (signalingStateClosed === false)
-                      const hasRecoverablePeer = Object.values(
-                        session.calls
-                      ).some(
-                        (call) =>
-                          call.peer?.instance && !call.signalingStateClosed
-                      );
-
-                      if (hasRecoverablePeer) {
-                        logger.debug(
-                          'Reconnecting by keeping the existing session due to keepConnectionAliveOnSocketClose option being set.'
-                        );
-                        this.session.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
-                        return;
-                      } else {
-                        logger.debug(
-                          'keepConnectionAliveOnSocketClose is set but all peer connections have signalingState closed, doing full reconnect'
-                        );
-                      }
-                    }
-
-                    this.session.disconnect().then(() => {
-                      this.session.clearConnection();
-                      this.session.connect();
-                    });
-                  }, this.reconnectDelay());
-                }
+                logger.debug(
+                  'Gateway failed; forcing socket reconnect through socketDisconnect so the shared reconnect attempt budget is counted.'
+                );
+                this.session.socketDisconnect();
               }
               break;
             }

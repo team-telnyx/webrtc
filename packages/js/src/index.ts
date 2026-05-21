@@ -40,6 +40,7 @@ export type {
   ITelnyxErrorEvent,
   ITelnyxMediaRecoveryErrorEvent,
   ITelnyxStandardErrorEvent,
+  ITelnyxSocketCloseDetails,
   TelnyxMediaErrorCode,
 } from './Modules/Verto/util/errors';
 export type {
