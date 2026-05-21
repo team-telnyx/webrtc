@@ -12,7 +12,7 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { State } from '../../webrtc/constants';
+import { PeerType, State } from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
@@ -327,6 +327,35 @@ describe('Call', () => {
       await call.hangup({ cause: 'CUSTOM_CAUSE', causeCode: 99 }, false);
       expect(call.cause).toEqual('CUSTOM_CAUSE');
       expect(call.causeCode).toEqual(99);
+    });
+  });
+
+  describe('outbound invite response races', () => {
+    it('should not move a hung up outbound call back to trying when invite ACK arrives late', async () => {
+      let resolveInvite: (response: { node_id: string }) => void;
+      const inviteResponse = new Promise<{ node_id: string }>((resolve) => {
+        resolveInvite = resolve;
+      });
+      jest.spyOn(session, 'execute').mockReturnValue(inviteResponse);
+      const onTrickleIceSdp = (
+        Reflect.get(call, '_onTrickleIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      onTrickleIceSdp({
+        type: PeerType.Offer,
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+      });
+      expect(call.state).toEqual('requesting');
+
+      call.setState(State.Hangup);
+      resolveInvite({ node_id: 'late-node' });
+      await inviteResponse;
+      await Promise.resolve();
+
+      expect(call.state).toEqual('hangup');
     });
   });
 
