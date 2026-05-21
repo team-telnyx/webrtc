@@ -208,7 +208,7 @@ export function createWebRTCStatsReporter(
     if (message.event === 'stats') {
       trigger(SwEvent.StatsFrame, toRealtimeMetrics(message), session.uuid);
     }
-    await session.execute(new DebugReportDataMessage(reportId, message));
+    await session.execute(new DebugReportDataMessage(reportId, callID, message));
   };
 
   const start = async (
