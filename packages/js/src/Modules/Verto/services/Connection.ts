@@ -18,7 +18,7 @@ import {
 import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
-import { registerOnce, trigger } from './Handler';
+import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
   typeof WebSocket !== 'undefined' ? WebSocket : null;
@@ -225,6 +225,9 @@ export default class Connection {
         timerId = setTimeout(() => {
           timedOut = true;
           timerId = null;
+          // Remove the handler from the queue so a late response
+          // doesn't call into a stale closure.
+          deRegister(request.id, handler);
           reject(new RequestTimeoutError(request.id, timeoutMs));
         }, timeoutMs);
       }

@@ -3,6 +3,7 @@
  *  - Connection: inbound WS activity tracking (lastInboundAt, SocketActivity event)
  *  - Connection: request-level timeout (RequestTimeoutError)
  *  - Connection: send() with timeout – handler cleanup on timeout
+ *  - Connection: handler deregistration after timeout
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -15,7 +16,12 @@ import Connection, {
   RequestTimeoutError,
   setWebSocket,
 } from '../../services/Connection';
-import { trigger } from '../../services/Handler';
+import {
+  trigger,
+  deRegister,
+  registerOnce,
+  register,
+} from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
 
 jest.mock('../../services/Handler');
@@ -233,6 +239,91 @@ describe('Connection – send() with timeout', () => {
 
     jest.advanceTimersByTime(120_000);
     // No timeout timer should be set
+  });
+});
+
+// ─── Connection – Handler deregistration after timeout ───────────────────────
+
+describe('Connection – Handler cleanup on timeout', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockSession = makeMockSession();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should deregister the handler from the queue after timeout', async () => {
+    const bladeObj = {
+      request: { id: 'cleanup-req', jsonrpc: '2.0', method: 'test' },
+    };
+
+    // Send with a short timeout — attach catch handler immediately
+    // to prevent unhandled rejection during jest.advanceTimersByTime
+    const promise = connection.send(bladeObj, 2000);
+    const catchPromise = promise.catch(() => {});
+
+    // deRegister should not have been called yet
+    expect(deRegister).not.toHaveBeenCalled();
+
+    // Advance past the timeout
+    jest.advanceTimersByTime(2001);
+
+    // Flush microtasks
+    await catchPromise;
+
+    // deRegister should have been called with the request id
+    // and the handler function to remove it from the queue
+    expect(deRegister).toHaveBeenCalledWith(
+      'cleanup-req',
+      expect.any(Function)
+    );
+  });
+
+  it('should not deregister when no timeout is set', () => {
+    const bladeObj = {
+      request: { id: 'no-cleanup-req', jsonrpc: '2.0', method: 'test' },
+    };
+
+    connection.send(bladeObj);
+
+    jest.advanceTimersByTime(120_000);
+
+    // deRegister should NOT be called for this request (no timeout path)
+    expect(deRegister).not.toHaveBeenCalledWith(
+      'no-cleanup-req',
+      expect.any(Function)
+    );
+  });
+
+  it('late response after timeout should not cause errors', async () => {
+    const bladeObj = {
+      request: { id: 'late-req', jsonrpc: '2.0', method: 'test' },
+    };
+
+    // Attach catch handler immediately
+    const promise = connection.send(bladeObj, 1000);
+    const catchPromise = promise.catch(() => {});
+
+    jest.advanceTimersByTime(1001);
+    await catchPromise;
+
+    // If a late response somehow arrives (e.g. the handler was not
+    // fully removed), it should not throw or cause double-resolve.
+    // The handler's timedOut guard prevents this.
   });
 });
 

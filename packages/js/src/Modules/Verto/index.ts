@@ -103,6 +103,9 @@ export default class Verto extends BrowserSession {
   }
 
   protected async _onSocketOpen() {
+    // Let BaseSession resume signaling health monitor for active calls
+    await super._onSocketOpen();
+
     if (isValidLoginOptions(this.options)) {
       return this.handleLoginOnSocketOpen();
     }

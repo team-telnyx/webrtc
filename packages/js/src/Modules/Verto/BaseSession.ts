@@ -9,6 +9,7 @@ import {
   trigger,
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
+import { State } from './webrtc/constants';
 import {
   SwEvent,
   AUTHENTICATION_REQUIRED,
@@ -196,7 +197,20 @@ export default abstract class BaseSession {
         this.connect();
       });
     }
-    return this.connection.send(msg).catch(async (error) => {
+
+    // During active calls, apply a request-level timeout so that
+    // signaling-critical requests (e.g. Modify, Bye) cannot hang
+    // indefinitely on a half-dead socket.
+    const timeoutMs = this.hasActiveCall()
+      ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
+      : undefined;
+
+    const sendPromise =
+      timeoutMs != null
+        ? this.connection.send(msg, timeoutMs)
+        : this.connection.send(msg);
+
+    return sendPromise.catch(async (error) => {
       // Handle request-level timeout from Connection.send()
       if (error?.name === 'RequestTimeoutError') {
         this.onSignalingRequestTimeout(error.requestId, error.timeoutMs);
@@ -1007,11 +1021,15 @@ export default abstract class BaseSession {
       this as unknown as { calls?: Record<string, { _state?: number }> }
     ).calls;
     if (!calls) return false;
-    // State.Active = 6, State.Held = 7 in the enum
-    // Active calls: Early(5), Active(6), Held(7)
+    // Active call states: Early, Active, Held — the states where media
+    // should be flowing and signaling liveness matters.
+    const activeStates = new Set<number>([
+      State.Early,
+      State.Active,
+      State.Held,
+    ]);
     return Object.values(calls).some(
-      (call) =>
-        call && call._state != null && call._state >= 5 && call._state <= 7
+      (call) => call && call._state != null && activeStates.has(call._state)
     );
   }
 
@@ -1091,7 +1109,8 @@ export default abstract class BaseSession {
         `Signaling health: probe timed out after ${probeElapsedMs}ms with no inbound activity — declaring signaling unhealthy`
       );
       this._forceSignalingReconnect(
-        'Signaling health probe timed out: no inbound WS activity after probe'
+        'Signaling health probe timed out: no inbound WS activity after probe',
+        'probe'
       );
     }
   }
@@ -1150,30 +1169,42 @@ export default abstract class BaseSession {
       `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms) — declaring signaling unhealthy`
     );
 
-    const warning = createTelnyxWarning(SIGNALING_REQUEST_TIMEOUT);
-    trigger(
-      SwEvent.Warning,
-      { warning, requestId, timeoutMs, sessionId: this.sessionid },
-      this.uuid
-    );
+    // _forceSignalingReconnect with source='request' will emit
+    // the SIGNALING_REQUEST_TIMEOUT warning, so we don't duplicate
+    // it here.
 
     this._forceSignalingReconnect(
-      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`
+      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`,
+      'request'
     );
   }
 
   /**
    * Force-close the WebSocket to trigger the existing onNetworkClose reconnect path.
    * This is the core recovery mechanism for half-dead sockets.
+   *
+   * @param reason Human-readable reason for diagnostics.
+   * @param source What triggered the reconnect: 'probe' (health probe timeout)
+   *        or 'request' (signaling request timeout). Determines which warning
+   *        code is emitted so customer telemetry is not misleading.
    */
-  private _forceSignalingReconnect(reason: string): void {
+  private _forceSignalingReconnect(
+    reason: string,
+    source: 'probe' | 'request' = 'probe'
+  ): void {
     this._healthProbeInFlight = false;
     this._lastHealthProbeSentAt = 0;
 
-    const warning = createTelnyxWarning(SIGNALING_HEALTH_PROBE_TIMEOUT);
+    // Emit a source-specific warning so telemetry accurately reflects
+    // what triggered the reconnect — probe timeout vs request timeout.
+    const warningCode =
+      source === 'probe'
+        ? SIGNALING_HEALTH_PROBE_TIMEOUT
+        : SIGNALING_REQUEST_TIMEOUT;
+    const warning = createTelnyxWarning(warningCode);
     trigger(
       SwEvent.Warning,
-      { warning, reason, sessionId: this.sessionid },
+      { warning, reason, source, sessionId: this.sessionid },
       this.uuid
     );
 
