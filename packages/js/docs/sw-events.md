@@ -13,6 +13,7 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
       - [`telnyx.ready`](#telnyxready)
       - [`telnyx.notification`](#telnyxnotification)
     - [Diagnostics \& Telemetry](#diagnostics--telemetry)
+      - [`telnyx.warning`](#telnyxwarning)
       - [`telnyx.stats.frame`](#telnyxstatsframe)
       - [`telnyx.stats.report`](#telnyxstatsreport)
   - [Sample Subscription Patterns](#sample-subscription-patterns)
@@ -27,6 +28,7 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 | --------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
 | `telnyx.ready`        | Session readiness | SDK is authenticated and the gateway reports `REGED`                | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises               |
 | `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events |
+| `telnyx.warning`      | Diagnostics       | Structured non-fatal SDK warnings, including call-quality issues    | `{ warning, sessionId, callId? }`   | Show degraded-state UI and collect warning telemetry              |
 | `telnyx.stats.frame`  | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter    | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                         |
 | `telnyx.stats.report` | Diagnostics       | Entire timeline returned when stats capture stops                   | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                 |
 
@@ -71,6 +73,32 @@ A catch-all event that delivers call updates, hangup reasons, DTMF indications, 
 | `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` |
 
 ### Diagnostics & Telemetry
+
+#### `telnyx.warning`
+
+Emitted for degraded but recoverable SDK conditions. The payload contains a structured `warning` object, the SDK `sessionId`, and a `callId` when the warning is call-scoped.
+
+Quality warnings can include optional subtype and details fields for richer UI and telemetry. For example, `LOW_LOCAL_AUDIO` (`31005`) may include:
+
+```ts
+{
+  warning: {
+    code: 31005,
+    name: 'LOW_LOCAL_AUDIO',
+    subtype: 'initial_silence', // or 'sustained_silence'
+    details: {
+      audioLevel: 0,
+      threshold: 0.001,
+      audioLevelSource: 'media-source.audioLevel',
+      audioLevelSources: ['media-source.audioLevel', 'media-source.energy']
+    }
+  },
+  sessionId: '...',
+  callId: '...'
+}
+```
+
+`audioLevelSource` and `audioLevelSources` identify the WebRTC stats source used for diagnostics. They do not identify the physical microphone device and do not require additional browser permissions beyond the active call media permissions.
 
 #### `telnyx.stats.frame`
 

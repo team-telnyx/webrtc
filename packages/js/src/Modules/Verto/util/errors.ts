@@ -13,6 +13,7 @@ import {
   SDK_WARNINGS,
   SdkWarningCode,
   ITelnyxWarning,
+  type ITelnyxWarningOptions,
   createTelnyxWarning,
 } from './constants/warnings';
 import {
@@ -22,7 +23,13 @@ import {
 } from './constants/errorCodes';
 
 export { SDK_ERRORS, SdkErrorCode };
-export { SDK_WARNINGS, SdkWarningCode, ITelnyxWarning, createTelnyxWarning };
+export {
+  SDK_WARNINGS,
+  SdkWarningCode,
+  ITelnyxWarning,
+  ITelnyxWarningOptions,
+  createTelnyxWarning,
+};
 
 export type TelnyxMediaErrorCode =
   | typeof MEDIA_MICROPHONE_PERMISSION_DENIED

@@ -23,14 +23,14 @@ Use `telnyx.ready` to know when the client is authenticated and the gateway is r
 
 ## Event Overview
 
-| Event | Purpose | Recommended use |
-| --- | --- | --- |
-| `telnyx.ready` | Client is authenticated and gateway reached `REGISTER` or `REGED` | Enable calling UI and flush any reconnect state |
-| `telnyx.error` | Fatal or blocking SDK errors | Show actionable errors, retry, re-authenticate, or fail the current action |
-| `telnyx.warning` | Non-fatal quality, connectivity, and token warnings | Show degraded-state UI and collect telemetry |
-| `telnyx.notification` | Call lifecycle updates and compatibility notifications | Drive call UI and hangup handling |
-| `telnyx.socket.close` | Raw WebSocket close event | Log close codes and monitor reconnect behavior |
-| `telnyx.socket.error` | Raw WebSocket error wrapper | Log opaque socket failures alongside `sessionId` |
+| Event                 | Purpose                                                           | Recommended use                                                            |
+| --------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `telnyx.ready`        | Client is authenticated and gateway reached `REGISTER` or `REGED` | Enable calling UI and flush any reconnect state                            |
+| `telnyx.error`        | Fatal or blocking SDK errors                                      | Show actionable errors, retry, re-authenticate, or fail the current action |
+| `telnyx.warning`      | Non-fatal quality, connectivity, and token warnings               | Show degraded-state UI and collect telemetry                               |
+| `telnyx.notification` | Call lifecycle updates and compatibility notifications            | Drive call UI and hangup handling                                          |
+| `telnyx.socket.close` | Raw WebSocket close event                                         | Log close codes and monitor reconnect behavior                             |
+| `telnyx.socket.error` | Raw WebSocket error wrapper                                       | Log opaque socket failures alongside `sessionId`                           |
 
 ## Structured Errors (`telnyx.error`)
 
@@ -115,52 +115,51 @@ client.on(SwEvent.Error, (event) => {
 
 #### SDP errors
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `40001` | `SDP_CREATE_OFFER_FAILED` | Failed to create call offer | `RTCPeerConnection.createOffer()` failed |
-| `40002` | `SDP_CREATE_ANSWER_FAILED` | Failed to answer the call | `RTCPeerConnection.createAnswer()` failed |
-| `40003` | `SDP_SET_LOCAL_DESCRIPTION_FAILED` | Failed to apply local call settings | `setLocalDescription()` failed |
-| `40004` | `SDP_SET_REMOTE_DESCRIPTION_FAILED` | Failed to apply remote call settings | `setRemoteDescription()` failed |
-| `40005` | `SDP_SEND_FAILED` | Failed to send call data to server | Invite/answer signaling could not be sent |
+| Code    | Name                                | Message                              | Typical trigger                           |
+| ------- | ----------------------------------- | ------------------------------------ | ----------------------------------------- |
+| `40001` | `SDP_CREATE_OFFER_FAILED`           | Failed to create call offer          | `RTCPeerConnection.createOffer()` failed  |
+| `40002` | `SDP_CREATE_ANSWER_FAILED`          | Failed to answer the call            | `RTCPeerConnection.createAnswer()` failed |
+| `40003` | `SDP_SET_LOCAL_DESCRIPTION_FAILED`  | Failed to apply local call settings  | `setLocalDescription()` failed            |
+| `40004` | `SDP_SET_REMOTE_DESCRIPTION_FAILED` | Failed to apply remote call settings | `setRemoteDescription()` failed           |
+| `40005` | `SDP_SEND_FAILED`                   | Failed to send call data to server   | Invite/answer signaling could not be sent |
 
 #### Media errors
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `42001` | `MEDIA_MICROPHONE_PERMISSION_DENIED` | Microphone access denied | Browser or OS denied microphone permission |
-| `42002` | `MEDIA_DEVICE_NOT_FOUND` | No microphone found | Missing/disconnected device or invalid `deviceId` |
-| `42003` | `MEDIA_GET_USER_MEDIA_FAILED` | Failed to access microphone | `getUserMedia()` failed for another reason |
+| Code    | Name                                 | Message                     | Typical trigger                                   |
+| ------- | ------------------------------------ | --------------------------- | ------------------------------------------------- |
+| `42001` | `MEDIA_MICROPHONE_PERMISSION_DENIED` | Microphone access denied    | Browser or OS denied microphone permission        |
+| `42002` | `MEDIA_DEVICE_NOT_FOUND`             | No microphone found         | Missing/disconnected device or invalid `deviceId` |
+| `42003` | `MEDIA_GET_USER_MEDIA_FAILED`        | Failed to access microphone | `getUserMedia()` failed for another reason        |
 
 #### Call-control errors
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `44001` | `HOLD_FAILED` | Failed to hold the call | Hold request failed |
-| `44002` | `INVALID_CALL_PARAMETERS` | Invalid call parameters | Required call params were missing or invalid |
-| `44003` | `BYE_SEND_FAILED` | Failed to hang up cleanly | Local hangup succeeded but BYE could not be sent |
-| `44004` | `SUBSCRIBE_FAILED` | Failed to subscribe to call events | Verto subscribe failed |
+| Code    | Name                      | Message                            | Typical trigger                                  |
+| ------- | ------------------------- | ---------------------------------- | ------------------------------------------------ |
+| `44001` | `HOLD_FAILED`             | Failed to hold the call            | Hold request failed                              |
+| `44002` | `INVALID_CALL_PARAMETERS` | Invalid call parameters            | Required call params were missing or invalid     |
+| `44003` | `BYE_SEND_FAILED`         | Failed to hang up cleanly          | Local hangup succeeded but BYE could not be sent |
+| `44004` | `SUBSCRIBE_FAILED`        | Failed to subscribe to call events | Verto subscribe failed                           |
 
 #### WebSocket and transport errors
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `45001` | `WEBSOCKET_CONNECTION_FAILED` | Unable to connect to server | WebSocket construction/connection failed |
-| `45002` | `WEBSOCKET_ERROR` | Connection to server lost | Browser `ws.onerror` fired |
-| `45003` | `RECONNECTION_EXHAUSTED` | Unable to reconnect to server | Gateway reconnect attempts were exhausted |
-| `45004` | `GATEWAY_FAILED` | Gateway connection failed | Gateway reported `FAILED` or `FAIL_WAIT` |
+| Code    | Name                          | Message                       | Typical trigger                           |
+| ------- | ----------------------------- | ----------------------------- | ----------------------------------------- |
+| `45001` | `WEBSOCKET_CONNECTION_FAILED` | Unable to connect to server   | WebSocket construction/connection failed  |
+| `45002` | `WEBSOCKET_ERROR`             | Connection to server lost     | Browser `ws.onerror` fired                |
+| `45003` | `RECONNECTION_EXHAUSTED`      | Unable to reconnect to server | Gateway reconnect attempts were exhausted |
+| `45004` | `GATEWAY_FAILED`              | Gateway connection failed     | Gateway reported `FAILED` or `FAIL_WAIT`  |
 
 #### Authentication and session errors
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `46001` | `LOGIN_FAILED` | Authentication failed | Login rejected or registration never reached ready state |
-| `46002` | `INVALID_CREDENTIALS` | Invalid credential parameters | Client-side login validation failed before request send |
-| `46003` | `AUTHENTICATION_REQUIRED` | Authentication required | Request sent before auth completed or after auth was lost |
-| `48001` | `NETWORK_OFFLINE` | Device is offline | Browser `offline` event fired |
-| `49001` | `UNEXPECTED_ERROR` | An unexpected error occurred | Unclassified failure during peer/call setup |
+| Code    | Name                      | Message                       | Typical trigger                                           |
+| ------- | ------------------------- | ----------------------------- | --------------------------------------------------------- |
+| `46001` | `LOGIN_FAILED`            | Authentication failed         | Login rejected or registration never reached ready state  |
+| `46002` | `INVALID_CREDENTIALS`     | Invalid credential parameters | Client-side login validation failed before request send   |
+| `46003` | `AUTHENTICATION_REQUIRED` | Authentication required       | Request sent before auth completed or after auth was lost |
+| `48001` | `NETWORK_OFFLINE`         | Device is offline             | Browser `offline` event fired                             |
+| `49001` | `UNEXPECTED_ERROR`        | An unexpected error occurred  | Unclassified failure during peer/call setup               |
 
-> [!NOTE]
-> Invalid login options currently also include `type: ERROR_TYPE.invalidCredentialsOptions` on the runtime event payload for backward compatibility. The stable signal to key on is still `event.error.code === TELNYX_ERROR_CODES.INVALID_CREDENTIALS`.
+> Note: Invalid login options currently also include `type: ERROR_TYPE.invalidCredentialsOptions` on the runtime event payload for backward compatibility. The stable signal to key on is still `event.error.code === TELNYX_ERROR_CODES.INVALID_CREDENTIALS`.
 
 ## Structured Warnings (`telnyx.warning`)
 
@@ -174,7 +173,20 @@ interface ITelnyxWarningEvent {
   sessionId: string;
   callId?: string;
 }
+
+interface ITelnyxWarning {
+  code: number;
+  name: string;
+  subtype?: string;
+  message: string;
+  description: string;
+  causes: string[];
+  solutions: string[];
+  details?: Record<string, unknown>;
+}
 ```
+
+`warning.subtype` and `warning.details` are optional. They are present only when a warning code has multiple diagnostic causes or source-specific context.
 
 ### Basic example
 
@@ -192,45 +204,72 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
     return;
   }
 
+  if (warning.code === TELNYX_WARNING_CODES.LOW_LOCAL_AUDIO) {
+    console.debug('Low local audio subtype:', warning.subtype);
+    console.debug('Low local audio details:', warning.details);
+  }
+
   console.debug(SDK_WARNINGS[warning.code]?.description);
   console.warn(`[${warning.code}] ${warning.name}: ${warning.message}`);
 });
 ```
 
+### Low local audio diagnostics
+
+`LOW_LOCAL_AUDIO` (`31005`) can be emitted with a subtype so applications can distinguish setup-time silence from sustained silence after audio was already confirmed:
+
+| Subtype             | Meaning                                                                                              | Typical action                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `initial_silence`   | Local outbound audio stayed below threshold before the SDK observed real microphone audio            | Prompt the user to check microphone selection, hardware mute, OS input level, or distance from microphone |
+| `sustained_silence` | Local outbound audio was confirmed earlier, then stayed below threshold for a long continuous window | Treat as a softer warning; avoid interrupting normal short pauses                                         |
+
+`warning.details` for this warning may include:
+
+| Field               | Description                                                                |
+| ------------------- | -------------------------------------------------------------------------- |
+| `audioLevel`        | Averaged outbound audio level that breached the threshold                  |
+| `threshold`         | SDK threshold used for low local audio detection                           |
+| `audioLevelSource`  | Primary WebRTC stats source used for `audioLevel`                          |
+| `audioLevelSources` | All WebRTC stats sources observed for outbound audio level in the interval |
+| `silenceDurationMs` | Continuous silence duration, present for `sustained_silence`               |
+
+`audioLevelSource` / `audioLevelSources` describe WebRTC stats APIs, not microphone device identity. Possible values are `media-source.audioLevel`, `media-source.energy`, and `track.audioLevel`.
+
 ### Warning code reference
 
 #### Network quality warnings
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `31001` | `HIGH_RTT` | High network latency detected | RTT stayed above threshold |
-| `31002` | `HIGH_JITTER` | High jitter detected | Jitter stayed above threshold |
-| `31003` | `HIGH_PACKET_LOSS` | High packet loss detected | Packet loss stayed above threshold |
-| `31004` | `LOW_MOS` | Low call quality score | MOS stayed below threshold |
+| Code    | Name               | Message                             | Typical trigger                               |
+| ------- | ------------------ | ----------------------------------- | --------------------------------------------- |
+| `31001` | `HIGH_RTT`         | High network latency detected       | RTT stayed above threshold                    |
+| `31002` | `HIGH_JITTER`      | High jitter detected                | Jitter stayed above threshold                 |
+| `31003` | `HIGH_PACKET_LOSS` | High packet loss detected           | Packet loss stayed above threshold            |
+| `31004` | `LOW_MOS`          | Low call quality score              | MOS stayed below threshold                    |
+| `31005` | `LOW_LOCAL_AUDIO`  | Low local microphone audio detected | Outbound microphone audio stayed near silence |
 
 #### Data-flow warnings
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `32001` | `LOW_BYTES_RECEIVED` | No audio data received | Remote audio bytes stopped increasing |
-| `32002` | `LOW_BYTES_SENT` | No audio data being sent | Local audio bytes stopped increasing |
+| Code    | Name                 | Message                  | Typical trigger                       |
+| ------- | -------------------- | ------------------------ | ------------------------------------- |
+| `32001` | `LOW_BYTES_RECEIVED` | No audio data received   | Remote audio bytes stopped increasing |
+| `32002` | `LOW_BYTES_SENT`     | No audio data being sent | Local audio bytes stopped increasing  |
 
 #### Connectivity warnings
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `33001` | `ICE_CONNECTIVITY_LOST` | Connection interrupted | ICE connection state became `disconnected` |
-| `33002` | `ICE_GATHERING_TIMEOUT` | ICE gathering timed out | ICE gathering safety timeout fired |
-| `33003` | `ICE_GATHERING_EMPTY` | No ICE candidates gathered | No candidates were collected |
-| `33004` | `PEER_CONNECTION_FAILED` | Connection failed | Peer connection state became `failed` |
-| `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available | SDP contained only host ICE candidates |
+| Code    | Name                       | Message                                 | Typical trigger                            |
+| ------- | -------------------------- | --------------------------------------- | ------------------------------------------ |
+| `33001` | `ICE_CONNECTIVITY_LOST`    | Connection interrupted                  | ICE connection state became `disconnected` |
+| `33002` | `ICE_GATHERING_TIMEOUT`    | ICE gathering timed out                 | ICE gathering safety timeout fired         |
+| `33003` | `ICE_GATHERING_EMPTY`      | No ICE candidates gathered              | No candidates were collected               |
+| `33004` | `PEER_CONNECTION_FAILED`   | Connection failed                       | Peer connection state became `failed`      |
+| `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available | SDP contained only host ICE candidates     |
 
 #### Authentication and session warnings
 
-| Code | Name | Message | Typical trigger |
-| --- | --- | --- | --- |
-| `34001` | `TOKEN_EXPIRING_SOON` | Authentication token expiring soon | JWT expires within 120 seconds |
-| `35001` | `SESSION_NOT_REATTACHED` | Active call lost after reconnect | Server returned an empty `reattached_sessions` list while calls still existed locally |
+| Code    | Name                     | Message                            | Typical trigger                                                                       |
+| ------- | ------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `34001` | `TOKEN_EXPIRING_SOON`    | Authentication token expiring soon | JWT expires within 120 seconds                                                        |
+| `35001` | `SESSION_NOT_REATTACHED` | Active call lost after reconnect   | Server returned an empty `reattached_sessions` list while calls still existed locally |
 
 ## Notifications (`telnyx.notification`)
 
@@ -243,12 +282,12 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 
 ### Error-related notification types
 
-| `notification.type` | Current status | Payload notes |
-| --- | --- | --- |
-| `callUpdate` | Active | Includes `call`; use this for call state and hangup data |
-| `userMediaError` | Compatibility notification | Final media-failure notification. Includes raw browser/media `error`, `errorName`, `errorMessage`, and `call` when available |
-| `peerConnectionFailureError` | Compatibility notification | Includes raw `error`; structured replacement is warning `33004` |
-| `signalingStateClosed` | Active | Includes `sessionId`; indicates the current peer signaling state closed |
+| `notification.type`          | Current status             | Payload notes                                                                                                                |
+| ---------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `callUpdate`                 | Active                     | Includes `call`; use this for call state and hangup data                                                                     |
+| `userMediaError`             | Compatibility notification | Final media-failure notification. Includes raw browser/media `error`, `errorName`, `errorMessage`, and `call` when available |
+| `peerConnectionFailureError` | Compatibility notification | Includes raw `error`; structured replacement is warning `33004`                                                              |
+| `signalingStateClosed`       | Active                     | Includes `sessionId`; indicates the current peer signaling state closed                                                      |
 
 ### Listener scoping
 
@@ -306,26 +345,26 @@ client.on(SwEvent.Notification, (notification) => {
 
 When a call reaches `hangup`, inspect these fields on the `Call` object:
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `cause` | `string` | High-level cause such as `USER_BUSY` or `CALL_REJECTED` |
-| `causeCode` | `number` | Numeric cause code |
-| `sipCode` | `number` | SIP response code when available |
-| `sipReason` | `string` | SIP reason phrase when available |
+| Field       | Type     | Meaning                                                 |
+| ----------- | -------- | ------------------------------------------------------- |
+| `cause`     | `string` | High-level cause such as `USER_BUSY` or `CALL_REJECTED` |
+| `causeCode` | `number` | Numeric cause code                                      |
+| `sipCode`   | `number` | SIP response code when available                        |
+| `sipReason` | `string` | SIP reason phrase when available                        |
 
 Typical cases:
 
-| Field value | Meaning |
-| --- | --- |
-| `cause === 'NORMAL_CLEARING'` | Expected call completion |
-| `cause === 'USER_BUSY'` | Remote party was busy |
-| `cause === 'CALL_REJECTED'` | Remote party rejected the call |
-| `cause === 'NO_ANSWER'` | Call timed out unanswered |
+| Field value                      | Meaning                                    |
+| -------------------------------- | ------------------------------------------ |
+| `cause === 'NORMAL_CLEARING'`    | Expected call completion                   |
+| `cause === 'USER_BUSY'`          | Remote party was busy                      |
+| `cause === 'CALL_REJECTED'`      | Remote party rejected the call             |
+| `cause === 'NO_ANSWER'`          | Call timed out unanswered                  |
 | `cause === 'UNALLOCATED_NUMBER'` | Dialed number is invalid or does not exist |
-| `cause === 'PURGE'` | Call was purged from the system |
-| `sipCode === 403` | Forbidden |
-| `sipCode === 404` | Destination not found |
-| `sipCode === 486` | Busy Here |
+| `cause === 'PURGE'`              | Call was purged from the system            |
+| `sipCode === 403`                | Forbidden                                  |
+| `sipCode === 404`                | Destination not found                      |
+| `sipCode === 486`                | Busy Here                                  |
 
 ## Socket Events
 
@@ -341,15 +380,15 @@ The SDK exposes both raw socket events and structured transport errors.
 
 Useful close codes:
 
-| Code | Meaning |
-| --- | --- |
-| `1000` | Normal closure |
-| `1001` | Going away |
-| `1002` | Protocol error |
-| `1003` | Unsupported data |
+| Code   | Meaning                 |
+| ------ | ----------------------- |
+| `1000` | Normal closure          |
+| `1001` | Going away              |
+| `1002` | Protocol error          |
+| `1003` | Unsupported data        |
 | `1005` | No status code received |
-| `1006` | Abnormal closure |
-| `1011` | Internal error |
+| `1006` | Abnormal closure        |
+| `1011` | Internal error          |
 
 ### `telnyx.socket.error`
 
@@ -368,14 +407,14 @@ This event is intentionally low-detail because browsers expose very little infor
 
 The browser session exposes WebSocket state helpers on `client.connection`:
 
-| Getter | Meaning |
-| --- | --- |
+| Getter                         | Meaning                      |
+| ------------------------------ | ---------------------------- |
 | `client.connection.connecting` | WebSocket is in `CONNECTING` |
-| `client.connection.connected` | WebSocket is in `OPEN` |
-| `client.connection.closing` | WebSocket is in `CLOSING` |
-| `client.connection.closed` | WebSocket is in `CLOSED` |
-| `client.connection.isAlive` | `CONNECTING` or `OPEN` |
-| `client.connection.isDead` | `CLOSING` or `CLOSED` |
+| `client.connection.connected`  | WebSocket is in `OPEN`       |
+| `client.connection.closing`    | WebSocket is in `CLOSING`    |
+| `client.connection.closed`     | WebSocket is in `CLOSED`     |
+| `client.connection.isAlive`    | `CONNECTING` or `OPEN`       |
+| `client.connection.isDead`     | `CLOSING` or `CLOSED`        |
 
 Example:
 
@@ -429,10 +468,10 @@ The SDK still exposes low-level RTC events, but new integrations should prefer `
 
 ### Legacy or low-level RTC events
 
-| Event | Status | Preferred surface |
-| --- | --- | --- |
-| `telnyx.rtc.mediaError` | Legacy/compatibility | `telnyx.error` with `42001`, `42002`, or `42003` |
-| `telnyx.rtc.peerConnectionFailureError` | Legacy/compatibility | `telnyx.warning` with `33004` |
+| Event                                           | Status                 | Preferred surface                                                                        |
+| ----------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------- |
+| `telnyx.rtc.mediaError`                         | Legacy/compatibility   | `telnyx.error` with `42001`, `42002`, or `42003`                                         |
+| `telnyx.rtc.peerConnectionFailureError`         | Legacy/compatibility   | `telnyx.warning` with `33004`                                                            |
 | `telnyx.rtc.peerConnectionSignalingStateClosed` | Low-level active event | `notification.type === 'signalingStateClosed'` if you want the higher-level notification |
 
 ### Migration checklist

@@ -71,6 +71,8 @@ const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
     outbound: {
       audioLevelAvg,
       bytesSent: 1000,
+      audioLevelSource: 'media-source.audioLevel',
+      audioLevelSources: ['media-source.audioLevel', 'media-source.energy'],
       localTrack: {
         id: 'track-id',
         enabled: true,
@@ -339,6 +341,13 @@ describe('CallReportCollector local audio diagnostics', () => {
       expect.objectContaining({
         code: LOW_LOCAL_AUDIO,
         name: 'LOW_LOCAL_AUDIO',
+        subtype: 'initial_silence',
+        details: expect.objectContaining({
+          subtype: 'initial_silence',
+          audioLevelSource: 'media-source.audioLevel',
+          audioLevelSources: ['media-source.audioLevel', 'media-source.energy'],
+          threshold: 0.001,
+        }),
       })
     );
   });
@@ -375,6 +384,16 @@ describe('CallReportCollector local audio diagnostics', () => {
 
     collector._checkQualityWarnings(createStatsEntry(0), null);
     expect(onWarning).toHaveBeenCalledTimes(2);
+    expect(onWarning).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        code: LOW_LOCAL_AUDIO,
+        subtype: 'sustained_silence',
+        details: expect.objectContaining({
+          subtype: 'sustained_silence',
+          silenceDurationMs: 30000,
+        }),
+      })
+    );
 
     collector._checkQualityWarnings(createStatsEntry(0), null);
     expect(onWarning).toHaveBeenCalledTimes(2);
