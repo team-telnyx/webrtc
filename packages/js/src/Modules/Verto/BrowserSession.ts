@@ -6,12 +6,17 @@ import {
   IVertoOptions,
 } from './util/interfaces';
 import { registerOnce, trigger } from './services/Handler';
-import { classifyMediaErrorCode, createTelnyxError } from './util/errors';
+import {
+  classifyMediaErrorCode,
+  createTelnyxError,
+  createTelnyxWarning,
+} from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
   DEFAULT_DEV_ICE_SERVERS,
   NETWORK_OFFLINE,
+  SELECTED_MEDIA_DEVICE_MISSING,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
@@ -66,6 +71,8 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _offlineHandler: (() => void) | null = null;
 
+  private _deviceChangeHandler: (() => void) | null = null;
+
   private _wasOffline: boolean = false;
 
   constructor(options: IVertoOptions) {
@@ -75,6 +82,7 @@ export default abstract class BrowserSession extends BaseSession {
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;
     this._setupNetworkListeners();
+    this._setupDeviceChangeListener();
   }
 
   get reconnectDelay() {
@@ -180,6 +188,7 @@ export default abstract class BrowserSession extends BaseSession {
     this.calls = {};
 
     this._cleanupNetworkListeners();
+    this._cleanupDeviceChangeListener();
     await super.disconnect();
   }
 
@@ -202,6 +211,7 @@ export default abstract class BrowserSession extends BaseSession {
     this.calls = {};
 
     this._cleanupNetworkListeners();
+    this._cleanupDeviceChangeListener();
     await super.disconnect();
   }
 
@@ -826,6 +836,104 @@ export default abstract class BrowserSession extends BaseSession {
     window.removeEventListener('offline', this._offlineHandler);
     this._onlineHandler = null;
     this._offlineHandler = null;
+  }
+
+  private _setupDeviceChangeListener() {
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices?.addEventListener
+    ) {
+      return;
+    }
+
+    this._deviceChangeHandler = () => {
+      void this._handleDeviceChange();
+    };
+
+    navigator.mediaDevices.addEventListener(
+      'devicechange',
+      this._deviceChangeHandler
+    );
+  }
+
+  private _cleanupDeviceChangeListener() {
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices?.removeEventListener ||
+      !this._deviceChangeHandler
+    ) {
+      return;
+    }
+
+    navigator.mediaDevices.removeEventListener(
+      'devicechange',
+      this._deviceChangeHandler
+    );
+    this._deviceChangeHandler = null;
+  }
+
+  private _hasSelectedDevice(
+    devices: MediaDeviceInfo[],
+    kind: MediaDeviceKind,
+    id?: string,
+    label?: string
+  ): boolean {
+    if (!id && !label) {
+      return true;
+    }
+
+    return devices.some(
+      (device) =>
+        device.kind === kind &&
+        ((id && device.deviceId === id) || (label && device.label === label))
+    );
+  }
+
+  private async _handleDeviceChange() {
+    logger.info('Media device list changed');
+
+    const devices = await navigator.mediaDevices.enumerateDevices().catch(
+      (error) => {
+        logger.warn('Unable to enumerate media devices after devicechange', error);
+        return [] as MediaDeviceInfo[];
+      }
+    );
+
+    const selectedMicrophoneMissing = !this._hasSelectedDevice(
+      devices,
+      DeviceType.AudioIn,
+      this.micId,
+      this.micLabel
+    );
+    const selectedCameraMissing = !this._hasSelectedDevice(
+      devices,
+      DeviceType.Video,
+      this.camId,
+      this.camLabel
+    );
+
+    if (!selectedMicrophoneMissing && !selectedCameraMissing) {
+      return;
+    }
+
+    logger.warn('Selected media device is no longer available', {
+      selectedMicrophoneMissing,
+      selectedCameraMissing,
+      micId: this.micId,
+      micLabel: this.micLabel,
+      camId: this.camId,
+      camLabel: this.camLabel,
+    });
+
+    const warning = createTelnyxWarning(SELECTED_MEDIA_DEVICE_MISSING);
+    trigger(
+      SwEvent.Warning,
+      {
+        warning,
+        sessionId: this.sessionid,
+      },
+      this.uuid
+    );
   }
 
   static telnyxStateCall(call: Call) {

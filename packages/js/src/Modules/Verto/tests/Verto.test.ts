@@ -5,7 +5,10 @@ import { IVertoOptions } from '../util/interfaces';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
+  SELECTED_MEDIA_DEVICE_MISSING,
+  SwEvent,
 } from '../util/constants';
+import { deRegister, register } from '../services/Handler';
 
 const Connection = require('../services/Connection');
 
@@ -55,6 +58,34 @@ describe('Verto', () => {
       password: 'password',
     });
     expect(telnyxRTC.options.env).toEqual('production');
+  });
+
+  it('should warn when a selected microphone disappears after devicechange', async () => {
+    const warningHandler = jest.fn();
+    instance.micId = 'missing-mic';
+    instance.micLabel = 'Missing microphone';
+
+    (navigator.mediaDevices.enumerateDevices as jest.Mock).mockResolvedValueOnce([
+      {
+        deviceId: 'other-mic',
+        kind: 'audioinput',
+        label: 'Other microphone',
+        groupId: 'group-1',
+      },
+    ]);
+
+    register(SwEvent.Warning, warningHandler, instance.uuid);
+
+    await (
+      instance as unknown as { _handleDeviceChange: () => Promise<void> }
+    )._handleDeviceChange();
+
+    expect(warningHandler).toHaveBeenCalledTimes(1);
+    expect(warningHandler.mock.calls[0][0].warning.code).toBe(
+      SELECTED_MEDIA_DEVICE_MISSING
+    );
+
+    deRegister(SwEvent.Warning, undefined, instance.uuid);
   });
 
   it('should set env equal development', () => {

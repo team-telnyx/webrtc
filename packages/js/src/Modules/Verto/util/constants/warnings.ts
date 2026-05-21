@@ -269,6 +269,22 @@ export const SDK_WARNINGS = {
       'Only call answer() for one inbound call notification at a time',
     ],
   },
+  33008: {
+    name: 'SELECTED_MEDIA_DEVICE_MISSING',
+    message: 'Selected media device is no longer available',
+    description:
+      'The browser reported a media device change and the SDK could no longer find the selected microphone or camera by deviceId or label. A later call may fail with NotFoundError unless the application asks the user to pick a currently available device.',
+    causes: [
+      'Selected headset, microphone, or camera was disconnected',
+      'Bluetooth audio device changed profile or powered off',
+      'Browser rotated device identifiers after permission or profile changes',
+    ],
+    solutions: [
+      'Refresh the device picker using getDevices()',
+      'Ask the user to reconnect or select another input device',
+      'Clear stale saved deviceId values before the next call',
+    ],
+  },
 
   // ── Authentication warnings (340xx) ─────────────────────────────────
   34001: {
