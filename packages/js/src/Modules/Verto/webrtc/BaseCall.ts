@@ -204,6 +204,15 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _iceTimeout = null;
 
+  /**
+   * Timeout for the ICE restart Modify request-response cycle.
+   * If the Modify response does not arrive within this window, the SDK
+   * treats it as a signaling failure and triggers reconnect.
+   */
+  private _iceRestartModifyTimeoutId: ReturnType<typeof setTimeout> | null =
+    null;
+  private static readonly ICE_RESTART_MODIFY_TIMEOUT_MS = 10_000;
+
   private _ringtone: IAudio;
 
   private _ringback: IAudio;
@@ -1145,6 +1154,10 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
+
+        // Start signaling health monitor for active calls
+        this.session.startSignalingHealthMonitor();
+
         setTimeout(() => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
@@ -1505,8 +1518,38 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
     });
     logger.info('ICE restart: sending Modify with new offer SDP');
+
+    // Clear any previous modify timeout
+    if (this._iceRestartModifyTimeoutId) {
+      clearTimeout(this._iceRestartModifyTimeoutId);
+      this._iceRestartModifyTimeoutId = null;
+    }
+
+    // Set a strict timeout for the Modify exchange
+    this._iceRestartModifyTimeoutId = setTimeout(() => {
+      this._iceRestartModifyTimeoutId = null;
+      if (this.peer?.isIceRestarting) {
+        logger.warn(
+          `ICE restart: Modify response timed out after ${BaseCall.ICE_RESTART_MODIFY_TIMEOUT_MS}ms — triggering signaling recovery`
+        );
+        this._onIceRestartFailed(
+          `ICE restart Modify timed out after ${BaseCall.ICE_RESTART_MODIFY_TIMEOUT_MS}ms`
+        );
+        // Trigger signaling health recovery since Modify is a signaling-critical request
+        this.session.onSignalingRequestTimeout(
+          modifyMsg.request.id,
+          BaseCall.ICE_RESTART_MODIFY_TIMEOUT_MS
+        );
+      }
+    }, BaseCall.ICE_RESTART_MODIFY_TIMEOUT_MS);
+
     this._execute(modifyMsg)
       .then(async (response) => {
+        // Clear the modify timeout on success
+        if (this._iceRestartModifyTimeoutId) {
+          clearTimeout(this._iceRestartModifyTimeoutId);
+          this._iceRestartModifyTimeoutId = null;
+        }
         if (response?.sdp) {
           logger.info('ICE restart Modify response received');
           this.peer?.finishIceRestart();
@@ -1516,7 +1559,19 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
       })
       .catch((error) => {
+        // Clear the modify timeout on error
+        if (this._iceRestartModifyTimeoutId) {
+          clearTimeout(this._iceRestartModifyTimeoutId);
+          this._iceRestartModifyTimeoutId = null;
+        }
         this._onIceRestartFailed('ICE restart Modify failed', error);
+        // If the error is a RequestTimeoutError, trigger signaling health recovery
+        if (error?.name === 'RequestTimeoutError') {
+          this.session.onSignalingRequestTimeout(
+            error.requestId,
+            error.timeoutMs
+          );
+        }
       });
   }
 
@@ -2290,6 +2345,21 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+
+    // Clear ICE restart modify timeout
+    if (this._iceRestartModifyTimeoutId) {
+      clearTimeout(this._iceRestartModifyTimeoutId);
+      this._iceRestartModifyTimeoutId = null;
+    }
+
+    // Stop signaling health monitor if no active calls remain
+    // We schedule this for the next tick so the call is removed from session.calls first
+    const sessionRef = this.session;
+    setTimeout(() => {
+      if (!sessionRef.hasActiveCall()) {
+        sessionRef.stopSignalingHealthMonitor();
+      }
+    }, 0);
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).

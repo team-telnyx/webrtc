@@ -297,6 +297,24 @@ export const SDK_ERRORS = {
     ],
   },
 
+  47002: {
+    name: 'SIGNALING_HEALTH_FAILURE',
+    message: 'Signaling connection unhealthy',
+    description:
+      'The WebSocket signaling channel was detected as half-dead during an active call: the browser reports the socket as OPEN but no inbound messages are received even after a health probe. The SDK force-closed the socket to trigger reconnection.',
+    causes: [
+      'Network interface removed mid-call while another interface remains',
+      'TCP connection bound to a removed IP/route became half-dead',
+      'WebSocket proxy or load balancer dropped the connection silently',
+      'Firewall or NAT state expired without TCP RST',
+    ],
+    solutions: [
+      'The SDK will automatically reconnect',
+      'Check for network interface changes during the call',
+      'Verify firewall/NAT timeout settings',
+    ],
+  },
+
   // ── Network errors (480xx) ──────────────────────────────────────────
   48001: {
     name: 'NETWORK_OFFLINE',

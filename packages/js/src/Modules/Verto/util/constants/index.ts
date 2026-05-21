@@ -73,6 +73,10 @@ export enum SwEvent {
 
   // Internal events
   SpeedTest = 'telnyx.internal.speedtest',
+  /** Emitted by Connection on every inbound WS message (before dispatch) */
+  SocketActivity = 'telnyx.internal.socketActivity',
+  /** Emitted by Peer when ICE/connection state degrades during active call */
+  SignalingHealthProbeRequest = 'telnyx.internal.signalingHealthProbeRequest',
 
   // Global Events
   Ready = 'telnyx.ready',

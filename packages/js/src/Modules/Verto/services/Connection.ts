@@ -40,8 +40,28 @@ const WS_STATE = {
  */
 const CLOSE_SAFETY_TIMEOUT_MS = 5000;
 
+/**
+ * Error thrown when a JSON-RPC request times out waiting for a response.
+ * Carries the request ID and timeout duration for diagnostics.
+ */
+export class RequestTimeoutError extends Error {
+  public readonly requestId: string;
+  public readonly timeoutMs: number;
+
+  constructor(requestId: string, timeoutMs: number) {
+    super(
+      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`
+    );
+    this.name = 'RequestTimeoutError';
+    this.requestId = requestId;
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 export default class Connection {
   public previousGatewayState = '';
+  /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
+  public lastInboundAt: number = 0;
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
@@ -52,6 +72,14 @@ export default class Connection {
 
   public upDur: number | null = null;
   public downDur: number | null = null;
+
+  /**
+   * Default timeout (ms) for signaling-critical JSON-RPC requests during
+   * active calls. When exceeded, the promise rejects and the session is
+   * notified so it can trigger signaling-health recovery.
+   * Can be overridden per-request via `send(bladeObj, timeoutMs)`.
+   */
+  public static DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
   constructor(public session: BaseSession) {
     const { host, env, region, useCanaryRtcServer } = session.options;
@@ -148,6 +176,7 @@ export default class Connection {
 
     try {
       this._wsClient = new WebSocketClass(websocketUrl.toString());
+      this.lastInboundAt = 0;
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
@@ -165,17 +194,40 @@ export default class Connection {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  send(bladeObj: any): Promise<any> {
+  send(bladeObj: any, timeoutMs?: number): Promise<any> {
     const { request } = bladeObj;
     const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
       }
+
+      let timedOut = false;
+      let timerId: ReturnType<typeof setTimeout> | null = null;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      registerOnce(request.id, (response: any) => {
+      const handler = (response: any) => {
+        if (timerId !== null) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+        if (timedOut) {
+          // Response arrived after timeout — discard silently
+          return;
+        }
         const { result, error } = destructResponse(response);
         return error ? reject(error) : resolve(result);
-      });
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerOnce(request.id, handler as any);
+
+      if (timeoutMs && timeoutMs > 0) {
+        timerId = setTimeout(() => {
+          timedOut = true;
+          timerId = null;
+          reject(new RequestTimeoutError(request.id, timeoutMs));
+        }, timeoutMs);
+      }
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     this._wsClient?.send(JSON.stringify(request));
@@ -235,6 +287,19 @@ export default class Connection {
     };
 
     ws.onmessage = (event): void => {
+      // Track ALL inbound WS message activity — any parsed message proves
+      // the socket is alive, not just pong/SwEvent.SocketMessage.
+      this.lastInboundAt = Date.now();
+
+      // Emit internal activity event so BaseSession can use it for
+      // signaling health monitoring without relying on SwEvent.SocketMessage
+      // (which is only triggered for unhandled/unrouted messages).
+      trigger(
+        SwEvent.SocketActivity,
+        { timestamp: this.lastInboundAt },
+        this.session.uuid
+      );
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {

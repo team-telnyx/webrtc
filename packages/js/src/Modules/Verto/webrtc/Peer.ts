@@ -296,6 +296,11 @@ export default class Peer {
         });
       }
 
+      // Trigger immediate signaling health probe when media/ICE degrades
+      // during an active call. If the probe fails, the SDK will force
+      // signaling reconnect alongside media recovery.
+      this._session.triggerSignalingHealthProbe?.();
+
       // ICE restart: fire only when the browser never went offline during
       // this peer's lifetime. If `window.offline` fired, the Attach flow
       // owns recovery exclusively. _hadOfflineEvent is only cleared on `connected`,

@@ -16,6 +16,9 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  SIGNALING_HEALTH_FAILURE,
+  SIGNALING_HEALTH_PROBE_TIMEOUT,
+  SIGNALING_REQUEST_TIMEOUT,
   WS_CLOSE_CODES,
 } from './util/constants';
 import { createTelnyxError, createTelnyxWarning } from './util/errors';
@@ -46,6 +49,19 @@ import type { ITelnyxWarningEvent } from './util/constants/warnings';
  * Using intervals here that are in between both to make sure we don't let the session expire without acting first.
  */
 const KEEPALIVE_INTERVAL = 35 * 1000;
+
+/**
+ * During an active call, if no inbound WS activity is observed for this
+ * duration, a health probe (Ping) is sent.
+ */
+const SIGNALING_HEALTH_PROBE_THRESHOLD_MS = 12 * 1000; // 12s silence → probe
+
+/**
+ * After sending a health probe, if no inbound WS activity of any kind is
+ * received within this window, the signaling is declared unhealthy and the
+ * socket is force-closed to trigger reconnect.
+ */
+const SIGNALING_HEALTH_PROBE_TIMEOUT_MS = 5 * 1000; // 5s after probe → give up
 
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
@@ -81,6 +97,35 @@ export default abstract class BaseSession {
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
+  // ── Signaling health monitor ──────────────────────────────────────────
+  /**
+   * Timestamp (Date.now()) of the last inbound WS message observed through
+   * the SocketActivity event. Updated on every parsed message in Connection.
+   * Used by the signaling health monitor to detect half-dead sockets.
+   */
+  private _lastInboundWsMessageAt: number = 0;
+  /**
+   * Timestamp of the last health probe (Ping) sent by the signaling monitor.
+   * Reset to 0 when any inbound activity is received.
+   */
+  private _lastHealthProbeSentAt: number = 0;
+  /**
+   * True when a health probe has been sent and we're waiting for a response.
+   * Prevents sending multiple overlapping probes.
+   */
+  private _healthProbeInFlight: boolean = false;
+  /**
+   * Interval that checks signaling liveness during active calls.
+   * Only started when there are active calls and stopped when idle.
+   */
+  private _signalingHealthIntervalId: ReturnType<typeof setInterval> | null =
+    null;
+  /**
+   * How often (ms) the signaling health monitor checks for liveness.
+   * Checks every 3s so that the 12s probe threshold is hit in ~4 checks.
+   */
+  private static readonly SIGNALING_HEALTH_CHECK_INTERVAL_MS = 3 * 1000;
+
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
@@ -97,6 +142,7 @@ export default abstract class BaseSession {
     this.onNetworkClose = this.onNetworkClose.bind(this);
     this._onSocketMessage = this._onSocketMessage.bind(this);
     this._handleLoginError = this._handleLoginError.bind(this);
+    this._onSocketActivity = this._onSocketActivity.bind(this);
 
     this._attachListeners();
     this.connection = new Connection(this);
@@ -151,6 +197,11 @@ export default abstract class BaseSession {
       });
     }
     return this.connection.send(msg).catch(async (error) => {
+      // Handle request-level timeout from Connection.send()
+      if (error?.name === 'RequestTimeoutError') {
+        this.onSignalingRequestTimeout(error.requestId, error.timeoutMs);
+        throw error;
+      }
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
           const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
@@ -647,22 +698,31 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {}
+  protected async _onSocketOpen() {
+    // Mark the socket as alive now that it's open
+    this._lastInboundWsMessageAt = Date.now();
+    // If we have active calls (reconnect scenario), start health monitor
+    if (this.hasActiveCall()) {
+      this.startSignalingHealthMonitor();
+    }
+  }
 
   private _flushIntermediateCallReports(
     flushReason: ICallReportFlushReason
   ): void {
-    const calls = (this as unknown as {
-      calls?: Record<
-        string,
-        {
-          id?: string;
-          flushIntermediateCallReport?: (
-            flushReason?: ICallReportFlushReason
-          ) => void;
-        }
-      >;
-    }).calls;
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          {
+            id?: string;
+            flushIntermediateCallReport?: (
+              flushReason?: ICallReportFlushReason
+            ) => void;
+          }
+        >;
+      }
+    ).calls;
 
     if (!calls) return;
 
@@ -739,6 +799,7 @@ export default abstract class BaseSession {
     this.contexts = [];
     clearTimeout(this._keepAliveTimeout);
     clearTimeout(this._reconnectTimeout);
+    this.stopSignalingHealthMonitor();
 
     // Reset gateway state on socket close so telnyx.ready fires again on reconnection
     if (this.connection) {
@@ -852,6 +913,7 @@ export default abstract class BaseSession {
     this.on(SwEvent.SocketClose, this.onNetworkClose);
     this.on(SwEvent.SocketError, this.onNetworkClose);
     this.on(SwEvent.SocketMessage, this._onSocketMessage);
+    this.on(SwEvent.SocketActivity, this._onSocketActivity);
   }
 
   /**
@@ -863,6 +925,7 @@ export default abstract class BaseSession {
     this.off(SwEvent.SocketClose, this.onNetworkClose);
     this.off(SwEvent.SocketError, this.onNetworkClose);
     this.off(SwEvent.SocketMessage, this._onSocketMessage);
+    this.off(SwEvent.SocketActivity, this._onSocketActivity);
   }
 
   /**
@@ -887,6 +950,7 @@ export default abstract class BaseSession {
   public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
+    this.stopSignalingHealthMonitor();
     if (this.connection) {
       this.connection.close();
     }
@@ -916,6 +980,220 @@ export default abstract class BaseSession {
   public setPingReceived() {
     logger.debug('Ping received');
     this._pong = true;
+  }
+
+  // ── Signaling health monitor ──────────────────────────────────────
+
+  /**
+   * Called from the SocketActivity listener (fired by Connection.onmessage).
+   * Updates the timestamp used by the signaling health monitor.
+   */
+  private _onSocketActivity(): void {
+    this._lastInboundWsMessageAt = Date.now();
+    // Any inbound activity resolves an in-flight probe
+    if (this._healthProbeInFlight) {
+      this._healthProbeInFlight = false;
+      this._lastHealthProbeSentAt = 0;
+      logger.debug('Signaling health: probe resolved by inbound activity');
+    }
+  }
+
+  /**
+   * Returns true if there is at least one active (non-terminated) call.
+   * Public so that BaseCall can check if the monitor should stop.
+   */
+  public hasActiveCall(): boolean {
+    const calls = (
+      this as unknown as { calls?: Record<string, { _state?: number }> }
+    ).calls;
+    if (!calls) return false;
+    // State.Active = 6, State.Held = 7 in the enum
+    // Active calls: Early(5), Active(6), Held(7)
+    return Object.values(calls).some(
+      (call) =>
+        call && call._state != null && call._state >= 5 && call._state <= 7
+    );
+  }
+
+  /**
+   * Start the signaling health monitor. Called when a call becomes active
+   * or on reconnect if calls exist. The monitor checks every
+   * SIGNALING_HEALTH_CHECK_INTERVAL_MS and sends a probe if no inbound
+   * WS activity is seen for SIGNALING_HEALTH_PROBE_THRESHOLD_MS.
+   */
+  startSignalingHealthMonitor(): void {
+    if (this._signalingHealthIntervalId) {
+      return; // already running
+    }
+    logger.debug('Signaling health: monitor started');
+    this._lastInboundWsMessageAt = Date.now();
+    this._healthProbeInFlight = false;
+    this._lastHealthProbeSentAt = 0;
+
+    this._signalingHealthIntervalId = setInterval(
+      () => this._checkSignalingHealth(),
+      BaseSession.SIGNALING_HEALTH_CHECK_INTERVAL_MS
+    );
+  }
+
+  /**
+   * Stop the signaling health monitor. Called when no active calls remain
+   * or on disconnect.
+   */
+  stopSignalingHealthMonitor(): void {
+    if (this._signalingHealthIntervalId) {
+      clearInterval(this._signalingHealthIntervalId);
+      this._signalingHealthIntervalId = null;
+      this._healthProbeInFlight = false;
+      this._lastHealthProbeSentAt = 0;
+      logger.debug('Signaling health: monitor stopped');
+    }
+  }
+
+  /**
+   * Periodic check: if no inbound WS activity during an active call for
+   * SIGNALING_HEALTH_PROBE_THRESHOLD_MS, send a health probe. If a probe
+   * is in-flight and SIGNALING_HEALTH_PROBE_TIMEOUT_MS has elapsed since
+   * it was sent, declare signaling unhealthy and force-close the socket.
+   */
+  private _checkSignalingHealth(): void {
+    if (!this.hasActiveCall() || !this.connection?.connected) {
+      return;
+    }
+
+    const now = Date.now();
+    const silenceMs = now - this._lastInboundWsMessageAt;
+
+    // If we have recent activity, nothing to do
+    if (silenceMs < SIGNALING_HEALTH_PROBE_THRESHOLD_MS) {
+      return;
+    }
+
+    // If no probe is in flight, send one
+    if (!this._healthProbeInFlight) {
+      logger.info(
+        `Signaling health: no inbound WS activity for ${Math.round(silenceMs / 1000)}s during active call, sending health probe`
+      );
+      this._healthProbeInFlight = true;
+      this._lastHealthProbeSentAt = now;
+      // Send a Ping — any inbound WS message (including the Ping response)
+      // will resolve the probe via _onSocketActivity
+      this.execute(new Ping(getReconnectToken())).catch((error) => {
+        logger.warn('Signaling health: probe Ping failed to send', error);
+      });
+      return;
+    }
+
+    // Probe is in flight — check if it has timed out
+    const probeElapsedMs = now - this._lastHealthProbeSentAt;
+    if (probeElapsedMs >= SIGNALING_HEALTH_PROBE_TIMEOUT_MS) {
+      logger.warn(
+        `Signaling health: probe timed out after ${probeElapsedMs}ms with no inbound activity — declaring signaling unhealthy`
+      );
+      this._forceSignalingReconnect(
+        'Signaling health probe timed out: no inbound WS activity after probe'
+      );
+    }
+  }
+
+  /**
+   * Called by Peer when ICE/connection state degrades during an active call.
+   * Sends an immediate health probe rather than waiting for the periodic check.
+   */
+  triggerSignalingHealthProbe(): void {
+    if (!this.connection?.connected || !this.hasActiveCall()) {
+      return;
+    }
+
+    // If a probe is already in flight, don't send another
+    if (this._healthProbeInFlight) {
+      logger.debug(
+        'Signaling health: probe already in flight, skipping triggered probe'
+      );
+      return;
+    }
+
+    const now = Date.now();
+    const silenceMs = now - this._lastInboundWsMessageAt;
+
+    // If we've had recent activity (< 3s), the signaling is likely fine
+    if (silenceMs < 3000) {
+      logger.debug(
+        'Signaling health: recent activity detected, skipping triggered probe'
+      );
+      return;
+    }
+
+    logger.info(
+      'Signaling health: media/ICE degradation detected, sending immediate signaling probe'
+    );
+    this._healthProbeInFlight = true;
+    this._lastHealthProbeSentAt = now;
+    this.execute(new Ping(getReconnectToken())).catch((error) => {
+      logger.warn(
+        'Signaling health: triggered probe Ping failed to send',
+        error
+      );
+    });
+  }
+
+  /**
+   * Called when a signaling request times out (via Connection.RequestTimeoutError).
+   * Marks signaling unhealthy and force-closes the socket.
+   */
+  onSignalingRequestTimeout(requestId: string, timeoutMs: number): void {
+    if (!this.connection?.connected) {
+      return; // already reconnecting
+    }
+
+    logger.warn(
+      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms) — declaring signaling unhealthy`
+    );
+
+    const warning = createTelnyxWarning(SIGNALING_REQUEST_TIMEOUT);
+    trigger(
+      SwEvent.Warning,
+      { warning, requestId, timeoutMs, sessionId: this.sessionid },
+      this.uuid
+    );
+
+    this._forceSignalingReconnect(
+      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`
+    );
+  }
+
+  /**
+   * Force-close the WebSocket to trigger the existing onNetworkClose reconnect path.
+   * This is the core recovery mechanism for half-dead sockets.
+   */
+  private _forceSignalingReconnect(reason: string): void {
+    this._healthProbeInFlight = false;
+    this._lastHealthProbeSentAt = 0;
+
+    const warning = createTelnyxWarning(SIGNALING_HEALTH_PROBE_TIMEOUT);
+    trigger(
+      SwEvent.Warning,
+      { warning, reason, sessionId: this.sessionid },
+      this.uuid
+    );
+
+    const telnyxError = createTelnyxError(
+      SIGNALING_HEALTH_FAILURE,
+      new Error(reason)
+    );
+    trigger(
+      SwEvent.Error,
+      { error: telnyxError, sessionId: this.sessionid },
+      this.uuid
+    );
+
+    // Force-close the socket — onNetworkClose will handle reconnect
+    if (this.connection?.connected) {
+      logger.info(
+        'Signaling health: force-closing WebSocket to trigger reconnect'
+      );
+      this.connection.close();
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
