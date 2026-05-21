@@ -10,6 +10,7 @@ import {
   getWebRTCSupportedBrowserList,
   SUPPORTED_WEBRTC,
   getUserMedia,
+  preflightAudioInput,
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
@@ -766,6 +767,60 @@ describe('Helpers browser functions', () => {
     // navigator.mediaDevices is reset between describe blocks in this test file.
     // The fallback logic is tested via the isDeviceNotFoundError and
     // getConstraintsWithoutDeviceId unit tests above.
+  });
+
+  describe('preflightAudioInput', () => {
+    beforeEach(() => {
+      Object.defineProperty(global, 'navigator', {
+        value: {
+          mediaDevices: {
+            enumerateDevices: jest.fn().mockResolvedValue([
+              {
+                deviceId: 'mic-1',
+                kind: 'audioinput',
+                label: 'Microphone',
+                groupId: 'group-1',
+              },
+            ]),
+            getUserMedia: jest.fn(async () => new MediaStream()),
+          },
+        },
+        writable: true,
+      });
+    });
+
+    it('should probe microphone access when no audioinput is enumerated', async () => {
+      const enumerateDevices = navigator.mediaDevices
+        .enumerateDevices as jest.Mock;
+      const getUserMediaMock = navigator.mediaDevices.getUserMedia as jest.Mock;
+
+      enumerateDevices.mockResolvedValueOnce([
+        {
+          deviceId: 'camera-1',
+          kind: 'videoinput',
+          label: 'Camera',
+          groupId: 'group-1',
+        },
+      ]);
+      getUserMediaMock.mockClear();
+
+      await preflightAudioInput(true);
+
+      expect(getUserMediaMock).toHaveBeenCalledWith({
+        audio: true,
+        video: false,
+      });
+
+    });
+
+    it('should not probe microphone access when an audioinput is enumerated', async () => {
+      const getUserMediaMock = navigator.mediaDevices.getUserMedia as jest.Mock;
+      getUserMediaMock.mockClear();
+
+      await preflightAudioInput(true);
+
+      expect(getUserMediaMock).not.toHaveBeenCalled();
+    });
   });
 
   describe('detachMediaStream', () => {

@@ -53,6 +53,31 @@ const getConstraintsWithoutDeviceId = (
   return { audio: newAudio, video: newVideo };
 };
 
+const preflightAudioInput = async (
+  audio: boolean | MediaTrackConstraints
+): Promise<void> => {
+  if (!audio || typeof navigator === 'undefined' || !navigator.mediaDevices) {
+    return;
+  }
+
+  const devices = await navigator.mediaDevices
+    .enumerateDevices()
+    .catch((error) => {
+      logger.warn('Unable to enumerate media devices before getUserMedia', error);
+      return [] as MediaDeviceInfo[];
+    });
+
+  if (devices.some((device) => device.kind === DeviceType.AudioIn)) {
+    return;
+  }
+
+  logger.warn(
+    'No audio input devices reported before getUserMedia; probing microphone access'
+  );
+  const stream = await WebRTC.getUserMedia({ audio: true, video: false });
+  WebRTC.stopStream(stream);
+};
+
 const getUserMedia = async (
   constraints: MediaStreamConstraints
 ): Promise<MediaStream | null> => {
@@ -849,6 +874,7 @@ export {
   stopAudio,
   hasVideo,
   getPreferredCodecs,
+  preflightAudioInput,
   // Exported for testing
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,

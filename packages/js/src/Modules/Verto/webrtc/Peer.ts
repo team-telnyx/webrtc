@@ -47,6 +47,7 @@ import {
   getMediaConstraints,
   getPreferredCodecs,
   getUserMedia,
+  preflightAudioInput,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
@@ -965,6 +966,7 @@ export default class Peer {
     if (streamIsValid(this.options.localStream)) {
       return this.options.localStream;
     }
+    await preflightAudioInput(this.options.audio);
     const constraints = await getMediaConstraints(this.options);
     return getUserMedia(constraints);
   }
