@@ -1095,8 +1095,18 @@ export default abstract class BaseSession {
       this._healthProbeInFlight = true;
       this._lastHealthProbeSentAt = now;
       // Send a Ping — any inbound WS message (including the Ping response)
-      // will resolve the probe via _onSocketActivity
-      this.execute(new Ping(getReconnectToken())).catch((error) => {
+      // will resolve the probe via _onSocketActivity.
+      //
+      // IMPORTANT: We call connection.send() directly (not this.execute())
+      // because the health probe has its own 5s timeout mechanism in
+      // _checkSignalingHealth(). Using execute() would add a 10s
+      // Connection.send() timeout via the active-call request timeout.
+      // If _forceSignalingReconnect() closes the socket and reconnect
+      // succeeds before that stale 10s timer fires, the old Ping promise
+      // would reject, onSignalingRequestTimeout() would see the *new*
+      // socket as connected, and force-close the healthy replacement.
+      // Bypassing execute() avoids this race entirely.
+      this.connection?.send(new Ping(getReconnectToken())).catch((error) => {
         logger.warn('Signaling health: probe Ping failed to send', error);
       });
       return;
@@ -1148,7 +1158,9 @@ export default abstract class BaseSession {
     );
     this._healthProbeInFlight = true;
     this._lastHealthProbeSentAt = now;
-    this.execute(new Ping(getReconnectToken())).catch((error) => {
+    // Bypass execute() to avoid the 10s request timeout — see comment
+    // in _checkSignalingHealth for why the probe must not use execute().
+    this.connection?.send(new Ping(getReconnectToken())).catch((error) => {
       logger.warn(
         'Signaling health: triggered probe Ping failed to send',
         error

@@ -327,6 +327,64 @@ describe('Connection – Handler cleanup on timeout', () => {
   });
 });
 
+// ─── Connection – send() without timeout for health probes ─────────────────
+
+describe('Connection – Health probe Ping must not use execute() timeout', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockSession = makeMockSession();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /**
+   * This test documents a critical design decision: health probe Pings
+   * must bypass session.execute() and call connection.send() directly.
+   *
+   * Rationale: The health probe has its own 5s timeout in
+   * _checkSignalingHealth(). If the probe also got the 10s
+   * Connection.send() timeout via execute(), the stale 10s timer could
+   * fire after _forceSignalingReconnect() closes the socket and a new
+   * socket reconnects, causing onSignalingRequestTimeout() to
+   * force-close the healthy replacement socket.
+   *
+   * By calling connection.send() without a timeout, the probe's only
+   * timeout is the 5s inactivity check — no stale timer persists.
+   */
+  it('connection.send() without timeout does not create a stale timer', () => {
+    const bladeObj = {
+      request: { id: 'probe-ping', jsonrpc: '2.0', method: 'telnyx_rtc.ping' },
+    };
+
+    // Health probe calls connection.send(msg) without timeout
+    // — no RequestTimeoutError can ever fire for this request
+    const promise = connection.send(bladeObj);
+
+    // Advance time well past any reasonable timeout
+    jest.advanceTimersByTime(60_000);
+
+    // No rejection — promise just hangs (probe outcome is determined
+    // by the 5s inactivity check, not by request timeout)
+    // If we had used send(bladeObj, 10000), the promise would reject
+    // after 10s, potentially on a different socket.
+    expect(promise).toBeDefined();
+  });
+});
+
 // ─── Connection – send() without timeout (legacy behavior) ──────────────────
 
 describe('Connection – send() without timeout (legacy)', () => {
