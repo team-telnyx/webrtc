@@ -426,3 +426,239 @@ describe('Connection – send() without timeout (legacy)', () => {
     await expect(connection.send(bladeObj)).resolves.toBeUndefined();
   });
 });
+
+// ─── Connection – Socket Generation Protection ───────────────────────────────
+
+describe('Connection – Socket generation protection', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockSession = makeMockSession();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should increment socketGeneration on each connect()', async () => {
+    const gen1 = connection.socketGeneration;
+
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(connection.socketGeneration).toBe(gen1 + 1);
+  });
+
+  it('should not reject with RequestTimeoutError if socket generation changed after request was sent', async () => {
+    const bladeObj = {
+      request: { id: 'stale-req', jsonrpc: '2.0', method: 'telnyx_rtc.modify' },
+    };
+
+    // Send a request with a 10s timeout on the current socket (gen N)
+    let rejected = false;
+    const promise = connection.send(bladeObj, 10_000).catch((error) => {
+      // If this catch fires, the stale timeout was NOT properly filtered
+      rejected = true;
+      throw error;
+    });
+
+    // Reconnect — this increments socketGeneration to N+1
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Advance past the 10s timeout
+    jest.advanceTimersByTime(10_001);
+
+    // Flush microtasks so any rejection would be processed
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The promise should NOT have rejected because the timeout is stale
+    // (it belongs to the old socket generation).
+    // Connection.send() silently ignores stale timeouts.
+    expect(rejected).toBe(false);
+    // The new socket should remain connected — no force-reconnect
+    expect(connection.connected).toBe(true);
+  });
+
+  it('should clean up pending request handlers on close()', async () => {
+    const bladeObj = {
+      request: { id: 'cleanup-on-close', jsonrpc: '2.0', method: 'test' },
+    };
+
+    // Send a request (no timeout — handler stays registered)
+    connection.send(bladeObj);
+
+    // Verify handler was registered
+    expect((connection as any)._pendingRequestIds.has('cleanup-on-close')).toBe(
+      true
+    );
+
+    // Close the socket
+    const ws: MockWebSocket = (connection as any)._wsClient;
+    connection.close();
+    ws.simulateClose(1000, 'normal');
+
+    // Pending request IDs should be cleaned up
+    expect((connection as any)._pendingRequestIds.size).toBe(0);
+  });
+
+  it('should clean up pending request handlers before new connect()', async () => {
+    const bladeObj = {
+      request: {
+        id: 'cleanup-before-reconnect',
+        jsonrpc: '2.0',
+        method: 'test',
+      },
+    };
+
+    connection.send(bladeObj);
+    expect(
+      (connection as any)._pendingRequestIds.has('cleanup-before-reconnect')
+    ).toBe(true);
+
+    // Reconnect — connect() calls _cleanupPendingRequests()
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((connection as any)._pendingRequestIds.size).toBe(0);
+  });
+});
+
+// ─── Connection – Pre-parse Activity Tracking ─────────────────────────────────
+
+describe('Connection – Pre-parse activity tracking', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockSession = makeMockSession();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  /**
+   * Design decision: activity is tracked BEFORE JSON parse because any
+   * inbound WS frame proves TCP liveness. This includes:
+   * - Valid JSON-RPC responses
+   * - Speed test strings like "#SPU123"
+   * - Any other bytes from the server
+   *
+   * The signaling health monitor cares about socket transport liveness,
+   * not application-level message validity. A half-dead socket shows as
+   * OPEN but no frames arrive at all — any frame disproves that condition.
+   */
+  it('should mark activity on non-JSON string messages (speed test)', () => {
+    const ws: MockWebSocket = (connection as any)._wsClient;
+
+    // Simulate a speed test message that is not valid JSON
+    if (ws.onmessage) {
+      ws.onmessage({ data: '#SPU123' });
+    }
+
+    expect(connection.lastInboundAt).toBeGreaterThan(0);
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.SocketActivity,
+      expect.objectContaining({ timestamp: expect.any(Number) }),
+      mockSession.uuid
+    );
+  });
+
+  it('should mark activity even when JSON parse fails', () => {
+    const ws: MockWebSocket = (connection as any)._wsClient;
+
+    // Simulate malformed data
+    if (ws.onmessage) {
+      ws.onmessage({ data: 'not valid json {[' });
+    }
+
+    // Activity is still marked because bytes arrived
+    expect(connection.lastInboundAt).toBeGreaterThan(0);
+  });
+});
+
+// ─── RequestTimeoutError – Method field ──────────────────────────────────────
+
+describe('RequestTimeoutError – method field', () => {
+  it('should carry the method name', () => {
+    const err = new RequestTimeoutError('req-1', 10000, 'telnyx_rtc.modify');
+    expect(err.method).toBe('telnyx_rtc.modify');
+    expect(err.message).toContain('telnyx_rtc.modify');
+  });
+
+  it('should default to empty string for method', () => {
+    const err = new RequestTimeoutError('req-1', 10000);
+    expect(err.method).toBe('');
+  });
+});
+
+// ─── Connection – send() with timeout captures method ─────────────────────────
+
+describe('Connection – send() timeout carries method name', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockSession = makeMockSession();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should include method name in RequestTimeoutError', async () => {
+    const bladeObj = {
+      request: {
+        id: 'method-req',
+        jsonrpc: '2.0',
+        method: 'telnyx_rtc.modify',
+      },
+    };
+
+    const promise = connection.send(bladeObj, 5000);
+
+    jest.advanceTimersByTime(5001);
+
+    let caught: RequestTimeoutError | null = null;
+    promise.catch((e) => {
+      caught = e;
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(caught).not.toBeNull();
+    expect(caught!.method).toBe('telnyx_rtc.modify');
+  });
+});

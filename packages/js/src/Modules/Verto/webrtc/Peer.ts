@@ -299,6 +299,13 @@ export default class Peer {
       // Trigger immediate signaling health probe when media/ICE degrades
       // during an active call. If the probe fails, the SDK will force
       // signaling reconnect alongside media recovery.
+      //
+      // NOTE: No-audio and candidate-pair-switch events are NOT currently
+      // wired to triggerSignalingHealthProbe(). These stats-based symptoms
+      // could provide earlier detection of half-dead sockets, but require
+      // throttling and aggregation logic to avoid false positives from
+      // transient audio glitches. This is documented as a follow-up
+      // enhancement — see GH-650 review discussion.
       this._session.triggerSignalingHealthProbe?.();
 
       // ICE restart: fire only when the browser never went offline during

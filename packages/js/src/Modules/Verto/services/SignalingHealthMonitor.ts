@@ -53,6 +53,16 @@ export default class SignalingHealthMonitor {
   /** The periodic check interval. */
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * Verto method names that are critical for call control.
+   * Timeouts on these methods indicate the signaling path may be broken
+   * and warrant force-reconnecting the socket.
+   */
+  private static readonly CRITICAL_METHODS = new Set([
+    'telnyx_rtc.modify',
+    'telnyx_rtc.bye',
+  ]);
+
   constructor(private readonly _session: ISignalingHealthSession) {}
 
   // ── Public API ──────────────────────────────────────────────────────
@@ -143,19 +153,47 @@ export default class SignalingHealthMonitor {
 
   /**
    * Called when a signaling request times out (via Connection.RequestTimeoutError).
-   * Marks signaling unhealthy and force-closes the socket.
+   *
+   * Only critical call-control methods (Modify, Bye) trigger force-reconnect.
+   * Non-critical request timeouts are logged but do not close the socket,
+   * because a slow/non-answering non-critical request should not disrupt
+   * otherwise healthy signaling and media.
+   *
+   * Note: Connection.send() already filters out stale timeouts from previous
+   * socket generations (via socketGeneration check), so this method only
+   * receives timeouts that belong to the current connection.
    */
-  onRequestTimeout(requestId: string, timeoutMs: number): void {
+  onRequestTimeout(
+    requestId: string,
+    timeoutMs: number,
+    method: string = ''
+  ): void {
     if (!this._session.connection?.connected) {
-      return; // already reconnecting
+      return; // already reconnecting or disconnected
+    }
+
+    // Only critical call-control methods should trigger signaling recovery.
+    // Non-critical methods (Info, debug reports, etc.) may time out for
+    // benign reasons and should not force-close the socket.
+    const isCritical = this._isCriticalMethod(method);
+
+    if (!isCritical) {
+      logger.warn(
+        `Non-critical signaling request timed out ` +
+          `(id=${requestId}, method=${method || 'unknown'}, timeout=${timeoutMs}ms) — ` +
+          `logging but not triggering signaling recovery`
+      );
+      return;
     }
 
     logger.warn(
-      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms) — declaring signaling unhealthy`
+      `Critical signaling request timed out ` +
+        `(id=${requestId}, method=${method}, timeout=${timeoutMs}ms) — ` +
+        `declaring signaling unhealthy`
     );
 
     this._forceReconnect(
-      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`,
+      `Critical signaling request timed out (method=${method}, id=${requestId}, timeout=${timeoutMs}ms)`,
       'request'
     );
   }
@@ -267,5 +305,16 @@ export default class SignalingHealthMonitor {
       );
       this._session.socketDisconnect();
     }
+  }
+
+  /**
+   * Returns true if the given Verto method name is critical enough to
+   * warrant signaling recovery on timeout. Only Modify and Bye are
+   * considered critical — they directly control the call lifecycle.
+   * Other methods (Info, debug reports, etc.) may time out for benign
+   * reasons and should not force-close the socket.
+   */
+  private _isCriticalMethod(method: string): boolean {
+    return SignalingHealthMonitor.CRITICAL_METHODS.has(method);
   }
 }

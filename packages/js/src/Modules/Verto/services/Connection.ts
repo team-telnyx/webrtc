@@ -47,14 +47,16 @@ const CLOSE_SAFETY_TIMEOUT_MS = 5000;
 export class RequestTimeoutError extends Error {
   public readonly requestId: string;
   public readonly timeoutMs: number;
+  public readonly method: string;
 
-  constructor(requestId: string, timeoutMs: number) {
+  constructor(requestId: string, timeoutMs: number, method: string = '') {
     super(
-      `Signaling request timed out (id=${requestId}, timeout=${timeoutMs}ms)`
+      `Signaling request timed out (id=${requestId}, method=${method || 'unknown'}, timeout=${timeoutMs}ms)`
     );
     this.name = 'RequestTimeoutError';
     this.requestId = requestId;
     this.timeoutMs = timeoutMs;
+    this.method = method;
   }
 }
 
@@ -62,6 +64,12 @@ export default class Connection {
   public previousGatewayState = '';
   /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
   public lastInboundAt: number = 0;
+  /**
+   * Monotonically increasing generation counter, incremented each time a new
+   * WebSocket is created. Used to detect stale request timeouts from a
+   * previous socket that should not affect the current connection.
+   */
+  public socketGeneration: number = 0;
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
@@ -69,6 +77,13 @@ export default class Connection {
   private _hasCanaryBeenUsed: boolean = false;
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Set of request IDs with pending one-shot handlers registered via
+   * registerOnce(). Cleaned up on socket close so stale responses or
+   * timeouts from a previous connection cannot affect the current one.
+   */
+  private _pendingRequestIds: Set<string> = new Set();
 
   public upDur: number | null = null;
   public downDur: number | null = null;
@@ -176,7 +191,9 @@ export default class Connection {
 
     try {
       this._wsClient = new WebSocketClass(websocketUrl.toString());
+      this.socketGeneration += 1;
       this.lastInboundAt = 0;
+      this._cleanupPendingRequests();
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
@@ -196,6 +213,9 @@ export default class Connection {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   send(bladeObj: any, timeoutMs?: number): Promise<any> {
     const { request } = bladeObj;
+    const currentGeneration = this.socketGeneration;
+    const method = request.method || '';
+
     const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
@@ -210,6 +230,7 @@ export default class Connection {
           clearTimeout(timerId);
           timerId = null;
         }
+        this._pendingRequestIds.delete(request.id);
         if (timedOut) {
           // Response arrived after timeout — discard silently
           return;
@@ -220,6 +241,7 @@ export default class Connection {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       registerOnce(request.id, handler as any);
+      this._pendingRequestIds.add(request.id);
 
       if (timeoutMs && timeoutMs > 0) {
         timerId = setTimeout(() => {
@@ -228,7 +250,18 @@ export default class Connection {
           // Remove the handler from the queue so a late response
           // doesn't call into a stale closure.
           deRegister(request.id, handler);
-          reject(new RequestTimeoutError(request.id, timeoutMs));
+          this._pendingRequestIds.delete(request.id);
+
+          // If the socket has been replaced since this request was sent,
+          // the timeout is stale — don't reject or trigger recovery.
+          if (this.socketGeneration !== currentGeneration) {
+            logger.debug(
+              `Stale request timeout for ${request.id} (gen ${currentGeneration}, current ${this.socketGeneration}) — ignoring`
+            );
+            return;
+          }
+
+          reject(new RequestTimeoutError(request.id, timeoutMs, method));
         }, timeoutMs);
       }
     });
@@ -240,6 +273,9 @@ export default class Connection {
 
   close() {
     if (!this._wsClient || this.closing) return;
+
+    // Clean up pending request handlers before initiating close
+    this._cleanupPendingRequests();
 
     // Capture socket reference for timeout handler (prevent race condition)
     const closingSocket = this._wsClient;
@@ -290,8 +326,18 @@ export default class Connection {
     };
 
     ws.onmessage = (event): void => {
-      // Track ALL inbound WS message activity — any parsed message proves
-      // the socket is alive, not just pong/SwEvent.SocketMessage.
+      // Track ALL inbound WS message activity BEFORE parsing.
+      //
+      // Intentional: any bytes arriving on the WebSocket (even malformed
+      // or unexpected payloads) prove TCP liveness of the socket. The
+      // signaling health monitor uses this to detect half-dead sockets
+      // where the WS reports OPEN but no frames arrive at all.
+      //
+      // If we only marked activity after JSON parse, a stream of
+      // non-JSON frames (e.g. speed test strings like "#SPU123") would
+      // not resolve health probes, even though the socket is clearly
+      // alive. Since any inbound frame proves the transport is working,
+      // pre-parse activity tracking is correct.
       this.lastInboundAt = Date.now();
 
       // Emit internal activity event so BaseSession can use it for
@@ -408,6 +454,19 @@ export default class Connection {
         `Skipping socket cleanup - old socket already replaced (reason: ${reason})`
       );
     }
+  }
+
+  /**
+   * Remove all pending request handlers from the global handler queue.
+   * Called on socket close and before a new connection is established
+   * to ensure stale responses/timeouts from a previous socket cannot
+   * affect the current connection.
+   */
+  private _cleanupPendingRequests(): void {
+    for (const id of this._pendingRequestIds) {
+      deRegister(id);
+    }
+    this._pendingRequestIds.clear();
   }
 
   private _unsetTimer(id: string) {

@@ -175,7 +175,14 @@ export default abstract class BaseSession {
     return sendPromise.catch(async (error) => {
       // Handle request-level timeout from Connection.send()
       if (error?.name === 'RequestTimeoutError') {
-        this.onSignalingRequestTimeout(error.requestId, error.timeoutMs);
+        // Only force reconnect for critical signaling methods.
+        // Non-critical request timeouts (e.g. Info, debug reports)
+        // should not trigger signaling recovery.
+        this.onSignalingRequestTimeout(
+          error.requestId,
+          error.timeoutMs,
+          error.method
+        );
         throw error;
       }
       if (error?.code === this.authenticationRequiredErrorCode) {
@@ -1015,9 +1022,15 @@ export default abstract class BaseSession {
   /**
    * Called when a signaling request times out (via Connection.RequestTimeoutError).
    * Delegates to the signaling health monitor for recovery.
+   * Only critical methods (Modify, Bye) trigger force-reconnect;
+   * non-critical timeouts are just logged.
    */
-  onSignalingRequestTimeout(requestId: string, timeoutMs: number): void {
-    this._signalingHealthMonitor.onRequestTimeout(requestId, timeoutMs);
+  onSignalingRequestTimeout(
+    requestId: string,
+    timeoutMs: number,
+    method: string = ''
+  ): void {
+    this._signalingHealthMonitor.onRequestTimeout(requestId, timeoutMs, method);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
