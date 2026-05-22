@@ -32,6 +32,7 @@ import {
   LOW_LOCAL_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
 
 /**
@@ -306,8 +307,8 @@ export class CallReportCollector {
     outboundSamplesDuration?: number;
   } = {};
 
-  // Track selected candidate pair ID to detect mid-call path changes
-  private previousCandidatePairId: string | null = null;
+  // Track selected candidate pair snapshot to detect mid-call path changes
+  private previousCandidatePairSnapshot: IICECandidatePair | null = null;
 
   private static readonly INITIAL_COLLECTION_INTERVAL_MS = 1000;
   private static readonly INITIAL_COLLECTION_DURATION_MS = 10000;
@@ -941,24 +942,10 @@ export class CallReportCollector {
         if (candidatePair.currentRoundTripTime !== undefined) {
           this.intervalRTTs.push(candidatePair.currentRoundTripTime);
         }
-
-        // Detect mid-call path changes
-        if (
-          this.previousCandidatePairId !== null &&
-          candidatePair.id !== this.previousCandidatePairId
-        ) {
-          logger.debug(
-            'CallReportCollector: ICE candidate pair changed mid-call',
-            {
-              previous: this.previousCandidatePairId,
-              current: candidatePair.id,
-            }
-          );
-        }
-        this.previousCandidatePairId = candidatePair.id ?? null;
       }
 
       // Resolve local and remote candidates for the selected pair
+      // (must happen before pair-change detection so the snapshot includes them)
       let localCandidate: ICECandidateInfo | undefined;
       let remoteCandidate: ICECandidateInfo | undefined;
 
@@ -971,6 +958,37 @@ export class CallReportCollector {
           stats,
           candidatePair.remoteCandidateId
         );
+      }
+
+      // Build current candidate pair snapshot for diagnostics
+      let currentCandidatePairSnapshot: IICECandidatePair | undefined;
+      if (candidatePair) {
+        currentCandidatePairSnapshot = {
+          id: candidatePair.id,
+          state: candidatePair.state,
+          nominated: candidatePair.nominated,
+          writable: candidatePair.writable,
+          requestsSent: candidatePair.requestsSent,
+          responsesReceived: candidatePair.responsesReceived,
+          ...(localCandidate ? { local: localCandidate } : {}),
+          ...(remoteCandidate ? { remote: remoteCandidate } : {}),
+        };
+
+        // Detect mid-call path changes with full previous/current snapshots
+        if (
+          this.previousCandidatePairSnapshot !== null &&
+          candidatePair.id !== this.previousCandidatePairSnapshot.id
+        ) {
+          logger.debug(
+            'CallReportCollector: ICE candidate pair changed mid-call',
+            {
+              previous: this.previousCandidatePairSnapshot,
+              current: currentCandidatePairSnapshot,
+            }
+          );
+          this._emitWarning(ICE_CANDIDATE_PAIR_CHANGED);
+        }
+        this.previousCandidatePairSnapshot = currentCandidatePairSnapshot;
       }
 
       let localAudioTrack: ILocalAudioTrackSnapshot | undefined;
@@ -1421,7 +1439,13 @@ export class CallReportCollector {
     }
 
     const info: ICECandidateInfo = {};
-    if (report.address !== undefined) info.address = report.address;
+    // Fallback from report.address to report.ip for browser compatibility
+    // (Firefox uses 'ip' while Chrome uses 'address')
+    if (report.address !== undefined) {
+      info.address = report.address;
+    } else if (report.ip !== undefined) {
+      info.address = report.ip;
+    }
     if (report.port !== undefined) info.port = report.port;
     if (report.candidateType !== undefined)
       info.candidateType = report.candidateType;
