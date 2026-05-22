@@ -389,6 +389,22 @@ export default abstract class BaseCall implements IWebRTCCall {
     return !isAudioTrackEnabled(this.options.localStream);
   }
 
+  private _hasActiveUnmutedLocalAudioTrack(): boolean {
+    const localStream = this.options.localStream;
+    if (!localStream?.getAudioTracks) {
+      return false;
+    }
+
+    return localStream
+      .getAudioTracks()
+      .some(
+        (track) =>
+          track.enabled === true &&
+          track.muted !== true &&
+          track.readyState === 'live'
+      );
+  }
+
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
       return false;
@@ -2298,13 +2314,13 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        if (
-          warning.code === LOW_BYTES_RECEIVED ||
-          warning.code === LOW_BYTES_SENT
+        if (warning.code === LOW_BYTES_RECEIVED) {
+          this.session.reportNoRtp?.(this.id, 'inbound');
+        } else if (
+          warning.code === LOW_BYTES_SENT &&
+          this._hasActiveUnmutedLocalAudioTrack()
         ) {
-          const direction =
-            warning.code === LOW_BYTES_RECEIVED ? 'inbound' : 'outbound';
-          this.session.reportNoRtp?.(this.id, direction);
+          this.session.reportNoRtp?.(this.id, 'outbound');
         }
       };
     }

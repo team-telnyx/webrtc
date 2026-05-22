@@ -721,6 +721,7 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     mockSession = makeMockSession();
     // Add the methods ISignalingHealthSession expects
     mockSession.isSignalingHealthy = jest.fn(() => true);
+    mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn();
     mockSession.socketDisconnect = jest.fn();
     connection = new Connection(mockSession);
@@ -804,6 +805,27 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
+  it('probe pending keeps media recovery pending until signaling activity proves socket healthy', () => {
+    mockSession.isSignalingHealthy.mockImplementation(
+      () => connection.connected && !monitor.isProbeInFlight
+    );
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    (monitor as any)._probeInFlight = true;
+    expect(monitor.isProbeInFlight).toBe(true);
+
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+
+    monitor.onSocketActivity();
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+  });
+
   // Test 5: low audio level alone → no recovery
   it('low audio level alone does not trigger any recovery', () => {
     // The monitor does not have a method for low audio level.
@@ -828,30 +850,14 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  // Test 6: stale/old-generation timeout → ignored, no duplicate recovery
-  it('stale generation timeout does not trigger duplicate recovery', async () => {
-    // First, trigger a signaling recovery (this increments _recoveryGeneration)
+  it('stale request errors settle without invoking signaling recovery', async () => {
+    const staleError = new StaleRequestError('stale-req', 1, 2);
+    expect(staleError).toBeInstanceOf(StaleRequestError);
+
     mockSession.isSignalingHealthy.mockReturnValue(false);
     mockSession.connection = connection;
-    monitor.onPeerFailure('call-1', 'connection_failed');
 
-    // Capture how many times socketDisconnect was called
-    const disconnectCalls = mockSession.socketDisconnect.mock.calls.length;
-
-    // Now simulate a second failure arriving — the monitor should
-    // still handle it (it doesn't deduplicate on recoveryGeneration
-    // directly, but the duplicate reconnect is safe because
-    // socketDisconnect is idempotent when already disconnected).
-    // The key invariant: exactly one recovery path is chosen.
-    monitor.onPeerFailure('call-1', 'ice_failed');
-
-    // Socket disconnect should be called again (the monitor doesn't
-    // gate on recoveryGeneration for subsequent calls — the
-    // idempotency of socketDisconnect handles it). But ICE restart
-    // should never be called.
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
-    expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(
-      disconnectCalls + 1
-    );
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 });

@@ -363,33 +363,14 @@ export default class Peer {
         // request would time out on the dead socket).
         this._session.reportPeerFailure?.(this.options.id, 'connection_failed');
       } else {
-        // 'disconnected' is a softer state that may auto-recover.
-        // ICE restart: fire only when the browser never went offline during
-        // this peer's lifetime. If `window.offline` fired, the Attach flow
-        // owns recovery exclusively.
-        const canRestartIceWithoutAttach =
-          !this._hadOfflineEvent && this._session.connected;
-        if (
-          !this._restartedIceOnConnectionStateFailed &&
-          canRestartIceWithoutAttach
-        ) {
-          this.isIceRestarting = true;
-          this._restartedIceOnConnectionStateFailed = true;
-          this.instance.restartIce();
-          this.iceDone = false;
-          this._iceRestartTimeoutId = setTimeout(() => {
-            if (this.isIceRestarting) {
-              logger.warn(
-                'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
-              );
-              this.isIceRestarting = false;
-            }
-            this._iceRestartTimeoutId = null;
-          }, Peer.ICE_RESTART_TIMEOUT_MS);
-          logger.info(
-            `ICE restart: peer disconnected, canRestartIceWithoutAttach=${canRestartIceWithoutAttach}. Creating new offer via Modify.`
-          );
-        }
+        // 'disconnected' is a softer state that may auto-recover. Keep this
+        // path limited to probing signaling health and warning below; do not
+        // start ICE restart from here because the socket may be browser-open
+        // but half-dead. Strong media recovery is handled only for failed ICE
+        // or no-RTP signals through the health monitor's socket-health gate.
+        logger.debug(
+          'ICE restart: peer disconnected, waiting for stronger evidence before recovery'
+        );
       }
     }
 

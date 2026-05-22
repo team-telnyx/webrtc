@@ -1040,16 +1040,14 @@ export default abstract class BaseSession {
    * Used by the health monitor to decide between socket recovery and
    * media-only recovery (ICE restart).
    *
-   * Signaling is considered healthy when:
-   * - The WebSocket is connected.
-   * - No signaling health probe is currently in flight.
-   * - No delayed reconnect is pending.
+   * Signaling is considered healthy when the WebSocket is connected and
+   * no signaling health probe is currently in flight. A probe in flight is
+   * treated as unknown health by the monitor, not as proven unhealthy.
    */
   isSignalingHealthy(): boolean {
     return (
       this.connection?.connected === true &&
-      !this._signalingHealthMonitor.isProbeInFlight &&
-      !this._signalingHealthMonitor.hasPendingReconnect
+      !this._signalingHealthMonitor.isProbeInFlight
     );
   }
 

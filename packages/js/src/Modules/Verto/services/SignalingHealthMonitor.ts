@@ -40,12 +40,10 @@ const CHECK_INTERVAL_MS = 3 * 1000;
  */
 const RECENT_ACTIVITY_THRESHOLD_MS = 3 * 1000;
 
-/**
- * When signaling is unhealthy but media is still flowing, delay
- * socket reconnect by this many milliseconds so the application
- * can notify the user about a short interruption.
- */
-const DELAYED_RECONNECT_MS = 5 * 1000; // 5s grace period
+type PendingMediaRecovery = {
+  callId: string;
+  reason: string;
+};
 
 /**
  * Signaling health monitor for active calls.
@@ -85,8 +83,8 @@ export default class SignalingHealthMonitor {
    */
   private _recoveryGeneration: number = 0;
 
-  /** Timer for delayed socket reconnect (signaling unhealthy + media healthy). */
-  private _delayedReconnectTimerId: ReturnType<typeof setTimeout> | null = null;
+  /** Media recovery to execute only after a probe proves signaling is healthy. */
+  private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
   /**
    * Verto method names that are critical for call control and
@@ -99,7 +97,7 @@ export default class SignalingHealthMonitor {
    * never reaches onRequestTimeout(). This set covers keepalive
    * Pings sent through execute() during active calls.
    */
-  private static readonly CRITICAL_METHODS = new Set([
+  private static readonly CRITICAL_METHODS = new Set<string>([
     VertoMethod.Modify,
     VertoMethod.Bye,
     VertoMethod.Ping,
@@ -134,7 +132,7 @@ export default class SignalingHealthMonitor {
       this._probeInFlight = false;
       this._lastProbeSentAt = 0;
     }
-    this._clearDelayedReconnect();
+    this._pendingMediaRecovery = null;
     logger.debug('Signaling health: monitor stopped');
   }
 
@@ -154,23 +152,29 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Returns true if a delayed reconnect is pending.
-   * Used by BaseSession.isSignalingHealthy() to assess socket health.
-   */
-  get hasPendingReconnect(): boolean {
-    return this._delayedReconnectTimerId !== null;
-  }
-
-  /**
    * Called on every inbound WS message (via SocketActivity event).
    * Updates the liveness timestamp and resolves any in-flight probe.
    */
   onSocketActivity(): void {
     this._lastInboundAt = Date.now();
-    if (this._probeInFlight) {
+    const resolvedProbe = this._probeInFlight;
+
+    if (resolvedProbe) {
       this._probeInFlight = false;
       this._lastProbeSentAt = 0;
       logger.debug('Signaling health: probe resolved by inbound activity');
+    }
+
+    if (resolvedProbe && this._pendingMediaRecovery) {
+      const pending = this._pendingMediaRecovery;
+      this._pendingMediaRecovery = null;
+
+      if (this._session.isSignalingHealthy()) {
+        logger.info(
+          `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
+        );
+        this._triggerIceRestart(pending.callId, pending.reason);
+      }
     }
   }
 
@@ -273,20 +277,12 @@ export default class SignalingHealthMonitor {
       `Signaling health: peer failure reported (callId=${callId}, evidence=${evidence})`
     );
 
-    if (this._session.isSignalingHealthy()) {
-      logger.info(
-        `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
-      );
-      this._triggerIceRestart(callId, `Peer connection failure (${evidence})`);
-    } else {
-      logger.info(
-        `Signaling health: signaling is unhealthy, triggering socket reconnect instead of ICE restart`
-      );
-      this._triggerSignalingRecovery(
-        `Peer failure detected (${evidence}) while signaling is unhealthy`,
-        'peer_failure'
-      );
-    }
+    this._recoverMediaOrSignaling(
+      callId,
+      `Peer connection failure (${evidence})`,
+      `Peer failure detected (${evidence}) while signaling is unhealthy`,
+      'peer_failure'
+    );
   }
 
   /**
@@ -306,23 +302,12 @@ export default class SignalingHealthMonitor {
       `Signaling health: no RTP detected (callId=${callId}, direction=${direction})`
     );
 
-    if (this._session.isSignalingHealthy()) {
-      logger.info(
-        `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
-      );
-      this._triggerIceRestart(
-        callId,
-        `No RTP ${direction} while media should be active`
-      );
-    } else {
-      logger.info(
-        `Signaling health: signaling is unhealthy, triggering socket reconnect instead of ICE restart`
-      );
-      this._triggerSignalingRecovery(
-        `No RTP ${direction} while signaling is unhealthy`,
-        'no_rtp'
-      );
-    }
+    this._recoverMediaOrSignaling(
+      callId,
+      `No RTP ${direction} while media should be active`,
+      `No RTP ${direction} while signaling is unhealthy`,
+      'no_rtp'
+    );
   }
 
   // ── Private ─────────────────────────────────────────────────────────
@@ -382,7 +367,7 @@ export default class SignalingHealthMonitor {
     // IMPORTANT: We call connection.send() directly (not session.execute())
     // because the health probe has its own 5s timeout mechanism in _check().
     // Using execute() would add a 10s Connection.send() timeout via the
-    // active-call request timeout. If _forceReconnect() closes the socket
+    // active-call request timeout. If _triggerSignalingRecovery() closes the socket
     // and reconnect succeeds before that stale 10s timer fires, the old
     // Ping promise would reject, onRequestTimeout() would see the *new*
     // socket as connected, and force-close the healthy replacement.
@@ -392,6 +377,40 @@ export default class SignalingHealthMonitor {
       .catch((error) => {
         logger.warn('Signaling health: probe Ping failed to send', error);
       });
+  }
+
+  /**
+   * Decide whether a media/peer failure should recover media with ICE restart
+   * or recover signaling with socket reconnect. A probe in flight means socket
+   * health is unknown, not unhealthy, so defer media recovery until inbound
+   * activity proves the socket path is alive or the probe times out.
+   */
+  private _recoverMediaOrSignaling(
+    callId: string,
+    mediaReason: string,
+    signalingReason: string,
+    signalingSource: 'peer_failure' | 'no_rtp'
+  ): void {
+    if (this._session.isSignalingHealthy()) {
+      logger.info(
+        `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
+      );
+      this._triggerIceRestart(callId, mediaReason);
+      return;
+    }
+
+    if (this._probeInFlight) {
+      logger.info(
+        `Signaling health: signaling probe is pending, deferring ICE restart decision for call ${callId}`
+      );
+      this._pendingMediaRecovery = { callId, reason: mediaReason };
+      return;
+    }
+
+    logger.info(
+      'Signaling health: signaling is unhealthy, triggering socket reconnect instead of ICE restart'
+    );
+    this._triggerSignalingRecovery(signalingReason, signalingSource);
   }
 
   /**
@@ -410,9 +429,7 @@ export default class SignalingHealthMonitor {
     reason: string,
     source: 'probe' | 'request' | 'peer_failure' | 'no_rtp' = 'probe'
   ): void {
-    // Cancel any pending delayed reconnect — we're going now.
-    this._clearDelayedReconnect();
-
+    this._pendingMediaRecovery = null;
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
     this._recoveryGeneration++;
@@ -470,69 +487,6 @@ export default class SignalingHealthMonitor {
 
     logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
     this._session.triggerIceRestart(callId);
-  }
-
-  /**
-   * Schedule a delayed socket reconnect. Used when signaling is
-   * unhealthy but media is still flowing — gives the application
-   * a grace period to notify the user about a short interruption.
-   *
-   * If signaling becomes healthy before the timer fires (e.g. a
-   * late response arrives), the timer is cancelled.
-   *
-   * @param reason Human-readable reason for diagnostics.
-   * @param source What triggered the reconnect.
-   * @param delayMs Delay before triggering reconnect.
-   */
-  scheduleDelayedReconnect(
-    reason: string,
-    source: 'probe' | 'request' = 'probe',
-    delayMs: number = DELAYED_RECONNECT_MS
-  ): void {
-    // If there's already a delayed reconnect scheduled, don't duplicate.
-    if (this._delayedReconnectTimerId) {
-      logger.debug(
-        'Signaling health: delayed reconnect already scheduled, skipping'
-      );
-      return;
-    }
-
-    // If media is already unhealthy, don't delay — reconnect immediately.
-    // (The caller should have already decided this; this is a safety check.)
-
-    logger.info(
-      `Signaling health: scheduling delayed socket reconnect in ${delayMs}ms — signaling unhealthy but media may still be flowing`
-    );
-
-    const warning = createTelnyxWarning(SIGNALING_RECOVERY_REQUIRED);
-    trigger(
-      SwEvent.Warning,
-      {
-        warning,
-        reason: `${reason} (reconnect delayed ${delayMs}ms)`,
-        source,
-        sessionId: this._session.sessionid,
-      },
-      this._session.uuid
-    );
-
-    this._delayedReconnectTimerId = setTimeout(() => {
-      this._delayedReconnectTimerId = null;
-      this._triggerSignalingRecovery(reason, source);
-    }, delayMs);
-  }
-
-  /**
-   * Cancel any pending delayed reconnect. Called when signaling
-   * becomes healthy again (late response arrived) or when
-   * immediate reconnect is triggered.
-   */
-  private _clearDelayedReconnect(): void {
-    if (this._delayedReconnectTimerId) {
-      clearTimeout(this._delayedReconnectTimerId);
-      this._delayedReconnectTimerId = null;
-      logger.debug('Signaling health: cancelled delayed reconnect timer');
-    }
   }
 
   /**
