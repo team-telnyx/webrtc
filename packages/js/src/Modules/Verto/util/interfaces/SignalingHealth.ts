@@ -5,6 +5,12 @@ import type Connection from '../../services/Connection';
  */
 export type PeerFailureEvidence = 'ice_failed' | 'connection_failed';
 
+export type TriggerIceRestartResult = {
+  started: boolean;
+  reason?: string;
+  recoverSignaling?: boolean;
+};
+
 /**
  * Interface that SignalingHealthMonitor uses to interact with its owning session.
  * Decouples the monitor from BaseSession so it can be extracted into its own file
@@ -21,5 +27,5 @@ export interface ISignalingHealthSession {
    * Called by the health monitor when media/peer is unhealthy but
    * signaling is healthy.
    */
-  triggerIceRestart(callId: string): void;
+  triggerIceRestart(callId: string): TriggerIceRestartResult;
 }

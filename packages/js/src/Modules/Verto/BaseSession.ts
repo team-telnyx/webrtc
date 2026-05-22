@@ -13,6 +13,7 @@ import SignalingHealthMonitor from './services/SignalingHealthMonitor';
 import type {
   ISignalingHealthSession,
   PeerFailureEvidence,
+  TriggerIceRestartResult,
 } from './util/interfaces/SignalingHealth';
 import { State } from './webrtc/constants';
 import {
@@ -1036,12 +1037,16 @@ export default abstract class BaseSession {
    * Called by the health monitor when media/peer is unhealthy but
    * signaling is healthy.
    */
-  triggerIceRestart(callId: string): void {
+  triggerIceRestart(callId: string): TriggerIceRestartResult {
     const calls = (
       this as unknown as {
         calls?: Record<
           string,
-          { peer?: { restartIce?: () => RestartIceResult } }
+          {
+            options?: { attach?: boolean };
+            recoveredCallId?: string;
+            peer?: { restartIce?: () => RestartIceResult };
+          }
         >;
       }
     ).calls;
@@ -1050,14 +1055,26 @@ export default abstract class BaseSession {
       logger.warn(
         `Signaling health: cannot trigger ICE restart — call ${callId} not found`
       );
-      return;
+      return { started: false, reason: 'call not found' };
     }
+
+    if (call.options?.attach || call.recoveredCallId) {
+      logger.warn(
+        `Signaling health: ICE restart skipped for call ${callId}: call was recovered via attach`
+      );
+      return {
+        started: false,
+        reason: 'call recovered via attach',
+        recoverSignaling: true,
+      };
+    }
+
     const peer = call.peer;
     if (!peer?.restartIce) {
       logger.warn(
         `Signaling health: cannot trigger ICE restart — no peer for call ${callId}`
       );
-      return;
+      return { started: false, reason: 'no peer' };
     }
     const result = peer.restartIce();
     if (!result.started) {
@@ -1065,6 +1082,7 @@ export default abstract class BaseSession {
         `Signaling health: ICE restart skipped for call ${callId}: ${result.reason}`
       );
     }
+    return result;
   }
 
   /**

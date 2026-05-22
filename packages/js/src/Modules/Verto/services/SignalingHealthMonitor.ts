@@ -43,6 +43,7 @@ const RECENT_ACTIVITY_THRESHOLD_MS = 3 * 1000;
 type PendingMediaRecovery = {
   callId: string;
   reason: string;
+  source: 'peer_failure' | 'no_rtp';
 };
 
 /**
@@ -176,7 +177,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
       );
-      this._triggerIceRestart(pending.callId, pending.reason);
+      this._triggerIceRestart(pending.callId, pending.reason, pending.source);
     }
   }
 
@@ -394,7 +395,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
       );
-      this._triggerIceRestart(callId, mediaReason);
+      this._triggerIceRestart(callId, mediaReason, signalingSource);
       return;
     }
 
@@ -402,7 +403,11 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling health is unknown, deferring ICE restart decision for call ${callId}`
       );
-      this._pendingMediaRecovery = { callId, reason: mediaReason };
+      this._pendingMediaRecovery = {
+        callId,
+        reason: mediaReason,
+        source: signalingSource,
+      };
       this._probeIfNeeded(
         `${signalingSource} detected with stale/unknown signaling`
       );
@@ -493,7 +498,29 @@ export default class SignalingHealthMonitor {
    * @param callId The call to restart ICE on.
    * @param reason Human-readable reason for diagnostics.
    */
-  private _triggerIceRestart(callId: string, reason: string): void {
+  private _triggerIceRestart(
+    callId: string,
+    reason: string,
+    signalingSource: 'peer_failure' | 'no_rtp'
+  ): void {
+    logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
+    const result = this._session.triggerIceRestart(callId);
+
+    if (!result.started) {
+      logger.info(
+        `Signaling health: ICE restart not started for call ${callId}: ${result.reason}`
+      );
+
+      if (result.recoverSignaling) {
+        this._triggerSignalingRecovery(
+          `${reason}; ICE restart disabled for reattached call, forcing socket reconnect`,
+          signalingSource
+        );
+      }
+
+      return;
+    }
+
     const warning = createTelnyxWarning(MEDIA_RECOVERY_REQUIRED);
     trigger(
       SwEvent.Warning,
@@ -505,8 +532,5 @@ export default class SignalingHealthMonitor {
       },
       this._session.uuid
     );
-
-    logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
-    this._session.triggerIceRestart(callId);
   }
 }
