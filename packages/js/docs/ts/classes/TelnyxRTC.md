@@ -44,6 +44,10 @@ client.off('telnyx.notification');
 
 - [constructor](#constructor)
 
+### Properties
+
+- [callReportVoiceSdkId](#callreportvoicesdkid)
+
 ### Accessors
 
 - [connected](#connected)
@@ -66,13 +70,21 @@ client.off('telnyx.notification');
 - [getDevices](#getdevices)
 - [getVideoDevices](#getvideodevices)
 - [handleLoginError](#handleloginerror)
+- [hasActiveCall](#hasactivecall)
 - [login](#login)
 - [logout](#logout)
 - [newCall](#newcall)
 - [off](#off)
 - [on](#on)
+- [onSignalingRequestTimeout](#onsignalingrequesttimeout)
+- [reportNoRtp](#reportnortp)
+- [reportPeerFailure](#reportpeerfailure)
+- [resetReconnectAttempts](#resetreconnectattempts)
 - [serverDisconnect](#serverdisconnect)
 - [setAudioSettings](#setaudiosettings)
+- [startSignalingHealthMonitor](#startsignalinghealthmonitor)
+- [stopSignalingHealthMonitor](#stopsignalinghealthmonitor)
+- [triggerIceRestart](#triggericerestart)
 - [webRTCInfo](#webrtcinfo)
 - [webRTCSupportedBrowserList](#webrtcsupportedbrowserlist)
 
@@ -143,6 +155,18 @@ The corresponding HTML:
 #### Overrides
 
 TelnyxRTCClient.constructor
+
+## Properties
+
+### callReportVoiceSdkId
+
+• **callReportVoiceSdkId**: `string` = `null`
+
+voice_sdk_id used when posting call report payloads for this session.
+
+#### Inherited from
+
+TelnyxRTCClient.callReportVoiceSdkId
 
 ## Accessors
 
@@ -794,6 +818,23 @@ TelnyxRTCClient.handleLoginError
 
 ---
 
+### hasActiveCall
+
+▸ **hasActiveCall**(): `boolean`
+
+Returns true if there is at least one active (non-terminated) call.
+Public so that BaseCall can check if the monitor should stop.
+
+#### Returns
+
+`boolean`
+
+#### Inherited from
+
+TelnyxRTCClient.hasActiveCall
+
+---
+
 ### login
 
 ▸ **login**(`options?`): `Promise`\<`void`\>
@@ -1153,6 +1194,109 @@ TelnyxRTCClient.on
 
 ---
 
+### onSignalingRequestTimeout
+
+▸ **onSignalingRequestTimeout**(`requestId`, `timeoutMs`, `method?`): `void`
+
+Called when a signaling request times out (via Connection.RequestTimeoutError).
+Delegates to the signaling health monitor for recovery.
+Only critical methods (Modify, Bye, Ping) trigger force-reconnect;
+non-critical timeouts are just logged.
+
+#### Parameters
+
+| Name        | Type     | Default value |
+| :---------- | :------- | :------------ |
+| `requestId` | `string` | `undefined`   |
+| `timeoutMs` | `number` | `undefined`   |
+| `method`    | `string` | `''`          |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.onSignalingRequestTimeout
+
+---
+
+### reportNoRtp
+
+▸ **reportNoRtp**(`callId`, `direction`): `void`
+
+Report no-RTP condition to the health monitor.
+Called by CallReportCollector when RTP bytes stop flowing
+while media should be active.
+
+The health monitor decides whether to trigger ICE restart
+(if signaling is healthy) or socket reconnect (if signaling
+is also unhealthy).
+
+#### Parameters
+
+| Name        | Type                        |
+| :---------- | :-------------------------- |
+| `callId`    | `string`                    |
+| `direction` | `"inbound"` \| `"outbound"` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.reportNoRtp
+
+---
+
+### reportPeerFailure
+
+▸ **reportPeerFailure**(`callId`, `evidence`): `void`
+
+Report a peer/ICE failure to the health monitor.
+Called by Peer when iceConnectionState or connectionState
+transitions to 'failed'.
+
+The health monitor decides whether to trigger ICE restart
+(if signaling is healthy) or socket reconnect (if signaling
+is also unhealthy).
+
+#### Parameters
+
+| Name       | Type                  |
+| :--------- | :-------------------- |
+| `callId`   | `string`              |
+| `evidence` | `PeerFailureEvidence` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.reportPeerFailure
+
+---
+
+### resetReconnectAttempts
+
+▸ **resetReconnectAttempts**(): `void`
+
+Reset the automatic reconnection attempt counter.
+Call this when the connection is fully established (e.g. on REGED)
+or when the user manually initiates a reconnect after exhaustion.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.resetReconnectAttempts
+
+---
+
 ### serverDisconnect
 
 ▸ **serverDisconnect**(): `Promise`\<`void`\>
@@ -1212,6 +1356,64 @@ const constraints = await client.setAudioSettings({
 #### Inherited from
 
 TelnyxRTCClient.setAudioSettings
+
+---
+
+### startSignalingHealthMonitor
+
+▸ **startSignalingHealthMonitor**(): `void`
+
+Start the signaling health monitor. Called when a call becomes active
+or on reconnect if calls exist.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.startSignalingHealthMonitor
+
+---
+
+### stopSignalingHealthMonitor
+
+▸ **stopSignalingHealthMonitor**(): `void`
+
+Stop the signaling health monitor. Called when no active calls remain
+or on disconnect.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.stopSignalingHealthMonitor
+
+---
+
+### triggerIceRestart
+
+▸ **triggerIceRestart**(`callId`): `TriggerIceRestartResult`
+
+Trigger ICE restart on the call identified by callId.
+Called by the health monitor when media/peer is unhealthy but
+signaling is healthy.
+
+#### Parameters
+
+| Name     | Type     |
+| :------- | :------- |
+| `callId` | `string` |
+
+#### Returns
+
+`TriggerIceRestartResult`
+
+#### Inherited from
+
+TelnyxRTCClient.triggerIceRestart
 
 ---
 
