@@ -352,26 +352,17 @@ export default class Peer {
       // signaling reconnect alongside media recovery.
       this._session.triggerSignalingHealthProbe?.();
 
-      if (connectionState === 'failed') {
-        // 'failed' is strong evidence that the media path is broken.
-        // Delegate to the health monitor which decides the recovery path:
-        // - If signaling is healthy → ICE restart (media-only recovery).
-        // - If signaling is unhealthy → socket reconnect + reattach.
-        //
-        // This ensures we never mix recovery paths: if signaling is
-        // also broken, restarting ICE cannot succeed (the Modify
-        // request would time out on the dead socket).
-        this._session.reportPeerFailure?.(this.options.id, 'connection_failed');
-      } else {
-        // 'disconnected' is a softer state that may auto-recover. Keep this
-        // path limited to probing signaling health and warning below; do not
-        // start ICE restart from here because the socket may be browser-open
-        // but half-dead. Strong media recovery is handled only for failed ICE
-        // or no-RTP signals through the health monitor's socket-health gate.
-        logger.debug(
-          'ICE restart: peer disconnected, waiting for stronger evidence before recovery'
-        );
-      }
+      // Peer connection 'disconnected' often precedes 'failed' on real
+      // network/path loss, but waiting for 'failed' delays recovery. Treat
+      // both states as peer/media failure evidence and let the health monitor
+      // choose the safe recovery path:
+      // - If signaling is healthy → ICE restart (media-only recovery).
+      // - If signaling is unhealthy → socket reconnect + reattach.
+      //
+      // This ensures we never mix recovery paths: if signaling is
+      // also broken, restarting ICE cannot succeed (the Modify
+      // request would time out on the dead socket).
+      this._session.reportPeerFailure?.(this.options.id, 'connection_failed');
     }
 
     if (connectionState === 'disconnected') {
