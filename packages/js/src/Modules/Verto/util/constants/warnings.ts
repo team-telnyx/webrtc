@@ -317,6 +317,38 @@ export const SDK_WARNINGS = {
       'Check for network path issues',
     ],
   },
+  36003: {
+    name: 'SIGNALING_RECOVERY_REQUIRED',
+    message: 'Signaling recovery required',
+    description:
+      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. If media was still flowing, the reconnect is delayed briefly to allow the application to notify the user about a short interruption. Active calls will be recovered via reattach after reconnection.',
+    causes: [
+      'WebSocket probe timed out with no response',
+      'Critical signaling request timed out',
+      'Peer/media failure detected while signaling is also unhealthy',
+    ],
+    solutions: [
+      'The SDK will automatically reconnect and recover the call',
+      'Check for network interface changes or interruptions',
+      'Verify firewall/NAT timeout settings',
+    ],
+  },
+  36004: {
+    name: 'MEDIA_RECOVERY_REQUIRED',
+    message: 'Media recovery required',
+    description:
+      'The peer connection or media flow has been detected as unhealthy while signaling is healthy. The SDK will attempt ICE restart to recover the media path. No socket reconnection is needed.',
+    causes: [
+      'ICE connection state changed to failed',
+      'RTCPeerConnection state changed to failed',
+      'No RTP packets/bytes received while media should be active',
+    ],
+    solutions: [
+      'The SDK will automatically attempt ICE restart',
+      'Check network connectivity and ICE candidate availability',
+      'Verify TURN server configuration',
+    ],
+  },
 
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35001: {

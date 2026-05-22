@@ -133,6 +133,57 @@ export default class Peer {
     }
   }
 
+  /**
+   * Trigger ICE restart on this peer. Called by the signaling health
+   * monitor when media/peer is unhealthy but signaling is healthy.
+   *
+   * Applies the same logic as the _onConnectionStateChange path but
+   * is triggered externally by the health monitor rather than by
+   * a connectionState change event.
+   *
+   * @returns true if ICE restart was initiated, false if it was skipped.
+   */
+  public restartIce(): boolean {
+    if (!this.instance) {
+      logger.warn('ICE restart: no RTCPeerConnection instance');
+      return false;
+    }
+    if (this.isIceRestarting) {
+      logger.debug('ICE restart: already in progress, skipping');
+      return false;
+    }
+    // Do not restart ICE if the browser went offline — the Attach flow
+    // owns recovery exclusively.
+    if (this._hadOfflineEvent) {
+      logger.debug('ICE restart: offline event detected, deferring to Attach');
+      return false;
+    }
+    // Do not restart ICE if the session is disconnected.
+    if (!this._session.connected) {
+      logger.debug('ICE restart: session not connected, skipping');
+      return false;
+    }
+
+    this.isIceRestarting = true;
+    this._restartedIceOnConnectionStateFailed = true;
+    this.instance.restartIce();
+    this.iceDone = false;
+
+    // Safety net: if the Modify exchange never completes, clear the flag.
+    this._iceRestartTimeoutId = setTimeout(() => {
+      if (this.isIceRestarting) {
+        logger.warn(
+          'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
+        );
+        this.isIceRestarting = false;
+      }
+      this._iceRestartTimeoutId = null;
+    }, Peer.ICE_RESTART_TIMEOUT_MS);
+
+    logger.info('ICE restart: initiated by signaling health monitor');
+    return true;
+  }
+
   get isOffer() {
     return this.type === PeerType.Offer;
   }
@@ -284,7 +335,7 @@ export default class Peer {
       } -> ${connectionState}`
     );
 
-    // Case 1: failed (total diruption) or disconnected (degraded): Attempt ICE restart/renegotiation
+    // Case 1: failed (total disruption) or disconnected (degraded)
     if (connectionState === 'failed' || connectionState === 'disconnected') {
       // Report detailed connection state if debug is enabled
       if (this.isDebugEnabled && this.statsReporter) {
@@ -299,51 +350,46 @@ export default class Peer {
       // Trigger immediate signaling health probe when media/ICE degrades
       // during an active call. If the probe fails, the SDK will force
       // signaling reconnect alongside media recovery.
-      //
-      // NOTE: No-audio and candidate-pair-switch events are NOT currently
-      // wired to triggerSignalingHealthProbe(). These stats-based symptoms
-      // could provide earlier detection of half-dead sockets, but require
-      // throttling and aggregation logic to avoid false positives from
-      // transient audio glitches. This is documented as a follow-up
-      // enhancement — see GH-650 review discussion.
       this._session.triggerSignalingHealthProbe?.();
 
-      // ICE restart: fire only when the browser never went offline during
-      // this peer's lifetime. If `window.offline` fired, the Attach flow
-      // owns recovery exclusively. _hadOfflineEvent is only cleared on `connected`,
-      // not on the `online` event, so there's no race with BrowserSession's
-      // online handler.
-      const canRestartIceWithoutAttach =
-        !this._hadOfflineEvent && this._session.connected;
-      if (
-        !this._restartedIceOnConnectionStateFailed &&
-        (connectionState === 'failed' || connectionState === 'disconnected') &&
-        canRestartIceWithoutAttach
-      ) {
-        this.isIceRestarting = true;
-        this._restartedIceOnConnectionStateFailed = true;
-        // Backend doesn't support trickle ICE for Modify — the
-        // onicecandidate handler in BaseCall checks isIceRestarting
-        // at runtime to use the non-trickle path.
-        this.instance.restartIce();
-        // Reset iceDone so BaseCall's icecandidate handler processes the new
-        // candidates from the restarted ICE gathering.
-        this.iceDone = false;
-        // Safety net: if the Modify exchange never completes (server drops the
-        // response, WS reconnects mid-restart, etc.), clear the flag so we don't
-        // get stuck in a permanent "restarting" state.
-        this._iceRestartTimeoutId = setTimeout(() => {
-          if (this.isIceRestarting) {
-            logger.warn(
-              'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
-            );
-            this.isIceRestarting = false;
-          }
-          this._iceRestartTimeoutId = null;
-        }, Peer.ICE_RESTART_TIMEOUT_MS);
-        logger.info(
-          `ICE restart: peer ${connectionState}, canRestartIceWithoutAttach=${canRestartIceWithoutAttach}. Creating new offer via Modify.`
-        );
+      if (connectionState === 'failed') {
+        // 'failed' is strong evidence that the media path is broken.
+        // Delegate to the health monitor which decides the recovery path:
+        // - If signaling is healthy → ICE restart (media-only recovery).
+        // - If signaling is unhealthy → socket reconnect + reattach.
+        //
+        // This ensures we never mix recovery paths: if signaling is
+        // also broken, restarting ICE cannot succeed (the Modify
+        // request would time out on the dead socket).
+        this._session.reportPeerFailure?.(this.options.id, 'connection_failed');
+      } else {
+        // 'disconnected' is a softer state that may auto-recover.
+        // ICE restart: fire only when the browser never went offline during
+        // this peer's lifetime. If `window.offline` fired, the Attach flow
+        // owns recovery exclusively.
+        const canRestartIceWithoutAttach =
+          !this._hadOfflineEvent && this._session.connected;
+        if (
+          !this._restartedIceOnConnectionStateFailed &&
+          canRestartIceWithoutAttach
+        ) {
+          this.isIceRestarting = true;
+          this._restartedIceOnConnectionStateFailed = true;
+          this.instance.restartIce();
+          this.iceDone = false;
+          this._iceRestartTimeoutId = setTimeout(() => {
+            if (this.isIceRestarting) {
+              logger.warn(
+                'ICE restart: Modify exchange timed out, clearing isIceRestarting flag'
+              );
+              this.isIceRestarting = false;
+            }
+            this._iceRestartTimeoutId = null;
+          }, Peer.ICE_RESTART_TIMEOUT_MS);
+          logger.info(
+            `ICE restart: peer disconnected, canRestartIceWithoutAttach=${canRestartIceWithoutAttach}. Creating new offer via Modify.`
+          );
+        }
       }
     }
 
@@ -589,6 +635,14 @@ export default class Peer {
 
     if (state === 'connected') {
       performance.mark(callMarkName(this.options.id, 'ice-connected'));
+    }
+
+    if (state === 'failed') {
+      // ICE connection failure is strong evidence that the media path
+      // is broken. Delegate to the health monitor which decides the
+      // recovery path: ICE restart if signaling is healthy, socket
+      // reconnect if signaling is also broken.
+      this._session.reportPeerFailure?.(this.options.id, 'ice_failed');
     }
   };
 

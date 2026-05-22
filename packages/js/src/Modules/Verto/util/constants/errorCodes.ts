@@ -77,6 +77,8 @@ export const TELNYX_WARNING_CODES = {
   // ── Signaling health warnings (360xx) ──────────────────────────────
   SIGNALING_HEALTH_PROBE_TIMEOUT: 36001,
   SIGNALING_REQUEST_TIMEOUT: 36002,
+  SIGNALING_RECOVERY_REQUIRED: 36003,
+  MEDIA_RECOVERY_REQUIRED: 36004,
 } as const;
 
 // Extract constants to simplify how we use them internally
@@ -126,6 +128,8 @@ export const {
   SESSION_NOT_REATTACHED,
   SIGNALING_HEALTH_PROBE_TIMEOUT,
   SIGNALING_REQUEST_TIMEOUT,
+  SIGNALING_RECOVERY_REQUIRED,
+  MEDIA_RECOVERY_REQUIRED,
 } = TELNYX_WARNING_CODES;
 
 /**

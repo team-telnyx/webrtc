@@ -31,6 +31,8 @@ import {
   DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
+  LOW_BYTES_RECEIVED,
+  LOW_BYTES_SENT,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -2290,6 +2292,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           this.session.uuid
         );
+
+        // No-RTP detection: when inbound or outbound bytes stop
+        // flowing while media should be active, report to the
+        // signaling health monitor. This is strong evidence that
+        // the media path is broken (unlike low audio level which
+        // is ambiguous).
+        if (
+          warning.code === LOW_BYTES_RECEIVED ||
+          warning.code === LOW_BYTES_SENT
+        ) {
+          const direction =
+            warning.code === LOW_BYTES_RECEIVED ? 'inbound' : 'outbound';
+          this.session.reportNoRtp?.(this.id, direction);
+        }
       };
     }
 

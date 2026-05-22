@@ -10,7 +10,10 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import SignalingHealthMonitor from './services/SignalingHealthMonitor';
-import type { ISignalingHealthSession } from './util/interfaces/SignalingHealth';
+import type {
+  ISignalingHealthSession,
+  PeerFailureEvidence,
+} from './util/interfaces/SignalingHealth';
 import { State } from './webrtc/constants';
 import {
   SwEvent,
@@ -1033,9 +1036,58 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Returns true if signaling (WebSocket) is currently considered healthy.
+   * Used by the health monitor to decide between socket recovery and
+   * media-only recovery (ICE restart).
+   *
+   * Signaling is considered healthy when:
+   * - The WebSocket is connected.
+   * - No signaling health probe is currently in flight.
+   * - No delayed reconnect is pending.
+   */
+  isSignalingHealthy(): boolean {
+    return (
+      this.connection?.connected === true &&
+      !this._signalingHealthMonitor.isProbeInFlight &&
+      !this._signalingHealthMonitor.hasPendingReconnect
+    );
+  }
+
+  /**
+   * Trigger ICE restart on the call identified by callId.
+   * Called by the health monitor when media/peer is unhealthy but
+   * signaling is healthy.
+   */
+  triggerIceRestart(callId: string): void {
+    const calls = (
+      this as unknown as {
+        calls?: Record<string, { peer?: { restartIce?: () => boolean } }>;
+      }
+    ).calls;
+    const call = calls?.[callId];
+    if (!call) {
+      logger.warn(
+        `Signaling health: cannot trigger ICE restart — call ${callId} not found`
+      );
+      return;
+    }
+    const peer = call.peer;
+    if (!peer?.restartIce) {
+      logger.warn(
+        `Signaling health: cannot trigger ICE restart — no peer for call ${callId}`
+      );
+      return;
+    }
+    const started = peer.restartIce();
+    if (!started) {
+      logger.debug(`Signaling health: ICE restart skipped for call ${callId}`);
+    }
+  }
+
+  /**
    * Called when a signaling request times out (via Connection.RequestTimeoutError).
    * Delegates to the signaling health monitor for recovery.
-   * Only critical methods (Modify, Bye) trigger force-reconnect;
+   * Only critical methods (Modify, Bye, Ping) trigger force-reconnect;
    * non-critical timeouts are just logged.
    */
   onSignalingRequestTimeout(
@@ -1044,6 +1096,32 @@ export default abstract class BaseSession {
     method: string = ''
   ): void {
     this._signalingHealthMonitor.onRequestTimeout(requestId, timeoutMs, method);
+  }
+
+  /**
+   * Report a peer/ICE failure to the health monitor.
+   * Called by Peer when iceConnectionState or connectionState
+   * transitions to 'failed'.
+   *
+   * The health monitor decides whether to trigger ICE restart
+   * (if signaling is healthy) or socket reconnect (if signaling
+   * is also unhealthy).
+   */
+  reportPeerFailure(callId: string, evidence: PeerFailureEvidence): void {
+    this._signalingHealthMonitor.onPeerFailure(callId, evidence);
+  }
+
+  /**
+   * Report no-RTP condition to the health monitor.
+   * Called by CallReportCollector when RTP bytes stop flowing
+   * while media should be active.
+   *
+   * The health monitor decides whether to trigger ICE restart
+   * (if signaling is healthy) or socket reconnect (if signaling
+   * is also unhealthy).
+   */
+  reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
+    this._signalingHealthMonitor.onNoRtp(callId, direction);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
