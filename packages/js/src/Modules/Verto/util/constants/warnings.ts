@@ -252,6 +252,24 @@ export const SDK_WARNINGS = {
       'Check that answer() is not invoked from multiple event handlers',
     ],
   },
+  33008: {
+    name: 'ICE_CANDIDATE_PAIR_CHANGED',
+    message: 'ICE candidate pair changed mid-call',
+    description:
+      'The selected ICE candidate pair changed during an active call. This indicates a network path shift — for example, a Wi-Fi to cellular handoff, a NAT rebinding, or a relay fallback. The call may continue normally, but the path change can briefly affect audio quality.',
+    causes: [
+      'Network interface change (e.g. Wi-Fi to cellular)',
+      'NAT rebinding or IP address change',
+      'Previous candidate pair failed and ICE selected an alternative',
+      'Network topology change',
+    ],
+    solutions: [
+      'Monitor for audio quality degradation after the path change',
+      'Check network stability if changes are frequent',
+      'Verify TURN server configuration for relay fallback',
+    ],
+  },
+
   33007: {
     name: 'DUPLICATE_INBOUND_ANSWER',
     message:
