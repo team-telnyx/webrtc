@@ -9,6 +9,7 @@ import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import type { ISignalingHealthSession } from '../util/interfaces/SignalingHealth';
 import { Ping } from '../messages/verto/Ping';
+import { VertoMethod } from '../webrtc/constants';
 
 /**
  * Threshold (ms) of WS silence during an active call before a health
@@ -26,6 +27,13 @@ const PROBE_TIMEOUT_MS = 5 * 1000; // 5s after probe → give up
  * How often (ms) the periodic liveness check runs.
  */
 const CHECK_INTERVAL_MS = 3 * 1000;
+
+/**
+ * If inbound WS activity was received within this window (ms),
+ * signaling is considered recently active and a triggered probe
+ * is skipped.
+ */
+const RECENT_ACTIVITY_THRESHOLD_MS = 3 * 1000;
 
 /**
  * Signaling health monitor for active calls.
@@ -54,13 +62,20 @@ export default class SignalingHealthMonitor {
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
   /**
-   * Verto method names that are critical for call control.
-   * Timeouts on these methods indicate the signaling path may be broken
-   * and warrant force-reconnecting the socket.
+   * Verto method names that are critical for call control and
+   * signaling liveness. Timeouts on these methods indicate the
+   * signaling path may be broken and warrant force-reconnecting
+   * the socket.
+   *
+   * Note: The health-monitor probe Ping bypasses execute() and
+   * uses connection.send() directly (no request timeout), so it
+   * never reaches onRequestTimeout(). This set covers keepalive
+   * Pings sent through execute() during active calls.
    */
   private static readonly CRITICAL_METHODS = new Set([
-    'telnyx_rtc.modify',
-    'telnyx_rtc.bye',
+    VertoMethod.Modify,
+    VertoMethod.Bye,
+    VertoMethod.Ping,
   ]);
 
   constructor(private readonly _session: ISignalingHealthSession) {}
@@ -137,8 +152,8 @@ export default class SignalingHealthMonitor {
     const now = Date.now();
     const silenceMs = now - this._lastInboundAt;
 
-    // If we've had recent activity (< 3s), signaling is likely fine
-    if (silenceMs < 3000) {
+    // If we've had recent activity, signaling is likely fine
+    if (silenceMs < RECENT_ACTIVITY_THRESHOLD_MS) {
       logger.debug(
         'Signaling health: recent activity detected, skipping triggered probe'
       );
