@@ -1,3 +1,11 @@
+## [2.27.0-beta.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0-beta.5...webrtc/v2.27.0-beta.6) (2026-05-22)
+
+- feat: signaling health monitoring and recovery for half-dead WebSocket sessions (#650)
+- fix: centralize signaling health recovery (#650)
+- fix: settle stale-generation requests, handle method-aware signaling timeouts, and recover disconnected peer state (#650)
+- fix: preserve no-rtp detection across call report flushes and stop signaling monitor synchronously on finalize (#650)
+- fix: add ICE candidate pair change log with full path details (#645)
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs
