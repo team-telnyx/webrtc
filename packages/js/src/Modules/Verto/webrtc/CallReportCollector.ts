@@ -355,6 +355,11 @@ export class CallReportCollector {
   private _prevPacketsReceived: number | null = null;
   private _prevPacketsLost: number | null = null;
 
+  // Last stats interval used for delta-based warning checks. Keep this
+  // independent from statsBuffer because intermediate call-report flushes clear
+  // statsBuffer while the active call and health monitoring continue.
+  private _previousStatsEntryForWarnings: IStatsInterval | null = null;
+
   // Last logged local audio track snapshot, used to avoid repetitive logs.
   private _lastLocalAudioTrackSnapshotJson: string | null = null;
 
@@ -1185,26 +1190,28 @@ export class CallReportCollector {
     }
 
     // Low bytes received (32001) — check bytesReceived delta is 0
-    if (
-      statsEntry.audio?.inbound?.bytesReceived !== undefined &&
-      this.statsBuffer.length > 1
-    ) {
-      const prev = this.statsBuffer[this.statsBuffer.length - 2];
-      const prevBytes = prev?.audio?.inbound?.bytesReceived ?? 0;
-      const currBytes = statsEntry.audio.inbound.bytesReceived ?? 0;
-      this._trackBreach(LOW_BYTES_RECEIVED, currBytes - prevBytes === 0);
+    if (statsEntry.audio?.inbound?.bytesReceived !== undefined) {
+      const prevBytes =
+        this._previousStatsEntryForWarnings?.audio?.inbound?.bytesReceived;
+      const currBytes = statsEntry.audio.inbound.bytesReceived;
+      this._trackBreach(
+        LOW_BYTES_RECEIVED,
+        prevBytes !== undefined && currBytes - prevBytes === 0
+      );
     }
 
     // Low bytes sent — check bytesSent delta is 0
-    if (
-      statsEntry.audio?.outbound?.bytesSent !== undefined &&
-      this.statsBuffer.length > 1
-    ) {
-      const prev = this.statsBuffer[this.statsBuffer.length - 2];
-      const prevBytes = prev?.audio?.outbound?.bytesSent ?? 0;
-      const currBytes = statsEntry.audio.outbound.bytesSent ?? 0;
-      this._trackBreach(LOW_BYTES_SENT, currBytes - prevBytes === 0);
+    if (statsEntry.audio?.outbound?.bytesSent !== undefined) {
+      const prevBytes =
+        this._previousStatsEntryForWarnings?.audio?.outbound?.bytesSent;
+      const currBytes = statsEntry.audio.outbound.bytesSent;
+      this._trackBreach(
+        LOW_BYTES_SENT,
+        prevBytes !== undefined && currBytes - prevBytes === 0
+      );
     }
+
+    this._previousStatsEntryForWarnings = statsEntry;
   }
 
   private _trackLowLocalAudio(statsEntry: IStatsInterval): void {

@@ -31,6 +31,8 @@ import {
   DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
+  LOW_BYTES_RECEIVED,
+  LOW_BYTES_SENT,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -385,6 +387,22 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   get isAudioMuted(): boolean {
     return !isAudioTrackEnabled(this.options.localStream);
+  }
+
+  private _hasActiveUnmutedLocalAudioTrack(): boolean {
+    const localStream = this.options.localStream;
+    if (!localStream?.getAudioTracks) {
+      return false;
+    }
+
+    return localStream
+      .getAudioTracks()
+      .some(
+        (track) =>
+          track.enabled === true &&
+          track.muted !== true &&
+          track.readyState === 'live'
+      );
   }
 
   shouldForceRelayCandidateForRecovery(): boolean {
@@ -1145,6 +1163,10 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
+
+        // Start signaling health monitor for active calls
+        this.session.startSignalingHealthMonitor();
+
         setTimeout(() => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
@@ -1505,6 +1527,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
     });
     logger.info('ICE restart: sending Modify with new offer SDP');
+
+    // Note: We do NOT set a separate manual timeout here. During active
+    // calls, session.execute() already applies Connection.DEFAULT_REQUEST_TIMEOUT_MS
+    // (10s) to the underlying Connection.send() call. If that timeout fires,
+    // the promise rejects with RequestTimeoutError and we handle it in the
+    // .catch() below. Adding a second manual timer would cause double
+    // calls to _onIceRestartFailed / onSignalingRequestTimeout.
+
     this._execute(modifyMsg)
       .then(async (response) => {
         if (response?.sdp) {
@@ -1517,6 +1547,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       })
       .catch((error) => {
         this._onIceRestartFailed('ICE restart Modify failed', error);
+        // If the error is a RequestTimeoutError (from execute()'s active-call
+        // timeout), trigger signaling health recovery. execute() already called
+        // onSignalingRequestTimeout before re-throwing, so we only call
+        // _onIceRestartFailed here for ICE-restart-specific cleanup.
       });
   }
 
@@ -2274,6 +2308,20 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           this.session.uuid
         );
+
+        // No-RTP detection: when inbound or outbound bytes stop
+        // flowing while media should be active, report to the
+        // signaling health monitor. This is strong evidence that
+        // the media path is broken (unlike low audio level which
+        // is ambiguous).
+        if (warning.code === LOW_BYTES_RECEIVED) {
+          this.session.reportNoRtp?.(this.id, 'inbound');
+        } else if (
+          warning.code === LOW_BYTES_SENT &&
+          this._hasActiveUnmutedLocalAudioTrack()
+        ) {
+          this.session.reportNoRtp?.(this.id, 'outbound');
+        }
       };
     }
 

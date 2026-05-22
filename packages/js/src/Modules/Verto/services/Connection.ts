@@ -7,7 +7,11 @@ import {
   WEBSOCKET_CONNECTION_FAILED,
   WEBSOCKET_ERROR,
 } from '../util/constants';
-import { createTelnyxError } from '../util/errors';
+import {
+  createTelnyxError,
+  RequestTimeoutError,
+  StaleRequestError,
+} from '../util/errors';
 import {
   checkWebSocketHost,
   destructResponse,
@@ -18,7 +22,7 @@ import {
 import logger from '../util/logger';
 import { getReconnectToken, setReconnectToken } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
-import { registerOnce, trigger } from './Handler';
+import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
   typeof WebSocket !== 'undefined' ? WebSocket : null;
@@ -42,6 +46,14 @@ const CLOSE_SAFETY_TIMEOUT_MS = 5000;
 
 export default class Connection {
   public previousGatewayState = '';
+  /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
+  public lastInboundAt: number = 0;
+  /**
+   * Monotonically increasing generation counter, incremented each time a new
+   * WebSocket is created. Used to detect stale request timeouts from a
+   * previous socket that should not affect the current connection.
+   */
+  public socketGeneration: number = 0;
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
@@ -50,8 +62,29 @@ export default class Connection {
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Set of request IDs with pending one-shot handlers registered via
+   * registerOnce(). Cleaned up on socket close so stale responses or
+   * timeouts from a previous connection cannot affect the current one.
+   */
+  private _pendingRequestIds: Set<string> = new Set();
+  private _pendingRequestTimers: Map<string, ReturnType<typeof setTimeout>> =
+    new Map();
+  private _pendingRequestRejecters: Map<
+    string,
+    { reject: (reason?: unknown) => void; generation: number }
+  > = new Map();
+
   public upDur: number | null = null;
   public downDur: number | null = null;
+
+  /**
+   * Default timeout (ms) for signaling-critical JSON-RPC requests during
+   * active calls. When exceeded, the promise rejects and the session is
+   * notified so it can trigger signaling-health recovery.
+   * Can be overridden per-request via `send(bladeObj, timeoutMs)`.
+   */
+  public static DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 
   constructor(public session: BaseSession) {
     const { host, env, region, useCanaryRtcServer } = session.options;
@@ -147,7 +180,17 @@ export default class Connection {
     }
 
     try {
+      const previousSocketGeneration = this.socketGeneration;
       this._wsClient = new WebSocketClass(websocketUrl.toString());
+      this.socketGeneration += 1;
+      logger.debug('WebSocket connection created', {
+        sessionId: this.session.sessionid,
+        voiceSdkId: this.session.callReportVoiceSdkId,
+        socketGeneration: this.socketGeneration,
+        reconnectCount: previousSocketGeneration,
+      });
+      this.lastInboundAt = 0;
+      this._cleanupPendingRequests();
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
@@ -165,17 +208,77 @@ export default class Connection {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  send(bladeObj: any): Promise<any> {
+  send(bladeObj: any, timeoutMs?: number): Promise<any> {
     const { request } = bladeObj;
+    const currentGeneration = this.socketGeneration;
+    const method = request.method || '';
+
     const promise = new Promise<void>((resolve, reject) => {
       if (request.hasOwnProperty('result')) {
         return resolve();
       }
+
+      let timedOut = false;
+      let timerId: ReturnType<typeof setTimeout> | null = null;
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      registerOnce(request.id, (response: any) => {
+      const handler = (response: any) => {
+        if (timerId !== null) {
+          clearTimeout(timerId);
+          this._pendingRequestTimers.delete(request.id);
+          timerId = null;
+        }
+        this._pendingRequestIds.delete(request.id);
+        this._pendingRequestRejecters.delete(request.id);
+        if (timedOut) {
+          // Response arrived after timeout — discard silently
+          return;
+        }
         const { result, error } = destructResponse(response);
         return error ? reject(error) : resolve(result);
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      registerOnce(request.id, handler as any);
+      this._pendingRequestIds.add(request.id);
+      this._pendingRequestRejecters.set(request.id, {
+        reject,
+        generation: currentGeneration,
       });
+
+      if (timeoutMs && timeoutMs > 0) {
+        timerId = setTimeout(() => {
+          timedOut = true;
+          timerId = null;
+          this._pendingRequestTimers.delete(request.id);
+          this._pendingRequestRejecters.delete(request.id);
+          // Remove the handler from the queue so a late response
+          // doesn't call into a stale closure.
+          deRegister(request.id, handler);
+          this._pendingRequestIds.delete(request.id);
+
+          // If the socket has been replaced since this request was sent,
+          // the timeout is stale — settle the promise with a
+          // StaleRequestError so callers never hang forever, but do NOT
+          // trigger signaling recovery (the new socket is healthy).
+          if (this.socketGeneration !== currentGeneration) {
+            logger.debug(
+              `Stale request timeout for ${request.id} (gen ${currentGeneration}, current ${this.socketGeneration}) — settling with StaleRequestError`
+            );
+            reject(
+              new StaleRequestError(
+                request.id,
+                currentGeneration,
+                this.socketGeneration
+              )
+            );
+            return;
+          }
+
+          reject(new RequestTimeoutError(request.id, timeoutMs, method));
+        }, timeoutMs);
+        this._pendingRequestTimers.set(request.id, timerId);
+      }
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     this._wsClient?.send(JSON.stringify(request));
@@ -185,6 +288,9 @@ export default class Connection {
 
   close() {
     if (!this._wsClient || this.closing) return;
+
+    // Clean up pending request handlers before initiating close
+    this._cleanupPendingRequests();
 
     // Capture socket reference for timeout handler (prevent race condition)
     const closingSocket = this._wsClient;
@@ -235,6 +341,29 @@ export default class Connection {
     };
 
     ws.onmessage = (event): void => {
+      // Track ALL inbound WS message activity BEFORE parsing.
+      //
+      // Intentional: any bytes arriving on the WebSocket (even malformed
+      // or unexpected payloads) prove TCP liveness of the socket. The
+      // signaling health monitor uses this to detect half-dead sockets
+      // where the WS reports OPEN but no frames arrive at all.
+      //
+      // If we only marked activity after JSON parse, a stream of
+      // non-JSON frames (e.g. speed test strings like "#SPU123") would
+      // not resolve health probes, even though the socket is clearly
+      // alive. Since any inbound frame proves the transport is working,
+      // pre-parse activity tracking is correct.
+      this.lastInboundAt = Date.now();
+
+      // Emit internal activity event so BaseSession can use it for
+      // signaling health monitoring without relying on SwEvent.SocketMessage
+      // (which is only triggered for unhandled/unrouted messages).
+      trigger(
+        SwEvent.SocketActivity,
+        { timestamp: this.lastInboundAt },
+        this.session.uuid
+      );
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg: any = safeParseJson(event.data);
       if (typeof msg === 'string') {
@@ -340,6 +469,37 @@ export default class Connection {
         `Skipping socket cleanup - old socket already replaced (reason: ${reason})`
       );
     }
+  }
+
+  /**
+   * Remove all pending request handlers from the global handler queue.
+   * Called on socket close and before a new connection is established
+   * to ensure stale responses/timeouts from a previous socket cannot
+   * affect the current connection.
+   */
+  private _cleanupPendingRequests(): void {
+    Array.from(this._pendingRequestIds).forEach((id) => {
+      deRegister(id);
+      const timerId = this._pendingRequestTimers.get(id);
+      const pending = this._pendingRequestRejecters.get(id);
+
+      if (timerId) {
+        clearTimeout(timerId);
+        this._pendingRequestTimers.delete(id);
+
+        // Only timeout-managed requests are rejected here. Legacy fire-and-forget
+        // requests without a timeout may intentionally have no rejection handler;
+        // rejecting them on close/reconnect would create unhandled rejections.
+        if (pending) {
+          pending.reject(
+            new StaleRequestError(id, pending.generation, this.socketGeneration)
+          );
+        }
+      }
+
+      this._pendingRequestRejecters.delete(id);
+    });
+    this._pendingRequestIds.clear();
   }
 
   private _unsetTimer(id: string) {

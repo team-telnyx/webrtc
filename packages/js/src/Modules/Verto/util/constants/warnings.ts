@@ -301,6 +301,73 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  // ── Signaling health warnings (340xx is auth, use 360xx) ───────────
+  36001: {
+    name: 'SIGNALING_HEALTH_PROBE_TIMEOUT',
+    message: 'Signaling health probe timed out',
+    description:
+      'A signaling liveness probe (Ping) was sent during an active call but no response was received within the timeout window. This indicates the WebSocket may be half-dead — the browser reports it as OPEN but data is not flowing. The SDK will force-close the socket to trigger reconnection.',
+    causes: [
+      'Network interface removed mid-call while another interface remains',
+      'TCP connection bound to a removed IP/route became half-dead',
+      'Firewall or NAT state expired silently',
+      'WebSocket proxy or load balancer dropped the connection without a close frame',
+    ],
+    solutions: [
+      'The SDK will automatically force-close the socket and reconnect',
+      'Check for network interface changes during the call',
+      'Verify firewall/NAT timeout settings',
+    ],
+  },
+  36002: {
+    name: 'SIGNALING_REQUEST_TIMEOUT',
+    message: 'Signaling request timed out',
+    description:
+      'A signaling-critical JSON-RPC request (e.g. ICE restart Modify) did not receive a response within the timeout window while the socket reports OPEN. This may indicate the WebSocket is half-dead or the server is unresponsive. The SDK will mark signaling as unhealthy and force reconnection.',
+    causes: [
+      'Half-dead WebSocket (browser reports OPEN but data does not flow)',
+      'Server unresponsive or overloaded',
+      'Network path interruption without TCP RST',
+    ],
+    solutions: [
+      'The SDK will automatically force-close the socket and reconnect',
+      'Check server health and response times',
+      'Check for network path issues',
+    ],
+  },
+  36003: {
+    name: 'SIGNALING_RECOVERY_REQUIRED',
+    message: 'Signaling recovery required',
+    description:
+      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. If media was still flowing, the reconnect is delayed briefly to allow the application to notify the user about a short interruption. Active calls will be recovered via reattach after reconnection.',
+    causes: [
+      'WebSocket probe timed out with no response',
+      'Critical signaling request timed out',
+      'Peer/media failure detected while signaling is also unhealthy',
+    ],
+    solutions: [
+      'The SDK will automatically reconnect and recover the call',
+      'Check for network interface changes or interruptions',
+      'Verify firewall/NAT timeout settings',
+    ],
+  },
+  36004: {
+    name: 'MEDIA_RECOVERY_REQUIRED',
+    message: 'Media recovery required',
+    description:
+      'The peer connection or media flow has been detected as unhealthy while signaling is healthy. The SDK will attempt ICE restart to recover the media path. No socket reconnection is needed.',
+    causes: [
+      'ICE connection state changed to failed',
+      'RTCPeerConnection state changed to failed',
+      'No RTP packets/bytes received while media should be active',
+    ],
+    solutions: [
+      'The SDK will automatically attempt ICE restart',
+      'Check network connectivity and ICE candidate availability',
+      'Verify TURN server configuration',
+    ],
+  },
+
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35001: {
     name: 'SESSION_NOT_REATTACHED',

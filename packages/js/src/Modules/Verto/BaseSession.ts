@@ -9,6 +9,12 @@ import {
   trigger,
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
+import SignalingHealthMonitor from './services/SignalingHealthMonitor';
+import type {
+  ISignalingHealthSession,
+  PeerFailureEvidence,
+} from './util/interfaces/SignalingHealth';
+import { State } from './webrtc/constants';
 import {
   SwEvent,
   AUTHENTICATION_REQUIRED,
@@ -18,7 +24,11 @@ import {
   RECONNECTION_EXHAUSTED,
   WS_CLOSE_CODES,
 } from './util/constants';
-import { createTelnyxError, createTelnyxWarning } from './util/errors';
+import {
+  createTelnyxError,
+  createTelnyxWarning,
+  StaleRequestError,
+} from './util/errors';
 import type { ITelnyxErrorEvent } from './util/errors';
 import {
   isFunction,
@@ -40,6 +50,7 @@ import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
+import type { RestartIceResult } from './webrtc/Peer';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -81,6 +92,11 @@ export default abstract class BaseSession {
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
+  // ── Signaling health monitor ──────────────────────────────────────────
+  /** Handles liveness detection, health probing, and force-reconnect. */
+  private _signalingHealthMonitor: SignalingHealthMonitor =
+    new SignalingHealthMonitor(this as unknown as ISignalingHealthSession);
+
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
   private _pong: boolean;
@@ -97,6 +113,7 @@ export default abstract class BaseSession {
     this.onNetworkClose = this.onNetworkClose.bind(this);
     this._onSocketMessage = this._onSocketMessage.bind(this);
     this._handleLoginError = this._handleLoginError.bind(this);
+    this._onSocketActivity = this._onSocketActivity.bind(this);
 
     this._attachListeners();
     this.connection = new Connection(this);
@@ -150,7 +167,46 @@ export default abstract class BaseSession {
         this.connect();
       });
     }
-    return this.connection.send(msg).catch(async (error) => {
+
+    // Apply a request-level timeout only to signaling-critical requests
+    // so socket health is monitored even without an active call while
+    // fire-and-forget/non-critical requests cannot create unhandled
+    // timeout rejections.
+    const timeoutMs = SignalingHealthMonitor.isCriticalMethod(
+      msg.request?.method || ''
+    )
+      ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
+      : undefined;
+
+    const sendPromise =
+      timeoutMs != null
+        ? this.connection.send(msg, timeoutMs)
+        : this.connection.send(msg);
+
+    return sendPromise.catch(async (error) => {
+      // Stale request — a request was sent on an old socket generation,
+      // then reconnect created a replacement socket before the old request
+      // timeout/cleanup settled. Surface the stale cancellation to the
+      // caller, but do NOT trigger signaling recovery; otherwise an old
+      // Modify/Ping timeout could force-close the new healthy socket.
+      if (error instanceof StaleRequestError) {
+        logger.debug(
+          `Stale request settled (id=${error.requestId}, gen=${error.staleGeneration}) — not triggering recovery`
+        );
+        throw error;
+      }
+      // Handle request-level timeout from Connection.send()
+      if (error?.name === 'RequestTimeoutError') {
+        // Only force reconnect for critical signaling methods.
+        // Non-critical request timeouts (e.g. Info, debug reports)
+        // should not trigger signaling recovery.
+        this.onSignalingRequestTimeout(
+          error.requestId,
+          error.timeoutMs,
+          error.method
+        );
+        throw error;
+      }
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
           const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
@@ -647,22 +703,28 @@ export default abstract class BaseSession {
    * Callback when the ws connection is open
    * @return void
    */
-  protected async _onSocketOpen() {}
+  protected async _onSocketOpen() {
+    // Socket liveness is monitored for the session lifetime. Media/peer
+    // recovery decisions remain scoped to active calls inside the monitor.
+    this.startSignalingHealthMonitor();
+  }
 
   private _flushIntermediateCallReports(
     flushReason: ICallReportFlushReason
   ): void {
-    const calls = (this as unknown as {
-      calls?: Record<
-        string,
-        {
-          id?: string;
-          flushIntermediateCallReport?: (
-            flushReason?: ICallReportFlushReason
-          ) => void;
-        }
-      >;
-    }).calls;
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          {
+            id?: string;
+            flushIntermediateCallReport?: (
+              flushReason?: ICallReportFlushReason
+            ) => void;
+          }
+        >;
+      }
+    ).calls;
 
     if (!calls) return;
 
@@ -739,6 +801,7 @@ export default abstract class BaseSession {
     this.contexts = [];
     clearTimeout(this._keepAliveTimeout);
     clearTimeout(this._reconnectTimeout);
+    this.stopSignalingHealthMonitor();
 
     // Reset gateway state on socket close so telnyx.ready fires again on reconnection
     if (this.connection) {
@@ -852,6 +915,7 @@ export default abstract class BaseSession {
     this.on(SwEvent.SocketClose, this.onNetworkClose);
     this.on(SwEvent.SocketError, this.onNetworkClose);
     this.on(SwEvent.SocketMessage, this._onSocketMessage);
+    this.on(SwEvent.SocketActivity, this._onSocketActivity);
   }
 
   /**
@@ -863,6 +927,7 @@ export default abstract class BaseSession {
     this.off(SwEvent.SocketClose, this.onNetworkClose);
     this.off(SwEvent.SocketError, this.onNetworkClose);
     this.off(SwEvent.SocketMessage, this._onSocketMessage);
+    this.off(SwEvent.SocketActivity, this._onSocketActivity);
   }
 
   /**
@@ -887,6 +952,7 @@ export default abstract class BaseSession {
   public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
+    this.stopSignalingHealthMonitor();
     if (this.connection) {
       this.connection.close();
     }
@@ -916,6 +982,129 @@ export default abstract class BaseSession {
   public setPingReceived() {
     logger.debug('Ping received');
     this._pong = true;
+  }
+
+  // ── Signaling health monitor ──────────────────────────────────────
+
+  /**
+   * Called from the SocketActivity listener (fired by Connection.onmessage).
+   * Updates the timestamp used by the signaling health monitor.
+   */
+  private _onSocketActivity(): void {
+    this._signalingHealthMonitor.onSocketActivity();
+  }
+
+  /**
+   * Returns true if there is at least one active (non-terminated) call.
+   * Public so that BaseCall can check if the monitor should stop.
+   */
+  public hasActiveCall(): boolean {
+    const calls = (
+      this as unknown as { calls?: Record<string, { _state?: number }> }
+    ).calls;
+    if (!calls) return false;
+    // Active call states: Early, Active, Held — the states where media
+    // should be flowing and signaling liveness matters.
+    const activeStates = new Set<number>([
+      State.Early,
+      State.Active,
+      State.Held,
+    ]);
+    return Object.values(calls).some(
+      (call) => call && call._state != null && activeStates.has(call._state)
+    );
+  }
+
+  /**
+   * Start the signaling health monitor. Called when a call becomes active
+   * or on reconnect if calls exist.
+   */
+  startSignalingHealthMonitor(): void {
+    this._signalingHealthMonitor.start();
+  }
+
+  /**
+   * Stop the signaling health monitor. Called when no active calls remain
+   * or on disconnect.
+   */
+  stopSignalingHealthMonitor(): void {
+    this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Trigger ICE restart on the call identified by callId.
+   * Called by the health monitor when media/peer is unhealthy but
+   * signaling is healthy.
+   */
+  triggerIceRestart(callId: string): void {
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          { peer?: { restartIce?: () => RestartIceResult } }
+        >;
+      }
+    ).calls;
+    const call = calls?.[callId];
+    if (!call) {
+      logger.warn(
+        `Signaling health: cannot trigger ICE restart — call ${callId} not found`
+      );
+      return;
+    }
+    const peer = call.peer;
+    if (!peer?.restartIce) {
+      logger.warn(
+        `Signaling health: cannot trigger ICE restart — no peer for call ${callId}`
+      );
+      return;
+    }
+    const result = peer.restartIce();
+    if (!result.started) {
+      logger.debug(
+        `Signaling health: ICE restart skipped for call ${callId}: ${result.reason}`
+      );
+    }
+  }
+
+  /**
+   * Called when a signaling request times out (via Connection.RequestTimeoutError).
+   * Delegates to the signaling health monitor for recovery.
+   * Only critical methods (Modify, Bye, Ping) trigger force-reconnect;
+   * non-critical timeouts are just logged.
+   */
+  onSignalingRequestTimeout(
+    requestId: string,
+    timeoutMs: number,
+    method: string = ''
+  ): void {
+    this._signalingHealthMonitor.onRequestTimeout(requestId, timeoutMs, method);
+  }
+
+  /**
+   * Report a peer/ICE failure to the health monitor.
+   * Called by Peer when iceConnectionState or connectionState
+   * transitions to 'failed'.
+   *
+   * The health monitor decides whether to trigger ICE restart
+   * (if signaling is healthy) or socket reconnect (if signaling
+   * is also unhealthy).
+   */
+  reportPeerFailure(callId: string, evidence: PeerFailureEvidence): void {
+    this._signalingHealthMonitor.onPeerFailure(callId, evidence);
+  }
+
+  /**
+   * Report no-RTP condition to the health monitor.
+   * Called by CallReportCollector when RTP bytes stop flowing
+   * while media should be active.
+   *
+   * The health monitor decides whether to trigger ICE restart
+   * (if signaling is healthy) or socket reconnect (if signaling
+   * is also unhealthy).
+   */
+  reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
+    this._signalingHealthMonitor.onNoRtp(callId, direction);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

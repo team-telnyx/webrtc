@@ -1,5 +1,8 @@
 import logger from '../../util/logger';
-import { LOW_LOCAL_AUDIO } from '../../util/constants/errorCodes';
+import {
+  LOW_BYTES_RECEIVED,
+  LOW_LOCAL_AUDIO,
+} from '../../util/constants/errorCodes';
 import type { ITelnyxWarning } from '../../util/constants/warnings';
 import {
   CallReportCollector,
@@ -70,7 +73,6 @@ const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
   audio: {
     outbound: {
       audioLevelAvg,
-      bytesSent: 1000,
       localTrack: {
         id: 'track-id',
         enabled: true,
@@ -115,6 +117,53 @@ describe('CallReportCollector intermediate reports', () => {
           },
         },
       })
+    );
+  });
+});
+
+describe('CallReportCollector no-RTP warnings', () => {
+  const statsWithBytes = (
+    inboundBytes: number,
+    outboundBytes: number = 1000
+  ): IStatsInterval => ({
+    intervalStartUtc: '2026-05-22T11:21:00.000Z',
+    intervalEndUtc: '2026-05-22T11:21:05.000Z',
+    audio: {
+      inbound: { bytesReceived: inboundBytes },
+      outbound: { bytesSent: outboundBytes },
+    },
+  });
+
+  const pushAndCheck = (
+    collector: TestableCallReportCollector,
+    statsEntry: IStatsInterval
+  ) => {
+    (
+      collector as unknown as { statsBuffer: IStatsInterval[] }
+    ).statsBuffer.push(statsEntry);
+    collector._checkQualityWarnings(statsEntry, null);
+  };
+
+  it('keeps inbound no-RTP detection active across intermediate report flushes', () => {
+    const collector = createCollector();
+    const warningSpy = jest.fn();
+    collector.onWarning = warningSpy;
+
+    pushAndCheck(collector, statsWithBytes(1000));
+
+    const payload = collector.flush({ callId: 'call-id' });
+    expect(payload?.stats).toHaveLength(1);
+    expect(
+      (collector as unknown as { statsBuffer: IStatsInterval[] }).statsBuffer
+    ).toHaveLength(0);
+
+    pushAndCheck(collector, statsWithBytes(1000));
+    pushAndCheck(collector, statsWithBytes(1000));
+    expect(warningSpy).not.toHaveBeenCalled();
+
+    pushAndCheck(collector, statsWithBytes(1000));
+    expect(warningSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ code: LOW_BYTES_RECEIVED })
     );
   });
 });

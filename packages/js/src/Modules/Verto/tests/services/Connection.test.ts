@@ -11,7 +11,8 @@ jest.unmock('../../services/Connection');
 import Connection, { setWebSocket } from '../../services/Connection';
 import { trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
-import { setReconnectToken } from '../../util/reconnect';
+import logger from '../../util/logger';
+import { getReconnectToken, setReconnectToken } from '../../util/reconnect';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
@@ -103,6 +104,34 @@ describe('Connection - Safety Timeout', () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  describe('connect() method', () => {
+    it('logs socket generation and reconnect count for the client', () => {
+      (getReconnectToken as jest.Mock).mockReturnValue('voice-sdk-id');
+
+      connection.connect();
+      connection.connect();
+
+      expect(logger.debug).toHaveBeenCalledWith(
+        'WebSocket connection created',
+        {
+          sessionId: mockSession.sessionid,
+          voiceSdkId: 'voice-sdk-id',
+          socketGeneration: 1,
+          reconnectCount: 0,
+        }
+      );
+      expect(logger.debug).toHaveBeenCalledWith(
+        'WebSocket connection created',
+        {
+          sessionId: mockSession.sessionid,
+          voiceSdkId: 'voice-sdk-id',
+          socketGeneration: 2,
+          reconnectCount: 1,
+        }
+      );
+    });
   });
 
   describe('close() method', () => {
