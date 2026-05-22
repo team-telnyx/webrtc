@@ -28,7 +28,6 @@ type SessionDouble = {
   options: Record<string, never>;
   sessionid: string;
   connected: boolean;
-  triggerSignalingHealthProbe: jest.Mock;
   reportPeerFailure: jest.Mock;
 };
 
@@ -38,7 +37,6 @@ describe('Peer connection state recovery', () => {
       options: {},
       sessionid: 'session-1',
       connected: true,
-      triggerSignalingHealthProbe: jest.fn(),
       reportPeerFailure: jest.fn(),
     };
 
@@ -69,7 +67,6 @@ describe('Peer connection state recovery', () => {
       peer as unknown as PeerWithConnectionStateHandler
     ).handleConnectionStateChange();
 
-    expect(session.triggerSignalingHealthProbe).toHaveBeenCalled();
     expect(session.reportPeerFailure).toHaveBeenCalledWith(
       'call-1',
       'connection_failed'
@@ -83,7 +80,6 @@ describe('Peer connection state recovery', () => {
       peer as unknown as PeerWithConnectionStateHandler
     ).handleConnectionStateChange();
 
-    expect(session.triggerSignalingHealthProbe).toHaveBeenCalled();
     expect(session.reportPeerFailure).toHaveBeenCalledWith(
       'call-1',
       'connection_failed'

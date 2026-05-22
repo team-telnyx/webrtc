@@ -2358,13 +2358,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
 
-    // Stop signaling health monitor if no active calls remain. Do this after
-    // removing the finalized call from session.calls so hasActiveCall() reads
-    // the final synchronous state without a deferred timer.
-    if (!this.session.hasActiveCall()) {
-      this.session.stopSignalingHealthMonitor();
-    }
-
     // Post call report after cleanup. The upload runs in the background,
     // but the session tracks it so disconnect() can wait instead of racing
     // teardown against the final BYE-triggered report POST.

@@ -167,10 +167,13 @@ export default abstract class BaseSession {
       });
     }
 
-    // During active calls, apply a request-level timeout so that
-    // signaling-critical requests (e.g. Modify, Bye) cannot hang
-    // indefinitely on a half-dead socket.
-    const timeoutMs = this.hasActiveCall()
+    // Apply a request-level timeout only to signaling-critical requests
+    // so socket health is monitored even without an active call while
+    // fire-and-forget/non-critical requests cannot create unhandled
+    // timeout rejections.
+    const timeoutMs = SignalingHealthMonitor.isCriticalMethod(
+      msg.request?.method || ''
+    )
       ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
       : undefined;
 
@@ -698,11 +701,10 @@ export default abstract class BaseSession {
    * @return void
    */
   protected async _onSocketOpen() {
-    // Resume signaling health monitor for active calls
+    // Socket liveness is monitored for the session lifetime. Media/peer
+    // recovery decisions remain scoped to active calls inside the monitor.
     this._signalingHealthMonitor.onSocketActivity();
-    if (this.hasActiveCall()) {
-      this.startSignalingHealthMonitor();
-    }
+    this.startSignalingHealthMonitor();
   }
 
   private _flushIntermediateCallReports(
@@ -1025,30 +1027,6 @@ export default abstract class BaseSession {
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
-  }
-
-  /**
-   * Called by Peer when ICE/connection state degrades during an active call.
-   * Sends an immediate health probe rather than waiting for the periodic check.
-   */
-  triggerSignalingHealthProbe(): void {
-    this._signalingHealthMonitor.triggerProbe();
-  }
-
-  /**
-   * Returns true if signaling (WebSocket) is currently considered healthy.
-   * Used by the health monitor to decide between socket recovery and
-   * media-only recovery (ICE restart).
-   *
-   * Signaling is considered healthy when the WebSocket is connected and
-   * no signaling health probe is currently in flight. A probe in flight is
-   * treated as unknown health by the monitor, not as proven unhealthy.
-   */
-  isSignalingHealthy(): boolean {
-    return (
-      this.connection?.connected === true &&
-      !this._signalingHealthMonitor.isProbeInFlight
-    );
   }
 
   /**

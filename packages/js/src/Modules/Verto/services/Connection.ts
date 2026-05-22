@@ -68,6 +68,12 @@ export default class Connection {
    * timeouts from a previous connection cannot affect the current one.
    */
   private _pendingRequestIds: Set<string> = new Set();
+  private _pendingRequestTimers: Map<string, ReturnType<typeof setTimeout>> =
+    new Map();
+  private _pendingRequestRejecters: Map<
+    string,
+    { reject: (reason?: unknown) => void; generation: number }
+  > = new Map();
 
   public upDur: number | null = null;
   public downDur: number | null = null;
@@ -212,9 +218,11 @@ export default class Connection {
       const handler = (response: any) => {
         if (timerId !== null) {
           clearTimeout(timerId);
+          this._pendingRequestTimers.delete(request.id);
           timerId = null;
         }
         this._pendingRequestIds.delete(request.id);
+        this._pendingRequestRejecters.delete(request.id);
         if (timedOut) {
           // Response arrived after timeout — discard silently
           return;
@@ -226,11 +234,17 @@ export default class Connection {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       registerOnce(request.id, handler as any);
       this._pendingRequestIds.add(request.id);
+      this._pendingRequestRejecters.set(request.id, {
+        reject,
+        generation: currentGeneration,
+      });
 
       if (timeoutMs && timeoutMs > 0) {
         timerId = setTimeout(() => {
           timedOut = true;
           timerId = null;
+          this._pendingRequestTimers.delete(request.id);
+          this._pendingRequestRejecters.delete(request.id);
           // Remove the handler from the queue so a late response
           // doesn't call into a stale closure.
           deRegister(request.id, handler);
@@ -256,6 +270,7 @@ export default class Connection {
 
           reject(new RequestTimeoutError(request.id, timeoutMs, method));
         }, timeoutMs);
+        this._pendingRequestTimers.set(request.id, timerId);
       }
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
@@ -456,9 +471,27 @@ export default class Connection {
    * affect the current connection.
    */
   private _cleanupPendingRequests(): void {
-    for (const id of this._pendingRequestIds) {
+    Array.from(this._pendingRequestIds).forEach((id) => {
       deRegister(id);
-    }
+      const timerId = this._pendingRequestTimers.get(id);
+      const pending = this._pendingRequestRejecters.get(id);
+
+      if (timerId) {
+        clearTimeout(timerId);
+        this._pendingRequestTimers.delete(id);
+
+        // Only timeout-managed requests are rejected here. Legacy fire-and-forget
+        // requests without a timeout may intentionally have no rejection handler;
+        // rejecting them on close/reconnect would create unhandled rejections.
+        if (pending) {
+          pending.reject(
+            new StaleRequestError(id, pending.generation, this.socketGeneration)
+          );
+        }
+      }
+
+      this._pendingRequestRejecters.delete(id);
+    });
     this._pendingRequestIds.clear();
   }
 

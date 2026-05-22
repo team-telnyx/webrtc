@@ -347,11 +347,6 @@ export default class Peer {
         });
       }
 
-      // Trigger immediate signaling health probe when media/ICE degrades
-      // during an active call. If the probe fails, the SDK will force
-      // signaling reconnect alongside media recovery.
-      this._session.triggerSignalingHealthProbe?.();
-
       // Peer connection 'disconnected' often precedes 'failed' on real
       // network/path loss, but waiting for 'failed' delays recovery. Treat
       // both states as peer/media failure evidence and let the health monitor

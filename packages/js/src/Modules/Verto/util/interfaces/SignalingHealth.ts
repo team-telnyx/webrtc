@@ -17,12 +17,6 @@ export interface ISignalingHealthSession {
   hasActiveCall(): boolean;
   socketDisconnect(): void;
   /**
-   * Returns true if signaling (WebSocket) is currently considered healthy.
-   * Used by the health monitor to decide between socket recovery and
-   * media-only recovery (ICE restart).
-   */
-  isSignalingHealthy(): boolean;
-  /**
    * Trigger ICE restart on the call identified by callId.
    * Called by the health monitor when media/peer is unhealthy but
    * signaling is healthy.

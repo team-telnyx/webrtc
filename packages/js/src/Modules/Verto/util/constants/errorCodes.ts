@@ -38,7 +38,6 @@ export const TELNYX_ERROR_CODES = {
 
   // ── ICE restart errors (470xx) ─────────────────────────────────────
   ICE_RESTART_FAILED: 47001,
-  SIGNALING_HEALTH_FAILURE: 47002,
 
   // ── Network errors (480xx) ──────────────────────────────────────────
   NETWORK_OFFLINE: 48001,
@@ -105,7 +104,6 @@ export const {
   INVALID_CREDENTIALS,
   AUTHENTICATION_REQUIRED,
   ICE_RESTART_FAILED,
-  SIGNALING_HEALTH_FAILURE,
   NETWORK_OFFLINE,
   UNEXPECTED_ERROR,
 } = TELNYX_ERROR_CODES;

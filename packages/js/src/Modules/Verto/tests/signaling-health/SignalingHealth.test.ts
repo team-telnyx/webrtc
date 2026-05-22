@@ -13,6 +13,7 @@
 jest.unmock('../../services/Connection');
 
 import Connection, { setWebSocket } from '../../services/Connection';
+import BaseSession from '../../BaseSession';
 import { RequestTimeoutError, StaleRequestError } from '../../util/errors';
 import SignalingHealthMonitor from '../../services/SignalingHealthMonitor';
 import {
@@ -22,6 +23,7 @@ import {
   register,
 } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
+import { VertoMethod } from '../../webrtc/constants';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
@@ -36,6 +38,8 @@ const WS_STATE = {
   CLOSING: 2,
   CLOSED: 3,
 };
+
+const RECENT_ACTIVITY_THRESHOLD_MS_FOR_TEST = 3_000;
 
 class MockWebSocket {
   public readyState: number = WS_STATE.CONNECTING;
@@ -578,6 +582,98 @@ describe('Connection – Socket generation protection', () => {
 
     expect((connection as any)._pendingRequestIds.size).toBe(0);
   });
+
+  it('should clear pending request timeout handles on close()', async () => {
+    const bladeObj = {
+      request: {
+        id: 'timeout-cleanup-on-close',
+        jsonrpc: '2.0',
+        method: 'test',
+      },
+    };
+
+    const promise = connection.send(bladeObj, 10_000);
+    promise.catch(() => {});
+
+    expect(
+      (connection as any)._pendingRequestIds.has('timeout-cleanup-on-close')
+    ).toBe(true);
+    expect(
+      (connection as any)._pendingRequestTimers.has('timeout-cleanup-on-close')
+    ).toBe(true);
+
+    const ws: MockWebSocket = (connection as any)._wsClient;
+    connection.close();
+    ws.simulateClose(1000, 'normal');
+
+    expect((connection as any)._pendingRequestIds.size).toBe(0);
+    expect((connection as any)._pendingRequestTimers.size).toBe(0);
+
+    jest.advanceTimersByTime(10_001);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(deRegister).not.toHaveBeenCalledWith(
+      'timeout-cleanup-on-close',
+      expect.any(Function)
+    );
+  });
+});
+
+// ─── BaseSession – request timeout selection ─────────────────────────────────
+
+class TestBaseSession extends BaseSession {
+  public calls = {};
+}
+
+describe('BaseSession – request timeout selection', () => {
+  let session: TestBaseSession;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    session = new TestBaseSession({
+      host: 'wss://test.telnyx.com',
+      login: 'test-login',
+      password: 'test-password',
+    } as any);
+    (session.connection as any).send = jest.fn(() =>
+      Promise.resolve({ ok: true })
+    );
+    Object.defineProperty(session, 'connected', { get: () => true });
+  });
+
+  it('applies request timeout to critical signaling methods even without an active call', async () => {
+    await session.execute({
+      request: {
+        id: 'modify-1',
+        jsonrpc: '2.0',
+        method: VertoMethod.Modify,
+      },
+    } as any);
+
+    expect(session.connection.send).toHaveBeenCalledWith(
+      expect.any(Object),
+      Connection.DEFAULT_REQUEST_TIMEOUT_MS
+    );
+  });
+
+  it('does not apply request timeout to non-critical fire-and-forget methods during active calls', async () => {
+    session.calls = { call1: { _state: 4 } as any };
+
+    await session.execute({
+      request: {
+        id: 'info-1',
+        jsonrpc: '2.0',
+        method: VertoMethod.Info,
+      },
+    } as any);
+
+    expect(session.connection.send).toHaveBeenCalledWith(expect.any(Object));
+    expect(session.connection.send).not.toHaveBeenCalledWith(
+      expect.any(Object),
+      Connection.DEFAULT_REQUEST_TIMEOUT_MS
+    );
+  });
 });
 
 // ─── Connection – Pre-parse Activity Tracking ─────────────────────────────────
@@ -720,7 +816,6 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     jest.useFakeTimers();
     mockSession = makeMockSession();
     // Add the methods ISignalingHealthSession expects
-    mockSession.isSignalingHealthy = jest.fn(() => true);
     mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn();
     mockSession.socketDisconnect = jest.fn();
@@ -736,45 +831,30 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     jest.useRealTimers();
   });
 
-  // Test 1: socket unhealthy + audio healthy → warning + socket reconnect, no ICE restart
-  it('socket unhealthy + audio healthy: triggers socket reconnect, not ICE restart', () => {
-    // Simulate signaling being unhealthy
-    mockSession.isSignalingHealthy.mockReturnValue(false);
+  it('socket disconnected + peer failure does not trigger ICE restart', () => {
     mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
 
     monitor.onPeerFailure('call-1', 'connection_failed');
 
-    // Should trigger socket disconnect (signaling recovery)
-    expect(mockSession.socketDisconnect).toHaveBeenCalled();
-    // Should NOT trigger ICE restart
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
-    // Should emit a warning
-    expect(trigger).toHaveBeenCalledWith(
-      SwEvent.Warning,
-      expect.objectContaining({
-        reason: expect.stringContaining('unhealthy'),
-      }),
-      mockSession.uuid
-    );
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  // Test 2: socket unhealthy + audio unhealthy → warning + immediate socket reconnect, no ICE restart
-  it('socket unhealthy + audio unhealthy: triggers immediate socket reconnect, not ICE restart', () => {
-    mockSession.isSignalingHealthy.mockReturnValue(false);
+  it('socket disconnected + no RTP does not trigger ICE restart', () => {
     mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
 
     monitor.onNoRtp('call-1', 'inbound');
 
-    // Should trigger socket disconnect
-    expect(mockSession.socketDisconnect).toHaveBeenCalled();
-    // Should NOT trigger ICE restart
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
   // Test 3: socket healthy + ICE failed → warning + ICE restart, no socket reconnect
   it('socket healthy + ICE failed: triggers ICE restart, not socket reconnect', () => {
-    mockSession.isSignalingHealthy.mockReturnValue(true);
     mockSession.connection = connection;
+    monitor.onSocketActivity();
 
     monitor.onPeerFailure('call-1', 'ice_failed');
 
@@ -794,8 +874,8 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
 
   // Test 4: socket healthy + no RTP → warning + ICE restart, no socket reconnect
   it('socket healthy + no RTP: triggers ICE restart, not socket reconnect', () => {
-    mockSession.isSignalingHealthy.mockReturnValue(true);
     mockSession.connection = connection;
+    monitor.onSocketActivity();
 
     monitor.onNoRtp('call-1', 'inbound');
 
@@ -806,9 +886,6 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
   });
 
   it('probe pending keeps media recovery pending until signaling activity proves socket healthy', () => {
-    mockSession.isSignalingHealthy.mockImplementation(
-      () => connection.connected && !monitor.isProbeInFlight
-    );
     mockSession.connection = connection;
 
     (connection as any)._wsClient.readyState = WS_STATE.OPEN;
@@ -826,14 +903,65 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
+  it('stale signaling activity on peer failure sends one probe and defers ICE restart', () => {
+    mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    jest.spyOn(connection, 'send').mockReturnValue(new Promise(() => {}));
+
+    monitor.start();
+    (monitor as any)._lastInboundAt = 0;
+    jest.advanceTimersByTime(RECENT_ACTIVITY_THRESHOLD_MS_FOR_TEST + 1);
+
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    expect(connection.send).toHaveBeenCalledTimes(1);
+    expect(monitor.isProbeInFlight).toBe(true);
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+
+    monitor.onSocketActivity();
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+  });
+
+  it('stale signaling activity on no-RTP sends one probe and defers ICE restart', () => {
+    mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    jest.spyOn(connection, 'send').mockReturnValue(new Promise(() => {}));
+
+    monitor.start();
+    (monitor as any)._lastInboundAt = 0;
+    jest.advanceTimersByTime(RECENT_ACTIVITY_THRESHOLD_MS_FOR_TEST + 1);
+
+    monitor.onNoRtp('call-1', 'inbound');
+
+    expect(connection.send).toHaveBeenCalledTimes(1);
+    expect(monitor.isProbeInFlight).toBe(true);
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+  });
+
+  it('periodic socket liveness check runs even when there is no active call', () => {
+    mockSession.hasActiveCall.mockReturnValue(false);
+    mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    jest.spyOn(connection, 'send').mockReturnValue(new Promise(() => {}));
+
+    monitor.start();
+    (monitor as any)._lastInboundAt = 0;
+    jest.advanceTimersByTime(12_001);
+
+    expect(connection.send).toHaveBeenCalledTimes(1);
+    expect(monitor.isProbeInFlight).toBe(true);
+  });
+
   // Test 5: low audio level alone → no recovery
   it('low audio level alone does not trigger any recovery', () => {
     // The monitor does not have a method for low audio level.
     // Low audio level is reported as a warning by CallReportCollector
     // but does NOT call onNoRtp or onPeerFailure. This test verifies
     // that no recovery is triggered through the monitor for that case.
-    mockSession.isSignalingHealthy.mockReturnValue(true);
-
     // Simulate just a LOW_LOCAL_AUDIO warning being emitted (not via monitor)
     trigger(
       SwEvent.Warning,
@@ -854,7 +982,6 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     const staleError = new StaleRequestError('stale-req', 1, 2);
     expect(staleError).toBeInstanceOf(StaleRequestError);
 
-    mockSession.isSignalingHealthy.mockReturnValue(false);
     mockSession.connection = connection;
 
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();

@@ -91,17 +91,16 @@ export default class SignalingHealthMonitor {
    * signaling liveness. Timeouts on these methods indicate the
    * signaling path may be broken and warrant force-reconnecting
    * the socket.
-   *
-   * Note: The health-monitor probe Ping bypasses execute() and
-   * uses connection.send() directly (no request timeout), so it
-   * never reaches onRequestTimeout(). This set covers keepalive
-   * Pings sent through execute() during active calls.
    */
   private static readonly CRITICAL_METHODS = new Set<string>([
     VertoMethod.Modify,
     VertoMethod.Bye,
     VertoMethod.Ping,
   ]);
+
+  static isCriticalMethod(method: string): boolean {
+    return SignalingHealthMonitor.CRITICAL_METHODS.has(method);
+  }
 
   constructor(private readonly _session: ISignalingHealthSession) {}
 
@@ -145,7 +144,7 @@ export default class SignalingHealthMonitor {
 
   /**
    * Returns true if a signaling health probe is currently in flight.
-   * Used by BaseSession.isSignalingHealthy() to assess socket health.
+   * Exposed for tests/diagnostics to see whether a probe is pending.
    */
   get isProbeInFlight(): boolean {
     return this._probeInFlight;
@@ -169,7 +168,7 @@ export default class SignalingHealthMonitor {
       const pending = this._pendingMediaRecovery;
       this._pendingMediaRecovery = null;
 
-      if (this._session.isSignalingHealthy()) {
+      if (this._getSignalingHealthState() === 'healthy') {
         logger.info(
           `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
         );
@@ -179,38 +178,22 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Called by Peer when ICE/connection state degrades during an active call.
-   * Sends an immediate probe rather than waiting for the periodic check.
+   * Send a probe if socket health is unknown. Callers should not check socket
+   * health themselves; this keeps all signaling-health decisions centralized.
    */
-  triggerProbe(): void {
-    if (
-      !this._session.connection?.connected ||
-      !this._session.hasActiveCall()
-    ) {
+  private _probeIfNeeded(reason: string): void {
+    if (!this._session.connection?.connected) {
       return;
     }
 
     if (this._probeInFlight) {
       logger.debug(
-        'Signaling health: probe already in flight, skipping triggered probe'
+        `Signaling health: probe already in flight, skipping duplicate probe (${reason})`
       );
       return;
     }
 
-    const now = Date.now();
-    const silenceMs = now - this._lastInboundAt;
-
-    // If we've had recent activity, signaling is likely fine
-    if (silenceMs < RECENT_ACTIVITY_THRESHOLD_MS) {
-      logger.debug(
-        'Signaling health: recent activity detected, skipping triggered probe'
-      );
-      return;
-    }
-
-    logger.info(
-      'Signaling health: media/ICE degradation detected, sending immediate signaling probe'
-    );
+    logger.info(`Signaling health: ${reason}, sending signaling probe`);
     this._sendProbe();
   }
 
@@ -238,7 +221,7 @@ export default class SignalingHealthMonitor {
     // Only critical call-control methods should trigger signaling recovery.
     // Non-critical methods (Info, debug reports, etc.) may time out for
     // benign reasons and should not force-close the socket.
-    const isCritical = this._isCriticalMethod(method);
+    const isCritical = SignalingHealthMonitor.isCriticalMethod(method);
 
     if (!isCritical) {
       logger.warn(
@@ -318,10 +301,7 @@ export default class SignalingHealthMonitor {
    * PROBE_TIMEOUT_MS has elapsed, declare signaling unhealthy.
    */
   private _check(): void {
-    if (
-      !this._session.hasActiveCall() ||
-      !this._session.connection?.connected
-    ) {
+    if (!this._session.connection?.connected) {
       return;
     }
 
@@ -391,7 +371,16 @@ export default class SignalingHealthMonitor {
     signalingReason: string,
     signalingSource: 'peer_failure' | 'no_rtp'
   ): void {
-    if (this._session.isSignalingHealthy()) {
+    if (!this._session.hasActiveCall()) {
+      logger.debug(
+        `Signaling health: ignoring ${signalingSource} recovery without an active call`
+      );
+      return;
+    }
+
+    const healthState = this._getSignalingHealthState();
+
+    if (healthState === 'healthy') {
       logger.info(
         `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
       );
@@ -399,11 +388,14 @@ export default class SignalingHealthMonitor {
       return;
     }
 
-    if (this._probeInFlight) {
+    if (healthState === 'unknown') {
       logger.info(
-        `Signaling health: signaling probe is pending, deferring ICE restart decision for call ${callId}`
+        `Signaling health: signaling health is unknown, deferring ICE restart decision for call ${callId}`
       );
       this._pendingMediaRecovery = { callId, reason: mediaReason };
+      this._probeIfNeeded(
+        `${signalingSource} detected with stale/unknown signaling`
+      );
       return;
     }
 
@@ -411,6 +403,28 @@ export default class SignalingHealthMonitor {
       'Signaling health: signaling is unhealthy, triggering socket reconnect instead of ICE restart'
     );
     this._triggerSignalingRecovery(signalingReason, signalingSource);
+  }
+
+  private _getSignalingHealthState(): 'healthy' | 'unknown' | 'unhealthy' {
+    if (!this._session.connection?.connected) {
+      return 'unhealthy';
+    }
+
+    if (this._probeInFlight) {
+      return 'unknown';
+    }
+
+    const now = Date.now();
+    const lastInboundAt =
+      this._lastInboundAt || this._session.connection.lastInboundAt || 0;
+
+    if (lastInboundAt === 0) {
+      return 'unknown';
+    }
+
+    return now - lastInboundAt < RECENT_ACTIVITY_THRESHOLD_MS
+      ? 'healthy'
+      : 'unknown';
   }
 
   /**
@@ -487,37 +501,5 @@ export default class SignalingHealthMonitor {
 
     logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
     this._session.triggerIceRestart(callId);
-  }
-
-  /**
-   * Force-close the WebSocket to trigger the existing onNetworkClose
-   * reconnect path. This is the core recovery mechanism for half-dead sockets.
-   *
-   * @deprecated Use _triggerSignalingRecovery() instead. This method is
-   * kept for backward compatibility with the existing _check() flow that
-   * calls it directly.
-   *
-   * @param reason Human-readable reason for diagnostics.
-   * @param source What triggered the reconnect: 'probe' (health probe timeout)
-   *        or 'request' (signaling request timeout). Determines which warning
-   *        code is emitted so customer telemetry is not misleading.
-   */
-  private _forceReconnect(
-    reason: string,
-    source: 'probe' | 'request' = 'probe'
-  ): void {
-    this._triggerSignalingRecovery(reason, source);
-  }
-
-  /**
-   * Returns true if the given Verto method name is critical enough to
-   * warrant signaling recovery on timeout. Only Modify, Bye, and Ping are
-   * considered critical — they directly control the call lifecycle or
-   * signaling liveness.
-   * Other methods (Info, debug reports, etc.) may time out for benign
-   * reasons and should not force-close the socket.
-   */
-  private _isCriticalMethod(method: string): boolean {
-    return SignalingHealthMonitor.CRITICAL_METHODS.has(method);
   }
 }
