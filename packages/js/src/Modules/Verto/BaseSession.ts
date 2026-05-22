@@ -1,7 +1,7 @@
 import type { Logger } from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 import BaseMessage from './messages/BaseMessage';
-import Connection from './services/Connection';
+import Connection, { StaleRequestError } from './services/Connection';
 import {
   deRegister,
   deRegisterAll,
@@ -173,6 +173,15 @@ export default abstract class BaseSession {
         : this.connection.send(msg);
 
     return sendPromise.catch(async (error) => {
+      // Stale request — socket was replaced before the timeout fired.
+      // Settle the promise but do NOT trigger signaling recovery; the
+      // new socket is healthy and should not be force-closed.
+      if (error instanceof StaleRequestError) {
+        logger.debug(
+          `Stale request settled (id=${error.requestId}, gen=${error.staleGeneration}) — not triggering recovery`
+        );
+        throw error;
+      }
       // Handle request-level timeout from Connection.send()
       if (error?.name === 'RequestTimeoutError') {
         // Only force reconnect for critical signaling methods.

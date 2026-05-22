@@ -14,6 +14,7 @@ jest.unmock('../../services/Connection');
 
 import Connection, {
   RequestTimeoutError,
+  StaleRequestError,
   setWebSocket,
 } from '../../services/Connection';
 import {
@@ -461,17 +462,15 @@ describe('Connection – Socket generation protection', () => {
     expect(connection.socketGeneration).toBe(gen1 + 1);
   });
 
-  it('should not reject with RequestTimeoutError if socket generation changed after request was sent', async () => {
+  it('should settle with StaleRequestError (not force-close new socket) when socket generation changed after request was sent', async () => {
     const bladeObj = {
       request: { id: 'stale-req', jsonrpc: '2.0', method: 'telnyx_rtc.modify' },
     };
 
     // Send a request with a 10s timeout on the current socket (gen N)
-    let rejected = false;
+    let settledError: unknown = null;
     const promise = connection.send(bladeObj, 10_000).catch((error) => {
-      // If this catch fires, the stale timeout was NOT properly filtered
-      rejected = true;
-      throw error;
+      settledError = error;
     });
 
     // Reconnect — this increments socketGeneration to N+1
@@ -482,16 +481,60 @@ describe('Connection – Socket generation protection', () => {
     // Advance past the 10s timeout
     jest.advanceTimersByTime(10_001);
 
-    // Flush microtasks so any rejection would be processed
+    // Flush microtasks so the rejection is processed
     await Promise.resolve();
     await Promise.resolve();
 
-    // The promise should NOT have rejected because the timeout is stale
-    // (it belongs to the old socket generation).
-    // Connection.send() silently ignores stale timeouts.
-    expect(rejected).toBe(false);
+    // The promise should settle with StaleRequestError (not hang forever)
+    expect(settledError).not.toBeNull();
+    expect(settledError).toBeInstanceOf(StaleRequestError);
+    if (settledError instanceof StaleRequestError) {
+      expect(settledError.requestId).toBe('stale-req');
+      expect(settledError.currentGeneration).toBeGreaterThan(
+        settledError.staleGeneration
+      );
+    }
     // The new socket should remain connected — no force-reconnect
     expect(connection.connected).toBe(true);
+  });
+
+  /**
+   * Critical test: after a socket replacement, the old request's promise
+   * MUST settle (resolve or reject) — it must never remain pending forever.
+   *
+   * This races the old promise against a sentinel. If the promise never
+   * settles, the sentinel wins and the test fails.
+   */
+  it('old request promise settles after generation change — does not hang forever', async () => {
+    const bladeObj = {
+      request: { id: 'hang-req', jsonrpc: '2.0', method: 'telnyx_rtc.modify' },
+    };
+
+    let settled = false;
+    const stalePromise = connection.send(bladeObj, 10_000).then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      }
+    );
+
+    // Replace the socket
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Advance past the timeout so the stale timer fires
+    jest.advanceTimersByTime(10_001);
+
+    // Flush microtasks
+    await stalePromise;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // If settled is false, the promise is still pending — that's the bug
+    expect(settled).toBe(true);
   });
 
   it('should clean up pending request handlers on close()', async () => {

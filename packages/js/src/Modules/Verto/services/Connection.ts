@@ -60,6 +60,33 @@ export class RequestTimeoutError extends Error {
   }
 }
 
+/**
+ * Indicates that a request's timeout fired after the WebSocket was replaced
+ * by a newer connection (socket generation mismatch). The request is
+ * effectively cancelled — its promise is settled with this error so callers
+ * never hang, but signaling recovery must NOT be triggered since the new
+ * socket is healthy.
+ */
+export class StaleRequestError extends Error {
+  public readonly requestId: string;
+  public readonly staleGeneration: number;
+  public readonly currentGeneration: number;
+
+  constructor(
+    requestId: string,
+    staleGeneration: number,
+    currentGeneration: number
+  ) {
+    super(
+      `Stale request cancelled (id=${requestId}, gen=${staleGeneration}, current=${currentGeneration})`
+    );
+    this.name = 'StaleRequestError';
+    this.requestId = requestId;
+    this.staleGeneration = staleGeneration;
+    this.currentGeneration = currentGeneration;
+  }
+}
+
 export default class Connection {
   public previousGatewayState = '';
   /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
@@ -253,10 +280,19 @@ export default class Connection {
           this._pendingRequestIds.delete(request.id);
 
           // If the socket has been replaced since this request was sent,
-          // the timeout is stale — don't reject or trigger recovery.
+          // the timeout is stale — settle the promise with a
+          // StaleRequestError so callers never hang forever, but do NOT
+          // trigger signaling recovery (the new socket is healthy).
           if (this.socketGeneration !== currentGeneration) {
             logger.debug(
-              `Stale request timeout for ${request.id} (gen ${currentGeneration}, current ${this.socketGeneration}) — ignoring`
+              `Stale request timeout for ${request.id} (gen ${currentGeneration}, current ${this.socketGeneration}) — settling with StaleRequestError`
+            );
+            reject(
+              new StaleRequestError(
+                request.id,
+                currentGeneration,
+                this.socketGeneration
+              )
             );
             return;
           }
