@@ -44,48 +44,9 @@ const CLOSE_SAFETY_TIMEOUT_MS = 5000;
  * Error thrown when a JSON-RPC request times out waiting for a response.
  * Carries the request ID and timeout duration for diagnostics.
  */
-export class RequestTimeoutError extends Error {
-  public readonly requestId: string;
-  public readonly timeoutMs: number;
-  public readonly method: string;
+import { RequestTimeoutError, StaleRequestError } from '../util/errors';
 
-  constructor(requestId: string, timeoutMs: number, method: string = '') {
-    super(
-      `Signaling request timed out (id=${requestId}, method=${method || 'unknown'}, timeout=${timeoutMs}ms)`
-    );
-    this.name = 'RequestTimeoutError';
-    this.requestId = requestId;
-    this.timeoutMs = timeoutMs;
-    this.method = method;
-  }
-}
-
-/**
- * Indicates that a request's timeout fired after the WebSocket was replaced
- * by a newer connection (socket generation mismatch). The request is
- * effectively cancelled — its promise is settled with this error so callers
- * never hang, but signaling recovery must NOT be triggered since the new
- * socket is healthy.
- */
-export class StaleRequestError extends Error {
-  public readonly requestId: string;
-  public readonly staleGeneration: number;
-  public readonly currentGeneration: number;
-
-  constructor(
-    requestId: string,
-    staleGeneration: number,
-    currentGeneration: number
-  ) {
-    super(
-      `Stale request cancelled (id=${requestId}, gen=${staleGeneration}, current=${currentGeneration})`
-    );
-    this.name = 'StaleRequestError';
-    this.requestId = requestId;
-    this.staleGeneration = staleGeneration;
-    this.currentGeneration = currentGeneration;
-  }
-}
+export { RequestTimeoutError, StaleRequestError };
 
 export default class Connection {
   public previousGatewayState = '';

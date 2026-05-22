@@ -12,11 +12,8 @@
 // Unmock Connection to test the real implementation
 jest.unmock('../../services/Connection');
 
-import Connection, {
-  RequestTimeoutError,
-  StaleRequestError,
-  setWebSocket,
-} from '../../services/Connection';
+import Connection, { setWebSocket } from '../../services/Connection';
+import { RequestTimeoutError, StaleRequestError } from '../../util/errors';
 import {
   trigger,
   deRegister,

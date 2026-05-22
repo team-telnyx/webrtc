@@ -1,7 +1,7 @@
 import type { Logger } from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 import BaseMessage from './messages/BaseMessage';
-import Connection, { StaleRequestError } from './services/Connection';
+import Connection from './services/Connection';
 import {
   deRegister,
   deRegisterAll,
@@ -21,7 +21,11 @@ import {
   RECONNECTION_EXHAUSTED,
   WS_CLOSE_CODES,
 } from './util/constants';
-import { createTelnyxError, createTelnyxWarning } from './util/errors';
+import {
+  createTelnyxError,
+  createTelnyxWarning,
+  StaleRequestError,
+} from './util/errors';
 import type { ITelnyxErrorEvent } from './util/errors';
 import {
   isFunction,

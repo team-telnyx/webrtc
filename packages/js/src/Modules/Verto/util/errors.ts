@@ -180,3 +180,51 @@ export function createTelnyxError(
     originalError: normalizedError,
   });
 }
+
+/**
+ * Indicates that a signaling request timed out waiting for a server
+ * response. Carries the request ID, timeout duration, and Verto method
+ * name so callers can decide whether to trigger signaling recovery.
+ */
+export class RequestTimeoutError extends Error {
+  public readonly requestId: string;
+  public readonly timeoutMs: number;
+  public readonly method: string;
+
+  constructor(requestId: string, timeoutMs: number, method: string = '') {
+    super(
+      `Signaling request timed out (id=${requestId}, method=${method || 'unknown'}, timeout=${timeoutMs}ms)`
+    );
+    this.name = 'RequestTimeoutError';
+    this.requestId = requestId;
+    this.timeoutMs = timeoutMs;
+    this.method = method;
+  }
+}
+
+/**
+ * Indicates that a request's timeout fired after the WebSocket was replaced
+ * by a newer connection (socket generation mismatch). The request is
+ * effectively cancelled — its promise is settled with this error so callers
+ * never hang, but signaling recovery must NOT be triggered since the new
+ * socket is healthy.
+ */
+export class StaleRequestError extends Error {
+  public readonly requestId: string;
+  public readonly staleGeneration: number;
+  public readonly currentGeneration: number;
+
+  constructor(
+    requestId: string,
+    staleGeneration: number,
+    currentGeneration: number
+  ) {
+    super(
+      `Stale request cancelled (id=${requestId}, gen=${staleGeneration}, current=${currentGeneration})`
+    );
+    this.name = 'StaleRequestError';
+    this.requestId = requestId;
+    this.staleGeneration = staleGeneration;
+    this.currentGeneration = currentGeneration;
+  }
+}
