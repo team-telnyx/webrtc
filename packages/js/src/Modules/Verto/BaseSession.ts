@@ -50,6 +50,7 @@ import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
+import type { RestartIceResult } from './webrtc/Peer';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -1038,7 +1039,10 @@ export default abstract class BaseSession {
   triggerIceRestart(callId: string): void {
     const calls = (
       this as unknown as {
-        calls?: Record<string, { peer?: { restartIce?: () => boolean } }>;
+        calls?: Record<
+          string,
+          { peer?: { restartIce?: () => RestartIceResult } }
+        >;
       }
     ).calls;
     const call = calls?.[callId];
@@ -1055,9 +1059,11 @@ export default abstract class BaseSession {
       );
       return;
     }
-    const started = peer.restartIce();
-    if (!started) {
-      logger.debug(`Signaling health: ICE restart skipped for call ${callId}`);
+    const result = peer.restartIce();
+    if (!result.started) {
+      logger.debug(
+        `Signaling health: ICE restart skipped for call ${callId}: ${result.reason}`
+      );
     }
   }
 

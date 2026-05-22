@@ -50,6 +50,11 @@ import {
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
 
+export type RestartIceResult = {
+  started: boolean;
+  reason?: string;
+};
+
 /**
  * @ignore Hide in docs output
  */
@@ -131,21 +136,21 @@ export default class Peer {
    * is triggered externally by the health monitor rather than by
    * a connectionState change event.
    *
-   * @returns true if ICE restart was initiated, false if it was skipped.
+   * @returns Whether ICE restart was initiated, with skip reason when skipped.
    */
-  public restartIce(): boolean {
+  public restartIce(): RestartIceResult {
     if (!this.instance) {
       logger.warn('ICE restart: no RTCPeerConnection instance');
-      return false;
+      return { started: false, reason: 'no RTCPeerConnection instance' };
     }
     if (this.isIceRestarting) {
       logger.debug('ICE restart: already in progress, skipping');
-      return false;
+      return { started: false, reason: 'already in progress' };
     }
     // Do not restart ICE if the session is disconnected.
     if (!this._session.connected) {
       logger.debug('ICE restart: session not connected, skipping');
-      return false;
+      return { started: false, reason: 'session not connected' };
     }
 
     this.isIceRestarting = true;
@@ -165,7 +170,7 @@ export default class Peer {
     }, Peer.ICE_RESTART_TIMEOUT_MS);
 
     logger.info('ICE restart: initiated by signaling health monitor');
-    return true;
+    return { started: true };
   }
 
   get isOffer() {
