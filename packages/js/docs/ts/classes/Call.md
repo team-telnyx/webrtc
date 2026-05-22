@@ -71,6 +71,7 @@ call.muteAudio();
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
+- [flushIntermediateCallReport](#flushintermediatecallreport)
 - [getStats](#getstats)
 - [hold](#hold)
 - [muteAudio](#muteaudio)
@@ -383,6 +384,30 @@ call.dtmf('#');
 #### Inherited from
 
 BaseCall.dtmf
+
+---
+
+### flushIntermediateCallReport
+
+▸ **flushIntermediateCallReport**(`flushReason?`): `void`
+
+Flush an intermediate call report segment mid-call.
+Used for periodic, size-limit, and socket-close safety flushes without
+falsely finalizing the call.
+
+#### Parameters
+
+| Name          | Type                     |
+| :------------ | :----------------------- |
+| `flushReason` | `ICallReportFlushReason` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.flushIntermediateCallReport
 
 ---
 

@@ -1,3 +1,75 @@
+## [2.27.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.4...webrtc/v2.27.0) (2026-05-22)
+
+### Call/media recovery
+
+- **Feat: initial restart ice implementation** (#607)
+  Adds active-call ICE restart support. When `RTCPeerConnection.connectionState` becomes `failed` or `disconnected`, the SDK can call `restartIce()`, create a new offer, and exchange the renegotiated SDP with Verto using `telnyx_rtc.modify` / `updateMedia` instead of leaving the call stuck until hangup or socket-level attach recovery. The implementation keeps socket reconnect / attach recovery as the owner when signaling is offline or disconnected.
+
+- **Fix: signaling health recovery for half-dead WebSocket** (#650)
+  Handles cases where a network interface changes and the browser still reports the WebSocket as `OPEN`, but the underlying TCP path no longer receives signaling frames. `SignalingHealthMonitor` now centralizes the recovery decision: unhealthy or stale signaling forces socket reconnect, while healthy signaling plus peer/media failure can use ICE restart. The SDK also tracks all inbound WebSocket activity as liveness evidence and scopes request timeouts to critical signaling methods (`modify`, `bye`, `ping`).
+
+- **fix: skip ice restart for reattached calls** (#651)
+  Detects calls recovered through `telnyx_rtc.attach` / reattach and avoids running another ICE restart against that recovered call. Later media failures on reattached calls now route through socket reconnect + attach recovery, and the SDK avoids emitting `MEDIA_RECOVERY_REQUIRED` when ICE restart is intentionally bypassed.
+
+- **fix: recover VPN media stalls over relay** (#642)
+  Adds a conservative relay-only escalation path for recovered calls that stall again on VPN/non-relay paths. First recovery still uses normal ICE behavior. If an already recovered call stalls again with evidence such as ICE disconnected/failed, requests increasing without responses, or outbound bytes increasing while inbound stays flat, the next attach recovery can request `forceRelayCandidate: true` / `iceTransportPolicy: 'relay'`.
+
+### Call state and lifecycle fixes
+
+- **fix: ignore late SDP responses after hangup** (#643)
+  Ignores delayed invite/answer SDP execute responses after the call has already moved to `hangup`, `destroy`, or `purge`. This prevents a late invite result from reviving an outbound call from `hangup` back to `trying`.
+
+- **fix: prevent duplicate inbound answers** (#622)
+  Adds a per-credential inbound-answer guard so duplicate `TelnyxRTC` instances in the same JS runtime cannot both answer duplicate inbound call legs. When a duplicate answer is ignored, the SDK emits a `DUPLICATE_INBOUND_ANSWER` warning and releases the guard when the owning call is destroyed.
+
+- **VSDK-199: detach media elements on call finalization** (#628)
+  Clears local and remote media element `srcObject` references during call finalization after streams are stopped. This fixes Chromium `setSinkId()` failures caused by elements remaining attached to ended `MediaStream` objects.
+
+### Reconnect behavior
+
+- **VSDK-197: Add maxReconnectAttempts option for socket reconnection limit** (#629)
+  Adds `maxReconnectAttempts` to `IClientOptions` / `IVertoOptions`. The default is bounded automatic reconnect behavior (`10` attempts), while explicit `0` keeps unlimited retries. When the limit is reached, the SDK disables automatic reconnect and emits `telnyx.error` with `RECONNECTION_EXHAUSTED` (`45003`). Attempts reset on successful `REGED`, manual `connect()` after exhaustion, and `disconnect()`.
+
+### Call reports and observability
+
+- **fix: collect initial call report stats every second** (#633)
+  Samples call-report stats every second for the first 10 seconds of each call, then falls back to the configured longer interval. This improves diagnostics for short calls and early-call media problems while preserving the existing report payload contract.
+
+- **feat: warn on low local audio** (#634)
+  Adds a `LOW_LOCAL_AUDIO` warning through the existing `telnyx.warning` quality-event path. The warning is based on sustained low outbound local audio level, including values derived from local `totalAudioEnergy` deltas, while suppressing alerts when the local track is intentionally disabled or muted.
+
+- **fix: retry failed call report uploads** (#635)
+  Retries failed call-report POSTs on non-2xx responses and network errors with bounded backoff. Final reports can use `fetch(..., { keepalive: true })` during teardown, and `disconnect()` drains pending report uploads for up to 10 seconds before closing the WebSocket. Active calls can also submit intermediate report segments using `callReportFlushInterval`.
+
+- **fix: flush call reports on socket close** (#639)
+  Flushes active calls as intermediate call-report segments when the socket closes. Flush reasons now include structured socket-close metadata such as close code, code name, reason, `wasClean`, and error details when available.
+
+- **VSUP-65: Fix stale call establishment timing marks** (#637)
+  Scopes performance marks by `call_id` so stale marks from previous calls cannot pollute later call-establishment timing calculations. This fixes inflated timing values such as the reported 237-second ringing duration and adds cleanup coverage for peer close/finalization paths.
+
+- **fix: log local audio source diagnostics** (#625)
+  Adds local audio sender track metadata and outbound `media-source` stats to call reports, including selected input settings, track state, `audioLevel`, `totalAudioEnergy`, and related local source details. This helps distinguish RTP transport issues from wrong, muted, ended, or silent local input devices.
+
+- **fix: log hangup caller metadata** (#624)
+  Logs structured `hangup()` invocation metadata before teardown, including pre-hangup state, execute flag, selected cause/causeCode, SIP fields, recovery/custom-header flags, and a caller stack snapshot.
+
+- **fix: ICE candidate pair change log with full path details** (#645)
+  Replaces opaque previous/current candidate-pair IDs with full candidate-pair snapshots. Candidate-pair change logs now include local/remote candidate details such as address, port, candidate type, protocol, network type, nominated/writable state, and request/response counters.
+
+### Documentation and generated artifacts
+
+- **docs: clarify SDK STUN and TURN firewall URLs** (#621)
+  Documents the JavaScript SDK production STUN/TURN URL list and clarifies TURN TCP fallback guidance for restrictive firewall environments.
+
+- **docs: update ts docs**
+  Regenerates TypeScript API documentation for the public surfaces changed in this release, including `Call`, `TelnyxRTC`, `VertoModifyAction`, `IClientOptions`, `ILocalAudioSourceStats`, and `ILocalAudioTrackSnapshot`.
+
+### Consumer-visible notes
+
+- Active-call media recovery is now more explicit: healthy signaling plus media failure uses ICE restart; unhealthy or stale signaling uses socket reconnect / attach recovery; already reattached calls skip ICE restart and recover through reconnect / attach.
+- `maxReconnectAttempts` is now available and defaults to bounded reconnect attempts. Set it to `0` to preserve unlimited automatic reconnect retries.
+- Call-report payloads and SDK warnings now include richer local audio, socket-close, candidate-pair, hangup, and upload/retry diagnostics for RTC investigations.
+
 ## [2.26.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.4) (2026-04-29)
 
 - docs: update ts docs
