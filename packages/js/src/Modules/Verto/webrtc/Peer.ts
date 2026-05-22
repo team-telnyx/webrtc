@@ -80,8 +80,6 @@ export default class Peer {
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
-  private _hadOfflineEvent: boolean = false;
-  private _offlineHandler: (() => void) | null = null;
 
   constructor(
     public type: PeerType,
@@ -108,14 +106,6 @@ export default class Peer {
     this._session = session;
     this._trickleIceSdpFn = trickleIceSdpFn;
     this._registerPeerEvents = registerPeerEvents;
-    // Track offline events independently so ICE restart and Attach never race.
-    // _hadOfflineEvent is only cleared on peer `connected`, not on `online`.
-    if (typeof window !== 'undefined') {
-      this._offlineHandler = () => {
-        this._hadOfflineEvent = true;
-      };
-      window.addEventListener('offline', this._offlineHandler);
-    }
   }
 
   /**
@@ -150,12 +140,6 @@ export default class Peer {
     }
     if (this.isIceRestarting) {
       logger.debug('ICE restart: already in progress, skipping');
-      return false;
-    }
-    // Do not restart ICE if the browser went offline — the Attach flow
-    // owns recovery exclusively.
-    if (this._hadOfflineEvent) {
-      logger.debug('ICE restart: offline event detected, deferring to Attach');
       return false;
     }
     // Do not restart ICE if the session is disconnected.
@@ -398,13 +382,12 @@ export default class Peer {
       this.tryCollectTimings();
 
       // Successful (re)connection — allow future ICE restarts if we fail again.
-      // Only clear the restart-gate and offline flag here; isIceRestarting
+      // Only clear the restart-gate here; isIceRestarting
       // must remain true until the Modify exchange completes (see
       // _sendIceRestartModify in BaseCall) or the safety timeout fires.
       // Calling finishIceRestart() here would clear isIceRestarting before
       // the Modify SDP is even sent, breaking the ICE restart flow.
       this._restartedIceOnConnectionStateFailed = false;
-      this._hadOfflineEvent = false;
     }
 
     if (this._isTrickleIce()) {
@@ -1069,10 +1052,6 @@ export default class Peer {
     clearCallMarks(this.options.id);
     this.finishIceRestart();
     this._clearIceGatheringSafetyTimeout();
-    if (this._offlineHandler && typeof window !== 'undefined') {
-      window.removeEventListener('offline', this._offlineHandler);
-      this._offlineHandler = null;
-    }
     if (this._sleepWakeupIntervalId !== null) {
       clearInterval(this._sleepWakeupIntervalId);
       this._sleepWakeupIntervalId = null;

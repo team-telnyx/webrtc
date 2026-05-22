@@ -885,7 +885,7 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('probe pending keeps media recovery pending until signaling activity proves socket healthy', () => {
+  it('probe pending keeps media recovery pending on unrelated socket activity', () => {
     mockSession.connection = connection;
 
     (connection as any)._wsClient.readyState = WS_STATE.OPEN;
@@ -899,14 +899,19 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
 
     monitor.onSocketActivity();
 
-    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('stale signaling activity on peer failure sends one probe and defers ICE restart', () => {
+  it('stale signaling activity on peer failure waits for matching probe response before ICE restart', async () => {
     mockSession.connection = connection;
     (connection as any)._wsClient.readyState = WS_STATE.OPEN;
-    jest.spyOn(connection, 'send').mockReturnValue(new Promise(() => {}));
+    let resolveProbe!: () => void;
+    jest.spyOn(connection, 'send').mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveProbe = resolve;
+      })
+    );
 
     monitor.start();
     (monitor as any)._lastInboundAt = 0;
@@ -919,7 +924,18 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
 
+    // An unrelated inbound frame updates passive liveness but must not
+    // release media recovery gated on the active probe.
     monitor.onSocketActivity();
+
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+
+    // The Connection.send() promise resolves only for the matching Ping
+    // response id, so this represents the actual probe response.
+    resolveProbe();
+    await Promise.resolve();
+    await Promise.resolve();
 
     expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
@@ -978,12 +994,40 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('stale request errors settle without invoking signaling recovery', async () => {
+  it('BaseSession.execute rethrows stale request errors without invoking signaling recovery', async () => {
     const staleError = new StaleRequestError('stale-req', 1, 2);
     expect(staleError).toBeInstanceOf(StaleRequestError);
 
-    mockSession.connection = connection;
+    const sessionLike = {
+      _idle: false,
+      _executeQueue: [],
+      connected: true,
+      connection: {
+        send: jest.fn().mockRejectedValue(staleError),
+      },
+      onSignalingRequestTimeout: jest.fn(),
+      authenticationRequiredErrorCode: -32000,
+      _autoReconnect: false,
+      sessionid: 'test-session',
+      uuid: 'test-uuid',
+      connect: jest.fn(),
+      login: jest.fn(),
+    };
 
+    await expect(
+      BaseSession.prototype.execute.call(
+        sessionLike as any,
+        {
+          request: {
+            id: 'stale-req',
+            jsonrpc: '2.0',
+            method: VertoMethod.Modify,
+          },
+        } as any
+      )
+    ).rejects.toBe(staleError);
+
+    expect(sessionLike.onSignalingRequestTimeout).not.toHaveBeenCalled();
     expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });

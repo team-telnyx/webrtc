@@ -76,13 +76,6 @@ export default class SignalingHealthMonitor {
   /** The periodic check interval. */
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
-  /**
-   * Monotonically increasing recovery generation counter. Incremented each
-   * time a recovery action is triggered. Used to prevent duplicate recovery
-   * from stale events (e.g. a timeout from a previous socket generation).
-   */
-  private _recoveryGeneration: number = 0;
-
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
@@ -152,28 +145,38 @@ export default class SignalingHealthMonitor {
 
   /**
    * Called on every inbound WS message (via SocketActivity event).
-   * Updates the liveness timestamp and resolves any in-flight probe.
+   * Updates the passive liveness timestamp only.
+   *
+   * Health probes are resolved by the matching Ping response promise in
+   * _sendProbe(). Unrelated inbound frames prove that bytes are flowing, but
+   * they must not release pending media recovery that was gated on a probe.
    */
   onSocketActivity(): void {
     this._lastInboundAt = Date.now();
-    const resolvedProbe = this._probeInFlight;
+  }
 
-    if (resolvedProbe) {
-      this._probeInFlight = false;
-      this._lastProbeSentAt = 0;
-      logger.debug('Signaling health: probe resolved by inbound activity');
+  private _resolveProbe(): void {
+    if (!this._probeInFlight) {
+      return;
     }
 
-    if (resolvedProbe && this._pendingMediaRecovery) {
-      const pending = this._pendingMediaRecovery;
-      this._pendingMediaRecovery = null;
+    this._probeInFlight = false;
+    this._lastProbeSentAt = 0;
+    this._lastInboundAt = Date.now();
+    logger.debug('Signaling health: probe resolved by matching Ping response');
 
-      if (this._getSignalingHealthState() === 'healthy') {
-        logger.info(
-          `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
-        );
-        this._triggerIceRestart(pending.callId, pending.reason);
-      }
+    if (!this._pendingMediaRecovery) {
+      return;
+    }
+
+    const pending = this._pendingMediaRecovery;
+    this._pendingMediaRecovery = null;
+
+    if (this._getSignalingHealthState() === 'healthy') {
+      logger.info(
+        `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
+      );
+      this._triggerIceRestart(pending.callId, pending.reason);
     }
   }
 
@@ -352,8 +355,15 @@ export default class SignalingHealthMonitor {
     // Ping promise would reject, onRequestTimeout() would see the *new*
     // socket as connected, and force-close the healthy replacement.
     // Bypassing execute() avoids this race entirely.
+    const probe = new Ping(getReconnectToken());
+
+    // The probe resolves only when Connection.send() receives the JSON-RPC
+    // response for this exact Ping request id. Passive SocketActivity from
+    // unrelated messages updates lastInboundAt but intentionally does not
+    // resolve the probe or release pending media recovery.
     this._session.connection
-      ?.send(new Ping(getReconnectToken()))
+      ?.send(probe)
+      .then(() => this._resolveProbe())
       .catch((error) => {
         logger.warn('Signaling health: probe Ping failed to send', error);
       });
@@ -446,7 +456,6 @@ export default class SignalingHealthMonitor {
     this._pendingMediaRecovery = null;
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
-    this._recoveryGeneration++;
 
     // Emit the appropriate warning code based on what triggered recovery.
     // For probe/request sources, use the specific existing warning codes.
@@ -485,8 +494,6 @@ export default class SignalingHealthMonitor {
    * @param reason Human-readable reason for diagnostics.
    */
   private _triggerIceRestart(callId: string, reason: string): void {
-    this._recoveryGeneration++;
-
     const warning = createTelnyxWarning(MEDIA_RECOVERY_REQUIRED);
     trigger(
       SwEvent.Warning,

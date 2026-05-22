@@ -183,9 +183,11 @@ export default abstract class BaseSession {
         : this.connection.send(msg);
 
     return sendPromise.catch(async (error) => {
-      // Stale request — socket was replaced before the timeout fired.
-      // Settle the promise but do NOT trigger signaling recovery; the
-      // new socket is healthy and should not be force-closed.
+      // Stale request — a request was sent on an old socket generation,
+      // then reconnect created a replacement socket before the old request
+      // timeout/cleanup settled. Surface the stale cancellation to the
+      // caller, but do NOT trigger signaling recovery; otherwise an old
+      // Modify/Ping timeout could force-close the new healthy socket.
       if (error instanceof StaleRequestError) {
         logger.debug(
           `Stale request settled (id=${error.requestId}, gen=${error.staleGeneration}) — not triggering recovery`
@@ -703,7 +705,6 @@ export default abstract class BaseSession {
   protected async _onSocketOpen() {
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
-    this._signalingHealthMonitor.onSocketActivity();
     this.startSignalingHealthMonitor();
   }
 
