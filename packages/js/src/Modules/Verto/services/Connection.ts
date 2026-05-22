@@ -180,8 +180,15 @@ export default class Connection {
     }
 
     try {
+      const previousSocketGeneration = this.socketGeneration;
       this._wsClient = new WebSocketClass(websocketUrl.toString());
       this.socketGeneration += 1;
+      logger.debug('WebSocket connection created', {
+        sessionId: this.session.sessionid,
+        voiceSdkId: this.session.callReportVoiceSdkId,
+        socketGeneration: this.socketGeneration,
+        reconnectCount: previousSocketGeneration,
+      });
       this.lastInboundAt = 0;
       this._cleanupPendingRequests();
       this._registerSocketEvents(this._wsClient);
