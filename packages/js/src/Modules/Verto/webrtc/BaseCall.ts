@@ -2339,15 +2339,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   protected _finalize() {
     this._stopStats();
 
-    // Stop signaling health monitor if no active calls remain
-    // We schedule this for the next tick so the call is removed from session.calls first
-    const sessionRef = this.session;
-    setTimeout(() => {
-      if (!sessionRef.hasActiveCall()) {
-        sessionRef.stopSignalingHealthMonitor();
-      }
-    }, 0);
-
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).
     // Peer.close() also clears marks as defense-in-depth.
@@ -2366,6 +2357,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
+
+    // Stop signaling health monitor if no active calls remain. Do this after
+    // removing the finalized call from session.calls so hasActiveCall() reads
+    // the final synchronous state without a deferred timer.
+    if (!this.session.hasActiveCall()) {
+      this.session.stopSignalingHealthMonitor();
+    }
 
     // Post call report after cleanup. The upload runs in the background,
     // but the session tracks it so disconnect() can wait instead of racing
