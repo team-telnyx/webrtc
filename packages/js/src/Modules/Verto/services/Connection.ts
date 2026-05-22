@@ -7,7 +7,11 @@ import {
   WEBSOCKET_CONNECTION_FAILED,
   WEBSOCKET_ERROR,
 } from '../util/constants';
-import { createTelnyxError } from '../util/errors';
+import {
+  createTelnyxError,
+  RequestTimeoutError,
+  StaleRequestError,
+} from '../util/errors';
 import {
   checkWebSocketHost,
   destructResponse,
@@ -39,14 +43,6 @@ const WS_STATE = {
  * reasons including network changes, browser bugs, or system sleep.
  */
 const CLOSE_SAFETY_TIMEOUT_MS = 5000;
-
-/**
- * Error thrown when a JSON-RPC request times out waiting for a response.
- * Carries the request ID and timeout duration for diagnostics.
- */
-import { RequestTimeoutError, StaleRequestError } from '../util/errors';
-
-export { RequestTimeoutError, StaleRequestError };
 
 export default class Connection {
   public previousGatewayState = '';
