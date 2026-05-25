@@ -28,21 +28,24 @@ export default class Verto extends BrowserSession {
   constructor(options: IVertoOptions) {
     super(options);
     this._vertoHandler = new VertoHandler(this);
-    // hang up current call when browser closes or refreshes.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    window.addEventListener('beforeunload', (_e) => {
-      if (this.calls) {
-        Object.keys(this.calls).forEach((callId) => {
-          if (this.calls[callId]) {
-            logger.info(`Hanging up call due to window unload: ${callId}`);
-            void this.calls[callId].hangup(
-              { initiator: 'sdk:beforeunload' },
-              true
-            );
-          }
-        });
-      }
-    });
+
+    if (options.hangupOnBeforeUnload !== false) {
+      // hang up current call when browser closes or refreshes.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      window.addEventListener('beforeunload', (_e) => {
+        if (this.calls) {
+          Object.keys(this.calls).forEach((callId) => {
+            if (this.calls[callId]) {
+              logger.info(`Hanging up call due to window unload: ${callId}`);
+              void this.calls[callId].hangup(
+                { initiator: 'sdk:beforeunload' },
+                true
+              );
+            }
+          });
+        }
+      });
+    }
   }
 
   validateOptions() {
