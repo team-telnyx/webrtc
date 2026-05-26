@@ -14,6 +14,7 @@ import {
 } from './util/helpers';
 import logger from './util/logger';
 import { createTelnyxError } from './util/errors';
+import { clearReconnectToken } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
@@ -33,6 +34,7 @@ export default class Verto extends BrowserSession {
       // hang up current call when browser closes or refreshes.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       window.addEventListener('beforeunload', (_e) => {
+        clearReconnectToken();
         if (this.calls) {
           Object.keys(this.calls).forEach((callId) => {
             if (this.calls[callId]) {
