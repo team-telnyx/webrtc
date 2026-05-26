@@ -39,6 +39,7 @@
 <a href="IClientOptions.html#enableCallReports" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>enable<wbr/>Call<wbr/>Reports?</span></a>
 <a href="IClientOptions.html#env" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>env?</span></a>
 <a href="IClientOptions.html#forceRelayCandidate" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>force<wbr/>Relay<wbr/>Candidate?</span></a>
+<a href="IClientOptions.html#hangupOnBeforeUnload" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>hangup<wbr/>On<wbr/>Before<wbr/>Unload?</span></a>
 <a href="IClientOptions.html#iceServers" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ice<wbr/>Servers?</span></a>
 <a href="IClientOptions.html#keepConnectionAliveOnSocketClose" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close?</span></a>
 <a href="IClientOptions.html#login" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login?</span></a>
@@ -151,6 +152,18 @@ and posted to the voice-sdk-proxy /call_report endpoint when the call ends.</p>
 <div class="tsd-comment tsd-typography"><p>Force the use of a relay ICE candidate.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
+<section class="tsd-panel tsd-member"><a id="hangupOnBeforeUnload" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>hangup<wbr/>On<wbr/>Before<wbr/>Unload</span><a href="#hangupOnBeforeUnload" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">hangup<wbr/>On<wbr/>Before<wbr/>Unload</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>Controls whether the SDK attempts to send BYE for active calls during
+browser page unload. Enabled by default to preserve graceful call cleanup,
+but applications that handle page lifecycle themselves can disable it to
+avoid best-effort unload BYE races.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-0">true</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="iceServers" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>ice<wbr/>Servers</span><a href="#iceServers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">ice<wbr/>Servers</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type ">RTCIceServer</span><span class="tsd-signature-symbol">[]</span></div>
@@ -351,6 +364,7 @@ caused by stale state on a specific b2bua-rtc node.</p>
 <li><a href="#enableCallReports" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>enable<wbr/>Call<wbr/>Reports</span></a></li>
 <li><a href="#env" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>env</span></a></li>
 <li><a href="#forceRelayCandidate" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>force<wbr/>Relay<wbr/>Candidate</span></a></li>
+<li><a href="#hangupOnBeforeUnload" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>hangup<wbr/>On<wbr/>Before<wbr/>Unload</span></a></li>
 <li><a href="#iceServers" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ice<wbr/>Servers</span></a></li>
 <li><a href="#keepConnectionAliveOnSocketClose" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>keep<wbr/>Connection<wbr/>Alive<wbr/>On<wbr/>Socket<wbr/>Close</span></a></li>
 <li><a href="#login" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>login</span></a></li>
