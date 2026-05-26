@@ -966,7 +966,7 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
 
     monitor.start();
     (monitor as any)._lastInboundAt = 0;
-    jest.advanceTimersByTime(12_001);
+    jest.advanceTimersByTime(21_001);
 
     expect(connection.send).toHaveBeenCalledTimes(1);
     expect(monitor.isProbeInFlight).toBe(true);
