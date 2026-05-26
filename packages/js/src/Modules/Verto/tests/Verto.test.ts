@@ -7,6 +7,11 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
 } from '../util/constants';
+import {
+  clearReconnectToken,
+  getReconnectToken,
+  setReconnectToken,
+} from '../util/reconnect';
 
 const Connection = require('../services/Connection');
 
@@ -50,9 +55,10 @@ describe('Verto', () => {
   });
 
   describe('beforeunload hangup', () => {
-    it('should attempt a BYE for active calls on page unload by default', () => {
+    it('should attempt a BYE for active calls and clear reconnect token on page unload by default', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
+      setReconnectToken('voice-sdk-id');
 
       const telnyxRTC = _buildInstance({
         host: 'example.telnyx.com',
@@ -75,13 +81,16 @@ describe('Verto', () => {
         { initiator: 'sdk:beforeunload' },
         true
       );
+      expect(getReconnectToken()).toBeNull();
 
       addEventListenerSpy.mockRestore();
+      clearReconnectToken();
     });
 
-    it('should allow applications to disable page unload BYE', () => {
+    it('should allow applications to disable page unload BYE without clearing reconnect token', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
+      setReconnectToken('voice-sdk-id');
 
       _buildInstance({
         host: 'example.telnyx.com',
@@ -96,7 +105,10 @@ describe('Verto', () => {
         )
       ).toBe(false);
 
+      expect(getReconnectToken()).toBe('voice-sdk-id');
+
       addEventListenerSpy.mockRestore();
+      clearReconnectToken();
     });
   });
 
