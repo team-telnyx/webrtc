@@ -97,6 +97,16 @@ export interface IClientOptions {
   keepConnectionAliveOnSocketClose?: boolean;
 
   /**
+   * Controls whether the SDK attempts to send BYE for active calls during
+   * browser page unload. Enabled by default to preserve graceful call cleanup,
+   * but applications that handle page lifecycle themselves can disable it to
+   * avoid best-effort unload BYE races.
+   *
+   * @default true
+   */
+  hangupOnBeforeUnload?: boolean;
+
+  /**
    * Region to use for the connection.
    */
   region?: string;

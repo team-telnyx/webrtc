@@ -2,6 +2,7 @@ import behaveLikeBaseSession from './behaveLike/BaseSession.spec';
 import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
+import { IWebRTCCall } from '../webrtc/interfaces';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -46,6 +47,57 @@ describe('Verto', () => {
 
   it('should instantiate Verto with default methods', () => {
     expect(instance).toBeInstanceOf(Verto);
+  });
+
+  describe('beforeunload hangup', () => {
+    it('should attempt a BYE for active calls on page unload by default', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+      });
+      const hangup = jest.fn();
+      telnyxRTC.calls = {
+        callA: { hangup } as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+
+      expect(beforeUnloadHandler).toBeDefined();
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      expect(hangup).toHaveBeenCalledWith(
+        { initiator: 'sdk:beforeunload' },
+        true
+      );
+
+      addEventListenerSpy.mockRestore();
+    });
+
+    it('should allow applications to disable page unload BYE', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+
+      _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+
+      expect(
+        addEventListenerSpy.mock.calls.some(
+          ([eventName]) => eventName === 'beforeunload'
+        )
+      ).toBe(false);
+
+      addEventListenerSpy.mockRestore();
+    });
   });
 
   it('should set env equal production ', () => {
