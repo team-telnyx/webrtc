@@ -20,7 +20,7 @@ import { VertoMethod } from '../webrtc/constants';
  * Threshold (ms) of WS silence during an active call before a health
  * probe (Ping) is sent.
  */
-const PROBE_THRESHOLD_MS = 12 * 1000; // 12s silence → probe
+const PROBE_THRESHOLD_MS = 20 * 1000; // 20s silence → probe
 
 /**
  * After sending a health probe, if no inbound WS activity of any kind
