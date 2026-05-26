@@ -12,9 +12,3 @@ export function setReconnectToken(token: string): void {
 export function clearReconnectToken(): void {
   sessionStorage.removeItem(STORAGE_KEY);
 }
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    clearReconnectToken();
-  });
-}
