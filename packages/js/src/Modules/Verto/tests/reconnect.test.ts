@@ -41,4 +41,25 @@ describe('reconnect token storage', () => {
       getReconnectSessionId(1001 + RECONNECT_SESSION_ID_MAX_AGE_MS)
     ).toBeNull();
   });
+
+  it('scopes reconnect state by application-provided session key', () => {
+    setReconnectToken('voice-sdk-user-2449', 'x-user-id:2449');
+    setReconnectSessionId('sessid-user-2449', 'x-user-id:2449');
+    setReconnectToken('voice-sdk-user-2093', 'x-user-id:2093');
+    setReconnectSessionId('sessid-user-2093', 'x-user-id:2093');
+
+    expect(getReconnectToken('x-user-id:2449')).toBe('voice-sdk-user-2449');
+    expect(getReconnectSessionId('x-user-id:2449')).toBe('sessid-user-2449');
+    expect(getReconnectToken('x-user-id:2093')).toBe('voice-sdk-user-2093');
+    expect(getReconnectSessionId('x-user-id:2093')).toBe('sessid-user-2093');
+
+    clearReconnectToken('x-user-id:2449');
+
+    expect(getReconnectToken('x-user-id:2449')).toBeNull();
+    expect(getReconnectSessionId('x-user-id:2449')).toBeNull();
+    expect(getReconnectToken('x-user-id:2093')).toBe('voice-sdk-user-2093');
+    expect(getReconnectSessionId('x-user-id:2093')).toBe('sessid-user-2093');
+
+    clearReconnectToken('x-user-id:2093');
+  });
 });

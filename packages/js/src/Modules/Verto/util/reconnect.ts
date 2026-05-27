@@ -5,34 +5,90 @@ const SESSION_ID_STORED_AT_STORAGE_KEY =
 
 export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
 
-function getReconnectSessionIdStoredAt(): number | null {
+function scopedStorageKey(key: string, reconnectSessionKey?: string): string {
+  return reconnectSessionKey ? `${key}:${reconnectSessionKey}` : key;
+}
+
+function normalizeLookupArgs(
+  reconnectSessionKeyOrNow?: string | number,
+  now = Date.now()
+): { reconnectSessionKey?: string; now: number } {
+  if (typeof reconnectSessionKeyOrNow === 'number') {
+    return { now: reconnectSessionKeyOrNow };
+  }
+
+  return { reconnectSessionKey: reconnectSessionKeyOrNow, now };
+}
+
+function normalizeSetArgs(
+  reconnectSessionKeyOrStoredAt?: string | number,
+  storedAt = Date.now()
+): { reconnectSessionKey?: string; storedAt: number } {
+  if (typeof reconnectSessionKeyOrStoredAt === 'number') {
+    return { storedAt: reconnectSessionKeyOrStoredAt };
+  }
+
+  return { reconnectSessionKey: reconnectSessionKeyOrStoredAt, storedAt };
+}
+
+function getReconnectSessionIdStoredAt(
+  reconnectSessionKey?: string
+): number | null {
   const storedAt = Number(
-    sessionStorage.getItem(SESSION_ID_STORED_AT_STORAGE_KEY)
+    sessionStorage.getItem(
+      scopedStorageKey(SESSION_ID_STORED_AT_STORAGE_KEY, reconnectSessionKey)
+    )
   );
   return Number.isFinite(storedAt) ? storedAt : null;
 }
 
-export function isReconnectSessionIdFresh(now = Date.now()): boolean {
-  const storedAt = getReconnectSessionIdStoredAt();
-  return storedAt !== null && now - storedAt <= RECONNECT_SESSION_ID_MAX_AGE_MS;
+export function isReconnectSessionIdFresh(
+  reconnectSessionKeyOrNow?: string | number,
+  now = Date.now()
+): boolean {
+  const args = normalizeLookupArgs(reconnectSessionKeyOrNow, now);
+  const storedAt = getReconnectSessionIdStoredAt(args.reconnectSessionKey);
+  return (
+    storedAt !== null && args.now - storedAt <= RECONNECT_SESSION_ID_MAX_AGE_MS
+  );
 }
 
-export function getReconnectToken(): string | null {
-  const token = sessionStorage.getItem(STORAGE_KEY);
-  return token;
+export function getReconnectToken(reconnectSessionKey?: string): string | null {
+  return sessionStorage.getItem(
+    scopedStorageKey(STORAGE_KEY, reconnectSessionKey)
+  );
 }
 
-export function setReconnectToken(token: string): void {
-  sessionStorage.setItem(STORAGE_KEY, token);
+export function setReconnectToken(
+  token: string,
+  reconnectSessionKey?: string
+): void {
+  sessionStorage.setItem(
+    scopedStorageKey(STORAGE_KEY, reconnectSessionKey),
+    token
+  );
 }
 
-export function getReconnectSessionId(now = Date.now()): string | null {
-  const sessionId = sessionStorage.getItem(SESSION_ID_STORAGE_KEY);
+export function getReconnectSessionId(
+  reconnectSessionKeyOrNow?: string | number,
+  now = Date.now()
+): string | null {
+  const args = normalizeLookupArgs(reconnectSessionKeyOrNow, now);
+  const sessionIdKey = scopedStorageKey(
+    SESSION_ID_STORAGE_KEY,
+    args.reconnectSessionKey
+  );
+  const sessionId = sessionStorage.getItem(sessionIdKey);
   if (!sessionId) return null;
 
-  if (!isReconnectSessionIdFresh(now)) {
-    sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
-    sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
+  if (!isReconnectSessionIdFresh(args.reconnectSessionKey, args.now)) {
+    sessionStorage.removeItem(sessionIdKey);
+    sessionStorage.removeItem(
+      scopedStorageKey(
+        SESSION_ID_STORED_AT_STORAGE_KEY,
+        args.reconnectSessionKey
+      )
+    );
     return null;
   }
 
@@ -41,14 +97,29 @@ export function getReconnectSessionId(now = Date.now()): string | null {
 
 export function setReconnectSessionId(
   sessionId: string,
+  reconnectSessionKeyOrStoredAt?: string | number,
   storedAt = Date.now()
 ): void {
-  sessionStorage.setItem(SESSION_ID_STORAGE_KEY, sessionId);
-  sessionStorage.setItem(SESSION_ID_STORED_AT_STORAGE_KEY, String(storedAt));
+  const args = normalizeSetArgs(reconnectSessionKeyOrStoredAt, storedAt);
+  sessionStorage.setItem(
+    scopedStorageKey(SESSION_ID_STORAGE_KEY, args.reconnectSessionKey),
+    sessionId
+  );
+  sessionStorage.setItem(
+    scopedStorageKey(
+      SESSION_ID_STORED_AT_STORAGE_KEY,
+      args.reconnectSessionKey
+    ),
+    String(args.storedAt)
+  );
 }
 
-export function clearReconnectToken(): void {
-  sessionStorage.removeItem(STORAGE_KEY);
-  sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
-  sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
+export function clearReconnectToken(reconnectSessionKey?: string): void {
+  sessionStorage.removeItem(scopedStorageKey(STORAGE_KEY, reconnectSessionKey));
+  sessionStorage.removeItem(
+    scopedStorageKey(SESSION_ID_STORAGE_KEY, reconnectSessionKey)
+  );
+  sessionStorage.removeItem(
+    scopedStorageKey(SESSION_ID_STORED_AT_STORAGE_KEY, reconnectSessionKey)
+  );
 }

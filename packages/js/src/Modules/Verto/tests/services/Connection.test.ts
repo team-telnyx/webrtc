@@ -409,7 +409,7 @@ describe('Connection - Safety Timeout', () => {
       ws.simulateMessage({ id: 'message-id', voice_sdk_id: 'voice-sdk-id' });
 
       expect(mockSession.callReportVoiceSdkId).toBe('voice-sdk-id');
-      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id');
+      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id', undefined);
     });
   });
 

@@ -138,7 +138,9 @@ export default class Connection {
 
   connect() {
     const websocketUrl = new URL(this._host);
-    let reconnectToken = getReconnectToken();
+    let reconnectToken = getReconnectToken(
+      this.session.options.reconnectSessionKey
+    );
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
@@ -373,7 +375,10 @@ export default class Connection {
 
       if (msg.voice_sdk_id) {
         this.session.callReportVoiceSdkId = msg.voice_sdk_id;
-        setReconnectToken(msg.voice_sdk_id);
+        setReconnectToken(
+          msg.voice_sdk_id,
+          this.session.options.reconnectSessionKey
+        );
       }
       this._unsetTimer(msg.id);
       logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
