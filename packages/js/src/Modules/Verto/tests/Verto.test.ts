@@ -92,6 +92,41 @@ describe('Verto', () => {
       clearReconnectToken();
     });
 
+    it('should clear reconnect token and sessid on page unload when hangupOnBeforeUnload is true', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: true,
+      });
+      const hangup = jest.fn();
+      telnyxRTC.calls = {
+        callA: { hangup } as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+
+      expect(beforeUnloadHandler).toBeDefined();
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      expect(hangup).toHaveBeenCalledWith(
+        { initiator: 'sdk:beforeunload' },
+        true
+      );
+      expect(getReconnectToken()).toBeNull();
+      expect(getReconnectSessionId()).toBeNull();
+
+      addEventListenerSpy.mockRestore();
+      clearReconnectToken();
+    });
+
     it('should allow applications to disable page unload BYE without clearing reconnect token', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
