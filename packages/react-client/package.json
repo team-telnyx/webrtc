@@ -1,0 +1,93 @@
+{
+  "name": "@telnyx/react-client",
+  "version": "1.0.2",
+  "description": "React wrapper for Telnyx Client",
+  "keywords": [
+    "telnyx",
+    "webrtc",
+    "sip",
+    "json-rpc",
+    "soft phone",
+    "freeswitch",
+    "voip",
+    "react",
+    "react hooks"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.modern.js",
+  "source": "src/index.tsx",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "yarn copy:dts && microbundle-crl --no-compress --format modern,cjs",
+    "start": "microbundle-crl watch --no-compress --format modern,cjs",
+    "prepare": "install-peers && run-s build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "format": "prettier --write 'src/**/*.ts'",
+    "release": "release-it",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
+    "copy:dts": "copyfiles -u 1 \"src/**/*.d.ts\" dist"
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/team-telnyx/webrtc.git"
+  },
+  "bugs:": "https://github.com/team-telnyx/webrtc/issues",
+  "license": "MIT",
+  "peerDependencies": {
+    "@telnyx/webrtc": ">=2.25.17-rc.0 <3.0.0-rc.0",
+    "react": ">=16.8",
+    "react-dom": ">=16.8"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-unicode-property-regex": "^7.18.6",
+    "@babel/preset-env": "^7.22.20",
+    "@babel/preset-react": "^7.23.3",
+    "@babel/preset-typescript": "^7.23.3",
+    "@telnyx/webrtc": ">=2.25.17-rc.0 <3.0.0-rc.0",
+    "@types/react": "^18.2.37",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "copyfiles": "^2.4.1",
+    "eslint": "^9.39.2",
+    "eslint-import-resolver-node": "^0.3.9",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.33.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.3",
+    "install-peers-cli": "^2.2.0",
+    "jest": "^28.0.1",
+    "microbundle-crl": "^0.13.11",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.7.4",
+    "react": "^16.8",
+    "react-dom": "^16.8",
+    "release-it": "^14.14.2"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "@telnyx:registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "git": {
+      "changelog": "git log --pretty=format:\"* %s (%h)\" ${from}...${to} .",
+      "commitMessage": "Release react-client ${version}",
+      "tagAnnotation": "Release react-client ${version}",
+      "tagName": "react-client/v${version}"
+    },
+    "github": {
+      "release": true,
+      "releaseName": "react-client@${version}",
+      "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
+    }
+  }
+}

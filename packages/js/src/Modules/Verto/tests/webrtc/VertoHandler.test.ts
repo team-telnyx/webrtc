@@ -1,0 +1,465 @@
+Object.defineProperty(global, 'performance', {
+  writable: true,
+  value: {
+    mark: jest.fn(),
+    measure: jest.fn().mockReturnValue({ duration: 0 }),
+    clearMarks: jest.fn(),
+    clearMeasures: jest.fn(),
+    getEntriesByName: jest.fn().mockReturnValue([]),
+    getEntriesByType: jest.fn().mockReturnValue([]),
+    now: jest.fn().mockReturnValue(Date.now()),
+  },
+});
+
+import BrowserSession from '../../BrowserSession';
+import VertoHandler from '../../webrtc/VertoHandler';
+import Call from '../../webrtc/Call';
+import { State } from '../../webrtc/constants';
+const Connection = require('../../services/Connection');
+import Verto from '../..';
+
+const DEFAULT_PARAMS = {
+  destinationNumber: 'x3599',
+  remoteCallerName: 'Js Client Test',
+  remoteCallerNumber: '1234',
+  callerName: 'Jest Client',
+  callerNumber: '5678',
+};
+describe('VertoHandler', () => {
+  let instance: BrowserSession;
+  let handler: VertoHandler;
+  let call: Call;
+  const onNotification = jest.fn();
+
+  const _setupCall = (params: any = {}) => {
+    call = new Call(instance, { ...DEFAULT_PARAMS, ...params });
+  };
+
+  beforeEach(() => {
+    instance = new Verto({
+      host: 'example.telnyx.com',
+      login: 'login',
+      password: 'password',
+      project: 'project',
+      token: 'token',
+    });
+    onNotification.mockClear();
+    instance.on('telnyx.notification', (notification) => {
+      onNotification(notification);
+    });
+    instance.on('telnyx.ready', (notification) => {
+      onNotification(notification);
+    });
+    handler = new VertoHandler(instance);
+  });
+
+  afterEach(() => {
+    instance.off('telnyx.notification');
+    instance.off('telnyx.ready');
+
+    Object.keys(instance.calls).forEach((k) =>
+      instance.calls[k].setState(State.Purge)
+    );
+  });
+
+  describe('telnyx_rtc.punt', () => {
+    it('should call serverDisconnect (no BYE) on PUNT', () => {
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":38,"method":"telnyx_rtc.punt","params":{}}'
+      );
+      instance.serverDisconnect = jest.fn();
+      handler.handleMessage(msg);
+      expect(instance.serverDisconnect).toBeCalledTimes(1);
+    });
+  });
+
+  describe('telnyx_rtc.invite', () => {
+    it('should create a new Call in ringing state with direction set', async (done) => {
+      await instance.connect();
+      const callId = 'cd35e65f-a507-4bd2-8d21-80f36d134a2e';
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4402,"method":"telnyx_rtc.invite","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003","display_direction":"outbound"}}`
+      );
+      handler.handleMessage(msg);
+      expect(instance.calls).toHaveProperty(callId);
+      expect(instance.calls[callId].id).toEqual(callId);
+      expect(instance.calls[callId].state).toEqual('ringing');
+      expect(instance.calls[callId].prevState).toEqual('new');
+      expect(instance.calls[callId].direction).toEqual('inbound');
+      done();
+    });
+
+    it('should store passed call options', async (done) => {
+      await instance.connect();
+      const callId = 'cd35e65f-a507-4bd2-8d21-80f36d134a2e';
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4402,"method":"telnyx_rtc.invite","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003","display_direction":"outbound","telnyx_call_control_id":"cc1234","telnyx_session_id":"si1234","telnyx_leg_id":"li1234", "client_state":"aGVsbG8gbXkgZnJpZW5k" }}`
+      );
+      handler.handleMessage(msg);
+      expect(instance.calls).toHaveProperty(callId);
+      expect(instance.calls[callId].id).toEqual(callId);
+      expect(instance.calls[callId].options.telnyxCallControlId).toEqual(
+        'cc1234'
+      );
+      expect(instance.calls[callId].options.telnyxSessionId).toEqual('si1234');
+      expect(instance.calls[callId].options.telnyxLegId).toEqual('li1234');
+      expect(instance.calls[callId].options.clientState).toEqual(
+        'aGVsbG8gbXkgZnJpZW5k'
+      );
+      done();
+    });
+  });
+
+  describe('with an active outbound Call', () => {
+    beforeEach(async (done) => {
+      await instance.connect();
+      _setupCall({ id: 'e2fda6dc-fc9d-4d77-8096-53bb502443b6' });
+      call.handleMessage = jest.fn();
+      Connection.mockSend.mockClear();
+      done();
+    });
+
+    describe('telnyx_rtc.media', () => {
+      it('should pass the msg to the call and reply back to the server', () => {
+        const msg = JSON.parse(
+          '{"jsonrpc":"2.0","id":4403,"method":"telnyx_rtc.media","params":{"callID":"e2fda6dc-fc9d-4d77-8096-53bb502443b6","sdp":"<REMOTE-SDP>"}}'
+        );
+        handler.handleMessage(msg);
+        expect(call.handleMessage).toBeCalledTimes(1);
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 4403,
+            result: { method: 'telnyx_rtc.media' },
+          },
+        });
+      });
+    });
+
+    describe('telnyx_rtc.answer', () => {
+      it('should pass the msg to the call and reply back to the server', () => {
+        const msg = JSON.parse(
+          '{"jsonrpc":"2.0","id":4404,"method":"telnyx_rtc.answer","params":{"callID":"e2fda6dc-fc9d-4d77-8096-53bb502443b6"}}'
+        );
+        handler.handleMessage(msg);
+        expect(call.handleMessage).toBeCalledTimes(1);
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 4404,
+            result: { method: 'telnyx_rtc.answer' },
+          },
+        });
+      });
+    });
+  });
+
+  describe('telnyx_rtc.attach', () => {
+    it('should set recoveredCallId on the new call when recovering from an existing call', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4405,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should not force relay on the first recovered call even when the previous call reports a VPN media-path stall', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      const shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+      (
+        call as unknown as {
+          _callReportCollector: {
+            shouldForceRelayCandidateForRecovery: jest.Mock;
+          };
+        }
+      )._callReportCollector = { shouldForceRelayCandidateForRecovery };
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4408,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(shouldForceRelayCandidateForRecovery).not.toHaveBeenCalled();
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(false);
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should force relay only when an already recovered call reports the recovery path is still stalled', async (done) => {
+      await instance.connect();
+      const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';
+      _setupCall({ id: callId, recoveredCallId: callId });
+      call.setState(State.Active);
+      const shouldForceRelayCandidateForRecovery = jest.fn(() => true);
+      (
+        call as unknown as {
+          _callReportCollector: {
+            shouldForceRelayCandidateForRecovery: jest.Mock;
+          };
+        }
+      )._callReportCollector = { shouldForceRelayCandidateForRecovery };
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4409,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(1);
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(newCall.recoveredCallId).toEqual(callId);
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should NOT set recoveredCallId when no existing call (fresh attach)', async (done) => {
+      await instance.connect();
+      const callId = 'fresh-call-id-1234';
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4406,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+
+    it('should set recoveredCallId when call ID changes during recovery', async (done) => {
+      await instance.connect();
+      const oldCallId = 'old-call-id-1234';
+      const newCallId = 'new-call-id-5678';
+      _setupCall({ id: oldCallId });
+      call.setState(State.Active);
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      // Server sends attach with a DIFFERENT callID — old call won't be found
+      // so it goes through the !existingCall branch (no recoveredCallId)
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4407,"method":"telnyx_rtc.attach","params":{"callID":"${newCallId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[newCallId];
+      expect(newCall).toBeDefined();
+      // When callID differs, existingCall is null → no recoveredCallId set
+      expect(newCall.recoveredCallId).toBeFalsy();
+      // Old call should still exist
+      expect(instance.calls[oldCallId]).toBeDefined();
+
+      Call.prototype.answer = originalAnswer;
+      done();
+    });
+  });
+
+  describe('telnyx_rtc.info', () => {
+    it('should dispatch a notification', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.info","params":{"fake":"data", "test": "data"}}'
+        )
+      );
+      expect(onNotification).toBeCalledWith({
+        type: 'event',
+        fake: 'data',
+        test: 'data',
+      });
+    });
+  });
+
+  describe('telnyx_rtc.gatewayState', () => {
+    it('should dispatch a telnyx.ready notification', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":20342,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+        )
+      );
+
+      expect(onNotification).toBeCalledWith({
+        state: 'REGED',
+        type: 'vertoClientReady',
+      });
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
+        )
+      );
+
+      expect(onNotification).toBeCalledWith({
+        state: 'REGED',
+        type: 'vertoClientReady',
+      });
+    });
+  });
+
+  describe('Verto message unknown method:', () => {
+    it('if result.params.state is REGED should dispatch a telnyx.ready notification', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(onNotification).toBeCalledWith({
+        type: 'vertoClientReady',
+      });
+    });
+
+    it('should store dc and region from REGED message params on the session', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","dc":"ams3-prod","region":"eu-west"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(instance.dc).toBe('ams3-prod');
+      expect(instance.region).toBe('eu-west');
+    });
+
+    it('should store call_report_id from REGED message params on the session', () => {
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED","call_report_id":"test-report-123"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(instance.callReportId).toBe('test-report-123');
+    });
+  });
+
+  describe('resetReconnectAttempts on gateway state', () => {
+    it('should NOT reset reconnect attempts on REGISTER', () => {
+      (instance as any)._reconnectAttempts = 3;
+      instance.connection.previousGatewayState = '';
+
+      const registerMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-1","result":{"params":{"state":"REGISTER"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(registerMsg);
+
+      expect((instance as any)._reconnectAttempts).toBe(3);
+    });
+
+    it('should reset reconnect attempts on REGED', () => {
+      (instance as any)._reconnectAttempts = 3;
+      instance.connection.previousGatewayState = '';
+
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-2","result":{"params":{"state":"REGED"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(regedMsg);
+
+      expect((instance as any)._reconnectAttempts).toBe(0);
+    });
+
+    it('REGISTER followed by socket close should preserve attempt count', () => {
+      (instance as any)._reconnectAttempts = 2;
+      instance.connection.previousGatewayState = '';
+
+      // REGISTER does not reset attempts
+      const registerMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-3","result":{"params":{"state":"REGISTER"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(registerMsg);
+      expect((instance as any)._reconnectAttempts).toBe(2);
+
+      // Socket closes before REGED — attempts still intact
+      instance.connection.previousGatewayState = '';
+      (instance as any)._reconnectAttempts = 3;
+
+      // Then REGED arrives — now reset
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"reg-4","result":{"params":{"state":"REGED"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(regedMsg);
+      expect((instance as any)._reconnectAttempts).toBe(0);
+    });
+  });
+
+  describe('should fire telnyx.ready again after socket reconnection', () => {
+    it('fires telnyx.ready again when previousGatewayState is reset after socket close', () => {
+      const regedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
+      );
+
+      // Step 1: First REGED — should fire telnyx.ready
+      handler.handleMessage(regedMsg);
+
+      expect(onNotification).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          state: 'REGED',
+          type: 'vertoClientReady',
+        })
+      );
+
+      const countAfterFirst = onNotification.mock.calls.length;
+
+      // Step 2: Simulate what Connection.onmessage does (line 152 of Connection.ts):
+      // it sets previousGatewayState = current state after processing
+      instance.connection.previousGatewayState = 'REGED';
+
+      // Step 3: Second REGED — duplicate guard should BLOCK it
+      handler.handleMessage(regedMsg);
+
+      expect(onNotification.mock.calls.length).toBe(countAfterFirst);
+
+      // Step 4: Simulate socket close — onNetworkClose() resets previousGatewayState
+      instance.connection.previousGatewayState = '';
+
+      // Step 5: Third REGED — should fire again after reconnection
+      handler.handleMessage(regedMsg);
+
+      expect(onNotification.mock.calls.length).toBe(countAfterFirst + 1);
+      expect(onNotification).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          state: 'REGED',
+          type: 'vertoClientReady',
+        })
+      );
+    });
+  });
+});

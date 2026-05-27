@@ -1,0 +1,26 @@
+// @ts-ignore
+import InCallManager from 'react-native-incall-manager';
+import BaseCall from './BaseCall';
+import { State } from './constants';
+import { streamIsValid } from '../util/webrtc';
+
+export default class Call extends BaseCall {
+  setSpeakerPhone(flag: boolean) {
+    InCallManager.setForceSpeakerphoneOn(flag);
+  }
+
+  setState(state: State) {
+    switch (state) {
+      case State.Active:
+        InCallManager.start({
+          media: 'audio',
+        });
+        break;
+      case State.Destroy:
+        InCallManager.stop();
+        break;
+    }
+
+    super.setState(state);
+  }
+}

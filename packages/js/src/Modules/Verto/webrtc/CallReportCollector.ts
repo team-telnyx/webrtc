@@ -1,0 +1,1804 @@
+/**
+ * CallReportCollector
+ *
+ * Collects WebRTC statistics during a call and posts them to voice-sdk-proxy
+ * at the end of the call for quality analysis and debugging.
+ *
+ * Stats Collection Strategy (based on Twilio/Jitsi best practices):
+ * - Collects stats every second for the first 10 seconds, then at a regular interval (default 5 seconds)
+ * - Stores cumulative values (packets, bytes) from WebRTC API
+ * - Calculates averages for variable metrics (audio level, jitter, RTT)
+ * - Uses in-memory buffer with size limits for long calls
+ * - Posts intermediate segments during active calls and a final segment on call end
+ */
+
+import logger from '../../../Modules/Verto/util/logger';
+import {
+  LogCollector,
+  ILogEntry,
+  createLogCollector,
+  setGlobalLogCollector,
+} from '../../../Modules/Verto/util/LogCollector';
+import {
+  type ITelnyxWarning,
+  type SdkWarningCode,
+  createTelnyxWarning,
+} from '../../../Modules/Verto/util/errors';
+import {
+  HIGH_RTT,
+  HIGH_JITTER,
+  HIGH_PACKET_LOSS,
+  LOW_MOS,
+  LOW_LOCAL_AUDIO,
+  LOW_BYTES_RECEIVED,
+  LOW_BYTES_SENT,
+  ICE_CANDIDATE_PAIR_CHANGED,
+} from '../../../Modules/Verto/util/constants/errorCodes';
+
+/**
+ * Extended RTCInboundRtpStreamStats with additional audio quality metrics
+ * not yet in the standard TypeScript definitions
+ */
+interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
+  trackId?: string;
+  bytesReceived?: number;
+  packetsDiscarded?: number;
+  jitterBufferDelay?: number;
+  jitterBufferEmittedCount?: number;
+  totalSamplesReceived?: number;
+  concealedSamples?: number;
+  concealmentEvents?: number;
+  audioLevel?: number;
+  /** Cumulative audio energy (sum of squared samples) — available without RTP header extension */
+  totalAudioEnergy?: number;
+  /** Cumulative duration of received audio in seconds */
+  totalSamplesDuration?: number;
+}
+
+/**
+ * Extended RTCOutboundRtpStreamStats
+ */
+interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
+  trackId?: string;
+  mediaSourceId?: string;
+}
+
+/**
+ * Extended RTCAudioSourceStats (type: 'media-source', kind: 'audio')
+ * Available in Chrome 96+ via outbound-rtp.mediaSourceId
+ */
+interface ExtendedMediaSourceStats {
+  id?: string;
+  type: string;
+  kind?: string;
+  trackIdentifier?: string;
+  audioLevel?: number;
+  totalAudioEnergy?: number;
+  totalSamplesDuration?: number;
+  echoReturnLoss?: number;
+  echoReturnLossEnhancement?: number;
+}
+
+/**
+ * Local audio track metadata captured from the RTCRtpSender track.
+ * Useful to distinguish RTP carrying silence from muted/ended/wrong inputs.
+ */
+export interface ILocalAudioTrackSnapshot {
+  id?: string;
+  label?: string;
+  enabled?: boolean;
+  muted?: boolean;
+  readyState?: MediaStreamTrackState;
+  contentHint?: string;
+  settings?: {
+    deviceId?: string;
+    groupId?: string;
+    channelCount?: number;
+    sampleRate?: number;
+    sampleSize?: number;
+    latency?: number;
+    echoCancellation?: boolean;
+    noiseSuppression?: boolean;
+    autoGainControl?: boolean;
+  };
+}
+
+/**
+ * Local audio media-source stats backing the outbound RTP stream.
+ */
+export interface ILocalAudioSourceStats {
+  id?: string;
+  trackIdentifier?: string;
+  audioLevel?: number;
+  totalAudioEnergy?: number;
+  totalSamplesDuration?: number;
+  echoReturnLoss?: number;
+  echoReturnLossEnhancement?: number;
+}
+
+/**
+ * Extended transport stats from getStats() 'transport' type
+ */
+interface ExtendedTransportStats {
+  type: string;
+  id: string;
+  iceState?: string; // new | checking | connected | completed | disconnected | failed | closed
+  dtlsState?: string; // new | connecting | connected | closed | failed
+  srtpCipher?: string; // e.g. AES_CM_128_HMAC_SHA1_80
+  tlsVersion?: string; // e.g. FEFD (DTLS 1.2)
+  selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
+}
+
+/**
+ * Extended RTCIceCandidatePairStats
+ */
+interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
+  packetsSent?: number;
+  packetsReceived?: number;
+  bytesSent?: number;
+  bytesReceived?: number;
+  requestsSent?: number;
+  responsesReceived?: number;
+  writable?: boolean;
+}
+
+/**
+ * ICE candidate info extracted from local-candidate / remote-candidate stats
+ */
+interface ICECandidateInfo {
+  address?: string;
+  port?: number;
+  candidateType?: string; // host | srflx | prflx | relay
+  protocol?: string; // udp | tcp
+  networkType?: string; // wifi | cellular | ethernet | vpn | unknown
+}
+
+/**
+ * ICE candidate pair snapshot for a stats interval
+ */
+export interface IICECandidatePair {
+  id?: string;
+  state?: string; // frozen | waiting | in-progress | failed | succeeded
+  nominated?: boolean;
+  writable?: boolean;
+  local?: ICECandidateInfo;
+  remote?: ICECandidateInfo;
+  requestsSent?: number;
+  responsesReceived?: number;
+}
+
+/**
+ * Transport-level stats snapshot for a stats interval
+ */
+export interface ITransportStats {
+  iceState?: string;
+  dtlsState?: string;
+  srtpCipher?: string;
+  tlsVersion?: string;
+  selectedCandidatePairChanges?: number;
+}
+
+export interface ICallReportOptions {
+  enabled: boolean;
+  interval: number;
+  /**
+   * Interval in milliseconds for posting intermediate reports while a call is active.
+   * Set to 0 to disable time-based intermediate flushes.
+   */
+  intermediateReportInterval?: number;
+}
+
+export interface ILogCollectorOptions {
+  enabled: boolean;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  maxEntries: number;
+}
+
+export interface IStatsInterval {
+  intervalStartUtc: string;
+  intervalEndUtc: string;
+  audio?: {
+    outbound?: {
+      packetsSent?: number;
+      bytesSent?: number;
+      audioLevelAvg?: number;
+      bitrateAvg?: number;
+      localTrack?: ILocalAudioTrackSnapshot;
+      mediaSource?: ILocalAudioSourceStats;
+    };
+    inbound?: {
+      packetsReceived?: number;
+      bytesReceived?: number;
+      packetsLost?: number;
+      packetsDiscarded?: number;
+      jitterBufferDelay?: number;
+      jitterBufferEmittedCount?: number;
+      totalSamplesReceived?: number;
+      concealedSamples?: number;
+      concealmentEvents?: number;
+      audioLevelAvg?: number;
+      jitterAvg?: number;
+      bitrateAvg?: number;
+    };
+  };
+  connection?: {
+    roundTripTimeAvg?: number;
+    packetsSent?: number;
+    packetsReceived?: number;
+    bytesSent?: number;
+    bytesReceived?: number;
+  };
+  ice?: IICECandidatePair;
+  transport?: ITransportStats;
+}
+
+export interface ICallSummary {
+  callId: string;
+  destinationNumber?: string;
+  callerNumber?: string;
+  direction?: 'inbound' | 'outbound';
+  state?: string;
+  durationSeconds?: number;
+  telnyxSessionId?: string;
+  telnyxLegId?: string;
+  voiceSdkSessionId?: string;
+  sdkVersion?: string;
+  startTimestamp?: string;
+  endTimestamp?: string;
+}
+
+export interface ICallReportFlushReason {
+  type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
+  socketClose?: {
+    code?: number;
+    codeName?: string;
+    reason?: string;
+    wasClean?: boolean;
+    error?: string;
+  };
+}
+
+export interface ICallReportPayload {
+  summary: ICallSummary;
+  stats: IStatsInterval[];
+  logs?: ILogEntry[];
+  /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
+  segment?: number;
+  /** Why this intermediate segment was flushed. */
+  flushReason?: ICallReportFlushReason;
+}
+
+export class CallReportCollector {
+  private options: ICallReportOptions;
+  private logCollectorOptions: ILogCollectorOptions;
+  private peerConnection: RTCPeerConnection | null = null;
+  private intervalId: ReturnType<typeof setTimeout> | null = null;
+  private statsBuffer: IStatsInterval[] = [];
+  private intervalStartTime: Date | null = null;
+  private callStartTime: Date;
+  private callEndTime: Date | null = null;
+  private logCollector: LogCollector | null = null;
+
+  // Accumulated values for averaging within an interval
+  private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
+    outbound: [],
+    inbound: [],
+  };
+  private intervalJitters: number[] = [];
+  private intervalRTTs: number[] = [];
+  private intervalBitrates: {
+    outbound: number[];
+    inbound: number[];
+  } = {
+    outbound: [],
+    inbound: [],
+  };
+
+  // Previous values for rate calculations
+  private previousStats: {
+    timestamp?: number;
+    outboundBytes?: number;
+    inboundBytes?: number;
+    // For computing audio level from totalAudioEnergy deltas
+    inboundAudioEnergy?: number;
+    inboundSamplesDuration?: number;
+    outboundAudioEnergy?: number;
+    outboundSamplesDuration?: number;
+  } = {};
+
+  // Track selected candidate pair snapshot to detect mid-call path changes
+  private previousCandidatePairSnapshot: IICECandidatePair | null = null;
+
+  private static readonly INITIAL_COLLECTION_INTERVAL_MS = 1000;
+  private static readonly INITIAL_COLLECTION_DURATION_MS = 10000;
+
+  // Maximum buffer size to prevent memory issues on long calls
+  private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals, plus denser startup samples
+
+  // ── Intermediate flush ────────────────────────────────────────────
+  // Flush when stats or logs approach their buffer limits to avoid
+  // hitting the server's 2 MB body limit or dropping oldest entries.
+  private static readonly STATS_FLUSH_THRESHOLD = 300; // flush before 360 max
+  private static readonly LOGS_FLUSH_THRESHOLD = 800; // flush before 1000 max
+  private static readonly DEFAULT_INTERMEDIATE_REPORT_INTERVAL_MS = 180_000;
+
+  /** Callback invoked when buffered data should be posted as an intermediate report. */
+  public onFlushNeeded: (() => void) | null = null;
+
+  /** Callback invoked when a quality warning threshold is breached. */
+  public onWarning: ((warning: ITelnyxWarning) => void) | null = null;
+
+  // ── Quality warning thresholds ────────────────────────────────────
+  private static readonly CONSECUTIVE_BREACHES_REQUIRED = 3;
+  private static readonly THRESHOLD_RTT_MS = 0.4; // 400ms (RTT is in seconds from WebRTC API)
+  private static readonly THRESHOLD_JITTER_MS = 30; // 30ms
+  private static readonly THRESHOLD_PACKET_LOSS_PCT = 1; // 1%
+  private static readonly THRESHOLD_MOS = 3.5;
+  // WebRTC audioLevel is linear RMS in [0, 1]. Treat near-silence as a
+  // local microphone issue only before the microphone has produced a real
+  // audio sample. Once local audio has been confirmed, only warn again after
+  // a long continuous silence window to avoid false positives during natural
+  // agent/customer pauses.
+  private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
+  private static readonly CONFIRMED_LOCAL_AUDIO_SILENCE_MS = 30_000;
+
+  // Consecutive breach counters (per warning code)
+  private _breachCounters: Record<number, number> = {};
+  // Track which warnings are currently in "active episode"
+  private _activeWarnings: Set<number> = new Set();
+  // Timestamp (ms) of last emitted warning per code, for throttling
+  private _lastWarningEmitted: Record<number, number> = {};
+  // Minimum interval (ms) between repeated warnings of the same code
+  private static readonly WARNING_THROTTLE_MS = 15_000;
+  // Previous packets values for packet loss delta calculation
+  private _prevPacketsReceived: number | null = null;
+  private _prevPacketsLost: number | null = null;
+
+  // Last stats interval used for delta-based warning checks. Keep this
+  // independent from statsBuffer because intermediate call-report flushes clear
+  // statsBuffer while the active call and health monitoring continue.
+  private _previousStatsEntryForWarnings: IStatsInterval | null = null;
+
+  // Last logged local audio track snapshot, used to avoid repetitive logs.
+  private _lastLocalAudioTrackSnapshotJson: string | null = null;
+
+  // Local audio warning state. Before confirmation, low audio warns quickly so
+  // broken microphone setup is surfaced early. After the SDK sees real local
+  // audio, short silence windows are expected in live calls and only long
+  // continuous silence should warn again.
+  private _hasConfirmedLocalAudio: boolean = false;
+  private _confirmedLocalAudioSilenceMs: number = 0;
+
+  /** Running segment counter for multi-part reports. */
+  private _segmentIndex: number = 0;
+
+  /** Timestamp of the last intermediate flush request. */
+  private _lastIntermediateFlushTime: Date;
+
+  /** Whether a flush is already in progress (prevents re-entrant flushes). */
+  private _flushing: boolean = false;
+
+  /** Whether stop() has been requested (prevents timer re-scheduling). */
+  private _stopped: boolean = false;
+
+  // ── Retry configuration ───────────────────────────────────────────
+  private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
+  private static readonly KEEPALIVE_BODY_LIMIT_BYTES = 60 * 1024;
+
+  constructor(
+    options: ICallReportOptions,
+    logCollectorOptions?: ILogCollectorOptions
+  ) {
+    this.options = options;
+    this.logCollectorOptions = logCollectorOptions || {
+      enabled: false,
+      level: 'debug',
+      maxEntries: 1000,
+    };
+    this.callStartTime = new Date();
+    this._lastIntermediateFlushTime = this.callStartTime;
+
+    // Create log collector if enabled — start immediately to capture setup/negotiation logs
+    if (this.logCollectorOptions.enabled) {
+      this.logCollector = createLogCollector(this.logCollectorOptions);
+      this.logCollector.start();
+      setGlobalLogCollector(this.logCollector);
+    }
+  }
+
+  /**
+   * Start collecting stats from the peer connection
+   */
+  public start(peerConnection: RTCPeerConnection): void {
+    if (!this.options.enabled) {
+      return;
+    }
+
+    this.peerConnection = peerConnection;
+    this.intervalStartTime = new Date();
+    this._lastIntermediateFlushTime = this.intervalStartTime;
+    this._stopped = false;
+
+    logger.info('CallReportCollector: Starting stats collection', {
+      interval: this.options.interval,
+      initialInterval: CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+      initialDuration: CallReportCollector.INITIAL_COLLECTION_DURATION_MS,
+      logCollectorActive: this.logCollector?.isActive() ?? false,
+    });
+
+    this._scheduleNextCollection();
+  }
+
+  /**
+   * Stop collecting stats and prepare for final report.
+   * Awaits the final stats collection so the buffer is populated
+   * before postReport() is called — critical for short calls where
+   * no periodic interval has completed yet.
+   */
+  public async stop(): Promise<void> {
+    this._stopped = true;
+
+    if (this.intervalId) {
+      clearTimeout(this.intervalId);
+      this.intervalId = null;
+    }
+
+    this.callEndTime = new Date();
+
+    // Collect final stats before stopping (isFinal = true to force
+    // a partial-interval entry into the buffer for short calls)
+    if (this.peerConnection && this.intervalStartTime) {
+      await this._collectStats(true);
+    }
+
+    // Stop log collector
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    if (this.logCollector) {
+      this.logCollector.stop();
+    }
+
+    logger.info('CallReportCollector: Stopped stats collection', {
+      totalIntervals: this.statsBuffer.length,
+      totalLogs: logCount,
+      duration: this.callEndTime.getTime() - this.callStartTime.getTime(),
+    });
+  }
+
+  /**
+   * Flush the current stats and logs as an intermediate segment.
+   * Returns the flushed payload (stats + logs) and resets the internal
+   * buffers so collection can continue for the next segment.
+   *
+   * The caller is responsible for posting the returned payload.
+   */
+  public flush(
+    summary: ICallSummary,
+    flushReason?: ICallReportFlushReason
+  ): ICallReportPayload | null {
+    if (this._flushing || this.statsBuffer.length === 0) {
+      return null;
+    }
+
+    this._flushing = true;
+    try {
+      const segment = this._segmentIndex++;
+      const stats = this.statsBuffer;
+      this.statsBuffer = [];
+
+      // Drain logs accumulated since last flush
+      const logs = this.logCollector?.drain() ?? [];
+
+      const now = new Date();
+      this._lastIntermediateFlushTime = now;
+
+      const payload: ICallReportPayload = {
+        summary: {
+          ...summary,
+          durationSeconds:
+            (now.getTime() - this.callStartTime.getTime()) / 1000,
+          startTimestamp: this.callStartTime.toISOString(),
+          endTimestamp: now.toISOString(),
+        },
+        stats,
+        ...(logs.length > 0 ? { logs } : {}),
+        segment,
+        ...(flushReason ? { flushReason } : {}),
+      };
+
+      logger.info('CallReportCollector: Flushed intermediate segment', {
+        segment,
+        intervals: stats.length,
+        logEntries: logs.length,
+        callId: summary.callId,
+        flushReason,
+      });
+
+      return payload;
+    } finally {
+      this._flushing = false;
+    }
+  }
+
+  /**
+   * Post the collected stats to voice-sdk-proxy.
+   *
+   * When called after one or more `flush()` calls, this posts the final
+   * segment. Otherwise it posts the entire report as a single segment.
+   */
+  public async postReport(
+    summary: ICallSummary,
+    callReportId: string,
+    host: string,
+    voiceSdkId?: string
+  ): Promise<void> {
+    // Get remaining logs (getLogs for final, drain was used for intermediates)
+    const logs = this.logCollector?.getLogs();
+    const hasLogs = logs && logs.length > 0;
+
+    if (!this.options.enabled) {
+      logger.info(
+        'CallReportCollector: Skipping report — call reports disabled'
+      );
+      return;
+    }
+
+    if (this.statsBuffer.length === 0 && !hasLogs) {
+      logger.info(
+        'CallReportCollector: Skipping report — no stats or logs collected'
+      );
+      return;
+    }
+
+    const isMultiSegment = this._segmentIndex > 0;
+    const segment = this._segmentIndex;
+
+    // Build the report payload
+    const payload: ICallReportPayload = {
+      summary: {
+        ...summary,
+        durationSeconds:
+          this.callEndTime && this.callStartTime
+            ? (this.callEndTime.getTime() - this.callStartTime.getTime()) / 1000
+            : undefined,
+        startTimestamp: this.callStartTime.toISOString(),
+        endTimestamp: this.callEndTime?.toISOString(),
+      },
+      stats: this.statsBuffer,
+      ...(logs && logs.length > 0 ? { logs } : {}),
+      ...(isMultiSegment ? { segment } : {}),
+    };
+
+    await this._sendPayload(payload, callReportId, host, voiceSdkId, true);
+  }
+
+  /**
+   * Post an arbitrary call report payload to voice-sdk-proxy.
+   * Used both for intermediate flushes and the final report.
+   */
+  public async sendPayload(
+    payload: ICallReportPayload,
+    callReportId: string,
+    host: string,
+    voiceSdkId?: string
+  ): Promise<void> {
+    await this._sendPayload(payload, callReportId, host, voiceSdkId, false);
+  }
+
+  /**
+   * Internal: send a payload to the call_report endpoint.
+   *
+   * Retries non-2xx responses and network errors (e.g.,
+   * ERR_SOCKET_NOT_CONNECTED from Chrome reusing a stale TCP socket) with
+   * bounded backoff. Throws after exhaustion so callers can record failure.
+   */
+  private async _sendPayload(
+    payload: ICallReportPayload,
+    callReportId: string,
+    host: string,
+    voiceSdkId?: string,
+    isFinalReport: boolean = true
+  ): Promise<void> {
+    const wsUrl = new URL(host);
+    const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
+
+    const label = isFinalReport
+      ? 'final report'
+      : `intermediate segment ${payload.segment}`;
+
+    logger.info(`CallReportCollector: Posting ${label}`, {
+      endpoint,
+      intervals: payload.stats.length,
+      logEntries: payload.logs?.length ?? 0,
+      callId: payload.summary.callId,
+      segment: payload.segment,
+    });
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-call-report-id': callReportId,
+      'x-call-id': payload.summary.callId,
+    };
+    if (voiceSdkId) {
+      headers['x-voice-sdk-id'] = voiceSdkId;
+    }
+
+    const body = JSON.stringify(payload);
+    const useKeepalive =
+      isFinalReport &&
+      body.length <= CallReportCollector.KEEPALIVE_BODY_LIMIT_BYTES;
+
+    let lastError: unknown;
+
+    for (
+      let attempt = 0;
+      attempt <= CallReportCollector.RETRY_DELAYS_MS.length;
+      attempt++
+    ) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body,
+          ...(useKeepalive ? { keepalive: true } : {}),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          const error = new Error(
+            `Call report POST failed with status ${response.status}`
+          );
+          lastError = error;
+
+          logger.error(`CallReportCollector: Failed to post ${label}`, {
+            attempt: attempt + 1,
+            status: response.status,
+            error: errorText,
+          });
+        } else {
+          logger.info(`CallReportCollector: Successfully posted ${label}`, {
+            attempt: attempt + 1,
+            status: response.status,
+          });
+          return;
+        }
+      } catch (error) {
+        lastError = error;
+        logger.warn(`CallReportCollector: Network error posting ${label}`, {
+          attempt: attempt + 1,
+          error,
+        });
+      }
+
+      const retryDelay = CallReportCollector.RETRY_DELAYS_MS[attempt];
+      if (retryDelay === undefined) {
+        break;
+      }
+
+      logger.info(`CallReportCollector: Retrying ${label} in ${retryDelay}ms`, {
+        attempt: attempt + 2,
+      });
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
+
+    logger.error(`CallReportCollector: Exhausted retries posting ${label}`, {
+      error: lastError,
+    });
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Call report POST failed after retries');
+  }
+
+  /**
+   * Get the current stats buffer (for debugging)
+   */
+  public getStatsBuffer(): IStatsInterval[] {
+    return this.statsBuffer;
+  }
+
+  /**
+   * Detect the VPN media-path stall seen during browser network/VPN flaps.
+   *
+   * This intentionally stays narrow: only a non-relay VPN selected pair can
+   * request relay-only recovery, and only when the latest stats show either
+   * stalled ICE checks or one-way media symptoms. TURN candidates being present
+   * is not enough by itself; browsers prefer direct/srflx pairs while ICE still
+   * considers them viable.
+   */
+  public shouldForceRelayCandidateForRecovery(): boolean {
+    if (this.statsBuffer.length < 2) {
+      return false;
+    }
+
+    const latest = this.statsBuffer[this.statsBuffer.length - 1];
+    const previous = this.statsBuffer[this.statsBuffer.length - 2];
+    const latestLocalCandidate = latest.ice?.local;
+
+    const isVpnNonRelayPath =
+      latestLocalCandidate?.networkType === 'vpn' &&
+      latestLocalCandidate?.candidateType !== 'relay';
+
+    if (!isVpnNonRelayPath) {
+      return false;
+    }
+
+    const iceNotWritable = latest.ice?.writable === false;
+    const iceTransportFailed =
+      latest.transport?.iceState === 'disconnected' ||
+      latest.transport?.iceState === 'failed';
+
+    const requestsSentDelta = this._positiveDelta(
+      latest.ice?.requestsSent,
+      previous.ice?.requestsSent
+    );
+    const responsesReceivedDelta = this._positiveDelta(
+      latest.ice?.responsesReceived,
+      previous.ice?.responsesReceived
+    );
+    const iceChecksStalled =
+      requestsSentDelta > 0 && responsesReceivedDelta === 0;
+
+    const outboundBytesDelta = this._positiveDelta(
+      latest.audio?.outbound?.bytesSent,
+      previous.audio?.outbound?.bytesSent
+    );
+    const inboundBytesDelta = this._positiveDelta(
+      latest.audio?.inbound?.bytesReceived,
+      previous.audio?.inbound?.bytesReceived
+    );
+    const inboundMediaStalled =
+      outboundBytesDelta > 0 && inboundBytesDelta === 0;
+
+    return (
+      iceNotWritable ||
+      iceTransportFailed ||
+      iceChecksStalled ||
+      inboundMediaStalled
+    );
+  }
+
+  /**
+   * Get the collected logs (for debugging)
+   */
+  public getLogs(): ILogEntry[] {
+    return this.logCollector?.getLogs() ?? [];
+  }
+
+  private _positiveDelta(
+    latest: number | undefined,
+    previous: number | undefined
+  ): number {
+    if (latest === undefined || previous === undefined) {
+      return 0;
+    }
+
+    return Math.max(0, latest - previous);
+  }
+
+  /**
+   * Clean up resources (call after postReport)
+   *
+   * Does NOT null the global log collector — a concurrent call may still
+   * be using it. The next call's constructor overwrites the global anyway.
+   */
+  public cleanup(): void {
+    this._lastLocalAudioTrackSnapshotJson = null;
+
+    if (this.logCollector) {
+      this.logCollector.clear();
+      this.logCollector = null;
+    }
+  }
+
+  private _scheduleNextCollection(): void {
+    if (
+      this._stopped ||
+      !this.peerConnection ||
+      !this.intervalStartTime ||
+      this.intervalId
+    ) {
+      return;
+    }
+
+    const interval = this._collectionIntervalFor(this.intervalStartTime);
+    this.intervalId = setTimeout(() => {
+      this.intervalId = null;
+      this._collectStats().finally(() => {
+        if (!this._stopped && this.peerConnection) {
+          this._scheduleNextCollection();
+        }
+      });
+    }, interval);
+  }
+
+  private _collectionIntervalFor(intervalStartTime: Date): number {
+    const defaultInterval = this._positiveInterval(this.options.interval, 5000);
+
+    if (
+      intervalStartTime.getTime() - this.callStartTime.getTime() <
+      CallReportCollector.INITIAL_COLLECTION_DURATION_MS
+    ) {
+      return Math.min(
+        CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+        defaultInterval
+      );
+    }
+
+    return defaultInterval;
+  }
+
+  private _positiveInterval(
+    value: number | undefined,
+    fallback: number
+  ): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? value
+      : fallback;
+  }
+
+  /**
+   * Collect stats from the peer connection and aggregate them.
+   * @param isFinal - When true (called from stop()), always push a partial
+   *   interval entry to the buffer even if the full interval hasn't elapsed.
+   *   This ensures short calls (< interval duration) still produce stats.
+   */
+  private async _collectStats(isFinal: boolean = false): Promise<void> {
+    if (!this.peerConnection || !this.intervalStartTime) {
+      return;
+    }
+
+    try {
+      const stats = await this.peerConnection.getStats();
+      const now = new Date();
+
+      // Process stats reports
+      let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
+      let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
+      let candidatePair: ExtendedCandidatePairStats | null = null;
+      let transportStats: ExtendedTransportStats | null = null;
+
+      stats.forEach((report) => {
+        switch (report.type) {
+          case 'outbound-rtp':
+            if (report.kind === 'audio' && report.mediaType === 'audio') {
+              outboundAudio = report as ExtendedOutboundRtpStreamStats;
+            }
+            break;
+          case 'inbound-rtp':
+            if (report.kind === 'audio' && report.mediaType === 'audio') {
+              inboundAudio = report as ExtendedInboundRtpStreamStats;
+            }
+            break;
+          case 'candidate-pair':
+            if (
+              (report as ExtendedCandidatePairStats).nominated ||
+              (report as ExtendedCandidatePairStats).state === 'succeeded'
+            ) {
+              candidatePair = report as ExtendedCandidatePairStats;
+            }
+            break;
+          case 'transport':
+            transportStats = report as unknown as ExtendedTransportStats;
+            break;
+        }
+      });
+
+      // Collect sample values for averaging
+      if (outboundAudio) {
+        // Outbound audioLevel: available on the media-source stat (Chrome 96+)
+        // or on the deprecated track stat as fallback
+        const audioLevel = this._getOutboundAudioLevel(stats, outboundAudio);
+        if (audioLevel !== null) {
+          this.intervalAudioLevels.outbound.push(audioLevel);
+        }
+
+        // Calculate bitrate
+        if (
+          this.previousStats.outboundBytes !== undefined &&
+          this.previousStats.timestamp !== undefined
+        ) {
+          const bytesDelta =
+            (outboundAudio.bytesSent || 0) - this.previousStats.outboundBytes;
+          const timeDelta =
+            (outboundAudio.timestamp || now.getTime()) -
+            this.previousStats.timestamp;
+          if (timeDelta > 0) {
+            const bitrate = (bytesDelta * 8 * 1000) / timeDelta; // bps
+            this.intervalBitrates.outbound.push(bitrate);
+          }
+        }
+        this.previousStats.outboundBytes = outboundAudio.bytesSent;
+      }
+
+      if (inboundAudio) {
+        // Inbound audioLevel: try direct audioLevel on inbound-rtp (requires
+        // ssrc-audio-level RTP header extension), then compute from
+        // totalAudioEnergy deltas, then deprecated track stat
+        const audioLevel = this._getInboundAudioLevel(stats, inboundAudio);
+        if (audioLevel !== null) {
+          this.intervalAudioLevels.inbound.push(audioLevel);
+        }
+
+        // Jitter (convert to ms)
+        if (inboundAudio.jitter !== undefined) {
+          this.intervalJitters.push(inboundAudio.jitter * 1000);
+        }
+
+        // Calculate bitrate
+        if (
+          this.previousStats.inboundBytes !== undefined &&
+          this.previousStats.timestamp !== undefined
+        ) {
+          const bytesDelta =
+            (inboundAudio.bytesReceived || 0) - this.previousStats.inboundBytes;
+          const timeDelta =
+            (inboundAudio.timestamp || now.getTime()) -
+            this.previousStats.timestamp;
+          if (timeDelta > 0) {
+            const bitrate = (bytesDelta * 8 * 1000) / timeDelta; // bps
+            this.intervalBitrates.inbound.push(bitrate);
+          }
+        }
+        this.previousStats.inboundBytes = inboundAudio.bytesReceived;
+      }
+
+      if (candidatePair) {
+        // RTT (already in seconds)
+        if (candidatePair.currentRoundTripTime !== undefined) {
+          this.intervalRTTs.push(candidatePair.currentRoundTripTime);
+        }
+      }
+
+      // Resolve local and remote candidates for the selected pair
+      // (must happen before pair-change detection so the snapshot includes them)
+      let localCandidate: ICECandidateInfo | undefined;
+      let remoteCandidate: ICECandidateInfo | undefined;
+
+      if (candidatePair) {
+        localCandidate = this._resolveCandidate(
+          stats,
+          candidatePair.localCandidateId
+        );
+        remoteCandidate = this._resolveCandidate(
+          stats,
+          candidatePair.remoteCandidateId
+        );
+      }
+
+      // Build current candidate pair snapshot for diagnostics
+      let currentCandidatePairSnapshot: IICECandidatePair | undefined;
+      if (candidatePair) {
+        currentCandidatePairSnapshot = {
+          id: candidatePair.id,
+          state: candidatePair.state,
+          nominated: candidatePair.nominated,
+          writable: candidatePair.writable,
+          requestsSent: candidatePair.requestsSent,
+          responsesReceived: candidatePair.responsesReceived,
+          ...(localCandidate ? { local: localCandidate } : {}),
+          ...(remoteCandidate ? { remote: remoteCandidate } : {}),
+        };
+
+        // Detect mid-call path changes with full previous/current snapshots
+        if (
+          this.previousCandidatePairSnapshot !== null &&
+          candidatePair.id !== this.previousCandidatePairSnapshot.id
+        ) {
+          logger.debug(
+            'CallReportCollector: ICE candidate pair changed mid-call',
+            {
+              previous: this.previousCandidatePairSnapshot,
+              current: currentCandidatePairSnapshot,
+            }
+          );
+          this._emitWarning(ICE_CANDIDATE_PAIR_CHANGED);
+        }
+        this.previousCandidatePairSnapshot = currentCandidatePairSnapshot;
+      }
+
+      let localAudioTrack: ILocalAudioTrackSnapshot | undefined;
+      let localAudioSource: ILocalAudioSourceStats | undefined;
+      if (outboundAudio) {
+        localAudioTrack = this._getLocalAudioTrackSnapshot();
+        localAudioSource = this._getOutboundAudioSourceStats(
+          stats,
+          outboundAudio
+        );
+      }
+      this._logLocalAudioTrackSnapshot(localAudioTrack, localAudioSource);
+
+      this.previousStats.timestamp = now.getTime();
+
+      // Check if interval is complete (end of collection period).
+      // When isFinal is true, always push the partial interval so that
+      // short calls (shorter than the collection interval) still produce
+      // at least one stats entry in the buffer.
+      const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
+      const currentInterval = this._collectionIntervalFor(
+        this.intervalStartTime
+      );
+      if (isFinal || intervalDuration >= currentInterval) {
+        // Create stats entry for this interval
+        const statsEntry = this._createStatsEntry(
+          this.intervalStartTime,
+          now,
+          outboundAudio,
+          inboundAudio,
+          candidatePair,
+          localCandidate,
+          remoteCandidate,
+          transportStats,
+          localAudioTrack,
+          localAudioSource
+        );
+
+        // Add to buffer with size limit
+        this.statsBuffer.push(statsEntry);
+        if (this.statsBuffer.length > this.MAX_BUFFER_SIZE) {
+          this.statsBuffer.shift(); // Remove oldest entry
+          logger.warn(
+            'CallReportCollector: Buffer size limit reached, removing oldest entry'
+          );
+        }
+
+        // Check quality warning thresholds before flushing the buffer so
+        // delta-based checks can compare against the previous interval.
+        this._checkQualityWarnings(statsEntry, inboundAudio);
+
+        this._requestIntermediateFlushIfNeeded(now);
+
+        // Reset interval
+        this.intervalStartTime = now;
+        this._resetIntervalAccumulators();
+      }
+    } catch (error) {
+      logger.error('CallReportCollector: Error collecting stats', { error });
+    }
+  }
+
+  private _getIntermediateReportInterval(): number {
+    return (
+      this.options.intermediateReportInterval ??
+      CallReportCollector.DEFAULT_INTERMEDIATE_REPORT_INTERVAL_MS
+    );
+  }
+
+  private _requestIntermediateFlushIfNeeded(now: Date): void {
+    if (
+      !this.onFlushNeeded ||
+      this._flushing ||
+      this.statsBuffer.length === 0
+    ) {
+      return;
+    }
+
+    const statsCount = this.statsBuffer.length;
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    const intermediateReportInterval = this._getIntermediateReportInterval();
+    const msSinceLastFlush =
+      now.getTime() - this._lastIntermediateFlushTime.getTime();
+
+    let reason: 'buffer-limit' | 'safety-interval' | null = null;
+    if (
+      statsCount >= CallReportCollector.STATS_FLUSH_THRESHOLD ||
+      logCount >= CallReportCollector.LOGS_FLUSH_THRESHOLD
+    ) {
+      reason = 'buffer-limit';
+    } else if (
+      intermediateReportInterval > 0 &&
+      msSinceLastFlush >= intermediateReportInterval
+    ) {
+      reason = 'safety-interval';
+    }
+
+    if (!reason) return;
+
+    logger.info('CallReportCollector: Requesting intermediate report flush', {
+      reason,
+      statsIntervals: statsCount,
+      logEntries: logCount,
+      msSinceLastFlush,
+    });
+
+    this._lastIntermediateFlushTime = now;
+
+    try {
+      this.onFlushNeeded();
+    } catch (err) {
+      logger.error('CallReportCollector: onFlushNeeded callback error', {
+        error: err,
+      });
+    }
+  }
+
+  /**
+   * Check quality warning thresholds against the latest stats interval.
+   * Emits warnings only after CONSECUTIVE_BREACHES_REQUIRED consecutive breaches.
+   * Resets when the metric returns to acceptable levels.
+   */
+  private _checkQualityWarnings(
+    statsEntry: IStatsInterval,
+    inboundAudio: ExtendedInboundRtpStreamStats | null
+  ): void {
+    if (!this.onWarning) return;
+
+    const rtt = statsEntry.connection?.roundTripTimeAvg;
+    const jitter = statsEntry.audio?.inbound?.jitterAvg;
+
+    // Packet loss calculation (delta-based)
+    let packetLossPct: number | undefined;
+    if (inboundAudio) {
+      const currentReceived = inboundAudio.packetsReceived ?? 0;
+      const currentLost = inboundAudio.packetsLost ?? 0;
+
+      if (
+        this._prevPacketsReceived !== null &&
+        this._prevPacketsLost !== null
+      ) {
+        const deltaReceived = currentReceived - this._prevPacketsReceived;
+        const deltaLost = currentLost - this._prevPacketsLost;
+        const totalDelta = deltaReceived + deltaLost;
+        if (totalDelta > 0) {
+          packetLossPct = (deltaLost / totalDelta) * 100;
+        }
+      }
+      this._prevPacketsReceived = currentReceived;
+      this._prevPacketsLost = currentLost;
+    }
+
+    // RTT warning — RTT is in seconds from WebRTC API
+    this._trackBreach(
+      HIGH_RTT,
+      rtt !== undefined && rtt > CallReportCollector.THRESHOLD_RTT_MS
+    );
+
+    // Jitter warning — jitter from our averaging is in ms
+    this._trackBreach(
+      HIGH_JITTER,
+      jitter !== undefined && jitter > CallReportCollector.THRESHOLD_JITTER_MS
+    );
+
+    // Packet loss warning
+    this._trackBreach(
+      HIGH_PACKET_LOSS,
+      packetLossPct !== undefined &&
+        packetLossPct > CallReportCollector.THRESHOLD_PACKET_LOSS_PCT
+    );
+
+    // Local microphone audio warning — outbound audioLevelAvg is sourced from
+    // media-source audioLevel when present, or computed from totalAudioEnergy
+    // deltas as a fallback. Do not warn for an intentionally disabled/muted
+    // local track. Once any real local audio has been observed, avoid warning
+    // on normal 5-10s pauses; require a long continuous silence window instead.
+    this._trackLowLocalAudio(statsEntry);
+
+    // MOS warning — simplified E-model
+    if (
+      rtt !== undefined &&
+      jitter !== undefined &&
+      packetLossPct !== undefined
+    ) {
+      const rttMs = rtt * 1000;
+      const R = 93.2 - jitter * 0.11 - packetLossPct * 2.5 - rttMs * 0.01;
+      const mos = Math.max(
+        1,
+        Math.min(4.5, 1 + 0.035 * R + R * (R - 60) * (100 - R) * 7e-6)
+      );
+      this._trackBreach(LOW_MOS, mos < CallReportCollector.THRESHOLD_MOS);
+    } else {
+      this._trackBreach(LOW_MOS, false);
+    }
+
+    // Low bytes received (32001) — check bytesReceived delta is 0
+    if (statsEntry.audio?.inbound?.bytesReceived !== undefined) {
+      const prevBytes =
+        this._previousStatsEntryForWarnings?.audio?.inbound?.bytesReceived;
+      const currBytes = statsEntry.audio.inbound.bytesReceived;
+      this._trackBreach(
+        LOW_BYTES_RECEIVED,
+        prevBytes !== undefined && currBytes - prevBytes === 0
+      );
+    }
+
+    // Low bytes sent — check bytesSent delta is 0
+    if (statsEntry.audio?.outbound?.bytesSent !== undefined) {
+      const prevBytes =
+        this._previousStatsEntryForWarnings?.audio?.outbound?.bytesSent;
+      const currBytes = statsEntry.audio.outbound.bytesSent;
+      this._trackBreach(
+        LOW_BYTES_SENT,
+        prevBytes !== undefined && currBytes - prevBytes === 0
+      );
+    }
+
+    this._previousStatsEntryForWarnings = statsEntry;
+  }
+
+  private _trackLowLocalAudio(statsEntry: IStatsInterval): void {
+    const outbound = statsEntry.audio?.outbound;
+    const audioLevel = outbound?.audioLevelAvg;
+    const localTrack = outbound?.localTrack;
+
+    if (
+      audioLevel === undefined ||
+      localTrack?.enabled === false ||
+      localTrack?.muted === true
+    ) {
+      this._resetLowLocalAudioWarning();
+      return;
+    }
+
+    const isLow = audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
+
+    if (!isLow) {
+      this._hasConfirmedLocalAudio = true;
+      this._confirmedLocalAudioSilenceMs = 0;
+      this._trackBreach(LOW_LOCAL_AUDIO, false);
+      return;
+    }
+
+    if (!this._hasConfirmedLocalAudio) {
+      this._trackBreach(LOW_LOCAL_AUDIO, true);
+      return;
+    }
+
+    this._confirmedLocalAudioSilenceMs +=
+      this._getStatsIntervalDurationMs(statsEntry);
+
+    if (
+      this._confirmedLocalAudioSilenceMs >=
+      CallReportCollector.CONFIRMED_LOCAL_AUDIO_SILENCE_MS
+    ) {
+      this._emitWarningOncePerEpisode(LOW_LOCAL_AUDIO);
+    }
+  }
+
+  private _resetLowLocalAudioWarning(): void {
+    this._confirmedLocalAudioSilenceMs = 0;
+    this._trackBreach(LOW_LOCAL_AUDIO, false);
+  }
+
+  private _getStatsIntervalDurationMs(statsEntry: IStatsInterval): number {
+    const start = new Date(statsEntry.intervalStartUtc).getTime();
+    const end = new Date(statsEntry.intervalEndUtc).getTime();
+    const duration = end - start;
+
+    return Number.isFinite(duration) && duration > 0
+      ? duration
+      : this.options.interval;
+  }
+
+  /**
+   * Track consecutive breaches for a warning code.
+   * Emits the warning when the threshold is met, then re-emits
+   * at most once every WARNING_THROTTLE_MS (15s) while the
+   * condition persists — so consumers know the issue is ongoing.
+   * Resets when the condition clears.
+   */
+  private _trackBreach(code: SdkWarningCode, isBreach: boolean): void {
+    if (isBreach) {
+      this._breachCounters[code] = (this._breachCounters[code] ?? 0) + 1;
+      if (
+        this._breachCounters[code] >=
+        CallReportCollector.CONSECUTIVE_BREACHES_REQUIRED
+      ) {
+        this._activeWarnings.add(code);
+        const now = Date.now();
+        const lastEmitted = this._lastWarningEmitted[code] ?? 0;
+        if (now - lastEmitted >= CallReportCollector.WARNING_THROTTLE_MS) {
+          this._lastWarningEmitted[code] = now;
+          this._emitWarning(code);
+        }
+      }
+    } else {
+      // Condition cleared — reset so warning can fire again in future
+      this._breachCounters[code] = 0;
+      this._activeWarnings.delete(code);
+      delete this._lastWarningEmitted[code];
+    }
+  }
+
+  private _emitWarningOncePerEpisode(code: SdkWarningCode): void {
+    if (this._activeWarnings.has(code)) return;
+
+    this._activeWarnings.add(code);
+    this._lastWarningEmitted[code] = Date.now();
+    this._emitWarning(code);
+  }
+
+  private _emitWarning(code: SdkWarningCode): void {
+    try {
+      const warning = createTelnyxWarning(code);
+      logger.warn(
+        `CallReportCollector: warning ${warning.code}: ${warning.message}`
+      );
+      this.onWarning?.(warning);
+    } catch (err) {
+      logger.error(`CallReportCollector: Failed to emit warning ${code}`, {
+        error: err,
+      });
+    }
+  }
+
+  /**
+   * Create a stats entry from accumulated values
+   */
+  private _createStatsEntry(
+    start: Date,
+    end: Date,
+    outboundAudio: ExtendedOutboundRtpStreamStats | null,
+    inboundAudio: ExtendedInboundRtpStreamStats | null,
+    candidatePair: ExtendedCandidatePairStats | null,
+    localCandidate?: ICECandidateInfo,
+    remoteCandidate?: ICECandidateInfo,
+    transportStats?: ExtendedTransportStats | null,
+    localAudioTrack?: ILocalAudioTrackSnapshot,
+    localAudioSource?: ILocalAudioSourceStats
+  ): IStatsInterval {
+    const entry: IStatsInterval = {
+      intervalStartUtc: start.toISOString(),
+      intervalEndUtc: end.toISOString(),
+    };
+
+    // Audio stats
+    entry.audio = {};
+
+    if (outboundAudio) {
+      entry.audio.outbound = {
+        packetsSent: outboundAudio.packetsSent,
+        bytesSent: outboundAudio.bytesSent,
+        audioLevelAvg: this._average(this.intervalAudioLevels.outbound),
+        bitrateAvg: this._average(this.intervalBitrates.outbound),
+        ...(localAudioTrack ? { localTrack: localAudioTrack } : {}),
+        ...(localAudioSource ? { mediaSource: localAudioSource } : {}),
+      };
+    }
+
+    if (inboundAudio) {
+      entry.audio.inbound = {
+        packetsReceived: inboundAudio.packetsReceived,
+        bytesReceived: inboundAudio.bytesReceived,
+        packetsLost: inboundAudio.packetsLost,
+        packetsDiscarded: inboundAudio.packetsDiscarded,
+        jitterBufferDelay: inboundAudio.jitterBufferDelay,
+        jitterBufferEmittedCount: inboundAudio.jitterBufferEmittedCount,
+        totalSamplesReceived: inboundAudio.totalSamplesReceived,
+        concealedSamples: inboundAudio.concealedSamples,
+        concealmentEvents: inboundAudio.concealmentEvents,
+        audioLevelAvg: this._average(this.intervalAudioLevels.inbound),
+        jitterAvg: this._average(this.intervalJitters),
+        bitrateAvg: this._average(this.intervalBitrates.inbound),
+      };
+    }
+
+    // Connection stats
+    if (candidatePair) {
+      entry.connection = {
+        roundTripTimeAvg: this._average(this.intervalRTTs),
+        packetsSent: candidatePair.packetsSent,
+        packetsReceived: candidatePair.packetsReceived,
+        bytesSent: candidatePair.bytesSent,
+        bytesReceived: candidatePair.bytesReceived,
+      };
+
+      // ICE candidate pair details
+      entry.ice = {
+        id: candidatePair.id,
+        state: candidatePair.state,
+        nominated: candidatePair.nominated,
+        writable: candidatePair.writable,
+        requestsSent: candidatePair.requestsSent,
+        responsesReceived: candidatePair.responsesReceived,
+        ...(localCandidate ? { local: localCandidate } : {}),
+        ...(remoteCandidate ? { remote: remoteCandidate } : {}),
+      };
+    }
+
+    // Transport stats
+    if (transportStats) {
+      entry.transport = {
+        ...(transportStats.iceState !== undefined
+          ? { iceState: transportStats.iceState }
+          : {}),
+        ...(transportStats.dtlsState !== undefined
+          ? { dtlsState: transportStats.dtlsState }
+          : {}),
+        ...(transportStats.srtpCipher !== undefined
+          ? { srtpCipher: transportStats.srtpCipher }
+          : {}),
+        ...(transportStats.tlsVersion !== undefined
+          ? { tlsVersion: transportStats.tlsVersion }
+          : {}),
+        ...(transportStats.selectedCandidatePairChanges !== undefined
+          ? {
+              selectedCandidatePairChanges:
+                transportStats.selectedCandidatePairChanges,
+            }
+          : {}),
+      };
+    }
+
+    return entry;
+  }
+
+  /**
+   * Resolve a local-candidate or remote-candidate from the RTCStatsReport
+   * by its stat entry ID.
+   */
+  private _resolveCandidate(
+    stats: RTCStatsReport,
+    candidateId?: string
+  ): ICECandidateInfo | undefined {
+    if (!candidateId) {
+      logger.debug(
+        'CallReportCollector: candidateId is empty, skipping resolve'
+      );
+      return undefined;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const report = (stats as any).get(candidateId);
+    if (!report) {
+      logger.debug('CallReportCollector: candidate not found in stats report', {
+        candidateId,
+      });
+      return undefined;
+    }
+
+    const info: ICECandidateInfo = {};
+    // Fallback from report.address to report.ip for browser compatibility
+    // (Firefox uses 'ip' while Chrome uses 'address')
+    if (report.address !== undefined) {
+      info.address = report.address;
+    } else if (report.ip !== undefined) {
+      info.address = report.ip;
+    }
+    if (report.port !== undefined) info.port = report.port;
+    if (report.candidateType !== undefined)
+      info.candidateType = report.candidateType;
+    if (report.protocol !== undefined) info.protocol = report.protocol;
+    // networkType is only available on local candidates and may be absent in some browsers
+    if (report.networkType !== undefined) info.networkType = report.networkType;
+
+    if (Object.keys(info).length === 0) {
+      logger.debug(
+        'CallReportCollector: candidate report has no usable fields',
+        { candidateId }
+      );
+      return undefined;
+    }
+
+    return info;
+  }
+
+  /**
+   * Resolve the local audio media-source stats backing the outbound RTP stream.
+   */
+  private _getOutboundMediaSource(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): ExtendedMediaSourceStats | undefined {
+    let mediaSource: ExtendedMediaSourceStats | undefined;
+
+    if (outboundAudio.mediaSourceId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mediaSource = (stats as any).get(outboundAudio.mediaSourceId) as
+        | ExtendedMediaSourceStats
+        | undefined;
+    }
+
+    if (!mediaSource) {
+      stats.forEach((report) => {
+        if (
+          !mediaSource &&
+          report.type === 'media-source' &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (report as any).kind === 'audio'
+        ) {
+          mediaSource = report as unknown as ExtendedMediaSourceStats;
+        }
+      });
+    }
+
+    return mediaSource;
+  }
+
+  /**
+   * Capture local sender track state. This is the missing evidence for cases
+   * where RTP bytes increase but outbound audio level remains zero.
+   */
+  private _getLocalAudioTrackSnapshot(): ILocalAudioTrackSnapshot | undefined {
+    try {
+      const sender = this.peerConnection
+        ?.getSenders()
+        .find((s) => s.track?.kind === 'audio');
+      const track = sender?.track;
+      if (!track) return undefined;
+
+      const settings = track.getSettings?.();
+      const typedSettings = settings as
+        | (MediaTrackSettings & {
+            channelCount?: number;
+            sampleRate?: number;
+            sampleSize?: number;
+            latency?: number;
+            echoCancellation?: boolean;
+            noiseSuppression?: boolean;
+            autoGainControl?: boolean;
+          })
+        | undefined;
+
+      const settingsSnapshot = this._withoutUndefined({
+        deviceId: typedSettings?.deviceId,
+        groupId: typedSettings?.groupId,
+        channelCount: typedSettings?.channelCount,
+        sampleRate: typedSettings?.sampleRate,
+        sampleSize: typedSettings?.sampleSize,
+        latency: typedSettings?.latency,
+        echoCancellation: typedSettings?.echoCancellation,
+        noiseSuppression: typedSettings?.noiseSuppression,
+        autoGainControl: typedSettings?.autoGainControl,
+      });
+
+      const snapshot = this._withoutUndefined({
+        id: track.id,
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+        // contentHint is supported by modern browsers but may not exist in
+        // older TypeScript DOM typings used by consumers.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        contentHint: (track as any).contentHint,
+        ...(Object.keys(settingsSnapshot).length > 0
+          ? { settings: settingsSnapshot }
+          : {}),
+      });
+
+      return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+    } catch (error) {
+      logger.debug(
+        'CallReportCollector: unable to snapshot local audio track',
+        {
+          error,
+        }
+      );
+      return undefined;
+    }
+  }
+
+  /**
+   * Capture media-source counters associated with the outbound audio sender.
+   */
+  private _getOutboundAudioSourceStats(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): ILocalAudioSourceStats | undefined {
+    const mediaSource = this._getOutboundMediaSource(stats, outboundAudio);
+    if (!mediaSource) return undefined;
+
+    const snapshot = this._withoutUndefined({
+      id: mediaSource.id,
+      trackIdentifier: mediaSource.trackIdentifier,
+      audioLevel: mediaSource.audioLevel,
+      totalAudioEnergy: mediaSource.totalAudioEnergy,
+      totalSamplesDuration: mediaSource.totalSamplesDuration,
+      echoReturnLoss: mediaSource.echoReturnLoss,
+      echoReturnLossEnhancement: mediaSource.echoReturnLossEnhancement,
+    });
+
+    return Object.keys(snapshot).length > 0 ? snapshot : undefined;
+  }
+
+  private _logLocalAudioTrackSnapshot(
+    localAudioTrack?: ILocalAudioTrackSnapshot,
+    localAudioSource?: ILocalAudioSourceStats
+  ): void {
+    if (!localAudioTrack || Object.keys(localAudioTrack).length === 0) return;
+
+    const snapshotJson = this._stableStringify(localAudioTrack);
+    if (snapshotJson === this._lastLocalAudioTrackSnapshotJson) return;
+
+    this._lastLocalAudioTrackSnapshotJson = snapshotJson;
+    logger.debug('CallReportCollector: local audio track snapshot', {
+      localTrack: localAudioTrack,
+      mediaSource: localAudioSource,
+    });
+  }
+
+  private _withoutUndefined<T extends Record<string, unknown>>(obj: T): T {
+    return Object.keys(obj).reduce<Record<string, unknown>>((clean, key) => {
+      const value = obj[key];
+      if (value !== undefined) {
+        clean[key] = value;
+      }
+      return clean;
+    }, {}) as T;
+  }
+
+  private _stableStringify(value: unknown): string {
+    return JSON.stringify(this._sortObjectKeys(value));
+  }
+
+  private _sortObjectKeys(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this._sortObjectKeys(item));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.keys(value as Record<string, unknown>)
+        .sort()
+        .reduce<Record<string, unknown>>((sorted, key) => {
+          sorted[key] = this._sortObjectKeys(
+            (value as Record<string, unknown>)[key]
+          );
+          return sorted;
+        }, {});
+    }
+
+    return value;
+  }
+
+  /**
+   * Get outbound audio level from media-source stats (Chrome 96+)
+   * or compute from totalAudioEnergy deltas, or fall back to deprecated track stats.
+   *
+   * Strategy (in priority order):
+   * 1. media-source stat via outbound-rtp.mediaSourceId (Chrome 96+) — audioLevel
+   * 2. media-source stat by iterating all stats (fallback when mediaSourceId missing)
+   * 3. Compute RMS from media-source totalAudioEnergy / totalSamplesDuration deltas
+   * 4. Deprecated track stat via trackId (legacy browsers)
+   */
+  private _getOutboundAudioLevel(
+    stats: RTCStatsReport,
+    outboundAudio: ExtendedOutboundRtpStreamStats
+  ): number | null {
+    const mediaSource = this._getOutboundMediaSource(stats, outboundAudio);
+
+    // Try direct audioLevel on media-source
+    if (mediaSource?.audioLevel !== undefined) {
+      return mediaSource.audioLevel;
+    }
+
+    // 3. Compute RMS audio level from totalAudioEnergy deltas on media-source
+    if (mediaSource) {
+      const level = this._computeAudioLevelFromEnergy(
+        mediaSource.totalAudioEnergy,
+        mediaSource.totalSamplesDuration,
+        'outbound'
+      );
+      if (level !== null) {
+        return level;
+      }
+    }
+
+    // 4. Deprecated track stat fallback (legacy browsers only)
+    return this._getTrackAudioLevel(stats, outboundAudio.trackId);
+  }
+
+  /**
+   * Get inbound audio level from the best available source.
+   *
+   * Strategy (in priority order):
+   * 1. audioLevel directly on inbound-rtp (requires remote to negotiate
+   *    urn:ietf:params:rtp-hdrext:ssrc-audio-level RTP header extension)
+   * 2. Compute RMS from inbound-rtp totalAudioEnergy / totalSamplesDuration deltas
+   * 3. Deprecated track stat via trackId (legacy browsers)
+   */
+  private _getInboundAudioLevel(
+    stats: RTCStatsReport,
+    inboundAudio: ExtendedInboundRtpStreamStats
+  ): number | null {
+    // 1. Direct audioLevel on inbound-rtp (needs ssrc-audio-level ext)
+    if (inboundAudio.audioLevel !== undefined) {
+      return inboundAudio.audioLevel;
+    }
+
+    // 2. Compute RMS from totalAudioEnergy deltas (always available)
+    const level = this._computeAudioLevelFromEnergy(
+      inboundAudio.totalAudioEnergy,
+      inboundAudio.totalSamplesDuration,
+      'inbound'
+    );
+    if (level !== null) {
+      return level;
+    }
+
+    // 3. Deprecated track stat fallback (legacy browsers only)
+    return this._getTrackAudioLevel(stats, inboundAudio.trackId);
+  }
+
+  /**
+   * Compute RMS audio level from totalAudioEnergy and totalSamplesDuration
+   * deltas between consecutive stats collections.
+   *
+   * Formula: audioLevel = sqrt(deltaEnergy / deltaDuration)
+   *
+   * Returns a value between 0.0 (silence) and 1.0 (max), or null if
+   * insufficient data (first sample or missing fields).
+   *
+   * @see https://www.w3.org/TR/webrtc-stats/#dom-rtcaudiohandlerstats-totalaudioenergy
+   */
+  private _computeAudioLevelFromEnergy(
+    currentEnergy: number | undefined,
+    currentDuration: number | undefined,
+    direction: 'inbound' | 'outbound'
+  ): number | null {
+    if (currentEnergy === undefined || currentDuration === undefined) {
+      return null;
+    }
+
+    const prevEnergyKey =
+      direction === 'inbound' ? 'inboundAudioEnergy' : 'outboundAudioEnergy';
+    const prevDurationKey =
+      direction === 'inbound'
+        ? 'inboundSamplesDuration'
+        : 'outboundSamplesDuration';
+
+    const prevEnergy = this.previousStats[prevEnergyKey];
+    const prevDuration = this.previousStats[prevDurationKey];
+
+    // Store current values for next delta calculation
+    this.previousStats[prevEnergyKey] = currentEnergy;
+    this.previousStats[prevDurationKey] = currentDuration;
+
+    // Need previous values to compute delta (skip first sample)
+    if (prevEnergy === undefined || prevDuration === undefined) {
+      return null;
+    }
+
+    const deltaEnergy = currentEnergy - prevEnergy;
+    const deltaDuration = currentDuration - prevDuration;
+
+    if (deltaDuration <= 0) {
+      return null;
+    }
+
+    // RMS audio level: sqrt(energy / duration), clamped to [0, 1]
+    const rms = Math.sqrt(deltaEnergy / deltaDuration);
+    return Math.min(1.0, Math.max(0.0, rms));
+  }
+
+  /**
+   * Get audio level from deprecated track stats (legacy browsers only).
+   * Chrome removed trackId from outbound-rtp/inbound-rtp stats in ~Chrome 117.
+   * This method is kept as a last-resort fallback.
+   * @deprecated Use _getOutboundAudioLevel / _getInboundAudioLevel instead
+   */
+  private _getTrackAudioLevel(
+    stats: RTCStatsReport,
+    trackId?: string
+  ): number | null {
+    if (!trackId) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const trackStats = (stats as any).get(trackId);
+    if (!trackStats) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (trackStats as any).audioLevel ?? null;
+  }
+
+  /**
+   * Calculate average of an array of numbers
+   */
+  private _average(values: number[]): number | undefined {
+    if (values.length === 0) return undefined;
+    const sum = values.reduce((a, b) => a + b, 0);
+    return parseFloat((sum / values.length).toFixed(4));
+  }
+
+  /**
+   * Reset interval accumulators for next collection period
+   */
+  private _resetIntervalAccumulators(): void {
+    this.intervalAudioLevels = { outbound: [], inbound: [] };
+    this.intervalJitters = [];
+    this.intervalRTTs = [];
+    this.intervalBitrates = { outbound: [], inbound: [] };
+  }
+}

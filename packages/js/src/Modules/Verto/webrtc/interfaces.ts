@@ -1,0 +1,224 @@
+import type { ICallReportFlushReason } from './CallReportCollector';
+import { State } from './constants';
+
+export interface IMediaSettings {
+  useSdpASBandwidthKbps?: boolean;
+  sdpASBandwidthKbps?: number;
+}
+export interface IHangupParams {
+  /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
+  cause?: string;
+  /** Custom hangup cause code */
+  causeCode?: number;
+  /** SIP response code */
+  sipCode?: number;
+  /** SIP reason phrase */
+  sipReason?: string;
+  /** SIP Call-ID header value */
+  sip_call_id?: string;
+  /** Dialog parameters including custom headers */
+  dialogParams?: {
+    customHeaders?: Array<{ name: string; value: string }>;
+  };
+  /** When true, sets call to Recovering state for reconnection flow */
+  isRecovering?: boolean;
+  /** Structured source label for hangup attribution in logs/call reports */
+  initiator?: string;
+}
+
+export interface IVertoCallOptions {
+  // Optional
+  destinationNumber?: string;
+  remoteCallerName?: string;
+  remoteCallerNumber?: string;
+  callerName?: string;
+  callerNumber?: string;
+  id?: string;
+  remoteSdp?: string;
+  localStream?: MediaStream;
+  remoteStream?: MediaStream;
+  localElement?: HTMLMediaElement | string | Function;
+  remoteElement?: HTMLMediaElement | string | Function;
+  iceServers?: RTCIceServer[];
+  audio?: boolean | MediaTrackConstraints;
+  // So far video is only for internal use. Use only for debugging purposes.
+  video?: boolean | MediaTrackConstraints;
+  attach?: boolean;
+  useStereo?: boolean;
+  micId?: string;
+  micLabel?: string;
+  camId?: string;
+  camLabel?: string;
+  speakerId?: string;
+  userVariables?: Record<string, any>;
+  screenShare?: boolean;
+  onNotification?: Function;
+  googleMaxBitrate?: number;
+  googleMinBitrate?: number;
+  googleStartBitrate?: number;
+  ringtoneFile?: string;
+  ringbackFile?: string;
+  // Optional, sent by Telnyx RTC
+  telnyxCallControlId?: string;
+  telnyxSessionId?: string;
+  telnyxLegId?: string;
+  clientState?: string;
+  skipNotifications?: boolean;
+  negotiateAudio?: boolean;
+  negotiateVideo?: boolean;
+  mediaSettings?: IMediaSettings;
+  customHeaders?: Array<{ name: string; value: string }>;
+  debug?: boolean;
+  debugOutput?: 'socket' | 'file';
+  preferred_codecs?: RTCRtpCodecCapability[];
+  /**
+   * When true and audio is false (no microphone), add a recvonly audio
+   * transceiver so the SDP still includes an audio m-line capable of
+   * receiving the remote party's audio (e.g. AI agent speech) without
+   * requesting microphone permission.
+   *
+   * Defaults to false.
+   */
+  receiveOnlyAudio?: boolean;
+  /** Enable or disable prefetching ICE candidates. Defaults to true. */
+  prefetchIceCandidates?: boolean;
+  forceRelayCandidate?: boolean;
+  trickleIce?: boolean;
+  // Depricated: use only IVertoOptions.keepConnectionAliveOnSocketClose
+  keepConnectionAliveOnSocketClose?: boolean;
+  mutedMicOnStart?: boolean;
+  /**
+   * The call ID of the previous call that this call is recovering from.
+   * Set automatically during reattachment/recovery when a new call object
+   * replaces an existing one (e.g. after network reconnection).
+   *
+   * Customers can use this to correlate the new call object with the
+   * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
+   */
+  recoveredCallId?: string;
+}
+
+export interface IStatsBinding {
+  constraints: any;
+  callback: Function;
+}
+
+export interface AnswerParams {
+  /**
+   *  *
+   * ### Setting Custom Headers
+   *
+   * ```js
+   *
+   * client.newCall({
+   *  destinationNumber: '18004377950',
+   *
+   *  callerNumber: '155531234567',
+   *
+   *  customHeaders: [ {name: "X-Header", value: "value" } ]
+   * });
+   * ```
+   */
+  customHeaders?: Array<{ name: string; value: string }>;
+
+  /**
+   * ### Setting Media Constraints
+   */
+  video?: boolean;
+}
+
+export interface IWebRTCCall {
+  id: string;
+  /**
+   * The call ID of the previous call that this call is recovering from.
+   * Present only when the call was created as part of a reattachment/recovery
+   * flow (e.g. after a network reconnection).
+   *
+   * Use this to match the new call object to the ended/destroyed call
+   * and prevent duplicate UI elements such as dialers.
+   */
+  recoveredCallId?: string;
+  state: string;
+  prevState: string;
+  direction: string;
+  peer?: {
+    instance?: RTCPeerConnection | null;
+    restartedIceOnConnectionStateFailed?: boolean;
+    restartStatsReporter?: () => Promise<void>;
+    isConnectionHealthy?: () => boolean;
+    close?: () => Promise<void>;
+  } | null;
+  options: IVertoCallOptions;
+  cause: string;
+  causeCode: number;
+  channels: string[];
+  role: string;
+  extension: string;
+  localStream: MediaStream;
+  remoteStream: MediaStream;
+  isAudioMuted: boolean;
+  creatingPeer: boolean;
+  signalingStateClosed: boolean;
+  invite: () => void;
+  answer: (params: AnswerParams) => void;
+  hangup: (params?: IHangupParams, execute?: boolean) => Promise<void>;
+  flushIntermediateCallReport?: (reason?: ICallReportFlushReason) => void;
+
+  hold: () => void;
+  unhold: () => void;
+  toggleHold: () => void;
+  dtmf: (dtmf: string) => void;
+  message: (to: string, body: string) => void;
+  muteAudio: () => void;
+  unmuteAudio: () => void;
+  toggleAudioMute: () => void;
+  setAudioInDevice: (deviceId: string, muted?: boolean) => Promise<void>;
+  muteVideo: () => void;
+  unmuteVideo: () => void;
+  toggleVideoMute: () => void;
+  setVideoDevice: (deviceId: string) => Promise<void>;
+  deaf: () => void;
+  undeaf: () => void;
+  toggleDeaf: () => void;
+  setAudioBandwidthEncodingsMaxBps: (max: number) => void;
+  setVideoBandwidthEncodingsMaxBps: (max: number) => void;
+  getStats: (callback: Function, constraints: any) => void;
+  shouldForceRelayCandidateForRecovery?: () => boolean;
+  setState: (state: State) => void;
+  // Privates
+  handleMessage: (msg: any) => void;
+  _addChannel: (laChannel: any) => void;
+  handleConferenceUpdate: (packet: any, pvtData: any) => Promise<string>;
+  // WEB
+  startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
+  stopScreenShare?: () => Promise<void>;
+  setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
+  // RN
+  setSpeakerPhone?: (flag: boolean) => void;
+}
+export interface IWebRTCInfo {
+  browserInfo: any;
+  browserName: string;
+  browserVersion: number;
+  supportWebRTC: boolean;
+  supportWebRTCAudio: boolean;
+  supportWebRTCVideo: boolean;
+  supportRTCPeerConnection: boolean;
+  supportSessionDescription: boolean;
+  supportIceCandidate: boolean;
+  supportMediaDevices: boolean;
+  supportGetUserMedia: boolean;
+}
+export interface IWebRTCBrowser {
+  browserName: string;
+  features?: Array<string>;
+  supported: string;
+}
+export interface IWebRTCSupportedBrowser {
+  operationSystem: string;
+  supported: Array<IWebRTCBrowser>;
+}
+export interface IAudio extends HTMLAudioElement {
+  _playFulfilled: boolean;
+  _promise: Promise<any>;
+}

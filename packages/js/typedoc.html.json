@@ -1,0 +1,23 @@
+{
+  "out": "./docs/ts",
+  "entryPoints": ["./src/index.ts"],
+  "exclude": [
+    "**/*+(test|index).ts",
+    "src/Modules/Verto/messages/**/*",
+    "src/Modules/Verto/services/**/*",
+    "src/Modules/Verto/tests/**/*",
+    "src/Modules/Verto/util/**/*"
+  ],
+  "plugin": ["typedoc-plugin-merge-modules"],
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeNotDocumented": true,
+  "githubPages": true,
+  "excludeTags": ["@internalnote", "@internal"],
+  "cleanOutputDir": true,
+  "hideGenerator": true,
+  "readme": "none",
+  "gitRevision": "main",
+  "disableSources": true
+}

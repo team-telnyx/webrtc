@@ -1,0 +1,1489 @@
+The `TelnyxRTC` client connects your application to the Telnyx backend,
+enabling you to make outgoing calls and handle incoming calls.
+
+**`Examples`**
+
+```js
+// Initialize the client
+const client = new TelnyxRTC({
+  // Use a JWT to authenticate (recommended)
+  login_token: login_token,
+  // or use your Connection credentials
+  //  login: username,
+  //  password: password,
+});
+
+// Attach event listeners
+client
+  .on('telnyx.ready', () => console.log('ready to call'))
+  .on('telnyx.notification', (notification) => {
+    console.log('notification:', notification);
+  });
+
+// Connect and login
+client.connect();
+
+// You can call client.disconnect() when you're done.
+// Note: When you call `client.disconnect()` you need to remove all ON event methods you've had attached before.
+
+// Disconnecting and Removing listeners.
+client.disconnect();
+client.off('telnyx.ready');
+client.off('telnyx.notification');
+```
+
+## Hierarchy
+
+- `default`
+
+  ↳ **`TelnyxRTC`**
+
+## Table of contents
+
+### Constructors
+
+- [constructor](#constructor)
+
+### Properties
+
+- [callReportVoiceSdkId](#callreportvoicesdkid)
+
+### Accessors
+
+- [connected](#connected)
+- [localElement](#localelement)
+- [mediaConstraints](#mediaconstraints)
+- [remoteElement](#remoteelement)
+- [speaker](#speaker)
+
+### Methods
+
+- [checkPermissions](#checkpermissions)
+- [clearReconnectToken](#clearreconnecttoken)
+- [connect](#connect)
+- [disableMicrophone](#disablemicrophone)
+- [disconnect](#disconnect)
+- [enableMicrophone](#enablemicrophone)
+- [getAudioInDevices](#getaudioindevices)
+- [getAudioOutDevices](#getaudiooutdevices)
+- [getDeviceResolutions](#getdeviceresolutions)
+- [getDevices](#getdevices)
+- [getVideoDevices](#getvideodevices)
+- [handleLoginError](#handleloginerror)
+- [hasActiveCall](#hasactivecall)
+- [login](#login)
+- [logout](#logout)
+- [newCall](#newcall)
+- [off](#off)
+- [on](#on)
+- [onSignalingRequestTimeout](#onsignalingrequesttimeout)
+- [reportNoRtp](#reportnortp)
+- [reportPeerFailure](#reportpeerfailure)
+- [resetReconnectAttempts](#resetreconnectattempts)
+- [serverDisconnect](#serverdisconnect)
+- [setAudioSettings](#setaudiosettings)
+- [startSignalingHealthMonitor](#startsignalinghealthmonitor)
+- [stopSignalingHealthMonitor](#stopsignalinghealthmonitor)
+- [triggerIceRestart](#triggericerestart)
+- [webRTCInfo](#webrtcinfo)
+- [webRTCSupportedBrowserList](#webrtcsupportedbrowserlist)
+
+## Constructors
+
+### constructor
+
+• **new TelnyxRTC**(`options`)
+
+Creates a new `TelnyxRTC` instance with the provided options.
+
+#### Parameters
+
+| Name      | Type                                                                                                  | Description                       |
+| :-------- | :---------------------------------------------------------------------------------------------------- | :-------------------------------- |
+| `options` | [`IClientOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/iclientoptions) | Options for initializing a client |
+
+**`Examples`**
+
+Authenticating with a JSON Web Token:
+
+```javascript
+const client = new TelnyxRTC({
+  login_token: login_token,
+});
+```
+
+Authenticating with username and password credentials:
+
+```js
+const client = new TelnyxRTC({
+  login: username,
+  password: password,
+});
+```
+
+#### Custom ringtone and ringback
+
+Custom ringback and ringtone files can be a wav/mp3 in your local public folder
+or a file hosted on a CDN, ex: https://cdn.company.com/sounds/call.mp3.
+
+To use the `ringbackFile`, make sure the "Generate Ringback Tone" option is **disabled**
+in your [Telnyx Portal connection](https://portaldev.telnyx.com/#/app/connections)
+configuration (Inbound tab.)
+
+```js
+const client = new TelnyxRTC({
+  login_token: login_token,
+  ringtoneFile: './sounds/incoming_call.mp3',
+  ringbackFile: './sounds/ringback_tone.mp3',
+});
+```
+
+#### To hear/view calls in the browser, you'll need to specify an HTML media element:
+
+```js
+client.remoteElement = 'remoteMedia';
+```
+
+The corresponding HTML:
+
+```html
+<audio id="remoteMedia" autoplay="true" />
+<!-- or for video: -->
+<!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
+```
+
+#### Overrides
+
+TelnyxRTCClient.constructor
+
+## Properties
+
+### callReportVoiceSdkId
+
+• **callReportVoiceSdkId**: `string` = `null`
+
+voice_sdk_id used when posting call report payloads for this session.
+
+#### Inherited from
+
+TelnyxRTCClient.callReportVoiceSdkId
+
+## Accessors
+
+### connected
+
+• `get` **connected**(): `boolean`
+
+`true` if the client is connected to the Telnyx RTC server
+
+#### Returns
+
+`boolean`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+console.log(client.connected); // => false
+```
+
+#### Inherited from
+
+TelnyxRTCClient.connected
+
+---
+
+### localElement
+
+• `get` **localElement**(): `string` \| `Function` \| `HTMLMediaElement`
+
+Gets the local html element.
+
+#### Returns
+
+`string` \| `Function` \| `HTMLMediaElement`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.localElement);
+// => HTMLMediaElement
+```
+
+#### Inherited from
+
+TelnyxRTCClient.localElement
+
+• `set` **localElement**(`tag`): `void`
+
+Sets the local html element that will receive the local stream.
+
+#### Parameters
+
+| Name  | Type                                         |
+| :---- | :------------------------------------------- |
+| `tag` | `string` \| `Function` \| `HTMLMediaElement` |
+
+#### Returns
+
+`void`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+client.localElement = 'localElementMediaId';
+```
+
+#### Inherited from
+
+TelnyxRTCClient.localElement
+
+---
+
+### mediaConstraints
+
+• `get` **mediaConstraints**(): `Object`
+
+Audio and video constraints currently used by the client.
+
+#### Returns
+
+`Object`
+
+| Name    | Type                                 |
+| :------ | :----------------------------------- |
+| `audio` | `boolean` \| `MediaTrackConstraints` |
+| `video` | `boolean` \| `MediaTrackConstraints` |
+
+**`Examples`**
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.mediaConstraints);
+// => { audio: true, video: false }
+```
+
+#### Inherited from
+
+TelnyxRTCClient.mediaConstraints
+
+---
+
+### remoteElement
+
+• `get` **remoteElement**(): `string` \| `Function` \| `HTMLMediaElement`
+
+Gets the remote html element.
+
+#### Returns
+
+`string` \| `Function` \| `HTMLMediaElement`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.remoteElement);
+// => HTMLMediaElement
+```
+
+#### Inherited from
+
+TelnyxRTCClient.remoteElement
+
+• `set` **remoteElement**(`tag`): `void`
+
+Sets the remote html element that will receive the remote stream.
+
+#### Parameters
+
+| Name  | Type                                         |
+| :---- | :------------------------------------------- |
+| `tag` | `string` \| `Function` \| `HTMLMediaElement` |
+
+#### Returns
+
+`void`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+client.remoteElement = 'remoteElementMediaId';
+```
+
+#### Inherited from
+
+TelnyxRTCClient.remoteElement
+
+---
+
+### speaker
+
+• `get` **speaker**(): `string`
+
+Default audio output device, if set by client.
+
+#### Returns
+
+`string`
+
+**`Example`**
+
+```js
+const client = new TelnyxRTC(options);
+
+console.log(client.speaker);
+// => "abc123xyz"
+```
+
+#### Inherited from
+
+TelnyxRTCClient.speaker
+
+• `set` **speaker**(`deviceId`): `void`
+
+Sets the default audio output device for subsequent calls.
+
+#### Parameters
+
+| Name       | Type     |
+| :--------- | :------- |
+| `deviceId` | `string` |
+
+#### Returns
+
+`void`
+
+**`Example`**
+
+```js
+let result = await client.getAudioOutDevices();
+
+if (result.length) {
+  client.speaker = result[1].deviceId;
+}
+```
+
+#### Inherited from
+
+TelnyxRTCClient.speaker
+
+## Methods
+
+### checkPermissions
+
+▸ **checkPermissions**(`audio?`, `video?`): `Promise`\<`boolean`\>
+
+Checks if the browser has the permission to access mic and/or webcam
+
+#### Parameters
+
+| Name    | Type      | Default value | Description                                  |
+| :------ | :-------- | :------------ | :------------------------------------------- |
+| `audio` | `boolean` | `true`        | Whether to check for microphone permissions. |
+| `video` | `boolean` | `true`        | Whether to check for webcam permissions.     |
+
+#### Returns
+
+`Promise`\<`boolean`\>
+
+**`Examples`**
+
+Checking for audio and video permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions();
+```
+
+Checking only for audio permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions(true, false);
+```
+
+Checking only for video permissions:
+
+```js
+const client = new TelnyxRTC(options);
+
+client.checkPermissions(false, true);
+```
+
+#### Inherited from
+
+TelnyxRTCClient.checkPermissions
+
+---
+
+### clearReconnectToken
+
+▸ **clearReconnectToken**(): `void`
+
+Clears the reconnect token from sessionStorage.
+This forces the next connection to pick a new b2bua-rtc instance
+via weighted round-robin instead of sticking to the same one.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.clearReconnectToken
+
+---
+
+### connect
+
+▸ **connect**(): `Promise`\<`void`\>
+
+Creates a new connection for exchanging data with the WebRTC server
+
+#### Returns
+
+`Promise`\<`void`\>
+
+**`Examples`**
+
+```js
+const client = new TelnyxRTC(options);
+
+client.connect();
+```
+
+#### Inherited from
+
+TelnyxRTCClient.connect
+
+---
+
+### disableMicrophone
+
+▸ **disableMicrophone**(): `void`
+
+Disables use of the microphone in subsequent calls.
+
+Note: This setting will be ignored if `audio: true` is
+specified when creating a new call.
+
+#### Returns
+
+`void`
+
+**`Examples`**
+
+```js
+const client = new TelnyxRTC(options);
+
+client.disableMicrophone();
+```
+
+Keep in mind that new calls will fail if both the
+microphone and webcam is disabled. Make sure that the
+webcam is manually enabled, or `video: true` is
+specified before disabling the microphone.
+
+```js
+const client = new TelnyxRTC({
+  ...options,
+  video: true,
+});
+
+client.disableMicrophone();
+```
+
+#### Inherited from
+
+TelnyxRTCClient.disableMicrophone
+
+---
+
+### disconnect
+
+▸ **disconnect**(): `Promise`\<`void`\>
+
+Disconnect all active calls
+
+#### Returns
+
+`Promise`\<`void`\>
+
+**`Examples`**
+
+```js
+const client = new TelnyxRTC(options);
+
+client.disconnect();
+```
+
+#### Inherited from
+
+TelnyxRTCClient.disconnect
+
+---
+
+### enableMicrophone
+
+▸ **enableMicrophone**(): `void`
+
+Enables use of the microphone in subsequent calls.
+
+Note: This setting will be ignored if `audio: false` is
+specified when creating a new call.
+
+#### Returns
+
+`void`
+
+**`Examples`**
+
+```js
+const client = new TelnyxRTC(options);
+
+client.enableMicrophone();
+```
+
+#### Inherited from
+
+TelnyxRTCClient.enableMicrophone
+
+---
+
+### getAudioInDevices
+
+▸ **getAudioInDevices**(): `Promise`\<`MediaDeviceInfo`[]\>
+
+Returns the audio input devices supported by the browser.
+
+#### Returns
+
+`Promise`\<`MediaDeviceInfo`[]\>
+
+Promise with an array of MediaDeviceInfo
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+
+  let result = await client.getAudioInDevices();
+
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getAudioInDevices().then((result) => {
+  console.log(result);
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.getAudioInDevices
+
+---
+
+### getAudioOutDevices
+
+▸ **getAudioOutDevices**(): `Promise`\<`MediaDeviceInfo`[]\>
+
+Returns the audio output devices supported by the browser.
+
+Browser Compatibility Note: Firefox has yet to fully implement
+audio output devices. As of v63, this feature is behind the
+user preference `media.setsinkid.enabled`.
+See: https://bugzilla.mozilla.org/show_bug.cgi?id=1152401#c98
+
+#### Returns
+
+`Promise`\<`MediaDeviceInfo`[]\>
+
+Promise with an array of MediaDeviceInfo
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+
+  let result = await client.getAudioOutDevices();
+
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getAudioOutDevices().then((result) => {
+  console.log(result);
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.getAudioOutDevices
+
+---
+
+### getDeviceResolutions
+
+▸ **getDeviceResolutions**(`deviceId`): `Promise`\<`any`[]\>
+
+Returns supported resolution for the given webcam.
+
+#### Parameters
+
+| Name       | Type     | Description                      |
+| :--------- | :------- | :------------------------------- |
+| `deviceId` | `string` | the `deviceId` from your webcam. |
+
+#### Returns
+
+`Promise`\<`any`[]\>
+
+**`Examples`**
+
+If `deviceId` is `null`
+
+1. if `deviceId` is `null` and you don't have a webcam connected to your computer,
+   it will throw an error with the message `"Requested device not found"`.
+
+2. if `deviceId` is `null` and you have one or more webcam connected to your computer,
+   it will return a list of resolutions from the default device set up in your operating system.
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+  let result = await client.getDeviceResolutions();
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getDeviceResolutions().then((result) => {
+  console.log(result);
+});
+```
+
+If `deviceId` is **not** `null`
+
+it will return a list of resolutions from the `deviceId` sent.
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+  let result = await client.getDeviceResolutions(deviceId);
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getDeviceResolutions(deviceId).then((result) => {
+  console.log(result);
+});
+```
+
+**`Deprecated`**
+
+#### Inherited from
+
+TelnyxRTCClient.getDeviceResolutions
+
+---
+
+### getDevices
+
+▸ **getDevices**(): `Promise`\<`MediaDeviceInfo`[]\>
+
+Returns a list of devices supported by the browser
+
+#### Returns
+
+`Promise`\<`MediaDeviceInfo`[]\>
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+  let result = await client.getDevices();
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getDevices().then((result) => {
+  console.log(result);
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.getDevices
+
+---
+
+### getVideoDevices
+
+▸ **getVideoDevices**(): `Promise`\<`MediaDeviceInfo`[]\>
+
+Returns a list of video devices supported by the browser (i.e. webcam).
+
+#### Returns
+
+`Promise`\<`MediaDeviceInfo`[]\>
+
+Promise with an array of MediaDeviceInfo
+
+**`Examples`**
+
+Using async/await:
+
+```js
+async function() {
+  const client = new TelnyxRTC(options);
+  let result = await client.getVideoDevices();
+  console.log(result);
+}
+```
+
+Using ES6 `Promises`:
+
+```js
+client.getVideoDevices().then((result) => {
+  console.log(result);
+});
+```
+
+**`Deprecated`**
+
+#### Inherited from
+
+TelnyxRTCClient.getVideoDevices
+
+---
+
+### handleLoginError
+
+▸ **handleLoginError**(`error`): `void`
+
+Handle login error
+
+#### Parameters
+
+| Name    | Type  |
+| :------ | :---- |
+| `error` | `any` |
+
+#### Returns
+
+`void`
+
+void
+
+#### Inherited from
+
+TelnyxRTCClient.handleLoginError
+
+---
+
+### hasActiveCall
+
+▸ **hasActiveCall**(): `boolean`
+
+Returns true if there is at least one active (non-terminated) call.
+Public so that BaseCall can check if the monitor should stop.
+
+#### Returns
+
+`boolean`
+
+#### Inherited from
+
+TelnyxRTCClient.hasActiveCall
+
+---
+
+### login
+
+▸ **login**(`options?`): `Promise`\<`void`\>
+
+Re-authenticate with the Telnyx RTC server using existing or new credentials within an active WebSocket connection.
+
+This method allows updating session authentication credentials (login/password, JWT token, or anonymous login)
+and immediately re-authenticates without requiring a full socket reconnection. This is particularly useful for:
+
+- Refreshing expired JWT tokens during an active session
+- Switching to different user credentials
+- Re-authenticating after token expiration errors
+
+#### Parameters
+
+| Name                 | Type                       | Description                                                                    |
+| :------------------- | :------------------------- | :----------------------------------------------------------------------------- |
+| `options`            | `Object`                   | Configuration object for the login operation                                   |
+| `options.creds?`     | `ILoginParams`             | Optional credential parameters to update before authentication                 |
+| `options.onError?`   | (`error`: `any`) => `void` | Callback function invoked when authentication fails, receives the error object |
+| `options.onSuccess?` | () => `void`               | Callback function invoked when authentication succeeds                         |
+
+#### Returns
+
+`Promise`\<`void`\>
+
+Promise<void>
+
+**`Example`**
+
+**Re-authenticate with existing credentials:**
+
+```js
+// Uses the credentials already stored in session options
+await client.login();
+```
+
+**`Example`**
+
+**Refresh an expired JWT token:**
+
+```js
+const newToken = await fetchNewJwtToken();
+await client.login({
+  creds: { login_token: newToken },
+});
+```
+
+**`Example`**
+
+**Update login credentials with callbacks:**
+
+```js
+await client.login({
+  creds: {
+    login: 'newuser@example.com',
+    password: 'newpassword',
+  },
+  onSuccess: () => {
+    console.log('Successfully re-authenticated!');
+  },
+  onError: (error) => {
+    console.error('Authentication failed:', error);
+  },
+});
+```
+
+**`Example`**
+
+**Switch to anonymous login:**
+
+```js
+await client.login({
+  creds: {
+    anonymous_login: {
+      target_type: 'ai_assistant',
+      target_id: 'asst_12345',
+      target_version_id: 'v1',
+    },
+  },
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.login
+
+---
+
+### logout
+
+▸ **logout**(): `void`
+
+Alias for .disconnect()
+
+#### Returns
+
+`void`
+
+**`Deprecated`**
+
+#### Inherited from
+
+TelnyxRTCClient.logout
+
+---
+
+### newCall
+
+▸ **newCall**(`options`): [`Call`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/call)
+
+Makes a new outbound call.
+
+#### Parameters
+
+| Name      | Type                                                                                              | Description                    |
+| :-------- | :------------------------------------------------------------------------------------------------ | :----------------------------- |
+| `options` | [`ICallOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icalloptions) | Options object for a new call. |
+
+#### Returns
+
+[`Call`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/call)
+
+The new outbound `Call` object.
+
+**`Examples`**
+
+Making an outbound call to `+1 856-444-0362` using default values from the client:
+
+```js
+const call = client.newCall({
+  destinationNumber: '+18564440362',
+  callerNumber: '+15551231234',
+});
+```
+
+You can omit `callerNumber` when dialing a SIP address:
+
+```js
+const call = client.newCall({
+  destinationNumber: 'sip:example-sip-username@voip-provider.example.net',
+});
+```
+
+If you are making calls from one Telnyx connection to another, you may specify just the SIP username:
+
+```js
+const call = client.newCall({
+  destinationNumber: 'telnyx-sip-username', // This is equivalent to 'sip:telnyx-sip-username@sip.telnyx.com'
+});
+```
+
+### Error handling
+
+An error will be thrown if `destinationNumber` is not specified.
+
+```js
+const call = client.newCall().catch(console.error);
+// => `destinationNumber is required`
+```
+
+### Setting Custom Headers
+
+```js
+client.newCall({
+  destinationNumber: '18004377950',
+
+  callerNumber: '155531234567',
+
+  customHeaders: [{ name: 'X-Header', value: 'value' }],
+});
+```
+
+### Setting Preferred Codec
+
+You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
+
+`preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs)
+
+```js
+const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
+
+const PCMACodec = allCodecs.find((c) =>
+  c.mimeType.toLowerCase().includes('pcma')
+);
+
+client.newCall({
+  destinationNumber: 'xxx',
+  preferred_codecs: [PCMACodec],
+});
+```
+
+### ICE Candidate Prefetching
+
+ICE candidate prefetching is enabled by default. This pre-gathers ICE candidates when the
+`RTCPeerConnection` is created, before `setLocalDescription` is called, improving call setup
+performance and reducing DTLS handshake issues caused by late-arriving candidates.
+
+To disable prefetching, pass `prefetchIceCandidates: false` to the `newCall` method:
+
+```js
+client.newCall({
+  destinationNumber: 'xxx',
+  prefetchIceCandidates: false,
+});
+```
+
+### Trickle ICE
+
+Trickle ICE can be enabled by passing `trickleIce` to the `newCall` method.
+example:
+
+```js
+client.newCall({
+  destinationNumber: 'xxx',
+  trickleIce: true,
+});
+```
+
+### Call Recovery and `recoveredCallId`
+
+When a call is recovered after a network reconnection (reattach), the SDK
+creates a new call object and sets `recoveredCallId` to the ID of the ended call.
+Use this to correlate the new call with the old one and avoid duplicate UI elements:
+
+```js
+client.on('telnyx.notification', (notification) => {
+  if (notification.type === 'callUpdate') {
+    const call = notification.call;
+    if (call.recoveredCallId) {
+      // This call replaced a previous call after recovery.
+      // Remove the old dialer/UI for call.recoveredCallId
+      removeDialer(call.recoveredCallId);
+    }
+  }
+});
+```
+
+### Voice Isolation
+
+Voice isolation options can be set by passing an `audio` object to the `newCall` method. This property controls the settings of a MediaStreamTrack object. For reference on available audio constraints, see [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints).
+example:
+
+```js
+client.newCall({
+  destinationNumber: 'xxx',
+  audio: {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  },
+});
+```
+
+#### Overrides
+
+TelnyxRTCClient.newCall
+
+---
+
+### off
+
+▸ **off**(`eventName`, `callback?`): [`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
+
+Removes an event handler that were attached with .on().
+If no handler parameter is passed, all listeners for that event will be removed.
+
+#### Parameters
+
+| Name        | Type                                     | Description                     |
+| :---------- | :--------------------------------------- | :------------------------------ |
+| `eventName` | `Error` \| `"telnyx.error"`              | Event name.                     |
+| `callback?` | (`event`: `ITelnyxErrorEvent`) => `void` | Function handler to be removed. |
+
+#### Returns
+
+[`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
+
+The client object itself.
+
+Note: a handler will be removed from the stack by reference
+so make sure to use the same reference in both `.on()` and `.off()` methods.
+
+**`Examples`**
+
+Subscribe to the `telnyx.error` and then, remove the event handler.
+
+```js
+const errorHandler = (error) => {
+  // Log the error..
+};
+
+const client = new TelnyxRTC(options);
+
+client.on('telnyx.error', errorHandler);
+
+// .. later
+client.off('telnyx.error', errorHandler);
+```
+
+#### Inherited from
+
+TelnyxRTCClient.off
+
+---
+
+### on
+
+▸ **on**(`eventName`, `callback`): [`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
+
+Attaches an event handler for a specific type of event.
+
+### Events
+
+|                         |                                                      |
+| ----------------------- | ---------------------------------------------------- |
+| `telnyx.ready`          | The client is authenticated and available to use     |
+| `telnyx.error`          | An error occurred at the session level               |
+| `telnyx.notification`   | An update to the call or session                     |
+| `telnyx.socket.open`    | The WebSocket connection has been made               |
+| `telnyx.socket.close`   | The WebSocket connection is set to close             |
+| `telnyx.socket.error`   | An error occurred at the WebSocket level             |
+| `telnyx.socket.message` | The client has received a message through WebSockets |
+
+#### Parameters
+
+| Name        | Type                                     | Description                            |
+| :---------- | :--------------------------------------- | :------------------------------------- |
+| `eventName` | `Error` \| `"telnyx.error"`              | Event name.                            |
+| `callback`  | (`event`: `ITelnyxErrorEvent`) => `void` | Function to call when the event comes. |
+
+#### Returns
+
+[`TelnyxRTC`](https://developers.telnyx.com/development/webrtc/js-sdk/classes/telnyxrtc)
+
+The client object itself.
+
+**`Examples`**
+
+Subscribe to the `telnyx.ready` and `telnyx.error` events.
+
+```js
+const client = new TelnyxRTC(options);
+
+client
+  .on('telnyx.ready', (client) => {
+    // Your client is ready!
+  })
+  .on('telnyx.error', (error) => {
+    // Got an error...
+  });
+```
+
+#### Inherited from
+
+TelnyxRTCClient.on
+
+---
+
+### onSignalingRequestTimeout
+
+▸ **onSignalingRequestTimeout**(`requestId`, `timeoutMs`, `method?`): `void`
+
+Called when a signaling request times out (via Connection.RequestTimeoutError).
+Delegates to the signaling health monitor for recovery.
+Only critical methods (Modify, Bye, Ping) trigger force-reconnect;
+non-critical timeouts are just logged.
+
+#### Parameters
+
+| Name        | Type     | Default value |
+| :---------- | :------- | :------------ |
+| `requestId` | `string` | `undefined`   |
+| `timeoutMs` | `number` | `undefined`   |
+| `method`    | `string` | `''`          |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.onSignalingRequestTimeout
+
+---
+
+### reportNoRtp
+
+▸ **reportNoRtp**(`callId`, `direction`): `void`
+
+Report no-RTP condition to the health monitor.
+Called by CallReportCollector when RTP bytes stop flowing
+while media should be active.
+
+The health monitor decides whether to trigger ICE restart
+(if signaling is healthy) or socket reconnect (if signaling
+is also unhealthy).
+
+#### Parameters
+
+| Name        | Type                        |
+| :---------- | :-------------------------- |
+| `callId`    | `string`                    |
+| `direction` | `"inbound"` \| `"outbound"` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.reportNoRtp
+
+---
+
+### reportPeerFailure
+
+▸ **reportPeerFailure**(`callId`, `evidence`): `void`
+
+Report a peer/ICE failure to the health monitor.
+Called by Peer when iceConnectionState or connectionState
+transitions to 'failed'.
+
+The health monitor decides whether to trigger ICE restart
+(if signaling is healthy) or socket reconnect (if signaling
+is also unhealthy).
+
+#### Parameters
+
+| Name       | Type                  |
+| :--------- | :-------------------- |
+| `callId`   | `string`              |
+| `evidence` | `PeerFailureEvidence` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.reportPeerFailure
+
+---
+
+### resetReconnectAttempts
+
+▸ **resetReconnectAttempts**(): `void`
+
+Reset the automatic reconnection attempt counter.
+Call this when the connection is fully established (e.g. on REGED)
+or when the user manually initiates a reconnect after exhaustion.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.resetReconnectAttempts
+
+---
+
+### serverDisconnect
+
+▸ **serverDisconnect**(): `Promise`\<`void`\>
+
+Server-initiated disconnect (e.g. PUNT message).
+Purges all calls locally without sending BYE — server side may already be gone.
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+TelnyxRTCClient.serverDisconnect
+
+---
+
+### setAudioSettings
+
+▸ **setAudioSettings**(`settings`): `Promise`\<`MediaTrackConstraints`\>
+
+Sets the default `audio` constraints for your client. [See here](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints#Properties_of_audio_tracks) for further details.
+
+Note: It's a common behaviour, in WebRTC applications,
+to persist devices user's selection to then reuse them across visits.
+Due to a Webkit’s security protocols, Safari generates random `deviceId` on each page load.
+To avoid this issue you can specify two additional properties
+`micId` and `micLabel` in the constraints input parameter.
+The client will use these values to assure the microphone you want to use is available
+by matching both id and label with the device list retrieved from the browser.
+
+#### Parameters
+
+| Name       | Type             | Description                                                                                                                                         |
+| :--------- | :--------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings` | `IAudioSettings` | [MediaTrackConstraints](https://developer.mozilla.org/en-US/docs/Web/API/MediaTrackConstraints) object with the addition of `micId` and `micLabel`. |
+
+#### Returns
+
+`Promise`\<`MediaTrackConstraints`\>
+
+`Promise<MediaTrackConstraints>` Audio constraints applied to the client.
+
+**`Examples`**
+
+Set microphone by `id` and `label` with the `echoCancellation` flag turned off:
+
+```js
+// within an async function
+const constraints = await client.setAudioSettings({
+  micId: '772e94959e12e589b1cc71133d32edf543d3315cfd1d0a4076a60601d4ff4df8',
+  micLabel: 'Internal Microphone (Built-in)',
+  echoCancellation: false,
+});
+```
+
+#### Inherited from
+
+TelnyxRTCClient.setAudioSettings
+
+---
+
+### startSignalingHealthMonitor
+
+▸ **startSignalingHealthMonitor**(): `void`
+
+Start the signaling health monitor. Called when a call becomes active
+or on reconnect if calls exist.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.startSignalingHealthMonitor
+
+---
+
+### stopSignalingHealthMonitor
+
+▸ **stopSignalingHealthMonitor**(): `void`
+
+Stop the signaling health monitor. Called when no active calls remain
+or on disconnect.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.stopSignalingHealthMonitor
+
+---
+
+### triggerIceRestart
+
+▸ **triggerIceRestart**(`callId`): `TriggerIceRestartResult`
+
+Trigger ICE restart on the call identified by callId.
+Called by the health monitor when media/peer is unhealthy but
+signaling is healthy.
+
+#### Parameters
+
+| Name     | Type     |
+| :------- | :------- |
+| `callId` | `string` |
+
+#### Returns
+
+`TriggerIceRestartResult`
+
+#### Inherited from
+
+TelnyxRTCClient.triggerIceRestart
+
+---
+
+### webRTCInfo
+
+▸ `Static` **webRTCInfo**(): `string` \| `IWebRTCInfo`
+
+Checks if the running browser has support for TelnyRTC
+
+#### Returns
+
+`string` \| `IWebRTCInfo`
+
+An object with WebRTC browser support information or a string error message.
+
+**`Examples`**
+
+Check if your browser supports TelnyxRTC
+
+```js
+const info = TelnyxRTC.webRTCInfo();
+const isWebRTCSupported = info.supportWebRTC;
+console.log(isWebRTCSupported); // => true
+```
+
+#### Error handling
+
+An error message will be returned if your browser doesn't support TelnyxRTC
+
+```js
+const info = TelnyxRTC.webRTCInfo();
+if (!info.supportWebRTC) {
+  console.error(info); // => 'This browser does not support @telnyx/webrtc. To see browser support list: `TelnyxRTC.webRTCSupportedBrowserList()'
+}
+```
+
+---
+
+### webRTCSupportedBrowserList
+
+▸ `Static` **webRTCSupportedBrowserList**(): `IWebRTCSupportedBrowser`[]
+
+Returns the WebRTC supported browser list.
+
+The following table indicates the browsers supported by TelnyxRTC.
+We support the most recent (N) versions of these browsers unless otherwise indicated.
+
+|         | Chrome | Firefox | Safari | Edge |
+| ------- | ------ | ------- | ------ | ---- |
+| Android | [-]    | [-]     | [ ]    | [ ]  |
+| iOS     | [ ]    | [ ]     | [x]    | [ ]  |
+| Linux   | [x]    | [-]     | [ ]    | [ ]  |
+| MacOS   | [x]    | [-]     | [x]    | [-]  |
+| Windows | [x]    | [-]     | [ ]    | [-]  |
+
+#### Legend
+
+[x] supports audio and video
+[-] supports only audio
+[ ] not supported
+
+#### Returns
+
+`IWebRTCSupportedBrowser`[]
+
+An array with supported operational systems and browsers.
+
+**`Examples`**
+
+```js
+const browserList = TelnyxRTC.webRTCSupportedBrowserList();
+console.log(browserList); // => [{"operationSystem": "Android", "supported": [{"browserName": "Chrome", "features": ["video", "audio"], "supported": "full"},{...}]
+```
