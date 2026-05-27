@@ -29,7 +29,9 @@ export class RegisterAgent {
   };
 
   public getIsRegistered = async () => {
-    const message = new Gateway(getReconnectToken());
+    const message = new Gateway(
+      getReconnectToken(this.session.options.reconnectSessionKey)
+    );
     this.pendingRequestId = message.request.id;
     this.gatewayStateTask = deferredPromise<GatewayStateType>({});
 

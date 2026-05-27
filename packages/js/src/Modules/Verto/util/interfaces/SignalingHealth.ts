@@ -20,6 +20,9 @@ export interface ISignalingHealthSession {
   uuid: string;
   sessionid: string;
   connection: Connection | null;
+  options: {
+    reconnectSessionKey?: string;
+  };
   hasActiveCall(): boolean;
   socketDisconnect(): void;
   /**

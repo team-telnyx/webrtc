@@ -34,7 +34,7 @@ export default class Verto extends BrowserSession {
       // hang up current call when browser closes or refreshes.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       window.addEventListener('beforeunload', (_e) => {
-        clearReconnectToken();
+        clearReconnectToken(this.options.reconnectSessionKey);
         if (this.calls) {
           Object.keys(this.calls).forEach((callId) => {
             if (this.calls[callId]) {

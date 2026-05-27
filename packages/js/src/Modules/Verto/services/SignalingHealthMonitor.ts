@@ -356,7 +356,9 @@ export default class SignalingHealthMonitor {
     // Ping promise would reject, onRequestTimeout() would see the *new*
     // socket as connected, and force-close the healthy replacement.
     // Bypassing execute() avoids this race entirely.
-    const probe = new Ping(getReconnectToken());
+    const probe = new Ping(
+      getReconnectToken(this._session.options.reconnectSessionKey)
+    );
 
     // The probe resolves only when Connection.send() receives the JSON-RPC
     // response for this exact Ping request id. Passive SocketActivity from

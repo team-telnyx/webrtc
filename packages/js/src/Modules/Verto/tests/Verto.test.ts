@@ -239,6 +239,34 @@ describe('Verto', () => {
       expect(instance.sessionid).toBe('server-sessid');
       expect(getReconnectSessionId()).toBe('server-sessid');
     });
+
+    it('should not reuse another logical user reconnect state when scoped by reconnectSessionKey', async () => {
+      setReconnectToken('voice-sdk-user-2449', 'x-user-id:2449');
+      setReconnectSessionId('sessid-user-2449', 'x-user-id:2449');
+      const scopedInstance = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        reconnectSessionKey: 'x-user-id:2093',
+      });
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"new-user-sessid"}}'
+        )
+      );
+
+      await scopedInstance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(false);
+      expect(request.params.sessid).toBeUndefined();
+      expect(getReconnectSessionId('x-user-id:2449')).toBe('sessid-user-2449');
+      expect(getReconnectSessionId('x-user-id:2093')).toBe('new-user-sessid');
+
+      clearReconnectToken('x-user-id:2449');
+      clearReconnectToken('x-user-id:2093');
+    });
   });
 
   it('should set env equal production ', () => {

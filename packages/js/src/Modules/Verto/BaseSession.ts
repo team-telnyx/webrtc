@@ -479,7 +479,7 @@ export default abstract class BaseSession {
    * via weighted round-robin instead of sticking to the same one.
    */
   public clearReconnectToken(): void {
-    clearReconnectToken();
+    clearReconnectToken(this.options.reconnectSessionKey);
   }
 
   /**
@@ -673,12 +673,13 @@ export default abstract class BaseSession {
     onError?: (error: any) => void;
   }): Promise<void> {
     let msg: Login | AnonymousLogin;
-    const reconnectToken = getReconnectToken();
+    const reconnectToken = getReconnectToken(this.options.reconnectSessionKey);
     const isReconnection = !!reconnectToken;
     const reconnectSessionId = isReconnection
-      ? (this.sessionid && isReconnectSessionIdFresh()
+      ? (this.sessionid &&
+        isReconnectSessionIdFresh(this.options.reconnectSessionKey)
           ? this.sessionid
-          : getReconnectSessionId()) || ''
+          : getReconnectSessionId(this.options.reconnectSessionKey)) || ''
       : '';
 
     if (type === 'login') {
@@ -710,7 +711,7 @@ export default abstract class BaseSession {
     if (response) {
       this.sessionid = response.sessid;
       if (this.sessionid) {
-        setReconnectSessionId(this.sessionid);
+        setReconnectSessionId(this.sessionid, this.options.reconnectSessionKey);
       }
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
@@ -822,7 +823,7 @@ export default abstract class BaseSession {
     this.stopSignalingHealthMonitor();
 
     if (this.sessionid && this._autoReconnect) {
-      setReconnectSessionId(this.sessionid);
+      setReconnectSessionId(this.sessionid, this.options.reconnectSessionKey);
     }
 
     // Reset gateway state on socket close so telnyx.ready fires again on reconnection
@@ -983,7 +984,9 @@ export default abstract class BaseSession {
   private _resetKeepAlive() {
     if (this._pong === false) {
       logger.warn('No ping/pong received, forcing PING ACK to keep alive');
-      this.execute(new Ping(getReconnectToken()));
+      this.execute(
+        new Ping(getReconnectToken(this.options.reconnectSessionKey))
+      );
     }
 
     clearTimeout(this._keepAliveTimeout);

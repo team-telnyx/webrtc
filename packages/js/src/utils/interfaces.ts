@@ -167,6 +167,18 @@ export interface IClientOptions {
   skipLastVoiceSdkId?: boolean;
 
   /**
+   * Optional application-level identity used to scope persisted reconnect
+   * state (`voice_sdk_id` and `sessid`) in browser session storage.
+   *
+   * Pass a stable logical user/session identifier when multiple users share
+   * the same Telnyx login/SIP credentials from the same browser origin (for
+   * example a contact-center `X-user_id` or participant id). Without this,
+   * the SDK can only correlate reconnect state by the WebRTC registration
+   * identity and cannot distinguish two logical users that share it.
+   */
+  reconnectSessionKey?: string;
+
+  /**
    *  Environment to use for the connection.
    *  So far this property is only for internal purposes.
    */
