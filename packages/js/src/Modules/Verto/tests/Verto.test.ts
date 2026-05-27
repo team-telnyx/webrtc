@@ -11,6 +11,7 @@ import {
   clearReconnectToken,
   getReconnectSessionId,
   getReconnectToken,
+  RECONNECT_SESSION_ID_MAX_AGE_MS,
   setReconnectSessionId,
   setReconnectToken,
 } from '../util/reconnect';
@@ -185,6 +186,26 @@ describe('Verto', () => {
       const { request } = Connection.mockSend.mock.calls[0][0];
       expect(request.method).toBe('login');
       expect(request.params.reconnection).toBe(false);
+      expect(request.params.sessid).toBeUndefined();
+    });
+
+    it('should not include the persisted sessid when it is older than 90 seconds', async () => {
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId(
+        'previous-sessid',
+        Date.now() - 1 - RECONNECT_SESSION_ID_MAX_AGE_MS
+      );
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"new-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(true);
       expect(request.params.sessid).toBeUndefined();
     });
 

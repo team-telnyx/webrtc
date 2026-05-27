@@ -48,6 +48,7 @@ import {
   getReconnectSessionId,
   getReconnectToken,
   clearReconnectToken,
+  isReconnectSessionIdFresh,
   setReconnectSessionId,
 } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
@@ -674,8 +675,11 @@ export default abstract class BaseSession {
     let msg: Login | AnonymousLogin;
     const reconnectToken = getReconnectToken();
     const isReconnection = !!reconnectToken;
-    const reconnectSessionId =
-      this.sessionid || (isReconnection ? getReconnectSessionId() : null) || '';
+    const reconnectSessionId = isReconnection
+      ? (this.sessionid && isReconnectSessionIdFresh()
+          ? this.sessionid
+          : getReconnectSessionId()) || ''
+      : '';
 
     if (type === 'login') {
       msg = new Login(
@@ -816,6 +820,10 @@ export default abstract class BaseSession {
     clearTimeout(this._keepAliveTimeout);
     clearTimeout(this._reconnectTimeout);
     this.stopSignalingHealthMonitor();
+
+    if (this.sessionid && this._autoReconnect) {
+      setReconnectSessionId(this.sessionid);
+    }
 
     // Reset gateway state on socket close so telnyx.ready fires again on reconnection
     if (this.connection) {
