@@ -120,8 +120,7 @@ describe('Verto', () => {
   });
 
   describe('reconnect login', () => {
-    it('should include the persisted sessid only when unload hangup is disabled', async () => {
-      instance.options.hangupOnBeforeUnload = false;
+    it('should include the persisted sessid whenever a stored voice_sdk_id marks the login as a reconnect', async () => {
       setReconnectToken('voice-sdk-id');
       setReconnectSessionId('previous-sessid');
       Connection.mockResponse.mockImplementationOnce(() =>
@@ -138,8 +137,7 @@ describe('Verto', () => {
       expect(request.params.sessid).toBe('previous-sessid');
     });
 
-    it('should not include the persisted sessid when unload hangup is enabled by default', async () => {
-      setReconnectToken('voice-sdk-id');
+    it('should not include the persisted sessid when there is no stored voice_sdk_id', async () => {
       setReconnectSessionId('previous-sessid');
       Connection.mockResponse.mockImplementationOnce(() =>
         JSON.parse(
@@ -151,7 +149,7 @@ describe('Verto', () => {
 
       const { request } = Connection.mockSend.mock.calls[0][0];
       expect(request.method).toBe('login');
-      expect(request.params.reconnection).toBe(true);
+      expect(request.params.reconnection).toBe(false);
       expect(request.params.sessid).toBeUndefined();
     });
 

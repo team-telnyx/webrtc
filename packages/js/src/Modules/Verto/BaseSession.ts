@@ -674,12 +674,8 @@ export default abstract class BaseSession {
     let msg: Login | AnonymousLogin;
     const reconnectToken = getReconnectToken();
     const isReconnection = !!reconnectToken;
-    const shouldRestoreSessionIdFromStorage =
-      isReconnection && this.options.hangupOnBeforeUnload === false;
     const reconnectSessionId =
-      this.sessionid ||
-      (shouldRestoreSessionIdFromStorage ? getReconnectSessionId() : null) ||
-      '';
+      this.sessionid || (isReconnection ? getReconnectSessionId() : null) || '';
 
     if (type === 'login') {
       msg = new Login(
