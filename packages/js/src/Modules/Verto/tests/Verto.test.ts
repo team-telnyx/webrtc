@@ -62,6 +62,7 @@ describe('Verto', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
       setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
 
       const telnyxRTC = _buildInstance({
         host: 'example.telnyx.com',
@@ -85,6 +86,7 @@ describe('Verto', () => {
         true
       );
       expect(getReconnectToken()).toBeNull();
+      expect(getReconnectSessionId()).toBeNull();
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
@@ -94,6 +96,7 @@ describe('Verto', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
       setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
 
       _buildInstance({
         host: 'example.telnyx.com',
@@ -109,6 +112,7 @@ describe('Verto', () => {
       ).toBe(false);
 
       expect(getReconnectToken()).toBe('voice-sdk-id');
+      expect(getReconnectSessionId()).toBe('previous-sessid');
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
@@ -116,7 +120,8 @@ describe('Verto', () => {
   });
 
   describe('reconnect login', () => {
-    it('should include the persisted sessid when reconnecting with a stored voice_sdk_id', async () => {
+    it('should include the persisted sessid only when unload hangup is disabled', async () => {
+      instance.options.hangupOnBeforeUnload = false;
       setReconnectToken('voice-sdk-id');
       setReconnectSessionId('previous-sessid');
       Connection.mockResponse.mockImplementationOnce(() =>
@@ -131,6 +136,41 @@ describe('Verto', () => {
       expect(request.method).toBe('login');
       expect(request.params.reconnection).toBe(true);
       expect(request.params.sessid).toBe('previous-sessid');
+    });
+
+    it('should not include the persisted sessid when unload hangup is enabled by default', async () => {
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"new-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(true);
+      expect(request.params.sessid).toBeUndefined();
+    });
+
+    it('should include the in-memory sessid during same-instance socket reconnects', async () => {
+      instance.sessionid = 'active-sessid';
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('stored-sessid');
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"active-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(true);
+      expect(request.params.sessid).toBe('active-sessid');
     });
 
     it('should persist the successful login sessid for future reconnects', async () => {
