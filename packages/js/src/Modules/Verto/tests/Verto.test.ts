@@ -9,7 +9,9 @@ import {
 } from '../util/constants';
 import {
   clearReconnectToken,
+  getReconnectSessionId,
   getReconnectToken,
+  setReconnectSessionId,
   setReconnectToken,
 } from '../util/reconnect';
 
@@ -48,6 +50,7 @@ describe('Verto', () => {
     Connection.mockSend.mockClear();
     Connection.default.mockClear();
     Connection.mockClose.mockClear();
+    clearReconnectToken();
   });
 
   it('should instantiate Verto with default methods', () => {
@@ -109,6 +112,38 @@ describe('Verto', () => {
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
+    });
+  });
+
+  describe('reconnect login', () => {
+    it('should include the persisted sessid when reconnecting with a stored voice_sdk_id', async () => {
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"previous-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(true);
+      expect(request.params.sessid).toBe('previous-sessid');
+    });
+
+    it('should persist the successful login sessid for future reconnects', async () => {
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"server-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      expect(instance.sessionid).toBe('server-sessid');
+      expect(getReconnectSessionId()).toBe('server-sessid');
     });
   });
 

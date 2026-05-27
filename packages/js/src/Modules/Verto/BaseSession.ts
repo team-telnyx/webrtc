@@ -44,7 +44,12 @@ import {
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
 import logger, { setConsoleLoggerMinLevel } from './util/logger';
-import { getReconnectToken, clearReconnectToken } from './util/reconnect';
+import {
+  getReconnectSessionId,
+  getReconnectToken,
+  clearReconnectToken,
+  setReconnectSessionId,
+} from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
@@ -667,14 +672,19 @@ export default abstract class BaseSession {
     onError?: (error: any) => void;
   }): Promise<void> {
     let msg: Login | AnonymousLogin;
+    const reconnectToken = getReconnectToken();
+    const isReconnection = !!reconnectToken;
+    const reconnectSessionId =
+      this.sessionid || (isReconnection ? getReconnectSessionId() : null) || '';
+
     if (type === 'login') {
       msg = new Login(
         this.options.login,
         this.options.password || this.options.passwd,
         this.options.login_token,
-        this.sessionid,
+        reconnectSessionId,
         this.options.userVariables,
-        !!getReconnectToken()
+        isReconnection
       );
     } else {
       msg = new AnonymousLogin({
@@ -682,9 +692,9 @@ export default abstract class BaseSession {
         target_type: this.options.anonymous_login.target_type,
         target_version_id: this.options.anonymous_login.target_version_id,
         target_params: this.options.anonymous_login.target_params,
-        sessionId: this.sessionid,
+        sessionId: reconnectSessionId,
         userVariables: this.options.userVariables,
-        reconnection: !!getReconnectToken(),
+        reconnection: isReconnection,
       });
     }
 
@@ -695,6 +705,9 @@ export default abstract class BaseSession {
 
     if (response) {
       this.sessionid = response.sessid;
+      if (this.sessionid) {
+        setReconnectSessionId(this.sessionid);
+      }
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }
