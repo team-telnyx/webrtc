@@ -13,6 +13,7 @@ IClientOptions
 - [enableCallReports](#enablecallreports)
 - [env](#env)
 - [forceRelayCandidate](#forcerelaycandidate)
+- [hangupOnBeforeUnload](#hanguponbeforeunload)
 - [iceServers](#iceservers)
 - [keepConnectionAliveOnSocketClose](#keepconnectionaliveonsocketclose)
 - [login](#login)
@@ -128,6 +129,23 @@ So far this property is only for internal purposes.
 • `Optional` **forceRelayCandidate**: `boolean`
 
 Force the use of a relay ICE candidate.
+
+---
+
+### hangupOnBeforeUnload
+
+• `Optional` **hangupOnBeforeUnload**: `boolean`
+
+Controls whether the SDK attempts to send BYE for active calls during
+browser page unload. Enabled by default to preserve graceful call cleanup,
+but applications that handle page lifecycle themselves can disable it to
+avoid best-effort unload BYE races.
+
+**`Default`**
+
+```ts
+true;
+```
 
 ---
 

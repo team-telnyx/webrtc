@@ -1,3 +1,11 @@
+## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
+
+- fix: include sessid on reconnect login (#657)
+- fix: preserve reconnect token across unload (#656)
+- fix: relax signaling health probe cadence (#655)
+- fix: allow disabling beforeunload BYE (#653)
+- chore: release webrtc@2.27.0 (#652)
+
 ## [2.27.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.4...webrtc/v2.27.0) (2026-05-22)
 
 ### Call/media recovery
