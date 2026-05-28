@@ -257,6 +257,33 @@ const client = new TelnyxRTC({
 client.connect();
 ```
 
+By default, anonymous login starts a new AI Assistant conversation. Do not pass
+`target_params.conversation_id` for application session tracking or as a
+customer-generated correlation ID.
+
+`target_params.conversation_id` is only for joining an existing Telnyx AI
+conversation:
+
+```js
+const client = new TelnyxRTC({
+  anonymous_login: {
+    target_id: 'assistant-UUID',
+    target_type: 'ai_assistant',
+    target_params: {
+      conversation_id: 'existing-telnyx-conversation-id',
+    },
+  },
+});
+```
+
+When `conversation_id` is omitted, the TeXML endpoint starts a new conversation
+with `<AIAssistant id="...">`. When it is provided, voice-sdk-proxy forwards it
+as the `X-AI-Assistant-Conversation-ID` SIP header and the TeXML endpoint uses
+`<AIAssistant join="...">` to attach the call to that existing conversation. If
+the conversation does not exist or does not belong to the caller's
+project/account, the join fails (for example with AI Assistant error code
+`10007`: `The conversation does not exist or does not belong to this user`).
+
 ### Making Calls to AI Assistants
 
 Making calls to the AI assistant is similar to making calls with a SIP connection. You can use the `newCall` method to initiate a call, the destination number can be left blank.
