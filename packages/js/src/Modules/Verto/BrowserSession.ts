@@ -13,7 +13,7 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   NETWORK_OFFLINE,
 } from './util/constants';
-import { State, DeviceType } from './webrtc/constants';
+import { State, DeviceType, GatewayStateType } from './webrtc/constants';
 import {
   getDevices,
   scanResolutions,
@@ -78,7 +78,7 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   get reconnectDelay() {
-    return 1000;
+    return super.reconnectDelay;
   }
 
   async getIsRegistered(): Promise<boolean> {
@@ -777,6 +777,48 @@ export default abstract class BrowserSession extends BaseSession {
     return response;
   }
 
+  private _isCallInProgress(call: IWebRTCCall): boolean {
+    const terminalStates = new Set<State>([
+      State.Hangup,
+      State.Destroy,
+      State.Purge,
+    ]);
+
+    const internalState = (call as unknown as { _state?: State })._state;
+    if (internalState !== undefined) {
+      return !terminalStates.has(internalState);
+    }
+
+    return !['done', 'hangup', 'destroy', 'purge'].includes(call.state);
+  }
+
+  private _hasHealthyCallInProgress(): boolean {
+    return Object.values(this.calls).some((call) => {
+      if (!call || !this._isCallInProgress(call)) return false;
+      if (call.signalingStateClosed) return false;
+      return Boolean(call.peer?.isConnectionHealthy?.());
+    });
+  }
+
+  private _shouldSkipOnlineReconnect(): boolean {
+    const gatewayState = this.connection?.previousGatewayState;
+    const isConnected = Boolean(this.connection?.connected);
+    const isRegistered = gatewayState === GatewayStateType.REGED;
+    const hasHealthyCallInProgress = this._hasHealthyCallInProgress();
+
+    if (isConnected || isRegistered || hasHealthyCallInProgress) {
+      logger.debug('Skipping online reconnect', {
+        sessionId: this.sessionid,
+        isConnected,
+        gatewayState,
+        hasHealthyCallInProgress,
+      });
+      return true;
+    }
+
+    return false;
+  }
+
   private _setupNetworkListeners() {
     if (typeof window === 'undefined') {
       return;
@@ -785,16 +827,26 @@ export default abstract class BrowserSession extends BaseSession {
     this._onlineHandler = () => {
       /**
        * Once offline, there's no guarantee the connection across client and server both ways is still alive as PINGs from server may be missed.
-       * Therefore, reconnect to be safe.
+       * Only reconnect when the socket is not already healthy and there is no healthy in-progress call to preserve.
        */
-      if (this._wasOffline) {
-        logger.debug(
-          `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
-        );
-        this._wasOffline = false;
-        this._autoReconnect = true; // Ensure auto-reconnect is enabled
-        this.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
+      if (!this._wasOffline) {
+        return;
       }
+
+      logger.debug(
+        `Network connectivity restored for session ${this.sessionid}. Checking whether reconnect is needed...`
+      );
+      this._wasOffline = false;
+
+      if (this._shouldSkipOnlineReconnect()) {
+        return;
+      }
+
+      logger.debug(
+        `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
+      );
+      this._autoReconnect = true;
+      this.connect();
     };
 
     this._offlineHandler = () => {

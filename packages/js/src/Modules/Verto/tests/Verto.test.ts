@@ -3,6 +3,7 @@ import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
+import { State } from '../webrtc/constants';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -16,6 +17,7 @@ import {
   setReconnectToken,
 } from '../util/reconnect';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Connection = require('../services/Connection');
 
 describe('Verto', () => {
@@ -51,11 +53,150 @@ describe('Verto', () => {
     Connection.mockSend.mockClear();
     Connection.default.mockClear();
     Connection.mockClose.mockClear();
+    Connection.mockConnect.mockClear();
+    Connection.connected.mockReturnValue(true);
+    Connection.isAlive.mockReturnValue(true);
     clearReconnectToken();
   });
 
   it('should instantiate Verto with default methods', () => {
     expect(instance).toBeInstanceOf(Verto);
+  });
+
+  describe('browser online reconnect guard', () => {
+    const markWasOffline = (telnyxRTC: Verto) => {
+      (telnyxRTC as unknown as { _wasOffline: boolean })._wasOffline = true;
+    };
+
+    const buildInstanceWithNetworkHandlers = () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+      });
+      const onlineHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'online'
+      )?.[1] as EventListener;
+
+      expect(onlineHandler).toBeDefined();
+
+      return { telnyxRTC, onlineHandler, addEventListenerSpy };
+    };
+
+    it('does not force socketDisconnect on browser online when the socket is already connected', () => {
+      Connection.connected.mockReturnValue(true);
+      Connection.isAlive.mockReturnValue(true);
+      const { telnyxRTC, onlineHandler, addEventListenerSpy } =
+        buildInstanceWithNetworkHandlers();
+
+      markWasOffline(telnyxRTC);
+      onlineHandler(new Event('online'));
+
+      expect(Connection.mockClose).not.toHaveBeenCalled();
+      expect(Connection.mockConnect).not.toHaveBeenCalled();
+
+      addEventListenerSpy.mockRestore();
+    });
+
+    it('does not force socketDisconnect on browser online when the session is already registered', () => {
+      Connection.connected.mockReturnValue(false);
+      Connection.isAlive.mockReturnValue(false);
+      const { telnyxRTC, onlineHandler, addEventListenerSpy } =
+        buildInstanceWithNetworkHandlers();
+      telnyxRTC.connection.previousGatewayState = 'REGED';
+
+      markWasOffline(telnyxRTC);
+      onlineHandler(new Event('online'));
+
+      expect(Connection.mockClose).not.toHaveBeenCalled();
+      expect(Connection.mockConnect).not.toHaveBeenCalled();
+
+      addEventListenerSpy.mockRestore();
+    });
+
+    it.each([
+      ['being set up', State.Trying, 'connecting'],
+      ['active', State.Active, 'active'],
+    ])(
+      'does not reconnect on browser online while a call is %s and healthy',
+      (_description, state, publicState) => {
+        Connection.connected.mockReturnValue(false);
+        Connection.isAlive.mockReturnValue(false);
+        const { telnyxRTC, onlineHandler, addEventListenerSpy } =
+          buildInstanceWithNetworkHandlers();
+        telnyxRTC.calls = {
+          callA: {
+            _state: state,
+            state: publicState,
+            signalingStateClosed: false,
+            peer: { isConnectionHealthy: jest.fn(() => true) },
+          } as unknown as IWebRTCCall,
+        };
+
+        markWasOffline(telnyxRTC);
+        onlineHandler(new Event('online'));
+
+        expect(Connection.mockClose).not.toHaveBeenCalled();
+        expect(Connection.mockConnect).not.toHaveBeenCalled();
+
+        addEventListenerSpy.mockRestore();
+      }
+    );
+
+    it.each([
+      ['active but peer unhealthy', State.Active, 'active', false],
+      [
+        'being set up but peer health is unknown',
+        State.Trying,
+        'connecting',
+        undefined,
+      ],
+    ])(
+      'reconnects on browser online when a call is %s',
+      (_description, state, publicState, isHealthy) => {
+        Connection.connected.mockReturnValue(false);
+        Connection.isAlive.mockReturnValue(false);
+        const { telnyxRTC, onlineHandler, addEventListenerSpy } =
+          buildInstanceWithNetworkHandlers();
+        telnyxRTC.calls = {
+          callA: {
+            _state: state,
+            state: publicState,
+            signalingStateClosed: false,
+            peer:
+              isHealthy === undefined
+                ? undefined
+                : { isConnectionHealthy: jest.fn(() => isHealthy) },
+          } as unknown as IWebRTCCall,
+        };
+
+        markWasOffline(telnyxRTC);
+        onlineHandler(new Event('online'));
+
+        expect(Connection.mockClose).not.toHaveBeenCalled();
+        expect(Connection.mockConnect).toHaveBeenCalledTimes(1);
+
+        addEventListenerSpy.mockRestore();
+      }
+    );
+
+    it('reconnects without socketDisconnect on browser online when the socket is not connected and there are no calls', () => {
+      Connection.connected.mockReturnValue(false);
+      Connection.isAlive.mockReturnValue(false);
+      const { telnyxRTC, onlineHandler, addEventListenerSpy } =
+        buildInstanceWithNetworkHandlers();
+
+      markWasOffline(telnyxRTC);
+      onlineHandler(new Event('online'));
+
+      expect(Connection.mockClose).not.toHaveBeenCalled();
+      expect(Connection.mockConnect).toHaveBeenCalledTimes(1);
+
+      addEventListenerSpy.mockRestore();
+    });
   });
 
   describe('beforeunload hangup', () => {

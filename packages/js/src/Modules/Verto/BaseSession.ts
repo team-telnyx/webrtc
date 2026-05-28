@@ -35,7 +35,6 @@ import {
   isFunction,
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
-  randomInt,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -150,7 +149,10 @@ export default abstract class BaseSession {
   }
 
   get reconnectDelay() {
-    return randomInt(2, 6) * 1000;
+    const attempt = Math.max(this._reconnectAttempts, 1);
+    const baseDelayMs = 1000;
+    const maxDelayMs = 30000;
+    return Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
   }
 
   /**
