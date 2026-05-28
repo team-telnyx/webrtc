@@ -45,6 +45,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { clearReconnectSessionId } from '../util/reconnect';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -2357,6 +2358,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     deRegister(SwEvent.PeerConnectionSignalingStateClosed, null, this.id);
     this.session.calls[this.id] = null;
     delete this.session.calls[this.id];
+
+    if (Object.keys(this.session.calls).length === 0) {
+      clearReconnectSessionId();
+    }
 
     // Post call report after cleanup. The upload runs in the background,
     // but the session tracks it so disconnect() can wait instead of racing

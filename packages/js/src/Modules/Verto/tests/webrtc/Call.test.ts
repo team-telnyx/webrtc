@@ -19,6 +19,13 @@ import {
   SwEvent,
 } from '../../util/constants';
 import logger from '../../util/logger';
+import {
+  clearReconnectToken,
+  getReconnectSessionId,
+  getReconnectToken,
+  setReconnectSessionId,
+  setReconnectToken,
+} from '../../util/reconnect';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -62,6 +69,7 @@ describe('Call', () => {
   const noop = (): void => {};
 
   beforeEach(async (done) => {
+    clearReconnectToken();
     session = new Verto({
       host: 'example.fs.telnyx',
       login: 'login',
@@ -165,6 +173,33 @@ describe('Call', () => {
       expect(call.prevState).toEqual('ringing');
       call.setState(State.Hangup);
       expect(call.prevState).toEqual('active');
+    });
+  });
+
+  describe('reconnect sessid cleanup', () => {
+    it('clears the persisted reconnect sessid when the last call hangs up but keeps the reconnect token', async () => {
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
+
+      await call.hangup({}, false);
+
+      expect(getReconnectToken()).toBe('voice-sdk-id');
+      expect(getReconnectSessionId()).toBeNull();
+    });
+
+    it('keeps the persisted reconnect sessid while another call is still active', async () => {
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId('previous-sessid');
+      const secondCall = new Call(session, {
+        ...defaultParams,
+        id: 'second-call',
+      });
+
+      await call.hangup({}, false);
+
+      expect(session.calls).toHaveProperty(secondCall.id);
+      expect(getReconnectToken()).toBe('voice-sdk-id');
+      expect(getReconnectSessionId()).toBe('previous-sessid');
     });
   });
 
