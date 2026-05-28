@@ -17,17 +17,45 @@ export interface ICredentials {
  * Known keys are typed explicitly for discoverability and autocomplete.
  * Unknown keys are still accepted and forwarded as-is.
  *
- * @example
+ * `conversation_id` is not a customer-defined correlation ID. Set it only
+ * when you want the WebRTC call to join an existing Telnyx AI conversation
+ * that belongs to the same project/account. Omit it to start a new AI
+ * Assistant conversation.
+ *
+ * @example Start a new AI Assistant conversation (most common)
  * ```ts
- * target_params: {
- *   conversation_id: 'conv-123',  // → X-AI-Assistant-Conversation-ID
+ * anonymous_login: {
+ *   target_id: 'assistant-UUID',
+ *   target_type: 'ai_assistant',
+ * }
+ * ```
+ *
+ * @example Join an existing Telnyx AI conversation
+ * ```ts
+ * anonymous_login: {
+ *   target_id: 'assistant-UUID',
+ *   target_type: 'ai_assistant',
+ *   target_params: {
+ *     conversation_id: 'existing-telnyx-conversation-id', // → X-AI-Assistant-Conversation-ID
+ *   },
  * }
  * ```
  */
 export interface TargetParams {
   /**
-   * The conversation ID to join an existing conversation.
-   * Mapped to `X-AI-Assistant-Conversation-ID` on the SIP INVITE.
+   * Telnyx AI conversation ID to join.
+   *
+   * When omitted, the TeXML endpoint starts a new conversation by rendering
+   * `<AIAssistant id="...">`. When provided, voice-sdk-proxy maps the value
+   * to `X-AI-Assistant-Conversation-ID` on the SIP INVITE, and the TeXML
+   * endpoint renders `<AIAssistant join="...">` to attach the call to that
+   * existing conversation.
+   *
+   * Do not use this field for application session tracking or as an external
+   * correlation ID. If the ID does not exist, or does not belong to the caller's
+   * project/account, the join attempt fails (for example with AI Assistant
+   * error code `10007`: `The conversation does not exist or does not belong to
+   * this user`).
    */
   conversation_id?: string;
   /** Allow additional pass-through parameters. */
@@ -134,6 +162,8 @@ export interface IClientOptions {
     /**
      * Optional parameters to pass to the target.
      * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+     * Use `target_params.conversation_id` only to join an existing Telnyx AI
+     * conversation; omit it to start a new conversation.
      * @see {@link TargetParams}
      */
     target_params?: TargetParams;
