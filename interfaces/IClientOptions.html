@@ -77,7 +77,9 @@ this is typically the ID of the AI assistant you want to connect to.</p>
 <li class="tsd-parameter">
 <h5><code class="tsd-tag ts-flagOptional">Optional</code> <span class="tsd-kind-property">target_<wbr/>params</span><span class="tsd-signature-symbol">?: </span><a href="TargetParams.html" class="tsd-signature-type tsd-kind-interface">TargetParams</a></h5>
 <div class="tsd-comment tsd-typography"><p>Optional parameters to pass to the target.
-These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.</p>
+These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+Use <code>target_params.conversation_id</code> only to join an existing Telnyx AI
+conversation; omit it to start a new conversation.</p>
 </div>
 <div class="tsd-comment tsd-typography">
 <h4>See</h4><p><a href="TargetParams.html" class="tsd-kind-interface">TargetParams</a></p>

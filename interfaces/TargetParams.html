@@ -20,9 +20,18 @@
 These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.</p>
 <p>Known keys are typed explicitly for discoverability and autocomplete.
 Unknown keys are still accepted and forwarded as-is.</p>
+<p><code>conversation_id</code> is not a customer-defined correlation ID. Set it only
+when you want the WebRTC call to join an existing Telnyx AI conversation
+that belongs to the same project/account. Omit it to start a new AI
+Assistant conversation.</p>
 </div>
 <div class="tsd-comment tsd-typography">
-<h4>Example</h4><pre><code class="language-ts"><span class="hl-14">target_params</span><span class="hl-1">: {</span><br/><span class="hl-1">  </span><span class="hl-14">conversation_id</span><span class="hl-1">: </span><span class="hl-6">&#39;conv-123&#39;</span><span class="hl-1">,  </span><span class="hl-5">// → X-AI-Assistant-Conversation-ID</span><br/><span class="hl-1">}</span>
+<h4>Example</h4><p>Start a new AI Assistant conversation (most common)</p>
+<pre><code class="language-ts"><span class="hl-14">anonymous_login</span><span class="hl-1">: {</span><br/><span class="hl-1">  </span><span class="hl-14">target_id</span><span class="hl-1">: </span><span class="hl-6">&#39;assistant-UUID&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-14">target_type</span><span class="hl-1">: </span><span class="hl-6">&#39;ai_assistant&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">}</span>
+</code><button>Copy</button></pre>
+
+<h4>Example</h4><p>Join an existing Telnyx AI conversation</p>
+<pre><code class="language-ts"><span class="hl-14">anonymous_login</span><span class="hl-1">: {</span><br/><span class="hl-1">  </span><span class="hl-14">target_id</span><span class="hl-1">: </span><span class="hl-6">&#39;assistant-UUID&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-14">target_type</span><span class="hl-1">: </span><span class="hl-6">&#39;ai_assistant&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-14">target_params</span><span class="hl-1">: {</span><br/><span class="hl-1">    </span><span class="hl-14">conversation_id</span><span class="hl-1">: </span><span class="hl-6">&#39;existing-telnyx-conversation-id&#39;</span><span class="hl-1">, </span><span class="hl-5">// → X-AI-Assistant-Conversation-ID</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">}</span>
 </code><button>Copy</button></pre>
 </div></section>
 <section class="tsd-panel tsd-hierarchy">
@@ -43,8 +52,16 @@ Unknown keys are still accepted and forwarded as-is.</p>
 <section class="tsd-panel tsd-member"><a id="conversation_id" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>conversation_<wbr/>id</span><a href="#conversation_id" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><g stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" id="icon-anchor"><path stroke="none" d="M0 0h24v24H0z" fill="none"></path><path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5"></path><path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5"></path></g></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">conversation_<wbr/>id</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
-<div class="tsd-comment tsd-typography"><p>The conversation ID to join an existing conversation.
-Mapped to <code>X-AI-Assistant-Conversation-ID</code> on the SIP INVITE.</p>
+<div class="tsd-comment tsd-typography"><p>Telnyx AI conversation ID to join.</p>
+<p>When omitted, the TeXML endpoint starts a new conversation by rendering
+<code>&lt;AIAssistant id=&quot;...&quot;&gt;</code>. When provided, voice-sdk-proxy maps the value
+to <code>X-AI-Assistant-Conversation-ID</code> on the SIP INVITE, and the TeXML
+endpoint renders <code>&lt;AIAssistant join=&quot;...&quot;&gt;</code> to attach the call to that
+existing conversation.</p>
+<p>Do not use this field for application session tracking or as an external
+correlation ID. If the ID does not exist, or does not belong to the caller&#39;s
+project/account, the join attempt fails (for example with AI Assistant
+error code <code>10007</code>: <code>The conversation does not exist or does not belong to this user</code>).</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section></section></div>
 <div class="col-sidebar">
