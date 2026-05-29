@@ -474,6 +474,27 @@ describe('Call', () => {
       expect(call['_creatingPeer']).toBe(false);
     });
 
+    it('answer() applies audioStartupRepro params before creating inbound peer', async () => {
+      const initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+
+      await answerCall.answer({
+        audioStartupRepro: { enabled: true, frequencyHz: 880, gain: 0.3 },
+      });
+
+      expect(answerCall.options.audioStartupRepro).toEqual({
+        enabled: true,
+        frequencyHz: 880,
+        gain: 0.3,
+      });
+      expect(initSpy).toHaveBeenCalledTimes(1);
+    });
+
     it('answer() with receiveOnlyAudio should not throw on getUserMedia failure', async () => {
       // For receive-only peers (no local audio), media failure is expected and
       // should NOT cause createPeerConnection to throw. We verify this by

@@ -135,6 +135,15 @@ export interface AnswerParams {
    * ### Setting Media Constraints
    */
   video?: boolean;
+
+  /**
+   * SDK-level startup audio repro source for inbound answers.
+   *
+   * Investigation-only: replaces outbound microphone audio with a deterministic
+   * sine tone before the peer is initialized. This mirrors the outbound
+   * `newCall({ audioStartupRepro })` option for inbound `call.answer(...)`.
+   */
+  audioStartupRepro?: boolean | IAudioStartupReproOptions;
 }
 
 export interface IWebRTCCall {

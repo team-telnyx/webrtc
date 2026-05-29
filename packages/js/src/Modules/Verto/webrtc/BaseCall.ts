@@ -497,10 +497,18 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.direction = Direction.Inbound;
 
-    if (params?.customHeaders?.length > 0) {
+    if (
+      params?.customHeaders?.length > 0 ||
+      params?.audioStartupRepro !== undefined
+    ) {
       this.options = {
         ...this.options,
-        customHeaders: params.customHeaders,
+        ...(params?.customHeaders?.length > 0
+          ? { customHeaders: params.customHeaders }
+          : {}),
+        ...(params?.audioStartupRepro !== undefined
+          ? { audioStartupRepro: params.audioStartupRepro }
+          : {}),
       };
     }
 
