@@ -586,6 +586,14 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
+    if (streamIsValid(this.options.localStream)) {
+      // Start the deterministic repro source as soon as local media is ready,
+      // before stats collection, transceiver setup, SDP offer/answer creation,
+      // ICE/DTLS, or call-active. This ensures the first sendable RTP carries
+      // generated audio instead of creating the source later in init().
+      this._getAudioStartupSenderStream(this.options.localStream);
+    }
+
     performance.mark(callMarkName(this.options.id, 'peer-creation-end'));
   }
 
@@ -665,6 +673,26 @@ export default class Peer {
       this._iceGatheringSafetyTimeout = null;
     }
   }
+
+  private _getAudioStartupSenderStream(localStream: MediaStream): MediaStream {
+    if (this._audioStartupReproController) {
+      return this._audioStartupReproController.stream;
+    }
+
+    const repro = createAudioStartupReproStream(
+      localStream,
+      this.options.audioStartupRepro,
+      this.options.userVariables
+    );
+
+    if (repro) {
+      this._audioStartupReproController = repro;
+      return repro.stream;
+    }
+
+    return localStream;
+  }
+
   async init() {
     await this.createPeerConnection();
 
@@ -696,16 +724,7 @@ export default class Peer {
     } = this.options;
 
     if (streamIsValid(localStream)) {
-      const repro = createAudioStartupReproStream(
-        localStream,
-        this.options.audioStartupRepro,
-        this.options.userVariables
-      );
-      const senderStream = repro?.stream || localStream;
-
-      if (repro) {
-        this._audioStartupReproController = repro;
-      }
+      const senderStream = this._getAudioStartupSenderStream(localStream);
 
       const audioTracks = senderStream.getAudioTracks();
       let tracks = [...audioTracks];

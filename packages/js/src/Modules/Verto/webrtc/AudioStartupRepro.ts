@@ -111,6 +111,12 @@ export function createAudioStartupReproStream(
     gainNode.connect(destination);
     oscillator.start(0);
 
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => {
+        logger.warn('Audio startup repro AudioContext resume failed');
+      });
+    }
+
     const destinationAudioTrack = destination.stream.getAudioTracks()[0];
     const senderStream = new MediaStream();
     senderStream.addTrack(destinationAudioTrack);

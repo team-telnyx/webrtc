@@ -38,6 +38,7 @@ const mockAudioContext = {
   createGain: jest.fn(() => mockGainNode),
   createMediaStreamDestination: jest.fn(() => mockDestination),
   close: jest.fn(() => Promise.resolve()),
+  resume: jest.fn(() => Promise.resolve()),
   state: 'running',
 };
 
@@ -134,6 +135,14 @@ describe('createAudioStartupReproStream', () => {
       mockAudioContext.currentTime
     );
     expect(mockOscillator.start).toHaveBeenCalledWith(0);
+  });
+
+  it('resumes a suspended AudioContext so generated audio is ready for first RTP', () => {
+    mockAudioContext.state = 'suspended';
+
+    createAudioStartupReproStream(createMockStream(), true);
+
+    expect(mockAudioContext.resume).toHaveBeenCalled();
   });
 
   it('returns sender stream with generated audio and original video tracks', () => {
