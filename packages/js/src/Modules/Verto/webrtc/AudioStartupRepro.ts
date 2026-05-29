@@ -7,6 +7,9 @@ const MAX_FREQUENCY_HZ = 4000;
 const DEFAULT_GAIN = 0.2;
 const MIN_GAIN = 0;
 const MAX_GAIN = 1;
+const DEFAULT_DELAY_MS = 0;
+const MIN_DELAY_MS = 0;
+const MAX_DELAY_MS = 10000;
 
 export type AudioStartupReproController = {
   /** Stream to add to RTCPeerConnection: generated audio + original video tracks. */
@@ -17,7 +20,12 @@ export type AudioStartupReproController = {
 
 export function normalizeAudioStartupReproOptions(
   option: boolean | IAudioStartupReproOptions | undefined
-): { enabled: true; frequencyHz: number; gain: number } | null {
+): {
+  enabled: true;
+  frequencyHz: number;
+  gain: number;
+  delayMs: number;
+} | null {
   if (option === undefined || option === false) {
     return null;
   }
@@ -27,6 +35,7 @@ export function normalizeAudioStartupReproOptions(
       enabled: true,
       frequencyHz: DEFAULT_FREQUENCY_HZ,
       gain: DEFAULT_GAIN,
+      delayMs: DEFAULT_DELAY_MS,
     };
   }
 
@@ -42,8 +51,12 @@ export function normalizeAudioStartupReproOptions(
     MIN_GAIN,
     Math.min(option.gain ?? DEFAULT_GAIN, MAX_GAIN)
   );
+  const delayMs = Math.max(
+    MIN_DELAY_MS,
+    Math.min(option.delayMs ?? DEFAULT_DELAY_MS, MAX_DELAY_MS)
+  );
 
-  return { enabled: true, frequencyHz, gain };
+  return { enabled: true, frequencyHz, gain, delayMs };
 }
 
 function getAudioContextConstructor(): (new () => AudioContext) | null {
@@ -109,7 +122,9 @@ export function createAudioStartupReproStream(
 
     oscillator.connect(gainNode);
     gainNode.connect(destination);
-    oscillator.start(0);
+    const startTime =
+      config.delayMs > 0 ? audioContext.currentTime + config.delayMs / 1000 : 0;
+    oscillator.start(startTime);
 
     if (audioContext.state === 'suspended') {
       audioContext.resume().catch(() => {
@@ -159,7 +174,7 @@ export function createAudioStartupReproStream(
     };
 
     logger.info(
-      `Audio startup repro enabled frequencyHz=${config.frequencyHz} gain=${config.gain}`
+      `Audio startup repro enabled frequencyHz=${config.frequencyHz} gain=${config.gain} delayMs=${config.delayMs}`
     );
 
     return { stream: senderStream, cleanup };

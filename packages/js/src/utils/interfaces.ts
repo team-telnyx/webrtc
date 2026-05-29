@@ -319,6 +319,8 @@ export interface IAudioStartupReproOptions {
   frequencyHz?: number;
   /** Output gain. Default 0.2, clamped to 0..1. */
   gain?: number;
+  /** Delay before tone starts, in milliseconds. Default 0, clamped to 0..10000. */
+  delayMs?: number;
 }
 
 /**

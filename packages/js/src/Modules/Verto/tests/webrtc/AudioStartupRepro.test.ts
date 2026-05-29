@@ -97,17 +97,26 @@ describe('normalizeAudioStartupReproOptions', () => {
       enabled: true,
       frequencyHz: 440,
       gain: 0.2,
+      delayMs: 0,
     });
   });
 
-  it('clamps frequency and gain to safe repro ranges', () => {
+  it('clamps frequency, gain, and delay to safe repro ranges', () => {
     expect(
-      normalizeAudioStartupReproOptions({ frequencyHz: 12000, gain: 5 })
-    ).toEqual({ enabled: true, frequencyHz: 4000, gain: 1 });
+      normalizeAudioStartupReproOptions({
+        frequencyHz: 12000,
+        gain: 5,
+        delayMs: 60000,
+      })
+    ).toEqual({ enabled: true, frequencyHz: 4000, gain: 1, delayMs: 10000 });
 
     expect(
-      normalizeAudioStartupReproOptions({ frequencyHz: -1, gain: -1 })
-    ).toEqual({ enabled: true, frequencyHz: 20, gain: 0 });
+      normalizeAudioStartupReproOptions({
+        frequencyHz: -1,
+        gain: -1,
+        delayMs: -1,
+      })
+    ).toEqual({ enabled: true, frequencyHz: 20, gain: 0, delayMs: 0 });
   });
 });
 
@@ -119,7 +128,7 @@ describe('createAudioStartupReproStream', () => {
     expect(createAudioStartupReproStream(createMockStream(), false)).toBeNull();
   });
 
-  it('creates and starts a tone immediately', () => {
+  it('creates and starts a tone immediately by default', () => {
     const controller = createAudioStartupReproStream(createMockStream(), {
       frequencyHz: 880,
       gain: 0.35,
@@ -135,6 +144,20 @@ describe('createAudioStartupReproStream', () => {
       mockAudioContext.currentTime
     );
     expect(mockOscillator.start).toHaveBeenCalledWith(0);
+  });
+
+  it('can delay tone start while keeping the sender track available immediately', () => {
+    mockAudioContext.currentTime = 3;
+
+    const controller = createAudioStartupReproStream(createMockStream(), {
+      frequencyHz: 880,
+      gain: 0.35,
+      delayMs: 2500,
+    });
+
+    expect(controller).not.toBeNull();
+    expect(controller!.stream.getAudioTracks()[0]).toBe(mockDestinationTrack);
+    expect(mockOscillator.start).toHaveBeenCalledWith(5.5);
   });
 
   it('resumes a suspended AudioContext so generated audio is ready for first RTP', () => {
