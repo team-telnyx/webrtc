@@ -1,5 +1,7 @@
 import type { ICallReportFlushReason } from './CallReportCollector';
 import { State } from './constants';
+export type { IAudioStartupReproOptions } from '../../../utils/interfaces';
+import type { IAudioStartupReproOptions } from '../../../utils/interfaces';
 
 export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
@@ -96,6 +98,14 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
+  /**
+   * SDK-level startup audio repro source.
+   *
+   * Intended for controlled investigation only: replaces outbound microphone
+   * audio with a deterministic sine tone that starts immediately when the
+   * sender track is created. Leave disabled in production.
+   */
+  audioStartupRepro?: boolean | IAudioStartupReproOptions;
 }
 
 export interface IStatsBinding {

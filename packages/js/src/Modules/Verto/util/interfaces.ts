@@ -1,5 +1,8 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
-import { TargetParams } from '../../../utils/interfaces';
+import {
+  IAudioStartupReproOptions,
+  TargetParams,
+} from '../../../utils/interfaces';
 
 export type Environment = 'production' | 'development';
 export interface IVertoOptions {
@@ -130,6 +133,12 @@ export interface IVertoOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * SDK-level startup audio repro source.
+   * Investigation only: sends a deterministic sine tone immediately.
+   */
+  audioStartupRepro?: boolean | IAudioStartupReproOptions;
 }
 export interface ILoginParams {
   login?: string;

@@ -297,6 +297,28 @@ export interface IClientOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * SDK-level startup audio repro source.
+   *
+   * Investigation-only option: replaces outbound microphone audio with a
+   * deterministic sine tone that starts immediately when the sender track is
+   * created. Can be overridden per-call via `ICallOptions.audioStartupRepro`.
+   * Leave disabled in production.
+   */
+  audioStartupRepro?: boolean | IAudioStartupReproOptions;
+}
+
+/**
+ * Configuration for SDK-level startup audio repro source.
+ */
+export interface IAudioStartupReproOptions {
+  /** Enable the deterministic outbound startup repro tone. Defaults to true for object form. */
+  enabled?: boolean;
+  /** Sine tone frequency in Hz. Default 440, clamped to 20..4000. */
+  frequencyHz?: number;
+  /** Output gain. Default 0.2, clamped to 0..1. */
+  gain?: number;
 }
 
 /**
@@ -436,6 +458,12 @@ export interface ICallOptions {
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
+  /**
+   * SDK-level startup audio repro source for this call.
+   * Overrides the client-level `audioStartupRepro` setting.
+   * Investigation only: sends a deterministic sine tone immediately.
+   */
+  audioStartupRepro?: boolean | IAudioStartupReproOptions;
 }
 
 /**

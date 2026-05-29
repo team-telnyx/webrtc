@@ -289,6 +289,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         keepConnectionAliveOnSocketClose:
           options.keepConnectionAliveOnSocketClose,
         mutedMicOnStart: options.mutedMicOnStart,
+        audioStartupRepro: options.audioStartupRepro,
       },
       opts
     );
@@ -897,6 +898,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       audioTrack.enabled = !muted;
       sender.replaceTrack(audioTrack);
       this.options.micId = deviceId;
+      this.peer?.cleanupAudioStartupRepro();
 
       const { localStream } = this.options;
       localStream.getAudioTracks().forEach((t) => t.stop());

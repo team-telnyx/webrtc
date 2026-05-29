@@ -4,6 +4,7 @@ import {
   ICallOptions,
   ICredentials,
   INotification,
+  IAudioStartupReproOptions,
 } from './utils/interfaces';
 import { SwEvent } from './Modules/Verto/util/constants';
 import {
@@ -19,6 +20,7 @@ export {
   ICallOptions,
   ICredentials,
   INotification,
+  IAudioStartupReproOptions,
   SwEvent,
   NOTIFICATION_TYPE,
   ERROR_TYPE,

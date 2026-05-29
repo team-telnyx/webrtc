@@ -48,6 +48,10 @@ import {
   getPreferredCodecs,
   getUserMedia,
 } from './helpers';
+import {
+  createAudioStartupReproStream,
+  AudioStartupReproController,
+} from './AudioStartupRepro';
 import { IVertoCallOptions } from './interfaces';
 
 export type RestartIceResult = {
@@ -85,6 +89,7 @@ export default class Peer {
   private _timingsCollected: boolean = false;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
+  private _audioStartupReproController?: AudioStartupReproController;
 
   constructor(
     public type: PeerType,
@@ -691,7 +696,18 @@ export default class Peer {
     } = this.options;
 
     if (streamIsValid(localStream)) {
-      const audioTracks = localStream.getAudioTracks();
+      const repro = createAudioStartupReproStream(
+        localStream,
+        this.options.audioStartupRepro,
+        this.options.userVariables
+      );
+      const senderStream = repro?.stream || localStream;
+
+      if (repro) {
+        this._audioStartupReproController = repro;
+      }
+
+      const audioTracks = senderStream.getAudioTracks();
       let tracks = [...audioTracks];
 
       logger.info('Local audio tracks: ', audioTracks);
@@ -707,7 +723,7 @@ export default class Peer {
       }
 
       if (!!this.options.video) {
-        const videoTracks = localStream.getVideoTracks();
+        const videoTracks = senderStream.getVideoTracks();
         tracks = [...audioTracks, ...videoTracks];
 
         logger.info('Local video tracks: ', videoTracks);
@@ -731,12 +747,14 @@ export default class Peer {
         // Use addTransceiver
         const transceiverParams: RTCRtpTransceiverInit = {
           direction: 'sendrecv',
-          streams: [localStream],
+          streams: [senderStream],
         };
 
         tracks.forEach((track) => {
           if (track.kind === 'audio') {
-            this.options.userVariables.microphoneLabel = track.label;
+            if (!this._audioStartupReproController) {
+              this.options.userVariables.microphoneLabel = track.label;
+            }
           }
           if (track.kind === 'video') {
             this.options.userVariables.cameraLabel = track.label;
@@ -760,13 +778,15 @@ export default class Peer {
 
         tracks.forEach((track) => {
           if (track.kind === 'audio') {
-            this.options.userVariables.microphoneLabel = track.label;
+            if (!this._audioStartupReproController) {
+              this.options.userVariables.microphoneLabel = track.label;
+            }
           }
           if (track.kind === 'video') {
             this.options.userVariables.cameraLabel = track.label;
           }
 
-          this.instance.addTrack(track, localStream);
+          this.instance.addTrack(track, senderStream);
         });
 
         this.instance.getTransceivers().forEach((trans) => {
@@ -781,7 +801,7 @@ export default class Peer {
         // Fallback to legacy addStream ..
         // addStream is deprecated
         // @ts-expect-error addStream does not exist on RTCPeerConnection
-        this.instance.addStream(localStream);
+        this.instance.addStream(senderStream);
       }
 
       if (screenShare === false) {
@@ -1049,7 +1069,16 @@ export default class Peer {
     );
   }
 
+  public cleanupAudioStartupRepro() {
+    if (this._audioStartupReproController) {
+      this._audioStartupReproController.cleanup();
+      this._audioStartupReproController = undefined;
+    }
+  }
+
   public async close() {
+    this.cleanupAudioStartupRepro();
+
     // Clear call marks when the peer closes to prevent stale marks
     // from leaking into a subsequent call's timing calculation.
     // This covers cleanup paths that don't go through tryCollectTimings()
