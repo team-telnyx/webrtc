@@ -9,8 +9,6 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
 - [Installation](#Installation)
 - [Usage](#Usage)
 - [Examples](#Examples)
-  - [Vanilla JavaScript](#vanilla-javascript)
-  - [React.js](#reactjs)
 - [Error Handling](docs/ERROR_HANDLING.md)
 - [Browser support](#Browser-support)
 - [Development](#Development)
@@ -21,7 +19,7 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
 
 Install the package with:
 
-```
+```bash
 npm install @telnyx/webrtc --save
 ```
 
@@ -213,9 +211,9 @@ PreCallDiagnosis.run({
 
 ### Setting Preferred Codec
 
-You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
+By default, audio codec preferences are ordered with Opus first and the remaining browser-supported codecs as fallbacks. You can pass `preferred_codecs` to the `newCall` method to override codec preference during the call.
 
-`preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs)
+`preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs). For inbound calls, preferences can only select codecs present in the incoming SDP offer.
 
 ```js
 const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
@@ -296,19 +294,7 @@ const call = client.newCall({
 });
 ```
 
-Its recommended that you set the preferred codec to `opus` by passing the `preferred_codecs` option to the `newCall` method when calling AI assistants.
-
-```js
-const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
-const opusCodec = allCodecs.find((c) =>
-  c.mimeType.toLowerCase().includes('opus')
-);
-
-client.newCall({
-  destinationNumber: '',
-  preferred_codecs: [opusCodec],
-});
-```
+Audio codec preferences default to Opus first, which is recommended for AI assistant calls.
 
 ---
 
@@ -361,7 +347,7 @@ This library is written in [TypeScript](https://www.typescriptlang.org/) to defi
 
 To contribute, clone this repo and install locally:
 
-```
+```bash
 npm install
 ```
 
@@ -369,7 +355,7 @@ Afterwards, you're ready to make changes to files in `src`.
 
 To run all tests:
 
-```
+```bash
 npm test
 ```
 

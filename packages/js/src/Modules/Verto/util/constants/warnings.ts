@@ -269,6 +269,36 @@ export const SDK_WARNINGS = {
       'Verify TURN server configuration for relay fallback',
     ],
   },
+  33009: {
+    name: 'CODEC_PREFERENCES_UNSUPPORTED',
+    message: 'Codec preferences could not be applied',
+    description:
+      'The browser or WebRTC implementation does not expose RTCRtpTransceiver.setCodecPreferences for this transceiver, so the SDK cannot enforce the requested codec order. Browser-native codec negotiation will be used instead.',
+    causes: [
+      'The current browser does not support setCodecPreferences',
+      'The transceiver implementation does not expose codec preference controls',
+    ],
+    solutions: [
+      'Use a browser that supports RTCRtpTransceiver.setCodecPreferences',
+      'Inspect the negotiated SDP to confirm the selected codec',
+    ],
+  },
+  33010: {
+    name: 'PREFERRED_CODECS_UNAVAILABLE',
+    message: 'Preferred codec is not available for this call',
+    description:
+      'One or more preferred codecs could not be applied because they were not offered by the remote SDP. For inbound calls, WebRTC answers can only select codecs present in the incoming offer; the SDK will use the remaining compatible codecs when possible.',
+    causes: [
+      'The remote SDP offer does not include Opus or another preferred codec',
+      'The bridge or SIP peer restricted the offered codec list',
+      'The application requested a codec unsupported by the remote party',
+    ],
+    solutions: [
+      'Ensure the remote endpoint or bridge offers the desired codec',
+      'Include fallback codecs in preferred_codecs',
+      'Inspect the incoming SDP offer and negotiated answer codec',
+    ],
+  },
 
   33007: {
     name: 'DUPLICATE_INBOUND_ANSWER',
