@@ -482,6 +482,31 @@ describe('VertoHandler', () => {
       handler.handleMessage(msg);
     };
 
+    // Helper to send an Attach message
+    const sendAttach = (
+      callID: string,
+      telnyxSessionId: string,
+      sdp = 'SDP'
+    ) => {
+      const msg = JSON.parse(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1000,
+          method: 'telnyx_rtc.attach',
+          params: {
+            callID,
+            sdp,
+            telnyx_session_id: telnyxSessionId,
+            caller_id_name: 'Test',
+            caller_id_number: '1004',
+            callee_id_name: 'Outbound',
+            callee_id_number: '1003',
+          },
+        })
+      );
+      handler.handleMessage(msg);
+    };
+
     let onError: jest.Mock;
     let onWarning: jest.Mock;
 
@@ -541,6 +566,12 @@ describe('VertoHandler', () => {
           }),
         })
       );
+      // Warning should have terminate action, not keep_active
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'terminate_active_missing_reattach',
+        })
+      );
     });
 
     it('scenario 3: active call + reattached contains it → keep call', async () => {
@@ -571,12 +602,13 @@ describe('VertoHandler', () => {
 
       // Call should still exist
       expect(instance.calls[callId]).toBeDefined();
-      // Warning about extras should be emitted
+      // Warning about extras should be emitted with keep_active action
       expect(onWarning).toHaveBeenCalledWith(
         expect.objectContaining({
           warning: expect.objectContaining({
             code: 35002,
           }),
+          action: 'keep_active',
         })
       );
     });
@@ -605,6 +637,7 @@ describe('VertoHandler', () => {
           warning: expect.objectContaining({
             code: 35002,
           }),
+          action: 'ignore_ambiguous_sessions',
         })
       );
     });
@@ -651,6 +684,102 @@ describe('VertoHandler', () => {
       expect(() => handler.handleMessage(msg)).not.toThrow();
       // Call should still exist (no reattach processing)
       expect(instance.calls[callId]).toBeDefined();
+    });
+
+    it('should NOT send BYE when terminating an orphaned call (hangup with execute=false)', async () => {
+      await instance.connect();
+      const callId = 'call-id-nobye';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.options.telnyxSessionId = 'session-orphan';
+
+      // Clear any previous sends
+      Connection.mockSend.mockClear();
+
+      sendReattach([]);
+
+      // Call should be cleaned up
+      expect(instance.calls[callId]).toBeUndefined();
+
+      // Verify no BYE was sent (hangup was called with execute=false,
+      // so connection.send should NOT have been called with a BYE message)
+      const byeCalls = Connection.mockSend.mock.calls.filter(
+        (c: { request: { method: string } }[]) =>
+          c[0]?.request?.method === 'telnyx_rtc.bye'
+      );
+      expect(byeCalls.length).toBe(0);
+    });
+
+    it('should suppress Attach for an ignored reattach session (scenario 2)', async () => {
+      await instance.connect();
+      const callId = 'call-id-suppress2';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.options.telnyxSessionId = 'session-active';
+
+      // Server sends a different session that doesn't match the active call
+      sendReattach(['session-unexpected']);
+
+      // Active call should be terminated
+      expect(instance.calls[callId]).toBeUndefined();
+
+      // Now server sends Attach for the unexpected session
+      const attachCallId = 'new-call-from-attach';
+      sendAttach(attachCallId, 'session-unexpected');
+
+      // The attach should be suppressed — no call should be created
+      expect(instance.calls[attachCallId]).toBeUndefined();
+    });
+
+    it('should suppress Attach for ambiguous reattach sessions (scenario 5)', async () => {
+      await instance.connect();
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      // Two sessions with no active call → ambiguous
+      sendReattach(['session-ambiguous-1', 'session-ambiguous-2']);
+
+      expect(onWarning).toHaveBeenCalled();
+
+      // Server sends Attach for one of the ambiguous sessions
+      const attachCallId = 'attach-call-1';
+      sendAttach(attachCallId, 'session-ambiguous-1');
+
+      // The attach should be suppressed — no call should be created
+      expect(instance.calls[attachCallId]).toBeUndefined();
+    });
+
+    it('should allow Attach for a non-ignored session after ambiguous reattach', async () => {
+      await instance.connect();
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      // Two sessions with no active call → ambiguous
+      sendReattach(['session-ambiguous-1', 'session-ambiguous-2']);
+
+      // A different session (not in the ignored set) should still be allowed
+      const attachCallId = 'attach-call-allowed';
+      sendAttach(attachCallId, 'session-not-ignored');
+
+      // The attach should NOT be suppressed — call should be created
+      expect(instance.calls[attachCallId]).toBeDefined();
+    });
+
+    it('should reset ignored sessions on new reattach cycle', async () => {
+      await instance.connect();
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      // First cycle: ambiguous
+      sendReattach(['session-a', 'session-b']);
+      expect(onWarning).toHaveBeenCalled();
+
+      // Second cycle: only one session → should be allowed
+      sendReattach(['session-a']);
+
+      // Server sends Attach for session-a
+      const attachCallId = 'attach-after-reset';
+      sendAttach(attachCallId, 'session-a');
+
+      // Should NOT be suppressed — the ignored set was cleared
+      expect(instance.calls[attachCallId]).toBeDefined();
     });
   });
 });

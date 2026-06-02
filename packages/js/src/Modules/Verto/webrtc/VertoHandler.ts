@@ -42,6 +42,15 @@ class VertoHandler {
 
   retriedRegister = 0;
 
+  /**
+   * Session IDs from reattached_sessions that the SDK should NOT auto-establish
+   * via a subsequent Attach. Populated when:
+   *  - Active call exists but reattached_sessions doesn't contain it (scenario 2)
+   *  - No active call and 2+ sessions arrive (scenario 5 — ambiguous)
+   * Cleared on every new reattach cycle (clientReady with reattached_sessions).
+   */
+  private _ignoredReattachSessionIds: Set<string> = new Set();
+
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -90,9 +99,16 @@ class VertoHandler {
       const activeCallIds = Object.keys(session.calls);
       const hasActiveCall = activeCallIds.length > 0;
 
+      // Reset ignored set on each reattach cycle
+      this._ignoredReattachSessionIds.clear();
+
       if (hasActiveCall) {
         // Build set of reattached session IDs for O(1) lookup
         const reattachedSet = new Set(reattachedSessions);
+
+        // Determine which active calls are reattached vs orphaned
+        const orphanedCallIds: string[] = [];
+        const keptCallIds: string[] = [];
 
         for (const callId of activeCallIds) {
           const call = session.calls[callId];
@@ -104,39 +120,13 @@ class VertoHandler {
             : reattachedSet.has(callId);
 
           if (!isReattached) {
-            // Scenarios 1 & 2: Active call was not reattached — terminate it
-            const action =
-              reattachedSessions.length === 0
-                ? 'terminate_active_missing_reattach'
-                : 'terminate_active_missing_reattach';
-
-            logger.info(
-              `Session not reattached — terminating active call ${callId} ` +
-                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
-                `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
-                `action: ${action}).`
-            );
-
-            const error = createTelnyxError(SESSION_NOT_REATTACHED);
-            trigger(
-              SwEvent.Error,
-              { error, callId, sessionId: session.sessionid },
-              session.uuid
-            );
-
-            // Local cleanup only — do not send BYE because the server no
-            // longer has the session.
-            void call.hangup({}, false);
+            orphanedCallIds.push(callId);
           } else {
-            // Scenario 3: Active call matches — keep it
-            logger.info(
-              `Reattach: keeping active call ${callId} ` +
-                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, action: keep_active).`
-            );
+            keptCallIds.push(callId);
           }
         }
 
-        // Warn about extra sessions that don't match any active call
+        // Determine extra sessions (not matching any active call)
         const activeSessionIds = new Set(
           activeCallIds
             .map((id) => session.calls[id]?.options?.telnyxSessionId ?? id)
@@ -146,11 +136,59 @@ class VertoHandler {
           (s) => !activeSessionIds.has(s)
         );
 
+        // Scenarios 1 & 2: Terminate orphaned calls
+        for (const callId of orphanedCallIds) {
+          const call = session.calls[callId];
+          if (!call) continue;
+
+          const callSessionId = call.options?.telnyxSessionId;
+          logger.info(
+            `Session not reattached — terminating active call ${callId} ` +
+              `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
+              `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
+              `action: terminate_active_missing_reattach).`
+          );
+
+          const error = createTelnyxError(SESSION_NOT_REATTACHED);
+          trigger(
+            SwEvent.Error,
+            { error, callId, sessionId: session.sessionid },
+            session.uuid
+          );
+
+          // Local cleanup only — do not send BYE because the server no
+          // longer has the session.
+          void call.hangup({}, false);
+        }
+
+        // Scenario 3: Log kept calls
+        for (const callId of keptCallIds) {
+          const call = session.calls[callId];
+          if (!call) continue;
+          const callSessionId = call.options?.telnyxSessionId;
+          logger.info(
+            `Reattach: keeping active call ${callId} ` +
+              `(telnyxSessionId: ${callSessionId ?? 'unknown'}, action: keep_active).`
+          );
+        }
+
+        // Warn about extra sessions that don't match any active call.
+        // These should NOT be auto-established by later Attach messages.
         if (extraSessions.length > 0) {
+          // Add extra sessions to the ignored set so later Attach is suppressed
+          for (const s of extraSessions) {
+            this._ignoredReattachSessionIds.add(s);
+          }
+
+          const action =
+            orphanedCallIds.length > 0
+              ? 'terminate_active_missing_reattach'
+              : 'keep_active';
+
           logger.warn(
             `Reattach: server returned unexpected sessions not matching any active SDK call ` +
               `(extra: [${extraSessions.join(', ')}], ` +
-              `active: [${[...activeSessionIds].join(', ')}], action: keep_active).`
+              `active: [${[...activeSessionIds].join(', ')}], action: ${action}).`
           );
 
           const warning = createTelnyxWarning(AMBIGUOUS_REATTACHED_SESSIONS);
@@ -161,7 +199,7 @@ class VertoHandler {
               reattachedSessions,
               extraSessions,
               activeCallIds,
-              action: 'keep_active',
+              action,
               sessionId: session.sessionid,
             },
             session.uuid
@@ -169,6 +207,11 @@ class VertoHandler {
         }
       } else if (reattachedSessions.length > 1) {
         // Scenario 5: No active call but multiple reattached sessions — ambiguous
+        // All sessions go into the ignored set so later Attach is suppressed
+        for (const s of reattachedSessions) {
+          this._ignoredReattachSessionIds.add(s);
+        }
+
         logger.warn(
           `Reattach: no active calls but server returned ${reattachedSessions.length} ` +
             `reattached sessions — cannot safely choose (sessions: [${reattachedSessions.join(', ')}], action: ignore_ambiguous_sessions).`
@@ -312,6 +355,21 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
+        // If the session was flagged as ambiguous/unexpected during reattach
+        // handling, suppress auto-establishment and ACK without answering.
+        const attachSessionId = params.telnyx_session_id;
+        if (
+          !existingCall &&
+          attachSessionId &&
+          this._ignoredReattachSessionIds.has(attachSessionId)
+        ) {
+          logger.warn(
+            `Attach: suppressing auto-establish for ignored reattach session ${attachSessionId} (callID: ${callID}). `
+          );
+          this._ack(id, method);
+          return;
+        }
+
         /**
          * If there is no existing call, we need to create a new call.
          * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
