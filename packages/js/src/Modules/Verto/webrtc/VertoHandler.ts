@@ -357,14 +357,16 @@ class VertoHandler {
       case VertoMethod.Attach: {
         // If the session was flagged as ambiguous/unexpected during reattach
         // handling, suppress auto-establishment and ACK without answering.
+        // Check both telnyx_session_id and callID against the ignored set
+        // to cover cases where the server identifies sessions differently.
         const attachSessionId = params.telnyx_session_id;
-        if (
+        const isIgnoredReattach =
           !existingCall &&
-          attachSessionId &&
-          this._ignoredReattachSessionIds.has(attachSessionId)
-        ) {
+          (attachSessionId || callID) &&
+          this._ignoredReattachSessionIds.has(attachSessionId ?? callID);
+        if (isIgnoredReattach) {
           logger.warn(
-            `Attach: suppressing auto-establish for ignored reattach session ${attachSessionId} (callID: ${callID}). `
+            `Attach: suppressing auto-establish for ignored reattach session ${attachSessionId ?? callID} (callID: ${callID}). `
           );
           this._ack(id, method);
           return;
