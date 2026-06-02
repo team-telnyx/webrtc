@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-require-imports */
 Object.defineProperty(global, 'performance', {
   writable: true,
   value: {
@@ -460,6 +462,195 @@ describe('VertoHandler', () => {
           type: 'vertoClientReady',
         })
       );
+    });
+  });
+
+  describe('Reattach session handling', () => {
+    // Helper to send a clientReady message with reattached_sessions
+    const sendReattach = (reattachedSessions: string[]) => {
+      const msg = JSON.parse(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 999,
+          method: 'telnyx_rtc.clientReady',
+          params: {
+            reattached_sessions: reattachedSessions,
+            state: 'REGED',
+          },
+        })
+      );
+      handler.handleMessage(msg);
+    };
+
+    let onError: jest.Mock;
+    let onWarning: jest.Mock;
+
+    beforeEach(() => {
+      onError = jest.fn();
+      onWarning = jest.fn();
+      instance.on('telnyx.error', onError);
+      instance.on('telnyx.warning', onWarning);
+    });
+
+    afterEach(() => {
+      instance.off('telnyx.error');
+      instance.off('telnyx.warning');
+    });
+
+    it('scenario 1: active call + empty reattached_sessions → terminate call with error', async () => {
+      await instance.connect();
+      const callId = 'call-id-001';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      expect(instance.calls[callId]).toBeDefined();
+
+      sendReattach([]);
+
+      // Call should be cleaned up
+      expect(instance.calls[callId]).toBeUndefined();
+      // Error should be emitted
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 48501,
+          }),
+        })
+      );
+    });
+
+    it('scenario 2: active call + reattached does not contain it → terminate call with error', async () => {
+      await instance.connect();
+      const callId = 'call-id-002';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      // Set telnyxSessionId so we can match against it
+      call.options.telnyxSessionId = 'session-abc';
+
+      expect(instance.calls[callId]).toBeDefined();
+
+      sendReattach(['different-session-xyz']);
+
+      // Call should be cleaned up
+      expect(instance.calls[callId]).toBeUndefined();
+      // Error should be emitted
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            code: 48501,
+          }),
+        })
+      );
+    });
+
+    it('scenario 3: active call + reattached contains it → keep call', async () => {
+      await instance.connect();
+      const callId = 'call-id-003';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.options.telnyxSessionId = 'session-match';
+
+      expect(instance.calls[callId]).toBeDefined();
+
+      sendReattach(['session-match']);
+
+      // Call should still exist
+      expect(instance.calls[callId]).toBeDefined();
+      // No error should be emitted
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('scenario 3b: active call + reattached contains it but also extras → keep call + warn about extras', async () => {
+      await instance.connect();
+      const callId = 'call-id-003b';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.options.telnyxSessionId = 'session-match';
+
+      sendReattach(['session-match', 'extra-session-1']);
+
+      // Call should still exist
+      expect(instance.calls[callId]).toBeDefined();
+      // Warning about extras should be emitted
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: 35002,
+          }),
+        })
+      );
+    });
+
+    it('scenario 4: no active call + exactly one reattached session → no error or warning', async () => {
+      await instance.connect();
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      sendReattach(['single-session']);
+
+      // No error should be emitted
+      expect(onError).not.toHaveBeenCalled();
+      // No ambiguous warning should be emitted
+      expect(onWarning).not.toHaveBeenCalled();
+    });
+
+    it('scenario 5: no active call + 2+ reattached sessions → emit ambiguous warning', async () => {
+      await instance.connect();
+      expect(Object.keys(instance.calls).length).toBe(0);
+
+      sendReattach(['session-a', 'session-b']);
+
+      // Warning should be emitted
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: 35002,
+          }),
+        })
+      );
+    });
+
+    it('should handle multiple active calls with mixed reattach results', async () => {
+      await instance.connect();
+
+      const { v4: uuidV4 } = jest.requireMock('uuid');
+      let callCount = 0;
+      (uuidV4 as jest.Mock).mockImplementation(() => `call-${++callCount}`);
+
+      const call1 = new Call(instance, { ...DEFAULT_PARAMS, id: 'call-1' });
+      call1.options.telnyxSessionId = 'session-1';
+      call1.setState(State.Active);
+
+      const call2 = new Call(instance, { ...DEFAULT_PARAMS, id: 'call-2' });
+      call2.options.telnyxSessionId = 'session-2';
+      call2.setState(State.Active);
+
+      void call1;
+      void call2;
+
+      expect(Object.keys(instance.calls).length).toBe(2);
+
+      // Only session-1 is reattached; session-2 is missing
+      sendReattach(['session-1']);
+
+      // call-1 should be kept, call-2 should be terminated
+      expect(instance.calls['call-1']).toBeDefined();
+      expect(instance.calls['call-2']).toBeUndefined();
+    });
+
+    it('should not throw when reattached_sessions is not an array', async () => {
+      await instance.connect();
+      const callId = 'call-id-noarray';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      // Send message without reattached_sessions at all
+      const msg = JSON.parse(
+        '{"jsonrpc":"2.0","id":999,"method":"telnyx_rtc.clientReady","params":{"state":"REGED"}}'
+      );
+
+      expect(() => handler.handleMessage(msg)).not.toThrow();
+      // Call should still exist (no reattach processing)
+      expect(instance.calls[callId]).toBeDefined();
     });
   });
 });

@@ -369,20 +369,20 @@ export const SDK_WARNINGS = {
   },
 
   // ── Session / reconnection warnings (350xx) ─────────────────────────
-  35001: {
-    name: 'SESSION_NOT_REATTACHED',
-    message: 'Active call lost after reconnect',
+  35002: {
+    name: 'AMBIGUOUS_REATTACHED_SESSIONS',
+    message: 'Ambiguous reattached sessions after reconnect',
     description:
-      'The WebSocket reconnected successfully but the server returned an empty reattached_sessions list while the SDK still has an active call. The server no longer knows about the call, so any subsequent call-control operation (hangup, hold, etc.) will fail with CALL_DOES_NOT_EXIST.',
+      'The WebSocket reconnected successfully and the server returned multiple reattached sessions. The SDK cannot safely determine which session to restore, so none will be established automatically. This also occurs when the server reattached unexpected sessions that do not match the active SDK call.',
     causes: [
-      'Server-side session expired during the disconnection window',
-      'Reconnect token was invalidated',
-      'Backend restarted or lost in-memory call state',
+      'Multiple calls were active before disconnection',
+      'Server returned sessions that do not match the SDK active call',
+      'Race condition between reconnection and new inbound call',
     ],
     solutions: [
-      'Terminate the local call and notify the user',
-      'Start a new call',
-      'Investigate why the session was not preserved on the server',
+      'Check application logic for multiple simultaneous calls',
+      'Inspect reattached_sessions in the warning payload for details',
+      'If a call should be active, start a new call manually',
     ],
   },
 } as const;

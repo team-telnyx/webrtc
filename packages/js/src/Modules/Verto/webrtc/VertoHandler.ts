@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  AMBIGUOUS_REATTACHED_SESSIONS,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -73,20 +74,121 @@ class VertoHandler {
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
-    // W8: Session not reattached warning
-    // If the server sends reattached_sessions as an empty array and the SDK
-    // has active calls, the session was not reattached after reconnection.
-    if (
-      Array.isArray(params?.reattached_sessions) &&
-      params.reattached_sessions.length === 0 &&
-      Object.keys(session.calls).length > 0
-    ) {
-      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
-      trigger(
-        SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
-        session.uuid
-      );
+    // ── Reattach session handling ────────────────────────────────────────
+    // When the server sends reattached_sessions on reconnect, the SDK must
+    // reconcile its active calls against the server's known sessions.
+    //
+    // Scenarios:
+    //   1. Active call + empty reattached_sessions    → terminate call (server lost it)
+    //   2. Active call + reattached doesn't contain it → terminate call (session missing)
+    //   3. Active call + reattached contains it       → keep call; warn about extras
+    //   4. No active call + exactly one session       → server will send attach; no action
+    //   5. No active call + 2+ sessions               → warn (ambiguous)
+    //
+    if (Array.isArray(params?.reattached_sessions)) {
+      const reattachedSessions: string[] = params.reattached_sessions;
+      const activeCallIds = Object.keys(session.calls);
+      const hasActiveCall = activeCallIds.length > 0;
+
+      if (hasActiveCall) {
+        // Build set of reattached session IDs for O(1) lookup
+        const reattachedSet = new Set(reattachedSessions);
+
+        for (const callId of activeCallIds) {
+          const call = session.calls[callId];
+          if (!call) continue;
+
+          const callSessionId = call.options?.telnyxSessionId;
+          const isReattached = callSessionId
+            ? reattachedSet.has(callSessionId)
+            : reattachedSet.has(callId);
+
+          if (!isReattached) {
+            // Scenarios 1 & 2: Active call was not reattached — terminate it
+            const action =
+              reattachedSessions.length === 0
+                ? 'terminate_active_missing_reattach'
+                : 'terminate_active_missing_reattach';
+
+            logger.info(
+              `Session not reattached — terminating active call ${callId} ` +
+                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
+                `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
+                `action: ${action}).`
+            );
+
+            const error = createTelnyxError(SESSION_NOT_REATTACHED);
+            trigger(
+              SwEvent.Error,
+              { error, callId, sessionId: session.sessionid },
+              session.uuid
+            );
+
+            // Local cleanup only — do not send BYE because the server no
+            // longer has the session.
+            void call.hangup({}, false);
+          } else {
+            // Scenario 3: Active call matches — keep it
+            logger.info(
+              `Reattach: keeping active call ${callId} ` +
+                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, action: keep_active).`
+            );
+          }
+        }
+
+        // Warn about extra sessions that don't match any active call
+        const activeSessionIds = new Set(
+          activeCallIds
+            .map((id) => session.calls[id]?.options?.telnyxSessionId ?? id)
+            .filter(Boolean)
+        );
+        const extraSessions = reattachedSessions.filter(
+          (s) => !activeSessionIds.has(s)
+        );
+
+        if (extraSessions.length > 0) {
+          logger.warn(
+            `Reattach: server returned unexpected sessions not matching any active SDK call ` +
+              `(extra: [${extraSessions.join(', ')}], ` +
+              `active: [${[...activeSessionIds].join(', ')}], action: keep_active).`
+          );
+
+          const warning = createTelnyxWarning(AMBIGUOUS_REATTACHED_SESSIONS);
+          trigger(
+            SwEvent.Warning,
+            {
+              warning,
+              reattachedSessions,
+              extraSessions,
+              activeCallIds,
+              action: 'keep_active',
+              sessionId: session.sessionid,
+            },
+            session.uuid
+          );
+        }
+      } else if (reattachedSessions.length > 1) {
+        // Scenario 5: No active call but multiple reattached sessions — ambiguous
+        logger.warn(
+          `Reattach: no active calls but server returned ${reattachedSessions.length} ` +
+            `reattached sessions — cannot safely choose (sessions: [${reattachedSessions.join(', ')}], action: ignore_ambiguous_sessions).`
+        );
+
+        const warning = createTelnyxWarning(AMBIGUOUS_REATTACHED_SESSIONS);
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            reattachedSessions,
+            activeCallIds: [],
+            action: 'ignore_ambiguous_sessions',
+            sessionId: session.sessionid,
+          },
+          session.uuid
+        );
+      }
+      // Scenario 4: No active call + exactly one session → server will send
+      // attach message; no action needed from the SDK.
     }
 
     if (eventType === 'channelPvtData') {
