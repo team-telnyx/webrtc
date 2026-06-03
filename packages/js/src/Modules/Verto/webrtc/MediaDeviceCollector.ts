@@ -319,6 +319,49 @@ export class MediaDeviceCollector {
   }
 
   /**
+   * Update the selected output device after setSinkId completes.
+   * Called from the deferred setTimeout in BaseCall when the actual
+   * applied sink ID becomes known.
+   *
+   * If the initial capture hasn't completed yet, this queues the
+   * update to be applied after capture finishes.
+   *
+   * @param deviceId - The output device ID that was successfully applied
+   */
+  async updateOutputDevice(deviceId: string): Promise<void> {
+    const newHash = await hashValue(deviceId);
+
+    // If capture hasn't completed, we need to wait for it so we can
+    // update the selected event properly.
+    if (this._capturePromise) {
+      await this._capturePromise;
+      this._capturePromise = null;
+    }
+
+    // If cleaned up after await, skip
+    if (this._cleanedUp) return;
+
+    // Update the stored hash
+    this._selectedOutputDeviceIdHash = newHash;
+
+    // Update the existing selected_media_devices_call_start event
+    // so the final report reflects the actual applied output device.
+    const selectedEvent = this._events.find(
+      (e) => e.eventName === 'selected_media_devices_call_start'
+    ) as ISelectedMediaDevicesCallStart | undefined;
+
+    if (selectedEvent && this._latestSnapshot) {
+      const stillAvailable = this._latestSnapshot.audiooutput.some(
+        (d) => d.deviceIdHash === newHash
+      );
+      selectedEvent.selected.output = {
+        deviceIdHash: newHash,
+        stillAvailable,
+      };
+    }
+  }
+
+  /**
    * Stop listening for devicechange events.
    * Called when the call ends. No new devicechange events will be processed.
    *

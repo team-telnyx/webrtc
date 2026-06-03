@@ -438,6 +438,16 @@ export class CallReportCollector {
   }
 
   /**
+   * Update the selected output device after setSinkId succeeds.
+   * Called from the deferred setTimeout in BaseCall when the actual
+   * applied sink ID becomes known.
+   */
+  public updateMediaOutputDevice(deviceId: string): void {
+    if (!this._mediaDeviceCollector) return;
+    this._mediaDeviceCollector.updateOutputDevice(deviceId);
+  }
+
+  /**
    * Start collecting stats from the peer connection
    */
   public start(peerConnection: RTCPeerConnection): void {

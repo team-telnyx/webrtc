@@ -1176,11 +1176,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.startSignalingHealthMonitor();
 
         setTimeout(async () => {
-          // Guard: if the call has transitioned away from Active or been
-          // finalized before this callback runs, skip sink setup and
-          // media device collection. This prevents starting a new
-          // MediaDeviceCollector on an already-cleaned CallReportCollector
-          // (e.g. short call that ends before the setTimeout fires).
+          // Guard: if the call has transitioned away from Active before
+          // this callback runs, skip sink setup.
           if (this._state !== State.Active) {
             return;
           }
@@ -1193,26 +1190,10 @@ export default abstract class BaseCall implements IWebRTCCall {
             );
             if (success) {
               this._appliedOutputDeviceId = speakerId;
+              // Update the media device collector with the actual applied
+              // output device. This is deferred because setSinkId is async.
+              this._callReportCollector?.updateMediaOutputDevice(speakerId);
             }
-          }
-
-          // Re-check state after async setSinkId — call may have ended.
-          if (this._state !== State.Active) {
-            return;
-          }
-
-          // Start media device collection after setSinkId attempt completes.
-          // This ensures we pass the *actually applied* output device ID
-          // rather than the requested one from options.speakerId.
-          if (
-            this._callReportCollector &&
-            this.peer?.instance &&
-            this.session.callReportId
-          ) {
-            this._callReportCollector.startMediaDeviceCollection(
-              this.peer.instance,
-              this._appliedOutputDeviceId
-            );
           }
         }, 0);
 
@@ -1224,6 +1205,15 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.callReportId
         ) {
           this._callReportCollector.start(this.peer.instance);
+          // Start media device collection immediately when call becomes active.
+          // This is NOT deferred behind setSinkId — every active call report
+          // MUST include call-start device visibility. The output device is
+          // initially reported as 'browser-default' and updated later via
+          // updateMediaOutputDevice() if setSinkId succeeds.
+          this._callReportCollector.startMediaDeviceCollection(
+            this.peer.instance,
+            null // Output device unknown until setSinkId completes
+          );
         }
         break;
       }
