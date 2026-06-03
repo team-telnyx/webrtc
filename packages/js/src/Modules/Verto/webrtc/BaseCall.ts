@@ -224,6 +224,14 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  /**
+   * The output device ID that was successfully applied via setSinkId.
+   * null if setSinkId was never called, failed, or no element exists.
+   * Used by MediaDeviceCollector to report the *actual* output device
+   * rather than the requested one.
+   */
+  protected _appliedOutputDeviceId: string | null = null;
+
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
@@ -1167,10 +1175,30 @@ export default abstract class BaseCall implements IWebRTCCall {
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
 
-        setTimeout(() => {
+        setTimeout(async () => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
-            setMediaElementSinkId(remoteElement, speakerId);
+            const success = await setMediaElementSinkId(
+              remoteElement,
+              speakerId
+            );
+            if (success) {
+              this._appliedOutputDeviceId = speakerId;
+            }
+          }
+
+          // Start media device collection after setSinkId attempt completes.
+          // This ensures we pass the *actually applied* output device ID
+          // rather than the requested one from options.speakerId.
+          if (
+            this._callReportCollector &&
+            this.peer?.instance &&
+            this.session.callReportId
+          ) {
+            this._callReportCollector.startMediaDeviceCollection(
+              this.peer.instance,
+              this._appliedOutputDeviceId
+            );
           }
         }, 0);
 
@@ -1182,11 +1210,6 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.callReportId
         ) {
           this._callReportCollector.start(this.peer.instance);
-          // Start media device collection for device visibility in call reports
-          this._callReportCollector.startMediaDeviceCollection(
-            this.peer.instance,
-            this.options.speakerId
-          );
         }
         break;
       }

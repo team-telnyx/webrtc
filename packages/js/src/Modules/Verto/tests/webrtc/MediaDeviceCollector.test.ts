@@ -8,6 +8,8 @@
  *  - Redaction/hashing of deviceId and groupId
  *  - Privacy: labels excluded by default, included when opted in
  *  - Selected device availability tracking
+ *  - Race condition: captureCallStart must complete before events are drained
+ *  - Hash-based availability: selected device hashes match snapshot hashes
  */
 
 import {
@@ -54,7 +56,6 @@ describe('MediaDeviceCollector', () => {
   let enumerateDevicesSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Spy on the already-mocked enumerateDevices so we can control return values per-test
     enumerateDevicesSpy = jest.spyOn(
       navigator.mediaDevices,
       'enumerateDevices'
@@ -378,6 +379,64 @@ describe('MediaDeviceCollector', () => {
       expect(changeEvent.selectedOutputStillAvailable).toBe(false);
     });
 
+    it('keeps selectedInputStillAvailable=true when an unrelated device changes', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
+        makeMediaDeviceInfo('other-mic', 'audioinput', 'Built-in'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('selected-mic');
+      await collector.captureCallStart(pc);
+
+      // Remove the OTHER mic (not the selected one)
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
+      ]);
+
+      await collector._simulateDeviceChange();
+
+      const changeEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
+
+      // The selected input device is still present
+      expect(changeEvent.selectedInputStillAvailable).toBe(true);
+      // The diff should show the OTHER mic was removed
+      expect(changeEvent.diff.some((d) => d.change === 'removed')).toBe(true);
+    });
+
+    it('keeps selectedOutputStillAvailable=true when an unrelated device changes', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+        makeMediaDeviceInfo('speaker-2', 'audiooutput', 'Built-in'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      await collector.captureCallStart(pc, 'speaker-1');
+
+      // Remove the OTHER speaker (not the selected one)
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+      ]);
+
+      await collector._simulateDeviceChange();
+
+      const changeEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
+
+      // The selected output device is still present
+      expect(changeEvent.selectedOutputStillAvailable).toBe(true);
+    });
+
     it('includes currentSnapshot in change event', async () => {
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
@@ -413,7 +472,7 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
-      // Same devices (mockResolvedValue was set in beforeEach with these devices)
+      // Same devices
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
       ]);
@@ -536,6 +595,111 @@ describe('MediaDeviceCollector', () => {
         (d) => d.deviceIdHash
       );
       expect(hashes[0]).not.toBe(hashes[1]);
+    });
+  });
+
+  describe('capture promise tracking', () => {
+    it('isCaptureComplete() returns false while captureCallStart is in flight', async () => {
+      let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
+      const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
+        resolveEnumerate = resolve;
+      });
+      enumerateDevicesSpy.mockReturnValue(enumeratePromise);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+
+      // Start capture (doesn't await)
+      const capturePromise = collector.captureCallStart(pc);
+
+      // While enumerateDevices is pending, capture should not be complete
+      expect(collector.isCaptureComplete()).toBe(false);
+
+      // Resolve enumerateDevices
+      resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
+
+      // Now await the capture
+      await capturePromise;
+
+      // Capture should be complete now
+      expect(collector.isCaptureComplete()).toBe(true);
+    });
+
+    it('ensureCaptureComplete() resolves after captureCallStart completes', async () => {
+      let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
+      const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
+        resolveEnumerate = resolve;
+      });
+      enumerateDevicesSpy.mockReturnValue(enumeratePromise);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+
+      // Start capture (fire-and-forget)
+      collector.captureCallStart(pc);
+
+      // Before resolve, ensureCaptureComplete should block
+      let resolved = false;
+      const ensurePromise = collector.ensureCaptureComplete().then(() => {
+        resolved = true;
+      });
+
+      // Not resolved yet
+      expect(resolved).toBe(false);
+
+      // Resolve enumerateDevices
+      resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
+
+      await ensurePromise;
+      expect(resolved).toBe(true);
+    });
+
+    it('events are available after ensureCaptureComplete', async () => {
+      let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
+      const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
+        resolveEnumerate = resolve;
+      });
+      enumerateDevicesSpy.mockReturnValue(enumeratePromise);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+
+      // Start capture (fire-and-forget)
+      collector.captureCallStart(pc);
+
+      // No events yet
+      expect(collector.getEvents().length).toBe(0);
+
+      // Resolve and await
+      resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
+      await collector.ensureCaptureComplete();
+
+      // Events should now be available
+      expect(collector.getEvents().length).toBe(2);
+    });
+
+    it('no new events after stop() even if capture was in flight', async () => {
+      let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
+      const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
+        resolveEnumerate = resolve;
+      });
+      enumerateDevicesSpy.mockReturnValue(enumeratePromise);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+
+      // Start capture
+      collector.captureCallStart(pc);
+
+      // Stop before enumerateDevices resolves
+      collector.stop();
+
+      // Resolve enumerateDevices
+      resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
+      await collector.ensureCaptureComplete();
+
+      // No events should be emitted since we stopped before capture completed
+      expect(collector.getEvents().length).toBe(0);
     });
   });
 });

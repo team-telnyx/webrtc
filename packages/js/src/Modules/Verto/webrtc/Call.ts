@@ -2,7 +2,7 @@ import { ConversationMessage } from '../messages/verto/ConverstationMessage';
 import logger from '../util/logger';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 import BaseCall from './BaseCall';
-import { IVertoCallOptions } from './interfaces';
+import { IVertoCallOptions, IHangupParams } from './interfaces';
 
 /**
  * A `Call` is the representation of an audio or video call between
@@ -54,9 +54,12 @@ import { IVertoCallOptions } from './interfaces';
 export class Call extends BaseCall {
   public screenShare: Call;
 
-  private _statsInterval: any = null;
+  private _statsInterval: number | null = null;
 
-  async hangup(params: any = {}, execute: boolean = true): Promise<void> {
+  async hangup(
+    params: IHangupParams = {},
+    execute: boolean = true
+  ): Promise<void> {
     if (this.screenShare instanceof Call) {
       await this.screenShare.hangup(params, execute);
     }
@@ -144,8 +147,13 @@ export class Call extends BaseCall {
     this.options.speakerId = deviceId;
     const { remoteElement, speakerId } = this.options;
     if (remoteElement && speakerId) {
-      return setMediaElementSinkId(remoteElement, speakerId);
+      const success = await setMediaElementSinkId(remoteElement, speakerId);
+      // Track the actually applied sink ID for media device reporting.
+      // Only set if setSinkId succeeded.
+      this._appliedOutputDeviceId = success ? speakerId : null;
+      return success;
     }
+    this._appliedOutputDeviceId = null;
     return false;
   }
 

@@ -430,6 +430,10 @@ export class CallReportCollector {
     if (!this.options.enabled) return;
 
     this._mediaDeviceCollector = new MediaDeviceCollector();
+    // captureCallStart is async but we track the promise internally
+    // so that flush/postReport can await it before draining events.
+    // This prevents races where a short call ends before
+    // enumerateDevices + hashing completes.
     this._mediaDeviceCollector.captureCallStart(peerConnection, outputDeviceId);
   }
 
@@ -518,8 +522,15 @@ export class CallReportCollector {
       // Drain logs accumulated since last flush
       const logs = this.logCollector?.drain() ?? [];
 
-      // Drain media device events accumulated since last flush
-      const mediaDeviceEvents = this._mediaDeviceCollector?.drainEvents() ?? [];
+      // Drain media device events accumulated since last flush.
+      // Only include events if captureCallStart has completed to avoid
+      // partial/inconsistent data. If capture is still in flight, events
+      // will be included in the next intermediate flush or final report.
+      const mediaDeviceCollectorReady =
+        this._mediaDeviceCollector?.isCaptureComplete() ?? false;
+      const mediaDeviceEvents = mediaDeviceCollectorReady
+        ? this._mediaDeviceCollector!.drainEvents()
+        : [];
 
       const now = new Date();
       this._lastIntermediateFlushTime = now;
@@ -565,6 +576,13 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
+    // Ensure media device capture has completed before reading events.
+    // This prevents races where a short call ends before
+    // enumerateDevices + hashing finishes.
+    if (this._mediaDeviceCollector) {
+      await this._mediaDeviceCollector.ensureCaptureComplete();
+    }
+
     // Get remaining logs (getLogs for final, drain was used for intermediates)
     const logs = this.logCollector?.getLogs();
     const hasLogs = logs && logs.length > 0;

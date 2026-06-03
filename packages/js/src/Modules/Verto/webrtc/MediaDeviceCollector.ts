@@ -148,12 +148,28 @@ export interface IMediaDeviceCollectorOptions {
 export class MediaDeviceCollector {
   private options: IMediaDeviceCollectorOptions;
   private _events: MediaDeviceEvent[] = [];
-  private _selectedInputDeviceId: string | null = null;
-  private _selectedOutputDeviceId: string | null = null;
+  /**
+   * Hash of the selected input device ID. Stored as hash so that
+   * availability checks against hashed snapshot IDs work correctly.
+   */
+  private _selectedInputDeviceIdHash: string | null = null;
+  /**
+   * Hash of the selected output device ID. Stored as hash so that
+   * availability checks against hashed snapshot IDs work correctly.
+   * Special sentinel values: 'browser-default' | 'unknown'
+   */
+  private _selectedOutputDeviceIdHash: string | null = null;
   private _callStartSnapshot: IDeviceSnapshot | null = null;
   private _latestSnapshot: IDeviceSnapshot | null = null;
   private _deviceChangeHandler: (() => void) | null = null;
   private _stopped: boolean = false;
+
+  /**
+   * Promise tracking the in-flight captureCallStart() call.
+   * Must be awaited before posting any report to avoid races where
+   * a short call ends before enumerateDevices + hashing completes.
+   */
+  private _capturePromise: Promise<void> | null = null;
 
   constructor(options?: IMediaDeviceCollectorOptions) {
     this.options = {
@@ -167,9 +183,19 @@ export class MediaDeviceCollector {
    * Must be called after permissions are available (i.e. after getUserMedia).
    *
    * @param peerConnection - The RTCPeerConnection for the call
-   * @param outputDeviceId - The output device ID if known (via setSinkId), or null/undefined
+   * @param outputDeviceId - The output device ID that was *actually applied*
+   *   via setSinkId. Pass null/undefined if setSinkId was not called or failed.
    */
-  async captureCallStart(
+  captureCallStart(
+    peerConnection: RTCPeerConnection,
+    outputDeviceId?: string | null
+  ): Promise<void> {
+    const promise = this._doCaptureCallStart(peerConnection, outputDeviceId);
+    this._capturePromise = promise;
+    return promise;
+  }
+
+  private async _doCaptureCallStart(
     peerConnection: RTCPeerConnection,
     outputDeviceId?: string | null
   ): Promise<void> {
@@ -182,38 +208,55 @@ export class MediaDeviceCollector {
       this._callStartSnapshot = snapshot;
       this._latestSnapshot = snapshot;
 
-      // 2. Emit snapshot event
-      const snapshotEvent: IMediaDevicesSnapshotCallStart = {
-        eventName: 'media_devices_snapshot_call_start',
-        timestamp: new Date().toISOString(),
-        devices: snapshot,
-      };
-      this._events.push(snapshotEvent);
+      // 2. Emit snapshot event (only if not stopped during async gap)
+      if (!this._stopped) {
+        const snapshotEvent: IMediaDevicesSnapshotCallStart = {
+          eventName: 'media_devices_snapshot_call_start',
+          timestamp: new Date().toISOString(),
+          devices: snapshot,
+        };
+        this._events.push(snapshotEvent);
+      }
 
       // 3. Determine selected input device from the audio sender track
       const inputDeviceId = this._getInputDeviceId(peerConnection);
-      this._selectedInputDeviceId = inputDeviceId;
 
-      // 4. Determine selected output device
-      const resolvedOutputId = outputDeviceId || null;
-      this._selectedOutputDeviceId = resolvedOutputId;
+      // 4. Hash the selected IDs and store the hashes for later availability checks
+      if (inputDeviceId) {
+        this._selectedInputDeviceIdHash = await hashValue(inputDeviceId);
+      } else {
+        this._selectedInputDeviceIdHash = null;
+      }
 
-      // 5. Emit selected devices event
-      const selectedEvent = await this._buildSelectedEvent(
-        inputDeviceId,
-        resolvedOutputId,
-        snapshot
-      );
-      this._events.push(selectedEvent);
+      // outputDeviceId is the *actually applied* sink ID (after setSinkId succeeds).
+      // If null/undefined, the SDK cannot determine the output → 'browser-default'.
+      if (outputDeviceId) {
+        this._selectedOutputDeviceIdHash = await hashValue(outputDeviceId);
+      } else {
+        this._selectedOutputDeviceIdHash = 'browser-default';
+      }
+
+      // 5. Emit selected devices event (only if not stopped during async gap)
+      if (!this._stopped) {
+        const selectedEvent = this._buildSelectedEvent(snapshot);
+        this._events.push(selectedEvent);
+      }
 
       // 6. Start listening for devicechange events
-      this._startDeviceChangeListener();
+      //    (only after all async work completes to avoid firing during setup)
+      //    (only if not stopped during async gap)
+      if (!this._stopped) {
+        this._startDeviceChangeListener();
+      }
+
+      // Mark capture as complete
+      this._capturePromise = null;
 
       logger.info('MediaDeviceCollector: captured call-start device snapshot', {
         inputDevices: snapshot.audioinput.length,
         outputDevices: snapshot.audiooutput.length,
         selectedInput: inputDeviceId ? 'present' : 'unknown',
-        selectedOutput: resolvedOutputId ? 'present' : 'browser-default',
+        selectedOutput: outputDeviceId ? 'present' : 'browser-default',
       });
     } catch (error) {
       logger.error(
@@ -226,8 +269,27 @@ export class MediaDeviceCollector {
   }
 
   /**
+   * Await the in-flight captureCallStart() promise (if any) before
+   * posting a report. Prevents races where a short call ends before
+   * enumerateDevices + hashing completes.
+   */
+  async ensureCaptureComplete(): Promise<void> {
+    if (this._capturePromise) {
+      await this._capturePromise;
+      this._capturePromise = null;
+    }
+  }
+
+  /**
+   * Returns true if captureCallStart() has completed (no in-flight promise).
+   */
+  isCaptureComplete(): boolean {
+    return this._capturePromise === null;
+  }
+
+  /**
    * Stop the collector and clean up listeners.
-   * Called when the call ends.
+   * Called when the call ends. No new events will be emitted after this.
    */
   stop(): void {
     this._stopped = true;
@@ -257,10 +319,11 @@ export class MediaDeviceCollector {
   cleanup(): void {
     this.stop();
     this._events = [];
+    this._capturePromise = null;
     this._callStartSnapshot = null;
     this._latestSnapshot = null;
-    this._selectedInputDeviceId = null;
-    this._selectedOutputDeviceId = null;
+    this._selectedInputDeviceIdHash = null;
+    this._selectedOutputDeviceIdHash = null;
   }
 
   // ── Internal ─────────────────────────────────────────────────────
@@ -336,42 +399,40 @@ export class MediaDeviceCollector {
 
   /**
    * Build the selected devices event at call start.
+   * Uses the already-hashed stored values for consistency with
+   * devicechange availability checks.
    */
-  private async _buildSelectedEvent(
-    inputDeviceId: string | null,
-    outputDeviceId: string | null,
+  private _buildSelectedEvent(
     snapshot: IDeviceSnapshot
-  ): Promise<ISelectedMediaDevicesCallStart> {
+  ): ISelectedMediaDevicesCallStart {
     const selected: ISelectedDevices = {
       input: null,
       output: null,
     };
 
-    if (inputDeviceId) {
-      const inputHash = await hashValue(inputDeviceId);
+    if (this._selectedInputDeviceIdHash) {
       const stillAvailable = snapshot.audioinput.some(
-        (d) => d.deviceIdHash === inputHash
+        (d) => d.deviceIdHash === this._selectedInputDeviceIdHash
       );
       selected.input = {
-        deviceIdHash: inputHash,
+        deviceIdHash: this._selectedInputDeviceIdHash,
         stillAvailable,
       };
     }
 
-    if (outputDeviceId) {
-      const outputHash = await hashValue(outputDeviceId);
-      const stillAvailable = snapshot.audiooutput.some(
-        (d) => d.deviceIdHash === outputHash
-      );
+    if (this._selectedOutputDeviceIdHash) {
+      // 'browser-default' is a sentinel, not a real hash
+      const isSentinel =
+        this._selectedOutputDeviceIdHash === 'browser-default' ||
+        this._selectedOutputDeviceIdHash === 'unknown';
+      const stillAvailable = isSentinel
+        ? true
+        : snapshot.audiooutput.some(
+            (d) => d.deviceIdHash === this._selectedOutputDeviceIdHash
+          );
       selected.output = {
-        deviceIdHash: outputHash,
+        deviceIdHash: this._selectedOutputDeviceIdHash,
         stillAvailable,
-      };
-    } else {
-      // SDK cannot determine the output device
-      selected.output = {
-        deviceIdHash: 'browser-default',
-        stillAvailable: true, // browser-default is always conceptually available
       };
     }
 
@@ -445,11 +506,9 @@ export class MediaDeviceCollector {
         return;
       }
 
-      // Check if selected devices are still available
-      const selectedInputStillAvailable = this._checkSelectedDeviceAvailable(
-        this._selectedInputDeviceId,
-        newSnapshot.audioinput
-      );
+      // Check if selected devices are still available using stored hashes
+      const selectedInputStillAvailable =
+        this._checkSelectedInputAvailable(newSnapshot);
       const selectedOutputStillAvailable =
         this._checkSelectedOutputAvailable(newSnapshot);
 
@@ -545,29 +604,43 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Check if a selected input device is still in the current snapshot.
+   * Check if the selected input device is still available in the snapshot.
+   * Compares the stored hash against hashed snapshot IDs.
    */
-  private _checkSelectedDeviceAvailable(
-    deviceId: string | null,
-    currentDevices: IRedactedDeviceInfo[]
+  private _checkSelectedInputAvailable(
+    currentSnapshot: IDeviceSnapshot
   ): boolean {
-    if (!deviceId) return true; // No selected device = not applicable
-    return currentDevices.some((d) => d.deviceIdHash === deviceId);
+    if (!this._selectedInputDeviceIdHash) {
+      // No selected input device → not applicable
+      return true;
+    }
+    return currentSnapshot.audioinput.some(
+      (d) => d.deviceIdHash === this._selectedInputDeviceIdHash
+    );
   }
 
   /**
-   * Check if the selected output device is still available.
-   * Handles the special 'browser-default' / 'unknown' cases.
+   * Check if the selected output device is still available in the snapshot.
+   * Compares the stored hash against hashed snapshot IDs.
+   * Handles sentinel values 'browser-default' / 'unknown'.
    */
   private _checkSelectedOutputAvailable(
     currentSnapshot: IDeviceSnapshot
   ): boolean {
-    if (!this._selectedOutputDeviceId) {
-      // browser-default — always conceptually available
+    if (!this._selectedOutputDeviceIdHash) {
       return true;
     }
+
+    // Sentinel values are always conceptually available
+    if (
+      this._selectedOutputDeviceIdHash === 'browser-default' ||
+      this._selectedOutputDeviceIdHash === 'unknown'
+    ) {
+      return true;
+    }
+
     return currentSnapshot.audiooutput.some(
-      (d) => d.deviceIdHash === this._selectedOutputDeviceId
+      (d) => d.deviceIdHash === this._selectedOutputDeviceIdHash
     );
   }
 
