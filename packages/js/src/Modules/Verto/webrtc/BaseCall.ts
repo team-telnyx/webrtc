@@ -915,37 +915,48 @@ export default abstract class BaseCall implements IWebRTCCall {
     deviceId: string,
     muted = this._desiredAudioMuted
   ): Promise<void> {
-    // If the caller explicitly passes a muted value, update the durable
-    // desired state so future track replacements respect it.
-    this._desiredAudioMuted = Boolean(muted);
+    const newDesiredMuted = Boolean(muted);
+
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
-    if (sender) {
-      let newStream: MediaStream;
-      try {
-        newStream = await getUserMedia({
-          audio: { deviceId: { exact: deviceId } },
-        });
-      } catch (error) {
-        const telnyxError = createTelnyxError(
-          classifyMediaErrorCode(error),
-          error
-        );
-        trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
-        return;
-      }
-      const audioTrack = newStream.getAudioTracks()[0];
-      audioTrack.enabled = !muted;
-      sender.replaceTrack(audioTrack);
-      this.options.micId = deviceId;
 
-      const { localStream } = this.options;
-      localStream.getAudioTracks().forEach((t) => t.stop());
-      localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
-      this.options.localStream = newStream;
+    if (!sender) {
+      // No audio sender — nothing to replace. Keep the current desired state.
+      return;
     }
+
+    let newStream: MediaStream;
+    try {
+      newStream = await getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      });
+    } catch (error) {
+      // getUserMedia failed (missing device / permission error).
+      // Don't change the desired mute state — the old track is still active.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      return;
+    }
+
+    // Only commit the new desired mute state after getUserMedia + sender
+    // replacement succeeds. This prevents isAudioMuted from flipping on
+    // failure while the actual audio track stays unchanged.
+    this._desiredAudioMuted = newDesiredMuted;
+
+    const audioTrack = newStream.getAudioTracks()[0];
+    audioTrack.enabled = !newDesiredMuted;
+    sender.replaceTrack(audioTrack);
+    this.options.micId = deviceId;
+
+    const { localStream } = this.options;
+    localStream.getAudioTracks().forEach((t) => t.stop());
+    localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
+    this.options.localStream = newStream;
   }
 
   /**

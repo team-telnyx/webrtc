@@ -395,6 +395,119 @@ describe('Audio mute state preservation (VSDK-205)', () => {
   });
 
   // ───────────────────────────────────────────────────────────────
+  // 8b. setAudioInDevice — failure / no-sender preserves desired state
+  // ───────────────────────────────────────────────────────────────
+  describe('setAudioInDevice failure preserves desired mute state', () => {
+    /** Shared setup for failure tests: peer + localStream */
+    const setupCallForFailureTest = (call: Call) => {
+      const replaceTrackFn = jest.fn().mockResolvedValue(undefined);
+      const sender = {
+        track: { kind: 'audio' },
+        replaceTrack: replaceTrackFn,
+      };
+      (call as any).peer = {
+        instance: {
+          getSenders: () => [sender],
+        },
+        close: jest.fn(),
+      };
+      const oldAudioTrack = { stop: jest.fn() };
+      const oldVideoTrack = { kind: 'video' };
+      (call as any).options.localStream = {
+        getAudioTracks: () => [oldAudioTrack],
+        getVideoTracks: () => [oldVideoTrack],
+      };
+      return { replaceTrackFn, oldAudioTrack };
+    };
+
+    it('should preserve desired muted state when getUserMedia fails', async () => {
+      const call = new Call(session, defaultParams);
+      call.muteAudio();
+      expect(call.isAudioMuted).toBe(true);
+
+      const { replaceTrackFn, oldAudioTrack } =
+        setupCallForFailureTest(call);
+
+      // Stub hangup to prevent _onMediaError cascade
+      const hangupSpy = jest
+        .spyOn(Object.getPrototypeOf(call), 'hangup' as any)
+        .mockResolvedValue(undefined);
+
+      // Make navigator.mediaDevices.getUserMedia reject
+      jest
+        .spyOn(navigator.mediaDevices, 'getUserMedia')
+        .mockRejectedValueOnce(new Error('Requested device not found'));
+
+      await call.setAudioInDevice('bad-device', false);
+
+      // Desired state should NOT have flipped to false
+      expect(call.isAudioMuted).toBe(true);
+      // replaceTrack should not have been called
+      expect(replaceTrackFn).not.toHaveBeenCalled();
+      // localStream should be unchanged
+      expect((call as any).options.localStream.getAudioTracks()[0]).toBe(
+        oldAudioTrack
+      );
+
+      hangupSpy.mockRestore();
+      (navigator.mediaDevices.getUserMedia as jest.Mock).mockRestore();
+    });
+
+    it('should preserve desired unmuted state when getUserMedia fails', async () => {
+      const call = new Call(session, defaultParams);
+      expect(call.isAudioMuted).toBe(false);
+
+      const { replaceTrackFn } = setupCallForFailureTest(call);
+
+      const hangupSpy = jest
+        .spyOn(Object.getPrototypeOf(call), 'hangup' as any)
+        .mockResolvedValue(undefined);
+
+      jest
+        .spyOn(navigator.mediaDevices, 'getUserMedia')
+        .mockRejectedValueOnce(new Error('Permission denied'));
+
+      await call.setAudioInDevice('denied-device', true);
+
+      // Desired state should NOT have flipped to true
+      expect(call.isAudioMuted).toBe(false);
+      expect(replaceTrackFn).not.toHaveBeenCalled();
+
+      hangupSpy.mockRestore();
+      (navigator.mediaDevices.getUserMedia as jest.Mock).mockRestore();
+    });
+
+    it('should preserve desired muted state when there is no audio sender', async () => {
+      const call = new Call(session, defaultParams);
+      call.muteAudio();
+      expect(call.isAudioMuted).toBe(true);
+
+      // No audio sender at all
+      (call as any).peer = {
+        instance: {
+          getSenders: () => [],
+        },
+        close: jest.fn(),
+      };
+      const oldAudioTrack = { stop: jest.fn() };
+      const oldVideoTrack = { kind: 'video' };
+      (call as any).options.localStream = {
+        getAudioTracks: () => [oldAudioTrack],
+        getVideoTracks: () => [oldVideoTrack],
+      };
+
+      await call.setAudioInDevice('some-device', false);
+
+      // Desired state should NOT have flipped
+      expect(call.isAudioMuted).toBe(true);
+      // localStream should be unchanged
+      expect((call as any).options.localStream.getAudioTracks()[0]).toBe(
+        oldAudioTrack
+      );
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────
   // 9. Reattach / ICE restart / renegotiation does not re-enable mic
   // ───────────────────────────────────────────────────────────────
   describe('reattach / ICE restart does not re-enable mic when desired mute is true', () => {
