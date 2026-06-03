@@ -1176,6 +1176,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.startSignalingHealthMonitor();
 
         setTimeout(async () => {
+          // Guard: if the call has transitioned away from Active or been
+          // finalized before this callback runs, skip sink setup and
+          // media device collection. This prevents starting a new
+          // MediaDeviceCollector on an already-cleaned CallReportCollector
+          // (e.g. short call that ends before the setTimeout fires).
+          if (this._state !== State.Active) {
+            return;
+          }
+
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
             const success = await setMediaElementSinkId(
@@ -1185,6 +1194,11 @@ export default abstract class BaseCall implements IWebRTCCall {
             if (success) {
               this._appliedOutputDeviceId = speakerId;
             }
+          }
+
+          // Re-check state after async setSinkId — call may have ended.
+          if (this._state !== State.Active) {
+            return;
           }
 
           // Start media device collection after setSinkId attempt completes.

@@ -678,7 +678,7 @@ describe('MediaDeviceCollector', () => {
       expect(collector.getEvents().length).toBe(2);
     });
 
-    it('no new events after stop() even if capture was in flight', async () => {
+    it('call-start events are emitted even if stop() is called during capture', async () => {
       let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
       const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
         resolveEnumerate = resolve;
@@ -691,14 +691,70 @@ describe('MediaDeviceCollector', () => {
       // Start capture
       collector.captureCallStart(pc);
 
-      // Stop before enumerateDevices resolves
+      // Stop before enumerateDevices resolves — this should only
+      // prevent future devicechange events, NOT suppress the initial
+      // call-start snapshot/selected-device events.
       collector.stop();
 
       // Resolve enumerateDevices
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
       await collector.ensureCaptureComplete();
 
-      // No events should be emitted since we stopped before capture completed
+      // Call-start events should still be emitted — they are required data.
+      const events = collector.getEvents();
+      expect(events.length).toBe(2);
+      expect(events[0].eventName).toBe('media_devices_snapshot_call_start');
+      expect(events[1].eventName).toBe('selected_media_devices_call_start');
+    });
+
+    it('stop() prevents devicechange events but not capture events', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      await collector.captureCallStart(pc);
+
+      // Should have 2 events (snapshot + selected)
+      expect(collector.getEvents().length).toBe(2);
+
+      collector.stop();
+
+      // Simulate device change — should not produce a change event
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('mic-2', 'audioinput'),
+      ]);
+
+      await collector._simulateDeviceChange();
+
+      // Still only the 2 capture events — no devicechange event
+      expect(collector.getEvents().length).toBe(2);
+    });
+
+    it('cleanup() suppresses all events including in-flight capture', async () => {
+      let resolveEnumerate: (devices: MediaDeviceInfo[]) => void;
+      const enumeratePromise = new Promise<MediaDeviceInfo[]>((resolve) => {
+        resolveEnumerate = resolve;
+      });
+      enumerateDevicesSpy.mockReturnValue(enumeratePromise);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+
+      // Start capture
+      collector.captureCallStart(pc);
+
+      // Cleanup before enumerateDevices resolves — this fully
+      // destroys the collector and clears all events.
+      collector.cleanup();
+
+      // Resolve enumerateDevices
+      resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
+      await collector.ensureCaptureComplete();
+
+      // No events — cleanup clears everything
       expect(collector.getEvents().length).toBe(0);
     });
   });

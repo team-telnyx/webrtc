@@ -162,7 +162,17 @@ export class MediaDeviceCollector {
   private _callStartSnapshot: IDeviceSnapshot | null = null;
   private _latestSnapshot: IDeviceSnapshot | null = null;
   private _deviceChangeHandler: (() => void) | null = null;
-  private _stopped: boolean = false;
+
+  /**
+   * When true, no new devicechange events will be processed.
+   * This is set by stop() to disable the devicechange listener
+   * without discarding the initial capture results.
+   *
+   * The initial captureCallStart() always emits its events
+   * regardless of this flag — the call-start snapshot and
+   * selected-device events are required data for the report.
+   */
+  private _listenersStopped: boolean = false;
 
   /**
    * Promise tracking the in-flight captureCallStart() call.
@@ -170,6 +180,13 @@ export class MediaDeviceCollector {
    * a short call ends before enumerateDevices + hashing completes.
    */
   private _capturePromise: Promise<void> | null = null;
+
+  /**
+   * Whether cleanup() has been called. Once cleaned up, no further
+   * operations are allowed — captureCallStart will not emit events,
+   * and drainEvents/getEvents will return empty.
+   */
+  private _cleanedUp: boolean = false;
 
   constructor(options?: IMediaDeviceCollectorOptions) {
     this.options = {
@@ -182,6 +199,11 @@ export class MediaDeviceCollector {
    * Capture the device snapshot at call start.
    * Must be called after permissions are available (i.e. after getUserMedia).
    *
+   * The call-start snapshot and selected-device events are always emitted
+   * even if stop() is called during the async capture — this data is
+   * required for call reports. Only devicechange events are suppressed
+   * after stop().
+   *
    * @param peerConnection - The RTCPeerConnection for the call
    * @param outputDeviceId - The output device ID that was *actually applied*
    *   via setSinkId. Pass null/undefined if setSinkId was not called or failed.
@@ -190,6 +212,10 @@ export class MediaDeviceCollector {
     peerConnection: RTCPeerConnection,
     outputDeviceId?: string | null
   ): Promise<void> {
+    // If already cleaned up, don't start a new capture
+    if (this._cleanedUp) {
+      return Promise.resolve();
+    }
     const promise = this._doCaptureCallStart(peerConnection, outputDeviceId);
     this._capturePromise = promise;
     return promise;
@@ -199,7 +225,8 @@ export class MediaDeviceCollector {
     peerConnection: RTCPeerConnection,
     outputDeviceId?: string | null
   ): Promise<void> {
-    if (this._stopped) return;
+    // Don't start if already cleaned up
+    if (this._cleanedUp) return;
 
     try {
       // 1. Enumerate all devices
@@ -208,8 +235,10 @@ export class MediaDeviceCollector {
       this._callStartSnapshot = snapshot;
       this._latestSnapshot = snapshot;
 
-      // 2. Emit snapshot event (only if not stopped during async gap)
-      if (!this._stopped) {
+      // 2. Emit snapshot event — always emit even if stop() was called
+      //    during the async gap. The call-start snapshot is required data.
+      //    Only skip if cleanup() was called (collector is being destroyed).
+      if (!this._cleanedUp) {
         const snapshotEvent: IMediaDevicesSnapshotCallStart = {
           eventName: 'media_devices_snapshot_call_start',
           timestamp: new Date().toISOString(),
@@ -236,16 +265,18 @@ export class MediaDeviceCollector {
         this._selectedOutputDeviceIdHash = 'browser-default';
       }
 
-      // 5. Emit selected devices event (only if not stopped during async gap)
-      if (!this._stopped) {
+      // 5. Emit selected devices event — always emit even if stop() was called
+      //    during the async gap. The selected-device data is required for reports.
+      //    Only skip if cleanup() was called.
+      if (!this._cleanedUp) {
         const selectedEvent = this._buildSelectedEvent(snapshot);
         this._events.push(selectedEvent);
       }
 
-      // 6. Start listening for devicechange events
-      //    (only after all async work completes to avoid firing during setup)
-      //    (only if not stopped during async gap)
-      if (!this._stopped) {
+      // 6. Start listening for devicechange events.
+      //    Only if not stopped (stop() disables future devicechange events)
+      //    and not cleaned up, and capture is still relevant.
+      if (!this._listenersStopped && !this._cleanedUp) {
         this._startDeviceChangeListener();
       }
 
@@ -288,11 +319,16 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Stop the collector and clean up listeners.
-   * Called when the call ends. No new events will be emitted after this.
+   * Stop listening for devicechange events.
+   * Called when the call ends. No new devicechange events will be processed.
+   *
+   * Important: this does NOT suppress the initial call-start snapshot
+   * or selected-device events. If captureCallStart() is in flight when
+   * stop() is called, the capture will still complete and emit those
+   * events — they are required data for the call report.
    */
   stop(): void {
-    this._stopped = true;
+    this._listenersStopped = true;
     this._removeDeviceChangeListener();
   }
 
@@ -314,10 +350,13 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Clean up resources after the call report has been posted.
+   * Clean up all resources after the call report has been posted.
+   * After cleanup, no further operations are possible.
    */
   cleanup(): void {
-    this.stop();
+    this._listenersStopped = true;
+    this._cleanedUp = true;
+    this._removeDeviceChangeListener();
     this._events = [];
     this._capturePromise = null;
     this._callStartSnapshot = null;
@@ -485,7 +524,7 @@ export class MediaDeviceCollector {
    * the previous one, and emit a change event.
    */
   private async _onDeviceChange(): Promise<void> {
-    if (this._stopped) return;
+    if (this._listenersStopped || this._cleanedUp) return;
 
     try {
       const rawDevices = await this._enumerateDevices();
@@ -511,6 +550,9 @@ export class MediaDeviceCollector {
         this._checkSelectedInputAvailable(newSnapshot);
       const selectedOutputStillAvailable =
         this._checkSelectedOutputAvailable(newSnapshot);
+
+      // Only emit if not stopped/cleaned up during async gap
+      if (this._listenersStopped || this._cleanedUp) return;
 
       const changeEvent: IMediaDevicesChangedDuringCall = {
         eventName: 'media_devices_changed_during_call',
