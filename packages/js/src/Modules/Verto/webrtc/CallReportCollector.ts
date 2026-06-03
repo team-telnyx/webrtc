@@ -440,11 +440,14 @@ export class CallReportCollector {
   /**
    * Update the selected output device after setSinkId succeeds.
    * Called from the deferred setTimeout in BaseCall when the actual
-   * applied sink ID becomes known.
+   * applied sink ID becomes known, or from Call#setAudioOutDevice()
+   * on mid-call device changes.
+   *
+   * Returns the promise so callers can await if needed.
    */
-  public updateMediaOutputDevice(deviceId: string): void {
-    if (!this._mediaDeviceCollector) return;
-    this._mediaDeviceCollector.updateOutputDevice(deviceId);
+  public updateMediaOutputDevice(deviceId: string): Promise<void> {
+    if (!this._mediaDeviceCollector) return Promise.resolve();
+    return this._mediaDeviceCollector.updateOutputDevice(deviceId);
   }
 
   /**

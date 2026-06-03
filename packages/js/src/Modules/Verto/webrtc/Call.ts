@@ -153,8 +153,10 @@ export class Call extends BaseCall {
       this._appliedOutputDeviceId = success ? speakerId : null;
       // Update the media device collector with the actual applied output
       // device so the call report reflects mid-call device changes.
+      // Await so the update is reflected before any subsequent
+      // postReport / devicechange reads the selected output.
       if (success && this._callReportCollector) {
-        this._callReportCollector.updateMediaOutputDevice(speakerId);
+        await this._callReportCollector.updateMediaOutputDevice(speakerId);
       }
       return success;
     }

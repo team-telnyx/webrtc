@@ -175,6 +175,13 @@ export class MediaDeviceCollector {
   private _listenersStopped: boolean = false;
 
   /**
+   * Promise tracking any in-flight updateOutputDevice() call.
+   * Must be awaited before posting any report to avoid races where
+   * the output device update hasn't completed before events are drained.
+   */
+  private _updatePromise: Promise<void> | null = null;
+
+  /**
    * Promise tracking the in-flight captureCallStart() call.
    * Must be awaited before posting any report to avoid races where
    * a short call ends before enumerateDevices + hashing completes.
@@ -300,38 +307,52 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Await the in-flight captureCallStart() promise (if any) before
-   * posting a report. Prevents races where a short call ends before
-   * enumerateDevices + hashing completes.
+   * Await the in-flight captureCallStart() promise and any pending
+   * updateOutputDevice() promise before posting a report.
+   * Prevents races where a short call ends before enumerateDevices +
+   * hashing completes, or where a mid-call output device change
+   * hasn't been reflected in the events yet.
    */
   async ensureCaptureComplete(): Promise<void> {
     if (this._capturePromise) {
       await this._capturePromise;
       this._capturePromise = null;
     }
+    if (this._updatePromise) {
+      await this._updatePromise;
+      this._updatePromise = null;
+    }
   }
 
   /**
-   * Returns true if captureCallStart() has completed (no in-flight promise).
+   * Returns true if captureCallStart() has completed AND no output
+   * device update is in flight.
    */
   isCaptureComplete(): boolean {
-    return this._capturePromise === null;
+    return this._capturePromise === null && this._updatePromise === null;
   }
 
   /**
    * Update the selected output device after setSinkId completes.
    * Called from the deferred setTimeout in BaseCall when the actual
-   * applied sink ID becomes known.
+   * applied sink ID becomes known, or from Call#setAudioOutDevice()
+   * on mid-call device changes.
    *
    * If the initial capture hasn't completed yet, this queues the
    * update to be applied after capture finishes.
    *
    * @param deviceId - The output device ID that was successfully applied
    */
-  async updateOutputDevice(deviceId: string): Promise<void> {
+  updateOutputDevice(deviceId: string): Promise<void> {
+    const promise = this._doUpdateOutputDevice(deviceId);
+    this._updatePromise = promise;
+    return promise;
+  }
+
+  private async _doUpdateOutputDevice(deviceId: string): Promise<void> {
     const newHash = await hashValue(deviceId);
 
-    // If capture hasn't completed, we need to wait for it so we can
+    // If capture hasn't completed, wait for it so we can
     // update the selected event properly.
     if (this._capturePromise) {
       await this._capturePromise;
@@ -339,7 +360,10 @@ export class MediaDeviceCollector {
     }
 
     // If cleaned up after await, skip
-    if (this._cleanedUp) return;
+    if (this._cleanedUp) {
+      this._updatePromise = null;
+      return;
+    }
 
     // Update the stored hash
     this._selectedOutputDeviceIdHash = newHash;
@@ -359,6 +383,8 @@ export class MediaDeviceCollector {
         stillAvailable,
       };
     }
+
+    this._updatePromise = null;
   }
 
   /**
@@ -402,6 +428,7 @@ export class MediaDeviceCollector {
     this._removeDeviceChangeListener();
     this._events = [];
     this._capturePromise = null;
+    this._updatePromise = null;
     this._callStartSnapshot = null;
     this._latestSnapshot = null;
     this._selectedInputDeviceIdHash = null;

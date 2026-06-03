@@ -1192,7 +1192,11 @@ export default abstract class BaseCall implements IWebRTCCall {
               this._appliedOutputDeviceId = speakerId;
               // Update the media device collector with the actual applied
               // output device. This is deferred because setSinkId is async.
-              this._callReportCollector?.updateMediaOutputDevice(speakerId);
+              // Await so the update is reflected before any subsequent
+              // postReport / devicechange reads the selected output.
+              await this._callReportCollector?.updateMediaOutputDevice(
+                speakerId
+              );
             }
           }
         }, 0);

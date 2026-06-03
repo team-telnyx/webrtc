@@ -714,6 +714,50 @@ describe('MediaDeviceCollector', () => {
 
       expect(changeEvent.selectedOutputStillAvailable).toBe(false);
     });
+
+    it('updateOutputDevice awaited before ensureCaptureComplete', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      await collector.captureCallStart(pc, null);
+
+      // Mid-call output update
+      collector.updateOutputDevice('speaker-1');
+
+      // ensureCaptureComplete should also await the update
+      await collector.ensureCaptureComplete();
+
+      const selectedEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'selected_media_devices_call_start'
+        ) as ISelectedMediaDevicesCallStart;
+      expect(selectedEvent.selected.output?.deviceIdHash).not.toBe(
+        'browser-default'
+      );
+    });
+
+    it('isCaptureComplete returns false while updateOutputDevice is in flight', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      await collector.captureCallStart(pc, null);
+
+      expect(collector.isCaptureComplete()).toBe(true);
+
+      // Start an update and await it
+      await collector.updateOutputDevice('speaker-1');
+
+      expect(collector.isCaptureComplete()).toBe(true);
+    });
   });
 
   describe('capture promise tracking', () => {
