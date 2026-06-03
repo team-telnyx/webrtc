@@ -309,16 +309,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
-    this._init();
-
-    // Initialize desired mute state from the call option so it persists
-    // across track replacements, device changes, and ICE restarts.
+    // Initialize desired mute state BEFORE _init() so that the first
+    // callUpdate notification (dispatched inside _init -> setState)
+    // already reflects mutedMicOnStart correctly.
     this._desiredAudioMuted = Boolean(this.options.mutedMicOnStart);
 
     // Expose the callback so Peer can apply the desired mute state
     // whenever it creates or replaces local audio tracks.
     this.options.applyDesiredAudioMuteState =
       this._applyDesiredAudioMuteState.bind(this);
+
+    this._init();
 
     // Create _rings HTMLAudioElement
     if (this.options) {
