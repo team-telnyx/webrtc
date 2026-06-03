@@ -151,6 +151,11 @@ export class Call extends BaseCall {
       // Track the actually applied sink ID for media device reporting.
       // Only set if setSinkId succeeded.
       this._appliedOutputDeviceId = success ? speakerId : null;
+      // Update the media device collector with the actual applied output
+      // device so the call report reflects mid-call device changes.
+      if (success && this._callReportCollector) {
+        this._callReportCollector.updateMediaOutputDevice(speakerId);
+      }
       return success;
     }
     this._appliedOutputDeviceId = null;

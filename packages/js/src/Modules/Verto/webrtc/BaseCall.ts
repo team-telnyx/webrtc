@@ -95,7 +95,7 @@ const SDK_VERSION = pkg.version;
  */
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
-  private _callReportCollector: CallReportCollector | null = null;
+  protected _callReportCollector: CallReportCollector | null = null;
 
   /**
    * The call identifier.

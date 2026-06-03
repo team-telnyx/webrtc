@@ -682,6 +682,38 @@ describe('MediaDeviceCollector', () => {
       // Should not throw
       await collector.updateOutputDevice('speaker-1');
     });
+
+    it('mid-call updateOutputDevice affects devicechange availability checks', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+        makeMediaDeviceInfo('speaker-2', 'audiooutput', 'Built-in'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      // Start with browser-default output
+      await collector.captureCallStart(pc, null);
+
+      // Mid-call: app switches output to headset via setAudioOutDevice
+      await collector.updateOutputDevice('speaker-1');
+
+      // Now remove the headset — should flag selectedOutputStillAvailable=false
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-2', 'audiooutput', 'Built-in'),
+      ]);
+
+      await collector._simulateDeviceChange();
+
+      const changeEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
+
+      expect(changeEvent.selectedOutputStillAvailable).toBe(false);
+    });
   });
 
   describe('capture promise tracking', () => {
