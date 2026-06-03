@@ -14,6 +14,10 @@
 
 import logger from '../../../Modules/Verto/util/logger';
 import {
+  MediaDeviceCollector,
+  type MediaDeviceEvent,
+} from './MediaDeviceCollector';
+import {
   LogCollector,
   ILogEntry,
   createLogCollector,
@@ -263,6 +267,8 @@ export interface ICallReportPayload {
   summary: ICallSummary;
   stats: IStatsInterval[];
   logs?: ILogEntry[];
+  /** Media device visibility events (snapshots, selected devices, changes). */
+  mediaDeviceEvents?: MediaDeviceEvent[];
   /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
   segment?: number;
   /** Why this intermediate segment was flushed. */
@@ -382,6 +388,9 @@ export class CallReportCollector {
   /** Whether stop() has been requested (prevents timer re-scheduling). */
   private _stopped: boolean = false;
 
+  /** Media device visibility collector. */
+  private _mediaDeviceCollector: MediaDeviceCollector | null = null;
+
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
   private static readonly KEEPALIVE_BODY_LIMIT_BYTES = 60 * 1024;
@@ -405,6 +414,23 @@ export class CallReportCollector {
       this.logCollector.start();
       setGlobalLogCollector(this.logCollector);
     }
+  }
+
+  /**
+   * Start collecting media device visibility data.
+   * Called when the call becomes active and the peer connection is available.
+   *
+   * @param peerConnection - The RTCPeerConnection for the call
+   * @param outputDeviceId - The output device ID if known (via setSinkId), or null
+   */
+  public startMediaDeviceCollection(
+    peerConnection: RTCPeerConnection,
+    outputDeviceId?: string | null
+  ): void {
+    if (!this.options.enabled) return;
+
+    this._mediaDeviceCollector = new MediaDeviceCollector();
+    this._mediaDeviceCollector.captureCallStart(peerConnection, outputDeviceId);
   }
 
   /**
@@ -458,6 +484,9 @@ export class CallReportCollector {
       this.logCollector.stop();
     }
 
+    // Stop media device collector
+    this._mediaDeviceCollector?.stop();
+
     logger.info('CallReportCollector: Stopped stats collection', {
       totalIntervals: this.statsBuffer.length,
       totalLogs: logCount,
@@ -489,6 +518,9 @@ export class CallReportCollector {
       // Drain logs accumulated since last flush
       const logs = this.logCollector?.drain() ?? [];
 
+      // Drain media device events accumulated since last flush
+      const mediaDeviceEvents = this._mediaDeviceCollector?.drainEvents() ?? [];
+
       const now = new Date();
       this._lastIntermediateFlushTime = now;
 
@@ -502,6 +534,7 @@ export class CallReportCollector {
         },
         stats,
         ...(logs.length > 0 ? { logs } : {}),
+        ...(mediaDeviceEvents.length > 0 ? { mediaDeviceEvents } : {}),
         segment,
         ...(flushReason ? { flushReason } : {}),
       };
@@ -536,6 +569,10 @@ export class CallReportCollector {
     const logs = this.logCollector?.getLogs();
     const hasLogs = logs && logs.length > 0;
 
+    // Get remaining media device events (drain was used for intermediates)
+    const mediaDeviceEvents = this._mediaDeviceCollector?.getEvents() ?? [];
+    const hasMediaDeviceEvents = mediaDeviceEvents.length > 0;
+
     if (!this.options.enabled) {
       logger.info(
         'CallReportCollector: Skipping report — call reports disabled'
@@ -543,9 +580,9 @@ export class CallReportCollector {
       return;
     }
 
-    if (this.statsBuffer.length === 0 && !hasLogs) {
+    if (this.statsBuffer.length === 0 && !hasLogs && !hasMediaDeviceEvents) {
       logger.info(
-        'CallReportCollector: Skipping report — no stats or logs collected'
+        'CallReportCollector: Skipping report — no stats, logs, or media device events collected'
       );
       return;
     }
@@ -566,6 +603,7 @@ export class CallReportCollector {
       },
       stats: this.statsBuffer,
       ...(logs && logs.length > 0 ? { logs } : {}),
+      ...(hasMediaDeviceEvents ? { mediaDeviceEvents } : {}),
       ...(isMultiSegment ? { segment } : {}),
     };
 
@@ -787,6 +825,11 @@ export class CallReportCollector {
     if (this.logCollector) {
       this.logCollector.clear();
       this.logCollector = null;
+    }
+
+    if (this._mediaDeviceCollector) {
+      this._mediaDeviceCollector.cleanup();
+      this._mediaDeviceCollector = null;
     }
   }
 

@@ -1182,6 +1182,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.callReportId
         ) {
           this._callReportCollector.start(this.peer.instance);
+          // Start media device collection for device visibility in call reports
+          this._callReportCollector.startMediaDeviceCollection(
+            this.peer.instance,
+            this.options.speakerId
+          );
         }
         break;
       }
