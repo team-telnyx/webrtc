@@ -74,7 +74,6 @@ import {
   disableVideoTracks,
   enableAudioTracks,
   enableVideoTracks,
-  isAudioTrackEnabled,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -224,6 +223,16 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  /**
+   * Durable call-level desired mute state for the microphone.
+   * Initialized from `mutedMicOnStart`, then updated by muteAudio()/unmuteAudio()
+   * and the explicit `muted` arg of setAudioInDevice().
+   * Applied to every local audio track the SDK creates or replaces so that
+   * ICE restart, device switch, reattach, and renegotiation never
+   * accidentally un-mute the mic.
+   */
+  private _desiredAudioMuted: boolean = false;
+
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
@@ -302,6 +311,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
     this._init();
 
+    // Initialize desired mute state from the call option so it persists
+    // across track replacements, device changes, and ICE restarts.
+    this._desiredAudioMuted = Boolean(this.options.mutedMicOnStart);
+
+    // Expose the callback so Peer can apply the desired mute state
+    // whenever it creates or replaces local audio tracks.
+    this.options.applyDesiredAudioMuteState =
+      this._applyDesiredAudioMuteState.bind(this);
+
     // Create _rings HTMLAudioElement
     if (this.options) {
       this._ringtone = createAudio(this.options.ringtoneFile, '_ringtone');
@@ -377,7 +395,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Checks whether the microphone is muted.
+   * Returns the call-level desired mute state for the microphone.
+   * Unlike checking individual track.enabled values, this persists across
+   * track replacements (device switch, reattach, ICE restart) so callers
+   * always see a consistent value.
    *
    * @examples
    *
@@ -386,7 +407,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   get isAudioMuted(): boolean {
-    return !isAudioTrackEnabled(this.options.localStream);
+    return this._desiredAudioMuted;
   }
 
   private _hasActiveUnmutedLocalAudioTrack(): boolean {
@@ -808,6 +829,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   muteAudio(): void {
+    this._desiredAudioMuted = true;
     disableAudioTracks(this.options.localStream);
   }
 
@@ -822,7 +844,23 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   unmuteAudio(): void {
+    this._desiredAudioMuted = false;
     enableAudioTracks(this.options.localStream);
+  }
+
+  /**
+   * Apply the current desired mute state to all local audio tracks.
+   * Called internally after track creation/replacement (Peer init,
+   * setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+   * ensure the mic stays muted when the SDK creates or replaces
+   * local audio tracks.
+   */
+  _applyDesiredAudioMuteState(): void {
+    if (this._desiredAudioMuted) {
+      disableAudioTracks(this.options.localStream);
+    } else {
+      enableAudioTracks(this.options.localStream);
+    }
   }
 
   /**
@@ -835,6 +873,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   toggleAudioMute() {
+    this._desiredAudioMuted = !this._desiredAudioMuted;
     toggleAudioTracks(this.options.localStream);
   }
 
@@ -868,13 +907,16 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
-   * @param muted Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option.
+   * @param muted Whether the audio track should be muted. Defaults to the current desired mute state.
    * @returns Promise that resolves if the audio input device has been updated
    */
   async setAudioInDevice(
     deviceId: string,
-    muted = this.options.mutedMicOnStart
+    muted = this._desiredAudioMuted
   ): Promise<void> {
+    // If the caller explicitly passes a muted value, update the durable
+    // desired state so future track replacements respect it.
+    this._desiredAudioMuted = Boolean(muted);
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
@@ -1000,6 +1042,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       localStream.getAudioTracks().forEach((t) => newStream.addTrack(t));
       localStream.getVideoTracks().forEach((t) => t.stop());
       this.options.localStream = newStream;
+
+      // Preserve audio mute state after stream replacement
+      this._applyDesiredAudioMuteState();
     }
   }
 
