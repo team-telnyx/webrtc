@@ -373,12 +373,15 @@ class VertoHandler {
                 break;
               }
             case GatewayStateType.FAILED:
-            case GatewayStateType.FAIL_WAIT: {
+            case GatewayStateType.FAIL_WAIT:
+            case GatewayStateType.TIMEOUT: {
               if (
                 session.connection.previousGatewayState !==
                   GatewayStateType.FAILED &&
                 session.connection.previousGatewayState !==
-                  GatewayStateType.FAIL_WAIT
+                  GatewayStateType.FAIL_WAIT &&
+                session.connection.previousGatewayState !==
+                  GatewayStateType.TIMEOUT
               ) {
                 // Emit gateway failure on first occurrence
                 const gatewayError = createTelnyxError(
@@ -394,11 +397,15 @@ class VertoHandler {
                   session.uuid
                 );
 
+                // Avoid sticky reconnect to the same b2bua-rtc target by
+                // requesting a different instance on the next connect().
+                session.options.skipLastVoiceSdkId = true;
+
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
                   const originalError = new ErrorResponse(
                     `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                    'FAILED|FAIL_WAIT'
+                    'FAILED|FAIL_WAIT|TIMEOUT'
                   );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,

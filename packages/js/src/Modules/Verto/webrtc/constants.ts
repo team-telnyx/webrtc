@@ -115,6 +115,7 @@ export enum GatewayStateType {
   NOREG = 'NOREG',
   FAILED = 'FAILED',
   FAIL_WAIT = 'FAIL_WAIT',
+  TIMEOUT = 'TIMEOUT',
   REGISTER = 'REGISTER',
   TRYING = 'TRYING',
   EXPIRED = 'EXPIRED',
