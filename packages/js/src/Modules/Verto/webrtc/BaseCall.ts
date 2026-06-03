@@ -943,14 +943,29 @@ export default abstract class BaseCall implements IWebRTCCall {
       return;
     }
 
+    const audioTrack = newStream.getAudioTracks()[0];
+    audioTrack.enabled = !newDesiredMuted;
+
+    try {
+      await sender.replaceTrack(audioTrack);
+    } catch (error) {
+      // replaceTrack rejected — the RTP sender did not switch tracks.
+      // Don't commit any state changes. Keep the old stream and desired
+      // mute state. Surface the failure as a media error.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      // Stop the new stream we acquired but didn't use
+      newStream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
     // Only commit the new desired mute state after getUserMedia + sender
     // replacement succeeds. This prevents isAudioMuted from flipping on
     // failure while the actual audio track stays unchanged.
     this._desiredAudioMuted = newDesiredMuted;
-
-    const audioTrack = newStream.getAudioTracks()[0];
-    audioTrack.enabled = !newDesiredMuted;
-    sender.replaceTrack(audioTrack);
     this.options.micId = deviceId;
 
     const { localStream } = this.options;

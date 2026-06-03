@@ -450,7 +450,6 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       );
 
       hangupSpy.mockRestore();
-      (navigator.mediaDevices.getUserMedia as jest.Mock).mockRestore();
     });
 
     it('should preserve desired unmuted state when getUserMedia fails', async () => {
@@ -474,8 +473,8 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       expect(replaceTrackFn).not.toHaveBeenCalled();
 
       hangupSpy.mockRestore();
-      (navigator.mediaDevices.getUserMedia as jest.Mock).mockRestore();
     });
+
 
     it('should preserve desired muted state when there is no audio sender', async () => {
       const call = new Call(session, defaultParams);
@@ -504,6 +503,50 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       expect((call as any).options.localStream.getAudioTracks()[0]).toBe(
         oldAudioTrack
       );
+    });
+
+    it('should preserve desired muted state when replaceTrack rejects', async () => {
+      const call = new Call(session, defaultParams);
+      call.muteAudio();
+      expect(call.isAudioMuted).toBe(true);
+
+      const replaceTrackFn = jest.fn().mockRejectedValue(new Error('Track replacement failed'));
+      const sender = {
+        track: { kind: 'audio' },
+        replaceTrack: replaceTrackFn,
+      };
+      (call as any).peer = {
+        instance: {
+          getSenders: () => [sender],
+        },
+        close: jest.fn(),
+      };
+      const oldAudioTrack = { stop: jest.fn() };
+      const oldVideoTrack = { kind: 'video' };
+      (call as any).options.localStream = {
+        getAudioTracks: () => [oldAudioTrack],
+        getVideoTracks: () => [oldVideoTrack],
+      };
+
+      // Stub hangup to prevent _onMediaError cascade
+      const hangupSpy = jest
+        .spyOn(Object.getPrototypeOf(call), 'hangup' as any)
+        .mockResolvedValue(undefined);
+
+      await call.setAudioInDevice('good-device', false);
+
+      // Desired state should NOT have flipped to false
+      expect(call.isAudioMuted).toBe(true);
+      // Old audio track should NOT have been stopped
+      expect(oldAudioTrack.stop).not.toHaveBeenCalled();
+      // localStream should be unchanged
+      expect((call as any).options.localStream.getAudioTracks()[0]).toBe(
+        oldAudioTrack
+      );
+      // micId should NOT have been updated
+      expect((call as any).options.micId).not.toBe('good-device');
+
+      hangupSpy.mockRestore();
     });
   });
 
