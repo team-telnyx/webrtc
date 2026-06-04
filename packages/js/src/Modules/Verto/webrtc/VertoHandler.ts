@@ -289,12 +289,7 @@ class VertoHandler {
             // If the user is REGED tell the client that it is ready to make calls
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
-              if (
-                !this.isDuplicateGatewayState(gateWayState, [
-                  GatewayStateType.REGED,
-                  GatewayStateType.REGISTER,
-                ])
-              ) {
+              if (!this.isDuplicateGatewayState(gateWayState)) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
 
@@ -375,13 +370,7 @@ class VertoHandler {
             case GatewayStateType.FAILED:
             case GatewayStateType.FAIL_WAIT:
             case GatewayStateType.TIMEOUT: {
-              if (
-                !this.isDuplicateGatewayState(gateWayState, [
-                  GatewayStateType.FAILED,
-                  GatewayStateType.FAIL_WAIT,
-                  GatewayStateType.TIMEOUT,
-                ])
-              ) {
+              if (!this.isDuplicateGatewayState(gateWayState)) {
                 // Emit gateway failure on first occurrence
                 const gatewayError = createTelnyxError(
                   GATEWAY_FAILED,
@@ -490,19 +479,13 @@ class VertoHandler {
   }
 
   /**
-   * Checks whether the previous gateway state matches any of the states in the
-   * given bucket (e.g. [FAILED, FAIL_WAIT, TIMEOUT] or [REGED, REGISTER]).
-   * Logs a debug message when a duplicate/overlapping state is detected so the
-   * guard condition is visible in session/call reports.
+   * Checks whether the previous gateway state matches the current state.
+   * Logs a debug message when a duplicate state is detected so the guard
+   * condition is visible in session/call reports.
    */
-  private isDuplicateGatewayState(
-    currentState: GatewayStateType,
-    states: GatewayStateType[]
-  ): boolean {
+  private isDuplicateGatewayState(currentState: GatewayStateType): boolean {
     const { previousGatewayState } = this.session.connection;
-    const isDuplicate = states.includes(
-      previousGatewayState as GatewayStateType
-    );
+    const isDuplicate = previousGatewayState === currentState;
 
     if (isDuplicate) {
       logger.debug(
