@@ -17,6 +17,12 @@ import {
   MediaDeviceCollector,
   type MediaDeviceEvent,
 } from './MediaDeviceCollector';
+// Re-export for consumers that import from CallReportCollector
+export type {
+  IMediaDevicesSnapshotCallStart,
+  IMediaDevicesChangedDuringCall,
+  IRedactedDeviceInfo,
+} from './MediaDeviceCollector';
 import {
   LogCollector,
   ILogEntry,

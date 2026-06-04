@@ -2,20 +2,17 @@
  * MediaDeviceCollector tests
  *
  * Covers:
- *  - Call-start device snapshot formatting
- *  - Selected-device extraction and hashing
- *  - devicechange diffing (added/removed devices)
+ *  - Call-start device snapshot (inputDevices, outputDevices, selectedInputDevice, selectedOutputDevice)
+ *  - devicechange diffing (newConnectedDevices, newDisconnectedDevices)
  *  - Redaction/hashing of deviceId and groupId
  *  - Privacy: labels excluded by default, included when opted in
- *  - Selected device availability tracking
+ *  - Debug log when selected device is disconnected
  *  - Race condition: captureCallStart must complete before events are drained
- *  - Hash-based availability: selected device hashes match snapshot hashes
  */
 
 import {
   MediaDeviceCollector,
   type IMediaDevicesSnapshotCallStart,
-  type ISelectedMediaDevicesCallStart,
   type IMediaDevicesChangedDuringCall,
 } from '../../webrtc/MediaDeviceCollector';
 
@@ -67,7 +64,7 @@ describe('MediaDeviceCollector', () => {
   });
 
   describe('captureCallStart', () => {
-    it('captures a device snapshot at call start', async () => {
+    it('captures a single event with inputDevices, outputDevices, selectedInputDevice, selectedOutputDevice', async () => {
       enumerateDevicesSpy.mockResolvedValue([
         makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in Microphone'),
         makeMediaDeviceInfo('mic-2', 'audioinput', 'Headset Mic'),
@@ -81,16 +78,17 @@ describe('MediaDeviceCollector', () => {
 
       const events = collector.getEvents();
 
-      // Should have snapshot + selected events
-      expect(events.length).toBe(2);
+      // Should have exactly one event (the call-start snapshot)
+      expect(events.length).toBe(1);
 
-      const snapshotEvent = events.find(
-        (e) => e.eventName === 'media_devices_snapshot_call_start'
-      ) as IMediaDevicesSnapshotCallStart;
-
-      expect(snapshotEvent).toBeDefined();
-      expect(snapshotEvent.devices.audioinput.length).toBe(2);
-      expect(snapshotEvent.devices.audiooutput.length).toBe(2);
+      const snapshotEvent = events[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.eventName).toBe('media_devices_snapshot_call_start');
+      expect(snapshotEvent.inputDevices.length).toBe(2);
+      expect(snapshotEvent.outputDevices.length).toBe(2);
+      expect(snapshotEvent.selectedInputDevice).not.toBeNull();
+      expect(snapshotEvent.selectedInputDevice!.kind).toBe('audioinput');
+      expect(snapshotEvent.selectedOutputDevice).not.toBeNull();
+      expect(snapshotEvent.selectedOutputDevice!.kind).toBe('audiooutput');
       expect(snapshotEvent.timestamp).toBeTruthy();
     });
 
@@ -108,13 +106,10 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('raw-device-id');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
 
-      const device = snapshotEvent.devices.audioinput[0];
+      const device = snapshotEvent.inputDevices[0];
 
       // Must NOT be the raw value
       expect(device.deviceIdHash).not.toBe('raw-device-id');
@@ -134,13 +129,9 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
-
-      expect(snapshotEvent.devices.audioinput[0].label).toBeUndefined();
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.inputDevices[0].label).toBeUndefined();
     });
 
     it('includes labels when includeLabels option is enabled', async () => {
@@ -152,13 +143,9 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
-
-      expect(snapshotEvent.devices.audioinput[0].label).toBe('Built-in Mic');
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.inputDevices[0].label).toBe('Built-in Mic');
     });
 
     it('only includes audioinput and audiooutput devices', async () => {
@@ -172,40 +159,28 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
-
-      expect(snapshotEvent.devices.audioinput.length).toBe(1);
-      expect(snapshotEvent.devices.audiooutput.length).toBe(1);
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.inputDevices.length).toBe(1);
+      expect(snapshotEvent.outputDevices.length).toBe(1);
     });
-  });
 
-  describe('selected devices', () => {
-    it('captures selected input device from getUserMedia track', async () => {
+    it('sets selectedInputDevice to null when no input track', async () => {
       enumerateDevicesSpy.mockResolvedValue([
-        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
+        makeMediaDeviceInfo('mic-1', 'audioinput'),
       ]);
 
       const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('selected-mic');
+      // PeerConnection with no audio track
+      const pc = { getSenders: () => [] } as unknown as RTCPeerConnection;
       await collector.captureCallStart(pc);
 
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-
-      expect(selectedEvent).toBeDefined();
-      expect(selectedEvent.selected.input).not.toBeNull();
-      expect(selectedEvent.selected.input?.deviceIdHash).toBeTruthy();
-      expect(selectedEvent.selected.input?.stillAvailable).toBe(true);
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.selectedInputDevice).toBeNull();
     });
 
-    it('marks output as browser-default when no output device is known', async () => {
+    it('sets selectedOutputDevice to null when no output device is known', async () => {
       enumerateDevicesSpy.mockResolvedValue([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
       ]);
@@ -214,20 +189,28 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc); // No output device ID
 
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-
-      expect(selectedEvent.selected.output).not.toBeNull();
-      expect(selectedEvent.selected.output?.deviceIdHash).toBe(
-        'browser-default'
-      );
-      expect(selectedEvent.selected.output?.stillAvailable).toBe(true);
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      // browser-default → no matching device, so null
+      expect(snapshotEvent.selectedOutputDevice).toBeNull();
     });
 
-    it('captures selected output device when provided', async () => {
+    it('sets selectedInputDevice to null when input device not in snapshot', async () => {
+      enumerateDevicesSpy.mockResolvedValue([
+        makeMediaDeviceInfo('other-mic', 'audioinput'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('disconnected-mic');
+      await collector.captureCallStart(pc);
+
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      // The selected input device is not found in the enumerated devices
+      expect(snapshotEvent.selectedInputDevice).toBeNull();
+    });
+
+    it('sets selectedOutputDevice when provided and found in snapshot', async () => {
       enumerateDevicesSpy.mockResolvedValue([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
         makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
@@ -237,44 +220,15 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc, 'speaker-1');
 
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-
-      expect(selectedEvent.selected.output).not.toBeNull();
-      expect(selectedEvent.selected.output?.deviceIdHash).not.toBe(
-        'browser-default'
-      );
-      expect(selectedEvent.selected.output?.stillAvailable).toBe(true);
-    });
-
-    it('reports stillAvailable=false when selected device is not in snapshot', async () => {
-      // The device was selected but isn't enumerated
-      // (e.g. disconnected between getUserMedia and enumerateDevices)
-      enumerateDevicesSpy.mockResolvedValue([
-        makeMediaDeviceInfo('other-mic', 'audioinput'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('disconnected-mic');
-      await collector.captureCallStart(pc);
-
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-
-      // The selected input device ID ('disconnected-mic') won't be found
-      // in the snapshot (only 'other-mic' exists)
-      expect(selectedEvent.selected.input?.stillAvailable).toBe(false);
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.selectedOutputDevice).not.toBeNull();
+      expect(snapshotEvent.selectedOutputDevice!.kind).toBe('audiooutput');
     });
   });
 
   describe('devicechange diffing', () => {
-    it('detects added devices', async () => {
+    it('detects new connected devices', async () => {
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
       ]);
@@ -298,12 +252,12 @@ describe('MediaDeviceCollector', () => {
         ) as IMediaDevicesChangedDuringCall;
 
       expect(changeEvent).toBeDefined();
-      expect(changeEvent.diff.length).toBe(1);
-      expect(changeEvent.diff[0].change).toBe('added');
-      expect(changeEvent.diff[0].kind).toBe('audioinput');
+      expect(changeEvent.newConnectedDevices.length).toBe(1);
+      expect(changeEvent.newConnectedDevices[0].kind).toBe('audioinput');
+      expect(changeEvent.newDisconnectedDevices.length).toBe(0);
     });
 
-    it('detects removed devices', async () => {
+    it('detects new disconnected devices', async () => {
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
         makeMediaDeviceInfo('mic-2', 'audioinput', 'Headset'),
@@ -327,125 +281,22 @@ describe('MediaDeviceCollector', () => {
         ) as IMediaDevicesChangedDuringCall;
 
       expect(changeEvent).toBeDefined();
-      expect(changeEvent.diff.some((d) => d.change === 'removed')).toBe(true);
+      expect(changeEvent.newDisconnectedDevices.length).toBe(1);
+      expect(changeEvent.newDisconnectedDevices[0].kind).toBe('audioinput');
+      expect(changeEvent.newConnectedDevices.length).toBe(0);
     });
 
-    it('flags selectedInputStillAvailable=false when selected input disappears', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('selected-mic');
-      await collector.captureCallStart(pc);
-
-      // Selected input device is removed
-      enumerateDevicesSpy.mockResolvedValueOnce([]);
-
-      await collector._simulateDeviceChange();
-
-      const changeEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_changed_during_call'
-        ) as IMediaDevicesChangedDuringCall;
-
-      expect(changeEvent.selectedInputStillAvailable).toBe(false);
-    });
-
-    it('flags selectedOutputStillAvailable=false when selected output disappears', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
-        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('mic-1');
-      await collector.captureCallStart(pc, 'speaker-1');
-
-      // Selected output device is removed
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
-      ]);
-
-      await collector._simulateDeviceChange();
-
-      const changeEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_changed_during_call'
-        ) as IMediaDevicesChangedDuringCall;
-
-      expect(changeEvent.selectedOutputStillAvailable).toBe(false);
-    });
-
-    it('keeps selectedInputStillAvailable=true when an unrelated device changes', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
-        makeMediaDeviceInfo('other-mic', 'audioinput', 'Built-in'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('selected-mic');
-      await collector.captureCallStart(pc);
-
-      // Remove the OTHER mic (not the selected one)
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
-      ]);
-
-      await collector._simulateDeviceChange();
-
-      const changeEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_changed_during_call'
-        ) as IMediaDevicesChangedDuringCall;
-
-      // The selected input device is still present
-      expect(changeEvent.selectedInputStillAvailable).toBe(true);
-      // The diff should show the OTHER mic was removed
-      expect(changeEvent.diff.some((d) => d.change === 'removed')).toBe(true);
-    });
-
-    it('keeps selectedOutputStillAvailable=true when an unrelated device changes', async () => {
+    it('always includes newConnectedDevices and newDisconnectedDevices arrays (empty if nothing)', async () => {
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
-        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
-        makeMediaDeviceInfo('speaker-2', 'audiooutput', 'Built-in'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('mic-1');
-      await collector.captureCallStart(pc, 'speaker-1');
-
-      // Remove the OTHER speaker (not the selected one)
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput'),
-        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
-      ]);
-
-      await collector._simulateDeviceChange();
-
-      const changeEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_changed_during_call'
-        ) as IMediaDevicesChangedDuringCall;
-
-      // The selected output device is still present
-      expect(changeEvent.selectedOutputStillAvailable).toBe(true);
-    });
-
-    it('includes currentSnapshot in change event', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput'),
       ]);
 
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
+      // Add a new mic, remove speaker
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
         makeMediaDeviceInfo('mic-2', 'audioinput'),
@@ -459,8 +310,10 @@ describe('MediaDeviceCollector', () => {
           (e) => e.eventName === 'media_devices_changed_during_call'
         ) as IMediaDevicesChangedDuringCall;
 
-      expect(changeEvent.currentSnapshot).toBeDefined();
-      expect(changeEvent.currentSnapshot.audioinput.length).toBe(2);
+      expect(Array.isArray(changeEvent.newConnectedDevices)).toBe(true);
+      expect(Array.isArray(changeEvent.newDisconnectedDevices)).toBe(true);
+      expect(changeEvent.newConnectedDevices.length).toBe(1);
+      expect(changeEvent.newDisconnectedDevices.length).toBe(1);
     });
 
     it('does not emit change event when no audio devices changed', async () => {
@@ -485,6 +338,60 @@ describe('MediaDeviceCollector', () => {
 
       expect(changeEvents.length).toBe(0);
     });
+
+    it('includes disconnected selected input device in newDisconnectedDevices', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('selected-mic', 'audioinput', 'Headset'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('selected-mic');
+      await collector.captureCallStart(pc);
+
+      // Selected input device is removed
+      enumerateDevicesSpy.mockResolvedValueOnce([]);
+
+      await collector._simulateDeviceChange();
+
+      const changeEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
+
+      // The disconnected device includes the selected input
+      expect(changeEvent.newDisconnectedDevices.length).toBe(1);
+      expect(changeEvent.newDisconnectedDevices[0].kind).toBe('audioinput');
+    });
+
+    it('logs debug when selected output device is disconnected', async () => {
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
+        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
+      ]);
+
+      const collector = new MediaDeviceCollector();
+      const pc = makePeerConnectionWithInputDevice('mic-1');
+      await collector.captureCallStart(pc, 'speaker-1');
+
+      // Selected output device is removed
+      enumerateDevicesSpy.mockResolvedValueOnce([
+        makeMediaDeviceInfo('mic-1', 'audioinput', 'Built-in'),
+      ]);
+
+      await collector._simulateDeviceChange();
+
+      const changeEvent = collector
+        .getEvents()
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
+
+      // The disconnected device includes the selected output
+      expect(
+        changeEvent.newDisconnectedDevices.some((d) => d.kind === 'audiooutput')
+      ).toBe(true);
+    });
   });
 
   describe('drainEvents', () => {
@@ -498,7 +405,7 @@ describe('MediaDeviceCollector', () => {
       await collector.captureCallStart(pc);
 
       const events = collector.drainEvents();
-      expect(events.length).toBe(2); // snapshot + selected
+      expect(events.length).toBe(1); // single call-start event
 
       // Should be empty after drain
       expect(collector.getEvents().length).toBe(0);
@@ -557,21 +464,12 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('same-id');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
 
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-
-      // The hash of 'same-id' should be the same in both events
-      expect(snapshotEvent.devices.audioinput[0].deviceIdHash).toBe(
-        selectedEvent.selected.input?.deviceIdHash
+      // The hash in inputDevices should match the hash in selectedInputDevice
+      expect(snapshotEvent.inputDevices[0].deviceIdHash).toBe(
+        snapshotEvent.selectedInputDevice?.deviceIdHash
       );
     });
 
@@ -585,21 +483,16 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('device-A');
       await collector.captureCallStart(pc);
 
-      const snapshotEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'media_devices_snapshot_call_start'
-        ) as IMediaDevicesSnapshotCallStart;
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
 
-      const hashes = snapshotEvent.devices.audioinput.map(
-        (d) => d.deviceIdHash
-      );
+      const hashes = snapshotEvent.inputDevices.map((d) => d.deviceIdHash);
       expect(hashes[0]).not.toBe(hashes[1]);
     });
   });
 
   describe('updateOutputDevice', () => {
-    it('updates selected output device after initial capture', async () => {
+    it('updates selectedOutputDevice after initial capture', async () => {
       enumerateDevicesSpy.mockResolvedValue([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
         makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
@@ -610,29 +503,19 @@ describe('MediaDeviceCollector', () => {
       // Start without known output device
       await collector.captureCallStart(pc, null);
 
-      // Initially, output should be browser-default
-      let selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-      expect(selectedEvent.selected.output?.deviceIdHash).toBe(
-        'browser-default'
-      );
+      // Initially, selectedOutputDevice should be null (browser-default has no matching device)
+      let snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.selectedOutputDevice).toBeNull();
 
       // Update output device after setSinkId succeeds
       await collector.updateOutputDevice('speaker-1');
 
       // Now the event should reflect the actual applied output
-      selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-      expect(selectedEvent.selected.output?.deviceIdHash).not.toBe(
-        'browser-default'
-      );
-      expect(selectedEvent.selected.output?.stillAvailable).toBe(true);
+      snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.selectedOutputDevice).not.toBeNull();
+      expect(snapshotEvent.selectedOutputDevice!.kind).toBe('audiooutput');
     });
 
     it('awaits in-flight capture before updating', async () => {
@@ -657,14 +540,9 @@ describe('MediaDeviceCollector', () => {
 
       await updatePromise;
 
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-      expect(selectedEvent.selected.output?.deviceIdHash).not.toBe(
-        'browser-default'
-      );
+      const snapshotEvent =
+        collector.getEvents()[0] as IMediaDevicesSnapshotCallStart;
+      expect(snapshotEvent.selectedOutputDevice).not.toBeNull();
     });
 
     it('does nothing if cleaned up', async () => {
@@ -698,7 +576,7 @@ describe('MediaDeviceCollector', () => {
       // Mid-call: app switches output to headset via setAudioOutDevice
       await collector.updateOutputDevice('speaker-1');
 
-      // Now remove the headset — should flag selectedOutputStillAvailable=false
+      // Now remove the headset
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
         makeMediaDeviceInfo('speaker-2', 'audiooutput', 'Built-in'),
@@ -712,51 +590,10 @@ describe('MediaDeviceCollector', () => {
           (e) => e.eventName === 'media_devices_changed_during_call'
         ) as IMediaDevicesChangedDuringCall;
 
-      expect(changeEvent.selectedOutputStillAvailable).toBe(false);
-    });
-
-    it('updateOutputDevice awaited before ensureCaptureComplete', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput'),
-        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('mic-1');
-      await collector.captureCallStart(pc, null);
-
-      // Mid-call output update
-      collector.updateOutputDevice('speaker-1');
-
-      // ensureCaptureComplete should also await the update
-      await collector.ensureCaptureComplete();
-
-      const selectedEvent = collector
-        .getEvents()
-        .find(
-          (e) => e.eventName === 'selected_media_devices_call_start'
-        ) as ISelectedMediaDevicesCallStart;
-      expect(selectedEvent.selected.output?.deviceIdHash).not.toBe(
-        'browser-default'
-      );
-    });
-
-    it('isCaptureComplete returns false while updateOutputDevice is in flight', async () => {
-      enumerateDevicesSpy.mockResolvedValueOnce([
-        makeMediaDeviceInfo('mic-1', 'audioinput'),
-        makeMediaDeviceInfo('speaker-1', 'audiooutput', 'Headset'),
-      ]);
-
-      const collector = new MediaDeviceCollector();
-      const pc = makePeerConnectionWithInputDevice('mic-1');
-      await collector.captureCallStart(pc, null);
-
-      expect(collector.isCaptureComplete()).toBe(true);
-
-      // Start an update and await it
-      await collector.updateOutputDevice('speaker-1');
-
-      expect(collector.isCaptureComplete()).toBe(true);
+      // The headset should be in disconnected devices
+      expect(
+        changeEvent.newDisconnectedDevices.some((d) => d.kind === 'audiooutput')
+      ).toBe(true);
     });
   });
 
@@ -771,19 +608,13 @@ describe('MediaDeviceCollector', () => {
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
 
-      // Start capture (doesn't await)
       const capturePromise = collector.captureCallStart(pc);
 
-      // While enumerateDevices is pending, capture should not be complete
       expect(collector.isCaptureComplete()).toBe(false);
 
-      // Resolve enumerateDevices
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
-
-      // Now await the capture
       await capturePromise;
 
-      // Capture should be complete now
       expect(collector.isCaptureComplete()).toBe(true);
     });
 
@@ -797,21 +628,16 @@ describe('MediaDeviceCollector', () => {
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
 
-      // Start capture (fire-and-forget)
       collector.captureCallStart(pc);
 
-      // Before resolve, ensureCaptureComplete should block
       let resolved = false;
       const ensurePromise = collector.ensureCaptureComplete().then(() => {
         resolved = true;
       });
 
-      // Not resolved yet
       expect(resolved).toBe(false);
 
-      // Resolve enumerateDevices
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
-
       await ensurePromise;
       expect(resolved).toBe(true);
     });
@@ -826,18 +652,14 @@ describe('MediaDeviceCollector', () => {
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
 
-      // Start capture (fire-and-forget)
       collector.captureCallStart(pc);
 
-      // No events yet
       expect(collector.getEvents().length).toBe(0);
 
-      // Resolve and await
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
       await collector.ensureCaptureComplete();
 
-      // Events should now be available
-      expect(collector.getEvents().length).toBe(2);
+      expect(collector.getEvents().length).toBe(1);
     });
 
     it('call-start events are emitted even if stop() is called during capture', async () => {
@@ -850,23 +672,16 @@ describe('MediaDeviceCollector', () => {
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
 
-      // Start capture
       collector.captureCallStart(pc);
 
-      // Stop before enumerateDevices resolves — this should only
-      // prevent future devicechange events, NOT suppress the initial
-      // call-start snapshot/selected-device events.
       collector.stop();
 
-      // Resolve enumerateDevices
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
       await collector.ensureCaptureComplete();
 
-      // Call-start events should still be emitted — they are required data.
       const events = collector.getEvents();
-      expect(events.length).toBe(2);
+      expect(events.length).toBe(1);
       expect(events[0].eventName).toBe('media_devices_snapshot_call_start');
-      expect(events[1].eventName).toBe('selected_media_devices_call_start');
     });
 
     it('stop() prevents devicechange events but not capture events', async () => {
@@ -878,12 +693,10 @@ describe('MediaDeviceCollector', () => {
       const pc = makePeerConnectionWithInputDevice('mic-1');
       await collector.captureCallStart(pc);
 
-      // Should have 2 events (snapshot + selected)
-      expect(collector.getEvents().length).toBe(2);
+      expect(collector.getEvents().length).toBe(1);
 
       collector.stop();
 
-      // Simulate device change — should not produce a change event
       enumerateDevicesSpy.mockResolvedValueOnce([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
         makeMediaDeviceInfo('mic-2', 'audioinput'),
@@ -891,8 +704,7 @@ describe('MediaDeviceCollector', () => {
 
       await collector._simulateDeviceChange();
 
-      // Still only the 2 capture events — no devicechange event
-      expect(collector.getEvents().length).toBe(2);
+      expect(collector.getEvents().length).toBe(1);
     });
 
     it('cleanup() suppresses all events including in-flight capture', async () => {
@@ -905,18 +717,13 @@ describe('MediaDeviceCollector', () => {
       const collector = new MediaDeviceCollector();
       const pc = makePeerConnectionWithInputDevice('mic-1');
 
-      // Start capture
       collector.captureCallStart(pc);
 
-      // Cleanup before enumerateDevices resolves — this fully
-      // destroys the collector and clears all events.
       collector.cleanup();
 
-      // Resolve enumerateDevices
       resolveEnumerate!([makeMediaDeviceInfo('mic-1', 'audioinput')]);
       await collector.ensureCaptureComplete();
 
-      // No events — cleanup clears everything
       expect(collector.getEvents().length).toBe(0);
     });
   });

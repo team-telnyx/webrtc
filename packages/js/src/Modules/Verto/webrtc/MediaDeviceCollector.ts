@@ -7,9 +7,8 @@
  * the call.
  *
  * Events produced:
- *  - media_devices_snapshot_call_start      – full device list at call start
- *  - selected_media_devices_call_start       – which input/output was selected
- *  - media_devices_changed_during_call       – diff when devicechange fires
+ *  - media_devices_snapshot_call_start  – device list + selected devices at call start
+ *  - media_devices_changed_during_call  – connected/disconnected devices on devicechange
  *
  * Privacy: raw deviceId and groupId values are SHA-256 hashed before
  * inclusion in any report. Labels are omitted by default unless the
@@ -66,71 +65,26 @@ export interface IRedactedDeviceInfo {
   label?: string;
 }
 
-/** Snapshot of all audio devices at a point in time. */
-export interface IDeviceSnapshot {
-  audioinput: IRedactedDeviceInfo[];
-  audiooutput: IRedactedDeviceInfo[];
-}
-
-/** Selected device info at call start. */
-export interface ISelectedDevices {
-  input: {
-    /** SHA-256 hash of the selected input device ID */
-    deviceIdHash: string;
-    /** Whether the selected input device is still present in the current snapshot */
-    stillAvailable: boolean;
-  } | null;
-  output: {
-    /**
-     * SHA-256 hash of the selected output device ID, or the literal
-     * string 'browser-default' / 'unknown' when the SDK cannot determine it.
-     */
-    deviceIdHash: string;
-    /** Whether the selected output device is still present in the current snapshot */
-    stillAvailable: boolean;
-  } | null;
-}
-
 /** Event: media_devices_snapshot_call_start */
 export interface IMediaDevicesSnapshotCallStart {
   eventName: 'media_devices_snapshot_call_start';
   timestamp: string;
-  devices: IDeviceSnapshot;
-}
-
-/** Event: selected_media_devices_call_start */
-export interface ISelectedMediaDevicesCallStart {
-  eventName: 'selected_media_devices_call_start';
-  timestamp: string;
-  selected: ISelectedDevices;
-}
-
-/** Diff entry for a device change event. */
-export interface IDeviceDiffEntry {
-  /** SHA-256 hash of the device ID */
-  deviceIdHash: string;
-  /** Device kind */
-  kind: string;
-  /** 'added' | 'removed' */
-  change: 'added' | 'removed';
+  inputDevices: IRedactedDeviceInfo[];
+  outputDevices: IRedactedDeviceInfo[];
+  selectedInputDevice: IRedactedDeviceInfo | null;
+  selectedOutputDevice: IRedactedDeviceInfo | null;
 }
 
 /** Event: media_devices_changed_during_call */
 export interface IMediaDevicesChangedDuringCall {
   eventName: 'media_devices_changed_during_call';
   timestamp: string;
-  diff: IDeviceDiffEntry[];
-  /** Whether the previously selected input device is still available */
-  selectedInputStillAvailable: boolean;
-  /** Whether the previously selected output device is still available */
-  selectedOutputStillAvailable: boolean;
-  /** Full current snapshot after the change */
-  currentSnapshot: IDeviceSnapshot;
+  newConnectedDevices: IRedactedDeviceInfo[];
+  newDisconnectedDevices: IRedactedDeviceInfo[];
 }
 
 export type MediaDeviceEvent =
   | IMediaDevicesSnapshotCallStart
-  | ISelectedMediaDevicesCallStart
   | IMediaDevicesChangedDuringCall;
 
 export interface IMediaDeviceCollectorOptions {
@@ -149,49 +103,39 @@ export class MediaDeviceCollector {
   private options: IMediaDeviceCollectorOptions;
   private _events: MediaDeviceEvent[] = [];
   /**
-   * Hash of the selected input device ID. Stored as hash so that
-   * availability checks against hashed snapshot IDs work correctly.
+   * Hash of the selected input device ID.
    */
   private _selectedInputDeviceIdHash: string | null = null;
   /**
-   * Hash of the selected output device ID. Stored as hash so that
-   * availability checks against hashed snapshot IDs work correctly.
+   * Hash of the selected output device ID.
    * Special sentinel values: 'browser-default' | 'unknown'
    */
   private _selectedOutputDeviceIdHash: string | null = null;
-  private _callStartSnapshot: IDeviceSnapshot | null = null;
-  private _latestSnapshot: IDeviceSnapshot | null = null;
+  /**
+   * Raw device ID of the selected input, stored for debug logging
+   * when the device is disconnected.
+   */
+  private _selectedInputDeviceRawId: string | null = null;
+  /**
+   * Raw device ID of the selected output, stored for debug logging
+   * when the device is disconnected.
+   */
+  private _selectedOutputDeviceRawId: string | null = null;
+  private _latestSnapshot: IRedactedDeviceInfo[] | null = null;
   private _deviceChangeHandler: (() => void) | null = null;
 
   /**
    * When true, no new devicechange events will be processed.
-   * This is set by stop() to disable the devicechange listener
-   * without discarding the initial capture results.
-   *
-   * The initial captureCallStart() always emits its events
-   * regardless of this flag — the call-start snapshot and
-   * selected-device events are required data for the report.
    */
   private _listenersStopped: boolean = false;
 
   /**
-   * Promise tracking any in-flight updateOutputDevice() call.
-   * Must be awaited before posting any report to avoid races where
-   * the output device update hasn't completed before events are drained.
-   */
-  private _updatePromise: Promise<void> | null = null;
-
-  /**
    * Promise tracking the in-flight captureCallStart() call.
-   * Must be awaited before posting any report to avoid races where
-   * a short call ends before enumerateDevices + hashing completes.
    */
   private _capturePromise: Promise<void> | null = null;
 
   /**
-   * Whether cleanup() has been called. Once cleaned up, no further
-   * operations are allowed — captureCallStart will not emit events,
-   * and drainEvents/getEvents will return empty.
+   * Whether cleanup() has been called.
    */
   private _cleanedUp: boolean = false;
 
@@ -206,11 +150,6 @@ export class MediaDeviceCollector {
    * Capture the device snapshot at call start.
    * Must be called after permissions are available (i.e. after getUserMedia).
    *
-   * The call-start snapshot and selected-device events are always emitted
-   * even if stop() is called during the async capture — this data is
-   * required for call reports. Only devicechange events are suppressed
-   * after stop().
-   *
    * @param peerConnection - The RTCPeerConnection for the call
    * @param outputDeviceId - The output device ID that was *actually applied*
    *   via setSinkId. Pass null/undefined if setSinkId was not called or failed.
@@ -219,7 +158,6 @@ export class MediaDeviceCollector {
     peerConnection: RTCPeerConnection,
     outputDeviceId?: string | null
   ): Promise<void> {
-    // If already cleaned up, don't start a new capture
     if (this._cleanedUp) {
       return Promise.resolve();
     }
@@ -232,169 +170,138 @@ export class MediaDeviceCollector {
     peerConnection: RTCPeerConnection,
     outputDeviceId?: string | null
   ): Promise<void> {
-    // Don't start if already cleaned up
     if (this._cleanedUp) return;
 
     try {
       // 1. Enumerate all devices
       const rawDevices = await this._enumerateDevices();
-      const snapshot = await this._redactDeviceList(rawDevices);
-      this._callStartSnapshot = snapshot;
-      this._latestSnapshot = snapshot;
+      const redacted = await this._redactDeviceList(rawDevices);
 
-      // 2. Emit snapshot event — always emit even if stop() was called
-      //    during the async gap. The call-start snapshot is required data.
-      //    Only skip if cleanup() was called (collector is being destroyed).
-      if (!this._cleanedUp) {
-        const snapshotEvent: IMediaDevicesSnapshotCallStart = {
-          eventName: 'media_devices_snapshot_call_start',
-          timestamp: new Date().toISOString(),
-          devices: snapshot,
-        };
-        this._events.push(snapshotEvent);
-      }
-
-      // 3. Determine selected input device from the audio sender track
+      // 2. Determine selected input device from the audio sender track
       const inputDeviceId = this._getInputDeviceId(peerConnection);
 
-      // 4. Hash the selected IDs and store the hashes for later availability checks
+      // 3. Find the redacted entry for the selected input device
+      let selectedInputDevice: IRedactedDeviceInfo | null = null;
       if (inputDeviceId) {
+        this._selectedInputDeviceRawId = inputDeviceId;
         this._selectedInputDeviceIdHash = await hashValue(inputDeviceId);
-      } else {
-        this._selectedInputDeviceIdHash = null;
+        selectedInputDevice =
+          redacted.find(
+            (d) =>
+              d.kind === 'audioinput' &&
+              d.deviceIdHash === this._selectedInputDeviceIdHash
+          ) ?? null;
       }
 
-      // outputDeviceId is the *actually applied* sink ID (after setSinkId succeeds).
-      // If null/undefined, the SDK cannot determine the output → 'browser-default'.
+      // 4. Determine selected output device
+      let selectedOutputDevice: IRedactedDeviceInfo | null = null;
       if (outputDeviceId) {
+        this._selectedOutputDeviceRawId = outputDeviceId;
         this._selectedOutputDeviceIdHash = await hashValue(outputDeviceId);
+        selectedOutputDevice =
+          redacted.find(
+            (d) =>
+              d.kind === 'audiooutput' &&
+              d.deviceIdHash === this._selectedOutputDeviceIdHash
+          ) ?? null;
       } else {
+        this._selectedOutputDeviceRawId = null;
         this._selectedOutputDeviceIdHash = 'browser-default';
+        // 'browser-default' is a sentinel — no matching device entry
       }
 
-      // 5. Emit selected devices event — always emit even if stop() was called
-      //    during the async gap. The selected-device data is required for reports.
-      //    Only skip if cleanup() was called.
-      if (!this._cleanedUp) {
-        const selectedEvent = this._buildSelectedEvent(snapshot);
-        this._events.push(selectedEvent);
-      }
+      if (this._cleanedUp) return;
 
-      // 6. Start listening for devicechange events.
-      //    Only if not stopped (stop() disables future devicechange events)
-      //    and not cleaned up, and capture is still relevant.
+      const inputDevices = redacted.filter((d) => d.kind === 'audioinput');
+      const outputDevices = redacted.filter((d) => d.kind === 'audiooutput');
+
+      // 5. Emit single call-start event with devices + selected
+      const snapshotEvent: IMediaDevicesSnapshotCallStart = {
+        eventName: 'media_devices_snapshot_call_start',
+        timestamp: new Date().toISOString(),
+        inputDevices,
+        outputDevices,
+        selectedInputDevice,
+        selectedOutputDevice,
+      };
+      this._events.push(snapshotEvent);
+
+      // 6. Store for devicechange diffing
+      this._latestSnapshot = redacted;
+
+      // 7. Start listening for devicechange events
       if (!this._listenersStopped && !this._cleanedUp) {
         this._startDeviceChangeListener();
       }
 
-      // Mark capture as complete
       this._capturePromise = null;
-
-      logger.info('MediaDeviceCollector: captured call-start device snapshot', {
-        inputDevices: snapshot.audioinput.length,
-        outputDevices: snapshot.audiooutput.length,
-        selectedInput: inputDeviceId ? 'present' : 'unknown',
-        selectedOutput: outputDeviceId ? 'present' : 'browser-default',
-      });
     } catch (error) {
       logger.error(
         'MediaDeviceCollector: failed to capture call-start snapshot',
-        {
-          error,
-        }
+        { error }
       );
     }
   }
 
   /**
-   * Await the in-flight captureCallStart() promise and any pending
-   * updateOutputDevice() promise before posting a report.
-   * Prevents races where a short call ends before enumerateDevices +
-   * hashing completes, or where a mid-call output device change
-   * hasn't been reflected in the events yet.
+   * Await the in-flight captureCallStart() promise before posting a report.
    */
   async ensureCaptureComplete(): Promise<void> {
     if (this._capturePromise) {
       await this._capturePromise;
       this._capturePromise = null;
     }
-    if (this._updatePromise) {
-      await this._updatePromise;
-      this._updatePromise = null;
-    }
   }
 
   /**
-   * Returns true if captureCallStart() has completed AND no output
-   * device update is in flight.
+   * Returns true if captureCallStart() has completed.
    */
   isCaptureComplete(): boolean {
-    return this._capturePromise === null && this._updatePromise === null;
+    return this._capturePromise === null;
   }
 
   /**
    * Update the selected output device after setSinkId completes.
-   * Called from the deferred setTimeout in BaseCall when the actual
-   * applied sink ID becomes known, or from Call#setAudioOutDevice()
-   * on mid-call device changes.
-   *
-   * If the initial capture hasn't completed yet, this queues the
-   * update to be applied after capture finishes.
    *
    * @param deviceId - The output device ID that was successfully applied
    */
   updateOutputDevice(deviceId: string): Promise<void> {
+    // Just store the hash for future devicechange diffing.
+    // No event mutation needed — the call-start snapshot is immutable.
     const promise = this._doUpdateOutputDevice(deviceId);
-    this._updatePromise = promise;
+    this._capturePromise = this._capturePromise || promise;
     return promise;
   }
 
   private async _doUpdateOutputDevice(deviceId: string): Promise<void> {
-    const newHash = await hashValue(deviceId);
-
-    // If capture hasn't completed, wait for it so we can
-    // update the selected event properly.
+    // If capture hasn't completed, wait for it
     if (this._capturePromise) {
       await this._capturePromise;
       this._capturePromise = null;
     }
 
-    // If cleaned up after await, skip
-    if (this._cleanedUp) {
-      this._updatePromise = null;
-      return;
+    if (this._cleanedUp) return;
+
+    this._selectedOutputDeviceRawId = deviceId;
+    this._selectedOutputDeviceIdHash = await hashValue(deviceId);
+
+    // Update the call-start event's selectedOutputDevice if found
+    const snapshotEvent = this._events.find(
+      (e) => e.eventName === 'media_devices_snapshot_call_start'
+    ) as IMediaDevicesSnapshotCallStart | undefined;
+
+    if (snapshotEvent && this._latestSnapshot) {
+      snapshotEvent.selectedOutputDevice =
+        this._latestSnapshot.find(
+          (d) =>
+            d.kind === 'audiooutput' &&
+            d.deviceIdHash === this._selectedOutputDeviceIdHash
+        ) ?? null;
     }
-
-    // Update the stored hash
-    this._selectedOutputDeviceIdHash = newHash;
-
-    // Update the existing selected_media_devices_call_start event
-    // so the final report reflects the actual applied output device.
-    const selectedEvent = this._events.find(
-      (e) => e.eventName === 'selected_media_devices_call_start'
-    ) as ISelectedMediaDevicesCallStart | undefined;
-
-    if (selectedEvent && this._latestSnapshot) {
-      const stillAvailable = this._latestSnapshot.audiooutput.some(
-        (d) => d.deviceIdHash === newHash
-      );
-      selectedEvent.selected.output = {
-        deviceIdHash: newHash,
-        stillAvailable,
-      };
-    }
-
-    this._updatePromise = null;
   }
 
   /**
    * Stop listening for devicechange events.
-   * Called when the call ends. No new devicechange events will be processed.
-   *
-   * Important: this does NOT suppress the initial call-start snapshot
-   * or selected-device events. If captureCallStart() is in flight when
-   * stop() is called, the capture will still complete and emit those
-   * events — they are required data for the call report.
    */
   stop(): void {
     this._listenersStopped = true;
@@ -402,7 +309,7 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Get all collected events (for inclusion in the call report).
+   * Get all collected events.
    */
   getEvents(): MediaDeviceEvent[] {
     return this._events;
@@ -410,7 +317,6 @@ export class MediaDeviceCollector {
 
   /**
    * Drain all collected events and reset the internal array.
-   * Used when events are being included in an intermediate report.
    */
   drainEvents(): MediaDeviceEvent[] {
     const events = this._events;
@@ -420,7 +326,6 @@ export class MediaDeviceCollector {
 
   /**
    * Clean up all resources after the call report has been posted.
-   * After cleanup, no further operations are possible.
    */
   cleanup(): void {
     this._listenersStopped = true;
@@ -428,11 +333,11 @@ export class MediaDeviceCollector {
     this._removeDeviceChangeListener();
     this._events = [];
     this._capturePromise = null;
-    this._updatePromise = null;
-    this._callStartSnapshot = null;
     this._latestSnapshot = null;
     this._selectedInputDeviceIdHash = null;
     this._selectedOutputDeviceIdHash = null;
+    this._selectedInputDeviceRawId = null;
+    this._selectedOutputDeviceRawId = null;
   }
 
   // ── Internal ─────────────────────────────────────────────────────
@@ -477,9 +382,8 @@ export class MediaDeviceCollector {
    */
   private async _redactDeviceList(
     devices: MediaDeviceInfo[]
-  ): Promise<IDeviceSnapshot> {
-    const audioinput: IRedactedDeviceInfo[] = [];
-    const audiooutput: IRedactedDeviceInfo[] = [];
+  ): Promise<IRedactedDeviceInfo[]> {
+    const result: IRedactedDeviceInfo[] = [];
 
     for (const device of devices) {
       if (device.kind !== 'audioinput' && device.kind !== 'audiooutput') {
@@ -496,60 +400,10 @@ export class MediaDeviceCollector {
         entry.label = device.label;
       }
 
-      if (device.kind === 'audioinput') {
-        audioinput.push(entry);
-      } else {
-        audiooutput.push(entry);
-      }
+      result.push(entry);
     }
 
-    return { audioinput, audiooutput };
-  }
-
-  /**
-   * Build the selected devices event at call start.
-   * Uses the already-hashed stored values for consistency with
-   * devicechange availability checks.
-   */
-  private _buildSelectedEvent(
-    snapshot: IDeviceSnapshot
-  ): ISelectedMediaDevicesCallStart {
-    const selected: ISelectedDevices = {
-      input: null,
-      output: null,
-    };
-
-    if (this._selectedInputDeviceIdHash) {
-      const stillAvailable = snapshot.audioinput.some(
-        (d) => d.deviceIdHash === this._selectedInputDeviceIdHash
-      );
-      selected.input = {
-        deviceIdHash: this._selectedInputDeviceIdHash,
-        stillAvailable,
-      };
-    }
-
-    if (this._selectedOutputDeviceIdHash) {
-      // 'browser-default' is a sentinel, not a real hash
-      const isSentinel =
-        this._selectedOutputDeviceIdHash === 'browser-default' ||
-        this._selectedOutputDeviceIdHash === 'unknown';
-      const stillAvailable = isSentinel
-        ? true
-        : snapshot.audiooutput.some(
-            (d) => d.deviceIdHash === this._selectedOutputDeviceIdHash
-          );
-      selected.output = {
-        deviceIdHash: this._selectedOutputDeviceIdHash,
-        stillAvailable,
-      };
-    }
-
-    return {
-      eventName: 'selected_media_devices_call_start',
-      timestamp: new Date().toISOString(),
-      selected,
-    };
+    return result;
   }
 
   /**
@@ -590,170 +444,94 @@ export class MediaDeviceCollector {
   }
 
   /**
-   * Handle a devicechange event: capture new snapshot, diff against
-   * the previous one, and emit a change event.
+   * Handle a devicechange event: enumerate current devices, diff against
+   * the previous snapshot, and emit a change event.
    */
   private async _onDeviceChange(): Promise<void> {
     if (this._listenersStopped || this._cleanedUp) return;
 
     try {
       const rawDevices = await this._enumerateDevices();
-      const newSnapshot = await this._redactDeviceList(rawDevices);
-      const previousSnapshot = this._latestSnapshot;
+      const newRedacted = await this._redactDeviceList(rawDevices);
+      const previous = this._latestSnapshot;
 
-      if (!previousSnapshot) {
-        this._latestSnapshot = newSnapshot;
+      if (!previous) {
+        this._latestSnapshot = newRedacted;
         return;
       }
 
-      // Compute diff
-      const diff = this._computeDiff(previousSnapshot, newSnapshot);
+      // Compute connected (in new but not in previous) and disconnected (in previous but not in new)
+      const prevIds = new Set(previous.map((d) => d.deviceIdHash));
+      const currIds = new Set(newRedacted.map((d) => d.deviceIdHash));
 
-      if (diff.length === 0) {
-        // No actual changes in audio devices
-        this._latestSnapshot = newSnapshot;
+      const newConnectedDevices: IRedactedDeviceInfo[] = newRedacted.filter(
+        (d) => !prevIds.has(d.deviceIdHash)
+      );
+
+      const newDisconnectedDevices: IRedactedDeviceInfo[] = previous.filter(
+        (d) => !currIds.has(d.deviceIdHash)
+      );
+
+      // Only emit if something actually changed
+      if (
+        newConnectedDevices.length === 0 &&
+        newDisconnectedDevices.length === 0
+      ) {
+        this._latestSnapshot = newRedacted;
         return;
       }
 
-      // Check if selected devices are still available using stored hashes
-      const selectedInputStillAvailable =
-        this._checkSelectedInputAvailable(newSnapshot);
-      const selectedOutputStillAvailable =
-        this._checkSelectedOutputAvailable(newSnapshot);
-
-      // Only emit if not stopped/cleaned up during async gap
       if (this._listenersStopped || this._cleanedUp) return;
+
+      // Debug log when selected device is disconnected
+      if (newDisconnectedDevices.length > 0) {
+        if (this._selectedInputDeviceIdHash) {
+          const disconnectedInput = newDisconnectedDevices.find(
+            (d) =>
+              d.kind === 'audioinput' &&
+              d.deviceIdHash === this._selectedInputDeviceIdHash
+          );
+          if (disconnectedInput) {
+            logger.debug(
+              'MediaDeviceCollector: Selected input device was disconnected',
+              { device: disconnectedInput }
+            );
+          }
+        }
+
+        if (
+          this._selectedOutputDeviceIdHash &&
+          this._selectedOutputDeviceIdHash !== 'browser-default' &&
+          this._selectedOutputDeviceIdHash !== 'unknown'
+        ) {
+          const disconnectedOutput = newDisconnectedDevices.find(
+            (d) =>
+              d.kind === 'audiooutput' &&
+              d.deviceIdHash === this._selectedOutputDeviceIdHash
+          );
+          if (disconnectedOutput) {
+            logger.debug(
+              'MediaDeviceCollector: Selected output device was disconnected',
+              { device: disconnectedOutput }
+            );
+          }
+        }
+      }
 
       const changeEvent: IMediaDevicesChangedDuringCall = {
         eventName: 'media_devices_changed_during_call',
         timestamp: new Date().toISOString(),
-        diff,
-        selectedInputStillAvailable,
-        selectedOutputStillAvailable,
-        currentSnapshot: newSnapshot,
+        newConnectedDevices,
+        newDisconnectedDevices,
       };
 
       this._events.push(changeEvent);
-      this._latestSnapshot = newSnapshot;
-
-      logger.info('MediaDeviceCollector: device change detected during call', {
-        diffCount: diff.length,
-        selectedInputStillAvailable,
-        selectedOutputStillAvailable,
-      });
+      this._latestSnapshot = newRedacted;
     } catch (error) {
       logger.error('MediaDeviceCollector: error handling devicechange', {
         error,
       });
     }
-  }
-
-  /**
-   * Compute the diff between two device snapshots.
-   */
-  private _computeDiff(
-    previous: IDeviceSnapshot,
-    current: IDeviceSnapshot
-  ): IDeviceDiffEntry[] {
-    const diff: IDeviceDiffEntry[] = [];
-
-    const prevInputIds = new Set(
-      previous.audioinput.map((d) => d.deviceIdHash)
-    );
-    const currInputIds = new Set(current.audioinput.map((d) => d.deviceIdHash));
-    const prevOutputIds = new Set(
-      previous.audiooutput.map((d) => d.deviceIdHash)
-    );
-    const currOutputIds = new Set(
-      current.audiooutput.map((d) => d.deviceIdHash)
-    );
-
-    // Added inputs
-    for (const device of current.audioinput) {
-      if (!prevInputIds.has(device.deviceIdHash)) {
-        diff.push({
-          deviceIdHash: device.deviceIdHash,
-          kind: 'audioinput',
-          change: 'added',
-        });
-      }
-    }
-
-    // Removed inputs
-    for (const device of previous.audioinput) {
-      if (!currInputIds.has(device.deviceIdHash)) {
-        diff.push({
-          deviceIdHash: device.deviceIdHash,
-          kind: 'audioinput',
-          change: 'removed',
-        });
-      }
-    }
-
-    // Added outputs
-    for (const device of current.audiooutput) {
-      if (!prevOutputIds.has(device.deviceIdHash)) {
-        diff.push({
-          deviceIdHash: device.deviceIdHash,
-          kind: 'audiooutput',
-          change: 'added',
-        });
-      }
-    }
-
-    // Removed outputs
-    for (const device of previous.audiooutput) {
-      if (!currOutputIds.has(device.deviceIdHash)) {
-        diff.push({
-          deviceIdHash: device.deviceIdHash,
-          kind: 'audiooutput',
-          change: 'removed',
-        });
-      }
-    }
-
-    return diff;
-  }
-
-  /**
-   * Check if the selected input device is still available in the snapshot.
-   * Compares the stored hash against hashed snapshot IDs.
-   */
-  private _checkSelectedInputAvailable(
-    currentSnapshot: IDeviceSnapshot
-  ): boolean {
-    if (!this._selectedInputDeviceIdHash) {
-      // No selected input device → not applicable
-      return true;
-    }
-    return currentSnapshot.audioinput.some(
-      (d) => d.deviceIdHash === this._selectedInputDeviceIdHash
-    );
-  }
-
-  /**
-   * Check if the selected output device is still available in the snapshot.
-   * Compares the stored hash against hashed snapshot IDs.
-   * Handles sentinel values 'browser-default' / 'unknown'.
-   */
-  private _checkSelectedOutputAvailable(
-    currentSnapshot: IDeviceSnapshot
-  ): boolean {
-    if (!this._selectedOutputDeviceIdHash) {
-      return true;
-    }
-
-    // Sentinel values are always conceptually available
-    if (
-      this._selectedOutputDeviceIdHash === 'browser-default' ||
-      this._selectedOutputDeviceIdHash === 'unknown'
-    ) {
-      return true;
-    }
-
-    return currentSnapshot.audiooutput.some(
-      (d) => d.deviceIdHash === this._selectedOutputDeviceIdHash
-    );
   }
 
   // ── Test helpers ──────────────────────────────────────────────────
@@ -768,7 +546,7 @@ export class MediaDeviceCollector {
   /**
    * @internal Exposed for testing: set the latest snapshot directly.
    */
-  _setLatestSnapshot(snapshot: IDeviceSnapshot): void {
+  _setLatestSnapshot(snapshot: IRedactedDeviceInfo[]): void {
     this._latestSnapshot = snapshot;
   }
 }
