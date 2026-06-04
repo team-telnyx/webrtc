@@ -333,6 +333,11 @@ class VertoHandler {
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
+              } else {
+                logger.debug(
+                  `Received duplicate gateway state '${gateWayState}' matching previous state '${session.connection.previousGatewayState}' — ` +
+                    `skipping re-emission of client ready event (sessionId=${session.sessionid})`
+                );
               }
               break;
             }
@@ -400,6 +405,9 @@ class VertoHandler {
                 // Avoid sticky reconnect to the same b2bua-rtc target by
                 // requesting a different instance on the next connect().
                 session.options.skipLastVoiceSdkId = true;
+                logger.debug(
+                  `Set skipLastVoiceSdkId=true on session options to avoid sticky reconnect to same b2bua-rtc instance (sessionId=${session.sessionid})`
+                );
 
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
@@ -472,6 +480,11 @@ class VertoHandler {
                     });
                   }, this.reconnectDelay());
                 }
+              } else {
+                logger.debug(
+                  `Received duplicate gateway state '${gateWayState}' matching previous state '${session.connection.previousGatewayState}' — ` +
+                    `skipping re-emission of gateway failure event (sessionId=${session.sessionid})`
+                );
               }
               break;
             }
