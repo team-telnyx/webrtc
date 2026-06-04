@@ -316,7 +316,7 @@ describe('MediaDeviceCollector', () => {
       expect(changeEvent.newDisconnectedDevices.length).toBe(1);
     });
 
-    it('does not emit change event when no audio devices changed', async () => {
+    it('emits change event with empty arrays when no audio devices changed', async () => {
       enumerateDevicesSpy.mockResolvedValue([
         makeMediaDeviceInfo('mic-1', 'audioinput'),
       ]);
@@ -332,11 +332,15 @@ describe('MediaDeviceCollector', () => {
 
       await collector._simulateDeviceChange();
 
-      const changeEvents = collector
+      const changeEvent = collector
         .getEvents()
-        .filter((e) => e.eventName === 'media_devices_changed_during_call');
+        .find(
+          (e) => e.eventName === 'media_devices_changed_during_call'
+        ) as IMediaDevicesChangedDuringCall;
 
-      expect(changeEvents.length).toBe(0);
+      expect(changeEvent).toBeDefined();
+      expect(changeEvent.newConnectedDevices).toEqual([]);
+      expect(changeEvent.newDisconnectedDevices).toEqual([]);
     });
 
     it('includes disconnected selected input device in newDisconnectedDevices', async () => {

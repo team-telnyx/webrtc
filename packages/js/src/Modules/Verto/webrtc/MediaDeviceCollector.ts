@@ -472,49 +472,24 @@ export class MediaDeviceCollector {
         (d) => !currIds.has(d.deviceIdHash)
       );
 
-      // Only emit if something actually changed
-      if (
-        newConnectedDevices.length === 0 &&
-        newDisconnectedDevices.length === 0
-      ) {
-        this._latestSnapshot = newRedacted;
-        return;
-      }
-
       if (this._listenersStopped || this._cleanedUp) return;
 
       // Debug log when selected device is disconnected
-      if (newDisconnectedDevices.length > 0) {
-        if (this._selectedInputDeviceIdHash) {
-          const disconnectedInput = newDisconnectedDevices.find(
-            (d) =>
-              d.kind === 'audioinput' &&
-              d.deviceIdHash === this._selectedInputDeviceIdHash
-          );
-          if (disconnectedInput) {
-            logger.debug(
-              'MediaDeviceCollector: Selected input device was disconnected',
-              { device: disconnectedInput }
-            );
-          }
-        }
-
-        if (
+      for (const device of newDisconnectedDevices) {
+        const isSelectedInput =
+          this._selectedInputDeviceIdHash &&
+          device.kind === 'audioinput' &&
+          device.deviceIdHash === this._selectedInputDeviceIdHash;
+        const isSelectedOutput =
           this._selectedOutputDeviceIdHash &&
           this._selectedOutputDeviceIdHash !== 'browser-default' &&
-          this._selectedOutputDeviceIdHash !== 'unknown'
-        ) {
-          const disconnectedOutput = newDisconnectedDevices.find(
-            (d) =>
-              d.kind === 'audiooutput' &&
-              d.deviceIdHash === this._selectedOutputDeviceIdHash
-          );
-          if (disconnectedOutput) {
-            logger.debug(
-              'MediaDeviceCollector: Selected output device was disconnected',
-              { device: disconnectedOutput }
-            );
-          }
+          this._selectedOutputDeviceIdHash !== 'unknown' &&
+          device.kind === 'audiooutput' &&
+          device.deviceIdHash === this._selectedOutputDeviceIdHash;
+        if (isSelectedInput || isSelectedOutput) {
+          logger.debug('Selected input/output device was disconnected', {
+            device,
+          });
         }
       }
 
