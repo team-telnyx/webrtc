@@ -214,7 +214,7 @@ export const SDK_ERRORS = {
     name: 'GATEWAY_FAILED',
     message: 'Gateway connection failed',
     description:
-      'The upstream gateway reported a FAILED or FAIL_WAIT state. The signaling server could not establish or maintain a connection to the gateway. When autoReconnect is disabled, this is immediately fatal. When enabled, the SDK will retry until RECONNECTION_EXHAUSTED.',
+      'The upstream gateway reported a FAILED, FAIL_WAIT, or TIMEOUT state. The signaling server could not establish or maintain a connection to the gateway. When autoReconnect is disabled, this is immediately fatal. When enabled, the SDK will retry until RECONNECTION_EXHAUSTED.',
     causes: [
       'Gateway down or unreachable',
       'Server-side infrastructure issue',
