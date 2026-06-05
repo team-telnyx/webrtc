@@ -288,6 +288,8 @@ class VertoHandler {
           },
           session.uuid
         );
+        this._ack(id, method);
+        break;
       }
       case VertoMethod.Event:
       case 'webrtc.event':

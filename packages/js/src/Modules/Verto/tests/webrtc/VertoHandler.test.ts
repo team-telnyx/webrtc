@@ -240,7 +240,7 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
     });
 
-    it('should NOT set recoveredCallId when no existing call (fresh attach)', async () => {
+    it('should set recoveredCallId when no existing call (recovered attach after SDK reload)', async () => {
       await instance.connect();
       const callId = 'fresh-call-id-1234';
 
@@ -255,12 +255,12 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      expect(newCall.recoveredCallId).toBeFalsy();
+      expect(newCall.recoveredCallId).toEqual(callId);
 
       Call.prototype.answer = originalAnswer;
     });
 
-    it('should recover call by telnyx_session_id when callID differs', async () => {
+    it('should not recover call by telnyx_session_id when callID differs', async () => {
       await instance.connect();
       const oldCallId = 'old-call-id-1234';
       const newCallId = 'new-call-id-5678';
@@ -271,19 +271,22 @@ describe('VertoHandler', () => {
       const originalAnswer = Call.prototype.answer;
       Call.prototype.answer = jest.fn();
 
-      // Server sends attach with a DIFFERENT callID but SAME telnyx_session_id
-      // Should match by telnyx_session_id and recover the call
+      // Backend's reattach identity is callID-based. telnyx_session_id is not used
+      // to match Attach recovery, even if it equals the active call's session ID.
       const msg = JSON.parse(
         `{"jsonrpc":"2.0","id":4407,"method":"telnyx_rtc.attach","params":{"callID":"${newCallId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003","telnyx_session_id":"session-abc"}}`
       );
       handler.handleMessage(msg);
 
-      // New call should be created with recoveredCallId = old call
-      const newCall = instance.calls[newCallId];
-      expect(newCall).toBeDefined();
-      expect(newCall.recoveredCallId).toEqual(oldCallId);
-      // Old call should be gone (recovered/hung up)
-      expect(instance.calls[oldCallId]).toBeUndefined();
+      expect(instance.calls[oldCallId]).toBeDefined();
+      expect(instance.calls[newCallId]).toBeUndefined();
+      expect(Connection.mockSend).toHaveBeenLastCalledWith({
+        request: {
+          jsonrpc: '2.0',
+          id: 4407,
+          result: { method: 'telnyx_rtc.attach' },
+        },
+      });
 
       Call.prototype.answer = originalAnswer;
     });
@@ -516,7 +519,7 @@ describe('VertoHandler', () => {
 
     // ── Attach-before-reattached_sessions ordering ─────────────────────
     describe('attach-before-reattached_sessions ordering', () => {
-      it('should recover call via attach before reattached_sessions arrives', async () => {
+      it('should recover call via attach before matching reattached_sessions arrives', async () => {
         await instance.connect();
         const callId = 'call-id-001';
         _setupCall({ id: callId, telnyxSessionId: 'session-abc' });
@@ -533,14 +536,14 @@ describe('VertoHandler', () => {
         expect(newCall).toBeDefined();
         expect(newCall.recoveredCallId).toEqual(callId);
 
-        // Now reattached_sessions arrives (non-empty) — should NOT terminate
-        sendReattach(['session-abc']);
+        // reattached_sessions contains call IDs despite the name.
+        // Matching call ID should keep the recovered call.
+        sendReattach([callId]);
 
-        // Call should still exist
         expect(instance.calls[callId]).toBeDefined();
       });
 
-      it('should NOT terminate attach-recovered call when reattached_sessions is empty', async () => {
+      it('should terminate attach-recovered call when later reattached_sessions is empty', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -551,13 +554,16 @@ describe('VertoHandler', () => {
         Call.prototype.answer = originalAnswer;
         expect(instance.calls['call-id-002']).toBeDefined();
 
-        // Now reattached_sessions arrives as EMPTY
-        // Attach-recovered calls should NOT be terminated — the attach
-        // proves the server still knows about them.
+        // Empty reattached_sessions means no calls are reattached server-side.
         sendReattach([]);
 
-        // Call should still exist (attach-recovered, not pre-existing)
-        expect(instance.calls['call-id-002']).toBeDefined();
+        expect(instance.calls['call-id-002']).toBeUndefined();
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId: 'call-id-002',
+          })
+        );
       });
     });
 
@@ -605,18 +611,33 @@ describe('VertoHandler', () => {
 
     // ── Non-empty reattached_sessions ──────────────────────────────────
     describe('non-empty reattached_sessions', () => {
-      it('should not terminate active call when reattached_sessions is non-empty (attach drives recovery)', async () => {
+      it('should keep active call when reattached_sessions contains its callID', async () => {
         await instance.connect();
         const callId = 'call-id-020';
         _setupCall({ id: callId, telnyxSessionId: 'session-active' });
         call.setState(State.Active);
 
-        // reattached_sessions contains a different session
-        // Should NOT terminate — attach drives recovery
-        sendReattach(['session-different']);
+        // reattached_sessions contains call IDs despite the name.
+        sendReattach([callId]);
 
-        // Call should still exist
         expect(instance.calls[callId]).toBeDefined();
+      });
+
+      it('should terminate active call when non-empty reattached_sessions has no active callID', async () => {
+        await instance.connect();
+        const callId = 'call-id-021';
+        _setupCall({ id: callId, telnyxSessionId: 'session-active' });
+        call.setState(State.Active);
+
+        sendReattach(['different-call-id']);
+
+        expect(instance.calls[callId]).toBeUndefined();
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId,
+          })
+        );
       });
     });
 
@@ -639,9 +660,9 @@ describe('VertoHandler', () => {
       });
     });
 
-    // ── Matching attach by telnyx_session_id ─────────────────────────────
-    describe('matching attach by telnyx_session_id', () => {
-      it('should recover call when telnyx_session_id matches with different callID', async () => {
+    // ── telnyx_session_id is not used for attach matching ────────────────
+    describe('telnyx_session_id mismatch handling', () => {
+      it('should ignore attach when only telnyx_session_id matches but callID differs', async () => {
         await instance.connect();
         const oldCallId = 'old-call-id-1234';
         const newCallId = 'new-call-id-5678';
@@ -650,17 +671,20 @@ describe('VertoHandler', () => {
 
         const originalAnswer = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
+        Connection.mockSend.mockClear();
 
-        // Server sends attach with a DIFFERENT callID but SAME telnyx_session_id
+        // Backend's reattach identity is callID-based; telnyx_session_id is not used for matching.
         sendAttach(newCallId, 'session-abc');
 
-        // New call should be created with recoveredCallId = old call
-        const newCall = instance.calls[newCallId];
-        expect(newCall).toBeDefined();
-        expect(newCall.recoveredCallId).toEqual(oldCallId);
-
-        // Old call should be gone (recovered/hung up)
-        expect(instance.calls[oldCallId]).toBeUndefined();
+        expect(instance.calls[oldCallId]).toBeDefined();
+        expect(instance.calls[newCallId]).toBeUndefined();
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 1000,
+            result: { method: 'telnyx_rtc.attach' },
+          },
+        });
 
         Call.prototype.answer = originalAnswer;
       });
@@ -688,28 +712,36 @@ describe('VertoHandler', () => {
 
     // ── Non-matching attach (callID & telnyx_session_id don't match) ──
     describe('non-matching attach (no callID or session ID match)', () => {
-      it('should terminate active call and emit SESSION_NOT_REATTACHED when attach does not match', async () => {
+      it('should warn, ACK, and ignore attach when callID does not match active calls', async () => {
         await instance.connect();
         const callId = 'call-id-030';
         _setupCall({ id: callId, telnyxSessionId: 'session-active' });
         call.setState(State.Active);
 
+        Connection.mockSend.mockClear();
+
         // Incoming attach with a DIFFERENT callID and DIFFERENT session ID
         sendAttach('different-call-id', 'session-different');
 
-        // Active call should be terminated locally (no BYE)
-        expect(instance.calls[callId]).toBeUndefined();
-        // New call should NOT be created
+        // Unknown Attach is not established and does not replace the active call.
+        expect(instance.calls[callId]).toBeDefined();
         expect(instance.calls['different-call-id']).toBeUndefined();
-        // SESSION_NOT_REATTACHED error should be fired
-        expect(onError).toHaveBeenCalledWith(
+        expect(onWarning).toHaveBeenCalledWith(
           expect.objectContaining({
-            error: expect.objectContaining({ code: 48501 }),
+            warning: expect.objectContaining({ code: 35002 }),
+            callId: 'different-call-id',
           })
         );
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 1000,
+            result: { method: 'telnyx_rtc.attach' },
+          },
+        });
       });
 
-      it('should NOT send BYE when terminating active call on non-matching attach', async () => {
+      it('should NOT send BYE when ignoring non-matching attach', async () => {
         await instance.connect();
         const callId = 'call-id-nomatch-bye';
         _setupCall({ id: callId, telnyxSessionId: 'session-active' });
@@ -720,7 +752,7 @@ describe('VertoHandler', () => {
         // Incoming attach with a DIFFERENT callID and DIFFERENT session ID
         sendAttach('different-call-id', 'session-different');
 
-        expect(instance.calls[callId]).toBeUndefined();
+        expect(instance.calls[callId]).toBeDefined();
 
         // Verify no BYE was sent
         const byeCalls = Connection.mockSend.mock.calls.filter(
@@ -733,38 +765,7 @@ describe('VertoHandler', () => {
 
     // ── No active call, multiple attaches ──────────────────────────────
     describe('no active call, multiple attaches', () => {
-      it('should keep recovered call when ambiguous non-matching attach arrives later', async () => {
-        await instance.connect();
-        expect(Object.keys(instance.calls).length).toBe(0);
-
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
-
-        // First attach — recovered (no active call)
-        sendAttach('first-call-id', 'session-first');
-        expect(instance.calls['first-call-id']).toBeDefined();
-        expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
-
-        // Second attach with different callID and different session ID
-        // The first call was recovered by attach in this cycle —
-        // later ambiguous attach should ACK/warn/ignore, NOT terminate
-        sendAttach('second-call-id', 'session-second');
-
-        // First call should STILL exist (attach-recovered, not pre-existing)
-        expect(instance.calls['first-call-id']).toBeDefined();
-        // Second attach should NOT create a new call
-        expect(instance.calls['second-call-id']).toBeUndefined();
-        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-          })
-        );
-
-        Call.prototype.answer = originalAnswer;
-      });
-
-      it('should recover matching callID attach when active call exists', async () => {
+      it('should warn, ACK, and ignore second attach with a different callID', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -772,14 +773,32 @@ describe('VertoHandler', () => {
         Call.prototype.answer = jest.fn();
 
         // First attach — recovered
-        sendAttach('first-call-id', 'session-dup');
+        sendAttach('first-call-id', 'session-first');
         expect(instance.calls['first-call-id']).toBeDefined();
+        expect(instance.calls['first-call-id'].recoveredCallId).toEqual(
+          'first-call-id'
+        );
 
-        // Second attach with SAME callID — matches existing call, recovers it
-        sendAttach('first-call-id', 'session-dup');
+        Connection.mockSend.mockClear();
 
-        // Call should still exist (recovered again)
+        // Second attach with different callID is unknown while a call is active.
+        sendAttach('second-call-id', 'session-second');
+
         expect(instance.calls['first-call-id']).toBeDefined();
+        expect(instance.calls['second-call-id']).toBeUndefined();
+        expect(onWarning).toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35002 }),
+            callId: 'second-call-id',
+          })
+        );
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 1000,
+            result: { method: 'telnyx_rtc.attach' },
+          },
+        });
 
         Call.prototype.answer = originalAnswer;
       });
@@ -834,184 +853,61 @@ describe('VertoHandler', () => {
         expect(instance.calls['call-2']).toBeDefined();
       });
 
-      it('should keep _callsRecoveredByAttach across clientReady (no reset)', async () => {
-        await instance.connect();
-        expect(Object.keys(instance.calls).length).toBe(0);
-
-        // First cycle: attach creates a call
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
-        sendAttach('call-cycle1', 'session-cycle1');
-        Call.prototype.answer = originalAnswer;
-        expect(instance.calls['call-cycle1']).toBeDefined();
-
-        // clientReady does NOT reset _callsRecoveredByAttach
-        // (cycle boundary is socket open, not clientReady)
-        sendReattach(['session-cycle1']);
-
-        // Second attach with different callID — this is ambiguous
-        // (different callID AND different session ID from the active call)
-        // The active call was attach-recovered → ambiguous, ACK/warn/ignore
-        sendAttach('call-cycle2', 'session-cycle2');
-
-        // First call should STILL exist (attach-recovered, not pre-existing)
-        expect(instance.calls['call-cycle1']).toBeDefined();
-        // Second attach should NOT create a call
-        expect(instance.calls['call-cycle2']).toBeUndefined();
-        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-          })
-        );
-      });
-
-      it('should keep attach-recovered call when non-matching attach arrives after clientReady', async () => {
-        await instance.connect();
-        expect(Object.keys(instance.calls).length).toBe(0);
-
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
-
-        // 1. No active call → first attach recovers session-first
-        sendAttach('first-call-id', 'session-first');
-        expect(instance.calls['first-call-id']).toBeDefined();
-        expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
-
-        // 2. clientReady with non-empty reattached_sessions arrives
-        //    Does NOT reset _callsRecoveredByAttach
-        sendReattach(['session-first', 'session-second']);
-
-        // 3. Later attach for session-second arrives
-        //    It doesn't match the first call's callID or session ID
-        //    But the first call was attach-recovered — ambiguous attach
-        //    should ACK/warn/ignore, NOT terminate the recovered call
-        sendAttach('second-call-id', 'session-second');
-
-        // First call should STILL exist (attach-recovered, not pre-existing)
-        expect(instance.calls['first-call-id']).toBeDefined();
-        // Second attach should NOT create a new call
-        expect(instance.calls['second-call-id']).toBeUndefined();
-        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-          })
-        );
-
-        Call.prototype.answer = originalAnswer;
-      });
-
-      it('mixed: empty reattached_sessions should terminate pre-existing but keep attach-recovered', async () => {
+      it('should terminate all active calls when reattached_sessions has no active callID match', async () => {
         await instance.connect();
 
-        // Call A: pre-existing (not attach-recovered)
         const callA = new Call(instance, {
           ...DEFAULT_PARAMS,
-          id: 'call-preexisting',
+          id: 'call-a',
         });
-        callA.options.telnyxSessionId = 'session-preexisting';
         callA.setState(State.Active);
 
-        // Call B: pre-existing, but gets recovered by matching attach
         const callB = new Call(instance, {
           ...DEFAULT_PARAMS,
-          id: 'call-to-recover',
+          id: 'call-b',
         });
-        callB.options.telnyxSessionId = 'session-recoverable';
         callB.setState(State.Active);
 
-        void callA;
-        void callB;
+        expect(Object.keys(instance.calls).length).toBe(2);
 
-        expect(instance.calls['call-preexisting']).toBeDefined();
-        expect(instance.calls['call-to-recover']).toBeDefined();
+        sendReattach(['unknown-call-id']);
 
-        // Attach recovers call-to-recover by callID match
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
-        sendAttach('call-to-recover', 'session-recoverable');
-        Call.prototype.answer = originalAnswer;
-
-        // call-to-recover is now attach-recovered
-        expect(instance.calls['call-to-recover']).toBeDefined();
-        // call-preexisting is still there
-        expect(instance.calls['call-preexisting']).toBeDefined();
-
-        // Empty reattached_sessions → terminate pre-existing only
-        sendReattach([]);
-
-        // Pre-existing call should be terminated
-        expect(instance.calls['call-preexisting']).toBeUndefined();
-        // Attach-recovered call should still exist
-        expect(instance.calls['call-to-recover']).toBeDefined();
-        // SESSION_NOT_REATTACHED for the pre-existing call
+        expect(instance.calls['call-a']).toBeUndefined();
+        expect(instance.calls['call-b']).toBeUndefined();
         expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
             error: expect.objectContaining({ code: 48501 }),
-            callId: 'call-preexisting',
+            callId: 'call-a',
+          })
+        );
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId: 'call-b',
           })
         );
       });
 
-      it('mixed: non-matching attach should terminate pre-existing but keep attach-recovered', async () => {
+      it('should keep all active calls when reattached_sessions matches at least one active callID', async () => {
         await instance.connect();
 
-        // Call A: pre-existing (not attach-recovered)
         const callA = new Call(instance, {
           ...DEFAULT_PARAMS,
-          id: 'call-preexisting',
+          id: 'call-a',
         });
-        callA.options.telnyxSessionId = 'session-preexisting';
         callA.setState(State.Active);
 
-        // Call B: pre-existing, but gets recovered by matching attach
         const callB = new Call(instance, {
           ...DEFAULT_PARAMS,
-          id: 'call-to-recover',
+          id: 'call-b',
         });
-        callB.options.telnyxSessionId = 'session-recoverable';
         callB.setState(State.Active);
 
-        void callA;
-        void callB;
+        sendReattach(['call-b']);
 
-        expect(instance.calls['call-preexisting']).toBeDefined();
-        expect(instance.calls['call-to-recover']).toBeDefined();
-
-        // Attach recovers call-to-recover by callID match
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
-        sendAttach('call-to-recover', 'session-recoverable');
-        Call.prototype.answer = originalAnswer;
-
-        // call-to-recover is now attach-recovered
-        expect(instance.calls['call-to-recover']).toBeDefined();
-        // call-preexisting is still there
-        expect(instance.calls['call-preexisting']).toBeDefined();
-
-        // Non-matching attach arrives
-        sendAttach('call-unknown', 'session-unknown');
-
-        // Pre-existing call should be terminated
-        expect(instance.calls['call-preexisting']).toBeUndefined();
-        // Attach-recovered call should still exist
-        expect(instance.calls['call-to-recover']).toBeDefined();
-        // Unknown call should NOT be created
-        expect(instance.calls['call-unknown']).toBeUndefined();
-        // SESSION_NOT_REATTACHED for the pre-existing call
-        expect(onError).toHaveBeenCalledWith(
-          expect.objectContaining({
-            error: expect.objectContaining({ code: 48501 }),
-            callId: 'call-preexisting',
-          })
-        );
-        // UNKNOWN_REATTACHED_SESSION for the ambiguous attach
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-          })
-        );
+        expect(instance.calls['call-a']).toBeDefined();
+        expect(instance.calls['call-b']).toBeDefined();
+        expect(onError).not.toHaveBeenCalled();
       });
     });
   });
