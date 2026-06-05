@@ -798,7 +798,7 @@ describe('VertoHandler', () => {
         expect(instance.calls['call-2']).toBeDefined();
       });
 
-      it('should reset tracking on new reattach cycle', async () => {
+      it('should reset tracking on new reattach cycle (via resetReattachCycle)', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -809,22 +809,36 @@ describe('VertoHandler', () => {
         Call.prototype.answer = originalAnswer;
         expect(instance.calls['call-cycle1']).toBeDefined();
 
-        // Second cycle: clientReady arrives, resetting per-cycle tracking
+        // clientReady does NOT reset tracking — attaches arriving after
+        // clientReady still see the first call as recovered by attach
         sendReattach(['session-cycle1']);
 
-        // New attach in the second cycle with different session
-        // The first call is active and was not recovered by attach in THIS
-        // cycle (tracking was reset), so this is a true mismatch →
-        // terminate the active call.
+        // Second attach in the SAME cycle (after clientReady) with different
+        // session should NOT terminate the first recovered call — it's
+        // ambiguous and should be ACK'd/ignored.
         const originalAnswer2 = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
         sendAttach('call-cycle2', 'session-cycle2');
         Call.prototype.answer = originalAnswer2;
 
-        // The mismatching attach terminates the old call
-        expect(instance.calls['call-cycle1']).toBeUndefined();
-        // And does NOT establish the mismatching attach
+        // First call should still exist (ambiguous attach ignored)
+        expect(instance.calls['call-cycle1']).toBeDefined();
+        // Second attach should NOT create a call
         expect(instance.calls['call-cycle2']).toBeUndefined();
+
+        // Now simulate a new reattach cycle (WebSocket reconnects)
+        handler.resetReattachCycle();
+
+        // After cycle reset, a mismatching attach WILL terminate
+        // the old call because tracking was cleared
+        const originalAnswer3 = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        sendAttach('call-cycle3', 'session-cycle3');
+        Call.prototype.answer = originalAnswer3;
+
+        // Now the mismatch terminates the old call
+        expect(instance.calls['call-cycle1']).toBeUndefined();
+        expect(instance.calls['call-cycle3']).toBeUndefined();
       });
 
       it('should only terminate unrecovered calls on empty reattached_sessions when one call was recovered by attach (per-call tracking)', async () => {
@@ -877,6 +891,37 @@ describe('VertoHandler', () => {
             error: expect.objectContaining({ code: 48501 }),
           })
         );
+      });
+
+      it('should keep first recovered call when clientReady(non-empty) arrives between attaches', async () => {
+        await instance.connect();
+        expect(Object.keys(instance.calls).length).toBe(0);
+
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+
+        // 1. No active call → first attach recovers session-first
+        sendAttach('first-call-id', 'session-first');
+        expect(instance.calls['first-call-id']).toBeDefined();
+        expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
+
+        // 2. clientReady with non-empty reattached_sessions arrives
+        //    (must NOT clear attach-recovery tracking)
+        sendReattach(['session-first', 'session-second']);
+
+        // 3. Later attach for session-second arrives
+        //    It doesn't match the first call, but the first call was
+        //    recovered by attach in this cycle → ambiguous, ACK/ignore
+        sendAttach('second-call-id', 'session-second');
+
+        // First call must still exist (not terminated)
+        expect(instance.calls['first-call-id']).toBeDefined();
+        // Second attach should NOT create a new call
+        expect(instance.calls['second-call-id']).toBeUndefined();
+        // No error should be fired
+        expect(onError).not.toHaveBeenCalled();
+
+        Call.prototype.answer = originalAnswer;
       });
     });
   });

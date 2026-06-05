@@ -57,9 +57,25 @@ class VertoHandler {
    * prevents the orphan-check from terminating a call that was already
    * recovered, while still allowing unrecovered calls to be cleaned up.
    *
-   * Cleared when a new clientReady with reattached_sessions arrives.
+   * Persists for the entire reattach cycle (across attach and
+   * clientReady messages). Only reset when a new cycle starts
+   * (WebSocket reconnects → resetReattachCycle).
    */
   private _callsRecoveredByAttach: Set<string> = new Set();
+
+  /**
+   * Reset per-cycle tracking when a new reattach cycle begins.
+   * Called when the WebSocket reconnects (new socket open), which
+   * is the true boundary between reattach cycles.
+   *
+   * IMPORTANT: Do NOT call this from the clientReady/reattached_sessions
+   * handler — attaches can arrive before OR after clientReady, and the
+   * tracking must persist across both for the entire cycle.
+   */
+  resetReattachCycle(): void {
+    this._recoveredAttachSessionIds.clear();
+    this._callsRecoveredByAttach.clear();
+  }
 
   constructor(public session: BrowserSession) {}
 
@@ -112,23 +128,20 @@ class VertoHandler {
       const activeCallIds = Object.keys(session.calls);
       const hasActiveCall = activeCallIds.length > 0;
 
-      // Reset per-cycle tracking on each reattach cycle.
-      // Save which calls were recovered by attach before clearing —
-      // we need this for the orphan check below (attach may have
-      // arrived before this clientReady).
-      const previouslyRecoveredCalls = new Set(this._callsRecoveredByAttach);
-      this._recoveredAttachSessionIds.clear();
-      this._callsRecoveredByAttach.clear();
-
+      // Per-cycle tracking persists across the entire reattach cycle
+      // (attach → clientReady → later attaches). It is only reset when
+      // a new WebSocket connection opens (resetReattachCycle). This
+      // ensures that attach-recovery info is available even when
+      // clientReady arrives between attaches.
       if (hasActiveCall && reattachedSessions.length === 0) {
         // Orphan fallback: server reports no reattached sessions.
         // Only terminate calls that were NOT already recovered by a
-        // matching attach in this cycle (attach-before-clientReady).
+        // matching attach in this cycle.
         for (const callId of activeCallIds) {
           const call = session.calls[callId];
           if (!call) continue;
 
-          if (previouslyRecoveredCalls.has(callId)) {
+          if (this._callsRecoveredByAttach.has(callId)) {
             // This specific call was already recovered by attach — skip.
             const callSessionId = call.options?.telnyxSessionId;
             logger.debug(
@@ -170,7 +183,7 @@ class VertoHandler {
             `Reattach: active call ${callId} exists ` +
               `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
               `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
-              `attach_already_recovered: ${previouslyRecoveredCalls.has(callId)}, ` +
+              `attach_already_recovered: ${this._callsRecoveredByAttach.has(callId)}, ` +
               `action: keep_awaiting_attach).`
           );
         }

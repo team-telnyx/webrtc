@@ -111,6 +111,11 @@ export default class Verto extends BrowserSession {
     // Let BaseSession resume signaling health monitor for active calls
     await super._onSocketOpen();
 
+    // New reattach cycle starts with each WebSocket (re)connection.
+    // Clear tracking from the previous cycle so that attaches on the
+    // new connection are handled fresh.
+    this._vertoHandler.resetReattachCycle();
+
     if (isValidLoginOptions(this.options)) {
       return this.handleLoginOnSocketOpen();
     }
