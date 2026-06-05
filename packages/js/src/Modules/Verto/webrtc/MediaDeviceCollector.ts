@@ -235,6 +235,54 @@ export class MediaDeviceCollector {
       }
 
       this._capturePromise = null;
+
+      // Log all input devices at call start for visibility in call-report logs
+      for (const device of inputDevices) {
+        logger.info('MediaDeviceCollector: call-start input device', {
+          deviceIdHash: device.deviceIdHash,
+          groupIdHash: device.groupIdHash,
+          ...(device.label ? { label: device.label } : {}),
+        });
+      }
+
+      // Log all output devices at call start for visibility in call-report logs
+      for (const device of outputDevices) {
+        logger.info('MediaDeviceCollector: call-start output device', {
+          deviceIdHash: device.deviceIdHash,
+          groupIdHash: device.groupIdHash,
+          ...(device.label ? { label: device.label } : {}),
+        });
+      }
+
+      // Log selected devices at call start
+      if (selectedInputDevice) {
+        logger.info(
+          'MediaDeviceCollector: selected input device at call start',
+          {
+            deviceIdHash: selectedInputDevice.deviceIdHash,
+            kind: selectedInputDevice.kind,
+          }
+        );
+      } else {
+        logger.info(
+          'MediaDeviceCollector: no selected input device at call start'
+        );
+      }
+
+      if (selectedOutputDevice) {
+        logger.info(
+          'MediaDeviceCollector: selected output device at call start',
+          {
+            deviceIdHash: selectedOutputDevice.deviceIdHash,
+            kind: selectedOutputDevice.kind,
+          }
+        );
+      } else {
+        logger.info(
+          'MediaDeviceCollector: selected output device at call start',
+          { deviceIdHash: 'browser-default' }
+        );
+      }
     } catch (error) {
       logger.error(
         'MediaDeviceCollector: failed to capture call-start snapshot',
@@ -502,6 +550,38 @@ export class MediaDeviceCollector {
 
       this._events.push(changeEvent);
       this._latestSnapshot = newRedacted;
+
+      // Log each connected device for visibility in call-report logs
+      for (const device of newConnectedDevices) {
+        logger.info('MediaDeviceCollector: device connected during call', {
+          deviceIdHash: device.deviceIdHash,
+          groupIdHash: device.groupIdHash,
+          kind: device.kind,
+          ...(device.label ? { label: device.label } : {}),
+        });
+      }
+
+      // Log each disconnected device for visibility in call-report logs
+      for (const device of newDisconnectedDevices) {
+        const isSelectedInput =
+          this._selectedInputDeviceIdHash &&
+          device.kind === 'audioinput' &&
+          device.deviceIdHash === this._selectedInputDeviceIdHash;
+        const isSelectedOutput =
+          this._selectedOutputDeviceIdHash &&
+          this._selectedOutputDeviceIdHash !== 'browser-default' &&
+          this._selectedOutputDeviceIdHash !== 'unknown' &&
+          device.kind === 'audiooutput' &&
+          device.deviceIdHash === this._selectedOutputDeviceIdHash;
+        logger.info('MediaDeviceCollector: device disconnected during call', {
+          deviceIdHash: device.deviceIdHash,
+          groupIdHash: device.groupIdHash,
+          kind: device.kind,
+          isSelectedInput,
+          isSelectedOutput,
+          ...(device.label ? { label: device.label } : {}),
+        });
+      }
     } catch (error) {
       logger.error('MediaDeviceCollector: error handling devicechange', {
         error,
