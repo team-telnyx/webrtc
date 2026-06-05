@@ -27,14 +27,7 @@ export class MediaDeviceCollector {
       const devices = await this._enumerateAudioDevices();
       this._rawDeviceCache = devices;
 
-      logger.debug('MediaDeviceCollector: devices at call start', {
-        devices: devices.map((d) => ({
-          deviceId: d.deviceId,
-          groupId: d.groupId,
-          kind: d.kind,
-          label: d.label,
-        })),
-      });
+      logger.debug('MediaDeviceCollector: devices at call start', { devices });
 
       this._startDeviceChangeListener();
     } catch (error) {
@@ -124,18 +117,8 @@ export class MediaDeviceCollector {
 
       if (connected.length > 0 || disconnected.length > 0) {
         logger.debug('MediaDeviceCollector: devices changed during call', {
-          connected: connected.map((d) => ({
-            deviceId: d.deviceId,
-            groupId: d.groupId,
-            kind: d.kind,
-            label: d.label,
-          })),
-          disconnected: disconnected.map((d) => ({
-            deviceId: d.deviceId,
-            groupId: d.groupId,
-            kind: d.kind,
-            label: d.label,
-          })),
+          connected,
+          disconnected,
         });
       }
 
