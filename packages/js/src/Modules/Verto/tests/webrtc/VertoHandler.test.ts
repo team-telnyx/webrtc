@@ -701,7 +701,7 @@ describe('VertoHandler', () => {
 
     // ── No active call, multiple attaches ──────────────────────────────
     describe('no active call, multiple attaches', () => {
-      it('should recover first attach and ignore subsequent ones', async () => {
+      it('should recover first attach and ACK/ignore subsequent ambiguous ones', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -713,17 +713,15 @@ describe('VertoHandler', () => {
         expect(instance.calls['first-call-id']).toBeDefined();
         expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
 
-        // Second attach with different session — no active call exists,
-        // so this should also create a call (different session, different callID)
-        // Actually: at this point, first-call-id IS an active call.
-        // The second attach has a different callID and different session,
-        // so it's a mismatch → the first call gets terminated.
-        // This tests the mismatch path.
+        // Second attach with different session — the first recovered call
+        // now appears as "active". Since it was recovered by a prior
+        // no-active-call attach, this second attach is ambiguous and
+        // should be ACK'd/ignored, NOT terminate the first call.
         sendAttach('second-call-id', 'session-second');
 
-        // First call should be terminated (mismatch)
-        expect(instance.calls['first-call-id']).toBeUndefined();
-        // Second attach should be ACK'd but not established
+        // First call should STILL exist (not terminated)
+        expect(instance.calls['first-call-id']).toBeDefined();
+        // Second attach should NOT create a new call
         expect(instance.calls['second-call-id']).toBeUndefined();
 
         Call.prototype.answer = originalAnswer;
@@ -811,19 +809,74 @@ describe('VertoHandler', () => {
         Call.prototype.answer = originalAnswer;
         expect(instance.calls['call-cycle1']).toBeDefined();
 
-        // Second cycle: reattached_sessions arrives, clearing the recovered set
+        // Second cycle: clientReady arrives, resetting per-cycle tracking
         sendReattach(['session-cycle1']);
 
-        // New attach in the second cycle should work (set was cleared)
+        // New attach in the second cycle with different session
+        // The first call is active and was not recovered by attach in THIS
+        // cycle (tracking was reset), so this is a true mismatch →
+        // terminate the active call.
         const originalAnswer2 = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
         sendAttach('call-cycle2', 'session-cycle2');
         Call.prototype.answer = originalAnswer2;
 
-        // The mismatch path will terminate call-cycle1, but session-cycle2
-        // attach won't be established (mismatch → terminate active, ACK ignore)
+        // The mismatching attach terminates the old call
         expect(instance.calls['call-cycle1']).toBeUndefined();
+        // And does NOT establish the mismatching attach
         expect(instance.calls['call-cycle2']).toBeUndefined();
+      });
+
+      it('should only terminate unrecovered calls on empty reattached_sessions when one call was recovered by attach (per-call tracking)', async () => {
+        await instance.connect();
+
+        // Set up two active calls: only call-1 will be recovered by attach
+        const call1 = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-recovered',
+        });
+        call1.options.telnyxSessionId = 'session-recovered';
+        call1.setState(State.Active);
+
+        const call2 = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-orphan',
+        });
+        call2.options.telnyxSessionId = 'session-orphan';
+        call2.setState(State.Active);
+
+        void call1;
+        void call2;
+
+        expect(Object.keys(instance.calls).length).toBe(2);
+
+        // Attach recovers call-recovered
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        sendAttach('call-recovered', 'session-recovered');
+        Call.prototype.answer = originalAnswer;
+
+        // call-recovered should be recovered, call-orphan should still exist
+        expect(instance.calls['call-recovered']).toBeDefined();
+        expect(instance.calls['call-orphan']).toBeDefined();
+
+        // Now clientReady with empty reattached_sessions arrives
+        // Per-call tracking: call-recovered was already recovered by attach,
+        // so it should be kept. call-orphan was NOT recovered by attach,
+        // so it should be terminated.
+        sendReattach([]);
+
+        // call-recovered should still exist (was recovered by attach)
+        expect(instance.calls['call-recovered']).toBeDefined();
+        // call-orphan should be terminated (was NOT recovered by attach)
+        expect(instance.calls['call-orphan']).toBeUndefined();
+        // Error should have been fired for call-orphan only
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            callId: 'call-orphan',
+            error: expect.objectContaining({ code: 48501 }),
+          })
+        );
       });
     });
   });

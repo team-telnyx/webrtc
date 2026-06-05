@@ -52,12 +52,14 @@ class VertoHandler {
   private _recoveredAttachSessionIds: Set<string> = new Set();
 
   /**
-   * Tracks whether an attach already recovered the active call during
-   * the current reattach cycle. When reattached_sessions arrives after
-   * the attach (common ordering), this prevents the orphan-check from
-   * terminating a call that was already recovered.
+   * Tracks which specific active call IDs have been recovered by an
+   * attach during the current reattach cycle. Per-call tracking
+   * prevents the orphan-check from terminating a call that was already
+   * recovered, while still allowing unrecovered calls to be cleaned up.
+   *
+   * Cleared when a new clientReady with reattached_sessions arrives.
    */
-  private _activeCallRecoveredByAttach: boolean = false;
+  private _callsRecoveredByAttach: Set<string> = new Set();
 
   constructor(public session: BrowserSession) {}
 
@@ -111,24 +113,31 @@ class VertoHandler {
       const hasActiveCall = activeCallIds.length > 0;
 
       // Reset per-cycle tracking on each reattach cycle.
-      // If an attach already recovered the active call in this cycle
-      // (attach-before-reattached_sessions ordering), preserve that flag
-      // so the orphan check below doesn't mistakenly terminate the call.
-      const hadPriorAttachRecovery = this._recoveredAttachSessionIds.size > 0;
+      // Save which calls were recovered by attach before clearing —
+      // we need this for the orphan check below (attach may have
+      // arrived before this clientReady).
+      const previouslyRecoveredCalls = new Set(this._callsRecoveredByAttach);
       this._recoveredAttachSessionIds.clear();
-      this._activeCallRecoveredByAttach = hadPriorAttachRecovery;
+      this._callsRecoveredByAttach.clear();
 
-      if (
-        hasActiveCall &&
-        reattachedSessions.length === 0 &&
-        !this._activeCallRecoveredByAttach
-      ) {
-        // Orphan fallback: server reports no reattached sessions, and no
-        // attach has already recovered the active call during this cycle.
-        // This means the server lost the session — terminate locally.
+      if (hasActiveCall && reattachedSessions.length === 0) {
+        // Orphan fallback: server reports no reattached sessions.
+        // Only terminate calls that were NOT already recovered by a
+        // matching attach in this cycle (attach-before-clientReady).
         for (const callId of activeCallIds) {
           const call = session.calls[callId];
           if (!call) continue;
+
+          if (previouslyRecoveredCalls.has(callId)) {
+            // This specific call was already recovered by attach — skip.
+            const callSessionId = call.options?.telnyxSessionId;
+            logger.debug(
+              `Reattach: active call ${callId} was already recovered by attach ` +
+                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
+                `reattached_sessions: [], action: keep_already_recovered).`
+            );
+            continue;
+          }
 
           const callSessionId = call.options?.telnyxSessionId;
           logger.info(
@@ -150,8 +159,8 @@ class VertoHandler {
           void call.hangup({}, false);
         }
       } else if (hasActiveCall) {
-        // Active call exists with non-empty reattached_sessions, or attach
-        // already recovered it. Do NOT terminate — attach drives recovery.
+        // Active call exists with non-empty reattached_sessions.
+        // Do NOT terminate — attach drives recovery.
         // Just log for observability.
         for (const callId of activeCallIds) {
           const call = session.calls[callId];
@@ -161,7 +170,7 @@ class VertoHandler {
             `Reattach: active call ${callId} exists ` +
               `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
               `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
-              `attach_already_recovered: ${this._activeCallRecoveredByAttach}, ` +
+              `attach_already_recovered: ${previouslyRecoveredCalls.has(callId)}, ` +
               `action: keep_awaiting_attach).`
           );
         }
@@ -367,21 +376,42 @@ class VertoHandler {
           call.answer();
           this._ack(id, method);
 
-          // Track this session as recovered
+          // Track this specific call as recovered by attach
           if (attachSessionId) {
             this._recoveredAttachSessionIds.add(attachSessionId);
           }
-          this._activeCallRecoveredByAttach = true;
+          this._callsRecoveredByAttach.add(call.id);
           return;
         }
 
         // ── No matching active call ─────────────────────────────────────
-        // Check if there is ANY active call (mismatch case)
+        // If we already recovered a call from a no-active-call attach in
+        // this cycle, later attaches are ambiguous — ACK and ignore them
+        // instead of treating the recovered call as a mismatch.
+        if (
+          activeCallIds.length > 0 &&
+          activeCallIds.some((activeId) =>
+            this._callsRecoveredByAttach.has(activeId)
+          )
+        ) {
+          // A previously recovered call (from a no-active-call attach) now
+          // shows up as "active". The incoming attach doesn't match it, but
+          // we should NOT terminate the recovered call — just ACK/ignore
+          // this later ambiguous attach.
+          logger.debug(
+            `Attach: no match for incoming attach (callID: ${callID}, telnyxSessionId: ${attachSessionId ?? 'unknown'}) ` +
+              `— already recovered a call in this cycle, ignoring ambiguous attach.`
+          );
+          this._ack(id, method);
+          return;
+        }
+
         if (activeCallIds.length > 0) {
-          // Mismatching attach: active call exists but doesn't match
-          // this attach's callID or telnyx_session_id. The active call
-          // is orphaned — emit SESSION_NOT_REATTACHED, terminate it
-          // locally without BYE, then ACK/ignore the mismatching attach.
+          // True mismatch: active call exists that was NOT recovered by attach
+          // in this cycle, and it doesn't match this attach's callID or
+          // telnyx_session_id. The active call is orphaned — emit
+          // SESSION_NOT_REATTACHED, terminate it locally without BYE,
+          // then ACK/ignore the mismatching attach.
           for (const activeId of activeCallIds) {
             const activeCall = session.calls[activeId];
             if (!activeCall) continue;
@@ -413,8 +443,8 @@ class VertoHandler {
         // Recover the first attach. If multiple attaches arrive, recover
         // the first and debug-log/ACK/ignore later ones as ambiguous.
         // (The duplicate check at the top handles subsequent attaches
-        // for the same session; here we handle the case where different
-        // sessions arrive.)
+        // for the same session; the ambiguous check above handles later
+        // attaches with different sessions that see the recovered call.)
         if (attachSessionId) {
           this._recoveredAttachSessionIds.add(attachSessionId);
         }
@@ -422,6 +452,9 @@ class VertoHandler {
         const call = _buildCall();
         call.answer();
         this._ack(id, method);
+
+        // Track this call as recovered by attach (for per-call orphan check)
+        this._callsRecoveredByAttach.add(call.id);
         break;
       }
       case VertoMethod.Event:
