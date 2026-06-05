@@ -536,25 +536,24 @@ describe('VertoHandler', () => {
         expect(instance.calls[callId]).toBeDefined();
       });
 
-      it('should terminate active call when reattached_sessions is empty even if attach recovered', async () => {
+      it('should NOT terminate attach-recovered call when reattached_sessions is empty', async () => {
         await instance.connect();
-        const callId = 'call-id-002';
-        _setupCall({ id: callId, telnyxSessionId: 'session-xyz' });
-        call.setState(State.Active);
+        expect(Object.keys(instance.calls).length).toBe(0);
 
-        // Attach arrives first and recovers the call
+        // No active call — first attach recovers
         const originalAnswer = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
-        sendAttach(callId, 'session-xyz');
+        sendAttach('call-id-002', 'session-xyz');
         Call.prototype.answer = originalAnswer;
+        expect(instance.calls['call-id-002']).toBeDefined();
 
-        // Now reattached_sessions arrives as EMPTY — server says no sessions
-        // All active calls are terminated (server doesn't know about them)
+        // Now reattached_sessions arrives as EMPTY
+        // Attach-recovered calls should NOT be terminated — the attach
+        // proves the server still knows about them.
         sendReattach([]);
 
-        // Call is terminated — empty reattached_sessions means server
-        // lost the session, so all active calls are cleaned up
-        expect(instance.calls[callId]).toBeUndefined();
+        // Call should still exist (attach-recovered, not pre-existing)
+        expect(instance.calls['call-id-002']).toBeDefined();
       });
     });
 
@@ -897,6 +896,118 @@ describe('VertoHandler', () => {
         );
 
         Call.prototype.answer = originalAnswer;
+      });
+
+      it('mixed: empty reattached_sessions should terminate pre-existing but keep attach-recovered', async () => {
+        await instance.connect();
+
+        // Call A: pre-existing (not attach-recovered)
+        const callA = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-preexisting',
+        });
+        callA.options.telnyxSessionId = 'session-preexisting';
+        callA.setState(State.Active);
+
+        // Call B: pre-existing, but gets recovered by matching attach
+        const callB = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-to-recover',
+        });
+        callB.options.telnyxSessionId = 'session-recoverable';
+        callB.setState(State.Active);
+
+        void callA;
+        void callB;
+
+        expect(instance.calls['call-preexisting']).toBeDefined();
+        expect(instance.calls['call-to-recover']).toBeDefined();
+
+        // Attach recovers call-to-recover by callID match
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        sendAttach('call-to-recover', 'session-recoverable');
+        Call.prototype.answer = originalAnswer;
+
+        // call-to-recover is now attach-recovered
+        expect(instance.calls['call-to-recover']).toBeDefined();
+        // call-preexisting is still there
+        expect(instance.calls['call-preexisting']).toBeDefined();
+
+        // Empty reattached_sessions → terminate pre-existing only
+        sendReattach([]);
+
+        // Pre-existing call should be terminated
+        expect(instance.calls['call-preexisting']).toBeUndefined();
+        // Attach-recovered call should still exist
+        expect(instance.calls['call-to-recover']).toBeDefined();
+        // SESSION_NOT_REATTACHED for the pre-existing call
+        expect(onWarning).toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35001 }),
+            callId: 'call-preexisting',
+          })
+        );
+      });
+
+      it('mixed: non-matching attach should terminate pre-existing but keep attach-recovered', async () => {
+        await instance.connect();
+
+        // Call A: pre-existing (not attach-recovered)
+        const callA = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-preexisting',
+        });
+        callA.options.telnyxSessionId = 'session-preexisting';
+        callA.setState(State.Active);
+
+        // Call B: pre-existing, but gets recovered by matching attach
+        const callB = new Call(instance, {
+          ...DEFAULT_PARAMS,
+          id: 'call-to-recover',
+        });
+        callB.options.telnyxSessionId = 'session-recoverable';
+        callB.setState(State.Active);
+
+        void callA;
+        void callB;
+
+        expect(instance.calls['call-preexisting']).toBeDefined();
+        expect(instance.calls['call-to-recover']).toBeDefined();
+
+        // Attach recovers call-to-recover by callID match
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        sendAttach('call-to-recover', 'session-recoverable');
+        Call.prototype.answer = originalAnswer;
+
+        // call-to-recover is now attach-recovered
+        expect(instance.calls['call-to-recover']).toBeDefined();
+        // call-preexisting is still there
+        expect(instance.calls['call-preexisting']).toBeDefined();
+
+        // Non-matching attach arrives
+        sendAttach('call-unknown', 'session-unknown');
+
+        // Pre-existing call should be terminated
+        expect(instance.calls['call-preexisting']).toBeUndefined();
+        // Attach-recovered call should still exist
+        expect(instance.calls['call-to-recover']).toBeDefined();
+        // Unknown call should NOT be created
+        expect(instance.calls['call-unknown']).toBeUndefined();
+        // SESSION_NOT_REATTACHED for the pre-existing call
+        expect(onWarning).toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35001 }),
+            callId: 'call-preexisting',
+          })
+        );
+        // UNKNOWN_REATTACHED_SESSION for the ambiguous attach
+        expect(onWarning).toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35002 }),
+          })
+        );
       });
     });
   });

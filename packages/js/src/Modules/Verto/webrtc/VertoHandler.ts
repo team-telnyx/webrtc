@@ -111,6 +111,16 @@ class VertoHandler {
       ) {
         const activeCallIds = Object.keys(session.calls);
         for (const callId of activeCallIds) {
+          // Skip calls that were already recovered by an Attach in this
+          // cycle — the attach proves the server still knows about them.
+          if (this._callsRecoveredByAttach.has(callId)) {
+            logger.info(
+              `Empty reattached_sessions but call ${callId} was already ` +
+                `recovered by attach — skipping termination.`
+            );
+            continue;
+          }
+
           const call = session.calls[callId];
           if (!call) continue;
 
@@ -308,82 +318,76 @@ class VertoHandler {
           break;
         }
 
-        // ── Non-matching Attach ───────────────────────────────────────
-        // The incoming Attach doesn't match any active call by callID
-        // or telnyx_session_id. Distinguish two sub-cases:
-        //
-        // A) Active call is a pre-existing call (from before the reconnect
-        //    cycle) — the server has reassigned the session. Terminate the
-        //    pre-existing call locally (no BYE) and emit SESSION_NOT_REATTACHED.
-        //
-        // B) Active call was recovered by an earlier attach in this cycle —
-        //    the later attach is ambiguous. ACK/warn/ignore without
-        //    terminating the recovered call.
-
-        const allAttachRecovered = activeCallIds.every((cid) =>
-          this._callsRecoveredByAttach.has(cid)
-        );
-
-        if (activeCallIds.length > 0 && allAttachRecovered) {
-          // ── Case B: all active calls were recovered by attach ──────
-          // Later ambiguous attach — ACK/warn/ignore
-          logger.warn(
-            `Attach: ambiguous callID ${callID} does not match any ` +
-              `attach-recovered call (active: [${activeCallIds.join(', ')}]). ` +
-              `ACK and ignoring.`
-          );
-          const unknownWarning = createTelnyxWarning(
-            UNKNOWN_REATTACHED_SESSION
-          );
-          trigger(
-            SwEvent.Warning,
-            {
-              warning: unknownWarning,
-              callId: callID,
-              activeCallIds,
-              sessionId: session.sessionid,
-            },
-            session.uuid
-          );
-          this._ack(id, method);
-          break;
-        }
-
         if (activeCallIds.length > 0) {
-          // ── Case A: pre-existing active calls that don't match ────
-          // The server has reassigned this session away from the active
-          // call. Terminate pre-existing calls locally (no BYE) and emit
-          // SESSION_NOT_REATTACHED.
-          logger.warn(
-            `Attach: callID ${callID} does not match any active call ` +
-              `(active: [${activeCallIds.join(', ')}]). ` +
-              `Terminating pre-existing active calls locally without BYE.`
+          // ── Non-matching Attach with active calls ─────────────────────
+          // Per-call handling:
+          // - Calls in _callsRecoveredByAttach → keep (ambiguous attach,
+          //   the server still knows about them from the earlier attach)
+          // - Calls NOT in _callsRecoveredByAttach → pre-existing calls
+          //   the server reassigned. Terminate locally, emit warning.
+
+          const attachRecoveredIds = activeCallIds.filter((cid) =>
+            this._callsRecoveredByAttach.has(cid)
+          );
+          const preExistingIds = activeCallIds.filter(
+            (cid) => !this._callsRecoveredByAttach.has(cid)
           );
 
-          for (const activeCallId of activeCallIds) {
-            const activeCall = session.calls[activeCallId];
-            if (!activeCall) continue;
-
-            logger.info(
-              `Session not reattached — terminating active call ${activeCallId} ` +
-                `(non-matching attach callID=${callID}, action: terminate_no_match).`
+          if (preExistingIds.length > 0) {
+            // Terminate pre-existing calls that the server reassigned
+            logger.warn(
+              `Attach: callID ${callID} does not match any active call. ` +
+                `Terminating pre-existing calls [${preExistingIds.join(', ')}] ` +
+                `locally without BYE.`
             );
 
-            const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+            for (const activeCallId of preExistingIds) {
+              const activeCall = session.calls[activeCallId];
+              if (!activeCall) continue;
+
+              logger.info(
+                `Session not reattached — terminating active call ${activeCallId} ` +
+                  `(non-matching attach callID=${callID}, action: terminate_no_match).`
+              );
+
+              const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+              trigger(
+                SwEvent.Warning,
+                {
+                  warning,
+                  callId: activeCallId,
+                  attachCallId: callID,
+                  sessionId: session.sessionid,
+                },
+                session.uuid
+              );
+
+              // Local cleanup only — do not send BYE because the server
+              // no longer has the session for this call.
+              void activeCall.hangup({}, false);
+            }
+          }
+
+          if (attachRecoveredIds.length > 0) {
+            // Ambiguous attach for calls already recovered in this cycle
+            logger.warn(
+              `Attach: ambiguous callID ${callID} does not match any ` +
+                `attach-recovered call (recovered: [${attachRecoveredIds.join(', ')}]). ` +
+                `ACK and ignoring.`
+            );
+            const unknownWarning = createTelnyxWarning(
+              UNKNOWN_REATTACHED_SESSION
+            );
             trigger(
               SwEvent.Warning,
               {
-                warning,
-                callId: activeCallId,
-                attachCallId: callID,
+                warning: unknownWarning,
+                callId: callID,
+                activeCallIds: attachRecoveredIds,
                 sessionId: session.sessionid,
               },
               session.uuid
             );
-
-            // Local cleanup only — do not send BYE because the server
-            // no longer has the session for this call.
-            void activeCall.hangup({}, false);
           }
 
           this._ack(id, method);
