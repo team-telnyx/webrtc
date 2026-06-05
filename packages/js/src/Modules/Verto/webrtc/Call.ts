@@ -2,7 +2,7 @@ import { ConversationMessage } from '../messages/verto/ConverstationMessage';
 import logger from '../util/logger';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 import BaseCall from './BaseCall';
-import { IVertoCallOptions, IHangupParams } from './interfaces';
+import { IVertoCallOptions } from './interfaces';
 
 /**
  * A `Call` is the representation of an audio or video call between
@@ -54,12 +54,9 @@ import { IVertoCallOptions, IHangupParams } from './interfaces';
 export class Call extends BaseCall {
   public screenShare: Call;
 
-  private _statsInterval: number | null = null;
+  private _statsInterval: any = null;
 
-  async hangup(
-    params: IHangupParams = {},
-    execute: boolean = true
-  ): Promise<void> {
+  async hangup(params: any = {}, execute: boolean = true): Promise<void> {
     if (this.screenShare instanceof Call) {
       await this.screenShare.hangup(params, execute);
     }
@@ -147,20 +144,8 @@ export class Call extends BaseCall {
     this.options.speakerId = deviceId;
     const { remoteElement, speakerId } = this.options;
     if (remoteElement && speakerId) {
-      const success = await setMediaElementSinkId(remoteElement, speakerId);
-      // Track the actually applied sink ID for media device reporting.
-      // Only set if setSinkId succeeded.
-      this._appliedOutputDeviceId = success ? speakerId : null;
-      // Update the media device collector with the actual applied output
-      // device so the call report reflects mid-call device changes.
-      // Await so the update is reflected before any subsequent
-      // postReport / devicechange reads the selected output.
-      if (success && this._callReportCollector) {
-        await this._callReportCollector.updateMediaOutputDevice(speakerId);
-      }
-      return success;
+      return setMediaElementSinkId(remoteElement, speakerId);
     }
-    this._appliedOutputDeviceId = null;
     return false;
   }
 

@@ -8,6 +8,7 @@ import {
   CallReportCollector,
   type ICallReportFlushReason,
 } from './CallReportCollector';
+import { MediaDeviceCollector } from './MediaDeviceCollector';
 import {
   Answer,
   Attach,
@@ -95,7 +96,8 @@ const SDK_VERSION = pkg.version;
  */
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
-  protected _callReportCollector: CallReportCollector | null = null;
+  private _callReportCollector: CallReportCollector | null = null;
+  private _mediaDeviceCollector: MediaDeviceCollector | null = null;
 
   /**
    * The call identifier.
@@ -223,14 +225,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _signalingStateClosed: boolean = false;
 
   private _creatingPeer: boolean = false;
-
-  /**
-   * The output device ID that was successfully applied via setSinkId.
-   * null if setSinkId was never called, failed, or no element exists.
-   * Used by MediaDeviceCollector to report the *actual* output device
-   * rather than the requested one.
-   */
-  protected _appliedOutputDeviceId: string | null = null;
 
   private _firstCandidateSent: boolean = false;
 
@@ -1175,29 +1169,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
 
-        setTimeout(async () => {
-          // Guard: if the call has transitioned away from Active before
-          // this callback runs, skip sink setup.
-          if (this._state !== State.Active) {
-            return;
-          }
-
+        setTimeout(() => {
           const { remoteElement, speakerId } = this.options;
           if (remoteElement && speakerId) {
-            const success = await setMediaElementSinkId(
-              remoteElement,
-              speakerId
-            );
-            if (success) {
-              this._appliedOutputDeviceId = speakerId;
-              // Update the media device collector with the actual applied
-              // output device. This is deferred because setSinkId is async.
-              // Await so the update is reflected before any subsequent
-              // postReport / devicechange reads the selected output.
-              await this._callReportCollector?.updateMediaOutputDevice(
-                speakerId
-              );
-            }
+            setMediaElementSinkId(remoteElement, speakerId);
           }
         }, 0);
 
@@ -1209,16 +1184,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           this.session.callReportId
         ) {
           this._callReportCollector.start(this.peer.instance);
-          // Start media device collection immediately when call becomes active.
-          // This is NOT deferred behind setSinkId — every active call report
-          // MUST include call-start device visibility. The output device is
-          // initially reported as 'browser-default' and updated later via
-          // updateMediaOutputDevice() if setSinkId succeeds.
-          this._callReportCollector.startMediaDeviceCollection(
-            this.peer.instance,
-            null // Output device unknown until setSinkId completes
-          );
         }
+
+        // Start logging media devices for debugging
+        this._mediaDeviceCollector = new MediaDeviceCollector();
+        this._mediaDeviceCollector.logDevicesAtStart();
         break;
       }
       case State.Destroy:
@@ -2374,6 +2344,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+    this._mediaDeviceCollector?.stop();
+    this._mediaDeviceCollector = null;
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).
