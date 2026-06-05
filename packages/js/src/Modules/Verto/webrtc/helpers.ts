@@ -271,6 +271,34 @@ const checkDeviceIdConstraints = async (
   return constraints;
 };
 
+const getTrackDebugInfo = (track?: MediaStreamTrack | null) => {
+  if (!track) {
+    return null;
+  }
+
+  return {
+    id: track.id,
+    kind: track.kind,
+    label: track.label,
+    enabled: track.enabled,
+    muted: track.muted,
+    readyState: track.readyState,
+  };
+};
+
+const getStreamTrackDebugInfo = (stream?: MediaStream | null) => {
+  if (!stream) {
+    return [];
+  }
+
+  const tracks = stream.getTracks?.() ?? [
+    ...(stream.getAudioTracks?.() ?? []),
+    ...(stream.getVideoTracks?.() ?? []),
+  ];
+
+  return tracks.map((track) => getTrackDebugInfo(track));
+};
+
 /**
  * Add stereo support hacking the SDP
  * @return the SDP modified
@@ -849,6 +877,8 @@ export {
   stopAudio,
   hasVideo,
   getPreferredCodecs,
+  getTrackDebugInfo,
+  getStreamTrackDebugInfo,
   // Exported for testing
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
