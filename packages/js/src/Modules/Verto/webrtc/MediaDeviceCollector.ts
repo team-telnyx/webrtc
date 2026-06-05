@@ -122,6 +122,8 @@ export class MediaDeviceCollector {
    */
   private _selectedOutputDeviceRawId: string | null = null;
   private _latestSnapshot: IRedactedDeviceInfo[] | null = null;
+  /** Cache of raw MediaDeviceInfo from last enumerateDevices call. Used for devicechange diff logging. */
+  private _rawDeviceCache: MediaDeviceInfo[] = [];
   private _deviceChangeHandler: (() => void) | null = null;
 
   /**
@@ -236,53 +238,20 @@ export class MediaDeviceCollector {
 
       this._capturePromise = null;
 
-      // Log all input devices at call start for visibility in call-report logs
-      for (const device of inputDevices) {
-        logger.info('MediaDeviceCollector: call-start input device', {
-          deviceIdHash: device.deviceIdHash,
-          groupIdHash: device.groupIdHash,
-          ...(device.label ? { label: device.label } : {}),
-        });
-      }
+      // Cache raw devices for devicechange diff logging
+      this._rawDeviceCache = rawDevices.filter(
+        (d) => d.kind === 'audioinput' || d.kind === 'audiooutput'
+      );
 
-      // Log all output devices at call start for visibility in call-report logs
-      for (const device of outputDevices) {
-        logger.info('MediaDeviceCollector: call-start output device', {
-          deviceIdHash: device.deviceIdHash,
-          groupIdHash: device.groupIdHash,
-          ...(device.label ? { label: device.label } : {}),
-        });
-      }
-
-      // Log selected devices at call start
-      if (selectedInputDevice) {
-        logger.info(
-          'MediaDeviceCollector: selected input device at call start',
-          {
-            deviceIdHash: selectedInputDevice.deviceIdHash,
-            kind: selectedInputDevice.kind,
-          }
-        );
-      } else {
-        logger.info(
-          'MediaDeviceCollector: no selected input device at call start'
-        );
-      }
-
-      if (selectedOutputDevice) {
-        logger.info(
-          'MediaDeviceCollector: selected output device at call start',
-          {
-            deviceIdHash: selectedOutputDevice.deviceIdHash,
-            kind: selectedOutputDevice.kind,
-          }
-        );
-      } else {
-        logger.info(
-          'MediaDeviceCollector: selected output device at call start',
-          { deviceIdHash: 'browser-default' }
-        );
-      }
+      // Log all devices at call start (debug level, raw fields)
+      logger.debug('MediaDeviceCollector: media devices at call start', {
+        devices: this._rawDeviceCache.map((d) => ({
+          deviceId: d.deviceId,
+          groupId: d.groupId,
+          kind: d.kind,
+          label: d.label,
+        })),
+      });
     } catch (error) {
       logger.error(
         'MediaDeviceCollector: failed to capture call-start snapshot',
@@ -386,6 +355,7 @@ export class MediaDeviceCollector {
     this._selectedOutputDeviceIdHash = null;
     this._selectedInputDeviceRawId = null;
     this._selectedOutputDeviceRawId = null;
+    this._rawDeviceCache = [];
   }
 
   // ── Internal ─────────────────────────────────────────────────────
@@ -505,6 +475,9 @@ export class MediaDeviceCollector {
 
       if (!previous) {
         this._latestSnapshot = newRedacted;
+        this._rawDeviceCache = rawDevices.filter(
+          (d) => d.kind === 'audioinput' || d.kind === 'audiooutput'
+        );
         return;
       }
 
@@ -551,37 +524,43 @@ export class MediaDeviceCollector {
       this._events.push(changeEvent);
       this._latestSnapshot = newRedacted;
 
-      // Log each connected device for visibility in call-report logs
-      for (const device of newConnectedDevices) {
-        logger.info('MediaDeviceCollector: device connected during call', {
-          deviceIdHash: device.deviceIdHash,
-          groupIdHash: device.groupIdHash,
-          kind: device.kind,
-          ...(device.label ? { label: device.label } : {}),
-        });
+      // Diff raw devices against cache for logging
+      const audioDevices = rawDevices.filter(
+        (d) => d.kind === 'audioinput' || d.kind === 'audiooutput'
+      );
+      const cachedIds = new Set(this._rawDeviceCache.map((d) => d.deviceId));
+      const currentIds = new Set(audioDevices.map((d) => d.deviceId));
+
+      const connectedRaw = audioDevices.filter(
+        (d) => !cachedIds.has(d.deviceId)
+      );
+      const disconnectedRaw = this._rawDeviceCache.filter(
+        (d) => !currentIds.has(d.deviceId)
+      );
+
+      // Log only changed devices (debug level, raw fields)
+      if (connectedRaw.length > 0 || disconnectedRaw.length > 0) {
+        logger.debug(
+          'MediaDeviceCollector: media devices changed during call',
+          {
+            connected: connectedRaw.map((d) => ({
+              deviceId: d.deviceId,
+              groupId: d.groupId,
+              kind: d.kind,
+              label: d.label,
+            })),
+            disconnected: disconnectedRaw.map((d) => ({
+              deviceId: d.deviceId,
+              groupId: d.groupId,
+              kind: d.kind,
+              label: d.label,
+            })),
+          }
+        );
       }
 
-      // Log each disconnected device for visibility in call-report logs
-      for (const device of newDisconnectedDevices) {
-        const isSelectedInput =
-          this._selectedInputDeviceIdHash &&
-          device.kind === 'audioinput' &&
-          device.deviceIdHash === this._selectedInputDeviceIdHash;
-        const isSelectedOutput =
-          this._selectedOutputDeviceIdHash &&
-          this._selectedOutputDeviceIdHash !== 'browser-default' &&
-          this._selectedOutputDeviceIdHash !== 'unknown' &&
-          device.kind === 'audiooutput' &&
-          device.deviceIdHash === this._selectedOutputDeviceIdHash;
-        logger.info('MediaDeviceCollector: device disconnected during call', {
-          deviceIdHash: device.deviceIdHash,
-          groupIdHash: device.groupIdHash,
-          kind: device.kind,
-          isSelectedInput,
-          isSelectedOutput,
-          ...(device.label ? { label: device.label } : {}),
-        });
-      }
+      // Update raw device cache
+      this._rawDeviceCache = audioDevices;
     } catch (error) {
       logger.error('MediaDeviceCollector: error handling devicechange', {
         error,
