@@ -111,9 +111,6 @@ export default class Verto extends BrowserSession {
     // Let BaseSession resume signaling health monitor for active calls
     await super._onSocketOpen();
 
-    // Reset attach-recovery tracking for the new reattach cycle
-    this._vertoHandler.resetReattachCycle();
-
     if (isValidLoginOptions(this.options)) {
       return this.handleLoginOnSocketOpen();
     }

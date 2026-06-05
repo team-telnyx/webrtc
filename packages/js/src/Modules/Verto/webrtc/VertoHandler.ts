@@ -42,26 +42,6 @@ class VertoHandler {
 
   retriedRegister = 0;
 
-  /**
-   * Tracks call IDs recovered by an Attach in the current reattach
-   * cycle. Used to distinguish pre-existing calls (from before the
-   * reconnect) from calls created/recovered by an earlier attach in
-   * the same cycle.
-   *
-   * When a non-matching Attach arrives:
-   * - Pre-existing calls (not in this set) → terminate with SESSION_NOT_REATTACHED
-   * - Attach-recovered calls (in this set) → ACK/warn/ignore the ambiguous attach
-   *
-   * Reset when a new WebSocket connection opens (resetReattachCycle).
-   */
-  private _callsRecoveredByAttach: Set<string> = new Set();
-
-  /** Reset per-cycle tracking at the start of a new reattach cycle
-   *  (called from _onSocketOpen when a new WebSocket connection opens). */
-  resetReattachCycle(): void {
-    this._callsRecoveredByAttach.clear();
-  }
-
   constructor(public session: BrowserSession) {}
 
   private _ack(id: number, method: string): void {
@@ -111,25 +91,10 @@ class VertoHandler {
       );
 
       if (isReattachedEmpty || !isReattachedHasSdkKnownCalls) {
-        const activeCallIds = Object.keys(session.calls);
-        for (const callId of activeCallIds) {
-          // Skip calls that were already recovered by an Attach in this
-          // cycle — the attach proves the server still knows about them.
-          if (this._callsRecoveredByAttach.has(callId)) {
-            logger.debug(
-              `Empty reattached_sessions but call ${callId} was already recovered by attach — skipping termination.`
-            );
-            continue;
-          }
-
+        for (const callId of Object.keys(session.calls)) {
           const call = session.calls[callId];
-          if (!call) continue;
-
-          const callSessionId = call.options?.telnyxSessionId;
-          logger.info(
-            `Session not reattached — terminating active call ${callId} ` +
-              `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
-              `reattached_sessions: [], action: terminate_orphan_no_reattach).`
+          logger.debug(
+            `Session not reattached — terminating active call ${callId} `
           );
 
           const error = createTelnyxError(SESSION_NOT_REATTACHED);
@@ -275,7 +240,6 @@ class VertoHandler {
           );
           const call = _buildCall(callID);
           call.answer();
-          this._callsRecoveredByAttach.add(callID);
           this._ack(id, method);
           break;
         }
@@ -306,7 +270,6 @@ class VertoHandler {
             forceRelayCandidateForRecovery
           );
           call.answer();
-          this._callsRecoveredByAttach.add(callID);
           this._ack(id, method);
           break;
         }
