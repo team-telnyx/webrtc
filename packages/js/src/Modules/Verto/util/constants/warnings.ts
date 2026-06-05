@@ -369,19 +369,35 @@ export const SDK_WARNINGS = {
   },
 
   // ── Session / reconnection warnings (350xx) ─────────────────────────
-  35002: {
-    name: 'AMBIGUOUS_REATTACHED_SESSIONS',
-    message: 'Ambiguous reattached sessions after reconnect',
+  35001: {
+    name: 'SESSION_NOT_REATTACHED',
+    message: 'Active call lost after reconnect',
     description:
-      'The WebSocket reconnected successfully and the server returned multiple reattached sessions. The SDK cannot safely determine which session to restore, so none will be established automatically. This also occurs when the server reattached unexpected sessions that do not match the active SDK call.',
+      'The WebSocket reconnected successfully but the server returned an empty reattached_sessions list while the SDK still has an active call. The server no longer knows about the call, so any subsequent call-control operation (hangup, hold, etc.) will fail with CALL_DOES_NOT_EXIST.',
     causes: [
-      'Multiple calls were active before disconnection',
-      'Server returned sessions that do not match the SDK active call',
+      'Server-side session expired during the disconnection window',
+      'Reconnect token was invalidated',
+      'Backend restarted or lost in-memory call state',
+    ],
+    solutions: [
+      'Terminate the local call and notify the user',
+      'Start a new call',
+      'Investigate why the session was not preserved on the server',
+    ],
+  },
+  35002: {
+    name: 'UNKNOWN_REATACHED_SESSION',
+    message: 'Unknown reattach session after reconnect',
+    description:
+      "The WebSocket reconnected successfully and the server sent an Attach message for a session that does not match any active SDK call. The unknown Attach is ACK'd and ignored.",
+    causes: [
+      'Server sent an Attach for a call that no longer exists in the SDK',
+      'Multiple Attach messages arrived and only the first was recovered',
       'Race condition between reconnection and new inbound call',
     ],
     solutions: [
       'Check application logic for multiple simultaneous calls',
-      'Inspect reattached_sessions in the warning payload for details',
+      'Inspect the Attach callID in the warning payload for details',
       'If a call should be active, start a new call manually',
     ],
   },

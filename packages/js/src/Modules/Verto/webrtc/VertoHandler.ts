@@ -1,5 +1,5 @@
 import logger from '../util/logger';
-import { createTelnyxError } from '../util/errors';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import BrowserSession from '../BrowserSession';
 import Call from './Call';
 import { callMarkName } from './CallEstablishmentTimings';
@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  UNKNOWN_REATACHED_SESSION,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -42,40 +43,14 @@ class VertoHandler {
   retriedRegister = 0;
 
   /**
-   * Session IDs (telnyx_session_id) that have already been recovered by an
-   * incoming Attach during the current reattach cycle. Used to detect
-   * duplicate / ambiguous Attach messages — only the first Attach for a
-   * given session is recovered; later ones are ACK'd and ignored.
+   * Tracks whether a call has already been recovered by an Attach
+   * in the current reattach cycle. Used so that when no active call
+   * exists and multiple attaches arrive, only the first is recovered
+   * and subsequent unknown ones are warned and ignored.
    *
    * Cleared when a new clientReady with reattached_sessions arrives.
    */
-  private _recoveredAttachSessionIds: Set<string> = new Set();
-
-  /**
-   * Tracks which specific active call IDs have been recovered by an
-   * attach during the current reattach cycle. Per-call tracking
-   * prevents the orphan-check from terminating a call that was already
-   * recovered, while still allowing unrecovered calls to be cleaned up.
-   *
-   * Persists for the entire reattach cycle (across attach and
-   * clientReady messages). Only reset when a new cycle starts
-   * (WebSocket reconnects → resetReattachCycle).
-   */
-  private _callsRecoveredByAttach: Set<string> = new Set();
-
-  /**
-   * Reset per-cycle tracking when a new reattach cycle begins.
-   * Called when the WebSocket reconnects (new socket open), which
-   * is the true boundary between reattach cycles.
-   *
-   * IMPORTANT: Do NOT call this from the clientReady/reattached_sessions
-   * handler — attaches can arrive before OR after clientReady, and the
-   * tracking must persist across both for the entire cycle.
-   */
-  resetReattachCycle(): void {
-    this._recoveredAttachSessionIds.clear();
-    this._callsRecoveredByAttach.clear();
-  }
+  private _attachRecoveredInCycle: boolean = false;
 
   constructor(public session: BrowserSession) {}
 
@@ -110,60 +85,39 @@ class VertoHandler {
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
 
     // ── Reattach session handling ────────────────────────────────────────
-    // When the server sends reattached_sessions on reconnect, the SDK must
-    // reconcile its active calls against the server's known sessions.
+    // When the server sends an empty reattached_sessions array while the
+    // SDK has active calls, the session was not reattached after
+    // reconnection. Clean up active calls locally (no BYE — the server
+    // no longer knows about them) and emit a warning.
     //
-    // IMPORTANT: Recovery is driven by telnyx_rtc.attach, NOT by
-    // reattached_sessions. The attach message often arrives before
-    // reattached_sessions, so reattached_sessions cannot be used to
-    // select/suppress sessions or terminate active calls.
-    //
-    // The ONLY case where reattached_sessions triggers action without an
-    // attach is the orphan fallback: active call exists, reattached_sessions
-    // is empty, and no matching attach already recovered it → debug log,
-    // emit SESSION_NOT_REATTACHED, local cleanup without BYE.
+    // If reattached_sessions is non-empty, recovery is driven entirely
+    // by incoming Attach messages (which match by callID). The
+    // reattached_sessions array itself is informational only.
     //
     if (Array.isArray(params?.reattached_sessions)) {
-      const reattachedSessions: string[] = params.reattached_sessions;
-      const activeCallIds = Object.keys(session.calls);
-      const hasActiveCall = activeCallIds.length > 0;
+      // Reset per-cycle tracking on each clientReady
+      this._attachRecoveredInCycle = false;
 
-      // Per-cycle tracking persists across the entire reattach cycle
-      // (attach → clientReady → later attaches). It is only reset when
-      // a new WebSocket connection opens (resetReattachCycle). This
-      // ensures that attach-recovery info is available even when
-      // clientReady arrives between attaches.
-      if (hasActiveCall && reattachedSessions.length === 0) {
-        // Orphan fallback: server reports no reattached sessions.
-        // Only terminate calls that were NOT already recovered by a
-        // matching attach in this cycle.
+      if (
+        params.reattached_sessions.length === 0 &&
+        Object.keys(session.calls).length > 0
+      ) {
+        const activeCallIds = Object.keys(session.calls);
         for (const callId of activeCallIds) {
           const call = session.calls[callId];
           if (!call) continue;
-
-          if (this._callsRecoveredByAttach.has(callId)) {
-            // This specific call was already recovered by attach — skip.
-            const callSessionId = call.options?.telnyxSessionId;
-            logger.debug(
-              `Reattach: active call ${callId} was already recovered by attach ` +
-                `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
-                `reattached_sessions: [], action: keep_already_recovered).`
-            );
-            continue;
-          }
 
           const callSessionId = call.options?.telnyxSessionId;
           logger.info(
             `Session not reattached — terminating active call ${callId} ` +
               `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
-              `reattached_sessions: [], attach_already_recovered: false, ` +
-              `action: terminate_orphan_no_reattach).`
+              `reattached_sessions: [], action: terminate_orphan_no_reattach).`
           );
 
-          const error = createTelnyxError(SESSION_NOT_REATTACHED);
+          const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
           trigger(
-            SwEvent.Error,
-            { error, callId, sessionId: session.sessionid },
+            SwEvent.Warning,
+            { warning, callId, sessionId: session.sessionid },
             session.uuid
           );
 
@@ -171,25 +125,7 @@ class VertoHandler {
           // longer has the session.
           void call.hangup({}, false);
         }
-      } else if (hasActiveCall) {
-        // Active call exists with non-empty reattached_sessions.
-        // Do NOT terminate — attach drives recovery.
-        // Just log for observability.
-        for (const callId of activeCallIds) {
-          const call = session.calls[callId];
-          if (!call) continue;
-          const callSessionId = call.options?.telnyxSessionId;
-          logger.debug(
-            `Reattach: active call ${callId} exists ` +
-              `(telnyxSessionId: ${callSessionId ?? 'unknown'}, ` +
-              `reattached_sessions: [${reattachedSessions.join(', ')}], ` +
-              `attach_already_recovered: ${this._callsRecoveredByAttach.has(callId)}, ` +
-              `action: keep_awaiting_attach).`
-          );
-        }
       }
-      // No active call: reattached_sessions is informational only.
-      // Recovery will be driven by incoming Attach messages.
     }
 
     if (eventType === 'channelPvtData') {
@@ -313,161 +249,88 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        const attachSessionId = params.telnyx_session_id;
-
-        // ── Attach-based recovery logic ──────────────────────────────────
-        // Recovery is driven by attach, not by reattached_sessions.
-        // An incoming attach matches an active call by callID OR
-        // telnyx_session_id.
-
-        // Check if this attach's session was already recovered by a
-        // previous attach in this cycle (duplicate / ambiguous).
-        if (
-          attachSessionId &&
-          this._recoveredAttachSessionIds.has(attachSessionId)
-        ) {
-          logger.debug(
-            `Attach: already recovered session ${attachSessionId} in this cycle — ACK and ignoring duplicate (callID: ${callID}).`
-          );
-          this._ack(id, method);
-          return;
-        }
-
-        // Find an active call that matches this attach by callID or
-        // telnyx_session_id.
         const activeCallIds = Object.keys(session.calls);
-        let matchingActiveCall: IWebRTCCall | null = null;
-        let matchingActiveCallId: string | null = null;
-
-        for (const activeId of activeCallIds) {
-          const activeCall = session.calls[activeId];
-          if (!activeCall) continue;
-
-          // Match by callID (direct)
-          if (activeId === callID) {
-            matchingActiveCall = activeCall;
-            matchingActiveCallId = activeId;
-            break;
-          }
-
-          // Match by telnyx_session_id
-          const activeSessionId = activeCall.options?.telnyxSessionId;
-          if (attachSessionId && activeSessionId === attachSessionId) {
-            matchingActiveCall = activeCall;
-            matchingActiveCallId = activeId;
-            break;
-          }
-        }
-
-        if (matchingActiveCall) {
-          // ── Matching attach: recover the active call ───────────────────
-          const recoveredCallId = matchingActiveCall.id;
-          const forceRelayCandidateForRecovery =
-            matchingActiveCall.shouldForceRelayCandidateForRecovery?.() ??
-            false;
-
-          if (forceRelayCandidateForRecovery) {
-            logger.warn(
-              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
-            );
-          }
-
-          logger.info(
-            `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${matchingActiveCallId} ` +
-              `(telnyxSessionId: ${attachSessionId ?? 'unknown'}, recoveredCallId: ${recoveredCallId}).`
-          );
-
-          void matchingActiveCall.hangup(
-            { isRecovering: true, initiator: 'sdk:attach-recovery' },
-            false
-          );
-
-          const call = _buildCall(
-            recoveredCallId,
-            forceRelayCandidateForRecovery
-          );
-          call.answer();
-          this._ack(id, method);
-
-          // Track this specific call as recovered by attach
-          if (attachSessionId) {
-            this._recoveredAttachSessionIds.add(attachSessionId);
-          }
-          this._callsRecoveredByAttach.add(call.id);
-          return;
-        }
-
-        // ── No matching active call ─────────────────────────────────────
-        // If we already recovered a call from a no-active-call attach in
-        // this cycle, later attaches are ambiguous — ACK and ignore them
-        // instead of treating the recovered call as a mismatch.
-        if (
-          activeCallIds.length > 0 &&
-          activeCallIds.some((activeId) =>
-            this._callsRecoveredByAttach.has(activeId)
-          )
-        ) {
-          // A previously recovered call (from a no-active-call attach) now
-          // shows up as "active". The incoming attach doesn't match it, but
-          // we should NOT terminate the recovered call — just ACK/ignore
-          // this later ambiguous attach.
-          logger.debug(
-            `Attach: no match for incoming attach (callID: ${callID}, telnyxSessionId: ${attachSessionId ?? 'unknown'}) ` +
-              `— already recovered a call in this cycle, ignoring ambiguous attach.`
-          );
-          this._ack(id, method);
-          return;
-        }
 
         if (activeCallIds.length > 0) {
-          // True mismatch: active call exists that was NOT recovered by attach
-          // in this cycle, and it doesn't match this attach's callID or
-          // telnyx_session_id. The active call is orphaned — emit
-          // SESSION_NOT_REATTACHED, terminate it locally without BYE,
-          // then ACK/ignore the mismatching attach.
-          for (const activeId of activeCallIds) {
-            const activeCall = session.calls[activeId];
-            if (!activeCall) continue;
+          // ── Active call(s) exist ───────────────────────────────────────
+          if (existingCall) {
+            // Matching callID — recover the existing call
+            const recoveredCallId = existingCall.id;
+            const forceRelayCandidateForRecovery =
+              existingCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
-            const activeSessionId = activeCall.options?.telnyxSessionId;
-            logger.debug(
-              `Attach mismatch: active call ${activeId} ` +
-                `(telnyxSessionId: ${activeSessionId ?? 'unknown'}) does not match ` +
-                `incoming attach (callID: ${callID}, telnyxSessionId: ${attachSessionId ?? 'unknown'}). `
+            if (forceRelayCandidateForRecovery) {
+              logger.warn(
+                `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+              );
+            }
+
+            logger.info(
+              `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
             );
 
-            const error = createTelnyxError(SESSION_NOT_REATTACHED);
-            trigger(
-              SwEvent.Error,
-              { error, callId: activeId, sessionId: session.sessionid },
-              session.uuid
+            void existingCall.hangup(
+              { isRecovering: true, initiator: 'sdk:attach-recovery' },
+              false
             );
 
-            // Local cleanup without BYE
-            void activeCall.hangup({}, false);
+            const call = _buildCall(
+              recoveredCallId,
+              forceRelayCandidateForRecovery
+            );
+            call.answer();
+            this._ack(id, method);
+            return;
           }
 
-          // ACK the mismatching attach without establishing it
+          // Unknown attach — callID doesn't match any active call.
+          // Warn and ignore.
+          logger.warn(
+            `Attach: unknown callID ${callID} does not match any active call ` +
+              `(active: [${activeCallIds.join(', ')}]). ACK and ignoring.`
+          );
+          const unknownWarning = createTelnyxWarning(UNKNOWN_REATACHED_SESSION);
+          trigger(
+            SwEvent.Warning,
+            {
+              warning: unknownWarning,
+              callId: callID,
+              activeCallIds,
+              sessionId: session.sessionid,
+            },
+            session.uuid
+          );
           this._ack(id, method);
           return;
         }
 
-        // ── No active call at all: first attach in this cycle ─────────────
-        // Recover the first attach. If multiple attaches arrive, recover
-        // the first and debug-log/ACK/ignore later ones as ambiguous.
-        // (The duplicate check at the top handles subsequent attaches
-        // for the same session; the ambiguous check above handles later
-        // attaches with different sessions that see the recovered call.)
-        if (attachSessionId) {
-          this._recoveredAttachSessionIds.add(attachSessionId);
+        // ── No active call ──────────────────────────────────────────────
+        if (this._attachRecoveredInCycle) {
+          // Already recovered a call in this cycle — subsequent attaches
+          // are unknown. Warn and ignore.
+          logger.warn(
+            `Attach: unknown callID ${callID} arrived after first recovery ` +
+              `in this cycle. ACK and ignoring.`
+          );
+          const unknownWarning = createTelnyxWarning(UNKNOWN_REATACHED_SESSION);
+          trigger(
+            SwEvent.Warning,
+            {
+              warning: unknownWarning,
+              callId: callID,
+              sessionId: session.sessionid,
+            },
+            session.uuid
+          );
+          this._ack(id, method);
+          return;
         }
 
+        // First attach in this cycle with no active call — recover it
         const call = _buildCall();
         call.answer();
         this._ack(id, method);
-
-        // Track this call as recovered by attach (for per-call orphan check)
-        this._callsRecoveredByAttach.add(call.id);
+        this._attachRecoveredInCycle = true;
         break;
       }
       case VertoMethod.Event:
