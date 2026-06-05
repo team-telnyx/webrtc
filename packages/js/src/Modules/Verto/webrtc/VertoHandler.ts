@@ -131,10 +131,10 @@ class VertoHandler {
               `reattached_sessions: [], action: terminate_orphan_no_reattach).`
           );
 
-          const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+          const error = createTelnyxError(SESSION_NOT_REATTACHED);
           trigger(
-            SwEvent.Warning,
-            { warning, callId, sessionId: session.sessionid },
+            SwEvent.Error,
+            { error, callId, sessionId: session.sessionid },
             session.uuid
           );
 
@@ -350,11 +350,11 @@ class VertoHandler {
                   `(non-matching attach callID=${callID}, action: terminate_no_match).`
               );
 
-              const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
+              const error = createTelnyxError(SESSION_NOT_REATTACHED);
               trigger(
-                SwEvent.Warning,
+                SwEvent.Error,
                 {
-                  warning,
+                  error,
                   callId: activeCallId,
                   attachCallId: callID,
                   sessionId: session.sessionid,

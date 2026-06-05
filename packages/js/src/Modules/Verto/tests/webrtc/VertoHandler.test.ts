@@ -500,14 +500,18 @@ describe('VertoHandler', () => {
     };
 
     let onWarning: jest.Mock;
+    let onError: jest.Mock;
 
     beforeEach(() => {
       onWarning = jest.fn();
+      onError = jest.fn();
       instance.on('telnyx.warning', onWarning);
+      instance.on('telnyx.error', onError);
     });
 
     afterEach(() => {
       instance.off('telnyx.warning');
+      instance.off('telnyx.error');
     });
 
     // ── Attach-before-reattached_sessions ordering ─────────────────────
@@ -559,7 +563,7 @@ describe('VertoHandler', () => {
 
     // ── Empty reattached_sessions orphan cleanup ──────────────────────
     describe('empty reattached_sessions orphan cleanup', () => {
-      it('should terminate active call and emit warning when reattached_sessions is empty', async () => {
+      it('should terminate active call and emit error when reattached_sessions is empty', async () => {
         await instance.connect();
         const callId = 'call-id-010';
         _setupCall({ id: callId, telnyxSessionId: 'session-orphan' });
@@ -571,9 +575,9 @@ describe('VertoHandler', () => {
 
         // Call should be cleaned up
         expect(instance.calls[callId]).toBeUndefined();
-        expect(onWarning).toHaveBeenCalledWith(
+        expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            error: expect.objectContaining({ code: 48501 }),
           })
         );
       });
@@ -697,10 +701,10 @@ describe('VertoHandler', () => {
         expect(instance.calls[callId]).toBeUndefined();
         // New call should NOT be created
         expect(instance.calls['different-call-id']).toBeUndefined();
-        // SESSION_NOT_REATTACHED warning should be fired
-        expect(onWarning).toHaveBeenCalledWith(
+        // SESSION_NOT_REATTACHED error should be fired
+        expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            error: expect.objectContaining({ code: 48501 }),
           })
         );
       });
@@ -942,9 +946,9 @@ describe('VertoHandler', () => {
         // Attach-recovered call should still exist
         expect(instance.calls['call-to-recover']).toBeDefined();
         // SESSION_NOT_REATTACHED for the pre-existing call
-        expect(onWarning).toHaveBeenCalledWith(
+        expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            error: expect.objectContaining({ code: 48501 }),
             callId: 'call-preexisting',
           })
         );
@@ -996,9 +1000,9 @@ describe('VertoHandler', () => {
         // Unknown call should NOT be created
         expect(instance.calls['call-unknown']).toBeUndefined();
         // SESSION_NOT_REATTACHED for the pre-existing call
-        expect(onWarning).toHaveBeenCalledWith(
+        expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            error: expect.objectContaining({ code: 48501 }),
             callId: 'call-preexisting',
           })
         );

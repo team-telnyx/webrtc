@@ -42,6 +42,9 @@ export const TELNYX_ERROR_CODES = {
   // ── Network errors (480xx) ──────────────────────────────────────────
   NETWORK_OFFLINE: 48001,
 
+  // ── Session errors (485xx) ───────────────────────────────────────────
+  SESSION_NOT_REATTACHED: 48501,
+
   // ── General / catch-all errors (490xx) ──────────────────────────────
   UNEXPECTED_ERROR: 49001,
 } as const;
@@ -72,7 +75,6 @@ export const TELNYX_WARNING_CODES = {
   TOKEN_EXPIRING_SOON: 34001,
 
   // ── Session / reconnection warnings (350xx) ─────────────────────────
-  SESSION_NOT_REATTACHED: 35001,
   UNKNOWN_REATTACHED_SESSION: 35002,
 
   // ── Signaling health warnings (360xx) ──────────────────────────────
@@ -106,6 +108,7 @@ export const {
   AUTHENTICATION_REQUIRED,
   ICE_RESTART_FAILED,
   NETWORK_OFFLINE,
+  SESSION_NOT_REATTACHED,
   UNEXPECTED_ERROR,
 } = TELNYX_ERROR_CODES;
 
@@ -126,7 +129,6 @@ export const {
   ICE_CANDIDATE_PAIR_CHANGED,
   DUPLICATE_INBOUND_ANSWER,
   TOKEN_EXPIRING_SOON,
-  SESSION_NOT_REATTACHED,
   UNKNOWN_REATTACHED_SESSION,
   SIGNALING_HEALTH_PROBE_TIMEOUT,
   SIGNALING_REQUEST_TIMEOUT,
