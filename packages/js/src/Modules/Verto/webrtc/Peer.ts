@@ -113,6 +113,27 @@ export default class Peer {
     this._registerPeerEvents = registerPeerEvents;
   }
 
+  private _getTrackDebugInfo(track?: MediaStreamTrack | null) {
+    if (!track) {
+      return null;
+    }
+
+    return {
+      id: track.id,
+      kind: track.kind,
+      label: track.label,
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+    };
+  }
+
+  private _getStreamTrackDebugInfo(stream?: MediaStream | null) {
+    return (
+      stream?.getTracks().map((track) => this._getTrackDebugInfo(track)) ?? []
+    );
+  }
+
   /**
    * Ends the current ICE restart cycle (clears the flag and any pending timeout).
    * Safe to call multiple times — only the first invocation has an effect.
@@ -554,6 +575,13 @@ export default class Peer {
       }
     );
 
+    logger.debug('Peer local stream retrieved', {
+      callId: this.options.id,
+      peerType: this.type,
+      isIceRestarting: this.isIceRestarting,
+      tracks: this._getStreamTrackDebugInfo(this.options.localStream),
+    });
+
     // Race condition guard: close() may have run during any of the awaits above
     // (getUserMedia prompt, media recovery flow, etc.), setting this.instance
     // to null. Throw a structured error so the caller can handle it properly.
@@ -586,7 +614,22 @@ export default class Peer {
     // changes that happened before Peer creation (e.g. reattach after
     // a previous call was muted).
     if (this.options.applyDesiredAudioMuteState) {
+      logger.debug(
+        'Applying call desired mute state after local stream setup',
+        {
+          callId: this.options.id,
+          peerType: this.type,
+          isIceRestarting: this.isIceRestarting,
+          beforeTracks: this._getStreamTrackDebugInfo(this.options.localStream),
+        }
+      );
       this.options.applyDesiredAudioMuteState();
+      logger.debug('Applied call desired mute state after local stream setup', {
+        callId: this.options.id,
+        peerType: this.type,
+        isIceRestarting: this.isIceRestarting,
+        afterTracks: this._getStreamTrackDebugInfo(this.options.localStream),
+      });
     }
 
     performance.mark(callMarkName(this.options.id, 'peer-creation-end'));
@@ -754,6 +797,15 @@ export default class Peer {
             track,
             transceiverParams
           );
+          logger.debug('Added local track via addTransceiver', {
+            callId: this.options.id,
+            peerType: this.type,
+            track: this._getTrackDebugInfo(track),
+            signalingState: this.instance.signalingState,
+            iceConnectionState: this.instance.iceConnectionState,
+            transceiverDirection: transceiver.direction,
+            senderTrack: this._getTrackDebugInfo(transceiver.sender.track),
+          });
 
           if (track.kind === 'audio' && audioCodecs.length > 0) {
             this._setCodecs(transceiver, audioCodecs);
@@ -775,6 +827,13 @@ export default class Peer {
           }
 
           this.instance.addTrack(track, localStream);
+          logger.debug('Added local track via addTrack', {
+            callId: this.options.id,
+            peerType: this.type,
+            track: this._getTrackDebugInfo(track),
+            signalingState: this.instance.signalingState,
+            iceConnectionState: this.instance.iceConnectionState,
+          });
         });
 
         this.instance.getTransceivers().forEach((trans) => {

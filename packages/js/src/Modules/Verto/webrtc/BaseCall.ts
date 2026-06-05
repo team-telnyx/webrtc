@@ -411,6 +411,29 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this._desiredAudioMuted;
   }
 
+  private _getTrackDebugInfo(track?: MediaStreamTrack | null) {
+    if (!track) {
+      return null;
+    }
+
+    return {
+      id: track.id,
+      kind: track.kind,
+      label: track.label,
+      enabled: track.enabled,
+      muted: track.muted,
+      readyState: track.readyState,
+    };
+  }
+
+  private _getLocalAudioTrackDebugInfo() {
+    return (
+      this.options.localStream
+        ?.getAudioTracks()
+        .map((track) => this._getTrackDebugInfo(track)) ?? []
+    );
+  }
+
   private _hasActiveUnmutedLocalAudioTrack(): boolean {
     const localStream = this.options.localStream;
     if (!localStream?.getAudioTracks) {
@@ -830,8 +853,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   muteAudio(): void {
+    logger.debug('Setting desired local audio mute state to muted', {
+      callId: this.id,
+      state: this.state,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
     this._desiredAudioMuted = true;
     disableAudioTracks(this.options.localStream);
+    logger.debug('Applied muted state to local audio tracks', {
+      callId: this.id,
+      state: this.state,
+      desiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
   }
 
   /**
@@ -845,8 +880,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   unmuteAudio(): void {
+    logger.debug('Setting desired local audio mute state to unmuted', {
+      callId: this.id,
+      state: this.state,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
     this._desiredAudioMuted = false;
     enableAudioTracks(this.options.localStream);
+    logger.debug('Applied unmuted state to local audio tracks', {
+      callId: this.id,
+      state: this.state,
+      desiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
   }
 
   /**
@@ -857,11 +904,25 @@ export default abstract class BaseCall implements IWebRTCCall {
    * local audio tracks.
    */
   _applyDesiredAudioMuteState(): void {
+    logger.debug('Applying desired mute state to current local audio tracks', {
+      callId: this.id,
+      state: this.state,
+      desiredAudioMuted: this._desiredAudioMuted,
+      beforeAudioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
+
     if (this._desiredAudioMuted) {
       disableAudioTracks(this.options.localStream);
     } else {
       enableAudioTracks(this.options.localStream);
     }
+
+    logger.debug('Finished applying desired mute state to local audio tracks', {
+      callId: this.id,
+      state: this.state,
+      desiredAudioMuted: this._desiredAudioMuted,
+      afterAudioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
   }
 
   /**
@@ -874,8 +935,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   toggleAudioMute() {
+    logger.debug('Toggling desired local audio mute state', {
+      callId: this.id,
+      state: this.state,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
     this._desiredAudioMuted = !this._desiredAudioMuted;
     toggleAudioTracks(this.options.localStream);
+    logger.debug('Applied toggled desired mute state to local audio tracks', {
+      callId: this.id,
+      state: this.state,
+      desiredAudioMuted: this._desiredAudioMuted,
+      audioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
   }
 
   /**
@@ -924,8 +997,28 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (!sender) {
       // No audio sender — nothing to replace. Keep the current desired state.
+      logger.debug(
+        'Skipping audio input device change: no audio sender found',
+        {
+          callId: this.id,
+          state: this.state,
+          deviceId,
+          desiredAudioMuted: this._desiredAudioMuted,
+          localAudioTracks: this._getLocalAudioTrackDebugInfo(),
+        }
+      );
       return;
     }
+
+    logger.debug('Starting audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      newDesiredMuted,
+      currentSenderTrack: this._getTrackDebugInfo(sender.track),
+      localAudioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
 
     let newStream: MediaStream;
     try {
@@ -940,11 +1033,28 @@ export default abstract class BaseCall implements IWebRTCCall {
         error
       );
       trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      logger.debug('Audio input device change failed at getUserMedia', {
+        callId: this.id,
+        state: this.state,
+        deviceId,
+        desiredAudioMuted: this._desiredAudioMuted,
+        currentSenderTrack: this._getTrackDebugInfo(sender.track),
+        error,
+      });
       return;
     }
 
     const audioTrack = newStream.getAudioTracks()[0];
     audioTrack.enabled = !newDesiredMuted;
+
+    logger.debug('Replacing local audio sender track', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      newDesiredMuted,
+      oldSenderTrack: this._getTrackDebugInfo(sender.track),
+      newAudioTrack: this._getTrackDebugInfo(audioTrack),
+    });
 
     try {
       await sender.replaceTrack(audioTrack);
@@ -957,6 +1067,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         error
       );
       trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      logger.debug('Audio input device change failed at replaceTrack', {
+        callId: this.id,
+        state: this.state,
+        deviceId,
+        desiredAudioMuted: this._desiredAudioMuted,
+        attemptedAudioTrack: this._getTrackDebugInfo(audioTrack),
+        currentSenderTrack: this._getTrackDebugInfo(sender.track),
+        error,
+      });
       // Stop the new stream we acquired but didn't use
       newStream.getTracks().forEach((t) => t.stop());
       return;
@@ -972,6 +1091,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     localStream.getAudioTracks().forEach((t) => t.stop());
     localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
     this.options.localStream = newStream;
+
+    logger.debug('Finished audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      desiredAudioMuted: this._desiredAudioMuted,
+      senderTrack: this._getTrackDebugInfo(sender.track),
+      localAudioTracks: this._getLocalAudioTrackDebugInfo(),
+    });
   }
 
   /**
@@ -1057,10 +1185,26 @@ export default abstract class BaseCall implements IWebRTCCall {
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'video');
     if (sender) {
+      logger.debug('Starting video device change', {
+        callId: this.id,
+        state: this.state,
+        deviceId,
+        desiredAudioMuted: this._desiredAudioMuted,
+        currentVideoTrack: this._getTrackDebugInfo(sender.track),
+        localAudioTracks: this._getLocalAudioTrackDebugInfo(),
+      });
       const newStream = await getUserMedia({
         video: { deviceId: { exact: deviceId } },
       });
       const videoTrack = newStream.getVideoTracks()[0];
+      logger.debug('Replacing local video sender track', {
+        callId: this.id,
+        state: this.state,
+        deviceId,
+        oldVideoTrack: this._getTrackDebugInfo(sender.track),
+        newVideoTrack: this._getTrackDebugInfo(videoTrack),
+        desiredAudioMuted: this._desiredAudioMuted,
+      });
       sender.replaceTrack(videoTrack);
       const { localElement, localStream } = this.options;
       attachMediaStream(localElement, newStream);
@@ -1072,6 +1216,14 @@ export default abstract class BaseCall implements IWebRTCCall {
 
       // Preserve audio mute state after stream replacement
       this._applyDesiredAudioMuteState();
+      logger.debug('Finished video device change', {
+        callId: this.id,
+        state: this.state,
+        deviceId,
+        desiredAudioMuted: this._desiredAudioMuted,
+        senderTrack: this._getTrackDebugInfo(sender.track),
+        localAudioTracks: this._getLocalAudioTrackDebugInfo(),
+      });
     }
   }
 
