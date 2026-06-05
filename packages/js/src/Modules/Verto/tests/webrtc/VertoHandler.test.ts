@@ -730,7 +730,7 @@ describe('VertoHandler', () => {
 
     // ── No active call, multiple attaches ──────────────────────────────
     describe('no active call, multiple attaches', () => {
-      it('should terminate recovered call when non-matching attach arrives later', async () => {
+      it('should keep recovered call when ambiguous non-matching attach arrives later', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -743,18 +743,18 @@ describe('VertoHandler', () => {
         expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
 
         // Second attach with different callID and different session ID
-        // Now there IS an active call, and this attach doesn't match
-        // → terminate the active call with SESSION_NOT_REATTACHED
+        // The first call was recovered by attach in this cycle —
+        // later ambiguous attach should ACK/warn/ignore, NOT terminate
         sendAttach('second-call-id', 'session-second');
 
-        // First call should be terminated (non-matching attach)
-        expect(instance.calls['first-call-id']).toBeUndefined();
+        // First call should STILL exist (attach-recovered, not pre-existing)
+        expect(instance.calls['first-call-id']).toBeDefined();
         // Second attach should NOT create a new call
         expect(instance.calls['second-call-id']).toBeUndefined();
-        // SESSION_NOT_REATTACHED warning for the terminated call
+        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
         expect(onWarning).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            warning: expect.objectContaining({ code: 35002 }),
           })
         );
 
@@ -831,7 +831,7 @@ describe('VertoHandler', () => {
         expect(instance.calls['call-2']).toBeDefined();
       });
 
-      it('should keep _attachRecoveredInCycle across clientReady (no reset)', async () => {
+      it('should keep _callsRecoveredByAttach across clientReady (no reset)', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -842,28 +842,28 @@ describe('VertoHandler', () => {
         Call.prototype.answer = originalAnswer;
         expect(instance.calls['call-cycle1']).toBeDefined();
 
-        // clientReady does NOT reset _attachRecoveredInCycle anymore
+        // clientReady does NOT reset _callsRecoveredByAttach
         // (cycle boundary is socket open, not clientReady)
         sendReattach(['session-cycle1']);
 
-        // Second attach with different callID — this is non-matching
+        // Second attach with different callID — this is ambiguous
         // (different callID AND different session ID from the active call)
-        // so the active call should be terminated with SESSION_NOT_REATTACHED
+        // The active call was attach-recovered → ambiguous, ACK/warn/ignore
         sendAttach('call-cycle2', 'session-cycle2');
 
-        // First call should be terminated (non-matching attach)
-        expect(instance.calls['call-cycle1']).toBeUndefined();
+        // First call should STILL exist (attach-recovered, not pre-existing)
+        expect(instance.calls['call-cycle1']).toBeDefined();
         // Second attach should NOT create a call
         expect(instance.calls['call-cycle2']).toBeUndefined();
-        // SESSION_NOT_REATTACHED warning for the terminated call
+        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
         expect(onWarning).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            warning: expect.objectContaining({ code: 35002 }),
           })
         );
       });
 
-      it('should terminate first recovered call when non-matching attach arrives after clientReady', async () => {
+      it('should keep attach-recovered call when non-matching attach arrives after clientReady', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
@@ -876,22 +876,23 @@ describe('VertoHandler', () => {
         expect(instance.calls['first-call-id'].recoveredCallId).toBeFalsy();
 
         // 2. clientReady with non-empty reattached_sessions arrives
-        //    Does NOT reset _attachRecoveredInCycle
+        //    Does NOT reset _callsRecoveredByAttach
         sendReattach(['session-first', 'session-second']);
 
         // 3. Later attach for session-second arrives
         //    It doesn't match the first call's callID or session ID
-        //    → non-matching attach → terminate active call
+        //    But the first call was attach-recovered — ambiguous attach
+        //    should ACK/warn/ignore, NOT terminate the recovered call
         sendAttach('second-call-id', 'session-second');
 
-        // First call should be terminated (non-matching attach)
-        expect(instance.calls['first-call-id']).toBeUndefined();
+        // First call should STILL exist (attach-recovered, not pre-existing)
+        expect(instance.calls['first-call-id']).toBeDefined();
         // Second attach should NOT create a new call
         expect(instance.calls['second-call-id']).toBeUndefined();
-        // SESSION_NOT_REATTACHED warning for the terminated call
+        // UNKNOWN_REATTACHED_SESSION warning (35002) for ambiguous attach
         expect(onWarning).toHaveBeenCalledWith(
           expect.objectContaining({
-            warning: expect.objectContaining({ code: 35001 }),
+            warning: expect.objectContaining({ code: 35002 }),
           })
         );
 

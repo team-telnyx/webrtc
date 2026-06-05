@@ -386,7 +386,7 @@ export const SDK_WARNINGS = {
     ],
   },
   35002: {
-    name: 'UNKNOWN_REATACHED_SESSION',
+    name: 'UNKNOWN_REATTACHED_SESSION',
     message: 'Unknown reattach session after reconnect',
     description:
       "The WebSocket reconnected successfully and the server sent an Attach message for a session that does not match any active SDK call. The unknown Attach is ACK'd and ignored.",
