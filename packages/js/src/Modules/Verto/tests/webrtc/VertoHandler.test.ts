@@ -50,6 +50,9 @@ describe('VertoHandler', () => {
     instance.on('telnyx.ready', (notification) => {
       onNotification(notification);
     });
+    instance.on('telnyx.error', (error) => {
+      onNotification(error);
+    });
     handler = new VertoHandler(instance);
   });
 
@@ -460,6 +463,101 @@ describe('VertoHandler', () => {
           type: 'vertoClientReady',
         })
       );
+    });
+  });
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  describe('TIMEOUT gateway state', () => {
+    let onError: jest.Mock;
+
+    beforeEach(() => {
+      onError = jest.fn();
+      instance.on('telnyx.error', onError);
+    });
+
+    afterEach(() => {
+      instance.off('telnyx.error');
+    });
+
+    it('should emit GATEWAY_FAILED error when TIMEOUT is received', () => {
+      instance.connection.previousGatewayState = '';
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-1","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError.mock.calls[0][0].error.code).toBe(45004);
+      expect(onError.mock.calls[0][0].error.name).toBe('GATEWAY_FAILED');
+    });
+
+    it('should emit RECONNECTION_EXHAUSTED when autoReconnect is disabled and TIMEOUT is received', () => {
+      (instance as any)._autoReconnect = false;
+      instance.connection.previousGatewayState = '';
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-2","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      // GATEWAY_FAILED (45004) + RECONNECTION_EXHAUSTED (45003)
+      expect(onError).toHaveBeenCalledTimes(2);
+      expect(onError.mock.calls[0][0].error.code).toBe(45004);
+      expect(onError.mock.calls[1][0].error.code).toBe(45003);
+    });
+
+    it('should set skipLastVoiceSdkId on session options when TIMEOUT is received', () => {
+      instance.connection.previousGatewayState = '';
+      expect(instance.options.skipLastVoiceSdkId).toBeFalsy();
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-3","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      expect(instance.options.skipLastVoiceSdkId).toBe(true);
+    });
+
+    it('should also set skipLastVoiceSdkId when FAILED is received', () => {
+      instance.connection.previousGatewayState = '';
+      const failedMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-4","result":{"params":{"state":"FAILED"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(failedMsg);
+
+      expect(instance.options.skipLastVoiceSdkId).toBe(true);
+    });
+
+    it('should not emit GATEWAY_FAILED on consecutive TIMEOUT states', () => {
+      instance.connection.previousGatewayState = '';
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-5","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+      const firstErrorCount = onError.mock.calls.filter(
+        (call: any) => call[0]?.error?.code === 45004
+      ).length;
+
+      // previousGatewayState is now set by Connection's onmessage handler,
+      // but in this test we manually simulate it
+      instance.connection.previousGatewayState = 'TIMEOUT';
+      handler.handleMessage(timeoutMsg);
+      const secondErrorCount = onError.mock.calls.filter(
+        (call: any) => call[0]?.error?.code === 45004
+      ).length;
+
+      // Only one GATEWAY_FAILED should have been emitted
+      expect(secondErrorCount).toBe(firstErrorCount);
+    });
+
+    it('should not reset reconnect attempts on TIMEOUT', () => {
+      (instance as any)._reconnectAttempts = 3;
+      instance.connection.previousGatewayState = '';
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-6","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      // Reconnect attempts should not be reset until confirmed REGED
+      expect((instance as any)._reconnectAttempts).toBe(3);
     });
   });
 });

@@ -290,10 +290,10 @@ class VertoHandler {
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
               if (
-                session.connection.previousGatewayState !==
-                  GatewayStateType.REGED &&
-                session.connection.previousGatewayState !==
-                  GatewayStateType.REGISTER
+                !this.isDuplicateGatewayState(gateWayState, [
+                  GatewayStateType.REGED,
+                  GatewayStateType.REGISTER,
+                ])
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
@@ -373,12 +373,14 @@ class VertoHandler {
                 break;
               }
             case GatewayStateType.FAILED:
-            case GatewayStateType.FAIL_WAIT: {
+            case GatewayStateType.FAIL_WAIT:
+            case GatewayStateType.TIMEOUT: {
               if (
-                session.connection.previousGatewayState !==
-                  GatewayStateType.FAILED &&
-                session.connection.previousGatewayState !==
-                  GatewayStateType.FAIL_WAIT
+                !this.isDuplicateGatewayState(gateWayState, [
+                  GatewayStateType.FAILED,
+                  GatewayStateType.FAIL_WAIT,
+                  GatewayStateType.TIMEOUT,
+                ])
               ) {
                 // Emit gateway failure on first occurrence
                 const gatewayError = createTelnyxError(
@@ -394,11 +396,18 @@ class VertoHandler {
                   session.uuid
                 );
 
+                // Avoid sticky reconnect to the same b2bua-rtc target by
+                // requesting a different instance on the next connect().
+                session.options.skipLastVoiceSdkId = true;
+                logger.debug(
+                  `Set skipLastVoiceSdkId=true on session options to avoid sticky reconnect to same b2bua-rtc instance (sessionId=${session.sessionid})`
+                );
+
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
                   const originalError = new ErrorResponse(
                     `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                    'FAILED|FAIL_WAIT'
+                    'FAILED|FAIL_WAIT|TIMEOUT'
                   );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
@@ -478,6 +487,31 @@ class VertoHandler {
         break;
       }
     }
+  }
+
+  /**
+   * Checks whether the previous gateway state matches any of the states in the
+   * given bucket (e.g. [FAILED, FAIL_WAIT, TIMEOUT] or [REGED, REGISTER]).
+   * Logs a debug message when a duplicate/overlapping state is detected so the
+   * guard condition is visible in session/call reports.
+   */
+  private isDuplicateGatewayState(
+    currentState: GatewayStateType,
+    states: GatewayStateType[]
+  ): boolean {
+    const { previousGatewayState } = this.session.connection;
+    const isDuplicate = states.includes(
+      previousGatewayState as GatewayStateType
+    );
+
+    if (isDuplicate) {
+      logger.debug(
+        `Gateway state '${currentState}' received but previous state was '${previousGatewayState}' — ` +
+          `guard condition met, skipping re-emission (sessionId=${this.session.sessionid})`
+      );
+    }
+
+    return isDuplicate;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
