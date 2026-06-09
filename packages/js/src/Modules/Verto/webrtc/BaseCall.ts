@@ -8,6 +8,7 @@ import {
   CallReportCollector,
   type ICallReportFlushReason,
 } from './CallReportCollector';
+import { MediaDeviceCollector } from './MediaDeviceCollector';
 import {
   Answer,
   Attach,
@@ -97,6 +98,7 @@ const BYE_TIMEOUT_MS = 5000;
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
   private _callReportCollector: CallReportCollector | null = null;
+  private _mediaDeviceCollector: MediaDeviceCollector | null = null;
 
   /**
    * The call identifier.
@@ -1204,6 +1206,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         ) {
           this._callReportCollector.start(this.peer.instance);
         }
+
+        // Start logging media devices for debugging
+        this._mediaDeviceCollector = new MediaDeviceCollector();
+        this._mediaDeviceCollector.logDevicesAtStart();
         break;
       }
       case State.Destroy:
@@ -2359,6 +2365,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+    this._mediaDeviceCollector?.stop();
+    this._mediaDeviceCollector = null;
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).
