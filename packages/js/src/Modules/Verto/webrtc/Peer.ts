@@ -317,12 +317,6 @@ export default class Peer {
   }
 
   private handleConnectionStateChange = async () => {
-    // Guard Clause: Prevent crashes if the peer connection instance is already null during teardown
-    if (!this.instance) {
-      logger.debug('Connection state change ignored: instance is null');
-      return;
-    }
-
     const { connectionState } = this.instance;
     logger.info(
       `[${new Date().toISOString()}] Connection State changed: ${
@@ -591,12 +585,7 @@ export default class Peer {
   }
 
   private _handleIceConnectionStateChange = () => {
-    // Guard Clause: Prevent crashes if the peer connection instance is already null during teardown
-    if (!this.instance) {
-      logger.debug('ICE connection state change ignored: instance is null');
-      return;
-    }
-
+    
     const state = this.instance.iceConnectionState;
     logger.debug(`[${new Date().toISOString()}] ICE Connection State`, state);
 
