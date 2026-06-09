@@ -75,7 +75,8 @@ import {
   disableVideoTracks,
   enableAudioTracks,
   enableVideoTracks,
-  isAudioTrackEnabled,
+  getStreamTrackDebugInfo,
+  getTrackDebugInfo,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -227,6 +228,16 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  /**
+   * Durable call-level desired mute state for the microphone.
+   * Initialized from `mutedMicOnStart`, then updated by muteAudio()/unmuteAudio()
+   * and the explicit `muted` arg of setAudioInDevice().
+   * Applied to every local audio track the SDK creates or replaces so that
+   * ICE restart, device switch, reattach, and renegotiation never
+   * accidentally un-mute the mic.
+   */
+  private _desiredAudioMuted: boolean = false;
+
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
@@ -303,6 +314,16 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
+    // Initialize desired mute state BEFORE _init() so that the first
+    // callUpdate notification (dispatched inside _init -> setState)
+    // already reflects mutedMicOnStart correctly.
+    this._desiredAudioMuted = Boolean(this.options.mutedMicOnStart);
+
+    // Expose the callback so Peer can apply the desired mute state
+    // whenever it creates or replaces local audio tracks.
+    this.options.applyDesiredAudioMuteState =
+      this._applyDesiredAudioMuteState.bind(this);
+
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -380,7 +401,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Checks whether the microphone is muted.
+   * Returns the call-level desired mute state for the microphone.
+   * Unlike checking individual track.enabled values, this persists across
+   * track replacements (device switch, reattach, ICE restart) so callers
+   * always see a consistent value.
    *
    * @examples
    *
@@ -389,7 +413,11 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   get isAudioMuted(): boolean {
-    return !isAudioTrackEnabled(this.options.localStream);
+    return this._desiredAudioMuted;
+  }
+
+  private _getLocalAudioTrackId(): string | undefined {
+    return this.options.localStream?.getAudioTracks()[0]?.id;
   }
 
   private _hasActiveUnmutedLocalAudioTrack(): boolean {
@@ -831,6 +859,12 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   muteAudio(): void {
+    logger.debug('muteAudio called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = true;
     disableAudioTracks(this.options.localStream);
   }
 
@@ -845,7 +879,33 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   unmuteAudio(): void {
+    logger.debug('unmuteAudio called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = false;
     enableAudioTracks(this.options.localStream);
+  }
+
+  /**
+   * Apply the current desired mute state to all local audio tracks.
+   * Called internally after track creation/replacement (Peer init,
+   * setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+   * ensure the mic stays muted when the SDK creates or replaces
+   * local audio tracks.
+   */
+  _applyDesiredAudioMuteState(): void {
+    logger.debug('applyDesiredAudioMuteState called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    if (this._desiredAudioMuted) {
+      disableAudioTracks(this.options.localStream);
+    } else {
+      enableAudioTracks(this.options.localStream);
+    }
   }
 
   /**
@@ -858,6 +918,12 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   toggleAudioMute() {
+    logger.debug('toggleAudioMute called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = !this._desiredAudioMuted;
     toggleAudioTracks(this.options.localStream);
   }
 
@@ -891,41 +957,98 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
-   * @param muted Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option.
+   * @param muted Whether the audio track should be muted. Defaults to the current desired mute state.
    * @returns Promise that resolves if the audio input device has been updated
    */
   async setAudioInDevice(
     deviceId: string,
-    muted = this.options.mutedMicOnStart
+    muted = this._desiredAudioMuted
   ): Promise<void> {
+    const newDesiredMuted = Boolean(muted);
+
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
-    if (sender) {
-      let newStream: MediaStream;
-      try {
-        newStream = await getUserMedia({
-          audio: { deviceId: { exact: deviceId } },
-        });
-      } catch (error) {
-        const telnyxError = createTelnyxError(
-          classifyMediaErrorCode(error),
-          error
-        );
-        trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
-        return;
-      }
-      const audioTrack = newStream.getAudioTracks()[0];
-      audioTrack.enabled = !muted;
-      sender.replaceTrack(audioTrack);
-      this.options.micId = deviceId;
 
-      const { localStream } = this.options;
-      localStream.getAudioTracks().forEach((t) => t.stop());
-      localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
-      this.options.localStream = newStream;
+    if (!sender) {
+      // No audio sender — nothing to replace. Keep the current desired state.
+      logger.debug(
+        'Skipping audio input device change: no audio sender found',
+        {
+          callId: this.id,
+          deviceId,
+          audioMuted: this._desiredAudioMuted,
+          audioTrackId: this._getLocalAudioTrackId(),
+        }
+      );
+      return;
     }
+
+    logger.debug('Starting audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      newDesiredMuted,
+      currentSenderTrack: getTrackDebugInfo(sender.track),
+      localTracks: getStreamTrackDebugInfo(this.options.localStream),
+    });
+
+    let newStream: MediaStream;
+    try {
+      newStream = await getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      });
+    } catch (error) {
+      // getUserMedia failed (missing device / permission error).
+      // Don't change the desired mute state — the old track is still active.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      return;
+    }
+
+    const audioTrack = newStream.getAudioTracks()[0];
+    audioTrack.enabled = !newDesiredMuted;
+
+    try {
+      await sender.replaceTrack(audioTrack);
+    } catch (error) {
+      // replaceTrack rejected — the RTP sender did not switch tracks.
+      // Don't commit any state changes. Keep the old stream and desired
+      // mute state. Surface the failure as a media error.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      // Stop the new stream we acquired but didn't use
+      newStream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    // Only commit the new desired mute state after getUserMedia + sender
+    // replacement succeeds. This prevents isAudioMuted from flipping on
+    // failure while the actual audio track stays unchanged.
+    this._desiredAudioMuted = newDesiredMuted;
+    this.options.micId = deviceId;
+
+    const { localStream } = this.options;
+    localStream.getAudioTracks().forEach((t) => t.stop());
+    localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
+    this.options.localStream = newStream;
+
+    logger.debug('Finished audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      desiredAudioMuted: this._desiredAudioMuted,
+      senderTrack: getTrackDebugInfo(sender.track),
+      localTracks: getStreamTrackDebugInfo(this.options.localStream),
+    });
   }
 
   /**
@@ -1023,6 +1146,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       localStream.getAudioTracks().forEach((t) => newStream.addTrack(t));
       localStream.getVideoTracks().forEach((t) => t.stop());
       this.options.localStream = newStream;
+
+      // Preserve audio mute state after stream replacement
+      this._applyDesiredAudioMuteState();
     }
   }
 

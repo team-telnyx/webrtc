@@ -95,7 +95,8 @@ class VertoHandler {
 
     const _buildCall = (
       recoveredCallId?: string,
-      forceRelayCandidateForRecovery?: boolean
+      forceRelayCandidateForRecovery?: boolean,
+      mutedMicOnStartFromRecovery?: boolean
     ) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -120,6 +121,7 @@ class VertoHandler {
           false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
+        mutedMicOnStart: mutedMicOnStartFromRecovery ?? session.options.mutedMicOnStart,
       };
 
       if (callID) {
@@ -224,6 +226,9 @@ class VertoHandler {
         const recoveredCallId = existingCall.id;
         const forceRelayCandidateForRecovery =
           existingCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+        // Preserve the desired mute state from the original call so
+        // the reattached call doesn't accidentally un-mute the mic.
+        const recoveredMutedMicOnStart = existingCall.isAudioMuted;
 
         if (forceRelayCandidateForRecovery) {
           logger.warn(
@@ -244,7 +249,8 @@ class VertoHandler {
         );
         const call = _buildCall(
           recoveredCallId,
-          forceRelayCandidateForRecovery
+          forceRelayCandidateForRecovery,
+          recoveredMutedMicOnStart
         );
         call.answer();
         this._ack(id, method);
