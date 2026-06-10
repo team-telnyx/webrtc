@@ -197,6 +197,21 @@ export interface IClientOptions {
   skipLastVoiceSdkId?: boolean;
 
   /**
+   * When set to `true`, appends `skip_trailing=true` to the VSP WebSocket
+   * URL so VSP skips pre-routing identity resolution (telephony-tokens
+   * validation and UsersClass trailing checks) for this connection.
+   *
+   * This is intended for internal/test-infra usage (e.g. BBT-generated
+   * credentials) where the connection should not participate in trailing
+   * release routing. The actual login still goes to the upstream RTC
+   * service for normal authentication — this only skips VSP's pre-routing
+   * lookup used for trailing target selection.
+   *
+   * @default false
+   */
+  skipTrailing?: boolean;
+
+  /**
    *  Environment to use for the connection.
    *  So far this property is only for internal purposes.
    */
