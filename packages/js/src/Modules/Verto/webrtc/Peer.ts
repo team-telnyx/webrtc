@@ -10,6 +10,8 @@ import {
   SDP_CREATE_ANSWER_FAILED,
   SDP_SET_LOCAL_DESCRIPTION_FAILED,
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
+  CODEC_PREFERENCES_UNSUPPORTED,
+  PREFERRED_CODECS_UNAVAILABLE,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -971,10 +973,107 @@ export default class Peer {
     transceiver: RTCRtpTransceiver,
     codecs: RTCRtpCodecCapability[]
   ) => {
-    if (transceiver.setCodecPreferences) {
-      return transceiver.setCodecPreferences(codecs);
+    if (!transceiver.setCodecPreferences) {
+      this._emitCodecWarning(
+        CODEC_PREFERENCES_UNSUPPORTED,
+        'Codec preferences were not applied because setCodecPreferences is unavailable for this transceiver.'
+      );
+      return;
     }
+
+    const codecsAllowedByRemoteOffer = this._filterCodecsForRemoteOffer(
+      transceiver,
+      codecs
+    );
+
+    if (codecsAllowedByRemoteOffer.length === 0) {
+      this._emitCodecWarning(
+        PREFERRED_CODECS_UNAVAILABLE,
+        `Preferred codecs were not applied because none are present in the remote SDP offer: ${this._formatCodecList(
+          codecs
+        )}.`
+      );
+      return;
+    }
+
+    if (codecsAllowedByRemoteOffer.length < codecs.length) {
+      this._emitCodecWarning(
+        PREFERRED_CODECS_UNAVAILABLE,
+        `Some preferred codecs are not present in the remote SDP offer. Applying available codecs: ${this._formatCodecList(
+          codecsAllowedByRemoteOffer
+        )}.`
+      );
+    }
+
+    return transceiver.setCodecPreferences(codecsAllowedByRemoteOffer);
   };
+
+  private _emitCodecWarning(
+    code: Parameters<typeof createTelnyxWarning>[0],
+    message: string
+  ): void {
+    const warning = createTelnyxWarning(code, message);
+    trigger(
+      SwEvent.Warning,
+      {
+        warning,
+        callId: this.options.id,
+        sessionId: this._session.sessionid,
+      },
+      this.options.id
+    );
+  }
+
+  private _formatCodecList(codecs: RTCRtpCodecCapability[]): string {
+    return codecs.map((codec) => codec.mimeType).join(', ');
+  }
+
+  private _filterCodecsForRemoteOffer(
+    transceiver: RTCRtpTransceiver,
+    codecs: RTCRtpCodecCapability[]
+  ): RTCRtpCodecCapability[] {
+    if (!this.isAnswer || !this.options.remoteSdp) {
+      return codecs;
+    }
+
+    const kind =
+      transceiver.sender.track?.kind || transceiver.receiver.track?.kind;
+    if (!kind) {
+      return codecs;
+    }
+
+    const offeredCodecs = this._getRemoteOfferedCodecs(kind);
+    if (offeredCodecs.size === 0) {
+      return codecs;
+    }
+
+    return codecs.filter((codec) =>
+      offeredCodecs.has(codec.mimeType.toLocaleLowerCase())
+    );
+  }
+
+  private _getRemoteOfferedCodecs(kind: string): Set<string> {
+    const offeredCodecs = new Set<string>();
+    const mediaSections = this.options.remoteSdp.split(/\r?\nm=/).slice(1);
+    const mediaSection = mediaSections.find((section) =>
+      section.toLocaleLowerCase().startsWith(`${kind.toLocaleLowerCase()} `)
+    );
+
+    if (!mediaSection) {
+      return offeredCodecs;
+    }
+
+    mediaSection.split(/\r?\n/).forEach((line) => {
+      const match = line.match(/^a=rtpmap:\d+\s+([^/\s]+)/i);
+      if (match) {
+        offeredCodecs.add(
+          `${kind.toLocaleLowerCase()}/${match[1].toLocaleLowerCase()}`
+        );
+      }
+    });
+
+    return offeredCodecs;
+  }
   /** Workaround for ReactNative: first time SDP has no candidates */
   private _sdpReady(): void {
     if (isFunction(this.onSdpReadyTwice)) {

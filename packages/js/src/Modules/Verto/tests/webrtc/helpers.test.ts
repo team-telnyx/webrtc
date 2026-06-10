@@ -10,14 +10,51 @@ import {
   getWebRTCSupportedBrowserList,
   SUPPORTED_WEBRTC,
   getUserMedia,
+  getPreferredCodecs,
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
-import {
-  detachMediaStream,
-} from '../../util/webrtc';
+import { detachMediaStream } from '../../util/webrtc';
 
 describe('Helpers browser functions', () => {
+  describe('getPreferredCodecs', () => {
+    const originalRTCRtpReceiver = global.RTCRtpReceiver;
+    const opusCodec = { mimeType: 'audio/opus', clockRate: 48000, channels: 2 };
+    const g722Codec = { mimeType: 'audio/G722', clockRate: 8000 };
+    const pcmuCodec = { mimeType: 'audio/PCMU', clockRate: 8000 };
+    const vp8Codec = { mimeType: 'video/VP8', clockRate: 90000 };
+
+    afterEach(() => {
+      global.RTCRtpReceiver = originalRTCRtpReceiver;
+    });
+
+    it('defaults audio codecs to Opus first with other browser codecs as fallback', () => {
+      global.RTCRtpReceiver = {
+        getCapabilities: jest.fn().mockReturnValue({
+          codecs: [g722Codec, pcmuCodec, opusCodec],
+        }),
+      } as unknown as typeof RTCRtpReceiver;
+
+      expect(getPreferredCodecs()).toEqual({
+        audioCodecs: [opusCodec, g722Codec, pcmuCodec],
+        videoCodecs: [],
+      });
+    });
+
+    it('keeps explicit codec preferences instead of applying the Opus default', () => {
+      global.RTCRtpReceiver = {
+        getCapabilities: jest.fn().mockReturnValue({
+          codecs: [opusCodec, g722Codec, pcmuCodec],
+        }),
+      } as unknown as typeof RTCRtpReceiver;
+
+      expect(getPreferredCodecs([g722Codec, vp8Codec])).toEqual({
+        audioCodecs: [g722Codec],
+        videoCodecs: [vp8Codec],
+      });
+    });
+  });
+
   describe('findElementByType', () => {
     it('should return null if there is no document global object', () => {
       document = null;
@@ -560,7 +597,11 @@ describe('Helpers browser functions', () => {
         supported: [
           { browserName: 'Chrome', supported: 'not supported' },
           { browserName: 'Firefox', supported: 'not supported' },
-          { browserName: 'Safari', features: ['video', 'audio'], supported: 'full' },
+          {
+            browserName: 'Safari',
+            features: ['video', 'audio'],
+            supported: 'full',
+          },
           { browserName: 'Edge', supported: 'not supported' },
         ],
       },

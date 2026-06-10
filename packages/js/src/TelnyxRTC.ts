@@ -168,9 +168,10 @@ export class TelnyxRTC extends TelnyxRTCClient {
 
    * ### Setting Preferred Codec
    *
-   * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
+   * Audio codec preferences default to Opus first with the remaining browser-supported codecs as fallbacks.
+   * You can pass `preferred_codecs` to the `newCall` method to override codec preference during the call.
    *
-   * `preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs)
+   * `preferred_codecs` is a sub-array of the codecs returned by [RTCRtpReceiver.getCapabilities('audio')](https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs). For inbound calls, preferences can only select codecs present in the incoming SDP offer.
    *
    * ```js
    * const allCodecs = RTCRtpReceiver.getCapabilities('audio').codecs;
