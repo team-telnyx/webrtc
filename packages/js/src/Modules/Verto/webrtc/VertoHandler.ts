@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  UNKNOWN_REATTACHED_SESSION,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -72,21 +73,45 @@ class VertoHandler {
 
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
+    const activeCallsIDs = new Set(Object.keys(session.calls));
 
-    // W8: Session not reattached warning
-    // If the server sends reattached_sessions as an empty array and the SDK
-    // has active calls, the session was not reattached after reconnection.
-    if (
-      Array.isArray(params?.reattached_sessions) &&
-      params.reattached_sessions.length === 0 &&
-      Object.keys(session.calls).length > 0
-    ) {
-      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
-      trigger(
-        SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
-        session.uuid
+    // ── Reattach session handling ────────────────────────────────────────
+    // When the server sends an empty reattached_sessions array while the SDK has active calls or
+    // reattached_sessions array doesn't have at least one of active calls,
+    // the session was not reattached after reconnection.
+    // Clean up active calls locally (no BYE — the server
+    // no longer knows about them) and emit a error.
+    //
+    // If reattached_sessions and active calls don't match any confitions above, recovery is driven entirely
+    // by incoming Attach messages (which match by callID).
+    if (Array.isArray(params?.reattached_sessions) && activeCallsIDs.size) {
+      logger.debug(
+        `Reattach: active call IDs before cleanup check: [${Array.from(activeCallsIDs).join(', ')}].`
       );
+
+      const isReattachedEmpty = params.reattached_sessions.length === 0;
+      const isReattachedHasSdkKnownCalls = params.reattached_sessions.some(
+        (reattachedID: string) => activeCallsIDs.has(reattachedID)
+      );
+
+      if (isReattachedEmpty || !isReattachedHasSdkKnownCalls) {
+        for (const callId of Object.keys(session.calls)) {
+          const call = session.calls[callId];
+          logger.debug(
+            `Session not reattached — terminating active call ${callId} `
+          );
+
+          const error = createTelnyxError(SESSION_NOT_REATTACHED);
+          trigger(
+            SwEvent.Error,
+            { error, callId, sessionId: session.sessionid },
+            session.uuid
+          );
+
+          // Local cleanup only — do not send BYE because the server no longer has the session.
+          void call.hangup({}, false);
+        }
+      }
     }
 
     if (eventType === 'channelPvtData') {
@@ -210,43 +235,63 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        /**
-         * If there is no existing call, we need to create a new call.
-         * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
-         */
-        if (!existingCall) {
-          const call = _buildCall();
+        const matchedCall = existingCall || null;
+
+        if (Object.keys(session.calls).length === 0) {
+          // SDK doesn't have any active calls in cache, so we will recover first arrived. Normal situation for this is page reload/refresh/close-open.
+          logger.warn(
+            `[${new Date().toISOString()}][${callID}] Attach: SDK doens't have any active call therefore we recover first arrived attach session ${callID}`
+          );
+          const call = _buildCall(callID);
           call.answer();
           this._ack(id, method);
-          return;
+          break;
         }
 
-        const recoveredCallId = existingCall.id;
-        const forceRelayCandidateForRecovery =
-          existingCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+        if (matchedCall) {
+          // ── We have matching call by callID — recover it
+          const recoveredCallId = matchedCall.id;
+          const forceRelayCandidateForRecovery =
+            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
-        if (forceRelayCandidateForRecovery) {
-          logger.warn(
-            `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+          if (forceRelayCandidateForRecovery) {
+            logger.warn(
+              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+            );
+          }
+
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
           );
+
+          void matchedCall.hangup(
+            { isRecovering: true, initiator: 'sdk:attach-recovery' },
+            false
+          );
+
+          const call = _buildCall(
+            recoveredCallId,
+            forceRelayCandidateForRecovery
+          );
+          call.answer();
+          this._ack(id, method);
+          break;
         }
 
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
-        );
-        void existingCall.hangup(
-          { isRecovering: true, initiator: 'sdk:attach-recovery' },
-          false
+        logger.warn(
+          `Attach: callID ${callID} does not match any active calls. `
         );
 
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
+        trigger(
+          SwEvent.Warning,
+          {
+            warning: createTelnyxWarning(UNKNOWN_REATTACHED_SESSION),
+            callId: callID,
+            params,
+            sessionId: session.sessionid,
+          },
+          session.uuid
         );
-        const call = _buildCall(
-          recoveredCallId,
-          forceRelayCandidateForRecovery
-        );
-        call.answer();
         this._ack(id, method);
         break;
       }

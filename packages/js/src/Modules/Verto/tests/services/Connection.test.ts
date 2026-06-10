@@ -142,7 +142,9 @@ describe('Connection - Safety Timeout', () => {
       const ws = (connection as any)._wsClient;
       expect(ws).not.toBeNull();
       const wsUrl = new URL(ws.url);
-      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe('stored-voice-sdk-id');
+      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe(
+        'stored-voice-sdk-id'
+      );
       expect(wsUrl.searchParams.get('skip_last_voice_sdk_id')).toBe('true');
     });
 
@@ -167,7 +169,9 @@ describe('Connection - Safety Timeout', () => {
       const ws = (connection as any)._wsClient;
       expect(ws).not.toBeNull();
       const wsUrl = new URL(ws.url);
-      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe('stored-voice-sdk-id');
+      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe(
+        'stored-voice-sdk-id'
+      );
       expect(wsUrl.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
     });
   });
