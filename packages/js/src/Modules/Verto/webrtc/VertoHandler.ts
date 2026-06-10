@@ -85,6 +85,10 @@ class VertoHandler {
     // If reattached_sessions and active calls don't match any confitions above, recovery is driven entirely
     // by incoming Attach messages (which match by callID).
     if (Array.isArray(params?.reattached_sessions) && activeCallsIDs.size) {
+      logger.debug(
+        `Reattach: active call IDs before cleanup check: [${Array.from(activeCallsIDs).join(', ')}].`
+      );
+
       const isReattachedEmpty = params.reattached_sessions.length === 0;
       const isReattachedHasSdkKnownCalls = params.reattached_sessions.some(
         (reattachedID: string) => activeCallsIDs.has(reattachedID)
