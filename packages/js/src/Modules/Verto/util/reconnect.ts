@@ -47,8 +47,12 @@ export function setReconnectSessionId(
   sessionStorage.setItem(SESSION_ID_STORED_AT_STORAGE_KEY, String(storedAt));
 }
 
-export function clearReconnectToken(): void {
-  sessionStorage.removeItem(STORAGE_KEY);
+export function clearReconnectSessionId(): void {
   sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
+}
+
+export function clearReconnectToken(): void {
+  sessionStorage.removeItem(STORAGE_KEY);
+  clearReconnectSessionId();
 }
