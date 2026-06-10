@@ -94,6 +94,22 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     });
   });
 
+  describe('reconnect backoff', () => {
+    it('should use exponential reconnect backoff capped at 30 seconds', () => {
+      session._reconnectAttempts = 1;
+      expect(session.reconnectDelay).toBe(1000);
+
+      session._reconnectAttempts = 2;
+      expect(session.reconnectDelay).toBe(2000);
+
+      session._reconnectAttempts = 3;
+      expect(session.reconnectDelay).toBe(4000);
+
+      session._reconnectAttempts = 6;
+      expect(session.reconnectDelay).toBe(30000);
+    });
+  });
+
   describe('with maxReconnectAttempts set', () => {
     it('should increment _reconnectAttempts on each onNetworkClose call', () => {
       session.options.maxReconnectAttempts = 5;
