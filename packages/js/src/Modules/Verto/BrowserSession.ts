@@ -784,22 +784,28 @@ export default abstract class BrowserSession extends BaseSession {
 
     this._onlineHandler = () => {
       /**
-       * Once offline, there's no guarantee the connection across client and server both ways is still alive as PINGs from server may be missed.
-       * Therefore, reconnect to be safe.
+       * Browser reports connectivity restored. Previously, this handler
+       * directly called socketDisconnect() and forced _autoReconnect = true,
+       * which could cause duplicate reconnects or reconnect a healthy session.
+       *
+       * Now, browser online is treated as a low-confidence hint only.
+       * Recovery decisions are owned by the SignalingHealthMonitor based on
+       * SDK-owned runtime signals (WebSocket liveness, request timeouts,
+       * ICE/peer state, RTP flow). The online hint is forwarded to the
+       * monitor for diagnostics but does NOT directly trigger reconnect.
        */
       if (this._wasOffline) {
         logger.debug(
-          `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
+          `Network connectivity restored for session ${this.sessionid} (browser online hint).`
         );
         this._wasOffline = false;
-        this._autoReconnect = true; // Ensure auto-reconnect is enabled
-        this.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
+        this.reportBrowserOnlineHint();
       }
     };
 
     this._offlineHandler = () => {
       this._wasOffline = true;
-      logger.debug(`Network connectivity lost for session ${this.sessionid}`);
+      logger.debug(`Network connectivity lost for session ${this.sessionid} (browser offline hint).`);
 
       const telnyxError = createTelnyxError(NETWORK_OFFLINE);
       trigger(
@@ -807,6 +813,8 @@ export default abstract class BrowserSession extends BaseSession {
         { error: telnyxError, sessionId: this.sessionid },
         this.uuid
       );
+
+      this.reportBrowserOfflineHint();
     };
 
     window.addEventListener('online', this._onlineHandler);

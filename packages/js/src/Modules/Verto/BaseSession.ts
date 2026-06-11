@@ -1146,6 +1146,30 @@ export default abstract class BaseSession {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
   }
 
+  /**
+   * Report a browser offline hint to the signaling health monitor.
+   * Called by BrowserSession when the browser fires a navigator offline event.
+   *
+   * This is a low-confidence hint — the monitor may probe to verify actual
+   * signaling health, but does not blindly initiate recovery.
+   */
+  reportBrowserOfflineHint(): void {
+    this._signalingHealthMonitor.onBrowserOfflineHint();
+  }
+
+  /**
+   * Report a browser online hint to the signaling health monitor.
+   * Called by BrowserSession when the browser fires a navigator online event.
+   *
+   * This is a low-confidence hint — the monitor records it for diagnostics
+   * but does NOT directly trigger reconnect. If recovery is needed, it must
+   * be initiated by SDK-owned health signals (probe timeout, request timeout,
+   * peer failure, no-RTP).
+   */
+  reportBrowserOnlineHint(): void {
+    this._signalingHealthMonitor.onBrowserOnlineHint();
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   static on(eventName: string, callback: any) {
     register(eventName, callback);

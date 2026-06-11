@@ -297,6 +297,53 @@ export default class SignalingHealthMonitor {
     );
   }
 
+  /**
+   * Called when the browser reports going offline (navigator offline event).
+   *
+   * This is a low-confidence hint — the browser's offline event is coarse and
+   * browser-dependent. It may fire even when the WebSocket is still alive, or
+   * fail to fire when the network is degraded but navigator.onLine is still
+   * true (e.g. VPN path changes, half-dead sockets).
+   *
+   * The monitor records this hint for diagnostics and, if it is running,
+   * may trigger a signaling probe to verify actual WebSocket health rather
+   * than blindly initiating recovery. Recovery must always originate from
+   * SDK-owned signals (probe timeout, request timeout, peer failure, no-RTP).
+   */
+  onBrowserOfflineHint(): void {
+    logger.debug(
+      'Signaling health: browser offline hint received — recording hint'
+    );
+
+    if (this._intervalId && this._session.hasActiveCall()) {
+      // Browser says offline, but we need to verify actual signaling health.
+      // Send a probe to check if the WebSocket is truly dead, rather than
+      // assuming the browser is right and immediately reconnecting.
+      this._probeIfNeeded('browser offline hint received');
+    }
+  }
+
+  /**
+   * Called when the browser reports coming back online (navigator online event).
+   *
+   * This is a low-confidence hint — the browser's online event alone should
+   * not drive reconnect decisions. If the session is healthy, this is a no-op.
+   * If recovery is needed, it must be initiated by SDK-owned health signals.
+   *
+   * This method does NOT:
+   * - Call socketDisconnect()
+   * - Force _autoReconnect = true
+   * - Directly trigger any recovery action
+   */
+  onBrowserOnlineHint(): void {
+    logger.debug(
+      'Signaling health: browser online hint received — no direct recovery action'
+    );
+    // Intentionally no recovery action. Browser online is a low-confidence
+    // hint. If the WebSocket is actually dead, the periodic health check
+    // or request timeout will detect it via SDK-owned signals.
+  }
+
   // ── Private ─────────────────────────────────────────────────────────
 
   /**
