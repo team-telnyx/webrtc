@@ -305,22 +305,22 @@ export default class SignalingHealthMonitor {
    * fail to fire when the network is degraded but navigator.onLine is still
    * true (e.g. VPN path changes, half-dead sockets).
    *
-   * The monitor records this hint for diagnostics and, if it is running,
-   * may trigger a signaling probe to verify actual WebSocket health rather
-   * than blindly initiating recovery. Recovery must always originate from
-   * SDK-owned signals (probe timeout, request timeout, peer failure, no-RTP).
+   * The monitor records this hint for diagnostics only. It does NOT trigger
+   * a probe or any recovery action. Recovery must always originate from
+   * SDK-owned signals (periodic health probe timeout, request timeout,
+   * peer failure, no-RTP). The periodic _check() will detect actual
+   * signaling unhealthiness via WS silence → probe → timeout, independently
+   * of browser connectivity events.
    */
   onBrowserOfflineHint(): void {
     logger.debug(
-      'Signaling health: browser offline hint received — recording hint'
+      'Signaling health: browser offline hint received — recorded for diagnostics only'
     );
-
-    if (this._intervalId && this._session.hasActiveCall()) {
-      // Browser says offline, but we need to verify actual signaling health.
-      // Send a probe to check if the WebSocket is truly dead, rather than
-      // assuming the browser is right and immediately reconnecting.
-      this._probeIfNeeded('browser offline hint received');
-    }
+    // Intentionally no probe or recovery action. The browser offline event
+    // is a low-confidence signal that should not create a separate recovery
+    // path. If signaling is actually unhealthy, the periodic _check() will
+    // detect it through WS silence → probe → timeout, and recovery will be
+    // triggered by the SDK-owned health state machine.
   }
 
   /**

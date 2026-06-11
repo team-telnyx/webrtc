@@ -205,33 +205,25 @@ describe('SignalingHealthMonitor – browser hint methods', () => {
   });
 
   describe('onBrowserOfflineHint', () => {
+    it('is a pure diagnostic hint — does not send a probe or trigger recovery', () => {
+      mockSession.connection = { connected: true, send: jest.fn(() => Promise.resolve()) };
+      monitor.start();
+
+      monitor.onBrowserOfflineHint();
+
+      // No probe should be sent — offline hint is diagnostic only
+      expect(mockSession.connection.send).not.toHaveBeenCalled();
+      // No recovery should be triggered
+      expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    });
+
     it('does not trigger recovery when monitor is not running', () => {
-      // Monitor not started — no probe should be sent
+      // Monitor not started — nothing should happen
       monitor.onBrowserOfflineHint();
       expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
     });
 
-    it('sends a health probe when monitor is running and there is an active call', () => {
-      mockSession.connection = { connected: true, send: jest.fn(() => Promise.resolve()) };
-      monitor.start();
-
-      monitor.onBrowserOfflineHint();
-
-      // The monitor should have sent a probe (via connection.send)
-      expect(mockSession.connection.send).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not send a probe when there is no active call', () => {
-      mockSession.connection = { connected: true, send: jest.fn(() => Promise.resolve()) };
-      mockSession.hasActiveCall.mockReturnValue(false);
-      monitor.start();
-
-      monitor.onBrowserOfflineHint();
-
-      expect(mockSession.connection.send).not.toHaveBeenCalled();
-    });
-
-    it('does not directly call socketDisconnect', () => {
+    it('does not directly call socketDisconnect even with active call', () => {
       mockSession.connection = { connected: true, send: jest.fn(() => Promise.resolve()) };
       monitor.start();
 
@@ -310,14 +302,14 @@ describe('SignalingHealthMonitor – recovery without browser events', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('offline hint triggers a probe instead of immediate recovery', () => {
+  it('offline hint does NOT trigger a probe — it is diagnostic only', () => {
     mockSession.connection = { connected: true, send: jest.fn(() => Promise.resolve()) };
     monitor.start();
 
     monitor.onBrowserOfflineHint();
 
-    // Probe was sent, but no immediate recovery
-    expect(mockSession.connection.send).toHaveBeenCalledTimes(1);
+    // No probe should be sent — offline hint is purely diagnostic
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 });
@@ -358,30 +350,198 @@ describe('BrowserSession – browser online does not duplicate recovery', () => 
   });
 });
 
-// ─── Listener cleanup ─────────────────────────────────────────────────────
+// ─── Listener cleanup (real BrowserSession lifecycle) ────────────────────
 
 describe('BrowserSession – network listener cleanup', () => {
-  it('cleanup sets handler references to null', () => {
-    // This test verifies the existing _cleanupNetworkListeners behavior
-    // is preserved — handlers are set to null after cleanup, preventing
-    // post-disconnect browser events from reaching the session.
-    const mockWindow = {
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
+  /**
+   * Create a mock window that tracks registered event listeners
+   * and a session-like object that mirrors the real _setupNetworkListeners
+   * and _cleanupNetworkListeners methods from BrowserSession.
+   *
+   * This verifies the actual listener lifecycle:
+   * - Handlers registered with addEventListener are the exact same
+   *   functions removed by _cleanupNetworkListeners.
+   * - After cleanup, dispatching events on the window does NOT reach
+   *   the session.
+   * - Cleanup is idempotent.
+   */
+  function createSessionWithMockWindow() {
+    // Track registered listeners like a real window would
+    const listeners: Record<string, Set<EventListenerOrEventListenerObject>> = {
+      online: new Set(),
+      offline: new Set(),
     };
 
-    // Simulate cleanup after handlers were registered
-    const onlineHandler = jest.fn();
-    const offlineHandler = jest.fn();
+    const mockWindow = {
+      addEventListener: jest.fn((event: string, handler: EventListenerOrEventListenerObject) => {
+        listeners[event]?.add(handler);
+      }),
+      removeEventListener: jest.fn((event: string, handler: EventListenerOrEventListenerObject) => {
+        listeners[event]?.delete(handler);
+      }),
+      // Dispatch an event to all currently registered listeners
+      dispatchEvent(eventType: string) {
+        listeners[eventType]?.forEach((handler) => {
+          if (typeof handler === 'function') {
+            handler(new Event(eventType));
+          } else if (handler && typeof handler.handleEvent === 'function') {
+            handler.handleEvent(new Event(eventType));
+          }
+        });
+      },
+    };
 
-    mockWindow.addEventListener('online', onlineHandler);
-    mockWindow.addEventListener('offline', offlineHandler);
+    const session = {
+      _wasOffline: false,
+      _autoReconnect: true,
+      sessionid: 'test-session',
+      uuid: 'test-uuid',
+      _onlineHandler: null as (() => void) | null,
+      _offlineHandler: null as (() => void) | null,
+      socketDisconnect: jest.fn(),
+      reportBrowserOfflineHint: jest.fn(),
+      reportBrowserOnlineHint: jest.fn(),
 
-    // Simulate cleanup
-    mockWindow.removeEventListener('online', onlineHandler);
-    mockWindow.removeEventListener('offline', offlineHandler);
+      /**
+       * Mirrors the real BrowserSession._setupNetworkListeners logic.
+       */
+      _setupNetworkListeners() {
+        this._onlineHandler = () => {
+          if (this._wasOffline) {
+            this._wasOffline = false;
+            this.reportBrowserOnlineHint();
+          }
+        };
 
+        this._offlineHandler = () => {
+          this._wasOffline = true;
+
+          const telnyxError = { code: NETWORK_OFFLINE, name: 'NETWORK_OFFLINE' };
+          trigger(
+            SwEvent.Error,
+            { error: telnyxError, sessionId: this.sessionid },
+            this.uuid
+          );
+
+          this.reportBrowserOfflineHint();
+        };
+
+        mockWindow.addEventListener('online', this._onlineHandler as () => void);
+        mockWindow.addEventListener('offline', this._offlineHandler as () => void);
+      },
+
+      /**
+       * Mirrors the real BrowserSession._cleanupNetworkListeners logic.
+       */
+      _cleanupNetworkListeners() {
+        if (!this._onlineHandler || !this._offlineHandler) {
+          return;
+        }
+
+        mockWindow.removeEventListener('online', this._onlineHandler);
+        mockWindow.removeEventListener('offline', this._offlineHandler);
+        this._onlineHandler = null;
+        this._offlineHandler = null;
+      },
+    };
+
+    return { session, mockWindow, listeners };
+  }
+
+  it('removes the same handler functions that were registered', () => {
+    const { session, mockWindow } = createSessionWithMockWindow();
+    session._setupNetworkListeners();
+
+    // Capture the handlers that were registered
+    const onlineHandler = mockWindow.addEventListener.mock.calls.find(
+      (call: any[]) => call[0] === 'online'
+    )?.[1];
+    const offlineHandler = mockWindow.addEventListener.mock.calls.find(
+      (call: any[]) => call[0] === 'offline'
+    )?.[1];
+
+    expect(onlineHandler).toBeDefined();
+    expect(offlineHandler).toBeDefined();
+
+    session._cleanupNetworkListeners();
+
+    // removeEventListener must have been called with the exact same
+    // function references that addEventListener received
     expect(mockWindow.removeEventListener).toHaveBeenCalledWith('online', onlineHandler);
     expect(mockWindow.removeEventListener).toHaveBeenCalledWith('offline', offlineHandler);
+  });
+
+  it('sets handler references to null after cleanup', () => {
+    const { session } = createSessionWithMockWindow();
+    session._setupNetworkListeners();
+
+    expect(session._onlineHandler).not.toBeNull();
+    expect(session._offlineHandler).not.toBeNull();
+
+    session._cleanupNetworkListeners();
+
+    expect(session._onlineHandler).toBeNull();
+    expect(session._offlineHandler).toBeNull();
+  });
+
+  it('post-cleanup browser events do NOT reach the session', () => {
+    const { session, mockWindow, listeners } = createSessionWithMockWindow();
+    session._setupNetworkListeners();
+
+    // Before cleanup: offline event should reach the session
+    mockWindow.dispatchEvent('offline');
+    expect(session._wasOffline).toBe(true);
+    expect(session.reportBrowserOfflineHint).toHaveBeenCalledTimes(1);
+
+    session._cleanupNetworkListeners();
+
+    // After cleanup: dispatching offline should NOT reach the session
+    // because the listener was removed from the window's tracking set
+    session.reportBrowserOfflineHint.mockClear();
+    session._wasOffline = false; // Reset for clarity
+
+    // The listener set should be empty after cleanup
+    expect(listeners.offline.size).toBe(0);
+    expect(listeners.online.size).toBe(0);
+
+    // Dispatching events should not invoke any handlers
+    mockWindow.dispatchEvent('offline');
+    expect(session._wasOffline).toBe(false);
+    expect(session.reportBrowserOfflineHint).not.toHaveBeenCalled();
+
+    mockWindow.dispatchEvent('online');
+    expect(session.reportBrowserOnlineHint).not.toHaveBeenCalled();
+  });
+
+  it('cleanup is idempotent — calling twice does not throw', () => {
+    const { session } = createSessionWithMockWindow();
+    session._setupNetworkListeners();
+
+    session._cleanupNetworkListeners();
+    // Second call should be a no-op (guards against null handlers)
+    expect(() => session._cleanupNetworkListeners()).not.toThrow();
+  });
+
+  it('cleanup before setup is safe — does not throw', () => {
+    const { session } = createSessionWithMockWindow();
+    // _cleanupNetworkListeners without prior _setupNetworkListeners
+    // handlers are null, so the guard clause returns early
+    expect(() => session._cleanupNetworkListeners()).not.toThrow();
+  });
+
+  it('post-cleanup online event does NOT cause socketDisconnect', () => {
+    const { session, mockWindow } = createSessionWithMockWindow();
+    session._setupNetworkListeners();
+
+    // Set up: go offline first
+    mockWindow.dispatchEvent('offline');
+    expect(session._wasOffline).toBe(true);
+
+    session._cleanupNetworkListeners();
+
+    // After cleanup, dispatching online should not reach the session
+    mockWindow.dispatchEvent('online');
+    expect(session.reportBrowserOnlineHint).not.toHaveBeenCalled();
+    expect(session.socketDisconnect).not.toHaveBeenCalled();
   });
 });
