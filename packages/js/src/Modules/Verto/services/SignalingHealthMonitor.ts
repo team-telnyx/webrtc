@@ -1,12 +1,12 @@
 import { trigger } from './Handler';
-import { SwEvent } from '../util/constants';
+import { SwEvent, NETWORK_OFFLINE } from '../util/constants';
 import {
   SIGNALING_HEALTH_PROBE_TIMEOUT,
   SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
 } from '../util/constants/errorCodes';
-import { createTelnyxWarning } from '../util/errors';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import type {
@@ -80,6 +80,15 @@ export default class SignalingHealthMonitor {
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
+  /** True when the browser has reported going offline (navigator offline event). */
+  private _browserWasOffline: boolean = false;
+
+  /** Handler for browser 'online' event, stored for cleanup. */
+  private _onlineHandler: (() => void) | null = null;
+
+  /** Handler for browser 'offline' event, stored for cleanup. */
+  private _offlineHandler: (() => void) | null = null;
+
   /**
    * Verto method names that are critical for call control and
    * signaling liveness. Timeouts on these methods indicate the
@@ -112,6 +121,7 @@ export default class SignalingHealthMonitor {
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
 
+    this._setupBrowserListeners();
     this._intervalId = setInterval(() => this._check(), CHECK_INTERVAL_MS);
   }
 
@@ -126,6 +136,7 @@ export default class SignalingHealthMonitor {
       this._lastProbeSentAt = 0;
     }
     this._pendingMediaRecovery = null;
+    this._cleanupBrowserListeners();
     logger.debug('Signaling health: monitor stopped');
   }
 
@@ -295,6 +306,96 @@ export default class SignalingHealthMonitor {
       `No RTP ${direction} while signaling is unhealthy`,
       'no_rtp'
     );
+  }
+
+  // ── Browser connectivity listener lifecycle ─────────────────────────
+
+  /**
+   * Register browser `online` / `offline` event listeners on `window`.
+   *
+   * The monitor is the single owner of browser connectivity event handling.
+   * These listeners are low-confidence diagnostic hints only — they must NOT
+   * have side effects that can lead to recovery:
+   *
+   * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
+   *   backward compatibility/telemetry and records `_browserWasOffline` state.
+   *   It does NOT accelerate or initiate a signaling health probe.
+   * - browser `online` clears the browser-reported offline state for diagnostics
+   *   but does NOT trigger any recovery action.
+   *
+   * Neither browser event directly or indirectly triggers recovery. Recovery
+   * starts only from SDK-owned health evidence (probe timeout via periodic
+   * liveness check, request timeout, peer failure, no-RTP). If a browser
+   * offline event is followed by actual signaling degradation, the periodic
+   * `_check()` will detect the silence and probe independently.
+   *
+   * Idempotent: if listeners are already registered, this is a no-op.
+   */
+  private _setupBrowserListeners(): void {
+    if (typeof window === 'undefined' || this._onlineHandler) {
+      return;
+    }
+
+    this._onlineHandler = () => {
+      if (this._browserWasOffline) {
+        logger.debug(
+          `Signaling health: browser online hint received — clearing browser offline state for session ${this._session.sessionid}`
+        );
+        this._browserWasOffline = false;
+      }
+      // No recovery action. Browser online is a low-confidence hint.
+      // If recovery is needed, it must be initiated by SDK-owned health signals.
+    };
+
+    this._offlineHandler = () => {
+      this._browserWasOffline = true;
+      logger.debug(
+        `Signaling health: browser offline hint received for session ${this._session.sessionid}`
+      );
+
+      // Emit the existing NETWORK_OFFLINE error event for backward compat/telemetry.
+      const telnyxError = createTelnyxError(NETWORK_OFFLINE);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this._session.uuid
+      );
+
+      // IMPORTANT: Browser offline is a diagnostic hint only. It must NOT
+      // initiate or accelerate a signaling health probe, because a
+      // browser-triggered probe that times out would indirectly cause
+      // recovery (socketDisconnect). Recovery must originate exclusively
+      // from SDK-owned signals: the periodic liveness check detecting
+      // WS silence, request timeouts, peer failures, or no-RTP — never
+      // from browser connectivity events.
+    };
+
+    window.addEventListener('online', this._onlineHandler);
+    window.addEventListener('offline', this._offlineHandler);
+  }
+
+  /**
+   * Remove browser `online` / `offline` event listeners from `window`.
+   *
+   * Called during `stop()` to ensure deterministic cleanup.
+   * After cleanup, browser connectivity events will no longer reach the monitor.
+   *
+   * Idempotent: if listeners are not registered, this is a no-op.
+   */
+  private _cleanupBrowserListeners(): void {
+    if (
+      typeof window === 'undefined' ||
+      !this._onlineHandler ||
+      !this._offlineHandler
+    ) {
+      return;
+    }
+
+    window.removeEventListener('online', this._onlineHandler);
+    window.removeEventListener('offline', this._offlineHandler);
+    this._onlineHandler = null;
+    this._offlineHandler = null;
+    this._browserWasOffline = false;
   }
 
   // ── Private ─────────────────────────────────────────────────────────

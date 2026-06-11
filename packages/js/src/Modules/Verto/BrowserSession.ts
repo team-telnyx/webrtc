@@ -11,7 +11,6 @@ import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
   DEFAULT_DEV_ICE_SERVERS,
-  NETWORK_OFFLINE,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
@@ -62,19 +61,12 @@ export default abstract class BrowserSession extends BaseSession {
 
   protected _speaker: string = null;
 
-  private _onlineHandler: (() => void) | null = null;
-
-  private _offlineHandler: (() => void) | null = null;
-
-  private _wasOffline: boolean = false;
-
   constructor(options: IVertoOptions) {
     super(options);
     this._videoConstraints = options.video || false;
     this.iceServers = options.iceServers;
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;
-    this._setupNetworkListeners();
   }
 
   get reconnectDelay() {
@@ -179,7 +171,6 @@ export default abstract class BrowserSession extends BaseSession {
 
     this.calls = {};
 
-    this._cleanupNetworkListeners();
     await super.disconnect();
   }
 
@@ -201,7 +192,6 @@ export default abstract class BrowserSession extends BaseSession {
 
     this.calls = {};
 
-    this._cleanupNetworkListeners();
     await super.disconnect();
   }
 
@@ -775,57 +765,6 @@ export default abstract class BrowserSession extends BaseSession {
       this._removeSubscription(this.relayProtocol, channel)
     );
     return response;
-  }
-
-  private _setupNetworkListeners() {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    this._onlineHandler = () => {
-      /**
-       * Once offline, there's no guarantee the connection across client and server both ways is still alive as PINGs from server may be missed.
-       * Therefore, reconnect to be safe.
-       */
-      if (this._wasOffline) {
-        logger.debug(
-          `Network connectivity restored for session ${this.sessionid}. Reconnecting...`
-        );
-        this._wasOffline = false;
-        this._autoReconnect = true; // Ensure auto-reconnect is enabled
-        this.socketDisconnect(); // This triggers SocketClose → onNetworkClose → connect()
-      }
-    };
-
-    this._offlineHandler = () => {
-      this._wasOffline = true;
-      logger.debug(`Network connectivity lost for session ${this.sessionid}`);
-
-      const telnyxError = createTelnyxError(NETWORK_OFFLINE);
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this.sessionid },
-        this.uuid
-      );
-    };
-
-    window.addEventListener('online', this._onlineHandler);
-    window.addEventListener('offline', this._offlineHandler);
-  }
-
-  private _cleanupNetworkListeners() {
-    if (
-      typeof window === 'undefined' ||
-      !this._onlineHandler ||
-      !this._offlineHandler
-    ) {
-      return;
-    }
-
-    window.removeEventListener('online', this._onlineHandler);
-    window.removeEventListener('offline', this._offlineHandler);
-    this._onlineHandler = null;
-    this._offlineHandler = null;
   }
 
   static telnyxStateCall(call: Call) {
