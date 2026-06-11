@@ -436,6 +436,51 @@ describe('Call', () => {
       expect(startNegotiationSpy).not.toHaveBeenCalled();
     });
 
+    it('invite() should emit recoverable media error and retry when recovery is enabled', async () => {
+      session.options.mediaPermissionsRecovery = {
+        enabled: true,
+        timeout: 1000,
+        onSuccess: jest.fn(),
+        onError: jest.fn(),
+      };
+      const recoveredStream = new MediaStream();
+      const retrieveLocalStreamSpy = jest
+        .spyOn(
+          Peer.prototype as unknown as {
+            _retrieveLocalStream: () => Promise<MediaStream>;
+          },
+          '_retrieveLocalStream'
+        )
+        .mockRejectedValueOnce(mediaError)
+        .mockResolvedValueOnce(recoveredStream);
+      const hangupSpy = jest.spyOn(call, 'hangup').mockResolvedValue(undefined);
+      const errorHandler = jest.fn((event) => {
+        if (event.recoverable) {
+          event.resume();
+        }
+      });
+
+      register(SwEvent.Error, errorHandler, session.uuid);
+
+      await call.invite();
+
+      expect(errorHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          callId: call.id,
+          recoverable: true,
+          resume: expect.any(Function),
+          reject: expect.any(Function),
+        })
+      );
+      expect(retrieveLocalStreamSpy).toHaveBeenCalledTimes(2);
+      expect(session.options.mediaPermissionsRecovery.onSuccess).toHaveBeenCalled();
+      expect(session.options.mediaPermissionsRecovery.onError).not.toHaveBeenCalled();
+      expect(call.options.localStream).toBe(recoveredStream);
+      expect(hangupSpy).not.toHaveBeenCalled();
+
+      deRegister(SwEvent.Error, undefined, session.uuid);
+    });
+
     it('answer() should call hangup and not proceed with negotiation when media fails', async () => {
       jest
         .spyOn(

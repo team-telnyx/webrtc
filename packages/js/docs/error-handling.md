@@ -81,7 +81,7 @@ type ITelnyxErrorEvent =
   | ITelnyxMediaRecoveryErrorEvent;
 ```
 
-`recoverable: true` is used only for inbound media-permission recovery when `mediaPermissionsRecovery.enabled` is configured and the initial `getUserMedia()` attempt fails while answering a call.
+`recoverable: true` is used for media-permission/device recovery when `mediaPermissionsRecovery.enabled` is configured and the initial `getUserMedia()` attempt fails while creating local media for an inbound or outbound call.
 
 ### Basic example
 
@@ -603,4 +603,4 @@ The SDK still exposes low-level RTC events, but new integrations should prefer `
 3. Keep `telnyx.notification` for `callUpdate` and any compatibility notifications you still depend on.
 4. Treat `telnyx.ready` as the only readiness signal.
 5. Prefer `TELNYX_ERROR_CODES` and `TELNYX_WARNING_CODES` over hard-coded numeric literals.
-6. If you support inbound permission recovery, enable `mediaPermissionsRecovery` and handle `isMediaRecoveryErrorEvent(event)`.
+6. If you support media permission/device recovery, enable `mediaPermissionsRecovery` and handle `isMediaRecoveryErrorEvent(event)`.
