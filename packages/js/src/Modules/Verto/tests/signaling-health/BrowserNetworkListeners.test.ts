@@ -2,18 +2,19 @@
  * Tests for SignalingHealthMonitor browser network connectivity event handling.
  *
  * Verifies that browser `online` / `offline` events are owned by the
- * SignalingHealthMonitor and treated as low-confidence secondary evidence:
+ * SignalingHealthMonitor and treated as purely diagnostic hints with NO
+ * side effects that can lead to recovery:
  *
  * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
- *   backward compatibility/telemetry and may accelerate a signaling health
- *   probe when the monitor is running with an active call and signaling
- *   health is already stale/unknown;
+ *   backward compatibility/telemetry and records `_browserWasOffline` state,
+ *   but does NOT initiate or accelerate any signaling health probe;
  * - browser `online` clears the browser-reported offline state for diagnostics
  *   but does NOT trigger any recovery action;
- * - neither browser event directly calls `socketDisconnect()`, forces
- *   `_autoReconnect`, or triggers ICE restart;
- * - recovery starts only from the signaling health monitor after SDK-owned
- *   health evidence proves the signaling path is unhealthy;
+ * - neither browser event directly or indirectly triggers recovery — no
+ *   probe initiation, no `socketDisconnect()`, no forced `_autoReconnect`,
+ *   no ICE restart;
+ * - recovery starts only from SDK-owned health evidence (periodic liveness
+ *   check probe timeout, request timeout, peer failure, no-RTP);
  * - listener registration/removal is deterministic and events after cleanup
  *   do not reach the monitor.
  */
@@ -130,34 +131,37 @@ describe('SignalingHealthMonitor – browser offline event', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('offline handler may accelerate a probe when monitor is running with active call and signaling is stale', () => {
-    // When the monitor is running with an active call and signaling health is
-    // already stale/unknown (no recent WS activity), the browser offline hint
-    // may accelerate a signaling health probe via _probeIfNeeded().
+  it('does NOT initiate or accelerate a signaling health probe on offline', () => {
+    // Browser offline must be a purely diagnostic hint — it must NOT call
+    // _probeIfNeeded() or connection.send() under any circumstances, because
+    // a browser-triggered probe that times out would indirectly cause
+    // recovery (socketDisconnect). Recovery must originate exclusively from
+    // SDK-owned signals, never from browser connectivity events.
     //
-    // This test verifies the conditional logic:
-    // - monitor is running → true
-    // - has active call → true
-    // - signaling health is 'unknown' → we simulate this by NOT calling
-    //   onSocketActivity() after start(), so _lastInboundAt stays at the
-    //   start time. After a real delay, silence exceeds
-    //   RECENT_ACTIVITY_THRESHOLD_MS and health becomes 'unknown'.
-    //
-    // Note: The actual probe send depends on real time passing (>3s silence).
-    // We verify the offline handler does NOT call socketDisconnect even when
-    // it might accelerate a probe — recovery is only triggered after the
-    // probe times out (SDK-owned signal), not from the browser event itself.
+    // This is true regardless of monitor running state, active call presence,
+    // or signaling health state. The periodic _check() will independently
+    // detect WS silence and probe if needed.
     offlineHandler!();
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('does NOT probe when monitor is running but signaling is healthy (recent activity)', () => {
+  it('does NOT probe when monitor is running with an active call and signaling is healthy (recent activity)', () => {
     // Simulate recent WS activity → signaling is healthy
     monitor.onSocketActivity();
 
     offlineHandler!();
 
-    // No probe should be sent — signaling appears healthy
+    // No probe should be sent — browser offline never probes regardless of state
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
+  });
+
+  it('does NOT probe when monitor is running with an active call and signaling is unknown (stale)', () => {
+    // Do NOT call onSocketActivity() after start(), so _lastInboundAt is
+    // from start() and will be stale. Signaling health is 'unknown'.
+    // Browser offline must still NOT probe — hints have no side effects.
+    offlineHandler!();
+
     expect(mockSession.connection.send).not.toHaveBeenCalled();
   });
 
@@ -267,21 +271,20 @@ describe('SignalingHealthMonitor – recovery invariant with browser events', ()
     captured.removeSpy.mockRestore();
   });
 
-  it('browser offline does NOT directly trigger recovery — recovery requires SDK-owned probe timeout', () => {
-    // The browser offline hint may accelerate a probe, but recovery (socket
-    // disconnect) is only triggered after the probe times out — an SDK-owned
-    // health signal. Calling the offline handler alone must NOT trigger
-    // socketDisconnect.
+  it('browser offline does NOT directly or indirectly trigger recovery — diagnostic hint only', () => {
+    // Browser offline is a purely diagnostic hint. It must NOT initiate or
+    // accelerate a probe, because a browser-triggered probe that times out
+    // would indirectly cause recovery (socketDisconnect). Recovery must
+    // originate exclusively from SDK-owned signals.
     monitor.start();
 
     const offlineHandler = captured.handlers.offline[0];
     offlineHandler!();
 
-    // The browser offline event must not directly trigger recovery.
-    // If a probe is accelerated, recovery only happens after the probe
-    // times out (driven by the monitor's periodic _check()), not from
-    // the browser event itself.
+    // The browser offline event must not directly trigger recovery
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    // And must not initiate a probe (which could indirectly trigger recovery)
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
   });
 
   it('signaling recovery still works via request timeout without browser events', () => {

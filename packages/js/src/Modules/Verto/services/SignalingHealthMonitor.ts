@@ -314,18 +314,20 @@ export default class SignalingHealthMonitor {
    * Register browser `online` / `offline` event listeners on `window`.
    *
    * The monitor is the single owner of browser connectivity event handling.
-   * These listeners are low-confidence secondary evidence:
+   * These listeners are low-confidence diagnostic hints only — they must NOT
+   * have side effects that can lead to recovery:
+   *
    * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
-   *   backward compatibility/telemetry and may accelerate a signaling health
-   *   probe when the monitor is active with an active call and signaling
-   *   health is already stale/unknown;
+   *   backward compatibility/telemetry and records `_browserWasOffline` state.
+   *   It does NOT accelerate or initiate a signaling health probe.
    * - browser `online` clears the browser-reported offline state for diagnostics
    *   but does NOT trigger any recovery action.
    *
-   * Neither browser event directly calls `socketDisconnect()`, forces
-   * `_autoReconnect`, or triggers ICE restart. Recovery starts only from
-   * SDK-owned health evidence (probe timeout, request timeout, peer failure,
-   * no-RTP).
+   * Neither browser event directly or indirectly triggers recovery. Recovery
+   * starts only from SDK-owned health evidence (probe timeout via periodic
+   * liveness check, request timeout, peer failure, no-RTP). If a browser
+   * offline event is followed by actual signaling degradation, the periodic
+   * `_check()` will detect the silence and probe independently.
    *
    * Idempotent: if listeners are already registered, this is a no-op.
    */
@@ -359,20 +361,13 @@ export default class SignalingHealthMonitor {
         this._session.uuid
       );
 
-      // Browser offline may accelerate a signaling health probe when the
-      // monitor is running with an active call and signaling health is already
-      // stale/unknown. This does NOT directly trigger recovery — if the probe
-      // succeeds, nothing happens. If it times out, recovery is triggered by
-      // the SDK-owned probe-timeout signal, not by the browser event.
-      if (
-        this.isRunning &&
-        this._session.hasActiveCall() &&
-        this._getSignalingHealthState() === 'unknown'
-      ) {
-        this._probeIfNeeded(
-          'browser offline hint — accelerating signaling health probe'
-        );
-      }
+      // IMPORTANT: Browser offline is a diagnostic hint only. It must NOT
+      // initiate or accelerate a signaling health probe, because a
+      // browser-triggered probe that times out would indirectly cause
+      // recovery (socketDisconnect). Recovery must originate exclusively
+      // from SDK-owned signals: the periodic liveness check detecting
+      // WS silence, request timeouts, peer failures, or no-RTP — never
+      // from browser connectivity events.
     };
 
     window.addEventListener('online', this._onlineHandler);
