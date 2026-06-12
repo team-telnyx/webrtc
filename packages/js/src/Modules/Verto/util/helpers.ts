@@ -191,3 +191,26 @@ export const debounce = (func: Function, wait: number) => {
     }, wait);
   };
 };
+
+/**
+ * Normalize the `maxTimeoutForReconnectionMs` option.
+ *
+ * - `undefined` / `null` → null (unlimited, preserves current behavior)
+ * - Non-finite values (`NaN`, `Infinity`, `-Infinity`) → null (unlimited)
+ * - Negative values → clamped to 0 (immediate abort on reconnection start)
+ * - Decimal values → floored to the nearest integer
+ * - Finite non-negative numbers → the floored integer
+ */
+export function normalizeMaxTimeoutForReconnectionMs(
+  value?: number | null
+): number | null {
+  if (value === undefined || value === null) {
+    return null; // unlimited
+  }
+
+  if (!Number.isFinite(value)) {
+    return null; // unlimited, deterministic fallback
+  }
+
+  return Math.max(0, Math.floor(value));
+}

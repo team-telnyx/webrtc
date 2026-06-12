@@ -5,8 +5,9 @@ import {
   SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
+  ACTIVE_CALL_RECONNECTION_TIMEOUT,
 } from '../util/constants/errorCodes';
-import { createTelnyxWarning } from '../util/errors';
+import { createTelnyxWarning, createTelnyxError } from '../util/errors';
 import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import type {
@@ -80,6 +81,14 @@ export default class SignalingHealthMonitor {
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
+  /** Reconnection timeout handle, set when signaling recovery starts and
+   *  maxTimeoutForReconnectionMs is configured. Cleared on successful
+   *  reconnection, monitor stop, or timeout expiry. */
+  private _reconnectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /** The callId being recovered when the reconnection timeout is active. */
+  private _reconnectionCallId: string | null = null;
+
   /**
    * Verto method names that are critical for call control and
    * signaling liveness. Timeouts on these methods indicate the
@@ -126,6 +135,7 @@ export default class SignalingHealthMonitor {
       this._lastProbeSentAt = 0;
     }
     this._pendingMediaRecovery = null;
+    this._clearReconnectionTimeout();
     logger.debug('Signaling health: monitor stopped');
   }
 
@@ -142,6 +152,18 @@ export default class SignalingHealthMonitor {
    */
   get isProbeInFlight(): boolean {
     return this._probeInFlight;
+  }
+
+  /**
+   * Called when active-call reconnection succeeds (e.g. on reattach
+   * after socket reconnect). Clears the reconnection timeout if one
+   * was started, so the timeout does not fire after recovery.
+   */
+  onReconnectionSucceeded(): void {
+    if (this._reconnectionTimeoutId !== null) {
+      logger.debug('Signaling health: reconnection succeeded, clearing reconnection timeout');
+      this._clearReconnectionTimeout();
+    }
   }
 
   /**
@@ -450,6 +472,7 @@ export default class SignalingHealthMonitor {
    * 2. Emits a SIGNALING_RECOVERY_REQUIRED warning.
    * 3. Force-closes the socket to trigger the existing onNetworkClose
    *    reconnect path.
+   * 4. Starts the reconnection timeout if maxTimeoutForReconnectionMs is set.
    *
    * @param reason Human-readable reason for diagnostics.
    * @param source What triggered the reconnect.
@@ -487,6 +510,9 @@ export default class SignalingHealthMonitor {
       );
       this._session.socketDisconnect();
     }
+
+    // Start reconnection timeout if configured
+    this._startReconnectionTimeout();
   }
 
   /**
@@ -532,5 +558,99 @@ export default class SignalingHealthMonitor {
       },
       this._session.uuid
     );
+  }
+
+  // ── Reconnection timeout ──────────────────────────────────────────
+
+  /**
+   * Start the reconnection timeout if maxTimeoutForReconnectionMs is
+   * configured. If the option is null (unlimited), this is a no-op.
+   *
+   * The timeout starts when signaling recovery is triggered. If
+   * reconnection does not succeed before the timeout expires, the
+   * call is terminated with an ACTIVE_CALL_RECONNECTION_TIMEOUT error.
+   */
+  private _startReconnectionTimeout(): void {
+    const timeoutMs = this._session.maxTimeoutForReconnectionMs;
+
+    if (timeoutMs === null) {
+      return; // unlimited
+    }
+
+    this._clearReconnectionTimeout();
+
+    // Find the active call ID to track which call is being recovered.
+    // If there are multiple active calls, the timeout covers the
+    // entire reconnection attempt — all calls are at risk.
+    const callId = this._findActiveCallId();
+    this._reconnectionCallId = callId;
+
+    logger.info(
+      `Signaling health: starting reconnection timeout of ${timeoutMs}ms${callId ? ` for call ${callId}` : ''}`
+    );
+
+    this._reconnectionTimeoutId = setTimeout(() => {
+      this._onReconnectionTimeout(timeoutMs);
+    }, timeoutMs);
+  }
+
+  /**
+   * Clear the reconnection timeout. Called when reconnection succeeds,
+   * the monitor stops, or the timeout fires (to prevent double-fire).
+   */
+  private _clearReconnectionTimeout(): void {
+    if (this._reconnectionTimeoutId !== null) {
+      clearTimeout(this._reconnectionTimeoutId);
+      this._reconnectionTimeoutId = null;
+      this._reconnectionCallId = null;
+    }
+  }
+
+  /**
+   * Called when the reconnection timeout expires. Emits an error event
+   * and terminates the affected call(s).
+   */
+  private _onReconnectionTimeout(timeoutMs: number): void {
+    this._reconnectionTimeoutId = null;
+    const callId = this._reconnectionCallId;
+    this._reconnectionCallId = null;
+
+    logger.warn(
+      `Signaling health: reconnection timeout of ${timeoutMs}ms expired${callId ? ` for call ${callId}` : ''} — aborting recovery`
+    );
+
+    const telnyxError = createTelnyxError(ACTIVE_CALL_RECONNECTION_TIMEOUT);
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        callId: callId ?? undefined,
+        sessionId: this._session.sessionid,
+      },
+      this._session.uuid
+    );
+
+    if (callId) {
+      this._session.terminateCallOnReconnectionTimeout(callId, timeoutMs);
+    }
+  }
+
+  /**
+   * Find the first active call ID. Used to associate the reconnection
+   * timeout with a specific call for diagnostics and termination.
+   */
+  private _findActiveCallId(): string | null {
+    // The session's hasActiveCall() returns boolean but doesn't tell
+    // us which call. Access the calls object via the session to find
+    // an active call. We use a simple heuristic: the first call in
+    // the calls map that the session considers active.
+    const session = this._session as any;
+    if (session.calls && typeof session.calls === 'object') {
+      const callIds = Object.keys(session.calls);
+      if (callIds.length > 0) {
+        return callIds[0];
+      }
+    }
+    return null;
   }
 }

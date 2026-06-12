@@ -1106,3 +1106,181 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 });
+
+// ─── Reconnection Timeout (maxTimeoutForReconnectionMs) ──────────────────
+
+describe('SignalingHealthMonitor – Reconnection timeout', () => {
+  let connection: Connection;
+  let mockSession: any;
+  let monitor: SignalingHealthMonitor;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    mockSession = makeMockSession();
+    mockSession.hasActiveCall = jest.fn(() => true);
+    mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
+    mockSession.socketDisconnect = jest.fn();
+    mockSession.terminateCallOnReconnectionTimeout = jest.fn();
+    // Default: no reconnection timeout (unlimited)
+    mockSession.maxTimeoutForReconnectionMs = null;
+    // Set up calls map for _findActiveCallId
+    mockSession.calls = { 'call-1': { id: 'call-1' } };
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+    monitor = new SignalingHealthMonitor(mockSession);
+  });
+
+  afterEach(() => {
+    monitor.stop();
+    jest.useRealTimers();
+  });
+
+  it('does not start reconnection timeout when maxTimeoutForReconnectionMs is null (unlimited)', () => {
+    mockSession.maxTimeoutForReconnectionMs = null;
+    mockSession.connection = connection;
+
+    // Simulate socket disconnect to trigger signaling recovery
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // No timeout should be pending
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+  });
+
+  it('starts reconnection timeout when maxTimeoutForReconnectionMs is set and signaling recovery triggers', () => {
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Socket is down + peer failure → signaling recovery → reconnection timeout starts
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Timeout has not fired yet
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+
+    // Advance time past the timeout
+    jest.advanceTimersByTime(5001);
+
+    // Timeout should have fired and called terminateCallOnReconnectionTimeout
+    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
+      'call-1',
+      5000
+    );
+  });
+
+  it('clears reconnection timeout when onReconnectionSucceeded is called', () => {
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Simulate successful reconnection before timeout
+    monitor.onReconnectionSucceeded();
+
+    // Advance time past the timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+  });
+
+  it('clears reconnection timeout when monitor stops', () => {
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Stop the monitor (e.g., on disconnect)
+    monitor.stop();
+
+    // Advance time past the timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+  });
+
+  it('emits ACTIVE_CALL_RECONNECTION_TIMEOUT error when timeout fires', () => {
+    mockSession.maxTimeoutForReconnectionMs = 3000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    jest.advanceTimersByTime(3001);
+
+    // trigger should have been called with the error event
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 45005,
+        }),
+        callId: 'call-1',
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('does not fire reconnection timeout for ICE restart (signaling healthy)', () => {
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Socket is open + peer failure → ICE restart, NOT signaling recovery
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    // Advance time — no reconnection timeout should fire because
+    // ICE restart does not involve signaling recovery
+    jest.advanceTimersByTime(5001);
+
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+  });
+});
+
+// ─── normalizeMaxTimeoutForReconnectionMs ──────────────────────────────────
+
+describe('normalizeMaxTimeoutForReconnectionMs', () => {
+  const { normalizeMaxTimeoutForReconnectionMs } = jest.requireActual(
+    '../../util/helpers'
+  );
+
+  it('returns null for undefined', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(undefined)).toBeNull();
+  });
+
+  it('returns null for null', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(null)).toBeNull();
+  });
+
+  it('returns null for Infinity', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(Infinity)).toBeNull();
+  });
+
+  it('returns null for NaN', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(NaN)).toBeNull();
+  });
+
+  it('returns 0 for 0', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(0)).toBe(0);
+  });
+
+  it('floors and returns positive integers', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(5000)).toBe(5000);
+  });
+
+  it('floors fractional values', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(5000.9)).toBe(5000);
+  });
+
+  it('clamps negative values to 0', () => {
+    expect(normalizeMaxTimeoutForReconnectionMs(-100)).toBe(0);
+  });
+});
