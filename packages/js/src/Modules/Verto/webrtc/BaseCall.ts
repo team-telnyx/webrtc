@@ -1185,6 +1185,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this._isRecovering) {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
+          this.session.notifyReconnectionSucceeded();
         }
 
         // Start signaling health monitor for active calls

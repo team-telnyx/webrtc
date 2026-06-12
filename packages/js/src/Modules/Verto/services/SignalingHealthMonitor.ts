@@ -5,8 +5,9 @@ import {
   SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
+  ACTIVE_CALL_RECONNECTION_TIMEOUT,
 } from '../util/constants/errorCodes';
-import { createTelnyxWarning } from '../util/errors';
+import { createTelnyxWarning, createTelnyxError } from '../util/errors';
 import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import type {
@@ -14,7 +15,7 @@ import type {
   PeerFailureEvidence,
 } from '../util/interfaces/SignalingHealth';
 import { Ping } from '../messages/verto/Ping';
-import { VertoMethod } from '../webrtc/constants';
+import { VertoMethod, State } from '../webrtc/constants';
 
 /**
  * Threshold (ms) of WS silence during an active call before a health
@@ -80,6 +81,17 @@ export default class SignalingHealthMonitor {
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
+  /** Reconnection timeout handle, set when signaling recovery starts and
+   *  maxTimeoutForReconnectionMs is configured. Cleared on successful
+   *  reconnection, full disconnect, or timeout expiry.
+   *  IMPORTANT: This timer survives stop() during reconnect — it must outlive
+   *  the expected socket-close lifecycle that stop() is called from. */
+  private _reconnectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /** True when signaling recovery (socket reconnect + reattach) is in progress.
+   *  Prevents stop() from clearing the reconnection timeout. */
+  private _isReconnecting: boolean = false;
+
   /**
    * Verto method names that are critical for call control and
    * signaling liveness. Timeouts on these methods indicate the
@@ -116,7 +128,18 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Stop the monitor. Clears all timers and resets state.
+   * Stop the monitor. Clears periodic check timers and resets probe state.
+   *
+   * The reconnection timeout is intentionally NOT cleared here when a
+   * reconnection is in progress. In the real recovery flow, `stop()` is
+   * called from `onNetworkClose()` after `socketDisconnect()` — the very
+   * close event that recovery triggered. Clearing the timeout at that point
+   * would make it impossible for the timeout to ever fire.
+   *
+   * The reconnection timeout is cleared by:
+   * - `onReconnectionSucceeded()` (recovery completed)
+   * - `forceStop()` (full disconnect / teardown)
+   * - `_onReconnectionTimeout()` (timeout expired)
    */
   stop(): void {
     if (this._intervalId) {
@@ -126,7 +149,23 @@ export default class SignalingHealthMonitor {
       this._lastProbeSentAt = 0;
     }
     this._pendingMediaRecovery = null;
+    // Do NOT clear reconnection timeout during reconnect — it must survive
+    // the expected socket-close lifecycle. Only clear if not reconnecting.
+    if (!this._isReconnecting) {
+      this._clearReconnectionTimeout();
+    }
     logger.debug('Signaling health: monitor stopped');
+  }
+
+  /**
+   * Force-stop the monitor including the reconnection timeout.
+   * Called on full session disconnect or teardown (not during reconnect).
+   */
+  forceStop(): void {
+    this._isReconnecting = false;
+    this.stop();
+    // Ensure reconnection timeout is cleared even if we were reconnecting
+    this._clearReconnectionTimeout();
   }
 
   /**
@@ -142,6 +181,19 @@ export default class SignalingHealthMonitor {
    */
   get isProbeInFlight(): boolean {
     return this._probeInFlight;
+  }
+
+  /**
+   * Called when active-call reconnection succeeds (e.g. on reattach
+   * after socket reconnect). Clears the reconnection timeout if one
+   * was started, so the timeout does not fire after recovery.
+   */
+  onReconnectionSucceeded(): void {
+    this._isReconnecting = false;
+    if (this._reconnectionTimeoutId !== null) {
+      logger.debug('Signaling health: reconnection succeeded, clearing reconnection timeout');
+      this._clearReconnectionTimeout();
+    }
   }
 
   /**
@@ -450,6 +502,7 @@ export default class SignalingHealthMonitor {
    * 2. Emits a SIGNALING_RECOVERY_REQUIRED warning.
    * 3. Force-closes the socket to trigger the existing onNetworkClose
    *    reconnect path.
+   * 4. Starts the reconnection timeout if maxTimeoutForReconnectionMs is set.
    *
    * @param reason Human-readable reason for diagnostics.
    * @param source What triggered the reconnect.
@@ -461,6 +514,7 @@ export default class SignalingHealthMonitor {
     this._pendingMediaRecovery = null;
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
+    this._isReconnecting = true;
 
     // Emit the appropriate warning code based on what triggered recovery.
     // For probe/request sources, use the specific existing warning codes.
@@ -487,6 +541,9 @@ export default class SignalingHealthMonitor {
       );
       this._session.socketDisconnect();
     }
+
+    // Start reconnection timeout if configured
+    this._startReconnectionTimeout();
   }
 
   /**
@@ -532,5 +589,106 @@ export default class SignalingHealthMonitor {
       },
       this._session.uuid
     );
+  }
+
+  // ── Reconnection timeout ──────────────────────────────────────────
+
+  /**
+   * Start the reconnection timeout if maxTimeoutForReconnectionMs is
+   * configured. If the option is null (unlimited), this is a no-op.
+   *
+   * The timeout starts when signaling recovery is triggered. If
+   * reconnection does not succeed before the timeout expires, all
+   * active calls are terminated with an ACTIVE_CALL_RECONNECTION_TIMEOUT
+   * error.
+   */
+  private _startReconnectionTimeout(): void {
+    const timeoutMs = this._session.maxTimeoutForReconnectionMs;
+
+    if (timeoutMs === null) {
+      return; // unlimited
+    }
+
+    this._clearReconnectionTimeout();
+
+    const callIds = this._findActiveCallIds();
+
+    logger.info(
+      `Signaling health: starting reconnection timeout of ${timeoutMs}ms${callIds.length > 0 ? ` for calls [${callIds.join(', ')}]` : ''}`
+    );
+
+    this._reconnectionTimeoutId = setTimeout(() => {
+      this._onReconnectionTimeout(timeoutMs);
+    }, timeoutMs);
+  }
+
+  /**
+   * Clear the reconnection timeout. Called when reconnection succeeds,
+   * force-stop, or the timeout fires (to prevent double-fire).
+   */
+  private _clearReconnectionTimeout(): void {
+    if (this._reconnectionTimeoutId !== null) {
+      clearTimeout(this._reconnectionTimeoutId);
+      this._reconnectionTimeoutId = null;
+    }
+  }
+
+  /**
+   * Called when the reconnection timeout expires. Emits an error event
+   * and terminates all active calls. When signaling recovery fails,
+   * all active calls are at risk — not just the one that triggered
+   * recovery — so all are terminated deterministically.
+   */
+  private _onReconnectionTimeout(timeoutMs: number): void {
+    this._reconnectionTimeoutId = null;
+    this._isReconnecting = false;
+
+    const callIds = this._findActiveCallIds();
+
+    logger.warn(
+      `Signaling health: reconnection timeout of ${timeoutMs}ms expired${callIds.length > 0 ? ` for calls [${callIds.join(', ')}]` : ''} — aborting recovery`
+    );
+
+    const telnyxError = createTelnyxError(ACTIVE_CALL_RECONNECTION_TIMEOUT);
+    trigger(
+      SwEvent.Error,
+      {
+        error: telnyxError,
+        callIds,
+        sessionId: this._session.sessionid,
+      },
+      this._session.uuid
+    );
+
+    for (const callId of callIds) {
+      this._session.terminateCallOnReconnectionTimeout(callId, timeoutMs);
+    }
+  }
+
+  /**
+   * Find all active call IDs using the same state criteria as
+   * hasActiveCall() (State.Early, State.Active, State.Held).
+   * Returns an empty array if no active calls exist.
+   *
+   * This ensures the reconnection timeout terminates the correct set
+   * of calls rather than an arbitrary first entry from the calls map.
+   */
+  private _findActiveCallIds(): string[] {
+    const session = this._session as any;
+    if (!session.calls || typeof session.calls !== 'object') {
+      return [];
+    }
+    const activeStates = new Set<number>([
+      State.Early,
+      State.Active,
+      State.Held,
+    ]);
+    const result: string[] = [];
+    for (const [id, call] of Object.entries(session.calls)) {
+      if (call && (call as any)._state != null && activeStates.has((call as any)._state)) {
+        result.push(id);
+      }
+    }
+    return result;
   }
 }

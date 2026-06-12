@@ -227,6 +227,24 @@ export const SDK_ERRORS = {
     ],
   },
 
+  45005: {
+    name: 'ACTIVE_CALL_RECONNECTION_TIMEOUT',
+    message: 'Active call reconnection timed out',
+    description:
+      'The active call reconnection attempt exceeded the configured maxTimeoutForReconnectionMs duration. The SDK aborted recovery and terminated the call. This only fires when the application explicitly sets maxTimeoutForReconnectionMs; by default, reconnection has no time limit.',
+    causes: [
+      'Network outage lasting longer than the configured reconnection timeout',
+      'Server unreachable during the reconnection window',
+      'maxTimeoutForReconnectionMs set too low for the network conditions',
+    ],
+    solutions: [
+      'Increase maxTimeoutForReconnectionMs if the timeout is too aggressive',
+      'Set maxTimeoutForReconnectionMs to undefined for unlimited reconnection time',
+      'Check network connectivity',
+      'Notify the user that the call was lost',
+    ],
+  },
+
   // ── Authentication errors (460xx) ───────────────────────────────────
   46001: {
     name: 'LOGIN_FAILED',
