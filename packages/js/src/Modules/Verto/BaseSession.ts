@@ -975,7 +975,7 @@ export default abstract class BaseSession {
   public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
-    this.stopSignalingHealthMonitor();
+    this.forceStopSignalingHealthMonitor();
     if (this.connection) {
       this.connection.close();
     }
@@ -1047,11 +1047,21 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Stop the signaling health monitor. Called when no active calls remain
-   * or on disconnect.
+   * Stop the signaling health monitor. Called from onNetworkClose()
+   * when the socket drops. Uses stop() which preserves the reconnection
+   * timeout during an active reconnect attempt.
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Force-stop the signaling health monitor including the reconnection
+   * timeout. Called on full session disconnect/teardown where no
+   * reconnect is expected.
+   */
+  forceStopSignalingHealthMonitor(): void {
+    this._signalingHealthMonitor.forceStop();
   }
 
   /**
@@ -1169,15 +1179,19 @@ export default abstract class BaseSession {
   ): void {
     const calls = (
       this as unknown as {
-        calls?: Record<string, { hangup?: (opts?: unknown, skipBye?: boolean) => void }>;
+        calls?: Record<string, { hangup?: (opts?: unknown, hangupExecute?: boolean) => void }>;
       }
     ).calls;
     const call = calls?.[callId];
     if (call?.hangup) {
       logger.info(
-        `Terminating call ${callId} due to reconnection timeout`
+        `Terminating call ${callId} due to reconnection timeout (skipping BYE — socket may be down)`
       );
-      call.hangup({ initiator: 'sdk:reconnection-timeout' }, true);
+      // Pass false for hangupExecute to skip sending BYE — during a
+      // reconnection timeout the socket is expected to be down/unhealthy,
+      // so attempting a BYE would wait on the send timeout instead of
+      // terminating locally.
+      call.hangup({ initiator: 'sdk:reconnection-timeout' }, false);
     } else {
       logger.warn(
         `Reconnection timeout: cannot terminate call ${callId} — call not found or no hangup method`
