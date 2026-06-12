@@ -28,4 +28,17 @@ export interface ISignalingHealthSession {
    * signaling is healthy.
    */
   triggerIceRestart(callId: string): TriggerIceRestartResult;
+  /**
+   * Normalized maxTimeoutForReconnectionMs option.
+   * Null means unlimited (no reconnection timeout).
+   * A positive number means the reconnection must complete within
+   * that many milliseconds or the call is terminated.
+   */
+  readonly maxTimeoutForReconnectionMs: number | null;
+  /**
+   * Terminate an active call that failed to recover within the
+   * reconnection timeout. Called by the health monitor when the
+   * maxTimeoutForReconnectionMs timer expires.
+   */
+  terminateCallOnReconnectionTimeout(callId: string, timeoutMs: number): void;
 }

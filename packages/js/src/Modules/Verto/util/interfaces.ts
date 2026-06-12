@@ -114,6 +114,15 @@ export interface IVertoOptions {
   skipLastVoiceSdkId?: boolean;
 
   /**
+   * Maximum time, in milliseconds, that an active-call reconnection attempt
+   * may take before the SDK aborts recovery and terminates the call.
+   * If omitted or null, reconnection is unlimited.
+   *
+   * @see IClientOptions.maxTimeoutForReconnectionMs
+   */
+  maxTimeoutForReconnectionMs?: number | null;
+
+  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and

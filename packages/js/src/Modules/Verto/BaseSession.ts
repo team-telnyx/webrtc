@@ -36,6 +36,7 @@ import {
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
   randomInt,
+  normalizeMaxTimeoutForReconnectionMs,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -1144,6 +1145,53 @@ export default abstract class BaseSession {
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
+  }
+
+  /**
+   * Normalized maxTimeoutForReconnectionMs option.
+   * Returns null (unlimited) when the option is omitted or non-finite,
+   * a non-negative integer otherwise.
+   */
+  get maxTimeoutForReconnectionMs(): number | null {
+    return normalizeMaxTimeoutForReconnectionMs(
+      this.options.maxTimeoutForReconnectionMs
+    );
+  }
+
+  /**
+   * Terminate an active call that failed to recover within the
+   * reconnection timeout. Called by the health monitor when the
+   * maxTimeoutForReconnectionMs timer expires.
+   */
+  terminateCallOnReconnectionTimeout(
+    callId: string,
+    _timeoutMs: number
+  ): void {
+    const calls = (
+      this as unknown as {
+        calls?: Record<string, { hangup?: (opts?: unknown, skipBye?: boolean) => void }>;
+      }
+    ).calls;
+    const call = calls?.[callId];
+    if (call?.hangup) {
+      logger.info(
+        `Terminating call ${callId} due to reconnection timeout`
+      );
+      call.hangup({ initiator: 'sdk:reconnection-timeout' }, true);
+    } else {
+      logger.warn(
+        `Reconnection timeout: cannot terminate call ${callId} — call not found or no hangup method`
+      );
+    }
+  }
+
+  /**
+   * Called when active-call reconnection succeeds (e.g. on reattach
+   * after socket reconnect). Clears the reconnection timeout in the
+   * health monitor so it does not fire after recovery.
+   */
+  notifyReconnectionSucceeded(): void {
+    this._signalingHealthMonitor.onReconnectionSucceeded();
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

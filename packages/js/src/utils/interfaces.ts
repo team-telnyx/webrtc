@@ -287,6 +287,25 @@ export interface IClientOptions {
    * });
    * ```
    */
+  /**
+   * Maximum time, in milliseconds, that an active-call reconnection attempt
+   * may take before the SDK aborts recovery and terminates the call. If
+   * omitted, reconnection is unlimited and the SDK will not terminate the
+   * call due to reconnection duration.
+   *
+   * The timer starts when the Health Monitor triggers signaling recovery
+   * (socket reconnect + reattach) for an active call. It clears when
+   * reconnection succeeds, the call ends, or the monitor stops.
+   *
+   * Edge-value handling:
+   * - `undefined` / omitted → unlimited (preserves current behavior)
+   * - `0` → immediate abort once reconnection starts
+   * - Negative values → clamped to `0` (immediate abort)
+   * - Decimal values → floored to the nearest integer
+   * - `NaN` / `Infinity` → treated as unlimited
+   */
+  maxTimeoutForReconnectionMs?: number;
+
   mediaPermissionsRecovery?: {
     /** Enable the recovery flow. */
     enabled: boolean;
