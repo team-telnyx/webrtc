@@ -581,6 +581,14 @@ export default class Peer {
       disableAudioTracks(this.options.localStream);
     }
 
+    // Apply the call's durable desired mute state to the new tracks.
+    // This covers both the mutedMicOnStart case and any mute/unmute
+    // changes that happened before Peer creation (e.g. reattach after
+    // a previous call was muted).
+    if (this.options.applyDesiredAudioMuteState) {
+      this.options.applyDesiredAudioMuteState();
+    }
+
     performance.mark(callMarkName(this.options.id, 'peer-creation-end'));
   }
 

@@ -118,10 +118,15 @@ class VertoHandler {
       return this._handlePvtEvent(params.pvtData);
     }
 
-    const _buildCall = (
-      recoveredCallId?: string,
-      forceRelayCandidateForRecovery?: boolean
-    ) => {
+    const _buildCall = ({
+      recoveredCallId,
+      forceRelayCandidateForRecovery,
+      mutedMicOnStart,
+    }: {
+      recoveredCallId?: string;
+      forceRelayCandidateForRecovery?: boolean;
+      mutedMicOnStart?: boolean;
+    } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
         // So far, if SIP configuration supports video, then we will always get video section in SDP.
@@ -145,6 +150,7 @@ class VertoHandler {
           false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
+        mutedMicOnStart: mutedMicOnStart ?? session.options.mutedMicOnStart,
       };
 
       if (callID) {
@@ -242,7 +248,7 @@ class VertoHandler {
           logger.warn(
             `[${new Date().toISOString()}][${callID}] Attach: SDK doens't have any active call therefore we recover first arrived attach session ${callID}`
           );
-          const call = _buildCall(callID);
+          const call = _buildCall({ recoveredCallId: callID });
           call.answer();
           this._ack(id, method);
           break;
@@ -269,10 +275,11 @@ class VertoHandler {
             false
           );
 
-          const call = _buildCall(
+          const call = _buildCall({
             recoveredCallId,
-            forceRelayCandidateForRecovery
-          );
+            forceRelayCandidateForRecovery,
+            mutedMicOnStart: matchedCall.isAudioMuted,
+          });
           call.answer();
           this._ack(id, method);
           break;

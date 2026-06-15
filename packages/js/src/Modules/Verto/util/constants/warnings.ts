@@ -367,6 +367,22 @@ export const SDK_WARNINGS = {
       'Verify TURN server configuration',
     ],
   },
+  33009: {
+    name: 'AUDIO_INPUT_DEVICE_CHANGE_SKIPPED',
+    message: 'Audio input device change skipped',
+    description:
+      'The SDK could not change the microphone because the active peer connection has no audio RTP sender to replace. The existing local media and mute state were left unchanged.',
+    causes: [
+      'The call was created without an audio sender',
+      'The peer connection was not ready when setAudioInDevice was called',
+      'The call is already ending or the local media sender was removed',
+    ],
+    solutions: [
+      'Retry after the call is active and local media is attached',
+      'Verify the call was started with audio enabled',
+      'Inspect call state and peer connection sender availability',
+    ],
+  },
 
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35002: {

@@ -176,6 +176,32 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
     });
 
+    it('should preserve the matched call mute state when recovering from an existing call', async () => {
+      await instance.connect();
+      const callId = 'muted-recovery-call-id';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      call.muteAudio();
+      expect(call.isAudioMuted).toBe(true);
+
+      // Mock answer to prevent actual WebRTC peer creation
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4410,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      expect(newCall.options.mutedMicOnStart).toBe(true);
+      expect(newCall.isAudioMuted).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
     it('should not force relay on the first recovered call even when the previous call reports a VPN media-path stall', async () => {
       await instance.connect();
       const callId = 'e2fda6dc-fc9d-4d77-8096-53bb502443b6';

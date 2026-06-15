@@ -88,6 +88,14 @@ export interface IVertoCallOptions {
   keepConnectionAliveOnSocketClose?: boolean;
   mutedMicOnStart?: boolean;
   /**
+   * Internal callback invoked by Peer after the local stream is set up
+   * (initial creation, reattach, device switch). Applies the call-level
+   * desired audio mute state to the new tracks so mute survives across
+   * track replacements.
+   * @internal
+   */
+  applyDesiredAudioMuteState?: () => void;
+  /**
    * The call ID of the previous call that this call is recovering from.
    * Set automatically during reattachment/recovery when a new call object
    * replaces an existing one (e.g. after network reconnection).
