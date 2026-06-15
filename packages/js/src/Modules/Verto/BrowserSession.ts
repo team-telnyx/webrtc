@@ -69,8 +69,28 @@ export default abstract class BrowserSession extends BaseSession {
     this.ringbackFile = options.ringbackFile;
   }
 
+  /**
+   * Reconnect delay with exponential backoff and jitter.
+   *
+   * BrowserSession uses the same backoff algorithm as BaseSession,
+   * driven by the _reconnectAttempts counter. The fixed 1000ms delay
+   * has been replaced to avoid exhausting the reconnect budget too
+   * quickly during likely-offline / fast-fail scenarios.
+   *
+   * The backoff is reset only on confirmed healthy registration (REGED),
+   * not merely on socket open.
+   */
   get reconnectDelay() {
-    return 1000;
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS = 30000;
+    const attempt = this._reconnectAttempts;
+    const delayMs = Math.min(
+      BASE_DELAY_MS * Math.pow(2, attempt - 1),
+      MAX_DELAY_MS
+    );
+    // Add ±25% jitter to avoid thundering herd
+    const jitterMs = Math.floor(delayMs * 0.25 * (Math.random() * 2 - 1));
+    return delayMs + jitterMs;
   }
 
   async getIsRegistered(): Promise<boolean> {

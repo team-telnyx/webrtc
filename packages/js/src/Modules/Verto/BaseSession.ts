@@ -35,7 +35,6 @@ import {
   isFunction,
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
-  randomInt,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -93,6 +92,12 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
+  /**
+   * Socket generation that was current when the last reconnect attempt was
+   * counted. Used to dedupe SocketError + SocketClose for the same socket
+   * failure — browsers commonly emit both events for one physical disconnect.
+   */
+  private _reconnectCountedGeneration: number = -1;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -149,8 +154,26 @@ export default abstract class BaseSession {
     return this.registerAgent.getIsRegistered();
   }
 
+  /**
+   * Reconnect delay with exponential backoff and jitter.
+   *
+   * Uses the current `_reconnectAttempts` counter to compute the delay:
+   * - Attempt 1: base 1s + jitter
+   * - Attempt 2: ~2s + jitter
+   * - Attempt 3: ~4s + jitter
+   * - ... capped at 30s
+   *
+   * The backoff is reset only on confirmed healthy registration (REGED),
+   * not merely on socket open.
+   */
   get reconnectDelay() {
-    return randomInt(2, 6) * 1000;
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS = 30000;
+    const attempt = this._reconnectAttempts;
+    const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt - 1), MAX_DELAY_MS);
+    // Add ±25% jitter to avoid thundering herd
+    const jitterMs = Math.floor(delayMs * 0.25 * (Math.random() * 2 - 1));
+    return delayMs + jitterMs;
   }
 
   /**
@@ -457,6 +480,7 @@ export default abstract class BaseSession {
    */
   public resetReconnectAttempts(): void {
     this._reconnectAttempts = 0;
+    this._reconnectCountedGeneration = -1;
   }
 
   /**
@@ -833,7 +857,19 @@ export default abstract class BaseSession {
     if (this._autoReconnect) {
       const maxAttempts = this.options.maxReconnectAttempts ?? 10;
 
-      this._reconnectAttempts += 1;
+      // Dedupe SocketError + SocketClose for the same socket failure.
+      // Browsers commonly emit both events for one physical disconnect.
+      // Only count the first event per socket generation.
+      const currentGeneration = this.connection?.socketGeneration ?? 0;
+      if (currentGeneration !== this._reconnectCountedGeneration) {
+        this._reconnectCountedGeneration = currentGeneration;
+        this._reconnectAttempts += 1;
+      } else {
+        logger.debug(
+          `Skipping duplicate reconnect count for socket generation ${currentGeneration} ` +
+          `(attempt ${this._reconnectAttempts})`
+        );
+      }
 
       if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
         logger.info(
