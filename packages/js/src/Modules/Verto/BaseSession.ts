@@ -828,6 +828,7 @@ export default abstract class BaseSession {
     reason?: string;
     wasClean?: boolean;
     error?: unknown;
+    socketGeneration?: number;
   }): void {
     this._flushIntermediateCallReports(
       this._createSocketCloseFlushReason(event)
@@ -859,14 +860,17 @@ export default abstract class BaseSession {
 
       // Dedupe SocketError + SocketClose for the same socket failure.
       // Browsers commonly emit both events for one physical disconnect.
-      // Only count the first event per socket generation.
-      const currentGeneration = this.connection?.socketGeneration ?? 0;
-      if (currentGeneration !== this._reconnectCountedGeneration) {
-        this._reconnectCountedGeneration = currentGeneration;
+      // Use the generation from the event (captured at dispatch time in
+      // Connection.ts) instead of this.connection.socketGeneration, which
+      // may have already been incremented by a reconnect that ran between
+      // the event being dispatched and this handler being called.
+      const eventGeneration = event?.socketGeneration ?? this.connection?.socketGeneration ?? 0;
+      if (eventGeneration !== this._reconnectCountedGeneration) {
+        this._reconnectCountedGeneration = eventGeneration;
         this._reconnectAttempts += 1;
       } else {
         logger.debug(
-          `Skipping duplicate reconnect count for socket generation ${currentGeneration} ` +
+          `Skipping duplicate reconnect count for socket generation ${eventGeneration} ` +
           `(attempt ${this._reconnectAttempts})`
         );
       }

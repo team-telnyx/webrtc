@@ -326,12 +326,22 @@ export default class Connection {
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'close');
-      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+      // Capture generation at close time to avoid race: a reconnect may
+      // increment socketGeneration before this handler runs, causing
+      // onNetworkClose to read the wrong generation.
+      const closedGeneration = this.socketGeneration;
+      const enriched = Object.assign({}, event, {
+        socketGeneration: closedGeneration,
+      });
+      return trigger(SwEvent.SocketClose, enriched, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
+
+      // Capture generation at error time to avoid race (same as onclose above)
+      const errorGeneration = this.socketGeneration;
 
       // Emit structured error alongside the legacy SocketError
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);
@@ -343,7 +353,11 @@ export default class Connection {
 
       return trigger(
         SwEvent.SocketError,
-        { error: event, sessionId: this.session.sessionid },
+        {
+          error: event,
+          sessionId: this.session.sessionid,
+          socketGeneration: errorGeneration,
+        },
         this.session.uuid
       );
     };
@@ -445,6 +459,7 @@ export default class Connection {
           reason:
             'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
+          socketGeneration: this.socketGeneration,
         },
         this.session.uuid
       );

@@ -32,20 +32,20 @@ class TestSession extends BaseSession {
 
 /**
  * Helper: simulate a socket failure cycle.
- * Each call to onNetworkClose() with a new socket generation
- * increments the reconnect attempt counter.
- * Calling with the same generation (SocketError + SocketClose for
- * the same socket) is deduped and does NOT increment.
+ * Passes the socketGeneration in the event payload (matching how
+ * Connection.ts dispatches SocketClose/SocketError events) so that
+ * onNetworkClose uses the generation of the socket that actually
+ * closed, not the current connection state.
  */
 function simulateSocketFailure(session: any, generation?: number) {
   if (generation !== undefined) {
-    session.connection.socketGeneration = generation;
+    session.onNetworkClose({ socketGeneration: generation });
   } else {
     // Auto-increment generation to simulate a new socket cycle
-    session.connection.socketGeneration =
-      (session.connection.socketGeneration || 0) + 1;
+    const gen = (session.connection.socketGeneration || 0) + 1;
+    session.connection.socketGeneration = gen;
+    session.onNetworkClose({ socketGeneration: gen });
   }
-  session.onNetworkClose();
 }
 
 describe('BaseSession - Reconnection Attempt Limit', () => {
@@ -213,12 +213,11 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.options.maxReconnectAttempts = 5;
 
       // Simulate SocketError for socket generation 1
-      session.connection.socketGeneration = 1;
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1);
 
       // SocketClose for the same socket generation — should be deduped
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1); // still 1, not 2
     });
 
@@ -226,17 +225,15 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.options.maxReconnectAttempts = 5;
 
       // First socket (generation 1) closes
-      session.connection.socketGeneration = 1;
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1);
 
       // Same socket, SocketClose — deduped
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1);
 
       // New socket (generation 2) created and also closes
-      session.connection.socketGeneration = 2;
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 2 });
       expect(session._reconnectAttempts).toBe(2);
     });
 
@@ -245,31 +242,62 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
 
       // Each real reconnect attempt has SocketError + SocketClose
       // Generation 1: two events, counted as 1
-      session.connection.socketGeneration = 1;
-      session.onNetworkClose();
-      session.onNetworkClose(); // deduped
+      session.onNetworkClose({ socketGeneration: 1 });
+      session.onNetworkClose({ socketGeneration: 1 }); // deduped
       expect(session._reconnectAttempts).toBe(1);
 
       // Generation 2: two events, counted as 1
       jest.runAllTimers();
-      session.connection.socketGeneration = 2;
-      session.onNetworkClose();
-      session.onNetworkClose(); // deduped
+      session.onNetworkClose({ socketGeneration: 2 });
+      session.onNetworkClose({ socketGeneration: 2 }); // deduped
       expect(session._reconnectAttempts).toBe(2);
 
       // Generation 3: two events, counted as 1
       jest.runAllTimers();
-      session.connection.socketGeneration = 3;
-      session.onNetworkClose();
-      session.onNetworkClose(); // deduped
+      session.onNetworkClose({ socketGeneration: 3 });
+      session.onNetworkClose({ socketGeneration: 3 }); // deduped
       expect(session._reconnectAttempts).toBe(3);
       expect(session._autoReconnect).toBe(true); // still within limit
 
       // Generation 4 exceeds limit
       jest.runAllTimers();
-      session.connection.socketGeneration = 4;
-      session.onNetworkClose();
+      session.onNetworkClose({ socketGeneration: 4 });
       expect(session._autoReconnect).toBe(false);
+    });
+
+    it('should not double-count when stale close from generation N arrives after reconnect creates generation N+1', () => {
+      // This is the race condition: Connection.ts captures socketGeneration
+      // at event-dispatch time and passes it in the event payload, so
+      // onNetworkClose uses the generation of the socket that actually
+      // closed — not the current connection.socketGeneration (which may
+      // have already been incremented by a reconnect).
+      session.options.maxReconnectAttempts = 5;
+
+      // Socket of generation 1 has an error (SocketError)
+      // Connection.ts captures socketGeneration=1 at dispatch time
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._reconnectAttempts).toBe(1);
+
+      // Reconnect creates generation 2 — connection.socketGeneration is now 2
+      session.connection.socketGeneration = 2;
+
+      // Old socket's onclose fires late (SocketClose for generation 1).
+      // The event carries socketGeneration=1 because Connection.ts captured
+      // it at dispatch time, even though this.connection.socketGeneration
+      // is now 2. This should be deduped, not counted as attempt 2.
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._reconnectAttempts).toBe(1); // deduped, not 2
+
+      // Now generation 2 actually fails — should be counted
+      session.onNetworkClose({ socketGeneration: 2 });
+      expect(session._reconnectAttempts).toBe(2);
+
+      // Reconnect creates generation 3
+      session.connection.socketGeneration = 3;
+
+      // Stale close from generation 2 arrives — should be deduped
+      session.onNetworkClose({ socketGeneration: 2 });
+      expect(session._reconnectAttempts).toBe(2); // still 2, not 3
     });
   });
 
@@ -404,14 +432,13 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     });
 
     it('should reset the dedup generation tracker', () => {
-      session.connection.socketGeneration = 5;
-      session.onNetworkClose(); // counted
+      session.onNetworkClose({ socketGeneration: 5 }); // counted
       expect(session._reconnectAttempts).toBe(1);
 
       session.resetReconnectAttempts();
       expect(session._reconnectAttempts).toBe(0);
       // Generation tracker is reset, so same generation can be counted again
-      session.onNetworkClose(); // now counted because tracker was reset
+      session.onNetworkClose({ socketGeneration: 5 }); // now counted because tracker was reset
       expect(session._reconnectAttempts).toBe(1);
     });
   });

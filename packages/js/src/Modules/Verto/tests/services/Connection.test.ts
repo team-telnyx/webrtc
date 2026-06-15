@@ -254,6 +254,7 @@ describe('Connection - Safety Timeout', () => {
           reason:
             'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
+          socketGeneration: expect.any(Number),
         },
         mockSession.uuid
       );
@@ -383,7 +384,12 @@ describe('Connection - Safety Timeout', () => {
 
       expect(trigger).toHaveBeenCalledWith(
         SwEvent.SocketClose,
-        closeEvent,
+        expect.objectContaining({
+          code: 1000,
+          reason: 'normal',
+          wasClean: true,
+          socketGeneration: expect.any(Number),
+        }),
         mockSession.uuid
       );
     });
@@ -417,10 +423,11 @@ describe('Connection - Safety Timeout', () => {
 
       expect(trigger).toHaveBeenCalledWith(
         SwEvent.SocketError,
-        {
+        expect.objectContaining({
           error: errorEvent,
           sessionId: mockSession.sessionid,
-        },
+          socketGeneration: expect.any(Number),
+        }),
         mockSession.uuid
       );
     });
