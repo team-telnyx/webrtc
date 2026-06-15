@@ -55,6 +55,7 @@
 <a href="IClientOptions.html#rtcIp" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>rtc<wbr/>Ip?</span></a>
 <a href="IClientOptions.html#rtcPort" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>rtc<wbr/>Port?</span></a>
 <a href="IClientOptions.html#skipLastVoiceSdkId" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>skip<wbr/>Last<wbr/>Voice<wbr/>Sdk<wbr/>Id?</span></a>
+<a href="IClientOptions.html#skipTrailing" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>skip<wbr/>Trailing?</span></a>
 <a href="IClientOptions.html#trickleIce" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>trickle<wbr/>Ice?</span></a>
 <a href="IClientOptions.html#useCanaryRtcServer" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>use<wbr/>Canary<wbr/>Rtc<wbr/>Server?</span></a>
 </div></section></div></details></section></section>
@@ -330,6 +331,22 @@ caused by stale state on a specific b2bua-rtc node.</p>
 <h4>Default</h4><pre><code class="language-ts"><span class="hl-0">false</span>
 </code><button>Copy</button></pre>
 </div></section>
+<section class="tsd-panel tsd-member"><a id="skipTrailing" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>skip<wbr/>Trailing</span><a href="#skipTrailing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">skip<wbr/>Trailing</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>When set to <code>true</code>, appends <code>skip_trailing=true</code> to the VSP WebSocket
+URL so VSP skips pre-routing identity resolution (telephony-tokens
+validation and UsersClass trailing checks) for this connection.</p>
+<p>This is intended for internal/test-infra usage (e.g. BBT-generated
+credentials) where the connection should not participate in trailing
+release routing. The actual login still goes to the upstream RTC
+service for normal authentication — this only skips VSP&#39;s pre-routing
+lookup used for trailing target selection.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-0">false</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="trickleIce" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>trickle<wbr/>Ice</span><a href="#trickleIce" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">trickle<wbr/>Ice</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
@@ -382,6 +399,7 @@ caused by stale state on a specific b2bua-rtc node.</p>
 <li><a href="#rtcIp" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>rtc<wbr/>Ip</span></a></li>
 <li><a href="#rtcPort" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>rtc<wbr/>Port</span></a></li>
 <li><a href="#skipLastVoiceSdkId" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>skip<wbr/>Last<wbr/>Voice<wbr/>Sdk<wbr/>Id</span></a></li>
+<li><a href="#skipTrailing" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>skip<wbr/>Trailing</span></a></li>
 <li><a href="#trickleIce" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>trickle<wbr/>Ice</span></a></li>
 <li><a href="#useCanaryRtcServer" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>use<wbr/>Canary<wbr/>Rtc<wbr/>Server</span></a></li></ul></div></details></div>
 <div class="site-menu">
