@@ -830,6 +830,29 @@ export default abstract class BaseSession {
     error?: unknown;
     socketGeneration?: number;
   }): void {
+    // ── Stale event guard ───────────────────────────────────────────────
+    // If a newer socket generation exists, this close/error event belongs
+    // to an old socket that has already been replaced. Running cleanup
+    // here would tear down the replacement socket's state (flush its call
+    // reports, deregister its subscriptions, stop its health monitor,
+    // clear its timers, and schedule a redundant reconnect). Return early
+    // to protect the current generation.
+    //
+    // Race scenario this prevents:
+    //   1. Gen-N SocketError fires → onNetworkClose runs cleanup, schedules reconnect
+    //   2. Reconnect creates gen-N+1, health monitor starts
+    //   3. Gen-N SocketClose arrives late → without this guard, cleanup would
+    //      tear down gen-N+1's state before the generation check runs
+    const currentGeneration = this.connection?.socketGeneration ?? 0;
+    const eventGeneration = event?.socketGeneration ?? currentGeneration;
+    if (eventGeneration < currentGeneration) {
+      logger.debug(
+        `Skipping stale onNetworkClose for socket generation ${eventGeneration} ` +
+        `(current generation is ${currentGeneration})`
+      );
+      return;
+    }
+
     this._flushIntermediateCallReports(
       this._createSocketCloseFlushReason(event)
     );
@@ -864,7 +887,6 @@ export default abstract class BaseSession {
       // Connection.ts) instead of this.connection.socketGeneration, which
       // may have already been incremented by a reconnect that ran between
       // the event being dispatched and this handler being called.
-      const eventGeneration = event?.socketGeneration ?? this.connection?.socketGeneration ?? 0;
       if (eventGeneration !== this._reconnectCountedGeneration) {
         this._reconnectCountedGeneration = eventGeneration;
         this._reconnectAttempts += 1;

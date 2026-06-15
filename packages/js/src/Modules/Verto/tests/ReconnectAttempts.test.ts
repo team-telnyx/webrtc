@@ -299,6 +299,58 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.onNetworkClose({ socketGeneration: 2 });
       expect(session._reconnectAttempts).toBe(2); // still 2, not 3
     });
+
+    it('should skip cleanup entirely when stale close from generation N arrives after reconnect creates generation N+1', () => {
+      // Regression test: before the stale event guard, onNetworkClose would
+      // run all destructive cleanup (flush reports, deregister subscriptions,
+      // clear timers, stop health monitor) BEFORE checking the event
+      // generation. A stale close from gen N arriving after gen N+1 was
+      // established would tear down the replacement's state.
+      session.options.maxReconnectAttempts = 5;
+
+      // Gen 1 socket error — runs cleanup normally
+      const stopMonitorSpy = jest.spyOn(session, 'stopSignalingHealthMonitor');
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._reconnectAttempts).toBe(1);
+      expect(stopMonitorSpy).toHaveBeenCalledTimes(1);
+      stopMonitorSpy.mockClear();
+
+      // Reconnect creates gen 2 — simulate the replacement session
+      session.connection.socketGeneration = 2;
+      // Simulate the new session having active state that must not be cleared
+      session.subscriptions = { test: { channel: 'events' } };
+
+      // Stale close from gen 1 arrives — should be completely skipped
+      session.onNetworkClose({ socketGeneration: 1 });
+      // Cleanup must NOT have run: monitor not stopped, subscriptions intact
+      expect(stopMonitorSpy).not.toHaveBeenCalled();
+      expect(session.subscriptions).toEqual({ test: { channel: 'events' } });
+      // Reconnect attempts should remain unchanged (not counted, not reset)
+      expect(session._reconnectAttempts).toBe(1);
+
+      // Fresh gen 2 close should still work normally
+      session.onNetworkClose({ socketGeneration: 2 });
+      expect(stopMonitorSpy).toHaveBeenCalledTimes(1);
+      expect(session._reconnectAttempts).toBe(2);
+    });
+
+    it('should allow same-generation duplicate events to pass through for cleanup', () => {
+      // When SocketError (gen 1) and SocketClose (gen 1) both arrive
+      // before any reconnect happens, both events have the same generation
+      // as the current connection. The stale guard should NOT block them
+      // — both should run cleanup. The dedupe counter prevents double-
+      // counting the reconnect attempt.
+      session.options.maxReconnectAttempts = 5;
+
+      // First event for gen 1 — runs cleanup
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._reconnectAttempts).toBe(1);
+
+      // Second event for gen 1 (same generation, still current) —
+      // should also run cleanup (idempotent), but not double-count
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._reconnectAttempts).toBe(1); // deduped
+    });
   });
 
   describe('reconnect backoff', () => {
