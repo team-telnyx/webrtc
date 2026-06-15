@@ -8,6 +8,7 @@ import { Result } from '../messages/Verto';
 import {
   SwEvent,
   SESSION_NOT_REATTACHED,
+  UNKNOWN_REATTACHED_SESSION,
   LOGIN_FAILED,
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
@@ -72,21 +73,45 @@ class VertoHandler {
 
     const existingCall = session.calls[callID];
     const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
+    const activeCallsIDs = new Set(Object.keys(session.calls));
 
-    // W8: Session not reattached warning
-    // If the server sends reattached_sessions as an empty array and the SDK
-    // has active calls, the session was not reattached after reconnection.
-    if (
-      Array.isArray(params?.reattached_sessions) &&
-      params.reattached_sessions.length === 0 &&
-      Object.keys(session.calls).length > 0
-    ) {
-      const warning = createTelnyxWarning(SESSION_NOT_REATTACHED);
-      trigger(
-        SwEvent.Warning,
-        { warning, sessionId: session.sessionid },
-        session.uuid
+    // ── Reattach session handling ────────────────────────────────────────
+    // When the server sends an empty reattached_sessions array while the SDK has active calls or
+    // reattached_sessions array doesn't have at least one of active calls,
+    // the session was not reattached after reconnection.
+    // Clean up active calls locally (no BYE — the server
+    // no longer knows about them) and emit a error.
+    //
+    // If reattached_sessions and active calls don't match any confitions above, recovery is driven entirely
+    // by incoming Attach messages (which match by callID).
+    if (Array.isArray(params?.reattached_sessions) && activeCallsIDs.size) {
+      logger.debug(
+        `Reattach: active call IDs before cleanup check: [${Array.from(activeCallsIDs).join(', ')}].`
       );
+
+      const isReattachedEmpty = params.reattached_sessions.length === 0;
+      const isReattachedHasSdkKnownCalls = params.reattached_sessions.some(
+        (reattachedID: string) => activeCallsIDs.has(reattachedID)
+      );
+
+      if (isReattachedEmpty || !isReattachedHasSdkKnownCalls) {
+        for (const callId of Object.keys(session.calls)) {
+          const call = session.calls[callId];
+          logger.debug(
+            `Session not reattached — terminating active call ${callId} `
+          );
+
+          const error = createTelnyxError(SESSION_NOT_REATTACHED);
+          trigger(
+            SwEvent.Error,
+            { error, callId, sessionId: session.sessionid },
+            session.uuid
+          );
+
+          // Local cleanup only — do not send BYE because the server no longer has the session.
+          void call.hangup({}, false);
+        }
+      }
     }
 
     if (eventType === 'channelPvtData') {
@@ -121,7 +146,8 @@ class VertoHandler {
           false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
-        mutedMicOnStart: mutedMicOnStartFromRecovery ?? session.options.mutedMicOnStart,
+        mutedMicOnStart:
+          mutedMicOnStartFromRecovery ?? session.options.mutedMicOnStart,
       };
 
       if (callID) {
@@ -212,47 +238,63 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        /**
-         * If there is no existing call, we need to create a new call.
-         * Really rare situation, since we don't have such call, that would be new Call goes through all the call lifecycle.
-         */
-        if (!existingCall) {
-          const call = _buildCall();
+        const matchedCall = existingCall || null;
+
+        if (Object.keys(session.calls).length === 0) {
+          // SDK doesn't have any active calls in cache, so we will recover first arrived. Normal situation for this is page reload/refresh/close-open.
+          logger.warn(
+            `[${new Date().toISOString()}][${callID}] Attach: SDK doens't have any active call therefore we recover first arrived attach session ${callID}`
+          );
+          const call = _buildCall(callID);
           call.answer();
           this._ack(id, method);
-          return;
+          break;
         }
 
-        const recoveredCallId = existingCall.id;
-        const forceRelayCandidateForRecovery =
-          existingCall.shouldForceRelayCandidateForRecovery?.() ?? false;
-        // Preserve the desired mute state from the original call so
-        // the reattached call doesn't accidentally un-mute the mic.
-        const recoveredMutedMicOnStart = existingCall.isAudioMuted;
+        if (matchedCall) {
+          // ── We have matching call by callID — recover it
+          const recoveredCallId = matchedCall.id;
+          const forceRelayCandidateForRecovery =
+            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
-        if (forceRelayCandidateForRecovery) {
-          logger.warn(
-            `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+          if (forceRelayCandidateForRecovery) {
+            logger.warn(
+              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+            );
+          }
+
+          logger.info(
+            `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
           );
+
+          void matchedCall.hangup(
+            { isRecovering: true, initiator: 'sdk:attach-recovery' },
+            false
+          );
+
+          const call = _buildCall(
+            recoveredCallId,
+            forceRelayCandidateForRecovery
+          );
+          call.answer();
+          this._ack(id, method);
+          break;
         }
 
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] closing existing call on ATTACH.`
-        );
-        void existingCall.hangup(
-          { isRecovering: true, initiator: 'sdk:attach-recovery' },
-          false
+        logger.warn(
+          `Attach: callID ${callID} does not match any active calls. `
         );
 
-        logger.info(
-          `[${new Date().toISOString()}][${callID}] Attach: Creating new call for recovery (recoveredCallId: ${recoveredCallId})`
+        trigger(
+          SwEvent.Warning,
+          {
+            warning: createTelnyxWarning(UNKNOWN_REATTACHED_SESSION),
+            callId: callID,
+            params,
+            sessionId: session.sessionid,
+          },
+          session.uuid
         );
-        const call = _buildCall(
-          recoveredCallId,
-          forceRelayCandidateForRecovery,
-          recoveredMutedMicOnStart
-        );
-        call.answer();
         this._ack(id, method);
         break;
       }
@@ -296,10 +338,10 @@ class VertoHandler {
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
               if (
-                session.connection.previousGatewayState !==
-                  GatewayStateType.REGED &&
-                session.connection.previousGatewayState !==
-                  GatewayStateType.REGISTER
+                !this.isDuplicateGatewayState(gateWayState, [
+                  GatewayStateType.REGED,
+                  GatewayStateType.REGISTER,
+                ])
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
@@ -379,12 +421,14 @@ class VertoHandler {
                 break;
               }
             case GatewayStateType.FAILED:
-            case GatewayStateType.FAIL_WAIT: {
+            case GatewayStateType.FAIL_WAIT:
+            case GatewayStateType.TIMEOUT: {
               if (
-                session.connection.previousGatewayState !==
-                  GatewayStateType.FAILED &&
-                session.connection.previousGatewayState !==
-                  GatewayStateType.FAIL_WAIT
+                !this.isDuplicateGatewayState(gateWayState, [
+                  GatewayStateType.FAILED,
+                  GatewayStateType.FAIL_WAIT,
+                  GatewayStateType.TIMEOUT,
+                ])
               ) {
                 // Emit gateway failure on first occurrence
                 const gatewayError = createTelnyxError(
@@ -400,11 +444,18 @@ class VertoHandler {
                   session.uuid
                 );
 
+                // Avoid sticky reconnect to the same b2bua-rtc target by
+                // requesting a different instance on the next connect().
+                session.options.skipLastVoiceSdkId = true;
+                logger.debug(
+                  `Set skipLastVoiceSdkId=true on session options to avoid sticky reconnect to same b2bua-rtc instance (sessionId=${session.sessionid})`
+                );
+
                 if (!this.session.hasAutoReconnect()) {
                   this.retriedConnect = 0;
                   const originalError = new ErrorResponse(
                     `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
-                    'FAILED|FAIL_WAIT'
+                    'FAILED|FAIL_WAIT|TIMEOUT'
                   );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
@@ -484,6 +535,31 @@ class VertoHandler {
         break;
       }
     }
+  }
+
+  /**
+   * Checks whether the previous gateway state matches any of the states in the
+   * given bucket (e.g. [FAILED, FAIL_WAIT, TIMEOUT] or [REGED, REGISTER]).
+   * Logs a debug message when a duplicate/overlapping state is detected so the
+   * guard condition is visible in session/call reports.
+   */
+  private isDuplicateGatewayState(
+    currentState: GatewayStateType,
+    states: GatewayStateType[]
+  ): boolean {
+    const { previousGatewayState } = this.session.connection;
+    const isDuplicate = states.includes(
+      previousGatewayState as GatewayStateType
+    );
+
+    if (isDuplicate) {
+      logger.debug(
+        `Gateway state '${currentState}' received but previous state was '${previousGatewayState}' — ` +
+          `guard condition met, skipping re-emission (sessionId=${this.session.sessionid})`
+      );
+    }
+
+    return isDuplicate;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -214,7 +214,7 @@ export const SDK_ERRORS = {
     name: 'GATEWAY_FAILED',
     message: 'Gateway connection failed',
     description:
-      'The upstream gateway reported a FAILED or FAIL_WAIT state. The signaling server could not establish or maintain a connection to the gateway. When autoReconnect is disabled, this is immediately fatal. When enabled, the SDK will retry until RECONNECTION_EXHAUSTED.',
+      'The upstream gateway reported a FAILED, FAIL_WAIT, or TIMEOUT state. The signaling server could not establish or maintain a connection to the gateway. When autoReconnect is disabled, this is immediately fatal. When enabled, the SDK will retry until RECONNECTION_EXHAUSTED.',
     causes: [
       'Gateway down or unreachable',
       'Server-side infrastructure issue',
@@ -314,6 +314,7 @@ export const SDK_ERRORS = {
       'Disable airplane mode',
     ],
   },
+
   // ── General / catch-all errors (490xx) ──────────────────────────────
   49001: {
     name: 'UNEXPECTED_ERROR',
@@ -324,6 +325,24 @@ export const SDK_ERRORS = {
     solutions: [
       'Check the originalError property for the underlying cause',
       'Report the issue if it persists',
+    ],
+  },
+
+  // ── Session errors (485xx) ───────────────────────────────────────────
+  48501: {
+    name: 'SESSION_NOT_REATTACHED',
+    message: 'Active call lost after reconnect',
+    description:
+      'The WebSocket reconnected successfully but the server did not reattach the active call session. The server no longer knows about the call, so any subsequent call-control operation (hangup, hold, etc.) will fail with CALL_DOES_NOT_EXIST. The call is unrecoverable and must be terminated locally.',
+    causes: [
+      'Server-side session expired during the disconnection window',
+      'Reconnect token was invalidated',
+      'Backend restarted or lost in-memory call state',
+    ],
+    solutions: [
+      'Terminate the local call and notify the user',
+      'Start a new call',
+      'Investigate why the session was not preserved on the server',
     ],
   },
 } as const;

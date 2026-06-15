@@ -132,6 +132,48 @@ describe('Connection - Safety Timeout', () => {
         }
       );
     });
+
+    it('includes skip_last_voice_sdk_id=true in WebSocket URL when skipLastVoiceSdkId is set and voice_sdk_id exists', () => {
+      (getReconnectToken as jest.Mock).mockReturnValue('stored-voice-sdk-id');
+      mockSession.options.skipLastVoiceSdkId = true;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient;
+      expect(ws).not.toBeNull();
+      const wsUrl = new URL(ws.url);
+      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe(
+        'stored-voice-sdk-id'
+      );
+      expect(wsUrl.searchParams.get('skip_last_voice_sdk_id')).toBe('true');
+    });
+
+    it('does not include skip_last_voice_sdk_id when skipLastVoiceSdkId is set but no voice_sdk_id exists', () => {
+      (getReconnectToken as jest.Mock).mockReturnValue(null);
+      mockSession.options.skipLastVoiceSdkId = true;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient;
+      expect(ws).not.toBeNull();
+      const wsUrl = new URL(ws.url);
+      expect(wsUrl.searchParams.has('voice_sdk_id')).toBe(false);
+      expect(wsUrl.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
+    });
+
+    it('does not include skip_last_voice_sdk_id when voice_sdk_id exists but skipLastVoiceSdkId is not set', () => {
+      (getReconnectToken as jest.Mock).mockReturnValue('stored-voice-sdk-id');
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient;
+      expect(ws).not.toBeNull();
+      const wsUrl = new URL(ws.url);
+      expect(wsUrl.searchParams.get('voice_sdk_id')).toBe(
+        'stored-voice-sdk-id'
+      );
+      expect(wsUrl.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
+    });
   });
 
   describe('close() method', () => {
@@ -544,6 +586,51 @@ describe('Connection - Safety Timeout', () => {
       // New socket should NOT be nulled
       expect((connection as any)._wsClient).toBe(newWs);
       expect((connection as any)._wsClient).not.toBeNull();
+    });
+  });
+
+  describe('skip_trailing query parameter', () => {
+    it('should append skip_trailing=true when skipTrailing option is set', () => {
+      mockSession.options.skipTrailing = true;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      expect(ws).not.toBeNull();
+      const url = new URL(ws.url);
+      expect(url.searchParams.get('skip_trailing')).toBe('true');
+    });
+
+    it('should NOT append skip_trailing when skipTrailing is false', () => {
+      mockSession.options.skipTrailing = false;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.has('skip_trailing')).toBe(false);
+    });
+
+    it('should NOT append skip_trailing when skipTrailing is not set', () => {
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.has('skip_trailing')).toBe(false);
+    });
+
+    it('should include skip_trailing alongside other query parameters', () => {
+      mockSession.options.skipTrailing = true;
+      mockSession.options.useCanaryRtcServer = true;
+
+      // Re-create connection since useCanaryRtcServer is read in constructor
+      connection = new Connection(mockSession);
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.get('skip_trailing')).toBe('true');
+      expect(url.searchParams.get('canary')).toBe('true');
     });
   });
 

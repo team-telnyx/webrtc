@@ -8,6 +8,7 @@ import {
   CallReportCollector,
   type ICallReportFlushReason,
 } from './CallReportCollector';
+import { MediaDeviceCollector } from './MediaDeviceCollector';
 import {
   Answer,
   Attach,
@@ -90,6 +91,7 @@ import {
   IWebRTCCall,
 } from './interfaces';
 const SDK_VERSION = pkg.version;
+const BYE_TIMEOUT_MS = 5000;
 
 /**
  * @ignore Hide in docs output
@@ -97,6 +99,7 @@ const SDK_VERSION = pkg.version;
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
   private _callReportCollector: CallReportCollector | null = null;
+  private _mediaDeviceCollector: MediaDeviceCollector | null = null;
 
   /**
    * The call identifier.
@@ -673,8 +676,23 @@ export default abstract class BaseCall implements IWebRTCCall {
         cause: this.cause,
         causeCode: this.causeCode,
       });
+      // Timeout guard: if the BYE execution hangs (e.g. socket stalled,
+      // server unresponsive), proceed to Destroy after 5s so the call is
+      // always cleaned up.
+      let byeTimeout: ReturnType<typeof setTimeout> | undefined;
+
       try {
-        await this._execute(bye);
+        await Promise.race([
+          this._execute(bye),
+          new Promise<void>((resolve) => {
+            byeTimeout = setTimeout(() => {
+              logger.warn(
+                `[${this.id}] BYE execution timed out after ${BYE_TIMEOUT_MS}ms — proceeding to destroy.`
+              );
+              resolve();
+            }, BYE_TIMEOUT_MS);
+          }),
+        ]);
       } catch (error) {
         logger.error('telnyx_rtc.bye failed!', error);
         const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
@@ -687,6 +705,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           },
           this.session.uuid
         );
+      } finally {
+        // Always clear the timeout — whether BYE resolved, rejected, or timed out
+        if (byeTimeout) {
+          clearTimeout(byeTimeout);
+        }
       }
     }
 
@@ -1309,6 +1332,10 @@ export default abstract class BaseCall implements IWebRTCCall {
         ) {
           this._callReportCollector.start(this.peer.instance);
         }
+
+        // Start logging media devices for debugging
+        this._mediaDeviceCollector = new MediaDeviceCollector();
+        this._mediaDeviceCollector.logDevicesAtStart();
         break;
       }
       case State.Destroy:
@@ -2464,6 +2491,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   protected _finalize() {
     this._stopStats();
+    this._mediaDeviceCollector?.stop();
+    this._mediaDeviceCollector = null;
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).
