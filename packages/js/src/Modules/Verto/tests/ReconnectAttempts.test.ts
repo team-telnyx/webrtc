@@ -334,22 +334,58 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       expect(session._reconnectAttempts).toBe(2);
     });
 
-    it('should allow same-generation duplicate events to pass through for cleanup', () => {
+    it('should skip same-generation duplicate events entirely to protect the reconnect timer', () => {
       // When SocketError (gen 1) and SocketClose (gen 1) both arrive
       // before any reconnect happens, both events have the same generation
-      // as the current connection. The stale guard should NOT block them
-      // — both should run cleanup. The dedupe counter prevents double-
-      // counting the reconnect attempt.
+      // as the current connection. The same-generation dedupe guard must
+      // block the second event BEFORE destructive cleanup runs — otherwise
+      // the duplicate would clear the already-scheduled reconnect timer
+      // and schedule a redundant one, potentially delaying active-call
+      // recovery.
       session.options.maxReconnectAttempts = 5;
 
-      // First event for gen 1 — runs cleanup
+      // First event for gen 1 — runs cleanup and schedules reconnect
+      const stopMonitorSpy = jest.spyOn(session, 'stopSignalingHealthMonitor');
       session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1);
+      expect(stopMonitorSpy).toHaveBeenCalledTimes(1);
+      stopMonitorSpy.mockClear();
+
+      // Capture the reconnect timeout scheduled by the first event
+      const firstTimeout = session._reconnectTimeout;
+      expect(firstTimeout).not.toBeNull();
 
       // Second event for gen 1 (same generation, still current) —
-      // should also run cleanup (idempotent), but not double-count
+      // should be completely skipped: no cleanup, no timer replacement
       session.onNetworkClose({ socketGeneration: 1 });
       expect(session._reconnectAttempts).toBe(1); // deduped
+      expect(stopMonitorSpy).not.toHaveBeenCalled(); // cleanup NOT re-run
+      expect(session._reconnectTimeout).toBe(firstTimeout); // timer NOT replaced
+    });
+
+    it('should preserve reconnect timer when late SocketClose arrives for same generation as SocketError', () => {
+      // Regression test for the exact scenario from PR review:
+      // Browsers commonly emit SocketError then SocketClose for one
+      // physical disconnect. Before the same-generation dedupe guard
+      // was moved before destructive cleanup, the SocketClose would
+      // clear the reconnect timer scheduled by the SocketError and
+      // schedule a new one, delaying active-call recovery.
+      session.options.maxReconnectAttempts = 5;
+
+      // SocketError fires first — schedules reconnect timer
+      session.onNetworkClose({ socketGeneration: 1, error: new Error('socket error') });
+      expect(session._reconnectAttempts).toBe(1);
+      const errorTimer = session._reconnectTimeout;
+      expect(errorTimer).not.toBeNull();
+
+      // SocketClose fires late for the same socket — must not replace the timer
+      session.onNetworkClose({ socketGeneration: 1, code: 1006, reason: 'abnormal' });
+      expect(session._reconnectAttempts).toBe(1); // still deduped
+      expect(session._reconnectTimeout).toBe(errorTimer); // original timer preserved
+
+      // The original reconnect timer should still fire and call connect()
+      jest.runAllTimers();
+      expect(mockConnection.connect).toHaveBeenCalledTimes(1);
     });
   });
 

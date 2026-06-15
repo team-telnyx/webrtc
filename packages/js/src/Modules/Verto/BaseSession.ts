@@ -93,9 +93,13 @@ export default abstract class BaseSession {
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
   /**
-   * Socket generation that was current when the last reconnect attempt was
-   * counted. Used to dedupe SocketError + SocketClose for the same socket
-   * failure — browsers commonly emit both events for one physical disconnect.
+   * Socket generation that has already been handled by onNetworkClose.
+   * Used to dedupe SocketError + SocketClose for the same socket failure —
+   * browsers commonly emit both events for one physical disconnect.
+   *
+   * The dedupe guard runs BEFORE destructive cleanup, so a duplicate
+   * SocketClose cannot clear the reconnect timer already scheduled by the
+   * first SocketError for the same generation.
    */
   private _reconnectCountedGeneration: number = -1;
 
@@ -853,6 +857,22 @@ export default abstract class BaseSession {
       return;
     }
 
+    // ── Same-generation dedupe guard ────────────────────────────────────
+    // When a socket fails, browsers commonly emit both SocketError and
+    // SocketClose for the same physical disconnect. Both events carry the
+    // same socketGeneration. The first event runs the full cleanup and
+    // schedules a reconnect timer. The second (duplicate) event must not
+    // re-run cleanup — in particular, it must not clear the already-
+    // scheduled reconnect timer (which would delay active-call recovery)
+    // or schedule a redundant reconnect.
+    if (eventGeneration === this._reconnectCountedGeneration) {
+      logger.debug(
+        `Skipping duplicate onNetworkClose for socket generation ${eventGeneration} ` +
+        `(already handled, reconnect attempt ${this._reconnectAttempts})`
+      );
+      return;
+    }
+
     this._flushIntermediateCallReports(
       this._createSocketCloseFlushReason(event)
     );
@@ -881,21 +901,12 @@ export default abstract class BaseSession {
     if (this._autoReconnect) {
       const maxAttempts = this.options.maxReconnectAttempts ?? 10;
 
-      // Dedupe SocketError + SocketClose for the same socket failure.
-      // Browsers commonly emit both events for one physical disconnect.
-      // Use the generation from the event (captured at dispatch time in
-      // Connection.ts) instead of this.connection.socketGeneration, which
-      // may have already been incremented by a reconnect that ran between
-      // the event being dispatched and this handler being called.
-      if (eventGeneration !== this._reconnectCountedGeneration) {
-        this._reconnectCountedGeneration = eventGeneration;
-        this._reconnectAttempts += 1;
-      } else {
-        logger.debug(
-          `Skipping duplicate reconnect count for socket generation ${eventGeneration} ` +
-          `(attempt ${this._reconnectAttempts})`
-        );
-      }
+      // Mark this generation as handled and increment the attempt counter.
+      // The early same-generation dedupe guard above ensures we only reach
+      // here for the first event of each generation, so no inline dedupe
+      // is needed.
+      this._reconnectCountedGeneration = eventGeneration;
+      this._reconnectAttempts += 1;
 
       if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
         logger.info(
