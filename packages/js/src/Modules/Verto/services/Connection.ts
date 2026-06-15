@@ -179,6 +179,14 @@ export default class Connection {
       websocketUrl.searchParams.set('skip_last_voice_sdk_id', 'true');
     }
 
+    // When skipTrailing is set, tell VSP to skip pre-routing identity
+    // resolution (telephony-tokens validation and UsersClass trailing
+    // checks) for this connection. Used by internal/test-infra (e.g. BBT)
+    // where the connection should not participate in trailing routing.
+    if (this.session.options.skipTrailing) {
+      websocketUrl.searchParams.set('skip_trailing', 'true');
+    }
+
     try {
       const previousSocketGeneration = this.socketGeneration;
       this._wsClient = new WebSocketClass(websocketUrl.toString());

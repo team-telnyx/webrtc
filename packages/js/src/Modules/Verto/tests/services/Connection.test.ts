@@ -589,6 +589,51 @@ describe('Connection - Safety Timeout', () => {
     });
   });
 
+  describe('skip_trailing query parameter', () => {
+    it('should append skip_trailing=true when skipTrailing option is set', () => {
+      mockSession.options.skipTrailing = true;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      expect(ws).not.toBeNull();
+      const url = new URL(ws.url);
+      expect(url.searchParams.get('skip_trailing')).toBe('true');
+    });
+
+    it('should NOT append skip_trailing when skipTrailing is false', () => {
+      mockSession.options.skipTrailing = false;
+
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.has('skip_trailing')).toBe(false);
+    });
+
+    it('should NOT append skip_trailing when skipTrailing is not set', () => {
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.has('skip_trailing')).toBe(false);
+    });
+
+    it('should include skip_trailing alongside other query parameters', () => {
+      mockSession.options.skipTrailing = true;
+      mockSession.options.useCanaryRtcServer = true;
+
+      // Re-create connection since useCanaryRtcServer is read in constructor
+      connection = new Connection(mockSession);
+      connection.connect();
+
+      const ws = (connection as any)._wsClient as MockWebSocket;
+      const url = new URL(ws.url);
+      expect(url.searchParams.get('skip_trailing')).toBe('true');
+      expect(url.searchParams.get('canary')).toBe('true');
+    });
+  });
+
   describe('State getters', () => {
     it('should correctly report connected state', async () => {
       connection.connect();
