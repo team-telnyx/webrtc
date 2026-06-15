@@ -130,14 +130,10 @@ export interface IVertoOptions {
 
   /**
    * Maximum time, in milliseconds, that an active-call reconnection attempt
-   * may take before the SDK emits a notification that recovery was not
-   * confirmed within the configured window. If omitted or null,
-   * reconnection is unlimited.
-   *
-   * On timeout, the SDK emits an `ACTIVE_CALL_RECONNECTION_TIMEOUT` error
-   * event with diagnostic context (callIds, timeoutMs, sessionId) but
-   * does NOT automatically hang up the call — the application decides
-   * whether to hang up, retry, or keep waiting.
+   * may take before the SDK emits a timeout notification. If omitted or
+   * null, reconnection is unlimited. The SDK does NOT automatically hang up
+   * the call on timeout — the application decides whether to hang up,
+   * retry, or keep waiting.
    *
    * @see IClientOptions.maxTimeoutForReconnectionMs
    */

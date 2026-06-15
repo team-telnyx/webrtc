@@ -336,7 +336,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.debug(
       `[${this.id}] Recovery confirmed: peer connection is connected`
     );
-    this.session.notifyReconnectionSucceeded();
+    this.session.notifyCallRecoverySucceeded(this.id);
   }
 
   /**

@@ -92,6 +92,14 @@ export default class SignalingHealthMonitor {
    *  Prevents stop() from clearing the reconnection timeout. */
   private _isReconnecting: boolean = false;
 
+  /** Call IDs that are pending media recovery confirmation.
+   *  When a call confirms media recovery (RTCPeerConnection reaches 'connected'),
+   *  it is removed from this set. The session-level reconnection timeout is only
+   *  cleared when this set becomes empty (all recovering calls have confirmed
+   *  media). This prevents a single call's recovery from prematurely clearing
+   *  the timeout while other calls are still recovering. */
+  private _pendingRecoveryCallIds: Set<string> = new Set();
+
   /**
    * Verto method names that are critical for call control and
    * signaling liveness. Timeouts on these methods indicate the
@@ -163,6 +171,7 @@ export default class SignalingHealthMonitor {
    */
   forceStop(): void {
     this._isReconnecting = false;
+    this._pendingRecoveryCallIds.clear();
     this.stop();
     // Ensure reconnection timeout is cleared even if we were reconnecting
     this._clearReconnectionTimeout();
@@ -184,12 +193,39 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Called when active-call reconnection succeeds (e.g. on reattach
-   * after socket reconnect). Clears the reconnection timeout if one
-   * was started, so the timeout does not fire after recovery.
+   * Called when a specific call confirms media recovery (RTCPeerConnection
+   * reaches 'connected'). Removes the call from the pending set. If all
+   * recovering calls have confirmed, clears the session-level reconnection
+   * timeout.
+   */
+  onCallRecoverySucceeded(callId: string): void {
+    if (!this._pendingRecoveryCallIds.has(callId)) {
+      // Not a tracked recovery call — ignore
+      return;
+    }
+
+    this._pendingRecoveryCallIds.delete(callId);
+    logger.debug(
+      `Signaling health: call ${callId} confirmed media recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
+    );
+
+    if (this._pendingRecoveryCallIds.size === 0) {
+      this._isReconnecting = false;
+      if (this._reconnectionTimeoutId !== null) {
+        logger.debug('Signaling health: all calls recovered, clearing reconnection timeout');
+        this._clearReconnectionTimeout();
+      }
+    }
+  }
+
+  /**
+   * Called when active-call reconnection succeeds (legacy path for
+   * callers that don't track per-call recovery). Clears the reconnection
+   * timeout and all pending recovery state.
    */
   onReconnectionSucceeded(): void {
     this._isReconnecting = false;
+    this._pendingRecoveryCallIds.clear();
     if (this._reconnectionTimeoutId !== null) {
       logger.debug('Signaling health: reconnection succeeded, clearing reconnection timeout');
       this._clearReconnectionTimeout();
@@ -516,6 +552,12 @@ export default class SignalingHealthMonitor {
     this._lastProbeSentAt = 0;
     this._isReconnecting = true;
 
+    // Track all active calls for per-call recovery confirmation.
+    // The session-level timeout is only cleared when every tracked
+    // call has confirmed media recovery.
+    const activeCallIds = this._findActiveCallIds();
+    this._pendingRecoveryCallIds = new Set(activeCallIds);
+
     // Emit the appropriate warning code based on what triggered recovery.
     // For probe/request sources, use the specific existing warning codes.
     // For peer_failure/no_rtp sources, use the new SIGNALING_RECOVERY_REQUIRED.
@@ -584,6 +626,9 @@ export default class SignalingHealthMonitor {
     // before the timeout, the application is notified so it can decide
     // whether to hang up or keep waiting.
     this._isReconnecting = true;
+    // Track only the specific call that triggered ICE restart (not all
+    // active calls — socket is healthy, only this call's media is recovering).
+    this._pendingRecoveryCallIds = new Set([callId]);
     this._startReconnectionTimeout();
 
     const warning = createTelnyxWarning(MEDIA_RECOVERY_REQUIRED);
@@ -658,7 +703,12 @@ export default class SignalingHealthMonitor {
     this._reconnectionTimeoutId = null;
     this._isReconnecting = false;
 
-    const callIds = this._findActiveCallIds();
+    // Use the tracked pending recovery call IDs rather than re-querying
+    // all active calls. This ensures the timeout notification only
+    // includes calls that never confirmed media recovery, not calls
+    // that were added after the timeout started or that already recovered.
+    const callIds = Array.from(this._pendingRecoveryCallIds);
+    this._pendingRecoveryCallIds.clear();
 
     logger.warn(
       `Signaling health: reconnection timeout of ${timeoutMs}ms expired${callIds.length > 0 ? ` for calls [${callIds.join(', ')}]` : ''} — notifying application`
@@ -689,8 +739,8 @@ export default class SignalingHealthMonitor {
    * of calls rather than an arbitrary first entry from the calls map.
    */
   private _findActiveCallIds(): string[] {
-    const session = this._session as any;
-    if (!session.calls || typeof session.calls !== 'object') {
+    const calls = this._session.calls;
+    if (!calls || typeof calls !== 'object') {
       return [];
     }
     const activeStates = new Set<number>([
@@ -699,7 +749,7 @@ export default class SignalingHealthMonitor {
       State.Held,
     ]);
     const result: string[] = [];
-    for (const [id, call] of Object.entries(session.calls)) {
+    for (const [id, call] of Object.entries(calls)) {
       if (call && (call as any)._state != null && activeStates.has((call as any)._state)) {
         result.push(id);
       }

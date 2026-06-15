@@ -1180,9 +1180,24 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Called when a specific call confirms media recovery (e.g. its
+   * RTCPeerConnection reaches 'connected' after reattach or ICE
+   * restart). Delegates to the health monitor for per-call tracking.
+   * The session-level reconnection timeout is only cleared when ALL
+   * tracked recovering calls have confirmed media recovery.
+   */
+  notifyCallRecoverySucceeded(callId: string): void {
+    this._signalingHealthMonitor.onCallRecoverySucceeded(callId);
+  }
+
+  /**
    * Called when active-call reconnection succeeds (e.g. on reattach
    * after socket reconnect). Clears the reconnection timeout in the
    * health monitor so it does not fire after recovery.
+   *
+   * Legacy path — clears the timeout immediately regardless of
+   * per-call tracking. Prefer notifyCallRecoverySucceeded(callId)
+   * for new code.
    */
   notifyReconnectionSucceeded(): void {
     this._signalingHealthMonitor.onReconnectionSucceeded();

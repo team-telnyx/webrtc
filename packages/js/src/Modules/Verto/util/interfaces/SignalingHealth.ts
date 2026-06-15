@@ -36,4 +36,10 @@ export interface ISignalingHealthSession {
    * the application.
    */
   readonly maxTimeoutForReconnectionMs: number | null;
+  /**
+   * Map of active calls (callId → call object with at least `_state`).
+   * Used by the monitor to enumerate active calls for per-call
+   * recovery tracking and timeout notifications.
+   */
+  readonly calls: Record<string, any>;
 }
