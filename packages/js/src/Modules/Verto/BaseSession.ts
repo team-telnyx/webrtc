@@ -1191,6 +1191,16 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Called when a recovering call is finalized/hungup/destroyed before
+   * media recovery is confirmed. Delegates to the health monitor so the
+   * call is removed from the pending recovery set and the reconnection
+   * timeout does not fire for a call that has already been cleaned up.
+   */
+  notifyCallFinalized(callId: string): void {
+    this._signalingHealthMonitor.onCallFinalized(callId);
+  }
+
+  /**
    * Called when active-call reconnection succeeds (e.g. on reattach
    * after socket reconnect). Clears the reconnection timeout in the
    * health monitor so it does not fire after recovery.

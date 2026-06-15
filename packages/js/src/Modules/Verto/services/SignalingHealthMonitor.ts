@@ -219,6 +219,35 @@ export default class SignalingHealthMonitor {
   }
 
   /**
+   * Called when a recovering call is finalized/hungup/destroyed before
+   * media recovery is confirmed. Removes the call from the pending
+   * recovery set so the reconnection timeout does not fire for a call
+   * that has already been cleaned up.
+   *
+   * If the removed call was the last pending call, also clears the
+   * session-level reconnection timeout (there is nothing left to time
+   * out).
+   */
+  onCallFinalized(callId: string): void {
+    if (!this._pendingRecoveryCallIds.has(callId)) {
+      return; // not a tracked recovery call — ignore
+    }
+
+    this._pendingRecoveryCallIds.delete(callId);
+    logger.debug(
+      `Signaling health: call ${callId} finalized during recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
+    );
+
+    if (this._pendingRecoveryCallIds.size === 0) {
+      this._isReconnecting = false;
+      if (this._reconnectionTimeoutId !== null) {
+        logger.debug('Signaling health: all recovering calls finalized, clearing reconnection timeout');
+        this._clearReconnectionTimeout();
+      }
+    }
+  }
+
+  /**
    * Called when active-call reconnection succeeds (legacy path for
    * callers that don't track per-call recovery). Clears the reconnection
    * timeout and all pending recovery state.

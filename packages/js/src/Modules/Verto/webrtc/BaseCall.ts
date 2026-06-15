@@ -2599,6 +2599,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Clean up any pending recovery connection state handler
     this._cleanupRecoveryConnectionStateHandler();
 
+    // Notify the signaling health monitor that this call is finalized
+    // so it is removed from the pending recovery set. This prevents the
+    // reconnection timeout from firing for a call that has already been
+    // cleaned up (e.g. user hangs up while call is still recovering).
+    this.session.notifyCallFinalized(this.id);
+
     this._stopStats();
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;

@@ -1804,6 +1804,126 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
       'test-uuid'
     );
   });
+
+  it('onCallFinalized removes finalized call from pending recovery set', () => {
+    // When a recovering call is finalized/hungup before media recovery
+    // is confirmed, it must be removed from the pending recovery set so
+    // the reconnection timeout does not fire for a call that is already
+    // cleaned up.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Simulate the call being finalized before the timeout fires
+    // (e.g. user hangs up while call is still recovering)
+    monitor.onCallFinalized('call-1');
+
+    // Advance past timeout — should NOT fire for the finalized call
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('onCallFinalized clears timeout when all recovering calls are finalized', () => {
+    // Two active calls. Call-1 is finalized (hung up) and call-2 is
+    // also finalized. Since all pending calls are gone, the timeout
+    // should be cleared.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive },
+      'call-2': { id: 'call-2', _state: StateActive },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Both calls are finalized before timeout
+    monitor.onCallFinalized('call-1');
+    monitor.onCallFinalized('call-2');
+
+    // Advance past timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('onCallFinalized does not clear timeout if other calls are still pending', () => {
+    // Two active calls. Call-1 is finalized but call-2 is still
+    // recovering. The timeout should remain active for call-2.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive },
+      'call-2': { id: 'call-2', _state: StateActive },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Call-1 is finalized, but call-2 is still recovering
+    monitor.onCallFinalized('call-1');
+
+    // Advance past timeout — should still fire but only for call-2
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-2'],
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('onCallFinalized ignores untracked call IDs', () => {
+    // Calling onCallFinalized with a call ID that wasn't tracked
+    // should be silently ignored and not affect the timeout.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    // Finalize an unrelated call — should be ignored
+    monitor.onCallFinalized('unknown-call');
+
+    // The timeout should still be pending for call-1
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
+    );
+  });
 });
 
 // ─── normalizeMaxTimeoutForReconnectionMs ──────────────────────────────────
