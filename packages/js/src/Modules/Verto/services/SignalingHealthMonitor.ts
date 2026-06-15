@@ -578,6 +578,14 @@ export default class SignalingHealthMonitor {
       return;
     }
 
+    // ICE restart started — also start the reconnection timeout if configured.
+    // The timeout bounds the ICE restart recovery just like it bounds socket
+    // reconnect recovery. If the PeerConnection never reaches 'connected'
+    // before the timeout, the application is notified so it can decide
+    // whether to hang up or keep waiting.
+    this._isReconnecting = true;
+    this._startReconnectionTimeout();
+
     const warning = createTelnyxWarning(MEDIA_RECOVERY_REQUIRED);
     trigger(
       SwEvent.Warning,

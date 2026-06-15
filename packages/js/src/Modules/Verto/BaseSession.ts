@@ -1078,6 +1078,8 @@ export default abstract class BaseSession {
             options?: { attach?: boolean };
             recoveredCallId?: string;
             peer?: { restartIce?: () => RestartIceResult };
+            _isRecovering?: boolean;
+            _tryConfirmMediaRecovery?: () => void;
           }
         >;
       }
@@ -1113,7 +1115,16 @@ export default abstract class BaseSession {
       logger.debug(
         `Signaling health: ICE restart skipped for call ${callId}: ${result.reason}`
       );
+      return result;
     }
+
+    // Mark the call as recovering so media recovery confirmation is
+    // triggered when the PeerConnection reaches 'connected'. This ties
+    // ICE restart recovery success to confirmed media recovery, which
+    // clears the reconnection timeout in SignalingHealthMonitor.
+    call._isRecovering = true;
+    call._tryConfirmMediaRecovery?.();
+
     return result;
   }
 

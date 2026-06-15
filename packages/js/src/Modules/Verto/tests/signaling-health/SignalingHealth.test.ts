@@ -1344,16 +1344,49 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     );
   });
 
-  it('does not fire reconnection timeout for ICE restart (signaling healthy)', () => {
+  it('fires reconnection timeout for ICE restart (signaling healthy)', () => {
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
-    // Socket is open + peer failure → ICE restart, NOT signaling recovery
+    // Mark signaling as healthy by simulating recent socket activity
+    monitor.onSocketActivity();
+
+    // Socket is open + peer failure → ICE restart
     (connection as any)._wsClient.readyState = WS_STATE.OPEN;
     monitor.onPeerFailure('call-1', 'ice_failed');
 
-    // Advance time — no reconnection timeout should fire because
-    // ICE restart does not involve signaling recovery
+    // ICE restart should have started the reconnection timeout
+    // Advance time past the timeout
+    jest.advanceTimersByTime(5001);
+
+    // Timeout should fire for ICE restart too, because the
+    // PeerConnection may never reach 'connected'
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+        timeoutMs: 5000,
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('clears reconnection timeout for ICE restart on recovery success', () => {
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Mark signaling as healthy
+    monitor.onSocketActivity();
+
+    // Socket is open + peer failure → ICE restart
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    // Simulate successful recovery (PeerConnection reaches 'connected')
+    monitor.onReconnectionSucceeded();
+
+    // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
 
     expect(trigger).not.toHaveBeenCalledWith(
@@ -1502,6 +1535,62 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onReconnectionSucceeded();
 
     // Advance past timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('ICE restart timeout survives stop() (monitor is restarted)', () => {
+    // When ICE restart is in progress, the monitor may be stopped and
+    // restarted (e.g. for periodic checks). The reconnection timeout
+    // must survive stop() because the ICE restart is still in flight.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Mark signaling as healthy
+    monitor.onSocketActivity();
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    // stop() should not clear the ICE restart reconnection timeout
+    monitor.stop();
+
+    // Advance time — timeout should still fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('forceStop() clears ICE restart reconnection timeout', () => {
+    // forceStop() is for full disconnect/teardown — it must clear
+    // the reconnection timeout even if ICE restart is in progress.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Mark signaling as healthy
+    monitor.onSocketActivity();
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    // forceStop() must clear the timeout
+    monitor.forceStop();
+
+    // Advance time — timeout should NOT fire
     jest.advanceTimersByTime(5001);
 
     expect(trigger).not.toHaveBeenCalledWith(
