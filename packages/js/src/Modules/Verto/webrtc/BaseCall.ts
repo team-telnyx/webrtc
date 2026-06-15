@@ -245,6 +245,14 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  /**
+   * Handler for peer connection state changes during recovery.
+   * When the peer connection reaches 'connected' while the call is
+   * recovering, this confirms media recovery and clears the
+   * reconnection timeout.
+   */
+  private _recoveryConnectionStateHandler: (() => void) | null = null;
+
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -257,6 +265,93 @@ export default abstract class BaseCall implements IWebRTCCall {
       .map((line) => line.trim())
       .filter(Boolean)
       .slice(1, 11);
+  }
+
+  /**
+   * Check whether the peer connection has reached 'connected' state
+   * and, if so, confirm media recovery. If the peer connection is not
+   * yet connected, register a one-time listener for 'connectionstatechange'
+   * so recovery is confirmed when media comes up.
+   *
+   * This defers notifyReconnectionSucceeded() from the signaling-level
+   * State.Active transition to the media-level PeerConnection confirmation,
+   * ensuring the reconnection timeout is only cleared when the media path
+   * has recovered — not just when signaling says the call is active.
+   */
+  private _tryConfirmMediaRecovery(): void {
+    if (!this._isRecovering) {
+      return;
+    }
+
+    const peerInstance = this.peer?.instance;
+    if (!peerInstance) {
+      // No peer instance — can't confirm media. Leave _isRecovering true
+      // so the timeout continues. If media never comes up, the timeout
+      // will notify the application.
+      logger.debug(
+        `[${this.id}] Recovery: no peer instance, waiting for media confirmation`
+      );
+      return;
+    }
+
+    if (peerInstance.connectionState === 'connected') {
+      // Peer connection already connected — confirm immediately
+      this._confirmRecoveryFromMedia();
+      return;
+    }
+
+    // Peer connection not yet connected — register a one-time handler
+    logger.debug(
+      `[${this.id}] Recovery: peer connection state is ${peerInstance.connectionState}, waiting for 'connected'`
+    );
+
+    this._cleanupRecoveryConnectionStateHandler();
+
+    this._recoveryConnectionStateHandler = () => {
+      if (!this._isRecovering) {
+        return;
+      }
+      if (peerInstance.connectionState === 'connected') {
+        this._confirmRecoveryFromMedia();
+      }
+    };
+
+    peerInstance.addEventListener(
+      'connectionstatechange',
+      this._recoveryConnectionStateHandler
+    );
+  }
+
+  /**
+   * Confirm that media recovery has succeeded. Clears the _isRecovering
+   * flag and notifies the session so the reconnection timeout is cleared.
+   */
+  private _confirmRecoveryFromMedia(): void {
+    if (!this._isRecovering) {
+      return;
+    }
+
+    this._cleanupRecoveryConnectionStateHandler();
+    this._isRecovering = false;
+    logger.debug(
+      `[${this.id}] Recovery confirmed: peer connection is connected`
+    );
+    this.session.notifyReconnectionSucceeded();
+  }
+
+  /**
+   * Remove the peer connection state change listener that was registered
+   * during recovery. Called when recovery is confirmed, the call is
+   * finalized, or the handler is no longer needed.
+   */
+  private _cleanupRecoveryConnectionStateHandler(): void {
+    if (this._recoveryConnectionStateHandler) {
+      this.peer?.instance?.removeEventListener(
+        'connectionstatechange',
+        this._recoveryConnectionStateHandler
+      );
+      this._recoveryConnectionStateHandler = null;
+    }
   }
 
   constructor(
@@ -1315,11 +1410,13 @@ export default abstract class BaseCall implements IWebRTCCall {
         performance.mark(callMarkName(this.id, 'call-active'));
         this.peer?.tryCollectTimings();
 
-        // Clear recovery flag when call becomes active again
+        // When recovering, defer notifyReconnectionSucceeded() until
+        // the peer connection confirms media has recovered (reaches
+        // 'connected' state). This ensures the reconnection timeout
+        // is only cleared when the media path is confirmed, not just
+        // when signaling says the call is active.
         if (this._isRecovering) {
-          this._isRecovering = false;
-          logger.debug(`[${this.id}] Recovery complete, call is active`);
-          this.session.notifyReconnectionSucceeded();
+          this._tryConfirmMediaRecovery();
         }
 
         // Start signaling health monitor for active calls
@@ -2499,6 +2596,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    // Clean up any pending recovery connection state handler
+    this._cleanupRecoveryConnectionStateHandler();
+
     this._stopStats();
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;

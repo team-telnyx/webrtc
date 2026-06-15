@@ -304,18 +304,29 @@ export interface IClientOptions {
    */
   /**
    * Maximum time, in milliseconds, that an active-call reconnection attempt
-   * may take before the SDK aborts recovery and terminates the call. If
-   * omitted, reconnection is unlimited and the SDK will not terminate the
-   * call due to reconnection duration.
+   * may take before the SDK emits a reconnection timeout notification.
+   * If omitted, reconnection is unlimited and the SDK will not emit
+   * a timeout notification due to reconnection duration.
    *
    * The timer starts when the Health Monitor triggers signaling recovery
    * (socket reconnect + reattach) for an active call. It clears when
-   * reconnection succeeds, the call ends, or the monitor stops.
+   * reconnection succeeds (confirmed by RTCPeerConnection reaching
+   * `connected` state), the call ends, or the monitor stops.
+   *
+   * When the timeout fires, the SDK emits a `telnyx.error` event with
+   * error code `45005` (`ACTIVE_CALL_RECONNECTION_TIMEOUT`) and
+   * diagnostic context (callIds, timeoutMs, sessionId). The SDK does
+   * **not** automatically hang up the call — the application decides
+   * whether to hang up, retry, show UI, or keep waiting. A timeout
+   * means the SDK could not confirm recovery (including media path)
+   * within the configured window, but it is not proof that the call
+   * is unrecoverable. Media may still be alive or signaling may
+   * recover late.
    *
    * Edge-value handling:
    * - `undefined` / omitted → unlimited (preserves current behavior)
-   * - `0` → immediate abort once reconnection starts
-   * - Negative values → clamped to `0` (immediate abort)
+   * - `0` → immediate timeout notification once reconnection starts
+   * - Negative values → clamped to `0` (immediate timeout)
    * - Decimal values → floored to the nearest integer
    * - `NaN` / `Infinity` → treated as unlimited
    */

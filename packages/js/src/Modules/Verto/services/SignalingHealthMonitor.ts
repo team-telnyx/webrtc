@@ -598,9 +598,10 @@ export default class SignalingHealthMonitor {
    * configured. If the option is null (unlimited), this is a no-op.
    *
    * The timeout starts when signaling recovery is triggered. If
-   * reconnection does not succeed before the timeout expires, all
-   * active calls are terminated with an ACTIVE_CALL_RECONNECTION_TIMEOUT
-   * error.
+   * reconnection does not succeed (confirmed by media path recovery)
+   * before the timeout expires, an ACTIVE_CALL_RECONNECTION_TIMEOUT
+   * error is emitted for all active calls. The SDK does NOT
+   * automatically hang up the calls — the application decides.
    */
   private _startReconnectionTimeout(): void {
     const timeoutMs = this._session.maxTimeoutForReconnectionMs;
@@ -635,9 +636,15 @@ export default class SignalingHealthMonitor {
 
   /**
    * Called when the reconnection timeout expires. Emits an error event
-   * and terminates all active calls. When signaling recovery fails,
-   * all active calls are at risk — not just the one that triggered
-   * recovery — so all are terminated deterministically.
+   * for each active call with diagnostic context, but does NOT
+   * automatically hang up the calls. The application decides whether
+   * to hang up, retry, or keep waiting.
+   *
+   * A timeout means the SDK could not confirm recovery (including
+   * media path) within the configured window — it is not strong proof
+   * that the call is unrecoverable. Media may still be alive or
+   * signaling may recover late, so auto-hangup is risky for false
+   * positives.
    */
   private _onReconnectionTimeout(timeoutMs: number): void {
     this._reconnectionTimeoutId = null;
@@ -646,23 +653,23 @@ export default class SignalingHealthMonitor {
     const callIds = this._findActiveCallIds();
 
     logger.warn(
-      `Signaling health: reconnection timeout of ${timeoutMs}ms expired${callIds.length > 0 ? ` for calls [${callIds.join(', ')}]` : ''} — aborting recovery`
+      `Signaling health: reconnection timeout of ${timeoutMs}ms expired${callIds.length > 0 ? ` for calls [${callIds.join(', ')}]` : ''} — notifying application`
     );
 
     const telnyxError = createTelnyxError(ACTIVE_CALL_RECONNECTION_TIMEOUT);
+
+    // Emit a single error event with all affected call IDs and
+    // diagnostic context so the application can decide what to do.
     trigger(
       SwEvent.Error,
       {
         error: telnyxError,
         callIds,
+        timeoutMs,
         sessionId: this._session.sessionid,
       },
       this._session.uuid
     );
-
-    for (const callId of callIds) {
-      this._session.terminateCallOnReconnectionTimeout(callId, timeoutMs);
-    }
   }
 
   /**

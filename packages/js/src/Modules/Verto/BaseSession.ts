@@ -1169,37 +1169,6 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Terminate an active call that failed to recover within the
-   * reconnection timeout. Called by the health monitor when the
-   * maxTimeoutForReconnectionMs timer expires.
-   */
-  terminateCallOnReconnectionTimeout(
-    callId: string,
-    _timeoutMs: number
-  ): void {
-    const calls = (
-      this as unknown as {
-        calls?: Record<string, { hangup?: (opts?: unknown, hangupExecute?: boolean) => void }>;
-      }
-    ).calls;
-    const call = calls?.[callId];
-    if (call?.hangup) {
-      logger.info(
-        `Terminating call ${callId} due to reconnection timeout (skipping BYE — socket may be down)`
-      );
-      // Pass false for hangupExecute to skip sending BYE — during a
-      // reconnection timeout the socket is expected to be down/unhealthy,
-      // so attempting a BYE would wait on the send timeout instead of
-      // terminating locally.
-      call.hangup({ initiator: 'sdk:reconnection-timeout' }, false);
-    } else {
-      logger.warn(
-        `Reconnection timeout: cannot terminate call ${callId} — call not found or no hangup method`
-      );
-    }
-  }
-
-  /**
    * Called when active-call reconnection succeeds (e.g. on reattach
    * after socket reconnect). Clears the reconnection timeout in the
    * health monitor so it does not fire after recovery.

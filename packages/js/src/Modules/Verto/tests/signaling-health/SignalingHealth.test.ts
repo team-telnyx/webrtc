@@ -1131,7 +1131,6 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
     mockSession.socketDisconnect = jest.fn();
-    mockSession.terminateCallOnReconnectionTimeout = jest.fn();
     // Default: no reconnection timeout (unlimited)
     mockSession.maxTimeoutForReconnectionMs = null;
     // Set up calls map with _state for _findActiveCallIds
@@ -1158,11 +1157,17 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
     monitor.onPeerFailure('call-1', 'connection_failed');
 
-    // No timeout should be pending
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    // No timeout error should have been emitted
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
   });
 
-  it('starts reconnection timeout when maxTimeoutForReconnectionMs is set and signaling recovery triggers', () => {
+  it('emits error notification when reconnection timeout fires', () => {
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
@@ -1171,16 +1176,55 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'connection_failed');
 
     // Timeout has not fired yet
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
 
     // Advance time past the timeout
     jest.advanceTimersByTime(5001);
 
-    // Timeout should have fired and called terminateCallOnReconnectionTimeout
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-1',
-      5000
+    // Timeout should have fired and emitted an error notification
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+        timeoutMs: 5000,
+      }),
+      'test-uuid'
     );
+  });
+
+  it('does not auto-hangup on reconnection timeout', () => {
+    // Verify that the timeout notification does NOT cause the SDK
+    // to automatically hang up the call. The application decides.
+    const hangup = jest.fn();
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive, hangup },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+    monitor.onPeerFailure('call-1', 'connection_failed');
+
+    jest.advanceTimersByTime(5001);
+
+    // Error notification was emitted
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+
+    // But hangup was NOT called by the SDK
+    expect(hangup).not.toHaveBeenCalled();
   });
 
   it('clears reconnection timeout when onReconnectionSucceeded is called', () => {
@@ -1196,7 +1240,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
   });
 
   it('stop() preserves reconnection timeout during reconnect (survives onNetworkClose)', () => {
@@ -1213,9 +1263,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Advance time past the timeout — should STILL fire
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-1',
-      5000
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
     );
   });
 
@@ -1232,7 +1286,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
   });
 
   it('stop() clears reconnection timeout when NOT reconnecting', () => {
@@ -1252,7 +1312,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
 
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
   });
 
   it('emits ACTIVE_CALL_RECONNECTION_TIMEOUT error with callIds array when timeout fires', () => {
@@ -1272,6 +1338,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
           code: 45005,
         }),
         callIds: ['call-1'],
+        timeoutMs: 3000,
       }),
       'test-uuid'
     );
@@ -1289,10 +1356,16 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // ICE restart does not involve signaling recovery
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
   });
 
-  it('terminates all active calls on timeout (multi-call)', () => {
+  it('emits error for all active calls on timeout (multi-call)', () => {
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
@@ -1309,23 +1382,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
 
     jest.advanceTimersByTime(5001);
 
-    // All active calls should be terminated
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-1',
-      5000
-    );
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-2',
-      5000
-    );
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-3',
-      5000
-    );
-    // call-ended should NOT be terminated (it's in Hangup state)
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalledWith(
-      'call-ended',
-      5000
+    // Error notification should include all active calls, not the ended one
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        callIds: ['call-1', 'call-2', 'call-3'],
+      }),
+      'test-uuid'
     );
   });
 
@@ -1372,9 +1435,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Advance time — timeout should still fire even after stop()
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-1',
-      5000
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
     );
   });
 
@@ -1406,10 +1473,14 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Reconnection timeout should still be alive — advance past it
     jest.advanceTimersByTime(5001);
 
-    // Timeout should have fired and terminated the call
-    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
-      'call-1',
-      5000
+    // Timeout should have fired and emitted the error notification
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
     );
   });
 
@@ -1433,62 +1504,13 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     // Advance past timeout — should NOT fire
     jest.advanceTimersByTime(5001);
 
-    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
-  });
-});
-
-// ─── terminateCallOnReconnectionTimeout – hangup(skipBye=true) ──────────
-
-describe('BaseSession – terminateCallOnReconnectionTimeout', () => {
-  let session: TestBaseSession;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    session = new TestBaseSession({
-      host: 'wss://test.telnyx.com',
-      login: 'test-login',
-      password: 'test-password',
-    } as any);
-  });
-
-  it('calls hangup with hangupExecute=false (skip BYE) on reconnection timeout', () => {
-    // When the reconnection timeout fires, the socket is expected to be
-    // down/unhealthy. Calling hangup with hangupExecute=false skips sending
-    // a BYE, which would otherwise wait on the send timeout instead of
-    // terminating locally.
-    const hangup = jest.fn();
-    session.calls = {
-      'call-1': {
-        hangup,
-      },
-    };
-
-    session.terminateCallOnReconnectionTimeout('call-1', 5000);
-
-    expect(hangup).toHaveBeenCalledTimes(1);
-    // Second argument is hangupExecute: false means do NOT send BYE
-    expect(hangup).toHaveBeenCalledWith(
-      { initiator: 'sdk:reconnection-timeout' },
-      false
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
     );
-  });
-
-  it('does not throw when call has no hangup method', () => {
-    session.calls = {
-      'call-1': {}, // no hangup method
-    };
-
-    expect(() => {
-      session.terminateCallOnReconnectionTimeout('call-1', 5000);
-    }).not.toThrow();
-  });
-
-  it('does not throw when callId is not found in calls map', () => {
-    session.calls = {};
-
-    expect(() => {
-      session.terminateCallOnReconnectionTimeout('unknown-call', 5000);
-    }).not.toThrow();
   });
 });
 
