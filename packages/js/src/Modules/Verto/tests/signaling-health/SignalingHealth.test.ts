@@ -1377,6 +1377,119 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
       5000
     );
   });
+
+  it('timeout survives real recovery lifecycle: socket OPEN → socketDisconnect → close → stop()', () => {
+    // This test covers the reviewer's requested scenario:
+    // The socket is OPEN when signaling recovery triggers. _triggerSignalingRecovery()
+    // calls socketDisconnect(), which closes the socket. The resulting close event
+    // triggers onNetworkClose() → stop(). The reconnection timeout must survive
+    // stop() and still fire if reattach never succeeds.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Socket is OPEN and connected — this is the real recovery path
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    expect(connection.connected).toBe(true);
+
+    // Trigger signaling recovery directly via a critical request timeout.
+    // When the socket is connected, _triggerSignalingRecovery() calls
+    // socketDisconnect() before starting the reconnection timeout.
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    // socketDisconnect should have been called (socket was connected)
+    expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
+
+    // Now simulate the close event from socketDisconnect:
+    // onNetworkClose() → stopSignalingHealthMonitor() → monitor.stop()
+    monitor.stop();
+
+    // Reconnection timeout should still be alive — advance past it
+    jest.advanceTimersByTime(5001);
+
+    // Timeout should have fired and terminated the call
+    expect(mockSession.terminateCallOnReconnectionTimeout).toHaveBeenCalledWith(
+      'call-1',
+      5000
+    );
+  });
+
+  it('successful reconnection after socketDisconnect clears timeout', () => {
+    // Covers the case where socket was OPEN → socketDisconnect → close →
+    // reconnect succeeds before timeout fires.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    expect(connection.connected).toBe(true);
+
+    // Trigger signaling recovery — socket is connected so socketDisconnect is called
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
+
+    // Simulate successful reconnection
+    monitor.onReconnectionSucceeded();
+
+    // Advance past timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(mockSession.terminateCallOnReconnectionTimeout).not.toHaveBeenCalled();
+  });
+});
+
+// ─── terminateCallOnReconnectionTimeout – hangup(skipBye=true) ──────────
+
+describe('BaseSession – terminateCallOnReconnectionTimeout', () => {
+  let session: TestBaseSession;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    session = new TestBaseSession({
+      host: 'wss://test.telnyx.com',
+      login: 'test-login',
+      password: 'test-password',
+    } as any);
+  });
+
+  it('calls hangup with hangupExecute=false (skip BYE) on reconnection timeout', () => {
+    // When the reconnection timeout fires, the socket is expected to be
+    // down/unhealthy. Calling hangup with hangupExecute=false skips sending
+    // a BYE, which would otherwise wait on the send timeout instead of
+    // terminating locally.
+    const hangup = jest.fn();
+    session.calls = {
+      'call-1': {
+        hangup,
+      },
+    };
+
+    session.terminateCallOnReconnectionTimeout('call-1', 5000);
+
+    expect(hangup).toHaveBeenCalledTimes(1);
+    // Second argument is hangupExecute: false means do NOT send BYE
+    expect(hangup).toHaveBeenCalledWith(
+      { initiator: 'sdk:reconnection-timeout' },
+      false
+    );
+  });
+
+  it('does not throw when call has no hangup method', () => {
+    session.calls = {
+      'call-1': {}, // no hangup method
+    };
+
+    expect(() => {
+      session.terminateCallOnReconnectionTimeout('call-1', 5000);
+    }).not.toThrow();
+  });
+
+  it('does not throw when callId is not found in calls map', () => {
+    session.calls = {};
+
+    expect(() => {
+      session.terminateCallOnReconnectionTimeout('unknown-call', 5000);
+    }).not.toThrow();
+  });
 });
 
 // ─── normalizeMaxTimeoutForReconnectionMs ──────────────────────────────────
