@@ -34,6 +34,7 @@ import {
   UNEXPECTED_ERROR,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  AUDIO_INPUT_DEVICE_CHANGE_SKIPPED,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -924,7 +925,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       audioTrackId: this._getLocalAudioTrackId(),
     });
     this._desiredAudioMuted = !this._desiredAudioMuted;
-    toggleAudioTracks(this.options.localStream);
+    this._applyDesiredAudioMuteState();
   }
 
   /**
@@ -973,14 +974,21 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     if (!sender) {
       // No audio sender — nothing to replace. Keep the current desired state.
-      logger.debug(
-        'Skipping audio input device change: no audio sender found',
+      logger.warn('Skipping audio input device change: no audio sender found', {
+        callId: this.id,
+        deviceId,
+        audioMuted: this._desiredAudioMuted,
+        audioTrackId: this._getLocalAudioTrackId(),
+      });
+      trigger(
+        SwEvent.Warning,
         {
+          warning: createTelnyxWarning(AUDIO_INPUT_DEVICE_CHANGE_SKIPPED),
           callId: this.id,
           deviceId,
-          audioMuted: this._desiredAudioMuted,
-          audioTrackId: this._getLocalAudioTrackId(),
-        }
+          sessionId: this.session.sessionid,
+        },
+        this.options?.id || this.id
       );
       return;
     }

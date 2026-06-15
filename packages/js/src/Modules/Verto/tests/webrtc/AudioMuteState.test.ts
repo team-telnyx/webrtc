@@ -64,12 +64,18 @@ describe('Audio mute state preservation (VSDK-205)', () => {
   // ───────────────────────────────────────────────────────────────
   describe('mutedMicOnStart', () => {
     it('should start with isAudioMuted=true when mutedMicOnStart=true', () => {
-      const call = new Call(session, { ...defaultParams, mutedMicOnStart: true });
+      const call = new Call(session, {
+        ...defaultParams,
+        mutedMicOnStart: true,
+      });
       expect(call.isAudioMuted).toBe(true);
     });
 
     it('should start with isAudioMuted=false when mutedMicOnStart=false', () => {
-      const call = new Call(session, { ...defaultParams, mutedMicOnStart: false });
+      const call = new Call(session, {
+        ...defaultParams,
+        mutedMicOnStart: false,
+      });
       expect(call.isAudioMuted).toBe(false);
     });
 
@@ -92,7 +98,10 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       };
       register(SwEvent.Notification, handler, session.uuid);
 
-      const call = new Call(session, { ...defaultParams, mutedMicOnStart: true });
+      const call = new Call(session, {
+        ...defaultParams,
+        mutedMicOnStart: true,
+      });
 
       expect(notifications.length).toBeGreaterThanOrEqual(1);
       expect(notifications[0].call.id).toBe(call.id);
@@ -113,6 +122,7 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       const call = new Call(session, defaultParams);
 
       expect(notifications.length).toBeGreaterThanOrEqual(1);
+      expect(notifications[0].call.id).toBe(call.id);
       expect(notifications[0].call.isAudioMuted).toBe(false);
 
       deRegister(SwEvent.Notification, handler, session.uuid);
@@ -134,6 +144,7 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       });
 
       expect(notifications.length).toBeGreaterThanOrEqual(1);
+      expect(notifications[0].call.id).toBe(call.id);
       expect(notifications[0].call.isAudioMuted).toBe(true);
 
       deRegister(SwEvent.Notification, handler, session.uuid);
@@ -203,12 +214,35 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       expect(call.isAudioMuted).toBe(false);
     });
 
-    it('should call toggleAudioTracks', () => {
+    it('should apply the new desired muted state to local tracks', () => {
       const call = new Call(session, defaultParams);
+      mockDisableAudioTracks.mockClear();
+      mockEnableAudioTracks.mockClear();
+      mockToggleAudioTracks.mockClear();
+
       call.toggleAudioMute();
-      expect(mockToggleAudioTracks).toHaveBeenCalledWith(
+
+      expect(mockDisableAudioTracks).toHaveBeenCalledWith(
         (call as any).options.localStream
       );
+      expect(mockEnableAudioTracks).not.toHaveBeenCalled();
+      expect(mockToggleAudioTracks).not.toHaveBeenCalled();
+    });
+
+    it('should apply the new desired unmuted state to local tracks', () => {
+      const call = new Call(session, defaultParams);
+      call.muteAudio();
+      mockDisableAudioTracks.mockClear();
+      mockEnableAudioTracks.mockClear();
+      mockToggleAudioTracks.mockClear();
+
+      call.toggleAudioMute();
+
+      expect(mockEnableAudioTracks).toHaveBeenCalledWith(
+        (call as any).options.localStream
+      );
+      expect(mockDisableAudioTracks).not.toHaveBeenCalled();
+      expect(mockToggleAudioTracks).not.toHaveBeenCalled();
     });
   });
 
@@ -425,8 +459,7 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       call.muteAudio();
       expect(call.isAudioMuted).toBe(true);
 
-      const { replaceTrackFn, oldAudioTrack } =
-        setupCallForFailureTest(call);
+      const { replaceTrackFn, oldAudioTrack } = setupCallForFailureTest(call);
 
       // Stub hangup to prevent _onMediaError cascade
       const hangupSpy = jest
@@ -475,11 +508,13 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       hangupSpy.mockRestore();
     });
 
-
-    it('should preserve desired muted state when there is no audio sender', async () => {
+    it('should preserve desired muted state when there is no audio sender and emit a warning', async () => {
       const call = new Call(session, defaultParams);
       call.muteAudio();
       expect(call.isAudioMuted).toBe(true);
+      const warnings: any[] = [];
+      const handler = (warning: any) => warnings.push(warning);
+      register(SwEvent.Warning, handler, call.id);
 
       // No audio sender at all
       (call as any).peer = {
@@ -503,6 +538,13 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       expect((call as any).options.localStream.getAudioTracks()[0]).toBe(
         oldAudioTrack
       );
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].warning.name).toBe(
+        'AUDIO_INPUT_DEVICE_CHANGE_SKIPPED'
+      );
+      expect(warnings[0].callId).toBe(call.id);
+      expect(warnings[0].deviceId).toBe('some-device');
+      deRegister(SwEvent.Warning, handler, call.id);
     });
 
     it('should preserve desired muted state when replaceTrack rejects', async () => {
@@ -510,7 +552,9 @@ describe('Audio mute state preservation (VSDK-205)', () => {
       call.muteAudio();
       expect(call.isAudioMuted).toBe(true);
 
-      const replaceTrackFn = jest.fn().mockRejectedValue(new Error('Track replacement failed'));
+      const replaceTrackFn = jest
+        .fn()
+        .mockRejectedValue(new Error('Track replacement failed'));
       const sender = {
         track: { kind: 'audio' },
         replaceTrack: replaceTrackFn,

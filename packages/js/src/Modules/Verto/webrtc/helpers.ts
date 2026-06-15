@@ -35,14 +35,16 @@ const getConstraintsWithoutDeviceId = (
   // Check and remove deviceId from audio constraints
   if (typeof audio === 'object' && audio !== null && 'deviceId' in audio) {
     hasDeviceId = true;
-    const { deviceId, ...restAudio } = audio;
+    const restAudio = { ...audio };
+    delete restAudio.deviceId;
     newAudio = Object.keys(restAudio).length === 0 ? true : restAudio;
   }
 
   // Check and remove deviceId from video constraints
   if (typeof video === 'object' && video !== null && 'deviceId' in video) {
     hasDeviceId = true;
-    const { deviceId, ...restVideo } = video;
+    const restVideo = { ...video };
+    delete restVideo.deviceId;
     newVideo = Object.keys(restVideo).length === 0 ? true : restVideo;
   }
 
@@ -183,7 +185,7 @@ const getMediaConstraints = async (
   const { micLabel = '', camLabel = '' } = options;
   if (micId) {
     micId = await assureDeviceId(micId, micLabel, DeviceType.AudioIn).catch(
-      (error) => null
+      () => null
     );
     if (micId) {
       if (typeof audio === 'boolean') {
@@ -195,7 +197,7 @@ const getMediaConstraints = async (
 
   if (camId) {
     camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
-      (error) => null
+      () => null
     );
     if (camId) {
       if (typeof video === 'boolean') {
@@ -261,9 +263,7 @@ const checkDeviceIdConstraints = async (
 ) => {
   const { deviceId } = constraints;
   if (!isDefined(deviceId) && (id || label)) {
-    const deviceId = await assureDeviceId(id, label, kind).catch(
-      (error) => null
-    );
+    const deviceId = await assureDeviceId(id, label, kind).catch(() => null);
     if (deviceId) {
       constraints.deviceId = { exact: deviceId };
     }
@@ -279,7 +279,6 @@ const getTrackDebugInfo = (track?: MediaStreamTrack | null) => {
   return {
     id: track.id,
     kind: track.kind,
-    label: track.label,
     enabled: track.enabled,
     muted: track.muted,
     readyState: track.readyState,
@@ -332,9 +331,8 @@ const sdpStereoHack = (sdp: string) => {
     }
   } else {
     // create an fmtp line
-    sdpLines[
-      opusIndex
-    ] += `${endOfLine}a=fmtp:${opusPayload} stereo=1; sprop-stereo=1`;
+    sdpLines[opusIndex] +=
+      `${endOfLine}a=fmtp:${opusPayload} stereo=1; sprop-stereo=1`;
   }
 
   return sdpLines.join(endOfLine);
@@ -364,7 +362,12 @@ const sdpMediaOrderHack = (answer: string, localOffer: string): string => {
   return [...beginLines, ...videoLines, ...audioLines, ''].join(endOfLine);
 };
 
-const checkSubscribeResponse = (response: any, channel: string): boolean => {
+type SubscribeResponse = Record<string, string[] | undefined>;
+
+const checkSubscribeResponse = (
+  response: SubscribeResponse,
+  channel: string
+): boolean => {
   if (!response) {
     return false;
   }
@@ -380,15 +383,17 @@ type DestructuredResult = {
   notSubscribed: string[];
 };
 
-const destructSubscribeResponse = (response: any): DestructuredResult => {
-  const tmp = {
+const destructSubscribeResponse = (
+  response: SubscribeResponse
+): DestructuredResult => {
+  const tmp: DestructuredResult = {
     subscribed: [],
     alreadySubscribed: [],
     unauthorized: [],
     unsubscribed: [],
     notSubscribed: [],
   };
-  Object.keys(tmp).forEach((k) => {
+  Object.keys(tmp).forEach((k: keyof DestructuredResult) => {
     tmp[k] = response[`${k}Channels`] || [];
   });
   return tmp;
@@ -496,9 +501,8 @@ const sdpBitrateHack = (
   const lines = sdp.split(endOfLine);
   lines.forEach((line, i) => {
     if (/^a=fmtp:\d*/.test(line)) {
-      lines[
-        i
-      ] += `;x-google-max-bitrate=${max};x-google-min-bitrate=${min};x-google-start-bitrate=${start}`;
+      lines[i] +=
+        `;x-google-max-bitrate=${max};x-google-min-bitrate=${min};x-google-start-bitrate=${start}`;
     } else if (/^a=mid:(1|video)/.test(line)) {
       lines[i] += `\r\nb=AS:${max}`;
     }
