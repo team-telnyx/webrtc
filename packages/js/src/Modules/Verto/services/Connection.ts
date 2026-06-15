@@ -319,6 +319,15 @@ export default class Connection {
   }
 
   private _registerSocketEvents(ws: WebSocket): void {
+    // Capture the generation at registration time — when this socket's
+    // event handlers are being attached — not at event-dispatch time.
+    // If a reconnect creates a new socket (incrementing socketGeneration)
+    // before this old socket's close/error handler runs, reading
+    // this.socketGeneration inside the handler would return the new
+    // generation, causing onNetworkClose to treat the stale event as a
+    // new reconnect attempt.
+    const registeredGeneration = this.socketGeneration;
+
     ws.onopen = (event): boolean => {
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
@@ -326,12 +335,8 @@ export default class Connection {
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'close');
-      // Capture generation at close time to avoid race: a reconnect may
-      // increment socketGeneration before this handler runs, causing
-      // onNetworkClose to read the wrong generation.
-      const closedGeneration = this.socketGeneration;
       const enriched = Object.assign({}, event, {
-        socketGeneration: closedGeneration,
+        socketGeneration: registeredGeneration,
       });
       return trigger(SwEvent.SocketClose, enriched, this.session.uuid);
     };
@@ -339,9 +344,6 @@ export default class Connection {
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
-
-      // Capture generation at error time to avoid race (same as onclose above)
-      const errorGeneration = this.socketGeneration;
 
       // Emit structured error alongside the legacy SocketError
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);
@@ -356,7 +358,7 @@ export default class Connection {
         {
           error: event,
           sessionId: this.session.sessionid,
-          socketGeneration: errorGeneration,
+          socketGeneration: registeredGeneration,
         },
         this.session.uuid
       );
