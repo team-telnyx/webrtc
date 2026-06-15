@@ -779,7 +779,7 @@ export default class SignalingHealthMonitor {
     ]);
     const result: string[] = [];
     for (const [id, call] of Object.entries(calls)) {
-      if (call && (call as any)._state != null && activeStates.has((call as any)._state)) {
+      if (call && call._state != null && activeStates.has(call._state)) {
         result.push(id);
       }
     }
