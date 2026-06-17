@@ -119,9 +119,20 @@ export class Call extends BaseCall {
    * the AI backend after receiving a `function_call` via the
    * `telnyx.ai.conversation` event.
    *
+   * This is a fire-and-forget JSON-RPC notification (no `id`): the backend
+   * is not expected to ack each tool result, and the SDK does not wait for
+   * a response or register a one-shot handler.
+   *
+   * **Requires an active WebSocket connection.** Throws if the session is
+   * disconnected — callers must handle the disconnect immediately rather
+   * than having the output silently queued for a future reconnect (which
+   * could deliver stale results after ACA has timed out the waiter).
+   *
    * @param item - The function call output item to send.
    * Must include `type: "function_call_output"`, the matching `call_id`,
    * and the `output` string.
+   *
+   * @throws {Error} If the session is not connected.
    *
    * @example
    * ```js
@@ -140,7 +151,14 @@ export class Call extends BaseCall {
    * ```
    */
   sendAIConversationMessage = (item: FunctionCallOutputItem) => {
-    return this.session.execute(new AIConversationMessage(item));
+    if (!this.session.connected) {
+      throw new Error(
+        'Cannot send AI conversation message: session is not connected. ' +
+          'sendAIConversationMessage requires an active WebSocket connection.'
+      );
+    }
+    const msg = new AIConversationMessage(item);
+    this.session.connection.sendRawText(JSON.stringify(msg.request));
   };
   /**
    * Changes the audio output device (i.e. speaker) used for the call.
