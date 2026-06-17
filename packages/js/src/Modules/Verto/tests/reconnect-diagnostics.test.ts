@@ -39,8 +39,10 @@ function recordReconnectDiagnostic(
   code: number,
   name: string,
   message: string,
-  extras?: Record<string, unknown>
+  extras?: Record<string, unknown>,
+  options?: { emitWarning?: boolean }
 ): void {
+  const emitWarning = options?.emitWarning !== false;
   if (!calls) return;
 
   const activeCallIds = Object.keys(calls);
@@ -50,21 +52,23 @@ function recordReconnectDiagnostic(
 
     try {
       call.recordSessionWarning(code, name, message, activeCallIds);
-    } catch (error) {
+    } catch {
       // Swallow — matches real implementation
     }
   });
 
-  const warning = createTelnyxWarning(code as any, message);
-  trigger(
-    SwEvent.Warning,
-    {
-      warning,
-      ...(extras || {}),
-      sessionId,
-    },
-    sessionUuid
-  );
+  if (emitWarning) {
+    const warning = createTelnyxWarning(code as any, message);
+    trigger(
+      SwEvent.Warning,
+      {
+        warning,
+        ...(extras || {}),
+        sessionId,
+      },
+      sessionUuid
+    );
+  }
 }
 
 describe('_recordReconnectDiagnostic', () => {
@@ -355,3 +359,102 @@ describe('SDK_WARNINGS registry for reconnection diagnostics', () => {
     expect(causesText).toContain('No RTP');
   });
 });
+
+describe('_recordReconnectDiagnostic emitWarning option', () => {
+  let mockRecordSessionWarning: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRecordSessionWarning = jest.fn();
+  });
+
+  it('emits Warning event by default (emitWarning: true)', () => {
+    const calls = {
+      'call-1': {
+        id: 'call-1',
+        recordSessionWarning: mockRecordSessionWarning,
+      },
+    };
+
+    recordReconnectDiagnostic(
+      calls,
+      'test-uuid',
+      'test-session',
+      WEBSOCKET_CLOSED,
+      'WEBSOCKET_CLOSED',
+      'WebSocket closed (code=1006)',
+      { closeCode: 1006, wasClean: false }
+    );
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Warning,
+      expect.objectContaining({
+        warning: expect.objectContaining({
+          code: WEBSOCKET_CLOSED,
+        }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('does NOT emit Warning event when emitWarning: false', () => {
+    const calls = {
+      'call-1': {
+        id: 'call-1',
+        recordSessionWarning: mockRecordSessionWarning,
+      },
+    };
+
+    recordReconnectDiagnostic(
+      calls,
+      'test-uuid',
+      'test-session',
+      WEBSOCKET_CLOSE_REQUESTED,
+      'WEBSOCKET_CLOSE_REQUESTED',
+      'SDK requested WebSocket close',
+      { socketGeneration: 1, voiceSdkId: 'vs-123' },
+      { emitWarning: false }
+    );
+
+    // recordSessionWarning should still be called (persistence to call report)
+    expect(mockRecordSessionWarning).toHaveBeenCalledTimes(1);
+    expect(mockRecordSessionWarning).toHaveBeenCalledWith(
+      WEBSOCKET_CLOSE_REQUESTED,
+      'WEBSOCKET_CLOSE_REQUESTED',
+      'SDK requested WebSocket close',
+      ['call-1']
+    );
+
+    // But no public warning event should be emitted
+    expect(trigger).not.toHaveBeenCalled();
+  });
+
+  it('still records to call reports when emitWarning: false', () => {
+    const calls = {
+      'call-1': {
+        id: 'call-1',
+        recordSessionWarning: mockRecordSessionWarning,
+      },
+      'call-2': {
+        id: 'call-2',
+        recordSessionWarning: mockRecordSessionWarning,
+      },
+    };
+
+    recordReconnectDiagnostic(
+      calls,
+      'test-uuid',
+      'test-session',
+      WEBSOCKET_CLOSE_REQUESTED,
+      'WEBSOCKET_CLOSE_REQUESTED',
+      'SDK requested WebSocket close',
+      { socketGeneration: 2 },
+      { emitWarning: false }
+    );
+
+    // Both calls should have the warning recorded
+    expect(mockRecordSessionWarning).toHaveBeenCalledTimes(2);
+    expect(trigger).not.toHaveBeenCalled();
+  });
+});
+

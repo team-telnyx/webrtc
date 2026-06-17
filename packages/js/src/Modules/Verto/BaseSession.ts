@@ -1101,6 +1101,9 @@ export default abstract class BaseSession {
     this.stopSignalingHealthMonitor();
 
     // ── Reconnection diagnostic: websocket_close_requested ──
+    // Record to call reports only (emitWarning: false) because
+    // _closeConnection() also runs for normal disconnect/cleanup,
+    // and we must not emit a public warning for intentional disconnects.
     if (this.connection?.connected) {
       this._recordReconnectDiagnostic(
         WEBSOCKET_CLOSE_REQUESTED,
@@ -1110,7 +1113,8 @@ export default abstract class BaseSession {
           socketGeneration: this.connection.socketGeneration,
           voiceSdkId: this.callReportVoiceSdkId,
           sessid: this.sessionid || undefined,
-        }
+        },
+        { emitWarning: false }
       );
     }
 
@@ -1198,19 +1202,28 @@ export default abstract class BaseSession {
    *
    * This makes reconnection decisions visible in call reports without
    * requiring a public API change. Each diagnostic is stored as a
-   * session warning entry in the call report payload.
+   * session warning entry in the call report payload via
+   * LogCollector.addEntry(), and optionally emitted as a public
+   * telnyx.warning event for real-time listeners.
    *
    * @param code - Numeric warning code (36005-36011)
    * @param name - Machine-readable name (e.g. 'WEBSOCKET_CLOSED')
    * @param message - Short human-readable message with context
    * @param extras - Optional additional fields for the warning event
+   * @param options.emitWarning - When false, skip the public warning event.
+   *   Use this for diagnostics that fire during normal disconnect/cleanup
+   *   to avoid changing public behavior (existing tests assert no warnings
+   *   after intentional disconnect). Default: true.
    */
   public _recordReconnectDiagnostic(
     code: number,
     name: string,
     message: string,
-    extras?: Record<string, unknown>
+    extras?: Record<string, unknown>,
+    options?: { emitWarning?: boolean }
   ): void {
+    const emitWarning = options?.emitWarning !== false;
+
     const calls = (
       this as unknown as {
         calls?: Record<
@@ -1251,19 +1264,23 @@ export default abstract class BaseSession {
       }
     });
 
-    // Also emit as a warning event so real-time listeners can observe
+    // Emit as a warning event so real-time listeners can observe
     // the reconnection lifecycle (not just call reports).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const warning = createTelnyxWarning(code as any, message);
-    trigger(
-      SwEvent.Warning,
-      {
-        warning,
-        ...(extras || {}),
-        sessionId: this.sessionid,
-      },
-      this.uuid
-    );
+    // Skip for normal disconnect/cleanup paths where emitting would
+    // change public behavior (emitWarning: false).
+    if (emitWarning) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const warning = createTelnyxWarning(code as any, message);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          ...(extras || {}),
+          sessionId: this.sessionid,
+        },
+        this.uuid
+      );
+    }
   }
 
   /**

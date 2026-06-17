@@ -2545,6 +2545,33 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._flushIntermediateReport(flushReason);
   }
 
+  /**
+   * Record a session-level warning in this call's report.
+   *
+   * Used by the reconnection lifecycle diagnostics to persist warnings
+   * like WEBSOCKET_CLOSED, WEBSOCKET_RECONNECT_STARTED, etc. in the
+   * call report, ensuring they survive across intermediate flushes and
+   * appear in the final report payload.
+   *
+   * @param code - Numeric SDK warning code
+   * @param name - Machine-readable warning name
+   * @param message - Short human-readable message
+   * @param activeCallIds - Optional list of call IDs involved
+   */
+  public recordSessionWarning(
+    code: number,
+    name: string,
+    message: string,
+    activeCallIds?: string[]
+  ): void {
+    this._callReportCollector?.recordSessionWarning(
+      code,
+      name,
+      message,
+      activeCallIds
+    );
+  }
+
   private _flushIntermediateReport(
     flushReason: ICallReportFlushReason = { type: 'buffer-limit' }
   ) {
