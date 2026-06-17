@@ -1,5 +1,6 @@
 import type { Logger } from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
+import pkg from '../../../package.json';
 import BaseMessage from './messages/BaseMessage';
 import Connection from './services/Connection';
 import {
@@ -55,15 +56,33 @@ import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
-import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
+import {
+  CallReportCollector,
+  type ICallReportFlushReason,
+  type ICallReportPayload,
+} from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import { getGlobalLogCollector, type ILogEntry } from './util/LogCollector';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
  * Using intervals here that are in between both to make sure we don't let the session expire without acting first.
  */
 const KEEPALIVE_INTERVAL = 35 * 1000;
+const SDK_VERSION = pkg.version;
+const PENDING_SESSION_CALL_REPORTS_STORAGE_KEY =
+  'telnyx-voice-sdk-pending-session-call-reports';
+const MAX_PENDING_SESSION_CALL_REPORTS = 5;
+
+interface IPendingSessionCallReport {
+  id: string;
+  payload: ICallReportPayload;
+  storedAt: string;
+  sourceSessionId?: string;
+  sourceSessionUuid: string;
+  sourceVoiceSdkId?: string;
+}
 
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
@@ -727,6 +746,178 @@ export default abstract class BaseSession {
     this.startSignalingHealthMonitor();
   }
 
+  private _getPendingSessionCallReports(): IPendingSessionCallReport[] {
+    const value = sessionStorage.getItem(
+      PENDING_SESSION_CALL_REPORTS_STORAGE_KEY
+    );
+    if (!value) return [];
+
+    try {
+      const parsed = JSON.parse(value) as IPendingSessionCallReport[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+      return [];
+    }
+  }
+
+  private _setPendingSessionCallReports(
+    reports: IPendingSessionCallReport[]
+  ): void {
+    if (reports.length === 0) {
+      sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+      return;
+    }
+
+    sessionStorage.setItem(
+      PENDING_SESSION_CALL_REPORTS_STORAGE_KEY,
+      JSON.stringify(reports.slice(-MAX_PENDING_SESSION_CALL_REPORTS))
+    );
+  }
+
+  private _removePendingSessionCallReport(id: string): void {
+    this._setPendingSessionCallReports(
+      this._getPendingSessionCallReports().filter((report) => report.id !== id)
+    );
+  }
+
+  private _storePendingSessionCallReport(
+    flushReason: ICallReportFlushReason
+  ): void {
+    if (this.hasActiveCall()) return;
+
+    const socketClose = flushReason.socketClose;
+    const hasSocketReference = Boolean(
+      socketClose?.code !== undefined ||
+      socketClose?.reason ||
+      socketClose?.error ||
+      socketClose?.wasClean !== undefined
+    );
+    const capturedLogs = getGlobalLogCollector()?.getLogs() ?? [];
+
+    if (!hasSocketReference && capturedLogs.length === 0) {
+      return;
+    }
+
+    const storedAt = new Date().toISOString();
+    const pendingReportId = uuidv4();
+    const generatedCallId = `gen-${uuidv4()}`;
+    const sourceSessionId = this.sessionid || undefined;
+    const sourceVoiceSdkId = this.callReportVoiceSdkId || undefined;
+    const referenceLog: ILogEntry = {
+      timestamp: storedAt,
+      level: socketClose?.error ? 'error' : 'warn',
+      message:
+        'WebSocket closed without an active call; deferring session call report until the next successful SDK init',
+      context: {
+        pendingReportId,
+        generatedCallId,
+        sourceSessionId,
+        sourceSessionUuid: this.uuid,
+        sourceVoiceSdkId,
+        socketClose,
+      },
+    };
+
+    const payload: ICallReportPayload = {
+      summary: {
+        callId: generatedCallId,
+        state: 'session',
+        voiceSdkSessionId: sourceSessionId,
+        lastSocketClose: socketClose
+          ? {
+              type:
+                flushReason.type === 'socket-error'
+                  ? 'socket-error'
+                  : 'socket-close',
+              ...socketClose,
+            }
+          : undefined,
+        sdkVersion: SDK_VERSION,
+        startTimestamp: capturedLogs[0]?.timestamp ?? storedAt,
+        endTimestamp: storedAt,
+      },
+      stats: [],
+      logs: [...capturedLogs, referenceLog],
+      segment: 0,
+      flushReason,
+    };
+
+    this._setPendingSessionCallReports([
+      ...this._getPendingSessionCallReports(),
+      {
+        id: pendingReportId,
+        payload,
+        storedAt,
+        sourceSessionId,
+        sourceSessionUuid: this.uuid,
+        sourceVoiceSdkId,
+      },
+    ]);
+
+    logger.info('Stored deferred session call report', {
+      pendingReportId,
+      generatedCallId,
+      sourceSessionId,
+      sourceVoiceSdkId,
+      logEntries: payload.logs?.length ?? 0,
+      flushReason,
+    });
+  }
+
+  public flushPendingSessionCallReports(): void {
+    const callReportId = this.callReportId;
+    const host = this.connection?.host;
+
+    if (!callReportId || !host) return;
+
+    const pendingReports = this._getPendingSessionCallReports();
+    if (pendingReports.length === 0) return;
+
+    const sender = new CallReportCollector({ enabled: true, interval: 5000 });
+    const currentSessionId = this.sessionid || undefined;
+    const currentVoiceSdkId = this.callReportVoiceSdkId || undefined;
+
+    pendingReports.forEach((report) => {
+      const uploadedAt = new Date().toISOString();
+      const payload: ICallReportPayload = {
+        ...report.payload,
+        logs: [
+          ...(report.payload.logs ?? []),
+          {
+            timestamp: uploadedAt,
+            level: 'info',
+            message:
+              'Uploading deferred session call report after successful SDK init',
+            context: {
+              pendingReportId: report.id,
+              sourceSessionId: report.sourceSessionId,
+              sourceSessionUuid: report.sourceSessionUuid,
+              sourceVoiceSdkId: report.sourceVoiceSdkId,
+              currentSessionId,
+              currentVoiceSdkId,
+              storedAt: report.storedAt,
+            },
+          },
+        ],
+      };
+
+      const upload = sender
+        .sendPayload(payload, callReportId, host, currentVoiceSdkId)
+        .then(() => {
+          this._removePendingSessionCallReport(report.id);
+        })
+        .catch((error) => {
+          logger.error('Failed to upload deferred session call report', {
+            pendingReportId: report.id,
+            error,
+          });
+        });
+
+      this.trackCallReportUpload(upload);
+    });
+  }
+
   private _flushIntermediateCallReports(
     flushReason: ICallReportFlushReason
   ): void {
@@ -805,9 +996,9 @@ export default abstract class BaseSession {
     wasClean?: boolean;
     error?: unknown;
   }): void {
-    this._flushIntermediateCallReports(
-      this._createSocketCloseFlushReason(event)
-    );
+    const flushReason = this._createSocketCloseFlushReason(event);
+    this._flushIntermediateCallReports(flushReason);
+    this._storePendingSessionCallReport(flushReason);
 
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);

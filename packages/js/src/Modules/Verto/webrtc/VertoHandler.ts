@@ -367,6 +367,7 @@ class VertoHandler {
                     'Captured call_report_id from REGED:',
                     callReportId
                   );
+                  session.flushPendingSessionCallReports?.();
                 }
 
                 const dc = msg?.result?.params?.dc;

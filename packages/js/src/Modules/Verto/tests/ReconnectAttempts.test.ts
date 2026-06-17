@@ -7,6 +7,7 @@
 import BaseSession from '../BaseSession';
 import { trigger } from '../services/Handler';
 import { SwEvent, RECONNECTION_EXHAUSTED } from '../util/constants';
+import { State } from '../webrtc/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -19,6 +20,8 @@ jest.mock('../util/reconnect', () => ({
 }));
 
 const mockTrigger = trigger as jest.MockedFunction<typeof trigger>;
+const PENDING_SESSION_CALL_REPORTS_STORAGE_KEY =
+  'telnyx-voice-sdk-pending-session-call-reports';
 
 /**
  * Concrete subclass for testing the abstract BaseSession
@@ -32,6 +35,7 @@ class TestSession extends BaseSession {
 describe('BaseSession - Reconnection Attempt Limit', () => {
   let session: any;
   let mockConnection: any;
+  let originalFetch: typeof fetch | undefined;
 
   const createSession = (options: any = {}) => {
     return new TestSession({
@@ -44,6 +48,8 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockTrigger.mockClear();
+    sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+    originalFetch = global.fetch;
 
     session = createSession();
     mockConnection = {
@@ -59,6 +65,12 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
   });
 
   afterEach(() => {
+    sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+    if (originalFetch) {
+      global.fetch = originalFetch;
+    } else {
+      delete (global as unknown as { fetch?: typeof fetch }).fetch;
+    }
     jest.useRealTimers();
   });
 
@@ -185,6 +197,124 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.connect();
       expect(session._autoReconnect).toBe(true);
       expect(session._reconnectAttempts).toBe(0);
+    });
+
+    it('stores socket-close logs without an active call and uploads them after the next successful SDK init', async () => {
+      session.callReportId = null;
+      session.sessionid = 'old-session-id';
+      session.callReportVoiceSdkId = 'old-voice-sdk-id';
+
+      session.onNetworkClose({
+        code: 1006,
+        reason: 'network changed',
+        wasClean: false,
+      });
+
+      expect(session.callReportId).toBeNull();
+
+      const pending = JSON.parse(
+        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY) || '[]'
+      );
+      expect(pending).toHaveLength(1);
+      expect(pending[0].sourceSessionId).toBe('old-session-id');
+      expect(pending[0].sourceVoiceSdkId).toBe('old-voice-sdk-id');
+      expect(pending[0].payload).toMatchObject({
+        summary: {
+          callId: 'gen-mocked-uuid',
+          state: 'session',
+          voiceSdkSessionId: 'old-session-id',
+          lastSocketClose: {
+            type: 'socket-close',
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
+          },
+        },
+        stats: [],
+        segment: 0,
+        flushReason: {
+          type: 'socket-close',
+          socketClose: {
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
+          },
+        },
+      });
+      expect(pending[0].payload.logs[0]).toMatchObject({
+        level: 'warn',
+        context: {
+          generatedCallId: 'gen-mocked-uuid',
+          sourceSessionId: 'old-session-id',
+          sourceVoiceSdkId: 'old-voice-sdk-id',
+        },
+      });
+
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 202,
+        text: () => Promise.resolve(''),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      session.callReportId = 'new-call-report-id';
+      session.sessionid = 'new-session-id';
+      session.callReportVoiceSdkId = 'new-voice-sdk-id';
+      mockConnection.host = 'wss://rtc.telnyx.com';
+      session.flushPendingSessionCallReports();
+      await session._drainCallReportUploads();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://rtc.telnyx.com/call_report'
+      );
+      expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+        'x-call-report-id': 'new-call-report-id',
+        'x-call-id': 'gen-mocked-uuid',
+        'x-voice-sdk-id': 'new-voice-sdk-id',
+      });
+
+      const uploadedBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(uploadedBody.logs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message:
+              'Uploading deferred session call report after successful SDK init',
+            context: expect.objectContaining({
+              sourceSessionId: 'old-session-id',
+              sourceVoiceSdkId: 'old-voice-sdk-id',
+              currentSessionId: 'new-session-id',
+              currentVoiceSdkId: 'new-voice-sdk-id',
+            }),
+          }),
+        ])
+      );
+
+      expect(
+        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
+      ).toBeNull();
+    });
+
+    it('does not store deferred session reports when an active call owns the socket-close report', () => {
+      const flushIntermediateCallReport = jest.fn();
+      session.callReportId = null;
+      session.calls = {
+        'active-call': {
+          id: 'active-call',
+          _state: State.Active,
+          flushIntermediateCallReport,
+        },
+      };
+
+      session.onNetworkClose({ code: 1006 });
+
+      expect(flushIntermediateCallReport).toHaveBeenCalledTimes(1);
+      expect(session.callReportId).toBeNull();
+      expect(
+        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
+      ).toBeNull();
     });
   });
 
