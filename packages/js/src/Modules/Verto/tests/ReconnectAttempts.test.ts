@@ -7,6 +7,7 @@
 import BaseSession from '../BaseSession';
 import { trigger } from '../services/Handler';
 import { SwEvent, RECONNECTION_EXHAUSTED } from '../util/constants';
+import { State } from '../webrtc/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -188,6 +189,63 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.connect();
       expect(session._autoReconnect).toBe(true);
       expect(session._reconnectAttempts).toBe(0);
+    });
+
+    it('flushes active call reports when the socket stays disconnected and generates a gen-prefixed report id', () => {
+      const flushIntermediateCallReport = jest.fn();
+      session.callReportId = null;
+      session.calls = {
+        'active-call': {
+          id: 'active-call',
+          _state: State.Active,
+          flushIntermediateCallReport,
+        },
+      };
+
+      session.onNetworkClose({
+        code: 1006,
+        reason: 'network changed',
+        wasClean: false,
+      });
+      flushIntermediateCallReport.mockClear();
+
+      jest.runAllTimers();
+
+      expect(session.callReportId).toMatch(/^gen-/);
+      expect(flushIntermediateCallReport).toHaveBeenCalledTimes(1);
+      expect(flushIntermediateCallReport).toHaveBeenCalledWith({
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network changed',
+          wasClean: false,
+          error: undefined,
+        },
+      });
+    });
+
+    it('cancels the socket-close call report watcher when reconnect succeeds', () => {
+      const flushIntermediateCallReport = jest.fn();
+      session.callReportId = null;
+      session.calls = {
+        'active-call': {
+          id: 'active-call',
+          _state: State.Active,
+          flushIntermediateCallReport,
+        },
+      };
+
+      session.onNetworkClose({ code: 1006 });
+      flushIntermediateCallReport.mockClear();
+
+      mockConnection.connected = true;
+      session._onSocketOpen();
+      session.stopSignalingHealthMonitor();
+      jest.runAllTimers();
+
+      expect(flushIntermediateCallReport).not.toHaveBeenCalled();
+      expect(session.callReportId).toBeNull();
     });
   });
 

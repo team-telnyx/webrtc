@@ -97,7 +97,10 @@ export default abstract class BaseSession {
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
+  private static readonly SOCKET_CLOSE_CALL_REPORT_FLUSH_DELAY_MS = 30000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
+  private _socketCloseCallReportWatcher: ReturnType<typeof setTimeout> | null =
+    null;
 
   // ── Signaling health monitor ──────────────────────────────────────────
   /** Handles liveness detection, health probing, and force-reconnect. */
@@ -311,6 +314,7 @@ export default abstract class BaseSession {
     this._autoReconnect = false;
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
+    this._clearSocketCloseCallReportWatcher();
     await this._drainCallReportUploads();
     this._closeConnection();
     await sessionStorage.removeItem(this.signature);
@@ -720,9 +724,44 @@ export default abstract class BaseSession {
    * @return void
    */
   protected async _onSocketOpen() {
+    this._clearSocketCloseCallReportWatcher();
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
+  }
+
+  private _clearSocketCloseCallReportWatcher(): void {
+    if (this._socketCloseCallReportWatcher) {
+      clearTimeout(this._socketCloseCallReportWatcher);
+      this._socketCloseCallReportWatcher = null;
+    }
+  }
+
+  private _ensureGeneratedCallReportId(): void {
+    if (!this.callReportId) {
+      this.callReportId = `gen-${uuidv4()}`;
+    }
+  }
+
+  private _scheduleSocketCloseCallReportWatcher(
+    flushReason: ICallReportFlushReason
+  ): void {
+    this._clearSocketCloseCallReportWatcher();
+
+    this._socketCloseCallReportWatcher = setTimeout(() => {
+      this._socketCloseCallReportWatcher = null;
+
+      if (this.connection?.connected) {
+        return;
+      }
+
+      if (!this.hasActiveCall()) {
+        return;
+      }
+
+      this._ensureGeneratedCallReportId();
+      this._flushIntermediateCallReports(flushReason);
+    }, BaseSession.SOCKET_CLOSE_CALL_REPORT_FLUSH_DELAY_MS);
   }
 
   private _flushIntermediateCallReports(
@@ -809,6 +848,7 @@ export default abstract class BaseSession {
       ...flushReason.socketClose,
     });
     this._flushIntermediateCallReports(flushReason);
+    this._scheduleSocketCloseCallReportWatcher(flushReason);
 
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
