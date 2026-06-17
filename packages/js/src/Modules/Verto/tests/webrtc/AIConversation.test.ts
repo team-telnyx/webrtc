@@ -267,6 +267,7 @@ describe('AIConversationTypes', () => {
             sentTexts.push(text);
           }),
         },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       // Use Call's sendAIConversationMessage logic directly
@@ -278,6 +279,7 @@ describe('AIConversationTypes', () => {
       const { mockSession } = makeCallWithMockSession(false);
 
       // Inline the method logic to test without full Call construction
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
       const sendAIConversationMessage = (_item: any) => {
         if (!mockSession.connected) {
           throw new Error(
@@ -300,6 +302,7 @@ describe('AIConversationTypes', () => {
       const { mockSession, sentTexts } = makeCallWithMockSession(true);
 
       // Inline the method logic
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sendAIConversationMessage = (item: any) => {
         if (!mockSession.connected) {
           throw new Error(
@@ -333,6 +336,7 @@ describe('AIConversationTypes', () => {
       const { mockSession } = makeCallWithMockSession(false);
 
       // Verify it throws immediately (not returning a promise/queueing)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
       const sendAIConversationMessage = (_item: any) => {
         if (!mockSession.connected) {
           throw new Error(
