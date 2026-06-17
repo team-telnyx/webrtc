@@ -28,6 +28,8 @@ import {
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
+  ONLY_HOST_ICE_CANDIDATES_EXHAUSTED,
+  ONLY_HOST_ICE_CANDIDATES_THRESHOLD,
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
@@ -242,6 +244,14 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
+
+  /**
+   * Number of consecutive ICE gathering attempts that produced only host
+   * candidates. Reset when a non-host candidate (srflx/prflx/relay) is
+   * found. When this reaches ONLY_HOST_ICE_CANDIDATES_THRESHOLD the SDK
+   * terminates the call.
+   */
+  private _onlyHostIceCandidateCount: number = 0;
 
   private _isRecovering: boolean = false;
 
@@ -1839,6 +1849,28 @@ export default abstract class BaseCall implements IWebRTCCall {
         { warning, callId: this.id, sessionId: this.session.sessionid },
         this.session.uuid
       );
+
+      this._onlyHostIceCandidateCount++;
+      if (
+        this._onlyHostIceCandidateCount >= ONLY_HOST_ICE_CANDIDATES_THRESHOLD
+      ) {
+        const error = createTelnyxError(ONLY_HOST_ICE_CANDIDATES_EXHAUSTED);
+        logger.error(
+          `[${this.id}] Error ${error.code}: ${error.message} (consecutive only-host attempts: ${this._onlyHostIceCandidateCount})`
+        );
+        trigger(
+          SwEvent.Error,
+          { error, callId: this.id, sessionId: this.session.sessionid },
+          this.session.uuid
+        );
+        void this.hangup(
+          { initiator: 'sdk:only-host-ice-candidates-exhausted' },
+          false
+        );
+        return;
+      }
+    } else {
+      this._onlyHostIceCandidateCount = 0;
     }
 
     performance.mark(callMarkName(this.id, 'ice-gathering-end'));
@@ -2048,6 +2080,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._sendIceCandidate(event.candidate);
     } else {
       this._sendEndOfCandidates();
+      // End-of-candidates: check if only host candidates were gathered
+      this._checkOnlyHostIceCandidatesTrickle();
     }
   }
 
@@ -2102,6 +2136,54 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
+   * At end-of-candidates in trickle ICE mode, check whether only host
+   * candidates were gathered. If so, emit the warning and track the
+   * consecutive count. If the threshold is reached, emit the terminal
+   * error and hang up.
+   *
+   * This mirrors the only-host check in `_onIceSdp` (non-trickle path)
+   * but evaluates the local SDP after all candidates have been sent
+   * individually.
+   */
+  private _checkOnlyHostIceCandidatesTrickle() {
+    const localSdp = this.peer?.instance?.localDescription?.sdp;
+    if (!localSdp || localSdp.indexOf('candidate') === -1) {
+      return;
+    }
+
+    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(localSdp)) {
+      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
+      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
+      trigger(
+        SwEvent.Warning,
+        { warning, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+
+      this._onlyHostIceCandidateCount++;
+      if (
+        this._onlyHostIceCandidateCount >= ONLY_HOST_ICE_CANDIDATES_THRESHOLD
+      ) {
+        const error = createTelnyxError(ONLY_HOST_ICE_CANDIDATES_EXHAUSTED);
+        logger.error(
+          `[${this.id}] Error ${error.code}: ${error.message} (consecutive only-host attempts: ${this._onlyHostIceCandidateCount})`
+        );
+        trigger(
+          SwEvent.Error,
+          { error, callId: this.id, sessionId: this.session.sessionid },
+          this.session.uuid
+        );
+        void this.hangup(
+          { initiator: 'sdk:only-host-ice-candidates-exhausted' },
+          false
+        );
+      }
+    } else {
+      this._onlyHostIceCandidateCount = 0;
+    }
+  }
+
+  /**
    * Track first candidate and first non-host candidate performance marks.
    * Called from both _onIce and _onTrickleIce.
    */
@@ -2111,12 +2193,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._firstCandidateSent = true;
     }
 
-    if (!this._firstNonHostCandidateSent) {
-      const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
-      if (candidateType && candidateType !== 'host') {
+    const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
+    if (candidateType && candidateType !== 'host') {
+      if (!this._firstNonHostCandidateSent) {
         performance.mark(callMarkName(this.id, 'first-non-host-candidate'));
         this._firstNonHostCandidateSent = true;
       }
+      // Non-host candidate found — reset the only-host counter
+      this._onlyHostIceCandidateCount = 0;
     }
   }
 

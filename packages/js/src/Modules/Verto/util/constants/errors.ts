@@ -297,6 +297,25 @@ export const SDK_ERRORS = {
     ],
   },
 
+  47002: {
+    name: 'ONLY_HOST_ICE_CANDIDATES_EXHAUSTED',
+    message: 'Call terminated: only local network candidates available',
+    description:
+      'ICE gathering repeatedly produced only host (local network) candidates across multiple attempts, meaning no server-reflexive (srflx), peer-reflexive (prflx), or relay (TURN) candidates were found. STUN/TURN servers are unreachable, so the call cannot connect outside the local network. After the configured retry threshold was reached, the SDK terminated the call.',
+    causes: [
+      'STUN/TURN servers unreachable across multiple ICE gathering attempts',
+      'Firewall blocking all UDP traffic to STUN/TURN servers',
+      'Incorrect TURN server configuration or credentials',
+      'Restrictive corporate network or VPN blocking all external ICE paths',
+    ],
+    solutions: [
+      'Verify STUN/TURN server URLs and credentials',
+      'Ensure UDP traffic to STUN/TURN ports is not blocked',
+      'Check firewall or VPN settings',
+      'Try using TCP-based TURN as a fallback',
+    ],
+  },
+
   // ── Network errors (480xx) ──────────────────────────────────────────
   48001: {
     name: 'NETWORK_OFFLINE',

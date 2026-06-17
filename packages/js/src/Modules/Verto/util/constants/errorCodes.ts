@@ -38,6 +38,7 @@ export const TELNYX_ERROR_CODES = {
 
   // ── ICE restart errors (470xx) ─────────────────────────────────────
   ICE_RESTART_FAILED: 47001,
+  ONLY_HOST_ICE_CANDIDATES_EXHAUSTED: 47002,
 
   // ── Network errors (480xx) ──────────────────────────────────────────
   NETWORK_OFFLINE: 48001,
@@ -108,6 +109,7 @@ export const {
   INVALID_CREDENTIALS,
   AUTHENTICATION_REQUIRED,
   ICE_RESTART_FAILED,
+  ONLY_HOST_ICE_CANDIDATES_EXHAUSTED,
   NETWORK_OFFLINE,
   SESSION_NOT_REATTACHED,
   UNEXPECTED_ERROR,
@@ -144,3 +146,10 @@ export const {
  */
 export const HAS_NON_HOST_ICE_CANDIDATE_REGEX =
   /^a=candidate:.+typ (srflx|prflx|relay)/m;
+
+/**
+ * Maximum number of consecutive ICE gathering attempts that produce only
+ * host candidates before the SDK terminates the call. A non-host candidate
+ * (srflx, prflx, or relay) resets this counter.
+ */
+export const ONLY_HOST_ICE_CANDIDATES_THRESHOLD = 2;
