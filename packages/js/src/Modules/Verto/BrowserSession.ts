@@ -95,7 +95,7 @@ export default abstract class BrowserSession extends BaseSession {
   public emitMultipleActiveCallsWarning(
     newCallId: string,
     recoveredCallId?: string
-  ): void {
+  ): boolean {
     // Get existing active calls, excluding the new call itself
     // (the new call may or may not be in session.calls yet)
     let existingActiveCalls = this.getActiveCalls().filter(
@@ -104,7 +104,7 @@ export default abstract class BrowserSession extends BaseSession {
 
     // If no existing active calls, nothing to warn about
     if (existingActiveCalls.length === 0) {
-      return;
+      return false;
     }
 
     // If this is a recovery replacing a known call, don't warn
@@ -114,7 +114,7 @@ export default abstract class BrowserSession extends BaseSession {
         (call) => call.id !== recoveredCallId
       );
       if (activeWithoutRecovered.length === 0) {
-        return;
+        return false;
       }
       // Exclude the recovered call from the payload — it's being
       // replaced, so it's not genuinely "active alongside" the new call.
@@ -187,6 +187,8 @@ export default abstract class BrowserSession extends BaseSession {
         [newCallId, ...activeCallIds.filter((id) => id !== call.id)]
       );
     }
+
+    return true;
   }
 
   public micId: string;

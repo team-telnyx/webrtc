@@ -244,6 +244,7 @@ class VertoHandler {
         this.session.emitMultipleActiveCallsWarning(call.id);
 
         // Record warning in the new call's report for persistence
+        // (gated inside — only records when other active calls exist)
         this._recordMultiCallWarningOnNewCall(call);
 
         this._ack(id, method);
@@ -292,10 +293,16 @@ class VertoHandler {
           call.answer();
 
           // Emit warning if there are other active calls beyond the one being recovered
-          this.session.emitMultipleActiveCallsWarning(call.id, recoveredCallId);
+          const hadOtherActiveCalls = this.session.emitMultipleActiveCallsWarning(
+            call.id,
+            recoveredCallId
+          );
 
           // Record warning in the new call's report for persistence
-          this._recordMultiCallWarningOnNewCall(call);
+          // (only when the warning was actually emitted — i.e., other active calls exist)
+          if (hadOtherActiveCalls) {
+            this._recordMultiCallWarningOnNewCall(call, recoveredCallId);
+          }
 
           this._ack(id, method);
           break;
@@ -707,10 +714,32 @@ class VertoHandler {
    * Record MULTIPLE_ACTIVE_CALLS_DETECTED warning on a newly created call's
    * call-report collector so the warning is persisted in the call report.
    */
-  private _recordMultiCallWarningOnNewCall(call: Call) {
-    const activeCallIds = this.session
+  private _recordMultiCallWarningOnNewCall(
+    call: Call,
+    recoveredCallId?: string
+  ) {
+    // Mirror the emitter's gating: only record when there are genuinely
+    // other active calls.  Without this guard a normal first inbound call
+    // would still record MULTIPLE_ACTIVE_CALLS_DETECTED in its call report.
+    let existingActiveCalls = this.session
       .getActiveCalls()
-      .map((c: IWebRTCCall) => c.id);
+      .filter((c: IWebRTCCall) => c.id !== call.id);
+
+    if (existingActiveCalls.length === 0) {
+      return;
+    }
+
+    if (recoveredCallId) {
+      const activeWithoutRecovered = existingActiveCalls.filter(
+        (c: IWebRTCCall) => c.id !== recoveredCallId
+      );
+      if (activeWithoutRecovered.length === 0) {
+        return;
+      }
+      existingActiveCalls = activeWithoutRecovered;
+    }
+
+    const activeCallIds = existingActiveCalls.map((c: IWebRTCCall) => c.id);
     const warningInfo = SDK_WARNINGS[MULTIPLE_ACTIVE_CALLS_DETECTED];
     (call as { recordSessionWarning?: (...args: unknown[]) => void }).recordSessionWarning?.(
       MULTIPLE_ACTIVE_CALLS_DETECTED,
