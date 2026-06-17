@@ -2557,18 +2557,23 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @param name - Machine-readable warning name
    * @param message - Short human-readable message
    * @param activeCallIds - Optional list of call IDs involved
+   * @param extras - Optional structured diagnostic context (e.g. closeCode,
+   *   reconnectDecision, voiceSdkId, sessid) persisted alongside the warning
+   *   so call reports can reconstruct reconnect decisions.
    */
   public recordSessionWarning(
     code: number,
     name: string,
     message: string,
-    activeCallIds?: string[]
+    activeCallIds?: string[],
+    extras?: Record<string, unknown>
   ): void {
     this._callReportCollector?.recordSessionWarning(
       code,
       name,
       message,
-      activeCallIds
+      activeCallIds,
+      extras
     );
   }
 

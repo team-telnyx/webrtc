@@ -423,12 +423,16 @@ export class CallReportCollector {
    * @param name - Machine-readable warning name
    * @param message - Short human-readable message
    * @param activeCallIds - Optional list of call IDs involved
+   * @param extras - Optional structured diagnostic context (e.g. closeCode,
+   *   reconnectDecision, voiceSdkId, sessid) persisted alongside the warning
+   *   so call reports can reconstruct reconnect decisions.
    */
   public recordSessionWarning(
     code: number,
     name: string,
     message: string,
-    activeCallIds?: string[]
+    activeCallIds?: string[],
+    extras?: Record<string, unknown>
   ): void {
     this.logCollector?.addEntry('warn', `[${name}] ${message}`, {
       type: 'session_warning',
@@ -437,6 +441,7 @@ export class CallReportCollector {
       ...(activeCallIds && activeCallIds.length > 0
         ? { activeCallIds }
         : {}),
+      ...(extras ? extras : {}),
     });
   }
 

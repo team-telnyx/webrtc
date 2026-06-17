@@ -1234,7 +1234,8 @@ export default abstract class BaseSession {
               code: number,
               name: string,
               message: string,
-              activeCallIds?: string[]
+              activeCallIds?: string[],
+              extras?: Record<string, unknown>
             ) => void;
           }
         >;
@@ -1253,7 +1254,8 @@ export default abstract class BaseSession {
           code,
           name,
           message,
-          activeCallIds
+          activeCallIds,
+          extras
         );
       } catch (error) {
         logger.error('Failed to record reconnect diagnostic', {

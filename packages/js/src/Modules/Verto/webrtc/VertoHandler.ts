@@ -95,6 +95,30 @@ class VertoHandler {
         (reattachedID: string) => activeCallsIDs.has(reattachedID)
       );
 
+      // ── Reconnection diagnostic: call_recovery_result ──
+      // Record the reattach outcome AFTER it is known (not on REGED,
+      // where a failed reattach would be falsely logged as 'recovered').
+      // Only record during reconnects (socketGeneration > 1).
+      if (session.connection?.socketGeneration > 1) {
+        const reattachSucceeded = !isReattachedEmpty && isReattachedHasSdkKnownCalls;
+        session._recordReconnectDiagnostic(
+          CALL_RECOVERY_RESULT,
+          'CALL_RECOVERY_RESULT',
+          reattachSucceeded
+            ? 'Call recovery result: recovered (active calls reattached)'
+            : 'Call recovery result: not_recovered (reattach failed — no matching sessions)',
+          {
+            result: reattachSucceeded ? 'recovered' : 'not_recovered',
+            reason: reattachSucceeded
+              ? 'session_reconnected_with_active_calls'
+              : 'reattach_failed_no_matching_sessions',
+            socketGeneration: session.connection?.socketGeneration,
+            voiceSdkId: session.callReportVoiceSdkId,
+            sessid: session.sessionid || undefined,
+          }
+        );
+      }
+
       if (isReattachedEmpty || !isReattachedHasSdkKnownCalls) {
         for (const callId of Object.keys(session.calls)) {
           const call = session.calls[callId];
@@ -360,27 +384,29 @@ class VertoHandler {
                   this.session.resetReconnectAttempts();
 
                   // ── Reconnection diagnostic: call_recovery_result ──
-                  // On REGED after reconnect, record whether calls were recovered.
-                  // A socketGeneration > 1 indicates this was a reconnect, not an
-                  // initial connection. Active calls will be recovered via Attach.
+                  // On REGED after reconnect, record not_applicable when
+                  // there are no active calls (no reattach pending).
+                  // When active calls exist, the recovery result is
+                  // recorded in the reattach handling section above,
+                  // AFTER the reattach outcome is known (not here on REGED,
+                  // where a failed reattach would be falsely logged as
+                  // 'recovered').
                   if (this.session.connection?.socketGeneration > 1) {
                     const hasActiveCalls = this.session.hasActiveCall();
-                    this.session._recordReconnectDiagnostic(
-                      CALL_RECOVERY_RESULT,
-                      'CALL_RECOVERY_RESULT',
-                      hasActiveCalls
-                        ? 'Call recovery result: recovered (active calls will be recovered via Attach)'
-                        : 'Call recovery result: not_applicable (no active calls during reconnect)',
-                      {
-                        result: hasActiveCalls ? 'recovered' : 'not_applicable',
-                        reason: hasActiveCalls
-                          ? 'session_reconnected_with_active_calls'
-                          : 'session_reconnected_without_active_calls',
-                        socketGeneration: this.session.connection?.socketGeneration,
-                        voiceSdkId: this.session.callReportVoiceSdkId,
-                        sessid: this.session.sessionid || undefined,
-                      }
-                    );
+                    if (!hasActiveCalls) {
+                      this.session._recordReconnectDiagnostic(
+                        CALL_RECOVERY_RESULT,
+                        'CALL_RECOVERY_RESULT',
+                        'Call recovery result: not_applicable (no active calls during reconnect)',
+                        {
+                          result: 'not_applicable',
+                          reason: 'session_reconnected_without_active_calls',
+                          socketGeneration: this.session.connection?.socketGeneration,
+                          voiceSdkId: this.session.callReportVoiceSdkId,
+                          sessid: this.session.sessionid || undefined,
+                        }
+                      );
+                    }
                   }
                 }
 

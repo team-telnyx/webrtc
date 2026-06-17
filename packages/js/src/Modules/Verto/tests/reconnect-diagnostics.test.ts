@@ -51,7 +51,7 @@ function recordReconnectDiagnostic(
     if (!call?.recordSessionWarning) return;
 
     try {
-      call.recordSessionWarning(code, name, message, activeCallIds);
+      call.recordSessionWarning(code, name, message, activeCallIds, extras);
     } catch {
       // Swallow — matches real implementation
     }
@@ -106,7 +106,36 @@ describe('_recordReconnectDiagnostic', () => {
       WEBSOCKET_CLOSED,
       'WEBSOCKET_CLOSED',
       'WebSocket closed (code=1006)',
-      ['call-1', 'call-2']
+      ['call-1', 'call-2'],
+      { closeCode: 1006, wasClean: false }
+    );
+  });
+
+  it('threads extras through to recordSessionWarning for call report persistence', () => {
+    const calls = {
+      'call-1': {
+        id: 'call-1',
+        recordSessionWarning: mockRecordSessionWarning,
+      },
+    };
+
+    recordReconnectDiagnostic(
+      calls,
+      'test-uuid',
+      'test-session',
+      NETWORK_CLOSE_DECISION,
+      'NETWORK_CLOSE_DECISION',
+      'Reconnect decision: attempt',
+      { reconnectDecision: 'attempt', reason: 'auto_reconnect_enabled', voiceSdkId: 'vs-42', sessid: 'sess-99' }
+    );
+
+    // extras should be passed as the 5th argument to recordSessionWarning
+    expect(mockRecordSessionWarning).toHaveBeenCalledWith(
+      NETWORK_CLOSE_DECISION,
+      'NETWORK_CLOSE_DECISION',
+      'Reconnect decision: attempt',
+      ['call-1'],
+      { reconnectDecision: 'attempt', reason: 'auto_reconnect_enabled', voiceSdkId: 'vs-42', sessid: 'sess-99' }
     );
   });
 
@@ -422,7 +451,8 @@ describe('_recordReconnectDiagnostic emitWarning option', () => {
       WEBSOCKET_CLOSE_REQUESTED,
       'WEBSOCKET_CLOSE_REQUESTED',
       'SDK requested WebSocket close',
-      ['call-1']
+      ['call-1'],
+      { socketGeneration: 1, voiceSdkId: 'vs-123' }
     );
 
     // But no public warning event should be emitted
