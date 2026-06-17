@@ -7,19 +7,36 @@
 import BaseSession from '../BaseSession';
 import { trigger } from '../services/Handler';
 import { SwEvent, RECONNECTION_EXHAUSTED } from '../util/constants';
+import { drainStoredSdkLogs } from '../util/logger';
 import { State } from '../webrtc/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
 jest.mock('../services/Handler');
-jest.mock('../util/logger');
+jest.mock('../util/logger', () => ({
+  __esModule: true,
+  default: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+  drainStoredSdkLogs: jest.fn(() => []),
+  setConsoleLoggerMinLevel: jest.fn(),
+}));
 jest.mock('../util/reconnect', () => ({
+  getReconnectSessionId: jest.fn(() => null),
   getReconnectToken: jest.fn(() => null),
+  setReconnectSessionId: jest.fn(),
   setReconnectToken: jest.fn(),
   clearReconnectToken: jest.fn(),
+  isReconnectSessionIdFresh: jest.fn(() => false),
 }));
 
 const mockTrigger = trigger as jest.MockedFunction<typeof trigger>;
+const mockDrainStoredSdkLogs = drainStoredSdkLogs as jest.MockedFunction<
+  typeof drainStoredSdkLogs
+>;
 const PENDING_SESSION_CALL_REPORTS_STORAGE_KEY =
   'telnyx-voice-sdk-pending-session-call-reports';
 
@@ -48,7 +65,9 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockTrigger.mockClear();
-    sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+    mockDrainStoredSdkLogs.mockClear();
+    mockDrainStoredSdkLogs.mockReturnValue([]);
+    localStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
     originalFetch = global.fetch;
 
     session = createSession();
@@ -65,7 +84,7 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
   });
 
   afterEach(() => {
-    sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+    localStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
     if (originalFetch) {
       global.fetch = originalFetch;
     } else {
@@ -203,6 +222,20 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       session.callReportId = null;
       session.sessionid = 'old-session-id';
       session.callReportVoiceSdkId = 'old-voice-sdk-id';
+      mockDrainStoredSdkLogs.mockReturnValue([
+        {
+          timestamp: '2026-06-17T20:52:00.000Z',
+          level: 'debug',
+          message: 'WebSocket connection created',
+          context: { socketGeneration: 1 },
+        },
+        {
+          timestamp: '2026-06-17T20:52:01.000Z',
+          level: 'error',
+          message: 'WebSocket error',
+          context: { error: 'network changed' },
+        },
+      ]);
 
       session.onNetworkClose({
         code: 1006,
@@ -211,9 +244,10 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       });
 
       expect(session.callReportId).toBeNull();
+      expect(mockDrainStoredSdkLogs).toHaveBeenCalledTimes(1);
 
       const pending = JSON.parse(
-        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY) || '[]'
+        localStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY) || '[]'
       );
       expect(pending).toHaveLength(1);
       expect(pending[0].sourceSessionId).toBe('old-session-id');
@@ -243,14 +277,26 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
           },
         },
       });
-      expect(pending[0].payload.logs[0]).toMatchObject({
-        level: 'warn',
-        context: {
-          generatedCallId: 'gen-mocked-uuid',
-          sourceSessionId: 'old-session-id',
-          sourceVoiceSdkId: 'old-voice-sdk-id',
-        },
-      });
+      expect(pending[0].payload.logs).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            level: 'debug',
+            message: 'WebSocket connection created',
+          }),
+          expect.objectContaining({
+            level: 'error',
+            message: 'WebSocket error',
+          }),
+          expect.objectContaining({
+            level: 'warn',
+            context: expect.objectContaining({
+              generatedCallId: 'gen-mocked-uuid',
+              sourceSessionId: 'old-session-id',
+              sourceVoiceSdkId: 'old-voice-sdk-id',
+            }),
+          }),
+        ])
+      );
 
       const fetchMock = jest.fn().mockResolvedValue({
         ok: true,
@@ -293,7 +339,7 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       );
 
       expect(
-        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
+        localStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
       ).toBeNull();
     });
 
@@ -313,7 +359,7 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       expect(flushIntermediateCallReport).toHaveBeenCalledTimes(1);
       expect(session.callReportId).toBeNull();
       expect(
-        sessionStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
+        localStorage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY)
       ).toBeNull();
     });
   });

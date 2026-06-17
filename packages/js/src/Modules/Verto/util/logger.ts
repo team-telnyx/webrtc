@@ -1,5 +1,5 @@
 import log from 'loglevel';
-import { getGlobalLogCollector, LogLevel } from './LogCollector';
+import { getGlobalLogCollector, ILogEntry, LogLevel } from './LogCollector';
 
 const datetime = () =>
   new Date().toISOString().replace('T', ' ').replace('Z', '');
@@ -17,6 +17,8 @@ const CONSOLE_LEVEL_PRIORITY: Record<string, number> = {
   error: 4,
 };
 let consoleMinLevel = CONSOLE_LEVEL_PRIORITY['info'];
+export const STORED_SDK_LOGS_STORAGE_KEY = 'telnyx-voice-sdk-stored-logs';
+const MAX_STORED_SDK_LOGS = 500;
 
 /**
  * Set the minimum log level that prints to the browser console.
@@ -83,6 +85,84 @@ function toSerializable(value: unknown): unknown {
   return { value: String(value) };
 }
 
+function getStorage(): Storage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function getStoredSdkLogs(): ILogEntry[] {
+  const storage = getStorage();
+  if (!storage) return [];
+
+  const value = storage.getItem(STORED_SDK_LOGS_STORAGE_KEY);
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value) as ILogEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    storage.removeItem(STORED_SDK_LOGS_STORAGE_KEY);
+    return [];
+  }
+}
+
+export function clearStoredSdkLogs(): void {
+  getStorage()?.removeItem(STORED_SDK_LOGS_STORAGE_KEY);
+}
+
+export function drainStoredSdkLogs(): ILogEntry[] {
+  const logs = getStoredSdkLogs();
+  clearStoredSdkLogs();
+  return logs;
+}
+
+function appendStoredSdkLog(entry: ILogEntry): void {
+  const storage = getStorage();
+  if (!storage) return;
+
+  try {
+    const logs = getStoredSdkLogs();
+    logs.push(entry);
+    storage.setItem(
+      STORED_SDK_LOGS_STORAGE_KEY,
+      JSON.stringify(logs.slice(-MAX_STORED_SDK_LOGS))
+    );
+  } catch {
+    // Best effort only. Logging must never throw from storage quota/access issues.
+  }
+}
+
+function createLogEntry(methodName: string, logArgs: unknown[]): ILogEntry {
+  const [firstArg, ...restArgs] = logArgs;
+  const message =
+    typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
+  const level = methodName === 'trace' ? 'debug' : (methodName as LogLevel);
+
+  let context: Record<string, unknown> | undefined;
+  if (restArgs.length > 0) {
+    if (
+      restArgs.length === 1 &&
+      typeof restArgs[0] === 'object' &&
+      restArgs[0] !== null
+    ) {
+      context = toSerializable(restArgs[0]) as Record<string, unknown>;
+    } else {
+      context = { args: restArgs.map(toSerializable) };
+    }
+  }
+
+  return {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    ...(context && Object.keys(context).length > 0 ? { context } : {}),
+  };
+}
+
 const originalFactory = logger.methodFactory;
 logger.methodFactory = (methodName, logLevel, loggerName) => {
   const rawMethod = originalFactory(methodName, logLevel, loggerName);
@@ -96,32 +176,13 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
       rawMethod(...messages);
     }
 
+    const entry = createLogEntry(methodName, logArgs);
+    appendStoredSdkLog(entry);
+
     // Forward ALL levels to log collector if active
     const collector = getGlobalLogCollector();
     if (collector?.isActive()) {
-      // Extract message and context from arguments
-      const [firstArg, ...restArgs] = logArgs;
-      const message =
-        typeof firstArg === 'string' ? firstArg : JSON.stringify(firstArg);
-
-      // If there's a second argument and it's an object, use it as context
-      // Serialize to plain objects so DOM Events and similar host objects
-      // retain their properties when the call report is JSON.stringified.
-      let context: Record<string, unknown> | undefined;
-      if (restArgs.length > 0) {
-        if (
-          restArgs.length === 1 &&
-          typeof restArgs[0] === 'object' &&
-          restArgs[0] !== null
-        ) {
-          context = toSerializable(restArgs[0]) as Record<string, unknown>;
-        } else {
-          // Multiple extra args, wrap them
-          context = { args: restArgs.map(toSerializable) };
-        }
-      }
-
-      collector.addEntry(methodName as LogLevel, message, context);
+      collector.addEntry(entry.level, entry.message, entry.context);
     }
   };
 };

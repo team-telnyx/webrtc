@@ -44,7 +44,10 @@ import {
   IVertoOptions,
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
-import logger, { setConsoleLoggerMinLevel } from './util/logger';
+import logger, {
+  drainStoredSdkLogs,
+  setConsoleLoggerMinLevel,
+} from './util/logger';
 import {
   getReconnectSessionId,
   getReconnectToken,
@@ -746,17 +749,27 @@ export default abstract class BaseSession {
     this.startSignalingHealthMonitor();
   }
 
+  private _getBrowserStorage(): Storage | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   private _getPendingSessionCallReports(): IPendingSessionCallReport[] {
-    const value = sessionStorage.getItem(
-      PENDING_SESSION_CALL_REPORTS_STORAGE_KEY
-    );
+    const storage = this._getBrowserStorage();
+    if (!storage) return [];
+
+    const value = storage.getItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
     if (!value) return [];
 
     try {
       const parsed = JSON.parse(value) as IPendingSessionCallReport[];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
-      sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+      storage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
       return [];
     }
   }
@@ -764,15 +777,28 @@ export default abstract class BaseSession {
   private _setPendingSessionCallReports(
     reports: IPendingSessionCallReport[]
   ): void {
+    const storage = this._getBrowserStorage();
+    if (!storage) return;
+
     if (reports.length === 0) {
-      sessionStorage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
+      storage.removeItem(PENDING_SESSION_CALL_REPORTS_STORAGE_KEY);
       return;
     }
 
-    sessionStorage.setItem(
+    storage.setItem(
       PENDING_SESSION_CALL_REPORTS_STORAGE_KEY,
       JSON.stringify(reports.slice(-MAX_PENDING_SESSION_CALL_REPORTS))
     );
+  }
+
+  private _dedupeLogs(logs: ILogEntry[]): ILogEntry[] {
+    const seen = new Set<string>();
+    return logs.filter((log) => {
+      const key = `${log.timestamp}|${log.level}|${log.message}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   private _removePendingSessionCallReport(id: string): void {
@@ -793,7 +819,10 @@ export default abstract class BaseSession {
       socketClose?.error ||
       socketClose?.wasClean !== undefined
     );
-    const capturedLogs = getGlobalLogCollector()?.getLogs() ?? [];
+    const capturedLogs = this._dedupeLogs([
+      ...drainStoredSdkLogs(),
+      ...(getGlobalLogCollector()?.getLogs() ?? []),
+    ]).slice(-500);
 
     if (!hasSocketReference && capturedLogs.length === 0) {
       return;

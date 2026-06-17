@@ -233,6 +233,15 @@ export interface IStatsInterval {
   transport?: ITransportStats;
 }
 
+export interface ICallSummarySocketClose {
+  type: 'socket-close' | 'socket-error';
+  code?: number;
+  codeName?: string;
+  reason?: string;
+  wasClean?: boolean;
+  error?: string;
+}
+
 export interface ICallSummary {
   callId: string;
   destinationNumber?: string;
@@ -243,6 +252,7 @@ export interface ICallSummary {
   telnyxSessionId?: string;
   telnyxLegId?: string;
   voiceSdkSessionId?: string;
+  lastSocketClose?: ICallSummarySocketClose;
   sdkVersion?: string;
   startTimestamp?: string;
   endTimestamp?: string;
