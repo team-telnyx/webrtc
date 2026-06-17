@@ -106,7 +106,8 @@ export function isFunctionCallParams(
   return (
     itemRec['type'] === 'function_call' &&
     typeof itemRec['call_id'] === 'string' &&
-    typeof itemRec['name'] === 'string'
+    typeof itemRec['name'] === 'string' &&
+    typeof itemRec['arguments'] === 'string'
   );
 }
 
@@ -130,6 +131,7 @@ export function isFunctionCallOutputParams(
   const itemRec = item as Record<string, unknown>;
   return (
     itemRec['type'] === 'function_call_output' &&
-    typeof itemRec['call_id'] === 'string'
+    typeof itemRec['call_id'] === 'string' &&
+    typeof itemRec['output'] === 'string'
   );
 }
