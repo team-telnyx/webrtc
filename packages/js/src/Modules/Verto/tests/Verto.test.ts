@@ -6,8 +6,6 @@ import { IWebRTCCall } from '../webrtc/interfaces';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
-  TURN_TLS_TCP_443_SERVER,
-  TURN_TLS_TCP_443_DEV_SERVER,
 } from '../util/constants';
 import {
   clearReconnectToken,
