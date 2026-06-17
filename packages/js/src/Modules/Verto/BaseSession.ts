@@ -48,6 +48,7 @@ import {
   getReconnectSessionId,
   getReconnectToken,
   clearReconnectToken,
+  setLastSocketClose,
   setReconnectSessionId,
 } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
@@ -802,9 +803,12 @@ export default abstract class BaseSession {
     wasClean?: boolean;
     error?: unknown;
   }): void {
-    this._flushIntermediateCallReports(
-      this._createSocketCloseFlushReason(event)
-    );
+    const flushReason = this._createSocketCloseFlushReason(event);
+    setLastSocketClose({
+      type: event?.error ? 'socket-error' : 'socket-close',
+      ...flushReason.socketClose,
+    });
+    this._flushIntermediateCallReports(flushReason);
 
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);

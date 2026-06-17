@@ -1,8 +1,10 @@
 import {
   clearReconnectToken,
+  getLastSocketClose,
   getReconnectSessionId,
   getReconnectToken,
   RECONNECT_SESSION_ID_MAX_AGE_MS,
+  setLastSocketClose,
   setReconnectSessionId,
   setReconnectToken,
 } from '../util/reconnect';
@@ -40,5 +42,25 @@ describe('reconnect token storage', () => {
     expect(
       getReconnectSessionId(1001 + RECONNECT_SESSION_ID_MAX_AGE_MS)
     ).toBeNull();
+  });
+
+  it('stores the last socket close metadata in browser session storage', () => {
+    setLastSocketClose({
+      type: 'socket-close',
+      code: 1006,
+      codeName: 'ABNORMAL_CLOSURE',
+      reason: 'network changed',
+      wasClean: false,
+    });
+
+    expect(getLastSocketClose()).toEqual({
+      type: 'socket-close',
+      code: 1006,
+      codeName: 'ABNORMAL_CLOSURE',
+      reason: 'network changed',
+      wasClean: false,
+    });
+
+    clearReconnectToken();
   });
 });

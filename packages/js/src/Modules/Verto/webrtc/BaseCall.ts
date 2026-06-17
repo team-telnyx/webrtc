@@ -47,6 +47,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { getLastSocketClose } from '../util/reconnect';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -2576,6 +2577,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       state: this.state,
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
+      voiceSdkSessionId: this.session.sessionid,
+      lastSocketClose: getLastSocketClose() || undefined,
       sdkVersion: SDK_VERSION,
     };
 
@@ -2629,6 +2632,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       state: this.state,
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
+      voiceSdkSessionId: this.session.sessionid,
+      lastSocketClose: getLastSocketClose() || undefined,
       sdkVersion: SDK_VERSION,
     };
 

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any */
 import { isQueued } from '../../services/Handler';
 import BaseSession from '../../BaseSession';
+import { getLastSocketClose } from '../../util/reconnect';
 const Connection = require('../../services/Connection');
 
 describe('BaseSession', () => {
@@ -147,6 +148,24 @@ export default (instance: any) => {
               wasClean: undefined,
               error: undefined,
             },
+          });
+        });
+
+        it('stores the last socket close metadata for future call reports', () => {
+          instance._autoReconnect = false;
+
+          instance.onNetworkClose({
+            code: 1006,
+            reason: 'network changed',
+            wasClean: false,
+          });
+
+          expect(getLastSocketClose()).toEqual({
+            type: 'socket-close',
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
           });
         });
       });

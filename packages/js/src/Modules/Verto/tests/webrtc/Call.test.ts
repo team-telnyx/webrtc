@@ -19,6 +19,7 @@ import {
   SwEvent,
 } from '../../util/constants';
 import logger from '../../util/logger';
+import { setLastSocketClose } from '../../util/reconnect';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
@@ -225,6 +226,13 @@ describe('Call', () => {
     it('uses the owning session voice_sdk_id when posting the report', async () => {
       (session.connection as unknown as { host?: string }).host =
         'wss://rtc.telnyx.com';
+      setLastSocketClose({
+        type: 'socket-close',
+        code: 1006,
+        codeName: 'ABNORMAL_CLOSURE',
+        reason: 'network changed',
+        wasClean: false,
+      });
       session.callReportId = 'call-report-id';
       session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
 
@@ -242,7 +250,17 @@ describe('Call', () => {
       )._postCallReport();
 
       expect(collector.postReport).toHaveBeenCalledWith(
-        expect.objectContaining({ callId: call.id }),
+        expect.objectContaining({
+          callId: call.id,
+          voiceSdkSessionId: session.sessionid,
+          lastSocketClose: {
+            type: 'socket-close',
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
+          },
+        }),
         'call-report-id',
         'wss://rtc.telnyx.com',
         'owning-session-voice-sdk-id'
@@ -253,6 +271,10 @@ describe('Call', () => {
     it('submits and tracks intermediate reports with the owning session voice_sdk_id', () => {
       (session.connection as unknown as { host?: string }).host =
         'wss://rtc.telnyx.com';
+      setLastSocketClose({
+        type: 'socket-error',
+        error: 'socket hang up',
+      });
       session.callReportId = 'call-report-id';
       session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
       const payload = {
@@ -278,6 +300,17 @@ describe('Call', () => {
         call as unknown as { _flushIntermediateReport: () => void }
       )._flushIntermediateReport();
 
+      expect(collector.flush).toHaveBeenCalledWith(
+        expect.objectContaining({
+          callId: call.id,
+          voiceSdkSessionId: session.sessionid,
+          lastSocketClose: {
+            type: 'socket-error',
+            error: 'socket hang up',
+          },
+        }),
+        expect.anything()
+      );
       expect(collector.sendPayload).toHaveBeenCalledWith(
         payload,
         'call-report-id',

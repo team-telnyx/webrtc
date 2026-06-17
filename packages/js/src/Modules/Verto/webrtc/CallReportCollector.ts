@@ -34,6 +34,7 @@ import {
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
+import type { ILastSocketClose } from '../../../Modules/Verto/util/reconnect';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -243,6 +244,7 @@ export interface ICallSummary {
   telnyxSessionId?: string;
   telnyxLegId?: string;
   voiceSdkSessionId?: string;
+  lastSocketClose?: ILastSocketClose;
   sdkVersion?: string;
   startTimestamp?: string;
   endTimestamp?: string;

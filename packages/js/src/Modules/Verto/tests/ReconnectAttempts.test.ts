@@ -16,6 +16,9 @@ jest.mock('../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
   setReconnectToken: jest.fn(),
   clearReconnectToken: jest.fn(),
+  getReconnectSessionId: jest.fn(() => null),
+  setReconnectSessionId: jest.fn(),
+  setLastSocketClose: jest.fn(),
 }));
 
 const mockTrigger = trigger as jest.MockedFunction<typeof trigger>;
