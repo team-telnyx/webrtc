@@ -6,12 +6,13 @@ import {
   IVertoOptions,
 } from './util/interfaces';
 import { registerOnce, trigger } from './services/Handler';
-import { classifyMediaErrorCode, createTelnyxError } from './util/errors';
+import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning } from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
   DEFAULT_DEV_ICE_SERVERS,
   NETWORK_OFFLINE,
+  MULTIPLE_ACTIVE_CALLS_DETECTED,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
 import {
@@ -30,8 +31,138 @@ import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
 
+/**
+ * Safe correlation context for an active call, suitable for inclusion in
+ * warning payloads and call reports. Contains only identifiers and state —
+ * no credentials, SDP, phone numbers, or custom headers.
+ */
+export interface IActiveCallContext {
+  callId: string;
+  state: string;
+  direction: string;
+  telnyxSessionId?: string;
+  telnyxLegId?: string;
+  sipCallId?: string;
+}
+
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
+
+  /**
+   * Call states considered "active" (non-terminal) for the purpose of
+   * detecting multiple active calls in the same session.
+   * These are the lowercase string names matching `State[State.X]` values
+   * as stored on `call.state`.
+   * Calls in hangup/destroy/purge are excluded because they are
+   * transitioning to cleanup.
+   */
+  private static readonly ACTIVE_CALL_STATE_NAMES: ReadonlySet<string> =
+    new Set([
+      'new',
+      'requesting',
+      'trying',
+      'recovering',
+      'ringing',
+      'answering',
+      'early',
+      'active',
+      'held',
+    ]);
+
+  /**
+   * Returns an array of calls currently in a non-terminal state.
+   * Used by the multi-call detector to decide whether to emit a
+   * `MULTIPLE_ACTIVE_CALLS_DETECTED` warning.
+   */
+  public getActiveCalls(): IWebRTCCall[] {
+    return Object.values(this.calls).filter((call) =>
+      BrowserSession.ACTIVE_CALL_STATE_NAMES.has(call.state)
+    );
+  }
+
+  /**
+   * Emits a `MULTIPLE_ACTIVE_CALLS_DETECTED` warning through the
+   * `telnyx.warning` event when a new call is created or received
+   * while other calls are still active in the session.
+   *
+   * This is diagnostic-only — it does NOT block or reject the new call.
+   * Recovery/reattach flows that replace an existing call (matched by
+   * `recoveredCallId`) are excluded to avoid false positives.
+   *
+   * @param newCallId - The callId of the newly created/received call
+   * @param recoveredCallId - If this call is recovering/replacing a previous call, its ID
+   */
+  public emitMultipleActiveCallsWarning(
+    newCallId: string,
+    recoveredCallId?: string
+  ): void {
+    // Get existing active calls, excluding the new call itself
+    // (the new call may or may not be in session.calls yet)
+    const existingActiveCalls = this.getActiveCalls().filter(
+      (call) => call.id !== newCallId
+    );
+
+    // If no existing active calls, nothing to warn about
+    if (existingActiveCalls.length === 0) {
+      return;
+    }
+
+    // If this is a recovery replacing a known call, don't warn
+    // (the recovered call will be hung up immediately by the attach flow)
+    if (recoveredCallId) {
+      const activeWithoutRecovered = existingActiveCalls.filter(
+        (call) => call.id !== recoveredCallId
+      );
+      if (activeWithoutRecovered.length === 0) {
+        return;
+      }
+    }
+
+    const warning = createTelnyxWarning(MULTIPLE_ACTIVE_CALLS_DETECTED);
+
+    // Build a compact context array with safe identifiers only.
+    // telnyxSessionId/telnyxLegId are on call.options, sipCallId is on
+    // the Call subclass directly.
+    const activeCallsContext: IActiveCallContext[] = existingActiveCalls.map(
+      (call) => {
+        const ctx: IActiveCallContext = {
+          callId: call.id,
+          state: call.state,
+          direction: call.direction,
+        };
+        const opts = call.options as {
+          telnyxSessionId?: string;
+          telnyxLegId?: string;
+        };
+        if (opts.telnyxSessionId) {
+          ctx.telnyxSessionId = opts.telnyxSessionId;
+        }
+        if (opts.telnyxLegId) {
+          ctx.telnyxLegId = opts.telnyxLegId;
+        }
+        const withSip = call as { sipCallId?: string };
+        if (withSip.sipCallId) {
+          ctx.sipCallId = withSip.sipCallId;
+        }
+        return ctx;
+      }
+    );
+
+    trigger(
+      SwEvent.Warning,
+      {
+        warning,
+        callId: newCallId,
+        sessionId: this.sessionid,
+        activeCalls: activeCallsContext,
+      },
+      this.uuid
+    );
+
+    logger.warn(
+      `MULTIPLE_ACTIVE_CALLS_DETECTED: new call ${newCallId} created while ${existingActiveCalls.length} other call(s) are active in session ${this.sessionid}`
+    );
+  }
 
   public micId: string;
 

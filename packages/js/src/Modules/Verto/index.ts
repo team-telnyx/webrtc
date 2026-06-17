@@ -66,6 +66,10 @@ export default class Verto extends BrowserSession {
       );
       throw telnyxError;
     }
+
+    // Emit warning if there are already active calls in this session
+    this.emitMultipleActiveCallsWarning(options.id);
+
     const call = new Call(this, options);
     performance.mark(callMarkName(call.id, 'new-call-start'));
     call.invite();
