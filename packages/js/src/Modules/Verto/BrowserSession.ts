@@ -98,7 +98,7 @@ export default abstract class BrowserSession extends BaseSession {
   ): void {
     // Get existing active calls, excluding the new call itself
     // (the new call may or may not be in session.calls yet)
-    const existingActiveCalls = this.getActiveCalls().filter(
+    let existingActiveCalls = this.getActiveCalls().filter(
       (call) => call.id !== newCallId
     );
 
@@ -116,6 +116,9 @@ export default abstract class BrowserSession extends BaseSession {
       if (activeWithoutRecovered.length === 0) {
         return;
       }
+      // Exclude the recovered call from the payload — it's being
+      // replaced, so it's not genuinely "active alongside" the new call.
+      existingActiveCalls = activeWithoutRecovered;
     }
 
     const warning = createTelnyxWarning(MULTIPLE_ACTIVE_CALLS_DETECTED);
@@ -162,6 +165,28 @@ export default abstract class BrowserSession extends BaseSession {
     logger.warn(
       `MULTIPLE_ACTIVE_CALLS_DETECTED: new call ${newCallId} created while ${existingActiveCalls.length} other call(s) are active in session ${this.sessionid}`
     );
+
+    // Persist the warning in the call report of existing active calls.
+    // The new call's report is recorded separately by the caller (after
+    // the Call object is created), since for outbound calls the Call
+    // doesn't exist yet when this method runs.
+    const activeCallIds = existingActiveCalls.map((c) => c.id);
+    for (const call of existingActiveCalls) {
+      const withRecord = call as {
+        recordSessionWarning?: (
+          code: number,
+          name: string,
+          message: string,
+          activeCallIds?: string[]
+        ) => void;
+      };
+      withRecord.recordSessionWarning?.(
+        warning.code,
+        warning.name,
+        warning.message,
+        [newCallId, ...activeCallIds.filter((id) => id !== call.id)]
+      );
+    }
   }
 
   public micId: string;

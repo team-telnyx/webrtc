@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import BrowserSession from './BrowserSession';
 import {
   SubscribeParams,
@@ -15,7 +16,8 @@ import {
 import logger from './util/logger';
 import { createTelnyxError } from './util/errors';
 import { clearReconnectToken } from './util/reconnect';
-import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
+import { INVALID_CALL_PARAMETERS, MULTIPLE_ACTIVE_CALLS_DETECTED } from './util/constants/errorCodes';
+import { SDK_WARNINGS } from './util/constants/warnings';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -67,11 +69,33 @@ export default class Verto extends BrowserSession {
       throw telnyxError;
     }
 
+    // Ensure the call has an ID before emitting the warning.
+    // BaseCall._init() would generate one via uuidv4() if options.id is
+    // not supplied, but we need it here for the warning payload.
+    if (!options.id) {
+      options.id = uuidv4();
+    }
+
     // Emit warning if there are already active calls in this session
     this.emitMultipleActiveCallsWarning(options.id);
 
     const call = new Call(this, options);
     performance.mark(callMarkName(call.id, 'new-call-start'));
+
+    // If the warning was emitted (other active calls exist), also record it
+    // in the new call's report for persistence.
+    if (this.getActiveCalls().length > 1) {
+      const warningEntry = SDK_WARNINGS[MULTIPLE_ACTIVE_CALLS_DETECTED];
+      call.recordSessionWarning(
+        MULTIPLE_ACTIVE_CALLS_DETECTED,
+        warningEntry.name,
+        warningEntry.message,
+        this.getActiveCalls()
+          .filter((c) => c.id !== call.id)
+          .map((c) => c.id)
+      );
+    }
+
     call.invite();
     return call;
   }

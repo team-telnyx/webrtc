@@ -263,10 +263,30 @@ export interface ICallReportPayload {
   summary: ICallSummary;
   stats: IStatsInterval[];
   logs?: ILogEntry[];
+  /** SDK warning events recorded during this call segment (e.g. MULTIPLE_ACTIVE_CALLS_DETECTED). */
+  warnings?: ICallReportWarningEntry[];
   /** Segment index for multi-part reports (0-based). Present when a report was flushed early. */
   segment?: number;
   /** Why this intermediate segment was flushed. */
   flushReason?: ICallReportFlushReason;
+}
+
+/**
+ * A warning entry recorded in the call report.
+ * Captures session-level SDK warnings (e.g. multiple active calls detected)
+ * alongside per-call quality warnings (high RTT, jitter, etc.).
+ */
+export interface ICallReportWarningEntry {
+  /** Numeric SDK warning code */
+  code: number;
+  /** Machine-readable warning name */
+  name: string;
+  /** Short human-readable message */
+  message: string;
+  /** ISO timestamp when the warning was emitted */
+  timestamp: string;
+  /** Optional call context for multi-call warnings */
+  activeCallIds?: string[];
 }
 
 export class CallReportCollector {
@@ -279,6 +299,10 @@ export class CallReportCollector {
   private callStartTime: Date;
   private callEndTime: Date | null = null;
   private logCollector: LogCollector | null = null;
+
+  // Session-level warnings recorded during this call (e.g. MULTIPLE_ACTIVE_CALLS_DETECTED).
+  // Drained on flush just like stats/logs so intermediate segments carry them too.
+  private _sessionWarnings: ICallReportWarningEntry[] = [];
 
   // Accumulated values for averaging within an interval
   private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
@@ -408,6 +432,36 @@ export class CallReportCollector {
   }
 
   /**
+   * Record a session-level warning in the call report.
+   *
+   * Used for warnings that originate outside the stats collection loop
+   * (e.g. MULTIPLE_ACTIVE_CALLS_DETECTED emitted when a new call is created
+   * while others are active). These warnings are included in the next
+   * flush/postReport payload and then drained, just like stats and logs.
+   *
+   * @param code - Numeric SDK warning code
+   * @param name - Machine-readable warning name
+   * @param message - Short human-readable message
+   * @param activeCallIds - Optional list of call IDs involved in the warning
+   */
+  public recordSessionWarning(
+    code: number,
+    name: string,
+    message: string,
+    activeCallIds?: string[]
+  ): void {
+    this._sessionWarnings.push({
+      code,
+      name,
+      message,
+      timestamp: new Date().toISOString(),
+      ...(activeCallIds && activeCallIds.length > 0
+        ? { activeCallIds }
+        : {}),
+    });
+  }
+
+  /**
    * Start collecting stats from the peer connection
    */
   public start(peerConnection: RTCPeerConnection): void {
@@ -476,7 +530,7 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
-    if (this._flushing || this.statsBuffer.length === 0) {
+    if (this._flushing || (this.statsBuffer.length === 0 && this._sessionWarnings.length === 0)) {
       return null;
     }
 
@@ -502,6 +556,9 @@ export class CallReportCollector {
         },
         stats,
         ...(logs.length > 0 ? { logs } : {}),
+        ...(this._sessionWarnings.length > 0
+          ? { warnings: this._sessionWarnings.splice(0) }
+          : {}),
         segment,
         ...(flushReason ? { flushReason } : {}),
       };
@@ -510,6 +567,7 @@ export class CallReportCollector {
         segment,
         intervals: stats.length,
         logEntries: logs.length,
+        warnings: payload.warnings?.length ?? 0,
         callId: summary.callId,
         flushReason,
       });
@@ -543,9 +601,9 @@ export class CallReportCollector {
       return;
     }
 
-    if (this.statsBuffer.length === 0 && !hasLogs) {
+    if (this.statsBuffer.length === 0 && !hasLogs && this._sessionWarnings.length === 0) {
       logger.info(
-        'CallReportCollector: Skipping report — no stats or logs collected'
+        'CallReportCollector: Skipping report — no stats, logs, or warnings collected'
       );
       return;
     }
@@ -566,6 +624,9 @@ export class CallReportCollector {
       },
       stats: this.statsBuffer,
       ...(logs && logs.length > 0 ? { logs } : {}),
+      ...(this._sessionWarnings.length > 0
+        ? { warnings: this._sessionWarnings.splice(0) }
+        : {}),
       ...(isMultiSegment ? { segment } : {}),
     };
 

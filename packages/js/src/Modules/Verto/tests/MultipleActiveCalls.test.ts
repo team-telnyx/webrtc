@@ -14,10 +14,9 @@ Object.defineProperty(global, 'performance', {
 });
 
 import Verto from '..';
-import BrowserSession from '../BrowserSession';
 import Call from '../webrtc/Call';
 import { State, Direction } from '../webrtc/constants';
-import { register, deRegister, trigger } from '../services/Handler';
+import { register, deRegister } from '../services/Handler';
 import { SwEvent, MULTIPLE_ACTIVE_CALLS_DETECTED } from '../util/constants';
 
 const Connection = require('../services/Connection');
