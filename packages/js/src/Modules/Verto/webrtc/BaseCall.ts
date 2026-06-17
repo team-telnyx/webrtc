@@ -2079,9 +2079,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._trackCandidateMarks(event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
-      this._sendEndOfCandidates();
       // End-of-candidates: check if only host candidates were gathered
-      this._checkOnlyHostIceCandidatesTrickle();
+      // before signaling completion to VSP/b2bua. If the terminal
+      // threshold is reached the call will be hung up and we must NOT
+      // send EndOfCandidates for an unusable ICE set.
+      const terminated = this._checkOnlyHostIceCandidatesTrickle();
+      if (!terminated) {
+        this._sendEndOfCandidates();
+      }
     }
   }
 
@@ -2144,11 +2149,15 @@ export default abstract class BaseCall implements IWebRTCCall {
    * This mirrors the only-host check in `_onIceSdp` (non-trickle path)
    * but evaluates the local SDP after all candidates have been sent
    * individually.
+   *
+   * @returns `true` if the terminal threshold was reached and the call
+   *   was hung up; `false` otherwise. Callers should skip sending
+   *   EndOfCandidates when `true` is returned.
    */
-  private _checkOnlyHostIceCandidatesTrickle() {
+  private _checkOnlyHostIceCandidatesTrickle(): boolean {
     const localSdp = this.peer?.instance?.localDescription?.sdp;
     if (!localSdp || localSdp.indexOf('candidate') === -1) {
-      return;
+      return false;
     }
 
     if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(localSdp)) {
@@ -2177,10 +2186,12 @@ export default abstract class BaseCall implements IWebRTCCall {
           { initiator: 'sdk:only-host-ice-candidates-exhausted' },
           false
         );
+        return true;
       }
     } else {
       this._onlyHostIceCandidateCount = 0;
     }
+    return false;
   }
 
   /**

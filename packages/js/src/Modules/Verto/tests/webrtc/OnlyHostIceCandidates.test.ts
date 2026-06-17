@@ -339,6 +339,10 @@ describe('Only-host ICE candidates exhaustion', () => {
       const hangupSpy = jest
         .spyOn(call, 'hangup')
         .mockImplementation(() => Promise.resolve());
+      const sendEndOfCandidatesSpy = jest.spyOn(
+        call as any,
+        '_sendEndOfCandidates'
+      );
       const warningHandler = jest.fn();
       const errorHandler = jest.fn();
       register(SwEvent.Warning, warningHandler, call.id);
@@ -350,7 +354,7 @@ describe('Only-host ICE candidates exhaustion', () => {
         configurable: true,
       });
 
-      // First end-of-candidates: only warning
+      // First end-of-candidates: only warning, EndOfCandidates IS sent
       const endOfCandidatesEvent = {
         candidate: null,
       } as RTCPeerConnectionIceEvent;
@@ -359,6 +363,8 @@ describe('Only-host ICE candidates exhaustion', () => {
 
       expect(warningHandler).toHaveBeenCalledTimes(1);
       expect(errorHandler).not.toHaveBeenCalled();
+      // EndOfCandidates should be sent for the non-terminal first attempt
+      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
 
       // Second end-of-candidates: terminal error
       (call as any)._onTrickleIce(endOfCandidatesEvent);
@@ -372,6 +378,67 @@ describe('Only-host ICE candidates exhaustion', () => {
         { initiator: 'sdk:only-host-ice-candidates-exhausted' },
         false
       );
+      // EndOfCandidates must NOT be sent on the terminal attempt —
+      // we should not signal a completed ICE set to VSP/b2bua right
+      // before SDK teardown.
+      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should NOT send EndOfCandidates when terminal only-host threshold is reached', () => {
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(() => Promise.resolve());
+      const sendEndOfCandidatesSpy = jest.spyOn(
+        call as any,
+        '_sendEndOfCandidates'
+      );
+
+      // Set up localDescription with only host candidates
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({ type: 'offer', sdp: HOST_ONLY_SDP }),
+        configurable: true,
+      });
+
+      // Pre-set the counter to one below threshold
+      (call as any)._onlyHostIceCandidateCount =
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD - 1;
+
+      // End-of-candidates triggers the terminal hangup
+      const endOfCandidatesEvent = {
+        candidate: null,
+      } as RTCPeerConnectionIceEvent;
+
+      (call as any)._onTrickleIce(endOfCandidatesEvent);
+
+      // hangup should have been called
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:only-host-ice-candidates-exhausted' },
+        false
+      );
+      // EndOfCandidates must NOT have been sent
+      expect(sendEndOfCandidatesSpy).not.toHaveBeenCalled();
+    });
+
+    it('should send EndOfCandidates when non-host candidates are present', () => {
+      const sendEndOfCandidatesSpy = jest.spyOn(
+        call as any,
+        '_sendEndOfCandidates'
+      );
+
+      // Set up localDescription with srflx candidate
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({ type: 'offer', sdp: SDP_WITH_SRFLX }),
+        configurable: true,
+      });
+
+      const endOfCandidatesEvent = {
+        candidate: null,
+      } as RTCPeerConnectionIceEvent;
+
+      (call as any)._onTrickleIce(endOfCandidatesEvent);
+
+      // EndOfCandidates should be sent when non-host candidates exist
+      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should reset counter when a non-host candidate arrives after host candidates in trickle', () => {
