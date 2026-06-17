@@ -227,6 +227,32 @@ describe('Call', () => {
         'wss://rtc.telnyx.com';
       session.callReportId = 'call-report-id';
       session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
+      (
+        call as unknown as {
+          options: {
+            audio: unknown;
+            iceServers: RTCIceServer[];
+          };
+        }
+      ).options.audio = {
+        deviceId: 'microphone-device-id',
+        password: 'media-secret',
+        nested: { token: 'nested-token', kept: true },
+      };
+      (
+        call as unknown as {
+          options: {
+            audio: unknown;
+            iceServers: RTCIceServer[];
+          };
+        }
+      ).options.iceServers = [
+        {
+          urls: ['turn:example.com'],
+          username: 'turn-user',
+          credential: 'turn-password',
+        },
+      ];
 
       const collector = {
         stop: jest.fn().mockResolvedValue(undefined),
@@ -247,6 +273,39 @@ describe('Call', () => {
         'wss://rtc.telnyx.com',
         'owning-session-voice-sdk-id'
       );
+      const submittedSummary = collector.postReport.mock.calls[0][0];
+      expect(submittedSummary.clientSummary).toEqual(
+        expect.objectContaining({
+          authentication: expect.objectContaining({
+            type: 'login_password',
+          }),
+          callReports: expect.objectContaining({
+            enabled: true,
+            intervalMs: 5000,
+            flushIntervalMs: 180000,
+          }),
+          media: expect.objectContaining({
+            audio: {
+              deviceId: 'microphone-device-id',
+              nested: { kept: true },
+            },
+            iceServers: [
+              {
+                urls: ['turn:example.com'],
+                hasUsername: true,
+                hasCredential: true,
+              },
+            ],
+          }),
+        })
+      );
+      const serializedClientSummary = JSON.stringify(
+        submittedSummary.clientSummary
+      );
+      expect(serializedClientSummary).not.toContain('passwd');
+      expect(serializedClientSummary).not.toContain('media-secret');
+      expect(serializedClientSummary).not.toContain('nested-token');
+      expect(serializedClientSummary).not.toContain('turn-password');
       expect(collector.cleanup).toHaveBeenCalled();
     });
 
@@ -278,6 +337,17 @@ describe('Call', () => {
         call as unknown as { _flushIntermediateReport: () => void }
       )._flushIntermediateReport();
 
+      expect(collector.flush).toHaveBeenCalledWith(
+        expect.objectContaining({
+          callId: call.id,
+          clientSummary: expect.objectContaining({
+            authentication: expect.objectContaining({
+              type: 'login_password',
+            }),
+          }),
+        }),
+        expect.any(Object)
+      );
       expect(collector.sendPayload).toHaveBeenCalledWith(
         payload,
         'call-report-id',

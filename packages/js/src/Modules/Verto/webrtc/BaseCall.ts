@@ -6,6 +6,8 @@ import BaseMessage from '../messages/BaseMessage';
 
 import {
   CallReportCollector,
+  type IClientSummary,
+  type SanitizedClientOption,
   type ICallReportFlushReason,
 } from './CallReportCollector';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
@@ -2534,6 +2536,132 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.callReportVoiceSdkId || undefined;
   }
 
+  private _getClientSummary(): IClientSummary {
+    const options = this.session.options;
+    const anonymousLogin = options.anonymous_login;
+
+    return {
+      authentication: {
+        type: this._getAuthenticationType(),
+        ...(anonymousLogin
+          ? {
+              anonymousLogin: {
+                targetType: anonymousLogin.target_type,
+                targetId: anonymousLogin.target_id,
+                targetVersionId: anonymousLogin.target_version_id,
+                targetParams: this._sanitizeClientOption(
+                  anonymousLogin.target_params
+                ),
+              },
+            }
+          : {}),
+      },
+      connection: {
+        env: options.env,
+        host: options.host,
+        project: options.project,
+        region: this.session.region ?? options.region,
+        dc: this.session.dc,
+        rtcIp: options.rtcIp,
+        rtcPort: options.rtcPort,
+        autoReconnect: options.autoReconnect ?? true,
+        maxReconnectAttempts: options.maxReconnectAttempts ?? 10,
+        keepConnectionAliveOnSocketClose:
+          options.keepConnectionAliveOnSocketClose ?? false,
+        hangupOnBeforeUnload: options.hangupOnBeforeUnload !== false,
+        useCanaryRtcServer: options.useCanaryRtcServer ?? false,
+        skipLastVoiceSdkId: options.skipLastVoiceSdkId ?? false,
+        skipTrailing: options.skipTrailing ?? false,
+      },
+      media: {
+        audio: this._sanitizeClientOption(this.options.audio),
+        video: this._sanitizeClientOption(this.options.video),
+        mutedMicOnStart: this.options.mutedMicOnStart ?? false,
+        prefetchIceCandidates: this.options.prefetchIceCandidates ?? true,
+        forceRelayCandidate: this.options.forceRelayCandidate ?? false,
+        trickleIce: this.options.trickleIce ?? false,
+        iceServers: this._sanitizeIceServers(this.options.iceServers),
+      },
+      callReports: {
+        enabled: options.enableCallReports !== false,
+        intervalMs: options.callReportInterval || 5000,
+        flushIntervalMs: options.callReportFlushInterval ?? 180_000,
+        debugLogLevel: options.debugLogLevel || 'debug',
+        debugLogMaxEntries: options.debugLogMaxEntries || 1000,
+      },
+    };
+  }
+
+  private _getAuthenticationType(): NonNullable<
+    IClientSummary['authentication']
+  >['type'] {
+    const options = this.session.options;
+
+    if (options.anonymous_login) return 'anonymous_login';
+    if (options.login_token) return 'login_token';
+    if (options.login && (options.password || options.passwd)) {
+      return 'login_password';
+    }
+    if (options.token) return 'token';
+
+    return 'unknown';
+  }
+
+  private _sanitizeIceServers(
+    iceServers?: RTCIceServer[]
+  ): NonNullable<IClientSummary['media']>['iceServers'] {
+    if (!iceServers || iceServers.length === 0) return undefined;
+
+    return iceServers.map(({ urls, username, credential }) => ({
+      urls,
+      hasUsername: Boolean(username),
+      hasCredential: Boolean(credential),
+    }));
+  }
+
+  private _sanitizeClientOption(
+    value: unknown,
+    depth = 0
+  ): SanitizedClientOption | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number')
+      return Number.isFinite(value) ? value : undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'function') return undefined;
+    if (depth >= 4) return '[truncated]';
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this._sanitizeClientOption(item, depth + 1))
+        .filter((item): item is SanitizedClientOption => item !== undefined);
+    }
+
+    if (typeof value === 'object') {
+      const sanitizedEntries = Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => !this._isSensitiveClientOptionKey(key))
+        .map(
+          ([key, childValue]) =>
+            [key, this._sanitizeClientOption(childValue, depth + 1)] as const
+        )
+        .filter(
+          (entry): entry is readonly [string, SanitizedClientOption] =>
+            entry[1] !== undefined
+        );
+
+      return Object.fromEntries(sanitizedEntries);
+    }
+
+    return undefined;
+  }
+
+  private _isSensitiveClientOptionKey(key: string): boolean {
+    return /(password|passwd|credential|secret|token|authorization|auth|api[_-]?key)/i.test(
+      key
+    );
+  }
+
   /**
    * Flush an intermediate call report segment mid-call.
    * Used for periodic, size-limit, and socket-close safety flushes without
@@ -2577,6 +2705,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      clientSummary: this._getClientSummary(),
     };
 
     const payload = this._callReportCollector.flush(summary, flushReason);
@@ -2630,6 +2759,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      clientSummary: this._getClientSummary(),
     };
 
     // Post report asynchronously (don't wait for it)
