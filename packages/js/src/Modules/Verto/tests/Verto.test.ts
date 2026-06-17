@@ -227,6 +227,27 @@ describe('Verto', () => {
       expect(request.params.sessid).toBe('active-sessid');
     });
 
+    it('should preserve the in-memory sessid when the stored reconnect sessid is stale', async () => {
+      instance.sessionid = 'active-sessid';
+      setReconnectToken('voice-sdk-id');
+      setReconnectSessionId(
+        'stored-sessid',
+        Date.now() - 1 - RECONNECT_SESSION_ID_MAX_AGE_MS
+      );
+      Connection.mockResponse.mockImplementationOnce(() =>
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":77,"result":{"message":"logged in","sessid":"active-sessid"}}'
+        )
+      );
+
+      await instance.login();
+
+      const { request } = Connection.mockSend.mock.calls[0][0];
+      expect(request.method).toBe('login');
+      expect(request.params.reconnection).toBe(true);
+      expect(request.params.sessid).toBe('active-sessid');
+    });
+
     it('should persist the successful login sessid for future reconnects', async () => {
       Connection.mockResponse.mockImplementationOnce(() =>
         JSON.parse(

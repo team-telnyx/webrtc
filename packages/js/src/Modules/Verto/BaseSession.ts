@@ -48,7 +48,6 @@ import {
   getReconnectSessionId,
   getReconnectToken,
   clearReconnectToken,
-  isReconnectSessionIdFresh,
   setReconnectSessionId,
 } from './util/reconnect';
 import { Ping } from './messages/verto/Ping';
@@ -676,9 +675,7 @@ export default abstract class BaseSession {
     const reconnectToken = getReconnectToken();
     const isReconnection = !!reconnectToken;
     const reconnectSessionId = isReconnection
-      ? (this.sessionid && isReconnectSessionIdFresh()
-          ? this.sessionid
-          : getReconnectSessionId()) || ''
+      ? this.sessionid || getReconnectSessionId() || ''
       : '';
 
     if (type === 'login') {
