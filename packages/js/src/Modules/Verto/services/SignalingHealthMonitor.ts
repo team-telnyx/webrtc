@@ -34,6 +34,13 @@ const PROBE_TIMEOUT_MS = 5 * 1000; // 5s after probe → give up
 const CHECK_INTERVAL_MS = 3 * 1000;
 
 /**
+ * If an active call exists but there is no OPEN WebSocket for this long, emit
+ * the same socket-close path used by real network closes so call reports are
+ * flushed even when the browser never delivers an onclose event.
+ */
+const NO_OPEN_SOCKET_TIMEOUT_MS = 20 * 1000;
+
+/**
  * If inbound WS activity was received within this window (ms),
  * signaling is considered recently active and a triggered probe
  * is skipped.
@@ -77,6 +84,9 @@ export default class SignalingHealthMonitor {
   /** The periodic check interval. */
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
+  /** When the monitor first observed that no WebSocket was OPEN. */
+  private _noOpenSocketSince: number = 0;
+
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
@@ -111,6 +121,7 @@ export default class SignalingHealthMonitor {
     this._lastInboundAt = Date.now();
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
+    this._noOpenSocketSince = 0;
 
     this._intervalId = setInterval(() => this._check(), CHECK_INTERVAL_MS);
   }
@@ -124,6 +135,7 @@ export default class SignalingHealthMonitor {
       this._intervalId = null;
       this._probeInFlight = false;
       this._lastProbeSentAt = 0;
+      this._noOpenSocketSince = 0;
     }
     this._pendingMediaRecovery = null;
     logger.debug('Signaling health: monitor stopped');
@@ -306,8 +318,11 @@ export default class SignalingHealthMonitor {
    */
   private _check(): void {
     if (!this._session.connection?.connected) {
+      this._checkNoOpenSocket();
       return;
     }
+
+    this._noOpenSocketSince = 0;
 
     const now = Date.now();
     const silenceMs = now - this._lastInboundAt;
@@ -337,6 +352,36 @@ export default class SignalingHealthMonitor {
         'probe'
       );
     }
+  }
+
+  private _checkNoOpenSocket(): void {
+    if (!this._session.hasActiveCall()) {
+      this._noOpenSocketSince = 0;
+      return;
+    }
+
+    const now = Date.now();
+    if (!this._noOpenSocketSince) {
+      this._noOpenSocketSince = now;
+      return;
+    }
+
+    const elapsedMs = now - this._noOpenSocketSince;
+    if (elapsedMs < NO_OPEN_SOCKET_TIMEOUT_MS) {
+      return;
+    }
+
+    logger.warn(
+      `Signaling health: no OPEN WebSocket for ${Math.round(elapsedMs / 1000)}s during active call — treating as abnormal socket close`
+    );
+
+    this._noOpenSocketSince = 0;
+    this._session.onNetworkClose({
+      code: 1006,
+      reason:
+        'NO_OPEN_SOCKET_TIMEOUT: no OPEN WebSocket while an active call is present',
+      wasClean: false,
+    });
   }
 
   /**

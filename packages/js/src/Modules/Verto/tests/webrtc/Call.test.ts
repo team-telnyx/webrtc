@@ -323,6 +323,39 @@ describe('Call', () => {
         expect.any(Function)
       );
     });
+
+    it('uses a generated call id for call reports when the call has no id', () => {
+      (session.connection as unknown as { host?: string }).host =
+        'wss://rtc.telnyx.com';
+      session.callReportId = 'call-report-id';
+      session.callReportVoiceSdkId = 'owning-session-voice-sdk-id';
+      (call as unknown as { id: string }).id = '';
+
+      const collector = {
+        flush: jest.fn((summary) => ({
+          summary,
+          stats: [],
+          segment: 0,
+        })),
+        sendPayload: jest.fn().mockResolvedValue(undefined),
+      };
+      (
+        call as unknown as { _callReportCollector: typeof collector }
+      )._callReportCollector = collector;
+
+      (
+        call as unknown as { _flushIntermediateReport: () => void }
+      )._flushIntermediateReport();
+
+      const summary = collector.flush.mock.calls[0][0];
+      expect(summary.callId).toBe('gen-mocked-uuid');
+      expect(collector.sendPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ summary }),
+        'call-report-id',
+        'wss://rtc.telnyx.com',
+        'owning-session-voice-sdk-id'
+      );
+    });
   });
 
   describe('hangup cause codes', () => {

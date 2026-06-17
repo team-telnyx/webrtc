@@ -102,6 +102,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
   private _callReportCollector: CallReportCollector | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
+  private _generatedCallReportCallId: string | null = null;
 
   /**
    * The call identifier.
@@ -2535,6 +2536,18 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.callReportVoiceSdkId || undefined;
   }
 
+  private _getCallReportCallId(): string {
+    if (this.id) {
+      return this.id;
+    }
+
+    if (!this._generatedCallReportCallId) {
+      this._generatedCallReportCallId = `gen-${uuidv4()}`;
+    }
+
+    return this._generatedCallReportCallId;
+  }
+
   /**
    * Flush an intermediate call report segment mid-call.
    * Used for periodic, size-limit, and socket-close safety flushes without
@@ -2568,7 +2581,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     const summary = {
-      callId: this.id,
+      callId: this._getCallReportCallId(),
       destinationNumber: this.options.destinationNumber,
       callerNumber: this.options.callerNumber,
       direction: (this.direction === Direction.Inbound
@@ -2587,6 +2600,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     logger.info('Flushing intermediate call report', {
       callId: this.id,
+      reportCallId: summary.callId,
       flushReason,
       segment: payload.segment,
     });
@@ -2623,7 +2637,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     const summary = {
-      callId: this.id,
+      callId: this._getCallReportCallId(),
       destinationNumber: this.options.destinationNumber,
       callerNumber: this.options.callerNumber,
       direction: (this.direction === Direction.Inbound

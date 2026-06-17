@@ -22,6 +22,12 @@ export interface ISignalingHealthSession {
   connection: Connection | null;
   hasActiveCall(): boolean;
   socketDisconnect(): void;
+  onNetworkClose(event?: {
+    code?: number;
+    reason?: string;
+    wasClean?: boolean;
+    error?: unknown;
+  }): void;
   /**
    * Trigger ICE restart on the call identified by callId.
    * Called by the health monitor when media/peer is unhealthy but

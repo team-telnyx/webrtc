@@ -507,6 +507,38 @@ describe('CallReportCollector cadence', () => {
 });
 
 describe('CallReportCollector intermediate flushes', () => {
+  it('returns an empty-stats socket-close payload so network closes still produce a report', () => {
+    const collector = createCollector();
+
+    const payload = collector.flush(
+      { callId: 'call-id' },
+      {
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network close',
+          wasClean: false,
+        },
+      }
+    );
+
+    expect(payload).toMatchObject({
+      summary: { callId: 'call-id' },
+      stats: [],
+      segment: 0,
+      flushReason: {
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network close',
+          wasClean: false,
+        },
+      },
+    });
+  });
+
   it('requests time-based intermediate flushes while a call is active', async () => {
     const collector = new CallReportCollector({
       enabled: true,

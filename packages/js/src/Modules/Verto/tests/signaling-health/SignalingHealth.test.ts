@@ -819,6 +819,7 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
     mockSession.socketDisconnect = jest.fn();
+    mockSession.onNetworkClose = jest.fn();
     connection = new Connection(mockSession);
     connection.connect();
     await Promise.resolve();
@@ -970,6 +971,22 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
 
     expect(connection.send).toHaveBeenCalledTimes(1);
     expect(monitor.isProbeInFlight).toBe(true);
+  });
+
+  it('treats a long-lived non-open socket during an active call as abnormal socket close', () => {
+    mockSession.connection = connection;
+    (connection as any)._wsClient.readyState = WS_STATE.CONNECTING;
+
+    monitor.start();
+    (monitor as any)._noOpenSocketSince = Date.now() - 20_001;
+    jest.advanceTimersByTime(3_001);
+
+    expect(mockSession.onNetworkClose).toHaveBeenCalledWith({
+      code: 1006,
+      reason:
+        'NO_OPEN_SOCKET_TIMEOUT: no OPEN WebSocket while an active call is present',
+      wasClean: false,
+    });
   });
 
   // Test 5: low audio level alone → no recovery

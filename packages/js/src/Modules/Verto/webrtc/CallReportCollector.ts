@@ -478,7 +478,15 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
-    if (this._flushing || this.statsBuffer.length === 0) {
+    const isSocketFlush =
+      flushReason?.type === 'socket-close' ||
+      flushReason?.type === 'socket-error';
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+
+    if (
+      this._flushing ||
+      (this.statsBuffer.length === 0 && logCount === 0 && !isSocketFlush)
+    ) {
       return null;
     }
 
