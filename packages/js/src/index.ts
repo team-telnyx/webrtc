@@ -48,3 +48,18 @@ export type {
 } from './Modules/Verto/util/constants/warnings';
 
 export * from './PreCallDiagnosis';
+
+export type {
+  FunctionCallItem,
+  FunctionCallOutputItem,
+  AIConversationParams,
+  AIConversationFunctionCallParams,
+  AIConversationFunctionCallOutputParams,
+  IAIConversationMessageEvent,
+  ISendAIConversationMessageOptions,
+} from './Modules/Verto/webrtc/AIConversationTypes';
+
+export {
+  isFunctionCallParams,
+  isFunctionCallOutputParams,
+} from './Modules/Verto/webrtc/AIConversationTypes';

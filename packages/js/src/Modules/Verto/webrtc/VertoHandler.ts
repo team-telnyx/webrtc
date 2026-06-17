@@ -421,6 +421,22 @@ class VertoHandler {
         this.session.execute(messageToCheckRegisterState);
         break;
 
+      case 'ai_conversation': {
+        // Emit a dedicated event for AI conversation messages (e.g. function_call
+        // items from ACA). Consumers no longer need to parse raw SocketMessage
+        // events to handle these.
+        trigger(
+          SwEvent.AIConversationMessage,
+          {
+            method: 'ai_conversation',
+            params,
+            voice_sdk_id,
+          },
+          session.uuid
+        );
+        break;
+      }
+
       default: {
         const gateWayState = getGatewayState(msg);
 
