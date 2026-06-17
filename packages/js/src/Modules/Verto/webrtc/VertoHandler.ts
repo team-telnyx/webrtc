@@ -241,11 +241,14 @@ class VertoHandler {
         call.setState(State.Ringing);
 
         // Emit warning if there are already active calls in this session
-        this.session.emitMultipleActiveCallsWarning(call.id);
+        const hadOtherActiveCalls =
+          this.session.emitMultipleActiveCallsWarning(call.id);
 
         // Record warning in the new call's report for persistence
-        // (gated inside — only records when other active calls exist)
-        this._recordMultiCallWarningOnNewCall(call);
+        // (only when the warning was actually emitted — i.e., other active calls exist)
+        if (hadOtherActiveCalls) {
+          this._recordMultiCallWarningOnNewCall(call);
+        }
 
         this._ack(id, method);
         break;

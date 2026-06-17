@@ -295,4 +295,45 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
   });
+
+  describe('emitMultipleActiveCallsWarning() return value', () => {
+    it('should return true when other active calls exist', () => {
+      _createCallInState('existing1', State.Active);
+
+      const result = instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no other active calls exist', () => {
+      const result = instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when existing calls are in terminal states', () => {
+      _createCallInState('existing1', State.Hangup);
+
+      const result = instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for recovery that replaces the only active call', () => {
+      _createCallInState('existing1', State.Active);
+
+      const result = instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true for recovery when OTHER active calls exist besides recovered one', () => {
+      _createCallInState('existing1', State.Active);
+      _createCallInState('existing2', State.Ringing);
+
+      const result = instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
+
+      expect(result).toBe(true);
+    });
+  });
 });
