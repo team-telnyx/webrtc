@@ -297,6 +297,11 @@ export default class Connection {
   close() {
     if (!this._wsClient || this.closing) return;
 
+    logger.debug('WebSocket close() called', {
+      socketGeneration: this.socketGeneration,
+      sessionId: this.session.sessionid,
+    });
+
     // Clean up pending request handlers before initiating close
     this._cleanupPendingRequests();
 
@@ -320,18 +325,33 @@ export default class Connection {
 
   private _registerSocketEvents(ws: WebSocket): void {
     ws.onopen = (event): boolean => {
+      logger.debug('WebSocket onopen', {
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'close');
+      logger.debug('WebSocket onclose', {
+        code: event?.code,
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
+      logger.debug('WebSocket onerror', {
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
 
       // Emit structured error alongside the legacy SocketError
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);

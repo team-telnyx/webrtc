@@ -13,6 +13,7 @@ import {
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
   SUBSCRIBE_FAILED,
+  CALL_RECOVERY_RESULT,
 } from '../util/constants';
 import {
   VertoMethod,
@@ -357,6 +358,30 @@ class VertoHandler {
                 // reconnect loop if we reset too early.
                 if (gateWayState === GatewayStateType.REGED) {
                   this.session.resetReconnectAttempts();
+
+                  // ── Reconnection diagnostic: call_recovery_result ──
+                  // On REGED after reconnect, record whether calls were recovered.
+                  // A socketGeneration > 1 indicates this was a reconnect, not an
+                  // initial connection. Active calls will be recovered via Attach.
+                  if (this.session.connection?.socketGeneration > 1) {
+                    const hasActiveCalls = this.session.hasActiveCall();
+                    this.session._recordReconnectDiagnostic(
+                      CALL_RECOVERY_RESULT,
+                      'CALL_RECOVERY_RESULT',
+                      hasActiveCalls
+                        ? 'Call recovery result: recovered (active calls will be recovered via Attach)'
+                        : 'Call recovery result: not_applicable (no active calls during reconnect)',
+                      {
+                        result: hasActiveCalls ? 'recovered' : 'not_applicable',
+                        reason: hasActiveCalls
+                          ? 'session_reconnected_with_active_calls'
+                          : 'session_reconnected_without_active_calls',
+                        socketGeneration: this.session.connection?.socketGeneration,
+                        voiceSdkId: this.session.callReportVoiceSdkId,
+                        sessid: this.session.sessionid || undefined,
+                      }
+                    );
+                  }
                 }
 
                 // Capture call_report_id for SDK call reporting

@@ -5,6 +5,7 @@ import {
   SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
+  SIGNALING_RECOVERY_REQUESTED,
 } from '../util/constants/errorCodes';
 import { createTelnyxWarning } from '../util/errors';
 import logger from '../util/logger';
@@ -461,6 +462,22 @@ export default class SignalingHealthMonitor {
     this._pendingMediaRecovery = null;
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
+
+    // ── Reconnection diagnostic: signaling_recovery_requested ──
+    // This is the first event in the reconnection lifecycle sequence.
+    // Record it in call reports so the recovery request is visible
+    // before the socket is closed.
+    this._session._recordReconnectDiagnostic(
+      SIGNALING_RECOVERY_REQUESTED,
+      'SIGNALING_RECOVERY_REQUESTED',
+      `Signaling recovery requested (source=${source}, reason=${reason})`,
+      {
+        source,
+        reason,
+        socketGeneration: this._session.connection?.socketGeneration,
+        sessionId: this._session.sessionid || undefined,
+      }
+    );
 
     // Emit the appropriate warning code based on what triggered recovery.
     // For probe/request sources, use the specific existing warning codes.

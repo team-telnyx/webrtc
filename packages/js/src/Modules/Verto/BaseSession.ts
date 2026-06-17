@@ -23,6 +23,13 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  WEBSOCKET_CLOSE_REQUESTED,
+  WEBSOCKET_CLOSED,
+  NETWORK_CLOSE_DECISION,
+  WEBSOCKET_RECONNECT_STARTED,
+  WEBSOCKET_RECONNECT_SUCCEEDED,
+  WEBSOCKET_RECONNECT_FAILED,
+  CALL_RECOVERY_RESULT,
   WS_CLOSE_CODES,
 } from './util/constants';
 import {
@@ -725,6 +732,22 @@ export default abstract class BaseSession {
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
+
+    // ── Reconnection diagnostic: websocket_reconnect_succeeded ──
+    // Only record if this is a reconnect (not the initial connection).
+    // A socketGeneration > 1 means at least one previous socket existed.
+    if (this.connection?.socketGeneration > 1) {
+      this._recordReconnectDiagnostic(
+        WEBSOCKET_RECONNECT_SUCCEEDED,
+        'WEBSOCKET_RECONNECT_SUCCEEDED',
+        `WebSocket reconnected successfully (generation ${this.connection.socketGeneration})`,
+        {
+          socketGeneration: this.connection.socketGeneration,
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
+      );
+    }
   }
 
   private _flushIntermediateCallReports(
@@ -809,6 +832,21 @@ export default abstract class BaseSession {
       this._createSocketCloseFlushReason(event)
     );
 
+    // ── Reconnection diagnostic: websocket_closed ──
+    this._recordReconnectDiagnostic(
+      WEBSOCKET_CLOSED,
+      'WEBSOCKET_CLOSED',
+      `WebSocket closed (code=${event?.code}, reason=${event?.reason || 'none'}, wasClean=${event?.wasClean})`,
+      {
+        closeCode: event?.code,
+        closeReason: event?.reason,
+        wasClean: event?.wasClean,
+        hasError: !!event?.error,
+        voiceSdkId: this.callReportVoiceSdkId,
+        sessid: this.sessionid || undefined,
+      }
+    );
+
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }
@@ -842,6 +880,34 @@ export default abstract class BaseSession {
         this._reconnectAttempts = 0;
         this._autoReconnect = false;
 
+        // ── Reconnection diagnostic: network_close_decision=abort ──
+        this._recordReconnectDiagnostic(
+          NETWORK_CLOSE_DECISION,
+          'NETWORK_CLOSE_DECISION',
+          `Reconnect decision: abort (exhausted ${maxAttempts} attempts)`,
+          {
+            reconnectDecision: 'abort',
+            reason: 'reconnect_exhausted',
+            reconnectAttempts: this._reconnectAttempts,
+            maxReconnectAttempts: maxAttempts,
+            voiceSdkId: this.callReportVoiceSdkId,
+            sessid: this.sessionid || undefined,
+          }
+        );
+
+        // ── Reconnection diagnostic: websocket_reconnect_failed ──
+        this._recordReconnectDiagnostic(
+          WEBSOCKET_RECONNECT_FAILED,
+          'WEBSOCKET_RECONNECT_FAILED',
+          `Reconnection failed after ${maxAttempts} attempts`,
+          {
+            reconnectAttempts: maxAttempts,
+            maxReconnectAttempts: maxAttempts,
+            voiceSdkId: this.callReportVoiceSdkId,
+            sessid: this.sessionid || undefined,
+          }
+        );
+
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         trigger(
           SwEvent.Error,
@@ -851,8 +917,40 @@ export default abstract class BaseSession {
         return;
       }
 
+      const reconnectDelayMs = this.reconnectDelay;
+
       logger.debug(
         `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+      );
+
+      // ── Reconnection diagnostic: network_close_decision=attempt ──
+      this._recordReconnectDiagnostic(
+        NETWORK_CLOSE_DECISION,
+        'NETWORK_CLOSE_DECISION',
+        `Reconnect decision: attempt (attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''})`,
+        {
+          reconnectDecision: 'attempt',
+          reason: 'auto_reconnect_enabled',
+          reconnectAttempt: this._reconnectAttempts,
+          maxReconnectAttempts: maxAttempts > 0 ? maxAttempts : undefined,
+          reconnectDelayMs,
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
+      );
+
+      // ── Reconnection diagnostic: websocket_reconnect_started ──
+      this._recordReconnectDiagnostic(
+        WEBSOCKET_RECONNECT_STARTED,
+        'WEBSOCKET_RECONNECT_STARTED',
+        `Reconnect attempt ${this._reconnectAttempts} starting in ${reconnectDelayMs}ms`,
+        {
+          reconnectAttempt: this._reconnectAttempts,
+          maxReconnectAttempts: maxAttempts > 0 ? maxAttempts : undefined,
+          reconnectDelayMs,
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
       );
 
       this._reconnectTimeout = setTimeout(() => {
@@ -860,7 +958,33 @@ export default abstract class BaseSession {
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, this.reconnectDelay);
+      }, reconnectDelayMs);
+    } else {
+      // ── Reconnection diagnostic: network_close_decision=skip ──
+      this._recordReconnectDiagnostic(
+        NETWORK_CLOSE_DECISION,
+        'NETWORK_CLOSE_DECISION',
+        'Reconnect decision: skip (auto-reconnect disabled)',
+        {
+          reconnectDecision: 'skip',
+          reason: 'auto_reconnect_disabled',
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
+      );
+
+      // ── Reconnection diagnostic: call_recovery_result=not_applicable ──
+      this._recordReconnectDiagnostic(
+        CALL_RECOVERY_RESULT,
+        'CALL_RECOVERY_RESULT',
+        'Call recovery result: not_applicable (auto-reconnect disabled)',
+        {
+          result: 'not_applicable',
+          reason: 'auto_reconnect_disabled',
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
+      );
     }
   }
 
@@ -975,6 +1099,21 @@ export default abstract class BaseSession {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
     this.stopSignalingHealthMonitor();
+
+    // ── Reconnection diagnostic: websocket_close_requested ──
+    if (this.connection?.connected) {
+      this._recordReconnectDiagnostic(
+        WEBSOCKET_CLOSE_REQUESTED,
+        'WEBSOCKET_CLOSE_REQUESTED',
+        'SDK requested WebSocket close',
+        {
+          socketGeneration: this.connection.socketGeneration,
+          voiceSdkId: this.callReportVoiceSdkId,
+          sessid: this.sessionid || undefined,
+        }
+      );
+    }
+
     if (this.connection) {
       this.connection.close();
     }
@@ -1051,6 +1190,80 @@ export default abstract class BaseSession {
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Record a reconnection lifecycle diagnostic on all active calls'
+   * call report collectors.
+   *
+   * This makes reconnection decisions visible in call reports without
+   * requiring a public API change. Each diagnostic is stored as a
+   * session warning entry in the call report payload.
+   *
+   * @param code - Numeric warning code (36005-36011)
+   * @param name - Machine-readable name (e.g. 'WEBSOCKET_CLOSED')
+   * @param message - Short human-readable message with context
+   * @param extras - Optional additional fields for the warning event
+   */
+  public _recordReconnectDiagnostic(
+    code: number,
+    name: string,
+    message: string,
+    extras?: Record<string, unknown>
+  ): void {
+    const calls = (
+      this as unknown as {
+        calls?: Record<
+          string,
+          {
+            id?: string;
+            recordSessionWarning?: (
+              code: number,
+              name: string,
+              message: string,
+              activeCallIds?: string[]
+            ) => void;
+          }
+        >;
+      }
+    ).calls;
+
+    if (!calls) return;
+
+    const activeCallIds = Object.keys(calls);
+
+    Object.values(calls).forEach((call) => {
+      if (!call?.recordSessionWarning) return;
+
+      try {
+        call.recordSessionWarning(
+          code,
+          name,
+          message,
+          activeCallIds
+        );
+      } catch (error) {
+        logger.error('Failed to record reconnect diagnostic', {
+          code,
+          callId: call.id,
+          error,
+        });
+      }
+    });
+
+    // Also emit as a warning event so real-time listeners can observe
+    // the reconnection lifecycle (not just call reports).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const warning = createTelnyxWarning(code as any, message);
+    trigger(
+      SwEvent.Warning,
+      {
+        warning,
+        ...(extras || {}),
+        sessionId: this.sessionid,
+      },
+      this.uuid
+    );
   }
 
   /**

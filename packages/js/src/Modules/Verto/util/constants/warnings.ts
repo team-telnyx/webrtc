@@ -401,6 +401,127 @@ export const SDK_WARNINGS = {
       'If a call should be active, start a new call manually',
     ],
   },
+
+  // ── Reconnection lifecycle diagnostics (36005–36011) ──────────────
+  36005: {
+    name: 'WEBSOCKET_CLOSE_REQUESTED',
+    message: 'WebSocket close requested by SDK',
+    description:
+      'The SDK intentionally closed the WebSocket as part of a recovery or disconnect flow. This is distinct from an unexpected close received from the network or server.',
+    causes: [
+      'Signaling health recovery triggered socket close',
+      'User or application called disconnect()',
+      'Network change triggered socket close for reconnect',
+    ],
+    solutions: [
+      'Normal SDK behavior — no action required',
+      'Monitor whether reconnect succeeds after this event',
+    ],
+  },
+  36006: {
+    name: 'WEBSOCKET_CLOSED',
+    message: 'WebSocket closed',
+    description:
+      'A WebSocket close event was received. Includes close code, reason, and whether the close was SDK-initiated or unexpected.',
+    causes: [
+      'Server closed the connection',
+      'Network interruption',
+      'SDK initiated close for recovery',
+    ],
+    solutions: [
+      'Check the close code and reason in the warning payload',
+      'If unexpected, check network connectivity',
+    ],
+  },
+  36007: {
+    name: 'NETWORK_CLOSE_DECISION',
+    message: 'Network close decision',
+    description:
+      'The onNetworkClose handler evaluated the close event and decided whether to attempt reconnect, skip reconnect, or abort. Includes the decision reason.',
+    causes: [
+      'Auto-reconnect enabled after unexpected close → attempt',
+      'Disconnect called or client destroyed → skip',
+      'Reconnect attempts exhausted → abort',
+    ],
+    solutions: [
+      'Normal SDK behavior — no action required for attempt decisions',
+      'If skip/abort, check if the application called disconnect()',
+    ],
+  },
+  36008: {
+    name: 'WEBSOCKET_RECONNECT_STARTED',
+    message: 'WebSocket reconnect started',
+    description:
+      'The SDK is initiating a WebSocket reconnection attempt. Includes the attempt number and reconnect delay.',
+    causes: [
+      'Previous WebSocket closed unexpectedly',
+      'Signaling health recovery triggered reconnect',
+      'Network change triggered reconnect',
+    ],
+    solutions: [
+      'Normal SDK behavior — no action required',
+      'Monitor for WEBSOCKET_RECONNECT_SUCCEEDED or WEBSOCKET_RECONNECT_FAILED',
+    ],
+  },
+  36009: {
+    name: 'WEBSOCKET_RECONNECT_SUCCEEDED',
+    message: 'WebSocket reconnected successfully',
+    description:
+      'The WebSocket reconnection succeeded and the socket is open. The SDK will now re-authenticate and recover active calls.',
+    causes: [
+      'Reconnect attempt completed successfully',
+    ],
+    solutions: [
+      'Normal SDK behavior — no action required',
+    ],
+  },
+  36010: {
+    name: 'WEBSOCKET_RECONNECT_FAILED',
+    message: 'WebSocket reconnect failed',
+    description:
+      'Reconnection attempts have been exhausted. The SDK will no longer attempt automatic reconnection and the session is disconnected.',
+    causes: [
+      'Network unreachable for multiple consecutive attempts',
+      'Server rejecting connections',
+      'maxReconnectAttempts exhausted',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Call connect() manually to retry',
+      'Verify server is reachable',
+    ],
+  },
+  36011: {
+    name: 'CALL_RECOVERY_RESULT',
+    message: 'Call recovery result',
+    description:
+      'Outcome of the call/session recovery after WebSocket reconnection. Indicates whether the call was recovered, not recovered, or recovery was not applicable.',
+    causes: [
+      'Call recovered via reattach after reconnect',
+      'Call could not be recovered after reconnect',
+      'No active calls during reconnect — not applicable',
+    ],
+    solutions: [
+      'If recovered, no action required',
+      'If not recovered, start a new call',
+    ],
+  },
+  36012: {
+    name: 'SIGNALING_RECOVERY_REQUESTED',
+    message: 'Signaling recovery requested',
+    description:
+      'The SignalingHealthService decided that signaling recovery is needed and is requesting the connection layer to close and reconnect the WebSocket. This is the first event in the reconnection lifecycle sequence.',
+    causes: [
+      'Signaling health probe timed out with no inbound WS activity',
+      'Critical signaling request timed out (Modify, Bye, Ping)',
+      'Peer failure detected while signaling is unhealthy',
+      'No RTP detected while signaling is unhealthy',
+    ],
+    solutions: [
+      'Normal SDK behavior — monitor the subsequent reconnection events',
+      'If reconnection fails, check network connectivity',
+    ],
+  },
 } as const;
 
 export type SdkWarningCode = keyof typeof SDK_WARNINGS;

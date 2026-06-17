@@ -819,6 +819,7 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
     mockSession.socketDisconnect = jest.fn();
+    mockSession._recordReconnectDiagnostic = jest.fn();
     connection = new Connection(mockSession);
     connection.connect();
     await Promise.resolve();
