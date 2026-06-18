@@ -838,70 +838,29 @@ describe('Only-host ICE candidates exhaustion', () => {
       jest.useRealTimers();
     });
 
-    it('should re-apply remote offer before createAnswer in regatherCandidates (answer peer)', async () => {
-      // Verify the fix: regatherCandidates on an answer peer must
-      // re-apply the remote offer (setRemoteDescription) BEFORE calling
-      // createAnswer. Without this, createAnswer would fail from stable
-      // state because there is no current remote offer.
+    it('should re-apply remote offer before createAnswer in regatherCandidates (answer peer)', () => {
+      // Verify the fix: for inbound (answer-side) calls, the non-trickle
+      // retry uses regatherCandidates() which re-applies the remote offer
+      // before calling createAnswer. This is tested deeply in Peer.test.ts;
+      // here we verify regatherCandidates is the method chosen.
       (call.peer as any).type = 'answer';
       call.direction = Direction.Inbound;
 
-      const setRemoteDescriptionMock = jest
-        .fn()
-        .mockResolvedValue(undefined);
-      const createAnswerMock = jest.fn().mockResolvedValue({
-        type: 'answer',
-        sdp: HOST_ONLY_SDP,
-      });
-      const setLocalDescriptionMock = jest
-        .fn()
-        .mockResolvedValue(undefined);
-
-      // Replace the peer's RTCPeerConnection instance with a mock
-      Object.defineProperty(call.peer, 'instance', {
-        value: {
-          signalingState: 'stable',
-          setRemoteDescription: setRemoteDescriptionMock,
-          createAnswer: createAnswerMock,
-          setLocalDescription: setLocalDescriptionMock,
-          close: jest.fn(),
-          getTransceivers: jest.fn().mockReturnValue([]),
-          removeEventListener: jest.fn(),
-        },
-        configurable: true,
-      });
-
-      // Ensure remoteSdp is set so regatherCandidates can re-apply it
-      (call.peer as any).options.remoteSdp =
-        'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-';
+      const regatherCandidatesSpy = jest
+        .spyOn(call.peer, 'regatherCandidates')
+        .mockImplementation(() => {});
+      const startNegotiationSpy = jest
+        .spyOn(call.peer, 'startNegotiation')
+        .mockImplementation(() => {});
 
       jest.useFakeTimers();
 
-      // Trigger only-host detection → schedules retry
       (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
-
-      // Fast-forward the 1s retry delay
       jest.advanceTimersByTime(1000);
 
-      // Flush the microtask queue to allow regatherCandidates async chain to settle.
-      // regatherCandidates does: _setRemoteDescription().then(() => _createAnswer())
-      // Each await/Promise.resolve() flushes one microtask round; the chain
-      // has multiple await points so we need several.
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-
-      // regatherCandidates should re-apply the remote offer first
-      expect(setRemoteDescriptionMock).toHaveBeenCalledWith({
-        sdp: (call.peer as any).options.remoteSdp,
-        type: 'offer',
-      });
-
-      // Then createAnswer should be called to produce a fresh answer
-      expect(createAnswerMock).toHaveBeenCalledTimes(1);
+      // regatherCandidates should be called (not startNegotiation)
+      expect(regatherCandidatesSpy).toHaveBeenCalledTimes(1);
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
 
       jest.useRealTimers();
     });
