@@ -788,11 +788,11 @@ describe('Only-host ICE candidates exhaustion', () => {
       expect(scheduleSpy).not.toHaveBeenCalled();
     });
 
-    it('should use peer.startNegotiation for non-trickle retry', () => {
+    it('should use peer.regatherCandidates for non-trickle retry', () => {
       jest.useFakeTimers();
 
-      const startNegotiationSpy = jest
-        .spyOn(call.peer, 'startNegotiation')
+      const regatherCandidatesSpy = jest
+        .spyOn(call.peer, 'regatherCandidates')
         .mockImplementation(() => {});
       const restartIceSpy = jest
         .spyOn(call.peer, 'restartIce')
@@ -804,9 +804,104 @@ describe('Only-host ICE candidates exhaustion', () => {
       // Fast-forward the 1s delay
       jest.advanceTimersByTime(1000);
 
-      // Non-trickle: should use startNegotiation, not restartIce
-      expect(startNegotiationSpy).toHaveBeenCalledTimes(1);
+      // Non-trickle: should use regatherCandidates, not restartIce
+      expect(regatherCandidatesSpy).toHaveBeenCalledTimes(1);
       expect(restartIceSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should produce a fresh answer for inbound non-trickle retry (regression: answer peer in stable)', async () => {
+      // Simulate an inbound (answer-side) call
+      call.direction = Direction.Inbound;
+      (call.peer as any).type = 'answer';
+
+      // Mock regatherCandidates to verify it is called.
+      // This is the method that correctly re-applies the remote offer
+      // before creating a fresh answer — as opposed to startNegotiation()
+      // which would call createAnswer() from stable state and fail.
+      const regatherCandidatesSpy = jest
+        .spyOn(call.peer, 'regatherCandidates')
+        .mockImplementation(() => {});
+
+      jest.useFakeTimers();
+
+      // Trigger only-host detection → schedules retry
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      // Fast-forward the 1s retry delay
+      jest.advanceTimersByTime(1000);
+
+      // regatherCandidates should be called (not startNegotiation)
+      expect(regatherCandidatesSpy).toHaveBeenCalledTimes(1);
+
+      jest.useRealTimers();
+    });
+
+    it('should re-apply remote offer before createAnswer in regatherCandidates (answer peer)', async () => {
+      // Verify the fix: regatherCandidates on an answer peer must
+      // re-apply the remote offer (setRemoteDescription) BEFORE calling
+      // createAnswer. Without this, createAnswer would fail from stable
+      // state because there is no current remote offer.
+      (call.peer as any).type = 'answer';
+      call.direction = Direction.Inbound;
+
+      const setRemoteDescriptionMock = jest
+        .fn()
+        .mockResolvedValue(undefined);
+      const createAnswerMock = jest.fn().mockResolvedValue({
+        type: 'answer',
+        sdp: HOST_ONLY_SDP,
+      });
+      const setLocalDescriptionMock = jest
+        .fn()
+        .mockResolvedValue(undefined);
+
+      // Replace the peer's RTCPeerConnection instance with a mock
+      Object.defineProperty(call.peer, 'instance', {
+        value: {
+          signalingState: 'stable',
+          setRemoteDescription: setRemoteDescriptionMock,
+          createAnswer: createAnswerMock,
+          setLocalDescription: setLocalDescriptionMock,
+          close: jest.fn(),
+          getTransceivers: jest.fn().mockReturnValue([]),
+          removeEventListener: jest.fn(),
+        },
+        configurable: true,
+      });
+
+      // Ensure remoteSdp is set so regatherCandidates can re-apply it
+      (call.peer as any).options.remoteSdp =
+        'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-';
+
+      jest.useFakeTimers();
+
+      // Trigger only-host detection → schedules retry
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      // Fast-forward the 1s retry delay
+      jest.advanceTimersByTime(1000);
+
+      // Flush the microtask queue to allow regatherCandidates async chain to settle.
+      // regatherCandidates does: _setRemoteDescription().then(() => _createAnswer())
+      // Each await/Promise.resolve() flushes one microtask round; the chain
+      // has multiple await points so we need several.
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // regatherCandidates should re-apply the remote offer first
+      expect(setRemoteDescriptionMock).toHaveBeenCalledWith({
+        sdp: (call.peer as any).options.remoteSdp,
+        type: 'offer',
+      });
+
+      // Then createAnswer should be called to produce a fresh answer
+      expect(createAnswerMock).toHaveBeenCalledTimes(1);
 
       jest.useRealTimers();
     });
@@ -818,8 +913,8 @@ describe('Only-host ICE candidates exhaustion', () => {
       const restartIceSpy = jest
         .spyOn(call.peer, 'restartIce')
         .mockImplementation(() => ({ started: true }));
-      const startNegotiationSpy = jest
-        .spyOn(call.peer, 'startNegotiation')
+      const regatherCandidatesSpy = jest
+        .spyOn(call.peer, 'regatherCandidates')
         .mockImplementation(() => {});
 
       // Trigger retry scheduling
@@ -828,9 +923,9 @@ describe('Only-host ICE candidates exhaustion', () => {
       // Fast-forward the 1s delay
       jest.advanceTimersByTime(1000);
 
-      // Trickle: should use restartIce, not startNegotiation
+      // Trickle: should use restartIce, not regatherCandidates
       expect(restartIceSpy).toHaveBeenCalledTimes(1);
-      expect(startNegotiationSpy).not.toHaveBeenCalled();
+      expect(regatherCandidatesSpy).not.toHaveBeenCalled();
 
       jest.useRealTimers();
     });
@@ -838,9 +933,9 @@ describe('Only-host ICE candidates exhaustion', () => {
     it('should not execute retry if call is terminating', () => {
       jest.useFakeTimers();
 
-      const startNegotiationSpy = jest.spyOn(
+      const regatherCandidatesSpy = jest.spyOn(
         call.peer,
-        'startNegotiation'
+        'regatherCandidates'
       );
 
       // Trigger retry scheduling
@@ -853,7 +948,7 @@ describe('Only-host ICE candidates exhaustion', () => {
       jest.advanceTimersByTime(1000);
 
       // Retry should not execute because call is terminating
-      expect(startNegotiationSpy).not.toHaveBeenCalled();
+      expect(regatherCandidatesSpy).not.toHaveBeenCalled();
 
       jest.useRealTimers();
     });

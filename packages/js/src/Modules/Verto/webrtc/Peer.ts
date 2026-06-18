@@ -212,6 +212,38 @@ export default class Peer {
       this._createAnswer();
     }
   }
+
+  /**
+   * Regather ICE candidates for the only-host ICE retry path.
+   *
+   * Unlike `startNegotiation()`, this method handles the answer-side case
+   * correctly: after a completed answer cycle the peer is in `stable` state
+   * and `createAnswer()` would fail (no current remote offer). For answer
+   * peers we re-apply the stored remote offer first, then create a fresh
+   * answer — giving ICE a new chance to gather non-host candidates.
+   *
+   * For offer peers this is equivalent to `startNegotiation()`.
+   */
+  regatherCandidates() {
+    this._negotiating = true;
+
+    if (this._isOffer() || this.isIceRestarting) {
+      this._createOffer();
+    } else {
+      // Answer side: we're in stable state after the previous answer cycle.
+      // Re-apply the remote offer to transition to have-remote-offer so
+      // createAnswer() can succeed and produce a fresh SDP with new ICE
+      // credentials.
+      this._setRemoteDescription({
+        sdp: this.options.remoteSdp,
+        type: PeerType.Offer,
+      })
+        .then(() => this._createAnswer())
+        .catch((error: unknown) => {
+          logger.error('Peer regatherCandidates error:', error);
+        });
+    }
+  }
   async startTrickleIceNegotiation() {
     performance.mark(callMarkName(this.options.id, 'start-negotiation'));
 

@@ -2265,9 +2265,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         // so we need an ICE restart (Modify with new SDP).
         this.peer.restartIce();
       } else {
-        // For non-trickle ICE: start a new negotiation cycle which
-        // creates a fresh offer/answer with new ICE credentials.
-        this.peer.startNegotiation();
+        // For non-trickle ICE: regather candidates with a fresh
+        // offer/answer cycle. Using regatherCandidates() instead of
+        // startNegotiation() because the answer-side peer is in stable
+        // state after the previous answer cycle and createAnswer() would
+        // fail without re-applying the remote offer first.
+        this.peer.regatherCandidates();
       }
     }, 1000);
   }
