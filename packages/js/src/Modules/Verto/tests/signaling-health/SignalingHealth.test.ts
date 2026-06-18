@@ -1227,15 +1227,18 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     expect(hangup).not.toHaveBeenCalled();
   });
 
-  it('clears reconnection timeout when onCallRecoverySucceeded is called (no callId)', () => {
+  it('clears reconnection timeout when onCallRecoverySucceeded is called for socket reconnect path', () => {
+    // For socket reconnect, the timeout is not cleared when the socket
+    // comes back — it is cleared when the call's PeerConnection reaches
+    // 'connected' (via onCallRecoverySucceeded with the call's ID).
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
     (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
     monitor.onPeerFailure('call-1', 'connection_failed');
 
-    // Simulate successful reconnection before timeout
-    monitor.onCallRecoverySucceeded();
+    // Simulate the call confirming media recovery after socket reconnect
+    monitor.onCallRecoverySucceeded('call-1');
 
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1250,8 +1253,8 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
   });
 
   it('clears reconnection timeout when onCallRecoverySucceeded is called for single call', () => {
-    // Single active call: onCallRecoverySucceeded should clear the timeout
-    // the same way onCallRecoverySucceeded() does.
+    // Single active call: onCallRecoverySucceeded(callId) should clear the timeout
+    // when the sole tracked call confirms media recovery.
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
@@ -1326,8 +1329,9 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
     monitor.onPeerFailure('call-1', 'connection_failed');
 
-    // Mark reconnection as succeeded (no longer reconnecting)
-    monitor.onCallRecoverySucceeded();
+    // Mark reconnection as succeeded (no longer reconnecting) by
+    // confirming the call's media recovery
+    monitor.onCallRecoverySucceeded('call-1');
 
     // Now call stop() — since _isReconnecting is false, timeout is cleared
     // (the timeout was already cleared by onCallRecoverySucceeded, but this
@@ -1408,7 +1412,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'ice_failed');
 
     // Simulate successful recovery (PeerConnection reaches 'connected')
-    monitor.onCallRecoverySucceeded();
+    monitor.onCallRecoverySucceeded('call-1');
 
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1555,8 +1559,8 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
 
     expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
 
-    // Simulate successful reconnection
-    monitor.onCallRecoverySucceeded();
+    // Simulate the call confirming media recovery after reconnect
+    monitor.onCallRecoverySucceeded('call-1');
 
     // Advance past timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1771,35 +1775,6 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
       SwEvent.Error,
       expect.objectContaining({
         callIds: ['call-1'],
-      }),
-      'test-uuid'
-    );
-  });
-
-  it('onCallRecoverySucceeded() without callId clears timeout and all pending state', () => {
-    // onCallRecoverySucceeded() without callId should clear the timeout
-    // regardless of per-call tracking state.
-    mockSession.maxTimeoutForReconnectionMs = 5000;
-    mockSession.connection = connection;
-
-    mockSession.calls = {
-      'call-1': { id: 'call-1', _state: StateActive },
-      'call-2': { id: 'call-2', _state: StateActive },
-    };
-
-    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
-    monitor.onPeerFailure('call-1', 'connection_failed');
-
-    // Legacy path: clear everything
-    monitor.onCallRecoverySucceeded();
-
-    // Advance past timeout — should NOT fire
-    jest.advanceTimersByTime(5001);
-
-    expect(trigger).not.toHaveBeenCalledWith(
-      SwEvent.Error,
-      expect.objectContaining({
-        error: expect.objectContaining({ code: 45005 }),
       }),
       'test-uuid'
     );

@@ -154,7 +154,8 @@ export default class SignalingHealthMonitor {
    * would make it impossible for the timeout to ever fire.
    *
    * The reconnection timeout is cleared by:
-   * - `onReconnectionSucceeded()` (recovery completed)
+   * - `onCallRecoverySucceeded(callId)` (all tracked calls confirmed)
+   * - `onCallFinalized(callId)` (all tracked calls finalized)
    * - `forceStop()` (full disconnect / teardown)
    * - `_onReconnectionTimeout()` (timeout expired)
    */
@@ -202,40 +203,38 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Called when recovery is confirmed — either per-call (ICE restart path)
-   * or session-level (socket reconnect path).
+   * Called when a specific call's peer connection reaches 'connected'
+   * during recovery (both socket reconnect/attach and ICE restart paths).
    *
-   * Per-call recovery (ICE restart): callId is provided and matches a
-   * tracked pending call. The call is removed from the pending set, and
-   * if all tracked calls have confirmed, the session-level reconnection
-   * timeout is cleared.
+   * Both recovery paths use the same confirmation mechanism:
+   * - Socket reconnect: calls are reattached via Attach; the new call
+   *   has `_isRecovering = true` set during attach. When the PeerConnection
+   *   reaches 'connected', Peer.ts calls this to confirm media recovery.
+   * - ICE restart: `_isRecovering = true` is set on the call before
+   *   restarting ICE. When the PeerConnection reaches 'connected',
+   *   Peer.ts calls this to confirm media recovery.
    *
-   * Session-level recovery (socket reconnect): callId is omitted. This
-   * clears the reconnection timeout and all pending recovery state
-   * without emitting additional events. Used when the socket reconnects
-   * successfully — calls will be reattached separately (or not, in which
-   * case there is a different event for missing reattached sessions).
+   * The call is removed from the pending recovery set, and if all
+   * tracked calls have confirmed, the reconnection timeout is cleared.
+   *
+   * For socket reconnect without call reattach: the reconnection timeout
+   * bounds the full recovery window (socket reconnect + call reattach +
+   * media recovery). If a call is never reattached, the timeout fires
+   * and emits a notification — no additional events are emitted for
+   * missing reattached sessions (there is a separate event for that).
    */
-  onCallRecoverySucceeded(callId?: string): void {
-    if (callId) {
-      // Per-call recovery (ICE restart path)
-      if (!this._pendingRecoveryCallIds.has(callId)) {
-        return; // Not a tracked recovery call — ignore
-      }
+  onCallRecoverySucceeded(callId: string): void {
+    if (!this._pendingRecoveryCallIds.has(callId)) {
+      return; // Not a tracked recovery call — ignore
+    }
 
-      this._pendingRecoveryCallIds.delete(callId);
-      logger.debug(
-        `Signaling health: call ${callId} confirmed media recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
-      );
+    this._pendingRecoveryCallIds.delete(callId);
+    logger.debug(
+      `Signaling health: call ${callId} confirmed media recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
+    );
 
-      if (this._pendingRecoveryCallIds.size === 0) {
-        this._isReconnecting = false;
-        this._clearReconnectionTimeout();
-      }
-    } else {
-      // Session-level recovery (socket reconnect path)
+    if (this._pendingRecoveryCallIds.size === 0) {
       this._isReconnecting = false;
-      this._pendingRecoveryCallIds.clear();
       this._clearReconnectionTimeout();
     }
   }
