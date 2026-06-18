@@ -7,7 +7,8 @@
  * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
  *   backward compatibility/telemetry, records `_browserWasOffline` state,
  *   and may accelerate one signaling health probe when the monitor is
- *   running and no probe is already in flight;
+ *   running and no probe is already in flight (even without an active
+ *   call — signaling health matters regardless);
  * - browser `offline` does NOT directly trigger recovery (socketDisconnect,
  *   _autoReconnect, ICE restart). The recovery decision still comes from
  *   probe/request timeout or socket evidence, not from navigator.onLine alone;
@@ -144,13 +145,18 @@ describe('SignalingHealthMonitor – browser offline event', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('does NOT probe when there is no active call', () => {
+  it('may trigger a signaling health probe even without an active call', () => {
     mockSession.hasActiveCall = jest.fn(() => false);
 
     offlineHandler!();
 
-    // No probe because no active call — offline is just a telemetry event
-    expect(mockSession.connection.send).not.toHaveBeenCalled();
+    // Signaling health is relevant even without an active call — a session
+    // needs a healthy WebSocket to receive new calls and registrations.
+    // The browser offline hint may trigger a probe, but recovery still
+    // requires probe timeout or other SDK-owned evidence.
+    expect(mockSession.connection.send).toHaveBeenCalledTimes(1);
+    // The monitor must NOT directly trigger recovery
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
   it('does NOT probe when monitor is not running', () => {

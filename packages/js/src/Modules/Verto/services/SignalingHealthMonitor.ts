@@ -322,7 +322,9 @@ export default class SignalingHealthMonitor {
    * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
    *   backward compatibility/telemetry, records `_browserWasOffline` state,
    *   and may accelerate one signaling health probe when the monitor is
-   *   running and no probe is in flight. The recovery decision still comes
+   *   running and no probe is already in flight. Signaling health is
+   *   relevant even without an active call — a session needs a healthy
+   *   WebSocket to receive new calls and registrations.
    *   from probe/request timeout or socket evidence, not from
    *   `navigator.onLine` alone.
    * - browser `online` clears the browser-reported offline state for
@@ -371,9 +373,14 @@ export default class SignalingHealthMonitor {
       // triggered. If the probe times out, the periodic _check() will
       // declare signaling unhealthy and trigger recovery from SDK-owned
       // evidence (probe timeout), not from the browser event itself.
-      if (this.isRunning && this._session.hasActiveCall()) {
+      //
+      // Signaling health is relevant even without an active call — a
+      // session needs a healthy WebSocket to receive new calls and
+      // registrations — so the offline hint triggers a probe regardless
+      // of whether a call is currently active.
+      if (this.isRunning) {
         this._probeIfNeeded(
-          'browser offline signal while monitor is active with an active call'
+          'browser offline signal while monitor is active'
         );
       }
     };
