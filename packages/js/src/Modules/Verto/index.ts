@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import BrowserSession from './BrowserSession';
 import {
   SubscribeParams,
@@ -68,18 +67,17 @@ export default class Verto extends BrowserSession {
       throw telnyxError;
     }
 
-    // Ensure the call has an ID before emitting the warning.
-    // BaseCall._init() would generate one via uuidv4() if options.id is
-    // not supplied, but we need it here for the warning payload.
-    if (!options.id) {
-      logger.debug('newCall: auto-generating call ID for multi-call warning payload');
-      options.id = uuidv4();
-    }
-
-    // Emit warning if there are already active calls in this session
-    this.emitMultipleActiveCallsWarning(options.id);
-
     const call = new Call(this, options);
+
+    // Emit warning if there are already active calls in this session.
+    // The call ID is available after Call construction, even if the
+    // application did not supply one (BaseCall._init generates it).
+    if (!options.id) {
+      logger.debug(
+        `newCall: callId was not provided in options, SDK-generated ID: ${call.id}`
+      );
+    }
+    this.emitMultipleActiveCallsWarning(call.id);
     performance.mark(callMarkName(call.id, 'new-call-start'));
     call.invite();
     return call;

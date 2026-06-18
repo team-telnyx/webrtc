@@ -476,20 +476,7 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
-    const statsCount = this.statsBuffer.length;
-    const logCount = this.logCollector?.getLogCount() ?? 0;
-    const isSocketFlush =
-      flushReason?.type === 'socket-close' ||
-      flushReason?.type === 'socket-error';
-    const hasFlushableData = statsCount > 0 || logCount > 0 || isSocketFlush;
-
-    if (this._flushing || !hasFlushableData) {
-      logger.debug('CallReportCollector: Skipping intermediate flush', {
-        reason: this._flushing ? 'already-flushing' : 'no-stats-or-logs',
-        flushReason,
-        statsIntervals: statsCount,
-        logEntries: logCount,
-      });
+    if (this._flushing || this.statsBuffer.length === 0) {
       return null;
     }
 
@@ -1077,20 +1064,16 @@ export class CallReportCollector {
   }
 
   private _requestIntermediateFlushIfNeeded(now: Date): void {
+    if (
+      !this.onFlushNeeded ||
+      this._flushing ||
+      this.statsBuffer.length === 0
+    ) {
+      return;
+    }
+
     const statsCount = this.statsBuffer.length;
     const logCount = this.logCollector?.getLogCount() ?? 0;
-
-    if (!this.onFlushNeeded || this._flushing) {
-      return;
-    }
-
-    if (statsCount === 0 && logCount === 0) {
-      logger.debug(
-        'CallReportCollector: Skipping intermediate flush request — no stats or logs buffered'
-      );
-      return;
-    }
-
     const intermediateReportInterval = this._getIntermediateReportInterval();
     const msSinceLastFlush =
       now.getTime() - this._lastIntermediateFlushTime.getTime();
