@@ -94,6 +94,10 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
+  /** True while an intentional disconnect/cleanup is in progress.
+   *  Prevents RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT from firing
+   *  on normal app teardown or token refresh. */
+  protected _intentionalClose: boolean = false;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -310,6 +314,7 @@ export default abstract class BaseSession {
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
+    this._intentionalClose = true;
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
     await this._drainCallReportUploads();
@@ -883,25 +888,34 @@ export default abstract class BaseSession {
         this.connect();
       }, delayMs);
     } else {
-      // Auto-reconnect is disabled — emit warning and debug log
+      // Auto-reconnect is disabled — emit warning only for unexpected
+      // socket closes (e.g. network failure with auto-reconnect off).
+      // Intentional disconnect/cleanup should NOT surface a public
+      // telnyx.warning since no reconnection failure occurred.
       logger.debug('auto_reconnect disabled, not reconnecting', {
         voiceSdkId: this.callReportVoiceSdkId,
         sessid: this.sessionid || undefined,
+        intentionalClose: this._intentionalClose,
       });
 
-      const warning = createTelnyxWarning(
-        RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
-      );
-      trigger(
-        SwEvent.Warning,
-        {
-          warning,
-          reason: 'auto_reconnect_disabled',
-          sessionId: this.sessionid,
-        },
-        this.uuid
-      );
+      if (!this._intentionalClose) {
+        const warning = createTelnyxWarning(
+          RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+        );
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            reason: 'auto_reconnect_disabled',
+            sessionId: this.sessionid,
+          },
+          this.uuid
+        );
+      }
     }
+    // Reset intentionalClose flag — it only applies to this
+    // onNetworkClose invocation.
+    this._intentionalClose = false;
   }
 
   /**
