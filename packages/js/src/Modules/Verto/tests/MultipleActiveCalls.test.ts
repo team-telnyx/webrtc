@@ -271,6 +271,92 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
 
+    it('should include safe correlation IDs in activeCalls when present', () => {
+      const call = _createCallInState('existing1', State.Active);
+      // Set correlation IDs on the existing call
+      call.options.telnyxSessionId = 'sess-abc123';
+      call.options.telnyxLegId = 'leg-xyz789';
+      (call as any).sipCallId = 'sip-call-id-001';
+
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
+
+      instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(warnings).toHaveLength(1);
+      const ctx = warnings[0].activeCalls[0];
+      expect(ctx.callId).toBe('existing1');
+      expect(ctx.telnyxSessionId).toBe('sess-abc123');
+      expect(ctx.telnyxLegId).toBe('leg-xyz789');
+      expect(ctx.sipCallId).toBe('sip-call-id-001');
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
+    });
+
+    it('should omit correlation IDs when not present on existing calls', () => {
+      _createCallInState('existing1', State.Active);
+
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
+
+      instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(warnings).toHaveLength(1);
+      const ctx = warnings[0].activeCalls[0];
+      expect(ctx.callId).toBe('existing1');
+      expect(ctx.telnyxSessionId).toBeUndefined();
+      expect(ctx.telnyxLegId).toBeUndefined();
+      expect(ctx.sipCallId).toBeUndefined();
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
+    });
+
+    it('should include newCall with correlation IDs when new call is in session.calls', () => {
+      _createCallInState('existing1', State.Active);
+      const newCall = _createCallInState('newCall1', State.Ringing);
+      newCall.options.telnyxSessionId = 'new-sess-456';
+      newCall.options.telnyxLegId = 'new-leg-789';
+      (newCall as any).sipCallId = 'new-sip-002';
+
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
+
+      instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(warnings).toHaveLength(1);
+      const newCallPayload = warnings[0].newCall;
+      expect(newCallPayload.callId).toBe('newCall1');
+      expect(newCallPayload.telnyxSessionId).toBe('new-sess-456');
+      expect(newCallPayload.telnyxLegId).toBe('new-leg-789');
+      expect(newCallPayload.sipCallId).toBe('new-sip-002');
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
+    });
+
+    it('should include newCall with only callId when new call is not in session.calls', () => {
+      _createCallInState('existing1', State.Active);
+
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
+
+      // Emit with a callId that doesn't exist in session.calls yet
+      // (e.g., outbound call created after emit)
+      instance.emitMultipleActiveCallsWarning('unknownCall1');
+
+      expect(warnings).toHaveLength(1);
+      const newCallPayload = warnings[0].newCall;
+      expect(newCallPayload.callId).toBe('unknownCall1');
+      expect(newCallPayload.telnyxSessionId).toBeUndefined();
+      expect(newCallPayload.telnyxLegId).toBeUndefined();
+      expect(newCallPayload.sipCallId).toBeUndefined();
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
+    });
+
     it('should emit warning for multiple existing active calls', () => {
       _createCallInState('existing1', State.Active);
       _createCallInState('existing2', State.Ringing);

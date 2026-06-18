@@ -75,6 +75,52 @@ export default abstract class BrowserSession extends BaseSession {
    *
    * @param newCallId - The callId of the newly created/received call
    */
+  /**
+   * Extract safe (non-PII) correlation identifiers from a call object
+   * for inclusion in warning payloads. Returns only Telnyx/SIP IDs
+   * that help correlate across call reports, VSP, and b2bua logs.
+   * Phone numbers, credentials, SDP, and custom headers are excluded.
+   */
+  private _extractSafeCallIdentifiers(call: IWebRTCCall): {
+    callId: string;
+    state: string;
+    direction: string;
+    telnyxSessionId?: string;
+    telnyxLegId?: string;
+    sipCallId?: string;
+  } {
+    const ids: {
+      callId: string;
+      state: string;
+      direction: string;
+      telnyxSessionId?: string;
+      telnyxLegId?: string;
+      sipCallId?: string;
+    } = {
+      callId: call.id,
+      state: call.state,
+      direction: call.direction,
+    };
+
+    // telnyxSessionId and telnyxLegId are on call.options (IVertoCallOptions)
+    if (call.options?.telnyxSessionId) {
+      ids.telnyxSessionId = call.options.telnyxSessionId;
+    }
+    if (call.options?.telnyxLegId) {
+      ids.telnyxLegId = call.options.telnyxLegId;
+    }
+
+    // sipCallId is a public property on BaseCall but not on IWebRTCCall.
+    // Access it safely at runtime — it may be undefined for new calls
+    // that haven't received a dialog response yet.
+    const sipCallId = (call as unknown as Record<string, unknown>).sipCallId;
+    if (typeof sipCallId === 'string' && sipCallId) {
+      ids.sipCallId = sipCallId;
+    }
+
+    return ids;
+  }
+
   public emitMultipleActiveCallsWarning(newCallId: string): void {
     // Get existing active calls, excluding the new call itself
     // (the new call may or may not be in session.calls yet)
@@ -89,17 +135,22 @@ export default abstract class BrowserSession extends BaseSession {
 
     const warning = createTelnyxWarning(MULTIPLE_ACTIVE_CALLS_DETECTED);
 
+    // Include safe correlation IDs for the new call if it's already in session.calls
+    const newCall = this.calls[newCallId];
+    const newCallIdentifiers = newCall
+      ? this._extractSafeCallIdentifiers(newCall)
+      : { callId: newCallId };
+
     trigger(
       SwEvent.Warning,
       {
         warning,
         callId: newCallId,
         sessionId: this.sessionid,
-        activeCalls: existingActiveCalls.map((call) => ({
-          callId: call.id,
-          state: call.state,
-          direction: call.direction,
-        })),
+        newCall: newCallIdentifiers,
+        activeCalls: existingActiveCalls.map((call) =>
+          this._extractSafeCallIdentifiers(call)
+        ),
       },
       this.uuid
     );
