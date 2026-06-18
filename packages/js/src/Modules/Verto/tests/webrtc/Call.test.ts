@@ -12,7 +12,7 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { PeerType, State } from '../../webrtc/constants';
+import { PeerType, State, Direction } from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
@@ -688,6 +688,65 @@ describe('Call', () => {
       expect(initSpy).toHaveBeenCalledTimes(2);
 
       await secondCall.hangup({}, false);
+    });
+  });
+
+  describe('answer() multi-call debug log', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should NOT log a multi-call diagnostic when answering a single inbound call', async () => {
+      // Clean up the default call from beforeEach so only the inbound call exists
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        id: 'single-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      answerCall.direction = Direction.Inbound;
+      answerCall.setState(State.Ringing);
+
+      const debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+
+      await answerCall.answer();
+
+      // The debug log for "answering inbound call while N other active call(s) exist"
+      // should NOT fire when the only active call is the one being answered.
+      const multiCallLog = debugSpy.mock.calls.find(
+        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      );
+      expect(multiCallLog).toBeUndefined();
+
+      await answerCall.hangup({}, false);
+    });
+
+    it('should log a multi-call diagnostic when answering while another call is active', async () => {
+      // The default call from beforeEach is in 'new' state (counts as active),
+      // so the debug log should fire because at least one other active call exists.
+      const answerCall = new Call(session, {
+        ...defaultParams,
+        id: 'second-inbound-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      answerCall.direction = Direction.Inbound;
+      answerCall.setState(State.Ringing);
+
+      const debugSpy = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+
+      await answerCall.answer();
+
+      // The debug log should fire because at least one other active call exists.
+      const multiCallLog = debugSpy.mock.calls.find(
+        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      );
+      expect(multiCallLog).toBeDefined();
+      // The log should NOT count the call being answered itself
+      expect(multiCallLog![0]).not.toContain('0 other active call');
+
+      await answerCall.hangup({}, false);
     });
   });
 
