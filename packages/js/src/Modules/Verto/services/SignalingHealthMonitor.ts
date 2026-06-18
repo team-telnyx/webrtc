@@ -121,12 +121,16 @@ export default class SignalingHealthMonitor {
   // ── Public API ──────────────────────────────────────────────────────
 
   /**
-   * Start the monitor. Resets all state and begins periodic checks.
+   * Start the monitor. Resets probe state and begins periodic checks.
    *
-   * If the monitor was in a reconnecting state when start() is called
-   * (i.e. the socket just reconnected), clears the reconnection timeout
-   * and pending recovery state — the socket is back, calls will be
-   * reattached separately by the server.
+   * The reconnection timeout and pending recovery call tracking are
+   * intentionally NOT cleared here. Even though the socket has reconnected,
+   * calls may not yet have been reattached or had their media paths recover.
+   * The reconnection timeout continues to bound the full recovery window
+   * (socket reconnect + call reattach + media recovery) and is only cleared
+   * through explicit recovery confirmation (`onCallRecoverySucceeded`),
+   * call finalization (`onCallFinalized`), timeout expiry, or full teardown
+   * (`forceStop`).
    */
   start(): void {
     if (this._intervalId) {
@@ -136,17 +140,6 @@ export default class SignalingHealthMonitor {
     this._lastInboundAt = Date.now();
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
-
-    // If we were reconnecting, the socket is now back. Clear the
-    // reconnection timeout and pending recovery state — the calls
-    // will be reattached separately by the server (or not, in which
-    // case there is a different event for missing reattached sessions).
-    if (this._isReconnecting) {
-      logger.debug('Signaling health: socket reconnected, clearing reconnection timeout');
-      this._isReconnecting = false;
-      this._pendingRecoveryCallIds.clear();
-      this._clearReconnectionTimeout();
-    }
 
     this._intervalId = setInterval(() => this._check(), CHECK_INTERVAL_MS);
   }

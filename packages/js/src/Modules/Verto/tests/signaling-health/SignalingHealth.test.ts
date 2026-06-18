@@ -1924,6 +1924,153 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
       'test-uuid'
     );
   });
+
+  it('start() does not clear reconnection timeout — timeout survives socket reconnect', () => {
+    // This is the core fix for the reviewer's feedback:
+    // When the socket reconnects (start() is called), the reconnection
+    // timeout and pending recovery state must NOT be cleared. The socket
+    // being back does not mean calls have been reattached or media has
+    // recovered. The timeout bounds the FULL recovery window.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // 1. Socket is connected, trigger signaling recovery
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
+
+    // 2. Socket closes → onNetworkClose() → stop()
+    monitor.stop();
+
+    // 3. Socket reconnects → start() is called
+    monitor.start();
+
+    // 4. The reconnection timeout should STILL be alive after start()
+    //    Advance past the timeout — it should fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('start() preserves pending recovery call IDs across socket reconnect', () => {
+    // Multi-call: after start(), pending recovery calls are still tracked.
+    // The timeout fires with all unrecovered call IDs.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    mockSession.calls = {
+      'call-1': { id: 'call-1', _state: StateActive },
+      'call-2': { id: 'call-2', _state: StateHeld },
+    };
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    monitor.stop();
+    monitor.start();
+
+    // Advance past timeout — should fire with both calls still tracked
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        callIds: ['call-1', 'call-2'],
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('reconnection timeout cleared by onCallRecoverySucceeded after start()', () => {
+    // Full happy path: recovery triggered → stop() → start() (socket back)
+    // → calls confirm recovery → timeout cleared.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    monitor.stop();
+    monitor.start();
+
+    // All calls confirm media recovery after socket reconnect
+    monitor.onCallRecoverySucceeded('call-1');
+
+    // Advance past timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('reconnection timeout cleared by onCallFinalized after start()', () => {
+    // Full path: recovery triggered → stop() → start() (socket back)
+    // → call is finalized (hung up during recovery) → timeout cleared.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onRequestTimeout('req-1', 10000, 'telnyx_rtc.modify');
+
+    monitor.stop();
+    monitor.start();
+
+    // Call is finalized before media recovery
+    monitor.onCallFinalized('call-1');
+
+    // Advance past timeout — should NOT fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).not.toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+      }),
+      'test-uuid'
+    );
+  });
+
+  it('reconnection timeout survives start() for ICE restart path', () => {
+    // ICE restart is in progress, monitor is stopped and restarted.
+    // The reconnection timeout must survive start() for ICE restart too.
+    mockSession.maxTimeoutForReconnectionMs = 5000;
+    mockSession.connection = connection;
+
+    // Mark signaling as healthy
+    monitor.onSocketActivity();
+
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    // Stop and restart the monitor (e.g. periodic check cycle)
+    monitor.stop();
+    monitor.start();
+
+    // Advance past timeout — should still fire
+    jest.advanceTimersByTime(5001);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: 45005 }),
+        callIds: ['call-1'],
+      }),
+      'test-uuid'
+    );
+  });
 });
 
 // ─── normalizeMaxTimeoutForReconnectionMs ──────────────────────────────────
