@@ -477,3 +477,99 @@ describe('SignalingHealthMonitor – browser listener lifecycle', () => {
     );
   });
 });
+
+// ─── Real window event dispatch ────────────────────────────────────────
+
+/**
+ * Tests that use real window event dispatching (not mocked
+ * addEventListener/removeEventListener) to verify that browser events
+ * dispatched after cleanup do NOT reach the monitor.
+ *
+ * This addresses the review concern that mocking addEventListener with
+ * arbitrary handlers doesn't prove events stop reaching the session after
+ * cleanup. By dispatching real events on window, we verify the full
+ * registration → dispatch → cleanup → dispatch lifecycle.
+ */
+describe('SignalingHealthMonitor – real window event dispatch after cleanup', () => {
+  let mockSession: any;
+  let monitor: SignalingHealthMonitor;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    mockSession = createMockSession({
+      connection: { connected: true, send: jest.fn(() => Promise.resolve()) },
+    });
+    monitor = new SignalingHealthMonitor(mockSession);
+  });
+
+  afterEach(() => {
+    // Ensure cleanup even if test fails
+    monitor.stop();
+  });
+
+  it('offline events dispatched on window reach the monitor before stop', () => {
+    monitor.start();
+
+    // Dispatch a real browser offline event on window
+    window.dispatchEvent(new Event('offline'));
+
+    // The monitor should have emitted NETWORK_OFFLINE
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: NETWORK_OFFLINE }),
+      }),
+      'test-uuid'
+    );
+
+    // The monitor should NOT have triggered recovery
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+
+    monitor.stop();
+  });
+
+  it('offline events dispatched on window do NOT reach the monitor after stop', () => {
+    monitor.start();
+
+    // Verify the monitor is responsive before cleanup
+    window.dispatchEvent(new Event('offline'));
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Error,
+      expect.objectContaining({
+        error: expect.objectContaining({ code: NETWORK_OFFLINE }),
+      }),
+      'test-uuid'
+    );
+
+    // Stop the monitor — removes event listeners from window
+    monitor.stop();
+    (trigger as jest.Mock).mockClear();
+    (mockSession.connection.send as jest.Mock).mockClear();
+
+    // Dispatch another offline event — should NOT trigger the monitor
+    // because removeEventListener was called in stop()
+    window.dispatchEvent(new Event('offline'));
+
+    expect(trigger).not.toHaveBeenCalled();
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
+  });
+
+  it('online events dispatched on window do NOT reach the monitor after stop', () => {
+    monitor.start();
+
+    // Go offline first so online has state to clear
+    window.dispatchEvent(new Event('offline'));
+
+    monitor.stop();
+    (trigger as jest.Mock).mockClear();
+    (mockSession.connection.send as jest.Mock).mockClear();
+
+    // Dispatch online event after cleanup — should NOT reach the monitor
+    window.dispatchEvent(new Event('online'));
+
+    // No probe or recovery should be triggered
+    expect(mockSession.connection.send).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+  });
+});
