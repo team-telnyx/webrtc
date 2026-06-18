@@ -13,7 +13,6 @@ import {
   GATEWAY_FAILED,
   RECONNECTION_EXHAUSTED,
   SUBSCRIBE_FAILED,
-  CALL_RECOVERY_RESULT,
 } from '../util/constants';
 import {
   VertoMethod,
@@ -95,26 +94,16 @@ class VertoHandler {
         (reattachedID: string) => activeCallsIDs.has(reattachedID)
       );
 
-      // ── Reconnection diagnostic: call_recovery_result ──
-      // Record the reattach outcome AFTER it is known (not on REGED,
-      // where a failed reattach would be falsely logged as 'recovered').
-      // Only record during reconnects (socketGeneration > 1).
+      // Debug log: reattach outcome after reconnect
       if (session.connection?.socketGeneration > 1) {
         const reattachSucceeded = !isReattachedEmpty && isReattachedHasSdkKnownCalls;
-        session._recordReconnectDiagnostic(
-          CALL_RECOVERY_RESULT,
-          'CALL_RECOVERY_RESULT',
+        logger.debug(
           reattachSucceeded
-            ? 'Call recovery result: recovered (active calls reattached)'
-            : 'Call recovery result: not_recovered (reattach failed — no matching sessions)',
+            ? 'Reattach after reconnect: active calls reattached successfully'
+            : 'Reattach after reconnect: no matching sessions reattached',
           {
             result: reattachSucceeded ? 'recovered' : 'not_recovered',
-            reason: reattachSucceeded
-              ? 'session_reconnected_with_active_calls'
-              : 'reattach_failed_no_matching_sessions',
             socketGeneration: session.connection?.socketGeneration,
-            voiceSdkId: session.callReportVoiceSdkId,
-            sessid: session.sessionid || undefined,
           }
         );
       }
@@ -383,28 +372,12 @@ class VertoHandler {
                 if (gateWayState === GatewayStateType.REGED) {
                   this.session.resetReconnectAttempts();
 
-                  // ── Reconnection diagnostic: call_recovery_result ──
-                  // On REGED after reconnect, record not_applicable when
-                  // there are no active calls (no reattach pending).
-                  // When active calls exist, the recovery result is
-                  // recorded in the reattach handling section above,
-                  // AFTER the reattach outcome is known (not here on REGED,
-                  // where a failed reattach would be falsely logged as
-                  // 'recovered').
+                  // Debug log: REGED after reconnect with no active calls
                   if (this.session.connection?.socketGeneration > 1) {
                     const hasActiveCalls = this.session.hasActiveCall();
                     if (!hasActiveCalls) {
-                      this.session._recordReconnectDiagnostic(
-                        CALL_RECOVERY_RESULT,
-                        'CALL_RECOVERY_RESULT',
-                        'Call recovery result: not_applicable (no active calls during reconnect)',
-                        {
-                          result: 'not_applicable',
-                          reason: 'session_reconnected_without_active_calls',
-                          socketGeneration: this.session.connection?.socketGeneration,
-                          voiceSdkId: this.session.callReportVoiceSdkId,
-                          sessid: this.session.sessionid || undefined,
-                        }
+                      logger.debug(
+                        'Reconnect completed with no active calls (no reattach needed)'
                       );
                     }
                   }

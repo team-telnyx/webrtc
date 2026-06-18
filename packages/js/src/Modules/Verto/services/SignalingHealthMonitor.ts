@@ -1,11 +1,8 @@
 import { trigger } from './Handler';
 import { SwEvent } from '../util/constants';
 import {
-  SIGNALING_HEALTH_PROBE_TIMEOUT,
-  SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
-  SIGNALING_RECOVERY_REQUESTED,
 } from '../util/constants/errorCodes';
 import { createTelnyxWarning } from '../util/errors';
 import logger from '../util/logger';
@@ -168,6 +165,7 @@ export default class SignalingHealthMonitor {
     logger.debug('Signaling health: probe resolved by matching Ping response');
 
     if (!this._pendingMediaRecovery) {
+      logger.debug('Signaling health: probe resolved but no pending media recovery');
       return;
     }
 
@@ -463,35 +461,11 @@ export default class SignalingHealthMonitor {
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
 
-    // ── Reconnection diagnostic: signaling_recovery_requested ──
-    // This is the first event in the reconnection lifecycle sequence.
-    // Record it in call reports so the recovery request is visible
-    // before the socket is closed.
-    this._session._recordReconnectDiagnostic(
-      SIGNALING_RECOVERY_REQUESTED,
-      'SIGNALING_RECOVERY_REQUESTED',
-      `Signaling recovery requested (source=${source}, reason=${reason})`,
-      {
-        source,
-        reason,
-        socketGeneration: this._session.connection?.socketGeneration,
-        sessionId: this._session.sessionid || undefined,
-      }
+    logger.debug(
+      `Signaling recovery triggered (source=${source}, reason=${reason})`
     );
 
-    // Emit the appropriate warning code based on what triggered recovery.
-    // For probe/request sources, use the specific existing warning codes.
-    // For peer_failure/no_rtp sources, use the new SIGNALING_RECOVERY_REQUIRED.
-    let warningCode;
-    if (source === 'probe') {
-      warningCode = SIGNALING_HEALTH_PROBE_TIMEOUT;
-    } else if (source === 'request') {
-      warningCode = SIGNALING_REQUEST_TIMEOUT;
-    } else {
-      warningCode = SIGNALING_RECOVERY_REQUIRED;
-    }
-
-    const warning = createTelnyxWarning(warningCode);
+    const warning = createTelnyxWarning(SIGNALING_RECOVERY_REQUIRED);
     trigger(
       SwEvent.Warning,
       { warning, reason, source, sessionId: this._session.sessionid },
@@ -503,6 +477,12 @@ export default class SignalingHealthMonitor {
         'Signaling health: force-closing WebSocket to trigger reconnect'
       );
       this._session.socketDisconnect();
+    } else {
+      logger.debug('Signaling health: recovery triggered but connection not connected', {
+        connected: this._session.connection?.connected,
+        hasConnection: !!this._session.connection,
+        socketGeneration: this._session.connection?.socketGeneration,
+      });
     }
   }
 

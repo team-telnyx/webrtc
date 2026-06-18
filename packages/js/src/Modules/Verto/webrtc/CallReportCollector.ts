@@ -410,41 +410,6 @@ export class CallReportCollector {
   /**
    * Start collecting stats from the peer connection
    */
-  /**
-   * Record a session-level warning in the call report logs.
-   *
-   * Used for reconnection lifecycle diagnostics (e.g. WEBSOCKET_CLOSED,
-   * WEBSOCKET_RECONNECT_STARTED) that originate outside the stats
-   * collection loop. These are persisted via LogCollector.addEntry()
-   * as 'warn'-level log entries with structured context, making them
-   * visible in call reports without requiring a new top-level payload field.
-   *
-   * @param code - Numeric SDK warning code
-   * @param name - Machine-readable warning name
-   * @param message - Short human-readable message
-   * @param activeCallIds - Optional list of call IDs involved
-   * @param extras - Optional structured diagnostic context (e.g. closeCode,
-   *   reconnectDecision, voiceSdkId, sessid) persisted alongside the warning
-   *   so call reports can reconstruct reconnect decisions.
-   */
-  public recordSessionWarning(
-    code: number,
-    name: string,
-    message: string,
-    activeCallIds?: string[],
-    extras?: Record<string, unknown>
-  ): void {
-    this.logCollector?.addEntry('warn', `[${name}] ${message}`, {
-      type: 'session_warning',
-      code,
-      name,
-      ...(activeCallIds && activeCallIds.length > 0
-        ? { activeCallIds }
-        : {}),
-      ...(extras ? extras : {}),
-    });
-  }
-
   public start(peerConnection: RTCPeerConnection): void {
     if (!this.options.enabled) {
       return;

@@ -28,17 +28,4 @@ export interface ISignalingHealthSession {
    * signaling is healthy.
    */
   triggerIceRestart(callId: string): TriggerIceRestartResult;
-  /**
-   * Record a reconnection lifecycle diagnostic on all active calls'
-   * call report collectors and emit as a warning event.
-   * Called by SignalingHealthMonitor when it decides to trigger
-   * signaling recovery, so the recovery request is visible in
-   * call reports before the socket is closed.
-   */
-  _recordReconnectDiagnostic(
-    code: number,
-    name: string,
-    message: string,
-    extras?: Record<string, unknown>
-  ): void;
 }

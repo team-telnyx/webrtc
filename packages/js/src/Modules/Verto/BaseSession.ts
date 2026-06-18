@@ -23,13 +23,7 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
-  WEBSOCKET_CLOSE_REQUESTED,
-  WEBSOCKET_CLOSED,
-  NETWORK_CLOSE_DECISION,
-  WEBSOCKET_RECONNECT_STARTED,
-  WEBSOCKET_RECONNECT_SUCCEEDED,
-  WEBSOCKET_RECONNECT_FAILED,
-  CALL_RECOVERY_RESULT,
+  RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
   WS_CLOSE_CODES,
 } from './util/constants';
 import {
@@ -446,12 +440,13 @@ export default abstract class BaseSession {
     // If auto-reconnect was disabled (e.g. after exhaustion or disconnect),
     // reset the counter so a fresh retry sequence starts.
     if (!this._autoReconnect) {
+      logger.debug('autoReconnect was disabled, resetting reconnect attempts');
       this._reconnectAttempts = 0;
     }
 
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
-      logger.debug('Initiating connection to the server...');
+      logger.debug('Connection wasn\'t alive, initiating connection to the server...');
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
@@ -732,22 +727,6 @@ export default abstract class BaseSession {
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
-
-    // ── Reconnection diagnostic: websocket_reconnect_succeeded ──
-    // Only record if this is a reconnect (not the initial connection).
-    // A socketGeneration > 1 means at least one previous socket existed.
-    if (this.connection?.socketGeneration > 1) {
-      this._recordReconnectDiagnostic(
-        WEBSOCKET_RECONNECT_SUCCEEDED,
-        'WEBSOCKET_RECONNECT_SUCCEEDED',
-        `WebSocket reconnected successfully (generation ${this.connection.socketGeneration})`,
-        {
-          socketGeneration: this.connection.socketGeneration,
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        }
-      );
-    }
   }
 
   private _flushIntermediateCallReports(
@@ -832,20 +811,17 @@ export default abstract class BaseSession {
       this._createSocketCloseFlushReason(event)
     );
 
-    // ── Reconnection diagnostic: websocket_closed ──
-    this._recordReconnectDiagnostic(
-      WEBSOCKET_CLOSED,
-      'WEBSOCKET_CLOSED',
-      `WebSocket closed (code=${event?.code}, reason=${event?.reason || 'none'}, wasClean=${event?.wasClean})`,
-      {
-        closeCode: event?.code,
-        closeReason: event?.reason,
-        wasClean: event?.wasClean,
-        hasError: !!event?.error,
-        voiceSdkId: this.callReportVoiceSdkId,
-        sessid: this.sessionid || undefined,
-      }
-    );
+    // ── Debug: WebSocket close event ──
+    logger.debug('onNetworkClose called', {
+      closeCode: event?.code,
+      closeReason: event?.reason,
+      wasClean: event?.wasClean,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+      autoReconnect: this._autoReconnect,
+      reconnectAttempts: this._reconnectAttempts,
+      reconnectDelay: this.reconnectDelay,
+    });
 
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
@@ -880,34 +856,6 @@ export default abstract class BaseSession {
         this._reconnectAttempts = 0;
         this._autoReconnect = false;
 
-        // ── Reconnection diagnostic: network_close_decision=abort ──
-        this._recordReconnectDiagnostic(
-          NETWORK_CLOSE_DECISION,
-          'NETWORK_CLOSE_DECISION',
-          `Reconnect decision: abort (exhausted ${maxAttempts} attempts)`,
-          {
-            reconnectDecision: 'abort',
-            reason: 'reconnect_exhausted',
-            reconnectAttempts: this._reconnectAttempts,
-            maxReconnectAttempts: maxAttempts,
-            voiceSdkId: this.callReportVoiceSdkId,
-            sessid: this.sessionid || undefined,
-          }
-        );
-
-        // ── Reconnection diagnostic: websocket_reconnect_failed ──
-        this._recordReconnectDiagnostic(
-          WEBSOCKET_RECONNECT_FAILED,
-          'WEBSOCKET_RECONNECT_FAILED',
-          `Reconnection failed after ${maxAttempts} attempts`,
-          {
-            reconnectAttempts: maxAttempts,
-            maxReconnectAttempts: maxAttempts,
-            voiceSdkId: this.callReportVoiceSdkId,
-            sessid: this.sessionid || undefined,
-          }
-        );
-
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         trigger(
           SwEvent.Error,
@@ -917,40 +865,8 @@ export default abstract class BaseSession {
         return;
       }
 
-      const reconnectDelayMs = this.reconnectDelay;
-
       logger.debug(
         `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
-      );
-
-      // ── Reconnection diagnostic: network_close_decision=attempt ──
-      this._recordReconnectDiagnostic(
-        NETWORK_CLOSE_DECISION,
-        'NETWORK_CLOSE_DECISION',
-        `Reconnect decision: attempt (attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''})`,
-        {
-          reconnectDecision: 'attempt',
-          reason: 'auto_reconnect_enabled',
-          reconnectAttempt: this._reconnectAttempts,
-          maxReconnectAttempts: maxAttempts > 0 ? maxAttempts : undefined,
-          reconnectDelayMs,
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        }
-      );
-
-      // ── Reconnection diagnostic: websocket_reconnect_started ──
-      this._recordReconnectDiagnostic(
-        WEBSOCKET_RECONNECT_STARTED,
-        'WEBSOCKET_RECONNECT_STARTED',
-        `Reconnect attempt ${this._reconnectAttempts} starting in ${reconnectDelayMs}ms`,
-        {
-          reconnectAttempt: this._reconnectAttempts,
-          maxReconnectAttempts: maxAttempts > 0 ? maxAttempts : undefined,
-          reconnectDelayMs,
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        }
       );
 
       this._reconnectTimeout = setTimeout(() => {
@@ -958,32 +874,25 @@ export default abstract class BaseSession {
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, reconnectDelayMs);
+      }, this.reconnectDelay);
     } else {
-      // ── Reconnection diagnostic: network_close_decision=skip ──
-      this._recordReconnectDiagnostic(
-        NETWORK_CLOSE_DECISION,
-        'NETWORK_CLOSE_DECISION',
-        'Reconnect decision: skip (auto-reconnect disabled)',
-        {
-          reconnectDecision: 'skip',
-          reason: 'auto_reconnect_disabled',
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        }
-      );
+      // Auto-reconnect is disabled — emit warning and debug log
+      logger.debug('auto_reconnect disabled, not reconnecting', {
+        voiceSdkId: this.callReportVoiceSdkId,
+        sessid: this.sessionid || undefined,
+      });
 
-      // ── Reconnection diagnostic: call_recovery_result=not_applicable ──
-      this._recordReconnectDiagnostic(
-        CALL_RECOVERY_RESULT,
-        'CALL_RECOVERY_RESULT',
-        'Call recovery result: not_applicable (auto-reconnect disabled)',
+      const warning = createTelnyxWarning(
+        RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+      );
+      trigger(
+        SwEvent.Warning,
         {
-          result: 'not_applicable',
+          warning,
           reason: 'auto_reconnect_disabled',
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        }
+          sessionId: this.sessionid,
+        },
+        this.uuid
       );
     }
   }
@@ -1056,6 +965,7 @@ export default abstract class BaseSession {
    * @return void
    */
   private _attachListeners() {
+    logger.debug('Attaching socket event listeners');
     this._detachListeners();
     this.on(SwEvent.SocketOpen, this._onSocketOpen);
     this.on(SwEvent.SocketClose, this.onNetworkClose);
@@ -1069,6 +979,7 @@ export default abstract class BaseSession {
    * @return void
    */
   private _detachListeners() {
+    logger.debug('Detaching socket event listeners');
     this.off(SwEvent.SocketOpen, this._onSocketOpen);
     this.off(SwEvent.SocketClose, this.onNetworkClose);
     this.off(SwEvent.SocketError, this.onNetworkClose);
@@ -1100,23 +1011,12 @@ export default abstract class BaseSession {
     clearTimeout(this._keepAliveTimeout);
     this.stopSignalingHealthMonitor();
 
-    // ── Reconnection diagnostic: websocket_close_requested ──
-    // Record to call reports only (emitWarning: false) because
-    // _closeConnection() also runs for normal disconnect/cleanup,
-    // and we must not emit a public warning for intentional disconnects.
-    if (this.connection?.connected) {
-      this._recordReconnectDiagnostic(
-        WEBSOCKET_CLOSE_REQUESTED,
-        'WEBSOCKET_CLOSE_REQUESTED',
-        'SDK requested WebSocket close',
-        {
-          socketGeneration: this.connection.socketGeneration,
-          voiceSdkId: this.callReportVoiceSdkId,
-          sessid: this.sessionid || undefined,
-        },
-        { emitWarning: false }
-      );
-    }
+    logger.debug('_closeConnection called', {
+      connected: this.connection?.connected,
+      socketGeneration: this.connection?.socketGeneration,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+    });
 
     if (this.connection) {
       this.connection.close();
@@ -1194,95 +1094,6 @@ export default abstract class BaseSession {
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
-  }
-
-  /**
-   * Record a reconnection lifecycle diagnostic on all active calls'
-   * call report collectors.
-   *
-   * This makes reconnection decisions visible in call reports without
-   * requiring a public API change. Each diagnostic is stored as a
-   * session warning entry in the call report payload via
-   * LogCollector.addEntry(), and optionally emitted as a public
-   * telnyx.warning event for real-time listeners.
-   *
-   * @param code - Numeric warning code (36005-36011)
-   * @param name - Machine-readable name (e.g. 'WEBSOCKET_CLOSED')
-   * @param message - Short human-readable message with context
-   * @param extras - Optional additional fields for the warning event
-   * @param options.emitWarning - When false, skip the public warning event.
-   *   Use this for diagnostics that fire during normal disconnect/cleanup
-   *   to avoid changing public behavior (existing tests assert no warnings
-   *   after intentional disconnect). Default: true.
-   */
-  public _recordReconnectDiagnostic(
-    code: number,
-    name: string,
-    message: string,
-    extras?: Record<string, unknown>,
-    options?: { emitWarning?: boolean }
-  ): void {
-    const emitWarning = options?.emitWarning !== false;
-
-    const calls = (
-      this as unknown as {
-        calls?: Record<
-          string,
-          {
-            id?: string;
-            recordSessionWarning?: (
-              code: number,
-              name: string,
-              message: string,
-              activeCallIds?: string[],
-              extras?: Record<string, unknown>
-            ) => void;
-          }
-        >;
-      }
-    ).calls;
-
-    if (!calls) return;
-
-    const activeCallIds = Object.keys(calls);
-
-    Object.values(calls).forEach((call) => {
-      if (!call?.recordSessionWarning) return;
-
-      try {
-        call.recordSessionWarning(
-          code,
-          name,
-          message,
-          activeCallIds,
-          extras
-        );
-      } catch (error) {
-        logger.error('Failed to record reconnect diagnostic', {
-          code,
-          callId: call.id,
-          error,
-        });
-      }
-    });
-
-    // Emit as a warning event so real-time listeners can observe
-    // the reconnection lifecycle (not just call reports).
-    // Skip for normal disconnect/cleanup paths where emitting would
-    // change public behavior (emitWarning: false).
-    if (emitWarning) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const warning = createTelnyxWarning(code as any, message);
-      trigger(
-        SwEvent.Warning,
-        {
-          warning,
-          ...(extras || {}),
-          sessionId: this.sessionid,
-        },
-        this.uuid
-      );
-    }
   }
 
   /**
