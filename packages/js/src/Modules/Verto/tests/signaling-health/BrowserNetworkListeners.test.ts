@@ -53,7 +53,7 @@ function createMockSession(overrides: Record<string, any> = {}) {
  * Jest's jsdom environment where `window` is the global object.
  */
 function captureBrowserHandlers() {
-  const handlers: Record<string, Function[]> = {
+  const handlers: Record<string, ((...args: any[]) => void)[]> = {
     online: [],
     offline: [],
   };
@@ -83,7 +83,7 @@ describe('SignalingHealthMonitor – browser offline event', () => {
   let mockSession: any;
   let monitor: SignalingHealthMonitor;
   let captured: ReturnType<typeof captureBrowserHandlers>;
-  let offlineHandler: Function | undefined;
+  let offlineHandler: ((...args: any[]) => void) | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -164,7 +164,6 @@ describe('SignalingHealthMonitor – browser offline event', () => {
     captured = captureBrowserHandlers();
     // After stop, handlers are removed; start again to get new handlers
     monitor.start();
-    const newOfflineHandler = captured.handlers.offline[0];
 
     // Stop the monitor
     monitor.stop();
@@ -196,8 +195,8 @@ describe('SignalingHealthMonitor – browser online event', () => {
   let mockSession: any;
   let monitor: SignalingHealthMonitor;
   let captured: ReturnType<typeof captureBrowserHandlers>;
-  let onlineHandler: Function | undefined;
-  let offlineHandler: Function | undefined;
+  let onlineHandler: ((...args: any[]) => void) | undefined;
+  let offlineHandler: ((...args: any[]) => void) | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
