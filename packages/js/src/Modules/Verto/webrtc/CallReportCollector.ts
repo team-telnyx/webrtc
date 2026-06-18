@@ -246,7 +246,70 @@ export interface ICallSummary {
   sdkVersion?: string;
   startTimestamp?: string;
   endTimestamp?: string;
+  /** Sanitized client/session/call options in effect for this call. */
+  clientSummary?: IClientSummary;
 }
+
+export interface IClientSummary {
+  authentication?: {
+    type?:
+      | 'anonymous_login'
+      | 'login_token'
+      | 'login_password'
+      | 'token'
+      | 'unknown';
+    anonymousLogin?: {
+      targetType?: string;
+      targetId?: string;
+      targetVersionId?: string;
+      targetParams?: SanitizedClientOption;
+    };
+  };
+  connection?: {
+    env?: string;
+    host?: string;
+    project?: string;
+    region?: string;
+    dc?: string;
+    rtcIp?: string;
+    rtcPort?: number;
+    autoReconnect?: boolean;
+    maxReconnectAttempts?: number;
+    keepConnectionAliveOnSocketClose?: boolean;
+    hangupOnBeforeUnload?: boolean;
+    useCanaryRtcServer?: boolean;
+    skipLastVoiceSdkId?: boolean;
+    skipTrailing?: boolean;
+  };
+  media?: {
+    audio?: unknown;
+    video?: unknown;
+    mutedMicOnStart?: boolean;
+    prefetchIceCandidates?: boolean;
+    forceRelayCandidate?: boolean;
+    trickleIce?: boolean;
+    iceServers?: Array<{
+      urls?: string | string[];
+      hasUsername?: boolean;
+      hasCredential?: boolean;
+    }>;
+  };
+  callReports?: {
+    enabled?: boolean;
+    intervalMs?: number;
+    flushIntervalMs?: number;
+    debugLogLevel?: string;
+    debugLogMaxEntries?: number;
+  };
+}
+
+export type SanitizedClientOption =
+  | string
+  | number
+  | boolean
+  | null
+  | SanitizedClientOption[]
+  | { [key: string]: SanitizedClientOption };
 
 export interface ICallReportFlushReason {
   type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
