@@ -122,6 +122,11 @@ export default class SignalingHealthMonitor {
 
   /**
    * Start the monitor. Resets all state and begins periodic checks.
+   *
+   * If the monitor was in a reconnecting state when start() is called
+   * (i.e. the socket just reconnected), clears the reconnection timeout
+   * and pending recovery state — the socket is back, calls will be
+   * reattached separately by the server.
    */
   start(): void {
     if (this._intervalId) {
@@ -131,6 +136,17 @@ export default class SignalingHealthMonitor {
     this._lastInboundAt = Date.now();
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
+
+    // If we were reconnecting, the socket is now back. Clear the
+    // reconnection timeout and pending recovery state — the calls
+    // will be reattached separately by the server (or not, in which
+    // case there is a different event for missing reattached sessions).
+    if (this._isReconnecting) {
+      logger.debug('Signaling health: socket reconnected, clearing reconnection timeout');
+      this._isReconnecting = false;
+      this._pendingRecoveryCallIds.clear();
+      this._clearReconnectionTimeout();
+    }
 
     this._intervalId = setInterval(() => this._check(), CHECK_INTERVAL_MS);
   }
@@ -193,28 +209,41 @@ export default class SignalingHealthMonitor {
   }
 
   /**
-   * Called when a specific call confirms media recovery (RTCPeerConnection
-   * reaches 'connected'). Removes the call from the pending set. If all
-   * recovering calls have confirmed, clears the session-level reconnection
-   * timeout.
+   * Called when recovery is confirmed — either per-call (ICE restart path)
+   * or session-level (socket reconnect path).
+   *
+   * Per-call recovery (ICE restart): callId is provided and matches a
+   * tracked pending call. The call is removed from the pending set, and
+   * if all tracked calls have confirmed, the session-level reconnection
+   * timeout is cleared.
+   *
+   * Session-level recovery (socket reconnect): callId is omitted. This
+   * clears the reconnection timeout and all pending recovery state
+   * without emitting additional events. Used when the socket reconnects
+   * successfully — calls will be reattached separately (or not, in which
+   * case there is a different event for missing reattached sessions).
    */
-  onCallRecoverySucceeded(callId: string): void {
-    if (!this._pendingRecoveryCallIds.has(callId)) {
-      // Not a tracked recovery call — ignore
-      return;
-    }
+  onCallRecoverySucceeded(callId?: string): void {
+    if (callId) {
+      // Per-call recovery (ICE restart path)
+      if (!this._pendingRecoveryCallIds.has(callId)) {
+        return; // Not a tracked recovery call — ignore
+      }
 
-    this._pendingRecoveryCallIds.delete(callId);
-    logger.debug(
-      `Signaling health: call ${callId} confirmed media recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
-    );
+      this._pendingRecoveryCallIds.delete(callId);
+      logger.debug(
+        `Signaling health: call ${callId} confirmed media recovery, ${this._pendingRecoveryCallIds.size} calls still pending`
+      );
 
-    if (this._pendingRecoveryCallIds.size === 0) {
-      this._isReconnecting = false;
-      if (this._reconnectionTimeoutId !== null) {
-        logger.debug('Signaling health: all calls recovered, clearing reconnection timeout');
+      if (this._pendingRecoveryCallIds.size === 0) {
+        this._isReconnecting = false;
         this._clearReconnectionTimeout();
       }
+    } else {
+      // Session-level recovery (socket reconnect path)
+      this._isReconnecting = false;
+      this._pendingRecoveryCallIds.clear();
+      this._clearReconnectionTimeout();
     }
   }
 
@@ -240,23 +269,6 @@ export default class SignalingHealthMonitor {
 
     if (this._pendingRecoveryCallIds.size === 0) {
       this._isReconnecting = false;
-      if (this._reconnectionTimeoutId !== null) {
-        logger.debug('Signaling health: all recovering calls finalized, clearing reconnection timeout');
-        this._clearReconnectionTimeout();
-      }
-    }
-  }
-
-  /**
-   * Called when active-call reconnection succeeds (legacy path for
-   * callers that don't track per-call recovery). Clears the reconnection
-   * timeout and all pending recovery state.
-   */
-  onReconnectionSucceeded(): void {
-    this._isReconnecting = false;
-    this._pendingRecoveryCallIds.clear();
-    if (this._reconnectionTimeoutId !== null) {
-      logger.debug('Signaling health: reconnection succeeded, clearing reconnection timeout');
       this._clearReconnectionTimeout();
     }
   }

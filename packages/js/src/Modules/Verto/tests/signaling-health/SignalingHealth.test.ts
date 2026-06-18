@@ -1227,7 +1227,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     expect(hangup).not.toHaveBeenCalled();
   });
 
-  it('clears reconnection timeout when onReconnectionSucceeded is called', () => {
+  it('clears reconnection timeout when onCallRecoverySucceeded is called (no callId)', () => {
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
@@ -1235,7 +1235,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'connection_failed');
 
     // Simulate successful reconnection before timeout
-    monitor.onReconnectionSucceeded();
+    monitor.onCallRecoverySucceeded();
 
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1251,7 +1251,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
 
   it('clears reconnection timeout when onCallRecoverySucceeded is called for single call', () => {
     // Single active call: onCallRecoverySucceeded should clear the timeout
-    // the same way onReconnectionSucceeded does.
+    // the same way onCallRecoverySucceeded() does.
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
 
@@ -1327,10 +1327,10 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'connection_failed');
 
     // Mark reconnection as succeeded (no longer reconnecting)
-    monitor.onReconnectionSucceeded();
+    monitor.onCallRecoverySucceeded();
 
     // Now call stop() — since _isReconnecting is false, timeout is cleared
-    // (the timeout was already cleared by onReconnectionSucceeded, but this
+    // (the timeout was already cleared by onCallRecoverySucceeded, but this
     // tests the general path where stop() clears when not reconnecting)
     monitor.stop();
 
@@ -1408,7 +1408,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'ice_failed');
 
     // Simulate successful recovery (PeerConnection reaches 'connected')
-    monitor.onReconnectionSucceeded();
+    monitor.onCallRecoverySucceeded();
 
     // Advance time past the timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1556,7 +1556,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
 
     // Simulate successful reconnection
-    monitor.onReconnectionSucceeded();
+    monitor.onCallRecoverySucceeded();
 
     // Advance past timeout — should NOT fire
     jest.advanceTimersByTime(5001);
@@ -1776,8 +1776,8 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     );
   });
 
-  it('onReconnectionSucceeded clears timeout and all pending state', () => {
-    // The legacy onReconnectionSucceeded() should clear the timeout
+  it('onCallRecoverySucceeded() without callId clears timeout and all pending state', () => {
+    // onCallRecoverySucceeded() without callId should clear the timeout
     // regardless of per-call tracking state.
     mockSession.maxTimeoutForReconnectionMs = 5000;
     mockSession.connection = connection;
@@ -1791,7 +1791,7 @@ describe('SignalingHealthMonitor – Reconnection timeout', () => {
     monitor.onPeerFailure('call-1', 'connection_failed');
 
     // Legacy path: clear everything
-    monitor.onReconnectionSucceeded();
+    monitor.onCallRecoverySucceeded();
 
     // Advance past timeout — should NOT fire
     jest.advanceTimersByTime(5001);

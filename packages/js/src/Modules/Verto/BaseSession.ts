@@ -1079,7 +1079,6 @@ export default abstract class BaseSession {
             recoveredCallId?: string;
             peer?: { restartIce?: () => RestartIceResult };
             _isRecovering?: boolean;
-            _tryConfirmMediaRecovery?: () => void;
           }
         >;
       }
@@ -1119,11 +1118,10 @@ export default abstract class BaseSession {
     }
 
     // Mark the call as recovering so media recovery confirmation is
-    // triggered when the PeerConnection reaches 'connected'. This ties
-    // ICE restart recovery success to confirmed media recovery, which
-    // clears the reconnection timeout in SignalingHealthMonitor.
+    // triggered when the PeerConnection reaches 'connected' in Peer.ts.
+    // This ties ICE restart recovery success to confirmed media recovery,
+    // which clears the reconnection timeout in SignalingHealthMonitor.
     call._isRecovering = true;
-    call._tryConfirmMediaRecovery?.();
 
     return result;
   }
@@ -1180,13 +1178,17 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Called when a specific call confirms media recovery (e.g. its
-   * RTCPeerConnection reaches 'connected' after reattach or ICE
-   * restart). Delegates to the health monitor for per-call tracking.
-   * The session-level reconnection timeout is only cleared when ALL
-   * tracked recovering calls have confirmed media recovery.
+  /**
+   * Called when a specific call's peer connection reaches 'connected'
+   * during recovery (ICE restart path). Delegates to the health monitor
+   * for per-call tracking. The session-level reconnection timeout is
+   * only cleared when ALL tracked recovering calls have confirmed
+   * media recovery.
+   *
+   * Also called without callId from notifyReconnectionSucceeded() when
+   * socket reconnect succeeds (session-level recovery).
    */
-  notifyCallRecoverySucceeded(callId: string): void {
+  notifyCallRecoverySucceeded(callId?: string): void {
     this._signalingHealthMonitor.onCallRecoverySucceeded(callId);
   }
 
@@ -1201,16 +1203,14 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Called when active-call reconnection succeeds (e.g. on reattach
-   * after socket reconnect). Clears the reconnection timeout in the
-   * health monitor so it does not fire after recovery.
-   *
-   * Legacy path — clears the timeout immediately regardless of
-   * per-call tracking. Prefer notifyCallRecoverySucceeded(callId)
-   * for new code.
+   * Called when socket reconnect succeeds. Clears the reconnection
+   * timeout and all pending recovery state in the health monitor
+   * without emitting additional events. Calls will be reattached
+   * separately by the server (or not, in which case there is a
+   * different event for missing reattached sessions).
    */
   notifyReconnectionSucceeded(): void {
-    this._signalingHealthMonitor.onReconnectionSucceeded();
+    this._signalingHealthMonitor.onCallRecoverySucceeded();
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

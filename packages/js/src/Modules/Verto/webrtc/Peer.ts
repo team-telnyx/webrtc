@@ -393,6 +393,23 @@ export default class Peer {
       // Calling finishIceRestart() here would clear isIceRestarting before
       // the Modify SDP is even sent, breaking the ICE restart flow.
       this._restartedIceOnConnectionStateFailed = false;
+
+      // Notify the signaling health monitor that this call's media has
+      // recovered. This clears the per-call recovery tracking in the
+      // monitor and, if all tracked calls have confirmed, clears the
+      // session-level reconnection timeout.
+      const call = (
+        this._session as unknown as {
+          calls?: Record<string, { _isRecovering?: boolean }>;
+        }
+      ).calls?.[this.options.id];
+      if (call?._isRecovering) {
+        call._isRecovering = false;
+        logger.debug(
+          `[${this.options.id}] Recovery confirmed: peer connection is connected`
+        );
+        this._session.notifyCallRecoverySucceeded(this.options.id);
+      }
     }
 
     if (this._isTrickleIce()) {
