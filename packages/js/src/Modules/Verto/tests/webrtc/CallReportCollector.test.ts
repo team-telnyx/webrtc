@@ -52,6 +52,13 @@ type TestableCallReportCollector = {
     stats: RTCStatsReport,
     outboundAudio: RTCOutboundRtpStreamStats & { mediaSourceId?: string }
   ) => number | null;
+  logCollector?: {
+    addEntry: (
+      level: 'debug' | 'info' | 'warn' | 'error',
+      message: string,
+      context?: Record<string, unknown>
+    ) => void;
+  };
   _logLocalAudioTrackSnapshot: (
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
@@ -61,11 +68,16 @@ type TestableCallReportCollector = {
   _sendPayload: SendPayload;
 };
 
-const createCollector = (): TestableCallReportCollector =>
-  new CallReportCollector({
-    enabled: true,
-    interval: 5000,
-  }) as unknown as TestableCallReportCollector;
+const createCollector = (
+  logCollectorOptions?: ConstructorParameters<typeof CallReportCollector>[1]
+): TestableCallReportCollector =>
+  new CallReportCollector(
+    {
+      enabled: true,
+      interval: 5000,
+    },
+    logCollectorOptions
+  ) as unknown as TestableCallReportCollector;
 
 const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
   intervalStartUtc: '2026-05-15T00:00:00.000Z',
@@ -83,6 +95,44 @@ const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
 });
 
 describe('CallReportCollector intermediate reports', () => {
+  it('flushes logs even when no RTP stats were collected', () => {
+    const collector = createCollector({
+      enabled: true,
+      level: 'debug',
+      maxEntries: 1000,
+    });
+
+    collector.logCollector?.addEntry('warn', 'socket closed before stats', {
+      code: 1006,
+    });
+
+    const payload = collector.flush(
+      { callId: 'call-id' },
+      {
+        type: 'socket-close',
+        socketClose: { code: 1006, codeName: 'ABNORMAL_CLOSURE' },
+      }
+    );
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        segment: 0,
+        stats: [],
+        logs: [
+          expect.objectContaining({
+            level: 'warn',
+            message: 'socket closed before stats',
+            context: { code: 1006 },
+          }),
+        ],
+        flushReason: {
+          type: 'socket-close',
+          socketClose: { code: 1006, codeName: 'ABNORMAL_CLOSURE' },
+        },
+      })
+    );
+  });
+
   it('includes flush reason metadata in intermediate report payloads', () => {
     const collector = createCollector();
     const statsEntry = createStatsEntry(0.5);

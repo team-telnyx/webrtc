@@ -476,7 +476,8 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
-    if (this._flushing || this.statsBuffer.length === 0) {
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    if (this._flushing || (this.statsBuffer.length === 0 && logCount === 0)) {
       return null;
     }
 
@@ -1064,16 +1065,16 @@ export class CallReportCollector {
   }
 
   private _requestIntermediateFlushIfNeeded(now: Date): void {
+    const statsCount = this.statsBuffer.length;
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+
     if (
       !this.onFlushNeeded ||
       this._flushing ||
-      this.statsBuffer.length === 0
+      (statsCount === 0 && logCount === 0)
     ) {
       return;
     }
-
-    const statsCount = this.statsBuffer.length;
-    const logCount = this.logCollector?.getLogCount() ?? 0;
     const intermediateReportInterval = this._getIntermediateReportInterval();
     const msSinceLastFlush =
       now.getTime() - this._lastIntermediateFlushTime.getTime();
