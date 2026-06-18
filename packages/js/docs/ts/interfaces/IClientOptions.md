@@ -29,6 +29,7 @@ IClientOptions
 - [rtcIp](#rtcip)
 - [rtcPort](#rtcport)
 - [skipLastVoiceSdkId](#skiplastvoicesdkid)
+- [skipTrailing](#skiptrailing)
 - [trickleIce](#trickleice)
 - [useCanaryRtcServer](#usecanaryrtcserver)
 
@@ -333,6 +334,28 @@ When reconnecting with a stored `voice_sdk_id`, append
 the connection to a different b2bua-rtc instance instead of sticky-
 reconnecting to the same one. Useful when retrying after errors
 caused by stale state on a specific b2bua-rtc node.
+
+**`Default`**
+
+```ts
+false;
+```
+
+---
+
+### skipTrailing
+
+• `Optional` **skipTrailing**: `boolean`
+
+When set to `true`, appends `skip_trailing=true` to the VSP WebSocket
+URL so VSP skips pre-routing identity resolution (telephony-tokens
+validation and UsersClass trailing checks) for this connection.
+
+This is intended for internal/test-infra usage (e.g. BBT-generated
+credentials) where the connection should not participate in trailing
+release routing. The actual login still goes to the upstream RTC
+service for normal authentication — this only skips VSP's pre-routing
+lookup used for trailing target selection.
 
 **`Default`**
 

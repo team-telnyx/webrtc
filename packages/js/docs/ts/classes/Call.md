@@ -68,6 +68,7 @@ call.muteAudio();
 
 ### Methods
 
+- [\_applyDesiredAudioMuteState](#_applydesiredaudiomutestate)
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
@@ -76,6 +77,7 @@ call.muteAudio();
 - [hold](#hold)
 - [muteAudio](#muteaudio)
 - [muteVideo](#mutevideo)
+- [sendAIConversationMessage](#sendaiconversationmessage)
 - [setAudioInDevice](#setaudioindevice)
 - [setAudioOutDevice](#setaudiooutdevice)
 - [setVideoDevice](#setvideodevice)
@@ -191,7 +193,10 @@ BaseCall.state
 
 • `get` **isAudioMuted**(): `boolean`
 
-Checks whether the microphone is muted.
+Returns the call-level desired mute state for the microphone.
+Unlike checking individual track.enabled values, this persists across
+track replacements (device switch, reattach, ICE restart) so callers
+always see a consistent value.
 
 #### Returns
 
@@ -305,6 +310,26 @@ const { telnyxCallControlId, telnyxSessionId, telnyxLegId } = call.telnyxIDs;
 BaseCall.telnyxIDs
 
 ## Methods
+
+### \_applyDesiredAudioMuteState
+
+▸ **\_applyDesiredAudioMuteState**(): `void`
+
+Apply the current desired mute state to all local audio tracks.
+Called internally after track creation/replacement (Peer init,
+setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+ensure the mic stays muted when the SDK creates or replaces
+local audio tracks.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.\_applyDesiredAudioMuteState
+
+---
 
 ### answer
 
@@ -517,6 +542,61 @@ BaseCall.muteVideo
 
 ---
 
+### sendAIConversationMessage
+
+▸ **sendAIConversationMessage**(`item`): `void`
+
+Sends an AI conversation message (e.g. a `function_call_output`) over
+the active VSP WebSocket session.
+
+Use this to return the result of a client-side tool execution back to
+the AI backend after receiving a `function_call` via the
+`telnyx.ai.conversation` event.
+
+This is a fire-and-forget JSON-RPC notification (no `id`): the backend
+is not expected to ack each tool result, and the SDK does not wait for
+a response or register a one-shot handler.
+
+**Requires an active WebSocket connection.** Throws if the session is
+disconnected — callers must handle the disconnect immediately rather
+than having the output silently queued for a future reconnect (which
+could deliver stale results after ACA has timed out the waiter).
+
+#### Parameters
+
+| Name   | Type                                                                                                              | Description                                                                                                                          |
+| :----- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| `item` | [`FunctionCallOutputItem`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#functioncalloutputitem) | The function call output item to send. Must include `type: "function_call_output"`, the matching `call_id`, and the `output` string. |
+
+#### Returns
+
+`void`
+
+**`Throws`**
+
+If the session is not connected.
+
+**`Example`**
+
+```js
+client.on('telnyx.ai.conversation', (event) => {
+  if (
+    event.params.type === 'conversation.item.created' &&
+    event.params.item?.type === 'function_call'
+  ) {
+    const { call_id, name, arguments: argsJson } = event.params.item;
+    // Execute the tool...
+    call.sendAIConversationMessage({
+      type: 'function_call_output',
+      call_id,
+      output: JSON.stringify({ status: 'found' }),
+    });
+  }
+});
+```
+
+---
+
 ### setAudioInDevice
 
 ▸ **setAudioInDevice**(`deviceId`, `muted?`): `Promise`\<`void`\>
@@ -525,10 +605,10 @@ Changes the audio input device (i.e. microphone) used for the call.
 
 #### Parameters
 
-| Name       | Type      | Description                                                                         |
-| :--------- | :-------- | :---------------------------------------------------------------------------------- |
-| `deviceId` | `string`  | The target audio input device ID                                                    |
-| `muted`    | `boolean` | Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option. |
+| Name       | Type      | Description                                                                          |
+| :--------- | :-------- | :----------------------------------------------------------------------------------- |
+| `deviceId` | `string`  | The target audio input device ID                                                     |
+| `muted`    | `boolean` | Whether the audio track should be muted. Defaults to the current desired mute state. |
 
 #### Returns
 
