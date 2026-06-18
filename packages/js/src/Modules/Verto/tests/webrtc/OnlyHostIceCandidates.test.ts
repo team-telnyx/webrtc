@@ -85,6 +85,11 @@ describe('Only-host ICE candidates exhaustion', () => {
   afterEach(() => {
     deRegister(SwEvent.Warning);
     deRegister(SwEvent.Error);
+    // Clear any pending only-host ICE retry timeout
+    if ((call as any)._onlyHostIceRetryTimeoutId) {
+      clearTimeout((call as any)._onlyHostIceRetryTimeoutId);
+      (call as any)._onlyHostIceRetryTimeoutId = null;
+    }
   });
 
   // ── Non-trickle path ──────────────────────────────────────────────
@@ -375,7 +380,8 @@ describe('Only-host ICE candidates exhaustion', () => {
         configurable: true,
       });
 
-      // First end-of-candidates: only warning, EndOfCandidates IS sent
+      // First end-of-candidates: only warning, EndOfCandidates NOT sent
+      // (retry is scheduled, so we don't signal a completed ICE set)
       const endOfCandidatesEvent = {
         candidate: null,
       } as RTCPeerConnectionIceEvent;
@@ -384,8 +390,8 @@ describe('Only-host ICE candidates exhaustion', () => {
 
       expect(warningHandler).toHaveBeenCalledTimes(1);
       expect(errorHandler).not.toHaveBeenCalled();
-      // EndOfCandidates should be sent for the non-terminal first attempt
-      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
+      // EndOfCandidates should NOT be sent when retry is scheduled
+      expect(sendEndOfCandidatesSpy).not.toHaveBeenCalled();
 
       // Second end-of-candidates: still below threshold
       (call as any)._onTrickleIce(endOfCandidatesEvent);
@@ -406,10 +412,10 @@ describe('Only-host ICE candidates exhaustion', () => {
         { initiator: 'sdk:only-host-ice-candidates-exhausted' },
         true
       );
-      // EndOfCandidates must NOT be sent on the terminal attempt —
-      // we should not signal a completed ICE set to VSP/b2bua right
-      // before SDK teardown.
-      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(2);
+      // EndOfCandidates must NOT be sent on any only-host attempt —
+      // we should not signal a completed ICE set to VSP/b2bua when
+      // we're either retrying or tearing down.
+      expect(sendEndOfCandidatesSpy).not.toHaveBeenCalled();
     });
 
     it('should NOT send EndOfCandidates when terminal only-host threshold is reached', () => {
@@ -574,7 +580,7 @@ describe('Only-host ICE candidates exhaustion', () => {
   // ── allowCallWithHostCandidatesOnly option ──────────────────────
 
   describe('allowCallWithHostCandidatesOnly option', () => {
-    it('should emit warning but NOT terminal error when allowCallWithHostCandidatesOnly is true', () => {
+    it('should emit warning and proceed below threshold, then emit exhausted error at threshold when allowCallWithHostCandidatesOnly is true', () => {
       // Set the option on the session
       session.options.allowCallWithHostCandidatesOnly = true;
 
@@ -586,21 +592,31 @@ describe('Only-host ICE candidates exhaustion', () => {
       register(SwEvent.Warning, warningHandler, call.id);
       register(SwEvent.Error, errorHandler, call.id);
 
-      // Call multiple times — should never exhaust, just warn
-      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 2; i++) {
+      // Call below threshold — should emit warning only, call proceeds
+      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD - 1; i++) {
         (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
       }
 
-      // Warning should be emitted for each call
       expect(warningHandler).toHaveBeenCalledTimes(
-        ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 2
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD - 1
       );
-      // No terminal error or hangup
       expect(errorHandler).not.toHaveBeenCalled();
       expect(hangupSpy).not.toHaveBeenCalled();
+
+      // Call once more to reach threshold — exhausted error fires
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      expect(warningHandler).toHaveBeenCalledTimes(
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD
+      );
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler.mock.calls[0][0].error.code).toBe(
+        ONLY_HOST_ICE_CANDIDATES_EXHAUSTED
+      );
+      expect(hangupSpy).toHaveBeenCalled();
     });
 
-    it('should allow call to proceed (return false) when allowCallWithHostCandidatesOnly is true', () => {
+    it('should allow call to proceed (return false) when allowCallWithHostCandidatesOnly is true and below threshold', () => {
       session.options.allowCallWithHostCandidatesOnly = true;
 
       const result = (call as any)._handleOnlyHostIceCandidates(
@@ -629,7 +645,7 @@ describe('Only-host ICE candidates exhaustion', () => {
       expect(hangupSpy).toHaveBeenCalled();
     });
 
-    it('should work in non-trickle path with allowCallWithHostCandidatesOnly true', () => {
+    it('should work in non-trickle path with allowCallWithHostCandidatesOnly true — exhausted at threshold', () => {
       session.options.allowCallWithHostCandidatesOnly = true;
 
       const hangupSpy = jest
@@ -641,17 +657,19 @@ describe('Only-host ICE candidates exhaustion', () => {
       register(SwEvent.Error, errorHandler, call.id);
 
       // Simulate only-host SDP via non-trickle path
-      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 1; i++) {
+      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD; i++) {
         (call as any)._onIceSdp({
           type: 'offer',
           sdp: HOST_ONLY_SDP,
         });
       }
 
-      // Only warnings, no error or hangup
-      expect(warningHandler).toHaveBeenCalled();
-      expect(errorHandler).not.toHaveBeenCalled();
-      expect(hangupSpy).not.toHaveBeenCalled();
+      // Warnings for each attempt, exhausted error at threshold
+      expect(warningHandler).toHaveBeenCalledTimes(
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD
+      );
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(hangupSpy).toHaveBeenCalled();
     });
   });
 
@@ -707,6 +725,162 @@ describe('Only-host ICE candidates exhaustion', () => {
 
       expect(errorHandler).not.toHaveBeenCalled();
       expect((call as any)._onlyHostIceCandidateCount).toBe(1);
+    });
+  });
+
+  // ── ICE retry scheduling (allowCallWithHostCandidatesOnly=false) ──
+
+  describe('ICE retry scheduling', () => {
+    it('should schedule a retry when allowCallWithHostCandidatesOnly is false and below threshold', () => {
+      jest.useFakeTimers();
+
+      const scheduleSpy = jest.spyOn(call as any, '_scheduleOnlyHostIceRetry');
+      const result = (call as any)._handleOnlyHostIceCandidates(
+        HOST_ONLY_SDP,
+        true
+      );
+
+      // Should return true (don't proceed with current SDP)
+      expect(result).toBe(true);
+      // Retry should be scheduled
+      expect(scheduleSpy).toHaveBeenCalledTimes(1);
+      // Timeout ID should be set
+      expect((call as any)._onlyHostIceRetryTimeoutId).not.toBeNull();
+
+      jest.useRealTimers();
+    });
+
+    it('should NOT schedule a retry when allowCallWithHostCandidatesOnly is true', () => {
+      session.options.allowCallWithHostCandidatesOnly = true;
+
+      const scheduleSpy = jest.spyOn(call as any, '_scheduleOnlyHostIceRetry');
+      const result = (call as any)._handleOnlyHostIceCandidates(
+        HOST_ONLY_SDP,
+        true
+      );
+
+      // Should return false (proceed with call)
+      expect(result).toBe(false);
+      // No retry should be scheduled
+      expect(scheduleSpy).not.toHaveBeenCalled();
+    });
+
+    it('should NOT schedule a retry when threshold is reached', () => {
+      // Pre-set counter to one below threshold
+      (call as any)._onlyHostIceCandidateCount =
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD - 1;
+
+      const scheduleSpy = jest.spyOn(call as any, '_scheduleOnlyHostIceRetry');
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(() => Promise.resolve());
+
+      const result = (call as any)._handleOnlyHostIceCandidates(
+        HOST_ONLY_SDP,
+        true
+      );
+
+      // Should return true (terminal)
+      expect(result).toBe(true);
+      // Hangup should be called
+      expect(hangupSpy).toHaveBeenCalled();
+      // No retry should be scheduled at threshold
+      expect(scheduleSpy).not.toHaveBeenCalled();
+    });
+
+    it('should use peer.startNegotiation for non-trickle retry', () => {
+      jest.useFakeTimers();
+
+      const startNegotiationSpy = jest
+        .spyOn(call.peer, 'startNegotiation')
+        .mockImplementation(() => {});
+      const restartIceSpy = jest
+        .spyOn(call.peer, 'restartIce')
+        .mockImplementation(() => ({ started: true }));
+
+      // Trigger retry scheduling
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      // Fast-forward the 1s delay
+      jest.advanceTimersByTime(1000);
+
+      // Non-trickle: should use startNegotiation, not restartIce
+      expect(startNegotiationSpy).toHaveBeenCalledTimes(1);
+      expect(restartIceSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should use peer.restartIce for trickle retry', () => {
+      jest.useFakeTimers();
+
+      call.options.trickleIce = true;
+      const restartIceSpy = jest
+        .spyOn(call.peer, 'restartIce')
+        .mockImplementation(() => ({ started: true }));
+      const startNegotiationSpy = jest
+        .spyOn(call.peer, 'startNegotiation')
+        .mockImplementation(() => {});
+
+      // Trigger retry scheduling
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      // Fast-forward the 1s delay
+      jest.advanceTimersByTime(1000);
+
+      // Trickle: should use restartIce, not startNegotiation
+      expect(restartIceSpy).toHaveBeenCalledTimes(1);
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should not execute retry if call is terminating', () => {
+      jest.useFakeTimers();
+
+      const startNegotiationSpy = jest.spyOn(
+        call.peer,
+        'startNegotiation'
+      );
+
+      // Trigger retry scheduling
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      // Simulate call termination before retry fires
+      (call as any).setState(9); // State.Hangup
+
+      // Fast-forward the 1s delay
+      jest.advanceTimersByTime(1000);
+
+      // Retry should not execute because call is terminating
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it('should clear retry timeout on hangup', () => {
+      jest.useFakeTimers();
+
+      jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(function (this: any) {
+          // Simulate the actual hangup cleanup that clears the timeout
+          if (this._onlyHostIceRetryTimeoutId) {
+            clearTimeout(this._onlyHostIceRetryTimeoutId);
+            this._onlyHostIceRetryTimeoutId = null;
+          }
+          return Promise.resolve();
+        });
+
+      // Trigger retry scheduling
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+      expect((call as any)._onlyHostIceRetryTimeoutId).not.toBeNull();
+
+      // Hangup should clear the retry timeout
+      call.hangup();
+      expect((call as any)._onlyHostIceRetryTimeoutId).toBeNull();
+
+      jest.useRealTimers();
     });
   });
 });

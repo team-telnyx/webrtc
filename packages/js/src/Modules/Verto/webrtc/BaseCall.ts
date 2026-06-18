@@ -253,6 +253,15 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   private _onlyHostIceCandidateCount: number = 0;
 
+  /**
+   * Timeout ID for the only-host ICE retry mechanism. When
+   * `allowCallWithHostCandidatesOnly` is `false` (default), the SDK
+   * schedules an ICE regathering attempt after a 1s delay instead of
+   * proceeding with only-host candidates.
+   */
+  private _onlyHostIceRetryTimeoutId: ReturnType<typeof setTimeout> | null =
+    null;
+
   private _isRecovering: boolean = false;
 
   private _captureHangupCallerStack(): string[] {
@@ -725,6 +734,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     logger.debug(`[${this.id}] Closing peer from hangup`);
+
+    // Clear any pending only-host ICE retry
+    if (this._onlyHostIceRetryTimeoutId) {
+      clearTimeout(this._onlyHostIceRetryTimeoutId);
+      this._onlyHostIceRetryTimeoutId = null;
+    }
+
     this.peer?.close();
     this.setState(State.Destroy);
   }
@@ -2130,13 +2146,22 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Shared handler for detecting only-host ICE candidates and deciding
-   * whether to emit the warning and/or terminal error. Used by both the
-   * non-trickle path (`_onIceSdp`) and the trickle path
+   * whether to emit the warning, schedule a retry, or terminate the call.
+   * Used by both the non-trickle path (`_onIceSdp`) and the trickle path
    * (`_onTrickleIce` → end-of-candidates).
    *
-   * When `allowCallWithHostCandidatesOnly` is `true` (default: `false`),
-   * only the warning is emitted and the call is allowed to proceed —
-   * the terminal error and hangup are skipped.
+   * Behavior based on `allowCallWithHostCandidatesOnly`:
+   * - `true`: emit warning, allow the call to proceed. If the threshold
+   *   is reached across consecutive attempts, emit exhausted error and
+   *   hang up.
+   * - `false` (default): emit warning, schedule ICE regathering with 1s
+   *   delay between attempts. If all attempts produce only-host candidates,
+   *   emit exhausted error and hang up. For non-trickle ICE this prevents
+   *   the Invite/Answer from being sent until non-host candidates are found
+   *   or the threshold is reached.
+   *
+   * In both cases the `ONLY_HOST_ICE_CANDIDATES_EXHAUSTED` error is emitted
+   * when the consecutive only-host threshold is reached.
    *
    * @param sdp The local SDP to check for only-host candidates.
    * @param sendBye Whether to send a Bye message on terminal hangup.
@@ -2144,8 +2169,9 @@ export default abstract class BaseCall implements IWebRTCCall {
    *   - Outbound + trickle: `true` (Invite with empty SDP was already sent).
    *   - Outbound + ICE restart: `true` (call was already established).
    *   - Outbound + non-trickle (no restart): `false` (Invite hasn't been sent).
-   * @returns `true` if the terminal threshold was reached and the call
-   *   was hung up; `false` otherwise.
+   * @returns `true` if the call should NOT proceed with the current SDP
+   *   (either the threshold was reached and the call was hung up, or a
+   *   retry has been scheduled); `false` if the call may proceed normally.
    */
   private _handleOnlyHostIceCandidates(sdp: string, sendBye: boolean): boolean {
     if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
@@ -2157,18 +2183,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         this.session.uuid
       );
 
-      // When allowCallWithHostCandidatesOnly is true, emit warning only
-      // and allow the call to proceed without termination.
       const allowHostOnly =
         this.session.options.allowCallWithHostCandidatesOnly === true;
-      if (allowHostOnly) {
-        return false;
-      }
 
       this._onlyHostIceCandidateCount++;
       if (
         this._onlyHostIceCandidateCount >= ONLY_HOST_ICE_CANDIDATES_THRESHOLD
       ) {
+        // Threshold reached: emit exhausted error + hangup regardless
+        // of the allowCallWithHostCandidatesOnly option.
         const error = createTelnyxError(ONLY_HOST_ICE_CANDIDATES_EXHAUSTED);
         logger.error(
           `[${this.id}] Error ${error.code}: ${error.message} (consecutive only-host attempts: ${this._onlyHostIceCandidateCount})`
@@ -2184,10 +2207,69 @@ export default abstract class BaseCall implements IWebRTCCall {
         );
         return true;
       }
+
+      if (!allowHostOnly) {
+        // Default behavior: schedule ICE regathering with 1s delay.
+        // This prevents call establishment when only host candidates
+        // are available — for non-trickle the Invite/Answer is not
+        // sent until non-host candidates are found or the threshold
+        // is reached.
+        this._scheduleOnlyHostIceRetry();
+        return true; // Don't proceed with current SDP
+      }
+
+      // allowHostOnly=true: call proceeds despite only-host candidates.
+      // The warning has been emitted; the application can decide whether
+      // to continue. If the threshold is reached across subsequent
+      // attempts (e.g., during ICE restart), the exhausted error will
+      // fire then.
+      return false;
     } else {
       this._onlyHostIceCandidateCount = 0;
     }
     return false;
+  }
+
+  /**
+   * Schedule an ICE regathering attempt after a 1s delay. Called when
+   * `allowCallWithHostCandidatesOnly` is `false` (default) and only
+   * host candidates were gathered. The retry triggers a new ICE
+   * gathering cycle — for non-trickle ICE this creates a new offer,
+   * and for trickle ICE this initiates an ICE restart (Modify).
+   */
+  private _scheduleOnlyHostIceRetry() {
+    if (this._onlyHostIceRetryTimeoutId) {
+      clearTimeout(this._onlyHostIceRetryTimeoutId);
+    }
+
+    logger.info(
+      `[${this.id}] Scheduling only-host ICE regathering after 1000ms (attempt ${this._onlyHostIceCandidateCount}/${ONLY_HOST_ICE_CANDIDATES_THRESHOLD})`
+    );
+
+    this._onlyHostIceRetryTimeoutId = setTimeout(() => {
+      this._onlyHostIceRetryTimeoutId = null;
+
+      if (this._isTerminatingOrTerminated()) {
+        return;
+      }
+      if (!this.peer?.instance) {
+        return;
+      }
+
+      // Reset peer state for new gathering cycle
+      this.peer.iceDone = false;
+      this._iceTimeout = null;
+
+      if (this.options.trickleIce) {
+        // For trickle ICE: the Invite with empty SDP was already sent,
+        // so we need an ICE restart (Modify with new SDP).
+        this.peer.restartIce();
+      } else {
+        // For non-trickle ICE: start a new negotiation cycle which
+        // creates a fresh offer/answer with new ICE credentials.
+        this.peer.startNegotiation();
+      }
+    }, 1000);
   }
 
   /**
