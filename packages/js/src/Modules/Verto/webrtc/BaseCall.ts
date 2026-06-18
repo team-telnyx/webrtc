@@ -1840,37 +1840,17 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
-    // W5d: Check for host-only ICE candidates (non-trickle path)
-    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
-      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
-      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
-      trigger(
-        SwEvent.Warning,
-        { warning, callId: this.id, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
-
-      this._onlyHostIceCandidateCount++;
-      if (
-        this._onlyHostIceCandidateCount >= ONLY_HOST_ICE_CANDIDATES_THRESHOLD
-      ) {
-        const error = createTelnyxError(ONLY_HOST_ICE_CANDIDATES_EXHAUSTED);
-        logger.error(
-          `[${this.id}] Error ${error.code}: ${error.message} (consecutive only-host attempts: ${this._onlyHostIceCandidateCount})`
-        );
-        trigger(
-          SwEvent.Error,
-          { error, callId: this.id, sessionId: this.session.sessionid },
-          this.session.uuid
-        );
-        void this.hangup(
-          { initiator: 'sdk:only-host-ice-candidates-exhausted' },
-          false
-        );
-        return;
-      }
-    } else {
-      this._onlyHostIceCandidateCount = 0;
+    // W5d: Check for host-only ICE candidates (non-trickle path).
+    // Send Bye for inbound (backend knows about the call) and for
+    // outbound when the call is already signaling (trickle or ICE
+    // restart). Skip Bye only for outbound non-trickle where the
+    // Invite hasn't been sent yet.
+    const sendBye =
+      this.direction === Direction.Inbound ||
+      !!this.options.trickleIce ||
+      !!this.peer?.isIceRestarting;
+    if (this._handleOnlyHostIceCandidates(sdp, sendBye)) {
+      return;
     }
 
     performance.mark(callMarkName(this.id, 'ice-gathering-end'));
@@ -2083,7 +2063,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       // before signaling completion to VSP/b2bua. If the terminal
       // threshold is reached the call will be hung up and we must NOT
       // send EndOfCandidates for an unusable ICE set.
-      const terminated = this._checkOnlyHostIceCandidatesTrickle();
+      const localSdp = this.peer?.instance?.localDescription?.sdp;
+      if (!localSdp || localSdp.indexOf('candidate') === -1) {
+        this._sendEndOfCandidates();
+        return;
+      }
+      // Trickle ICE always sends Bye on terminal hangup because the
+      // Invite with empty SDP was already sent — the backend knows
+      // about the call.
+      const terminated = this._handleOnlyHostIceCandidates(localSdp, true);
       if (!terminated) {
         this._sendEndOfCandidates();
       }
@@ -2141,26 +2129,22 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * At end-of-candidates in trickle ICE mode, check whether only host
-   * candidates were gathered. If so, emit the warning and track the
-   * consecutive count. If the threshold is reached, emit the terminal
-   * error and hang up.
+   * Shared handler for detecting only-host ICE candidates and deciding
+   * whether to emit the warning and/or terminal error. Used by both the
+   * non-trickle path (`_onIceSdp`) and the trickle path
+   * (`_onTrickleIce` → end-of-candidates).
    *
-   * This mirrors the only-host check in `_onIceSdp` (non-trickle path)
-   * but evaluates the local SDP after all candidates have been sent
-   * individually.
-   *
+   * @param sdp The local SDP to check for only-host candidates.
+   * @param sendBye Whether to send a Bye message on terminal hangup.
+   *   - Inbound: always `true` (backend knows about the call).
+   *   - Outbound + trickle: `true` (Invite with empty SDP was already sent).
+   *   - Outbound + ICE restart: `true` (call was already established).
+   *   - Outbound + non-trickle (no restart): `false` (Invite hasn't been sent).
    * @returns `true` if the terminal threshold was reached and the call
-   *   was hung up; `false` otherwise. Callers should skip sending
-   *   EndOfCandidates when `true` is returned.
+   *   was hung up; `false` otherwise.
    */
-  private _checkOnlyHostIceCandidatesTrickle(): boolean {
-    const localSdp = this.peer?.instance?.localDescription?.sdp;
-    if (!localSdp || localSdp.indexOf('candidate') === -1) {
-      return false;
-    }
-
-    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(localSdp)) {
+  private _handleOnlyHostIceCandidates(sdp: string, sendBye: boolean): boolean {
+    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
       const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
       logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
       trigger(
@@ -2184,7 +2168,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         );
         void this.hangup(
           { initiator: 'sdk:only-host-ice-candidates-exhausted' },
-          false
+          sendBye
         );
         return true;
       }
