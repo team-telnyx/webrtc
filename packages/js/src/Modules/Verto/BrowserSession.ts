@@ -31,20 +31,6 @@ import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
 import Call from './webrtc/Call';
 
-/**
- * Safe correlation context for an active call, suitable for inclusion in
- * warning payloads and call reports. Contains only identifiers and state —
- * no credentials, SDP, phone numbers, or custom headers.
- */
-export interface IActiveCallContext {
-  callId: string;
-  state: string;
-  direction: string;
-  telnyxSessionId?: string;
-  telnyxLegId?: string;
-  sipCallId?: string;
-}
-
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
 
@@ -86,70 +72,22 @@ export default abstract class BrowserSession extends BaseSession {
    * while other calls are still active in the session.
    *
    * This is diagnostic-only — it does NOT block or reject the new call.
-   * Recovery/reattach flows that replace an existing call (matched by
-   * `recoveredCallId`) are excluded to avoid false positives.
    *
    * @param newCallId - The callId of the newly created/received call
-   * @param recoveredCallId - If this call is recovering/replacing a previous call, its ID
    */
-  public emitMultipleActiveCallsWarning(
-    newCallId: string,
-    recoveredCallId?: string
-  ): boolean {
+  public emitMultipleActiveCallsWarning(newCallId: string): void {
     // Get existing active calls, excluding the new call itself
     // (the new call may or may not be in session.calls yet)
-    let existingActiveCalls = this.getActiveCalls().filter(
+    const existingActiveCalls = this.getActiveCalls().filter(
       (call) => call.id !== newCallId
     );
 
     // If no existing active calls, nothing to warn about
     if (existingActiveCalls.length === 0) {
-      return false;
-    }
-
-    // If this is a recovery replacing a known call, don't warn
-    // (the recovered call will be hung up immediately by the attach flow)
-    if (recoveredCallId) {
-      const activeWithoutRecovered = existingActiveCalls.filter(
-        (call) => call.id !== recoveredCallId
-      );
-      if (activeWithoutRecovered.length === 0) {
-        return false;
-      }
-      // Exclude the recovered call from the payload — it's being
-      // replaced, so it's not genuinely "active alongside" the new call.
-      existingActiveCalls = activeWithoutRecovered;
+      return;
     }
 
     const warning = createTelnyxWarning(MULTIPLE_ACTIVE_CALLS_DETECTED);
-
-    // Build a compact context array with safe identifiers only.
-    // telnyxSessionId/telnyxLegId are on call.options, sipCallId is on
-    // the Call subclass directly.
-    const activeCallsContext: IActiveCallContext[] = existingActiveCalls.map(
-      (call) => {
-        const ctx: IActiveCallContext = {
-          callId: call.id,
-          state: call.state,
-          direction: call.direction,
-        };
-        const opts = call.options as {
-          telnyxSessionId?: string;
-          telnyxLegId?: string;
-        };
-        if (opts.telnyxSessionId) {
-          ctx.telnyxSessionId = opts.telnyxSessionId;
-        }
-        if (opts.telnyxLegId) {
-          ctx.telnyxLegId = opts.telnyxLegId;
-        }
-        const withSip = call as { sipCallId?: string };
-        if (withSip.sipCallId) {
-          ctx.sipCallId = withSip.sipCallId;
-        }
-        return ctx;
-      }
-    );
 
     trigger(
       SwEvent.Warning,
@@ -157,7 +95,11 @@ export default abstract class BrowserSession extends BaseSession {
         warning,
         callId: newCallId,
         sessionId: this.sessionid,
-        activeCalls: activeCallsContext,
+        activeCalls: existingActiveCalls.map((call) => ({
+          callId: call.id,
+          state: call.state,
+          direction: call.direction,
+        })),
       },
       this.uuid
     );
@@ -165,30 +107,6 @@ export default abstract class BrowserSession extends BaseSession {
     logger.warn(
       `MULTIPLE_ACTIVE_CALLS_DETECTED: new call ${newCallId} created while ${existingActiveCalls.length} other call(s) are active in session ${this.sessionid}`
     );
-
-    // Persist the warning in the call report of existing active calls.
-    // The new call's report is recorded separately by the caller (after
-    // the Call object is created), since for outbound calls the Call
-    // doesn't exist yet when this method runs.
-    const activeCallIds = existingActiveCalls.map((c) => c.id);
-    for (const call of existingActiveCalls) {
-      const withRecord = call as {
-        recordSessionWarning?: (
-          code: number,
-          name: string,
-          message: string,
-          activeCallIds?: string[]
-        ) => void;
-      };
-      withRecord.recordSessionWarning?.(
-        warning.code,
-        warning.name,
-        warning.message,
-        [newCallId, ...activeCallIds.filter((id) => id !== call.id)]
-      );
-    }
-
-    return true;
   }
 
   public micId: string;

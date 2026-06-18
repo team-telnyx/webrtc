@@ -28,8 +28,6 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { MULTIPLE_ACTIVE_CALLS_DETECTED } from '../util/constants/errorCodes';
-import { SDK_WARNINGS } from '../util/constants/warnings';
 
 /**
  * @ignore Hide in docs output
@@ -240,15 +238,10 @@ class VertoHandler {
         call.playRingtone();
         call.setState(State.Ringing);
 
-        // Emit warning if there are already active calls in this session
-        const hadOtherActiveCalls =
-          this.session.emitMultipleActiveCallsWarning(call.id);
-
-        // Record warning in the new call's report for persistence
-        // (only when the warning was actually emitted — i.e., other active calls exist)
-        if (hadOtherActiveCalls) {
-          this._recordMultiCallWarningOnNewCall(call);
-        }
+        // Emit warning if there are already active calls in this session.
+        // Note: this could be a false positive if the client rejects the
+        // inbound call — the warning fires at ring time, not at answer time.
+        this.session.emitMultipleActiveCallsWarning(call.id);
 
         this._ack(id, method);
         break;
@@ -263,6 +256,10 @@ class VertoHandler {
           );
           const call = _buildCall({ recoveredCallId: callID });
           call.answer();
+
+          // Emit warning if there are other active calls (recovered calls are active calls too)
+          this.session.emitMultipleActiveCallsWarning(call.id);
+
           this._ack(id, method);
           break;
         }
@@ -295,17 +292,8 @@ class VertoHandler {
           });
           call.answer();
 
-          // Emit warning if there are other active calls beyond the one being recovered
-          const hadOtherActiveCalls = this.session.emitMultipleActiveCallsWarning(
-            call.id,
-            recoveredCallId
-          );
-
-          // Record warning in the new call's report for persistence
-          // (only when the warning was actually emitted — i.e., other active calls exist)
-          if (hadOtherActiveCalls) {
-            this._recordMultiCallWarningOnNewCall(call, recoveredCallId);
-          }
+          // Emit warning if there are other active calls (recovered calls are active calls too)
+          this.session.emitMultipleActiveCallsWarning(call.id);
 
           this._ack(id, method);
           break;
@@ -711,45 +699,6 @@ class VertoHandler {
         break;
       }
     }
-  }
-
-  /**
-   * Record MULTIPLE_ACTIVE_CALLS_DETECTED warning on a newly created call's
-   * call-report collector so the warning is persisted in the call report.
-   */
-  private _recordMultiCallWarningOnNewCall(
-    call: Call,
-    recoveredCallId?: string
-  ) {
-    // Mirror the emitter's gating: only record when there are genuinely
-    // other active calls.  Without this guard a normal first inbound call
-    // would still record MULTIPLE_ACTIVE_CALLS_DETECTED in its call report.
-    let existingActiveCalls = this.session
-      .getActiveCalls()
-      .filter((c: IWebRTCCall) => c.id !== call.id);
-
-    if (existingActiveCalls.length === 0) {
-      return;
-    }
-
-    if (recoveredCallId) {
-      const activeWithoutRecovered = existingActiveCalls.filter(
-        (c: IWebRTCCall) => c.id !== recoveredCallId
-      );
-      if (activeWithoutRecovered.length === 0) {
-        return;
-      }
-      existingActiveCalls = activeWithoutRecovered;
-    }
-
-    const activeCallIds = existingActiveCalls.map((c: IWebRTCCall) => c.id);
-    const warningInfo = SDK_WARNINGS[MULTIPLE_ACTIVE_CALLS_DETECTED];
-    (call as { recordSessionWarning?: (...args: unknown[]) => void }).recordSessionWarning?.(
-      MULTIPLE_ACTIVE_CALLS_DETECTED,
-      warningInfo.name,
-      warningInfo.message,
-      activeCallIds
-    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

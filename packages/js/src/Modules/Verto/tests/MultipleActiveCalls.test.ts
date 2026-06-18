@@ -117,6 +117,8 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       expect(warnings[0].sessionId).toBe(instance.sessionid);
       expect(warnings[0].activeCalls).toHaveLength(1);
       expect(warnings[0].activeCalls[0].callId).toBe('existing1');
+      expect(warnings[0].activeCalls[0].state).toBeDefined();
+      expect(warnings[0].activeCalls[0].direction).toBeDefined();
 
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
@@ -148,31 +150,16 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
 
-    it('should NOT emit warning for recovery that replaces the only active call', () => {
+    it('should emit warning for recovery when there are other active calls', () => {
+      // Recovered calls are active calls too — reviewer explicitly requested
+      // that we don't filter them out
       _createCallInState('existing1', State.Active);
 
       const warnings: any[] = [];
       const handler = (w: any) => warnings.push(w);
       register(SwEvent.Warning, handler, instance.uuid);
 
-      // Recovery: the new call is replacing existing1
-      instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
-
-      expect(warnings).toHaveLength(0);
-
-      deRegister(SwEvent.Warning, handler, instance.uuid);
-    });
-
-    it('should emit warning for recovery when there are OTHER active calls besides the recovered one', () => {
-      _createCallInState('existing1', State.Active);
-      _createCallInState('existing2', State.Ringing);
-
-      const warnings: any[] = [];
-      const handler = (w: any) => warnings.push(w);
-      register(SwEvent.Warning, handler, instance.uuid);
-
-      // Recovery: replacing existing1, but existing2 is still there
-      instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
+      instance.emitMultipleActiveCallsWarning('newCall1');
 
       expect(warnings).toHaveLength(1);
       expect(warnings[0].warning.code).toBe(MULTIPLE_ACTIVE_CALLS_DETECTED);
@@ -198,35 +185,6 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
 
-    it('should include safe identifiers in warning context and no sensitive data', () => {
-      const call1 = _createCallInState('existing1', State.Active);
-      (call1.options as any).telnyxSessionId = 'tsid-123';
-      (call1.options as any).telnyxLegId = 'tleg-456';
-
-      const warnings: any[] = [];
-      const handler = (w: any) => warnings.push(w);
-      register(SwEvent.Warning, handler, instance.uuid);
-
-      instance.emitMultipleActiveCallsWarning('newCall1');
-
-      expect(warnings).toHaveLength(1);
-      const ctx = warnings[0].activeCalls[0];
-      expect(ctx.callId).toBe('existing1');
-      expect(ctx.state).toBeDefined();
-      expect(ctx.direction).toBeDefined();
-      expect(ctx.telnyxSessionId).toBe('tsid-123');
-      expect(ctx.telnyxLegId).toBe('tleg-456');
-
-      // Verify no sensitive data
-      const warningJson = JSON.stringify(warnings[0]);
-      expect(warningJson).not.toContain('password');
-      expect(warningJson).not.toContain('token');
-      expect(warningJson).not.toContain('credential');
-      expect(warningJson).not.toContain('sdp');
-
-      deRegister(SwEvent.Warning, handler, instance.uuid);
-    });
-
     it('should allow legitimate multi-call flows to continue after warning', () => {
       _createCallInState('existing1', State.Active);
 
@@ -246,7 +204,7 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
 
-    it('should emit only once per new call introduction, not on every state transition', () => {
+    it('should emit only once per new call introduction', () => {
       _createCallInState('existing1', State.Active);
 
       const warnings: any[] = [];
@@ -294,46 +252,42 @@ describe('MULTIPLE_ACTIVE_CALLS_DETECTED', () => {
 
       deRegister(SwEvent.Warning, handler, instance.uuid);
     });
-  });
 
-  describe('emitMultipleActiveCallsWarning() return value', () => {
-    it('should return true when other active calls exist', () => {
+    it('should include basic call info in activeCalls context', () => {
       _createCallInState('existing1', State.Active);
 
-      const result = instance.emitMultipleActiveCallsWarning('newCall1');
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
 
-      expect(result).toBe(true);
+      instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(warnings).toHaveLength(1);
+      const ctx = warnings[0].activeCalls[0];
+      expect(ctx.callId).toBe('existing1');
+      expect(ctx.state).toBeDefined();
+      expect(ctx.direction).toBeDefined();
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
     });
 
-    it('should return false when no other active calls exist', () => {
-      const result = instance.emitMultipleActiveCallsWarning('newCall1');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when existing calls are in terminal states', () => {
-      _createCallInState('existing1', State.Hangup);
-
-      const result = instance.emitMultipleActiveCallsWarning('newCall1');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false for recovery that replaces the only active call', () => {
-      _createCallInState('existing1', State.Active);
-
-      const result = instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
-
-      expect(result).toBe(false);
-    });
-
-    it('should return true for recovery when OTHER active calls exist besides recovered one', () => {
+    it('should emit warning for multiple existing active calls', () => {
       _createCallInState('existing1', State.Active);
       _createCallInState('existing2', State.Ringing);
 
-      const result = instance.emitMultipleActiveCallsWarning('newCall1', 'existing1');
+      const warnings: any[] = [];
+      const handler = (w: any) => warnings.push(w);
+      register(SwEvent.Warning, handler, instance.uuid);
 
-      expect(result).toBe(true);
+      instance.emitMultipleActiveCallsWarning('newCall1');
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].activeCalls).toHaveLength(2);
+      const callIds = warnings[0].activeCalls.map((c: any) => c.callId);
+      expect(callIds).toContain('existing1');
+      expect(callIds).toContain('existing2');
+
+      deRegister(SwEvent.Warning, handler, instance.uuid);
     });
   });
 });

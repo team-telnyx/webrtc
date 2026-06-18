@@ -502,6 +502,16 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    // Debug log for answering an inbound call while other active calls exist.
+    // The MULTIPLE_ACTIVE_CALLS_DETECTED warning fires at ring time, but the
+    // client may reject the call — this log confirms the call was actually answered.
+    const activeCalls = this.session.getActiveCalls?.() ?? [];
+    if (activeCalls.length > 0) {
+      logger.debug(
+        `[${this.id}] answer(): answering inbound call while ${activeCalls.length} other active call(s) exist in session ${this.session.sessionid}`
+      );
+    }
+
     if (
       this._creatingPeer ||
       (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
@@ -2543,33 +2553,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     flushReason: ICallReportFlushReason = { type: 'manual' }
   ) {
     this._flushIntermediateReport(flushReason);
-  }
-
-  /**
-   * Record a session-level warning in this call's report.
-   *
-   * Used by the multi-call detector to persist warnings like
-   * MULTIPLE_ACTIVE_CALLS_DETECTED in the call report, ensuring
-   * they survive across intermediate flushes and appear in the
-   * final report payload.
-   *
-   * @param code - Numeric SDK warning code
-   * @param name - Machine-readable warning name
-   * @param message - Short human-readable message
-   * @param activeCallIds - Optional list of call IDs involved
-   */
-  public recordSessionWarning(
-    code: number,
-    name: string,
-    message: string,
-    activeCallIds?: string[]
-  ): void {
-    this._callReportCollector?.recordSessionWarning(
-      code,
-      name,
-      message,
-      activeCallIds
-    );
   }
 
   private _flushIntermediateReport(
