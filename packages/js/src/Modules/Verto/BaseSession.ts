@@ -812,6 +812,9 @@ export default abstract class BaseSession {
     );
 
     // ── Debug: WebSocket close event ──
+    // Note: reconnectDelay is NOT logged here because it is a random getter
+    // (randomInt(2,6)*1000). The actual delay used for setTimeout is computed
+    // once after incrementing the attempt counter and logged there.
     logger.debug('onNetworkClose called', {
       closeCode: event?.code,
       closeReason: event?.reason,
@@ -820,7 +823,6 @@ export default abstract class BaseSession {
       sessid: this.sessionid || undefined,
       autoReconnect: this._autoReconnect,
       reconnectAttempts: this._reconnectAttempts,
-      reconnectDelay: this.reconnectDelay,
     });
 
     if (this.relayProtocol) {
@@ -865,8 +867,13 @@ export default abstract class BaseSession {
         return;
       }
 
+      // Compute the reconnect delay once so the logged value matches the
+      // actual setTimeout delay. reconnectDelay is a random getter
+      // (randomInt(2,6)*1000) — reading it twice yields different values.
+      const delayMs = this.reconnectDelay;
+
       logger.debug(
-        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''} (delay=${delayMs}ms)`
       );
 
       this._reconnectTimeout = setTimeout(() => {
@@ -874,7 +881,7 @@ export default abstract class BaseSession {
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, this.reconnectDelay);
+      }, delayMs);
     } else {
       // Auto-reconnect is disabled — emit warning and debug log
       logger.debug('auto_reconnect disabled, not reconnecting', {
