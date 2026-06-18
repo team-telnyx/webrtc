@@ -1,4 +1,9 @@
 import { Login, Invite, Answer, Bye, Modify, Info } from '../messages/Verto';
+import {
+  DebugReportDataMessage,
+  DebugReportStartMessage,
+  DebugReportStopMessage,
+} from '../messages/WebRTCStats';
 import { Ping } from '../messages/verto/Ping';
 import { version } from '../../../../package.json';
 
@@ -141,6 +146,57 @@ describe('Messages', function () {
           `{"jsonrpc":"2.0","id":"${message.id}","method":"telnyx_rtc.ping","params":{}}`
         );
         expect(message).toEqual(res);
+      });
+    });
+
+    describe('WebRTCStats', function () {
+      it('should include call_id on debug_report_start', function () {
+        const message = new DebugReportStartMessage(
+          'debug-report-id',
+          'call-id'
+        ).request;
+
+        expect(message).toEqual({
+          jsonrpc: '2.0',
+          id: message.id,
+          type: 'debug_report_start',
+          debug_report_id: 'debug-report-id',
+          debug_report_version: 1,
+          call_id: 'call-id',
+        });
+      });
+
+      it('should include call_id on debug_report_stop', function () {
+        const message = new DebugReportStopMessage('debug-report-id', 'call-id')
+          .request;
+
+        expect(message).toEqual({
+          jsonrpc: '2.0',
+          id: message.id,
+          type: 'debug_report_stop',
+          debug_report_id: 'debug-report-id',
+          debug_report_version: 1,
+          call_id: 'call-id',
+        });
+      });
+
+      it('should include call_id on debug_report_data', function () {
+        const debugReportData = { event: 'stats' };
+        const message = new DebugReportDataMessage(
+          'debug-report-id',
+          'call-id',
+          debugReportData
+        ).request;
+
+        expect(message).toEqual({
+          jsonrpc: '2.0',
+          id: message.id,
+          type: 'debug_report_data',
+          debug_report_id: 'debug-report-id',
+          debug_report_version: 1,
+          call_id: 'call-id',
+          debug_report_data: debugReportData,
+        });
       });
     });
   });
