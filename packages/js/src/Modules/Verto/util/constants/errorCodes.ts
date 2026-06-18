@@ -150,6 +150,8 @@ export const HAS_NON_HOST_ICE_CANDIDATE_REGEX =
 /**
  * Maximum number of consecutive ICE gathering attempts that produce only
  * host candidates before the SDK terminates the call. A non-host candidate
- * (srflx, prflx, or relay) resets this counter.
+ * (srflx, prflx, or relay) resets this counter. The counter is also reset
+ * when ICE connection reaches the "connected" state, indicating a
+ * successful ICE pair.
  */
-export const ONLY_HOST_ICE_CANDIDATES_THRESHOLD = 2;
+export const ONLY_HOST_ICE_CANDIDATES_THRESHOLD = 3;

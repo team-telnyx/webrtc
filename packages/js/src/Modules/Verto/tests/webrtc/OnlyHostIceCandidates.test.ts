@@ -174,7 +174,7 @@ describe('Only-host ICE candidates exhaustion', () => {
       const errorHandler = jest.fn();
       register(SwEvent.Error, errorHandler, call.id);
 
-      // Simulate only 1 only-host SDP (threshold is 2 by default)
+      // Simulate only 1 only-host SDP (threshold is 3 by default)
       (call as any)._onIceSdp({
         type: 'offer',
         sdp: HOST_ONLY_SDP,
@@ -356,7 +356,7 @@ describe('Only-host ICE candidates exhaustion', () => {
   // ── End-to-end trickle flow ──────────────────────────────────────
 
   describe('Trickle ICE end-of-candidates flow', () => {
-    it('should emit warning at end-of-candidates with only host candidates, then terminal error on second gathering', () => {
+    it('should emit warning at end-of-candidates with only host candidates, then terminal error on reaching threshold', () => {
       const hangupSpy = jest
         .spyOn(call, 'hangup')
         .mockImplementation(() => Promise.resolve());
@@ -387,10 +387,16 @@ describe('Only-host ICE candidates exhaustion', () => {
       // EndOfCandidates should be sent for the non-terminal first attempt
       expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
 
-      // Second end-of-candidates: terminal error
+      // Second end-of-candidates: still below threshold
       (call as any)._onTrickleIce(endOfCandidatesEvent);
 
       expect(warningHandler).toHaveBeenCalledTimes(2);
+      expect(errorHandler).not.toHaveBeenCalled();
+
+      // Third end-of-candidates: terminal error
+      (call as any)._onTrickleIce(endOfCandidatesEvent);
+
+      expect(warningHandler).toHaveBeenCalledTimes(3);
       expect(errorHandler).toHaveBeenCalledTimes(1);
       expect(errorHandler.mock.calls[0][0].error.code).toBe(
         ONLY_HOST_ICE_CANDIDATES_EXHAUSTED
@@ -403,7 +409,7 @@ describe('Only-host ICE candidates exhaustion', () => {
       // EndOfCandidates must NOT be sent on the terminal attempt —
       // we should not signal a completed ICE set to VSP/b2bua right
       // before SDK teardown.
-      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(1);
+      expect(sendEndOfCandidatesSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should NOT send EndOfCandidates when terminal only-host threshold is reached', () => {
@@ -562,6 +568,145 @@ describe('Only-host ICE candidates exhaustion', () => {
         { initiator: 'sdk:only-host-ice-candidates-exhausted' },
         true
       );
+    });
+  });
+
+  // ── allowCallWithHostCandidatesOnly option ──────────────────────
+
+  describe('allowCallWithHostCandidatesOnly option', () => {
+    it('should emit warning but NOT terminal error when allowCallWithHostCandidatesOnly is true', () => {
+      // Set the option on the session
+      session.options.allowCallWithHostCandidatesOnly = true;
+
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(() => Promise.resolve());
+      const warningHandler = jest.fn();
+      const errorHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, call.id);
+      register(SwEvent.Error, errorHandler, call.id);
+
+      // Call multiple times — should never exhaust, just warn
+      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 2; i++) {
+        (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+      }
+
+      // Warning should be emitted for each call
+      expect(warningHandler).toHaveBeenCalledTimes(
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 2
+      );
+      // No terminal error or hangup
+      expect(errorHandler).not.toHaveBeenCalled();
+      expect(hangupSpy).not.toHaveBeenCalled();
+    });
+
+    it('should allow call to proceed (return false) when allowCallWithHostCandidatesOnly is true', () => {
+      session.options.allowCallWithHostCandidatesOnly = true;
+
+      const result = (call as any)._handleOnlyHostIceCandidates(
+        HOST_ONLY_SDP,
+        true
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('should still terminate the call when allowCallWithHostCandidatesOnly is false (default)', () => {
+      // Ensure the option is not set (default behavior)
+      session.options.allowCallWithHostCandidatesOnly = false;
+
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(() => Promise.resolve());
+      const errorHandler = jest.fn();
+      register(SwEvent.Error, errorHandler, call.id);
+
+      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD; i++) {
+        (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+      }
+
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(hangupSpy).toHaveBeenCalled();
+    });
+
+    it('should work in non-trickle path with allowCallWithHostCandidatesOnly true', () => {
+      session.options.allowCallWithHostCandidatesOnly = true;
+
+      const hangupSpy = jest
+        .spyOn(call, 'hangup')
+        .mockImplementation(() => Promise.resolve());
+      const warningHandler = jest.fn();
+      const errorHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, call.id);
+      register(SwEvent.Error, errorHandler, call.id);
+
+      // Simulate only-host SDP via non-trickle path
+      for (let i = 0; i < ONLY_HOST_ICE_CANDIDATES_THRESHOLD + 1; i++) {
+        (call as any)._onIceSdp({
+          type: 'offer',
+          sdp: HOST_ONLY_SDP,
+        });
+      }
+
+      // Only warnings, no error or hangup
+      expect(warningHandler).toHaveBeenCalled();
+      expect(errorHandler).not.toHaveBeenCalled();
+      expect(hangupSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── ICE connected state resets counter ─────────────────────────
+
+  describe('ICE connection state = connected resets counter', () => {
+    it('should reset _onlyHostIceCandidateCount when ICE connection reaches connected', () => {
+      // Set up a counter value
+      (call as any)._onlyHostIceCandidateCount = 2;
+
+      // Simulate ICE connected state change via _registerPeerEvents
+      const instance = {
+        onicecandidate: null as any,
+        onicegatheringstatechange: null as any,
+        oniceconnectionstatechange: null as any,
+        onicecandidateerror: null as any,
+        addEventListener: jest.fn(),
+        iceConnectionState: 'connected' as RTCPeerConnectionState,
+      };
+
+      // Call _registerPeerEvents to register the handler
+      (call as any)._registerPeerEvents(instance);
+
+      // Simulate ICE connected
+      instance.oniceconnectionstatechange();
+
+      // Counter should be reset
+      expect((call as any)._onlyHostIceCandidateCount).toBe(0);
+    });
+
+    it('should not exhaust after ICE connected resets counter', () => {
+      // Pre-set counter near threshold
+      (call as any)._onlyHostIceCandidateCount =
+        ONLY_HOST_ICE_CANDIDATES_THRESHOLD - 1;
+
+      // Simulate ICE connected resets counter
+      const instance = {
+        onicecandidate: null as any,
+        onicegatheringstatechange: null as any,
+        oniceconnectionstatechange: null as any,
+        onicecandidateerror: null as any,
+        addEventListener: jest.fn(),
+        iceConnectionState: 'connected',
+      };
+      (call as any)._registerPeerEvents(instance);
+      instance.oniceconnectionstatechange();
+
+      // Counter is now 0, so one more only-host SDP should not exhaust
+      const errorHandler = jest.fn();
+      register(SwEvent.Error, errorHandler, call.id);
+
+      (call as any)._handleOnlyHostIceCandidates(HOST_ONLY_SDP, true);
+
+      expect(errorHandler).not.toHaveBeenCalled();
+      expect((call as any)._onlyHostIceCandidateCount).toBe(1);
     });
   });
 });

@@ -2134,6 +2134,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * non-trickle path (`_onIceSdp`) and the trickle path
    * (`_onTrickleIce` → end-of-candidates).
    *
+   * When `allowCallWithHostCandidatesOnly` is `true` (default: `false`),
+   * only the warning is emitted and the call is allowed to proceed —
+   * the terminal error and hangup are skipped.
+   *
    * @param sdp The local SDP to check for only-host candidates.
    * @param sendBye Whether to send a Bye message on terminal hangup.
    *   - Inbound: always `true` (backend knows about the call).
@@ -2152,6 +2156,14 @@ export default abstract class BaseCall implements IWebRTCCall {
         { warning, callId: this.id, sessionId: this.session.sessionid },
         this.session.uuid
       );
+
+      // When allowCallWithHostCandidatesOnly is true, emit warning only
+      // and allow the call to proceed without termination.
+      const allowHostOnly =
+        this.session.options.allowCallWithHostCandidatesOnly === true;
+      if (allowHostOnly) {
+        return false;
+      }
 
       this._onlyHostIceCandidateCount++;
       if (
@@ -2252,6 +2264,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
         performance.mark(callMarkName(this.id, 'ice-gathering-completed'));
+      }
+    };
+
+    instance.oniceconnectionstatechange = () => {
+      const state = instance.iceConnectionState;
+      if (state === 'connected') {
+        // ICE pair succeeded — reset the only-host counter so that
+        // a future ICE restart (e.g. network change) starts fresh.
+        this._onlyHostIceCandidateCount = 0;
       }
     };
 

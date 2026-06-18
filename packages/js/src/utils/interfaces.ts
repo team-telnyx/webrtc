@@ -312,6 +312,19 @@ export interface IClientOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * Allow calls to proceed when ICE gathering produces only host (local
+   * network) candidates. When `false` (default), the SDK retries ICE
+   * gathering up to a threshold and terminates the call if no non-host
+   * candidates (srflx/prflx/relay) are found. When `true`, the SDK emits
+   * the `ONLY_HOST_ICE_CANDIDATES` warning but allows the call to
+   * proceed — useful for controlled environments where local-network
+   * connectivity is acceptable.
+   *
+   * @default false
+   */
+  allowCallWithHostCandidatesOnly?: boolean;
 }
 
 /**
