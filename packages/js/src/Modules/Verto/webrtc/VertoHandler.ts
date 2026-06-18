@@ -94,20 +94,6 @@ class VertoHandler {
         (reattachedID: string) => activeCallsIDs.has(reattachedID)
       );
 
-      // Debug log: reattach outcome after reconnect
-      if (session.connection?.socketGeneration > 1) {
-        const reattachSucceeded = !isReattachedEmpty && isReattachedHasSdkKnownCalls;
-        logger.debug(
-          reattachSucceeded
-            ? 'Reattach after reconnect: active calls reattached successfully'
-            : 'Reattach after reconnect: no matching sessions reattached',
-          {
-            result: reattachSucceeded ? 'recovered' : 'not_recovered',
-            socketGeneration: session.connection?.socketGeneration,
-          }
-        );
-      }
-
       if (isReattachedEmpty || !isReattachedHasSdkKnownCalls) {
         for (const callId of Object.keys(session.calls)) {
           const call = session.calls[callId];
@@ -371,16 +357,6 @@ class VertoHandler {
                 // reconnect loop if we reset too early.
                 if (gateWayState === GatewayStateType.REGED) {
                   this.session.resetReconnectAttempts();
-
-                  // Debug log: REGED after reconnect with no active calls
-                  if (this.session.connection?.socketGeneration > 1) {
-                    const hasActiveCalls = this.session.hasActiveCall();
-                    if (!hasActiveCalls) {
-                      logger.debug(
-                        'Reconnect completed with no active calls (no reattach needed)'
-                      );
-                    }
-                  }
                 }
 
                 // Capture call_report_id for SDK call reporting

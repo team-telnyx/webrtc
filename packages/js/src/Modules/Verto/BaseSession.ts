@@ -451,7 +451,9 @@ export default abstract class BaseSession {
 
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
-      logger.debug('Connection wasn\'t alive, initiating connection to the server...');
+      logger.debug(
+        "Connection wasn't alive, initiating connection to the server..."
+      );
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
@@ -986,8 +988,8 @@ export default abstract class BaseSession {
    * @return void
    */
   private _attachListeners() {
-    logger.debug('Attaching socket event listeners');
     this._detachListeners();
+    logger.debug('Attaching socket event listeners');
     this.on(SwEvent.SocketOpen, this._onSocketOpen);
     this.on(SwEvent.SocketClose, this.onNetworkClose);
     this.on(SwEvent.SocketError, this.onNetworkClose);
