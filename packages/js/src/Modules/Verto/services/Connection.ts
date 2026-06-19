@@ -89,6 +89,13 @@ export default class Connection {
   constructor(public session: BaseSession) {
     const { host, env, region, useCanaryRtcServer } = session.options;
 
+    logger.debug('Creating new Connection', {
+      host: this._host,
+      env,
+      region,
+      useCanaryRtcServer,
+    });
+
     if (env) {
       this._host = env === 'development' ? DEV_HOST : PROD_HOST;
     }
@@ -137,6 +144,12 @@ export default class Connection {
   }
 
   connect() {
+    logger.debug('Connection.connect() called', {
+      host: this._host,
+      socketGeneration: this.socketGeneration,
+      sessionId: this.session.sessionid,
+    });
+
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
 
@@ -295,6 +308,15 @@ export default class Connection {
   }
 
   close() {
+    logger.debug('Connection.close() called', {
+      hasWsClient: !!this._wsClient,
+      closing: this.closing,
+      closed: this.closed,
+      socketGeneration: this.socketGeneration,
+      safetyTimeoutId: this._safetyTimeoutId,
+      sessionId: this.session.sessionid,
+    });
+
     if (!this._wsClient || this.closing) return;
 
     // Clean up pending request handlers before initiating close
@@ -320,18 +342,33 @@ export default class Connection {
 
   private _registerSocketEvents(ws: WebSocket): void {
     ws.onopen = (event): boolean => {
+      logger.debug('WebSocket onopen', {
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'close');
+      logger.debug('WebSocket onclose', {
+        code: event?.code,
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
       return trigger(SwEvent.SocketClose, event, this.session.uuid);
     };
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
+      logger.debug('WebSocket onerror', {
+        socketGeneration: this.socketGeneration,
+        sessionId: this.session.sessionid,
+      });
 
       // Emit structured error alongside the legacy SocketError
       const telnyxError = createTelnyxError(WEBSOCKET_ERROR);
@@ -438,6 +475,10 @@ export default class Connection {
     this._safetyCleanupSocket(closingSocket, 'timeout');
 
     if (!this._wsClient || this._wsClient === closingSocket) {
+      logger.debug('Safety timeout: emitting SocketClose for stuck socket', {
+        hasWsClient: !!this._wsClient,
+        isSameSocket: this._wsClient === closingSocket,
+      });
       trigger(
         SwEvent.SocketClose,
         {
@@ -448,6 +489,11 @@ export default class Connection {
         },
         this.session.uuid
       );
+    } else {
+      logger.debug('Safety timeout: socket was replaced, not emitting SocketClose', {
+        hasWsClient: !!this._wsClient,
+        isSameSocket: this._wsClient === closingSocket,
+      });
     }
   }
 

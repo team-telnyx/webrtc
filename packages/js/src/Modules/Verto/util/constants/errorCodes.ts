@@ -79,10 +79,9 @@ export const TELNYX_WARNING_CODES = {
   UNKNOWN_REATTACHED_SESSION: 35002,
 
   // ── Signaling health warnings (360xx) ──────────────────────────────
-  SIGNALING_HEALTH_PROBE_TIMEOUT: 36001,
-  SIGNALING_REQUEST_TIMEOUT: 36002,
   SIGNALING_RECOVERY_REQUIRED: 36003,
   MEDIA_RECOVERY_REQUIRED: 36004,
+  RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT: 36005,
 } as const;
 
 // Extract constants to simplify how we use them internally
@@ -132,12 +131,10 @@ export const {
   DUPLICATE_INBOUND_ANSWER,
   TOKEN_EXPIRING_SOON,
   UNKNOWN_REATTACHED_SESSION,
-  SIGNALING_HEALTH_PROBE_TIMEOUT,
-  SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
+  RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
 } = TELNYX_WARNING_CODES;
-
 /**
  * Regex to detect non-host ICE candidates (srflx, prflx, or relay) in SDP.
  * Used to check if only host candidates were gathered.

@@ -301,45 +301,12 @@ export const SDK_WARNINGS = {
     ],
   },
 
-  // ── Signaling health warnings (340xx is auth, use 360xx) ───────────
-  36001: {
-    name: 'SIGNALING_HEALTH_PROBE_TIMEOUT',
-    message: 'Signaling health probe timed out',
-    description:
-      'A signaling liveness probe (Ping) was sent during an active call but no response was received within the timeout window. This indicates the WebSocket may be half-dead — the browser reports it as OPEN but data is not flowing. The SDK will force-close the socket to trigger reconnection.',
-    causes: [
-      'Network interface removed mid-call while another interface remains',
-      'TCP connection bound to a removed IP/route became half-dead',
-      'Firewall or NAT state expired silently',
-      'WebSocket proxy or load balancer dropped the connection without a close frame',
-    ],
-    solutions: [
-      'The SDK will automatically force-close the socket and reconnect',
-      'Check for network interface changes during the call',
-      'Verify firewall/NAT timeout settings',
-    ],
-  },
-  36002: {
-    name: 'SIGNALING_REQUEST_TIMEOUT',
-    message: 'Signaling request timed out',
-    description:
-      'A signaling-critical JSON-RPC request (e.g. ICE restart Modify) did not receive a response within the timeout window while the socket reports OPEN. This may indicate the WebSocket is half-dead or the server is unresponsive. The SDK will mark signaling as unhealthy and force reconnection.',
-    causes: [
-      'Half-dead WebSocket (browser reports OPEN but data does not flow)',
-      'Server unresponsive or overloaded',
-      'Network path interruption without TCP RST',
-    ],
-    solutions: [
-      'The SDK will automatically force-close the socket and reconnect',
-      'Check server health and response times',
-      'Check for network path issues',
-    ],
-  },
+  // ── Signaling health warnings (360xx) ──────────────────────────────
   36003: {
     name: 'SIGNALING_RECOVERY_REQUIRED',
     message: 'Signaling recovery required',
     description:
-      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. If media was still flowing, the reconnect is delayed briefly to allow the application to notify the user about a short interruption. Active calls will be recovered via reattach after reconnection.',
+      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. The source field in the warning payload indicates what triggered the recovery (probe, request, peer_failure, or no_rtp). Active calls will be recovered via reattach after reconnection.',
     causes: [
       'WebSocket probe timed out with no response',
       'Critical signaling request timed out',
@@ -365,6 +332,22 @@ export const SDK_WARNINGS = {
       'The SDK will automatically attempt ICE restart',
       'Check network connectivity and ICE candidate availability',
       'Verify TURN server configuration',
+    ],
+  },
+  36005: {
+    name: 'RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT',
+    message: 'Reconnection failed — auto-reconnect disabled',
+    description:
+      'The WebSocket was closed and auto-reconnect is disabled, so the SDK will not attempt to reconnect. This typically occurs after the user called disconnect() or after reconnection attempts were exhausted.',
+    causes: [
+      'Auto-reconnect was disabled by the application',
+      'Reconnection attempts were previously exhausted',
+      'The session was intentionally disconnected',
+    ],
+    solutions: [
+      'Call connect() manually to re-establish the session',
+      'Check if disconnect() was called intentionally',
+      'Review maxReconnectAttempts configuration',
     ],
   },
   33009: {
@@ -401,6 +384,7 @@ export const SDK_WARNINGS = {
       'If a call should be active, start a new call manually',
     ],
   },
+
 } as const;
 
 export type SdkWarningCode = keyof typeof SDK_WARNINGS;

@@ -6,7 +6,7 @@
 
 import BaseSession from '../BaseSession';
 import { trigger } from '../services/Handler';
-import { SwEvent, RECONNECTION_EXHAUSTED } from '../util/constants';
+import { SwEvent, RECONNECTION_EXHAUSTED, RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT } from '../util/constants';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -302,6 +302,59 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       // connect() is called by auto-reconnect, _autoReconnect is still true
       session.connect();
       expect(session._reconnectAttempts).toBe(1);
+    });
+  });
+
+  describe('RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT warning', () => {
+    it('should emit warning when socket closes with autoReconnect disabled (not intentional)', () => {
+      session._autoReconnect = false;
+
+      session.onNetworkClose();
+
+      expect(mockTrigger).toHaveBeenCalledWith(
+        SwEvent.Warning,
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
+          }),
+          reason: 'auto_reconnect_disabled',
+        }),
+        session.uuid
+      );
+    });
+
+    it('should NOT emit warning on intentional disconnect()', async () => {
+      session._autoReconnect = true;
+
+      await session.disconnect();
+
+      // disconnect() sets _intentionalClose = true before closing,
+      // so onNetworkClose should NOT emit the warning.
+      // Simulate what happens when the socket close event fires:
+      // Since disconnect() already called _closeConnection() which
+      // triggers the socket close -> onNetworkClose, we need to
+      // verify that no RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+      // warning was emitted.
+      const warningCalls = mockTrigger.mock.calls.filter(
+        (call: any[]) =>
+          call[0] === SwEvent.Warning &&
+          call[1]?.warning?.code === RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+      );
+      expect(warningCalls).toHaveLength(0);
+    });
+
+    it('should reset _intentionalClose flag after onNetworkClose', async () => {
+      await session.disconnect();
+
+      // disconnect() sets _intentionalClose = true but doesn't directly
+      // invoke onNetworkClose — that comes from the WebSocket close event.
+      // Simulate the event to verify the flag is consumed and reset.
+      expect(session._intentionalClose).toBe(true);
+
+      session.onNetworkClose();
+
+      // After onNetworkClose processes the intentional close, flag is reset
+      expect(session._intentionalClose).toBe(false);
     });
   });
 });

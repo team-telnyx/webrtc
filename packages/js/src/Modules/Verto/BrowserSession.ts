@@ -97,6 +97,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ```
    */
   async connect(): Promise<void> {
+    logger.debug('BrowserSession.connect() called');
     super.connect();
   }
 

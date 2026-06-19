@@ -23,6 +23,7 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
   WS_CLOSE_CODES,
 } from './util/constants';
 import {
@@ -93,6 +94,10 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
+  /** True while an intentional disconnect/cleanup is in progress.
+   *  Prevents RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT from firing
+   *  on normal app teardown or token refresh. */
+  protected _intentionalClose: boolean = false;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -309,6 +314,7 @@ export default abstract class BaseSession {
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
+    this._intentionalClose = true;
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
     await this._drainCallReportUploads();
@@ -439,12 +445,15 @@ export default abstract class BaseSession {
     // If auto-reconnect was disabled (e.g. after exhaustion or disconnect),
     // reset the counter so a fresh retry sequence starts.
     if (!this._autoReconnect) {
+      logger.debug('autoReconnect was disabled, resetting reconnect attempts');
       this._reconnectAttempts = 0;
     }
 
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
-      logger.debug('Initiating connection to the server...');
+      logger.debug(
+        "Connection wasn't alive, initiating connection to the server..."
+      );
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
@@ -809,6 +818,20 @@ export default abstract class BaseSession {
       this._createSocketCloseFlushReason(event)
     );
 
+    // ── Debug: WebSocket close event ──
+    // Note: reconnectDelay is NOT logged here because it is a random getter
+    // (randomInt(2,6)*1000). The actual delay used for setTimeout is computed
+    // once after incrementing the attempt counter and logged there.
+    logger.debug('onNetworkClose called', {
+      closeCode: event?.code,
+      closeReason: event?.reason,
+      wasClean: event?.wasClean,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+      autoReconnect: this._autoReconnect,
+      reconnectAttempts: this._reconnectAttempts,
+    });
+
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }
@@ -851,8 +874,13 @@ export default abstract class BaseSession {
         return;
       }
 
+      // Compute the reconnect delay once so the logged value matches the
+      // actual setTimeout delay. reconnectDelay is a random getter
+      // (randomInt(2,6)*1000) — reading it twice yields different values.
+      const delayMs = this.reconnectDelay;
+
       logger.debug(
-        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''} (delay=${delayMs}ms)`
       );
 
       this._reconnectTimeout = setTimeout(() => {
@@ -860,8 +888,36 @@ export default abstract class BaseSession {
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, this.reconnectDelay);
+      }, delayMs);
+    } else {
+      // Auto-reconnect is disabled — emit warning only for unexpected
+      // socket closes (e.g. network failure with auto-reconnect off).
+      // Intentional disconnect/cleanup should NOT surface a public
+      // telnyx.warning since no reconnection failure occurred.
+      logger.debug('auto_reconnect disabled, not reconnecting', {
+        voiceSdkId: this.callReportVoiceSdkId,
+        sessid: this.sessionid || undefined,
+        intentionalClose: this._intentionalClose,
+      });
+
+      if (!this._intentionalClose) {
+        const warning = createTelnyxWarning(
+          RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+        );
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            reason: 'auto_reconnect_disabled',
+            sessionId: this.sessionid,
+          },
+          this.uuid
+        );
+      }
     }
+    // Reset intentionalClose flag — it only applies to this
+    // onNetworkClose invocation.
+    this._intentionalClose = false;
   }
 
   /**
@@ -933,6 +989,7 @@ export default abstract class BaseSession {
    */
   private _attachListeners() {
     this._detachListeners();
+    logger.debug('Attaching socket event listeners');
     this.on(SwEvent.SocketOpen, this._onSocketOpen);
     this.on(SwEvent.SocketClose, this.onNetworkClose);
     this.on(SwEvent.SocketError, this.onNetworkClose);
@@ -945,6 +1002,7 @@ export default abstract class BaseSession {
    * @return void
    */
   private _detachListeners() {
+    logger.debug('Detaching socket event listeners');
     this.off(SwEvent.SocketOpen, this._onSocketOpen);
     this.off(SwEvent.SocketClose, this.onNetworkClose);
     this.off(SwEvent.SocketError, this.onNetworkClose);
@@ -975,6 +1033,14 @@ export default abstract class BaseSession {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
     this.stopSignalingHealthMonitor();
+
+    logger.debug('_closeConnection called', {
+      connected: this.connection?.connected,
+      socketGeneration: this.connection?.socketGeneration,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+    });
+
     if (this.connection) {
       this.connection.close();
     }
