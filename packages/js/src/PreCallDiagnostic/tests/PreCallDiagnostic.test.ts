@@ -169,8 +169,24 @@ describe('PreCallDiagnostic', () => {
 
     it('swallows hangup errors during cleanup', async () => {
       const mockCall = createMockCall({
+        hangup: jest.fn().mockRejectedValue(new Error('Hangup failed')),
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({ client: mockClient })
+      );
+
+      // Should NOT throw even though hangup rejects
+      const report = await diagnostic.run();
+      expect(report.version).toBe(1);
+    });
+
+    it('swallows synchronous hangup errors during cleanup', async () => {
+      const mockCall = createMockCall({
         hangup: jest.fn().mockImplementation(() => {
-          throw new Error('Hangup failed');
+          throw new Error('Hangup failed sync');
         }),
       });
       const mockClient = createMockClient({
@@ -180,9 +196,31 @@ describe('PreCallDiagnostic', () => {
         createOptions({ client: mockClient })
       );
 
-      // Should NOT throw even though hangup fails
+      // Should NOT throw even though hangup throws synchronously
       const report = await diagnostic.run();
       expect(report.version).toBe(1);
+    });
+
+    it('awaits async hangup during cleanup', async () => {
+      let hangupResolved = false;
+      const mockCall = createMockCall({
+        hangup: jest.fn().mockImplementation(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          hangupResolved = true;
+        }),
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({ client: mockClient })
+      );
+
+      await diagnostic.run();
+
+      // hangup was awaited and completed
+      expect(mockCall.hangup).toHaveBeenCalled();
+      expect(hangupResolved).toBe(true);
     });
   });
 

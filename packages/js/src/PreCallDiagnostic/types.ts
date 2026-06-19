@@ -49,8 +49,12 @@ export interface CallLikeOptions {
 export interface CallLike {
   /** Unique identifier for this call. */
   id: string;
-  /** Hang up the call. */
-  hangup(): void;
+  /**
+   * Hang up the call.
+   * May return a Promise (e.g. SDK Call.hangup()) or void synchronously.
+   * Consumers should await the result when possible.
+   */
+  hangup(): void | Promise<void>;
   /** The underlying RTCPeerConnection, if available. */
   peerConnection?: RTCPeerConnection;
 }

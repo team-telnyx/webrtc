@@ -152,9 +152,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         timings,
       };
     } finally {
-      // Cleanup temporary resources
+      // Cleanup temporary resources — must await because cleanupCall is async
+      // and hangup() may return a Promise (real SDK Call).
       if (call && this.options.autoHangup !== false) {
-        this.cleanupCall(call);
+        await this.cleanupCall(call);
       }
       context.timings.completedAt = Date.now();
     }
@@ -272,13 +273,18 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
   /**
    * Clean up a temporary diagnostic call.
-   * Calls hangup() on the call object and swallows any errors.
+   * Awaits hangup() (which may return a Promise from the real SDK Call)
+   * and swallows/logs any errors so the diagnostic report is never lost.
    */
-  private cleanupCall(call: CallLike): void {
+  private async cleanupCall(call: CallLike): Promise<void> {
     try {
-      call.hangup();
-    } catch {
-      // Swallow cleanup errors — the diagnostic report is already built
+      await call.hangup();
+    } catch (error) {
+      // Swallow cleanup errors — the diagnostic report is already built.
+      // Log at debug level for troubleshooting without noise.
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[PreCallDiagnostic] cleanupCall error:', error);
+      }
     }
   }
 }
