@@ -590,6 +590,108 @@ describe('CallReportCollector cadence', () => {
     expect(peerConnection.getStats).toHaveBeenCalledTimes(1);
     expect(collector.getStatsBuffer()).toHaveLength(1);
   });
+
+  it('records selected ICE pair ids, candidate URL, and RTT source from getStats', async () => {
+    const selectedPair = {
+      id: 'CP_selected',
+      type: 'candidate-pair',
+      state: 'succeeded',
+      nominated: true,
+      localCandidateId: 'local_srflx',
+      remoteCandidateId: 'remote_media',
+      currentRoundTripTime: 0.42,
+      requestsSent: 7,
+      responsesReceived: 7,
+    };
+    const stats = new Map<string, unknown>([
+      [
+        'transport_0',
+        {
+          id: 'transport_0',
+          type: 'transport',
+          iceState: 'connected',
+          selectedCandidatePairId: 'CP_selected',
+          selectedCandidatePairChanges: 1,
+        },
+      ],
+      [
+        'CP_old',
+        {
+          id: 'CP_old',
+          type: 'candidate-pair',
+          state: 'succeeded',
+          nominated: true,
+          localCandidateId: 'local_old',
+          remoteCandidateId: 'remote_old',
+          currentRoundTripTime: 0.01,
+        },
+      ],
+      ['CP_selected', selectedPair],
+      [
+        'local_srflx',
+        {
+          id: 'local_srflx',
+          type: 'local-candidate',
+          address: '203.0.113.10',
+          port: 50000,
+          candidateType: 'srflx',
+          protocol: 'udp',
+          networkType: 'wifi',
+          url: 'stun:stun.telnyx.com:3478',
+        },
+      ],
+      [
+        'remote_media',
+        {
+          id: 'remote_media',
+          type: 'remote-candidate',
+          address: '64.16.248.141',
+          port: 20000,
+          candidateType: 'host',
+          protocol: 'udp',
+        },
+      ],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    expect(
+      (collector as unknown as CallReportCollector).getStatsBuffer()[0]
+    ).toEqual(
+      expect.objectContaining({
+        connection: expect.objectContaining({
+          currentRoundTripTime: 0.42,
+          roundTripTimeSource: 'candidate-pair.currentRoundTripTime',
+        }),
+        ice: expect.objectContaining({
+          id: 'CP_selected',
+          localCandidateId: 'local_srflx',
+          remoteCandidateId: 'remote_media',
+          currentRoundTripTime: 0.42,
+          local: expect.objectContaining({
+            id: 'local_srflx',
+            candidateType: 'srflx',
+            url: 'stun:stun.telnyx.com:3478',
+          }),
+          remote: expect.objectContaining({
+            id: 'remote_media',
+            address: '64.16.248.141',
+          }),
+        }),
+        transport: expect.objectContaining({
+          selectedCandidatePairId: 'CP_selected',
+          selectedCandidatePairChanges: 1,
+        }),
+      })
+    );
+  });
 });
 
 describe('CallReportCollector intermediate flushes', () => {

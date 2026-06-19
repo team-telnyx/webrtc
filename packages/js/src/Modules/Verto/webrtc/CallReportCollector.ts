@@ -147,11 +147,14 @@ interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
  * ICE candidate info extracted from local-candidate / remote-candidate stats
  */
 interface ICECandidateInfo {
+  id?: string;
   address?: string;
   port?: number;
   candidateType?: string; // host | srflx | prflx | relay
   protocol?: string; // udp | tcp
   networkType?: string; // wifi | cellular | ethernet | vpn | unknown
+  url?: string;
+  relayProtocol?: string;
 }
 
 /**
@@ -159,9 +162,12 @@ interface ICECandidateInfo {
  */
 export interface IICECandidatePair {
   id?: string;
+  localCandidateId?: string;
+  remoteCandidateId?: string;
   state?: string; // frozen | waiting | in-progress | failed | succeeded
   nominated?: boolean;
   writable?: boolean;
+  currentRoundTripTime?: number;
   local?: ICECandidateInfo;
   remote?: ICECandidateInfo;
   requestsSent?: number;
@@ -177,6 +183,7 @@ export interface ITransportStats {
   srtpCipher?: string;
   tlsVersion?: string;
   selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
 }
 
 export interface ICallReportOptions {
@@ -224,6 +231,8 @@ export interface IStatsInterval {
   };
   connection?: {
     roundTripTimeAvg?: number;
+    currentRoundTripTime?: number;
+    roundTripTimeSource?: string;
     packetsSent?: number;
     packetsReceived?: number;
     bytesSent?: number;
@@ -931,6 +940,7 @@ export class CallReportCollector {
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
+      const candidatePairs: ExtendedCandidatePairStats[] = [];
       let transportStats: ExtendedTransportStats | null = null;
 
       stats.forEach((report) => {
@@ -950,7 +960,7 @@ export class CallReportCollector {
               (report as ExtendedCandidatePairStats).nominated ||
               (report as ExtendedCandidatePairStats).state === 'succeeded'
             ) {
-              candidatePair = report as ExtendedCandidatePairStats;
+              candidatePairs.push(report as ExtendedCandidatePairStats);
             }
             break;
           case 'transport':
@@ -958,6 +968,26 @@ export class CallReportCollector {
             break;
         }
       });
+
+      const selectedCandidatePairId = transportStats?.selectedCandidatePairId;
+      const selectedCandidatePair = selectedCandidatePairId
+        ? ((
+            stats as unknown as { get?: (id: string) => RTCStats | undefined }
+          ).get?.(selectedCandidatePairId) as
+            | ExtendedCandidatePairStats
+            | undefined)
+        : undefined;
+
+      if (selectedCandidatePair?.type === 'candidate-pair') {
+        candidatePair = selectedCandidatePair;
+      } else if (selectedCandidatePairId) {
+        candidatePair =
+          candidatePairs.find((pair) => pair.id === selectedCandidatePairId) ||
+          candidatePairs[candidatePairs.length - 1] ||
+          null;
+      } else {
+        candidatePair = candidatePairs[candidatePairs.length - 1] || null;
+      }
 
       // Collect sample values for averaging
       if (outboundAudio) {
@@ -1046,9 +1076,12 @@ export class CallReportCollector {
       if (candidatePair) {
         currentCandidatePairSnapshot = {
           id: candidatePair.id,
+          localCandidateId: candidatePair.localCandidateId,
+          remoteCandidateId: candidatePair.remoteCandidateId,
           state: candidatePair.state,
           nominated: candidatePair.nominated,
           writable: candidatePair.writable,
+          currentRoundTripTime: candidatePair.currentRoundTripTime,
           requestsSent: candidatePair.requestsSent,
           responsesReceived: candidatePair.responsesReceived,
           ...(localCandidate ? { local: localCandidate } : {}),
@@ -1455,6 +1488,10 @@ export class CallReportCollector {
     if (candidatePair) {
       entry.connection = {
         roundTripTimeAvg: this._average(this.intervalRTTs),
+        currentRoundTripTime: candidatePair.currentRoundTripTime,
+        ...(candidatePair.currentRoundTripTime !== undefined
+          ? { roundTripTimeSource: 'candidate-pair.currentRoundTripTime' }
+          : {}),
         packetsSent: candidatePair.packetsSent,
         packetsReceived: candidatePair.packetsReceived,
         bytesSent: candidatePair.bytesSent,
@@ -1464,9 +1501,12 @@ export class CallReportCollector {
       // ICE candidate pair details
       entry.ice = {
         id: candidatePair.id,
+        localCandidateId: candidatePair.localCandidateId,
+        remoteCandidateId: candidatePair.remoteCandidateId,
         state: candidatePair.state,
         nominated: candidatePair.nominated,
         writable: candidatePair.writable,
+        currentRoundTripTime: candidatePair.currentRoundTripTime,
         requestsSent: candidatePair.requestsSent,
         responsesReceived: candidatePair.responsesReceived,
         ...(localCandidate ? { local: localCandidate } : {}),
@@ -1494,6 +1534,9 @@ export class CallReportCollector {
               selectedCandidatePairChanges:
                 transportStats.selectedCandidatePairChanges,
             }
+          : {}),
+        ...(transportStats.selectedCandidatePairId !== undefined
+          ? { selectedCandidatePairId: transportStats.selectedCandidatePairId }
           : {}),
       };
     }
@@ -1526,6 +1569,7 @@ export class CallReportCollector {
     }
 
     const info: ICECandidateInfo = {};
+    if (report.id !== undefined) info.id = report.id;
     // Fallback from report.address to report.ip for browser compatibility
     // (Firefox uses 'ip' while Chrome uses 'address')
     if (report.address !== undefined) {
@@ -1539,6 +1583,11 @@ export class CallReportCollector {
     if (report.protocol !== undefined) info.protocol = report.protocol;
     // networkType is only available on local candidates and may be absent in some browsers
     if (report.networkType !== undefined) info.networkType = report.networkType;
+    // url identifies the ICE server used to discover local srflx/relay candidates.
+    // relayProtocol is present for TURN relay candidates in Chromium.
+    if (report.url !== undefined) info.url = report.url;
+    if (report.relayProtocol !== undefined)
+      info.relayProtocol = report.relayProtocol;
 
     if (Object.keys(info).length === 0) {
       logger.debug(
