@@ -227,6 +227,25 @@ export const SDK_ERRORS = {
     ],
   },
 
+  45005: {
+    name: 'ACTIVE_CALL_RECONNECTION_TIMEOUT',
+    message: 'Active call reconnection timed out',
+    description:
+      'The active call reconnection attempt (socket reconnect or ICE restart) exceeded the configured maxTimeoutForReconnectionMs duration without confirming media recovery. The SDK notifies the application but does NOT automatically hang up the call — the application decides whether to hang up, retry, or keep waiting. This only fires when the application explicitly sets maxTimeoutForReconnectionMs; by default, reconnection has no time limit.',
+    causes: [
+      'Network outage lasting longer than the configured reconnection timeout',
+      'Server unreachable during the reconnection window',
+      'ICE restart unable to re-establish media within the timeout',
+      'maxTimeoutForReconnectionMs set too low for the network conditions',
+    ],
+    solutions: [
+      'Increase maxTimeoutForReconnectionMs if the timeout is too aggressive',
+      'Set maxTimeoutForReconnectionMs to undefined for unlimited reconnection time',
+      'Check network connectivity',
+      'Decide whether to hang up, retry, or keep waiting based on your application needs',
+    ],
+  },
+
   // ── Authentication errors (460xx) ───────────────────────────────────
   46001: {
     name: 'LOGIN_FAILED',

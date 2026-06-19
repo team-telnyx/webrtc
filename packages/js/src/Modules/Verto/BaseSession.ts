@@ -36,6 +36,7 @@ import {
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
   randomInt,
+  normalizeMaxTimeoutForReconnectionMs,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -974,7 +975,7 @@ export default abstract class BaseSession {
   public _closeConnection() {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
-    this.stopSignalingHealthMonitor();
+    this.forceStopSignalingHealthMonitor();
     if (this.connection) {
       this.connection.close();
     }
@@ -1046,11 +1047,21 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Stop the signaling health monitor. Called when no active calls remain
-   * or on disconnect.
+   * Stop the signaling health monitor. Called from onNetworkClose()
+   * when the socket drops. Uses stop() which preserves the reconnection
+   * timeout during an active reconnect attempt.
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Force-stop the signaling health monitor including the reconnection
+   * timeout. Called on full session disconnect/teardown where no
+   * reconnect is expected.
+   */
+  forceStopSignalingHealthMonitor(): void {
+    this._signalingHealthMonitor.forceStop();
   }
 
   /**
@@ -1067,6 +1078,7 @@ export default abstract class BaseSession {
             options?: { attach?: boolean };
             recoveredCallId?: string;
             peer?: { restartIce?: () => RestartIceResult };
+            _isRecovering?: boolean;
           }
         >;
       }
@@ -1102,7 +1114,15 @@ export default abstract class BaseSession {
       logger.debug(
         `Signaling health: ICE restart skipped for call ${callId}: ${result.reason}`
       );
+      return result;
     }
+
+    // Mark the call as recovering so media recovery confirmation is
+    // triggered when the PeerConnection reaches 'connected' in Peer.ts.
+    // This ties ICE restart recovery success to confirmed media recovery,
+    // which clears the reconnection timeout in SignalingHealthMonitor.
+    call._isRecovering = true;
+
     return result;
   }
 
@@ -1144,6 +1164,38 @@ export default abstract class BaseSession {
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
+  }
+
+  /**
+   * Normalized maxTimeoutForReconnectionMs option.
+   * Returns null (unlimited) when the option is omitted or non-finite,
+   * a non-negative integer otherwise.
+   */
+  get maxTimeoutForReconnectionMs(): number | null {
+    return normalizeMaxTimeoutForReconnectionMs(
+      this.options.maxTimeoutForReconnectionMs
+    );
+  }
+
+  /**
+   * Called when a specific call's peer connection reaches 'connected'
+   * during recovery (both socket reconnect/attach and ICE restart paths).
+   * Delegates to the health monitor for per-call tracking. The session-level
+   * reconnection timeout is only cleared when ALL tracked recovering calls
+   * have confirmed media recovery.
+   */
+  notifyCallRecoverySucceeded(callId: string): void {
+    this._signalingHealthMonitor.onCallRecoverySucceeded(callId);
+  }
+
+  /**
+   * Called when a recovering call is finalized/hungup/destroyed before
+   * media recovery is confirmed. Delegates to the health monitor so the
+   * call is removed from the pending recovery set and the reconnection
+   * timeout does not fire for a call that has already been cleaned up.
+   */
+  notifyCallFinalized(callId: string): void {
+    this._signalingHealthMonitor.onCallFinalized(callId);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

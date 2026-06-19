@@ -129,6 +129,17 @@ export interface IVertoOptions {
   skipTrailing?: boolean;
 
   /**
+   * Maximum time, in milliseconds, that an active-call reconnection attempt
+   * may take before the SDK emits a timeout notification. If omitted or
+   * null, reconnection is unlimited. The SDK does NOT automatically hang up
+   * the call on timeout — the application decides whether to hang up,
+   * retry, or keep waiting.
+   *
+   * @see IClientOptions.maxTimeoutForReconnectionMs
+   */
+  maxTimeoutForReconnectionMs?: number | null;
+
+  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and

@@ -1317,12 +1317,6 @@ export default abstract class BaseCall implements IWebRTCCall {
         performance.mark(callMarkName(this.id, 'call-active'));
         this.peer?.tryCollectTimings();
 
-        // Clear recovery flag when call becomes active again
-        if (this._isRecovering) {
-          this._isRecovering = false;
-          logger.debug(`[${this.id}] Recovery complete, call is active`);
-        }
-
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
 
@@ -2500,6 +2494,12 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    // Notify the signaling health monitor that this call is finalized
+    // so it is removed from the pending recovery set. This prevents the
+    // reconnection timeout from firing for a call that has already been
+    // cleaned up (e.g. user hangs up while call is still recovering).
+    this.session.notifyCallFinalized(this.id);
+
     this._stopStats();
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;
