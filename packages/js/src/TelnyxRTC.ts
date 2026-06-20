@@ -9,8 +9,56 @@ import {
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
+import { PreCallDiagnostic } from './PreCallDiagnostic';
+import type {
+  PreCallDiagnosticOptions,
+  PreCallDiagnosticReport,
+  PreCallIceOptions,
+  PreCallNetworkOptions,
+  PreCallMediaOptions,
+  PreCallMicrophoneOptions,
+} from './PreCallDiagnostic/types';
 
 import * as pkg from '../package.json';
+
+/**
+ * Options for the `TelnyxRTC.runPreCall()` public method.
+ *
+ * Callers provide call-setup fields and optional diagnostic probe
+ * configuration; `runPreCall` maps these into `PreCallDiagnosticOptions`
+ * internally, reusing the client's existing configuration where
+ * appropriate (e.g. ICE servers).
+ */
+export interface RunPreCallOptions {
+  /** The destination number to dial for the diagnostic call. */
+  destinationNumber: string;
+  /** Caller name for the diagnostic call. */
+  callerName?: string;
+  /** Caller number for the diagnostic call. */
+  callerNumber?: string;
+  /** Audio constraints for the diagnostic call. */
+  audio?: boolean | MediaStreamConstraints['audio'];
+  /** Overall timeout in ms for the diagnostic run. Default: 30000. */
+  timeoutMs?: number;
+  /** Timeout in ms for the call setup phase. Default: 15000. */
+  callSetupTimeoutMs?: number;
+  /** Interval in ms between stats samples. Default: 1000. */
+  statsSampleIntervalMs?: number;
+  /** Duration in ms to keep the diagnostic call active for sampling. Default: 5000. */
+  durationMs?: number;
+  /** Whether to automatically hang up the diagnostic call on completion. Default: true. */
+  autoHangup?: boolean;
+  /** Whether to run the ICE diagnostic module. Default: true. */
+  ice?: boolean | PreCallIceOptions;
+  /** Whether to run the network diagnostic module. Default: true. */
+  network?: boolean | PreCallNetworkOptions;
+  /** Whether to run the media diagnostic module. Default: true. */
+  media?: boolean | PreCallMediaOptions;
+  /** Whether to run the microphone diagnostic module. Default: true. */
+  microphone?: boolean | PreCallMicrophoneOptions;
+  /** Optional RTC configuration override for the diagnostic call. */
+  rtcConfig?: RTCConfiguration;
+}
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -244,6 +292,76 @@ export class TelnyxRTC extends TelnyxRTCClient {
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);
+  }
+
+  /**
+   * Runs a pre-call diagnostic using the new `PreCallDiagnostic` framework.
+   *
+   * This method creates a temporary diagnostic call to probe network, ICE,
+   * media, and microphone conditions before placing a real call. The
+   * diagnostic call is automatically cleaned up (hung up) on completion
+   * unless `autoHangup` is set to `false`.
+   *
+   * The client's existing ICE servers and audio constraints are reused
+   * unless explicitly overridden via `options`.
+   *
+   * @param options Options for the pre-call diagnostic, including the
+   *   required `destinationNumber` and optional probe configuration.
+   * @returns A promise that resolves with the `PreCallDiagnosticReport`.
+   *
+   * @examples
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   destinationNumber: '+15551234567',
+   * });
+   * console.log(report.verdict); // => 'ready' | 'degraded' | 'blocked' | 'inconclusive'
+   * ```
+   *
+   * Disable specific probes:
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   destinationNumber: '+15551234567',
+   *   ice: false,
+   *   microphone: false,
+   * });
+   * ```
+   *
+   * Override duration and timeouts:
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   destinationNumber: '+15551234567',
+   *   durationMs: 3000,
+   *   timeoutMs: 15000,
+   * });
+   * ```
+   */
+  async runPreCall(options: RunPreCallOptions): Promise<PreCallDiagnosticReport> {
+    const diagnosticOptions: PreCallDiagnosticOptions = {
+      client: this,
+      destinationNumber: options.destinationNumber,
+      callerName: options.callerName,
+      callerNumber: options.callerNumber,
+      audio: options.audio,
+      timeoutMs: options.timeoutMs,
+      callSetupTimeoutMs: options.callSetupTimeoutMs,
+      statsSampleIntervalMs: options.statsSampleIntervalMs,
+      durationMs: options.durationMs,
+      autoHangup: options.autoHangup,
+      ice: options.ice,
+      network: options.network,
+      media: options.media,
+      microphone: options.microphone,
+      // Reuse client's ICE servers unless explicitly overridden via rtcConfig
+      rtcConfig: options.rtcConfig ?? {
+        iceServers: this.iceServers,
+      },
+    };
+
+    const diagnostic = new PreCallDiagnostic(diagnosticOptions);
+    return diagnostic.run();
   }
 
   /**
