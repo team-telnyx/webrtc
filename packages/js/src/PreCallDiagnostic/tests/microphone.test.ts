@@ -3,12 +3,12 @@
  *
  * These tests verify:
  * - Permission state checking via the Permissions API
- * - Fallback to 'unsupported' when Permissions API is unavailable
+ * - Fallback to 'unknown' when Permissions API is unavailable
  * - Device availability checking via enumerateDevices
  * - No device labels leaked in the report output
  * - Reason codes for denied/no-device states
  * - Option gating: checkPermission and checkDeviceAvailability can be disabled
- * - Unsupported APIs return 'unknown'/'unsupported' instead of throwing
+ * - Unsupported APIs return 'unknown' instead of throwing
  *
  * Browser APIs are mocked via the `env` parameter injection rather than
  * overriding `navigator` globals, which is incompatible with the existing
@@ -186,7 +186,7 @@ describe('buildPreCallMicrophoneReport', () => {
       expect(report?.permissionGranted).toBe(false);
     });
 
-    it('returns "unsupported" when Permissions API is not available', async () => {
+    it('returns "unknown" when Permissions API is not available', async () => {
       const env = envWithoutPermissions(
         envWithDevices([createAudioInputDevice()])
       );
@@ -194,11 +194,11 @@ describe('buildPreCallMicrophoneReport', () => {
       const report = await buildPreCallMicrophoneReport(context, env);
 
       expect(report).toBeDefined();
-      expect(report?.permissionState).toBe('unsupported');
+      expect(report?.permissionState).toBe('unknown');
       expect(report?.permissionGranted).toBe(false);
     });
 
-    it('returns "unsupported" when Permissions API throws', async () => {
+    it('returns "unknown" when Permissions API throws', async () => {
       const env = envWithPermissionError(
         envWithDevices([createAudioInputDevice()])
       );
@@ -206,7 +206,7 @@ describe('buildPreCallMicrophoneReport', () => {
       const report = await buildPreCallMicrophoneReport(context, env);
 
       expect(report).toBeDefined();
-      expect(report?.permissionState).toBe('unsupported');
+      expect(report?.permissionState).toBe('unknown');
     });
 
     it('returns "unknown" for unrecognized permission state', async () => {
@@ -489,21 +489,21 @@ describe('buildPreCallMicrophoneReport', () => {
     });
   });
 
-  describe('unsupported / unknown APIs', () => {
-    it('returns report with permissionState=unsupported when both APIs are unavailable', async () => {
+  describe('unknown APIs', () => {
+    it('returns report with permissionState=unknown when both APIs are unavailable', async () => {
       // Empty env — no permissions API, no mediaDevices
       const env: BrowserEnv = {};
       const context = createContext();
       const report = await buildPreCallMicrophoneReport(context, env);
 
-      // Permission check runs and returns 'unsupported' (a valid finding)
+      // Permission check runs and returns 'unknown' (a valid finding)
       // Device check is skipped because mediaDevices is unavailable
       expect(report).toBeDefined();
-      expect(report?.permissionState).toBe('unsupported');
+      expect(report?.permissionState).toBe('unknown');
       expect(report?.deviceAvailable).toBeUndefined();
     });
 
-    it('returns report with permissionState=unsupported when only Permissions API is unavailable', async () => {
+    it('returns report with permissionState=unknown when only Permissions API is unavailable', async () => {
       const env: BrowserEnv = {
         mediaDevices: {
           enumerateDevices: jest
@@ -515,7 +515,7 @@ describe('buildPreCallMicrophoneReport', () => {
       const report = await buildPreCallMicrophoneReport(context, env);
 
       expect(report).toBeDefined();
-      expect(report?.permissionState).toBe('unsupported');
+      expect(report?.permissionState).toBe('unknown');
       expect(report?.deviceAvailable).toBe(true);
     });
 

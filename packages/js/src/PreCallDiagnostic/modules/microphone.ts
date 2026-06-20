@@ -9,7 +9,7 @@
  *
  * This module:
  * 1. Checks microphone permission state via the browser Permissions API
- *    when available (Chrome, Edge). Falls back to 'unsupported' when unavailable.
+ *    when available (Chrome, Edge). Falls back to 'unknown' when unavailable.
  * 2. Checks whether audio input devices are available via enumerateDevices.
  * 3. Avoids leaking device labels unless already permitted and needed by
  *    existing SDK conventions.
@@ -63,8 +63,7 @@ function getBrowserEnv(): BrowserEnv {
  * - 'granted' if the user has already granted microphone permission.
  * - 'denied' if the user has permanently denied microphone permission.
  * - 'prompt' if the user has not yet been asked (permission will be requested on getUserMedia).
- * - 'unknown' if the Permissions API query fails or returns an unexpected state.
- * - 'unsupported' if the Permissions API is not available (Firefox, Safari).
+ * - 'unknown' if the Permissions API is not available, query fails, or returns an unexpected state.
  */
 async function checkMicrophonePermission(
   env: BrowserEnv
@@ -73,7 +72,7 @@ async function checkMicrophonePermission(
     !env.permissions ||
     typeof env.permissions.query !== 'function'
   ) {
-    return 'unsupported';
+    return 'unknown';
   }
 
   try {
@@ -95,7 +94,7 @@ async function checkMicrophonePermission(
   } catch {
     // The Permissions API may throw if 'microphone' is not a recognized
     // permission name (e.g., Firefox does not support it).
-    return 'unsupported';
+    return 'unknown';
   }
 }
 

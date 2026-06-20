@@ -209,14 +209,14 @@ export interface PreCallMediaReport {
  * Permission state values for the microphone diagnostic module.
  *
  * Mirrors the browser Permissions API states where supported.
- * 'unsupported' is used when the Permissions API is not available at all.
+ * 'unknown' is used when the Permissions API is not available or
+ * returns an unrecognized state.
  */
 export type MicrophonePermissionState =
   | 'granted'
   | 'denied'
   | 'prompt'
-  | 'unknown'
-  | 'unsupported';
+  | 'unknown';
 
 /**
  * Report from the microphone permission and device availability check.
