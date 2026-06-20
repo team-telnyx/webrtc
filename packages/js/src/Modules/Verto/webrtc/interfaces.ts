@@ -104,6 +104,24 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
+  /**
+   * Optional RTC configuration override for the call.
+   *
+   * When provided, fields from this configuration are merged with
+   * the SDK's default RTC configuration built from iceServers,
+   * prefetchIceCandidates, and forceRelayCandidate. Explicit
+   * rtcConfig fields take precedence; omitted fields fall back
+   * to SDK defaults.
+   *
+   * The existing specific options (iceServers, forceRelayCandidate,
+   * prefetchIceCandidates) take precedence over rtcConfig defaults
+   * when both are provided.
+   *
+   * TURN credentials (username/credential) must not appear in
+   * logs, reports, or snapshots — use sanitization for any
+   * output paths.
+   */
+  rtcConfig?: RTCConfiguration;
 }
 
 export interface IStatsBinding {

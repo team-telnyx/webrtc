@@ -1022,18 +1022,54 @@ export default class Peer {
     return this.options.trickleIce === true;
   }
 
+  /**
+   * Sanitize an RTCConfiguration for logging by redacting TURN credentials.
+   * Replaces username/credential values with boolean indicators so they
+   * never appear in log output.
+   */
+  private _sanitizeConfigForLog(config: RTCConfiguration): Record<string, unknown> {
+    const logSafe: Record<string, unknown> = {};
+    if (config.bundlePolicy) {
+      logSafe.bundlePolicy = config.bundlePolicy;
+    }
+    if (config.iceCandidatePoolSize !== undefined) {
+      logSafe.iceCandidatePoolSize = config.iceCandidatePoolSize;
+    }
+    if (config.iceTransportPolicy) {
+      logSafe.iceTransportPolicy = config.iceTransportPolicy;
+    }
+    if (config.iceServers) {
+      logSafe.iceServers = config.iceServers.map((server) => ({
+        urls: server.urls,
+        hasUsername: Boolean(server.username),
+        hasCredential: Boolean(server.credential),
+        ...(server.credentialType ? { credentialType: server.credentialType } : {}),
+      }));
+    }
+    return logSafe;
+  }
+
   private _config(): RTCConfiguration {
-    const { prefetchIceCandidates, forceRelayCandidate, iceServers } =
+    const { prefetchIceCandidates, forceRelayCandidate, iceServers, rtcConfig } =
       this.options;
 
+    // Start with SDK defaults, then merge rtcConfig overrides.
+    // Existing specific options (iceServers, forceRelayCandidate,
+    // prefetchIceCandidates) take precedence over rtcConfig values.
     const config: RTCConfiguration = {
-      bundlePolicy: 'balanced',
-      iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
-      iceServers,
-      iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
+      bundlePolicy: rtcConfig?.bundlePolicy ?? 'balanced',
+      iceCandidatePoolSize:
+        prefetchIceCandidates !== undefined
+          ? (prefetchIceCandidates ? 10 : 0)
+          : (rtcConfig?.iceCandidatePoolSize ?? 10),
+      iceServers: iceServers ?? rtcConfig?.iceServers,
+      iceTransportPolicy:
+        forceRelayCandidate !== undefined
+          ? (forceRelayCandidate ? 'relay' : 'all')
+          : (rtcConfig?.iceTransportPolicy ?? 'all'),
     };
 
-    logger.info('RTC config', config);
+    logger.info('RTC config', this._sanitizeConfigForLog(config));
     return config;
   }
 

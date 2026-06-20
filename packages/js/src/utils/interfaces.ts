@@ -451,6 +451,23 @@ export interface ICallOptions {
    * when the WebSocket connection is closed unexpectedly (e.g. network interruption, device sleep, etc).
    */
   keepConnectionAliveOnSocketClose?: boolean;
+
+  /**
+   * Optional RTC configuration override for the call.
+   *
+   * When provided, fields from this configuration are merged with
+   * the SDK's default RTC configuration. Explicit rtcConfig fields
+   * take precedence; omitted fields fall back to SDK defaults.
+   *
+   * The existing specific options (iceServers, forceRelayCandidate,
+   * prefetchIceCandidates) take precedence over rtcConfig defaults
+   * when both are provided.
+   *
+   * TURN credentials (username/credential) must not appear in
+   * logs, reports, or snapshots — use the sanitizeRtcConfig()
+   * utility for any output paths.
+   */
+  rtcConfig?: RTCConfiguration;
 }
 
 /**
