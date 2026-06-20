@@ -229,9 +229,25 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
       // Prefer call.getStats() — allows tests to inject stats without
       // needing a full RTCPeerConnection mock.
-      if (typeof call.getStats === 'function') {
+      //
+      // IMPORTANT: The real SDK BaseCall.getStats(callback, constraints) is
+      // callback-based and returns undefined, not a Promise<RTCStatsReport>.
+      // When call.getStats exists but returns undefined (or a non-thenable),
+      // we must fall through to peerConnection.getStats() so that production
+      // calls still collect stats. The SDK's callback-style getStats has
+      // length > 0 (it declares 2 parameters), while the CallLike interface
+      // declares getStats(): Promise<...> with length === 0. We use this to
+      // distinguish the two shapes without calling the wrong one.
+      if (typeof call.getStats === 'function' && call.getStats.length === 0) {
+        // Promise-returning, zero-arg getStats (test-friendly override)
         rawStats = await call.getStats();
-      } else if (call.peerConnection && typeof call.peerConnection.getStats === 'function') {
+      }
+
+      // Fall back to peerConnection.getStats() when:
+      // - call.getStats doesn't exist, OR
+      // - call.getStats is the SDK's callback-based version (length > 0), OR
+      // - call.getStats() returned undefined/void (safety net)
+      if (!rawStats && call.peerConnection && typeof call.peerConnection.getStats === 'function') {
         rawStats = await call.peerConnection.getStats();
       }
 

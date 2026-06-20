@@ -509,6 +509,85 @@ describe('PreCallDiagnostic', () => {
       expect(report.network?.rtt?.average).toBeCloseTo(30, 0);
     });
 
+    it('falls back to peerConnection.getStats() when call.getStats is callback-based (SDK BaseCall shape)', async () => {
+      // Regression: The real SDK's BaseCall.getStats(callback, constraints) is
+      // callback-based and returns undefined. Because call.getStats exists as a
+      // function, the old code would await call.getStats() (getting undefined)
+      // and never fall through to peerConnection.getStats(). This test verifies
+      // that the callback-based getStats (length === 2) is detected and skipped
+      // in favor of peerConnection.getStats().
+      const sdkStatsFrame = {
+        timestamp: Date.now(),
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.04, // 40ms
+                jitter: 0.006, // 6ms
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 800,
+              packetsLost: 1,
+              jitter: 0.006,
+              bytesReceived: 128000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 800,
+              bytesSent: 128000,
+            },
+          ],
+        },
+      };
+
+      // Simulate the real SDK's BaseCall.getStats(callback, constraints) —
+      // it takes 2 args and returns undefined (callback registration, not a promise).
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      function callbackGetStats(_callback: () => void, _constraints: unknown) {
+        // Real SDK would register the callback and return undefined
+        return undefined;
+      }
+
+      const mockPeerConnection = {
+        getStats: jest.fn().mockResolvedValue(sdkStatsFrame),
+      };
+
+      const mockCall = createMockCall({
+        getStats: callbackGetStats as unknown as () => Promise<unknown>,
+        peerConnection: mockPeerConnection as unknown as RTCPeerConnection,
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10,
+          statsSampleIntervalMs: 5,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      // The peerConnection.getStats() should have been used as fallback
+      expect(mockPeerConnection.getStats).toHaveBeenCalled();
+
+      // The network report should be populated (not quality: 'unknown')
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).not.toBe('unknown');
+      expect(report.network?.quality).toBe('good');
+      expect(report.network?.rtt?.average).toBeCloseTo(40, 0);
+      expect(report.network?.jitter?.average).toBeCloseTo(6, 0);
+      expect(report.network?.packets?.packetsReceived).toBe(800);
+    });
+
     it('collects multiple stats samples over the duration', async () => {
       let callCount = 0;
       const mockCall = createMockCall({
