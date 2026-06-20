@@ -127,16 +127,94 @@ export interface PreCallTimingsReport {
 }
 
 /**
+ * Counts of ICE candidates by type, as gathered locally.
+ */
+export interface PreCallIceCandidateCounts {
+  /** Total number of local ICE candidates. */
+  total: number;
+  /** Host candidates (direct interface addresses). */
+  host: number;
+  /** Server-reflexive candidates (STUN-derived). */
+  srflx: number;
+  /** Peer-reflexive candidates (discovered during connectivity checks). */
+  prflx: number;
+  /** Relay candidates (TURN-derived). */
+  relay: number;
+  /** Candidates with an unrecognized candidateType. */
+  unknown: number;
+}
+
+/**
+ * Metadata about a single ICE candidate, extracted from RTCStatsReport.
+ */
+export interface PreCallIceCandidateInfo {
+  /** Stats report ID for this candidate. */
+  id?: string;
+  /** Candidate type: host, srflx, prflx, relay, or a custom string. */
+  candidateType?: 'host' | 'srflx' | 'prflx' | 'relay' | string;
+  /** Transport protocol (e.g., 'udp', 'tcp'). */
+  protocol?: string;
+  /** Network type as reported by the browser (e.g., 'wifi', 'cellular', 'ethernet'). */
+  networkType?: string;
+  /** Relay protocol when candidateType is 'relay' (e.g., 'turn', 'turns'). */
+  relayProtocol?: string;
+  /** TURN server URL associated with this relay candidate. */
+  url?: string;
+}
+
+/**
+ * Report about the selected ICE candidate pair.
+ */
+export interface PreCallIceSelectedPairReport {
+  /** Stats report ID for this candidate pair. */
+  id?: string;
+  /** Candidate-pair state: frozen, waiting, in-progress, failed, succeeded. */
+  state?: string;
+  /** Whether this pair was nominated by the ICE agent. */
+  nominated?: boolean;
+  /** Whether this pair is writable. */
+  writable?: boolean;
+  /** Current round-trip time in seconds (as reported by the browser). */
+  currentRoundTripTime?: number;
+  /** Stats report ID of the local candidate in this pair. */
+  localCandidateId?: string;
+  /** Stats report ID of the remote candidate in this pair. */
+  remoteCandidateId?: string;
+  /** Metadata about the local candidate in this pair. */
+  local?: PreCallIceCandidateInfo;
+  /** Metadata about the remote candidate in this pair. */
+  remote?: PreCallIceCandidateInfo;
+}
+
+/**
  * Report from the ICE diagnostic module.
- * Placeholder structure — to be filled in by T2/VSDK-299 and T3/VSDK-300.
+ *
+ * Combines candidate-gathering counts/flags (T2) and selected-pair
+ * connectivity diagnostics (T3) into a single report section.
  */
 export interface PreCallIceReport {
-  /** Whether ICE gathering completed successfully. */
+  /** Whether ICE candidate gathering has completed. */
+  candidateGatheringCompleted?: boolean;
+  /** Whether ICE gathering completed successfully (alias for candidateGatheringCompleted). */
   gatheringComplete?: boolean;
-  /** ICE candidate types found. */
-  candidateTypes?: string[];
-  /** Whether a selected ICE pair was found. */
-  hasSelectedPair?: boolean;
+  /** Counts of local ICE candidates by type. */
+  candidateCounts: PreCallIceCandidateCounts;
+  /** Unique local candidate types, sorted alphabetically. */
+  candidateTypes: string[];
+  /** Whether at least one relay candidate was gathered. */
+  hasRelayCandidate: boolean;
+  /** Whether all gathered candidates are host-type only. */
+  onlyHostCandidates: boolean;
+  /** Whether a selected ICE candidate pair was found. */
+  hasSelectedPair: boolean;
+  /** Details about the selected candidate pair, if found. */
+  selectedPair?: PreCallIceSelectedPairReport;
+  /** Whether the selected (or fallback) candidate pair is in a failed state. */
+  selectedPairFailed?: boolean;
+  /** ICE gathering state from the RTCPeerConnection. */
+  iceGatheringState?: RTCIceGatheringState | string;
+  /** ICE connection state from the RTCPeerConnection. */
+  iceConnectionState?: RTCIceConnectionState | string;
 }
 
 /**
