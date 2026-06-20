@@ -28,3 +28,15 @@ export type {
   PreCallDiagnosticContext,
   DiagnosticTimings,
 } from './context';
+export {
+  IceReasonCode,
+  NetworkReasonCode,
+  MediaReasonCode,
+  MicrophoneReasonCode,
+} from './modules/verdict';
+export type {
+  IceReasonCodeValue,
+  NetworkReasonCodeValue,
+  MediaReasonCodeValue,
+  MicrophoneReasonCodeValue,
+} from './modules/verdict';
