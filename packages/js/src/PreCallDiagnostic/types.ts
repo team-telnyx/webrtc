@@ -206,14 +206,54 @@ export interface PreCallMediaReport {
 }
 
 /**
- * Report from the microphone diagnostic module.
- * Placeholder structure — to be filled in by T6/VSDK-303 and T7/VSDK-304.
+ * Permission state values for the microphone diagnostic module.
+ *
+ * Mirrors the browser Permissions API states where supported.
+ * 'unsupported' is used when the Permissions API is not available at all.
+ */
+export type MicrophonePermissionState =
+  | 'granted'
+  | 'denied'
+  | 'prompt'
+  | 'unknown'
+  | 'unsupported';
+
+/**
+ * Report from the microphone permission and device availability check.
+ *
+ * Implemented by T6 (VSDK-303). T7 (VSDK-304) adds active capture
+ * and audio-level diagnostics as a separate concern.
  */
 export interface PreCallMicrophoneReport {
-  /** Whether microphone permission was granted. */
+  /** Microphone permission state from the Permissions API (or best-effort inference). */
+  permissionState?: MicrophonePermissionState;
+  /**
+   * Whether microphone permission was granted.
+   * Convenience boolean: true when permissionState is 'granted', false otherwise.
+   * Undefined when permission state could not be determined.
+   */
   permissionGranted?: boolean;
-  /** Whether a microphone device is available. */
+  /**
+   * Whether at least one audio input device is available.
+   * Undefined when device enumeration is not available.
+   */
   deviceAvailable?: boolean;
+  /**
+   * Number of audio input devices found via enumerateDevices.
+   * Undefined when device enumeration is not available.
+   */
+  deviceCount?: number;
+  /**
+   * Whether device labels are accessible (implies permission was granted).
+   * When false, device labels may be empty strings.
+   * Undefined when device enumeration is not available.
+   */
+  labelsAccessible?: boolean;
+  /**
+   * Reason codes for any issues found, suitable for verdict/reason module input.
+   * E.g. 'microphone_permission_denied', 'microphone_no_device'.
+   */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**
