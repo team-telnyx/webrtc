@@ -213,11 +213,26 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
+   * Resolve the RTCPeerConnection from a CallLike object.
+   *
+   * Tries two paths:
+   * 1. `call.peerConnection` — explicit CallLike property (test mocks)
+   * 2. `call.peer?.instance` — real SDK Call structure (BaseCall.peer.instance)
+   */
+  private resolvePeerConnection(call: CallLike): RTCPeerConnection | undefined {
+    // Try explicit CallLike property first (used by test mocks)
+    if (call.peerConnection) return call.peerConnection;
+    // Try real SDK's BaseCall.peer.instance path
+    if (call.peer?.instance) return call.peer.instance;
+    return undefined;
+  }
+
+  /**
    * Collect a single stats sample from the diagnostic call and push it
    * into context.statsSamples.
    *
    * Tries call.getStats() first (test-friendly override), then falls back
-   * to call.peerConnection.getStats(). Normalizes the raw RTCStatsReport
+   * to the peer connection's getStats(). Normalizes the raw RTCStatsReport
    * into a structured frame that buildPreCallNetworkReport() can consume.
    */
   private async collectOneSample(
@@ -243,12 +258,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         rawStats = await call.getStats();
       }
 
-      // Fall back to peerConnection.getStats() when:
+      // Fall back to peer connection getStats() when:
       // - call.getStats doesn't exist, OR
       // - call.getStats is the SDK's callback-based version (length > 0), OR
       // - call.getStats() returned undefined/void (safety net)
-      if (!rawStats && call.peerConnection && typeof call.peerConnection.getStats === 'function') {
-        rawStats = await call.peerConnection.getStats();
+      const pc = this.resolvePeerConnection(call);
+      if (!rawStats && pc && typeof pc.getStats === 'function') {
+        rawStats = await pc.getStats();
       }
 
       if (!rawStats) return;
