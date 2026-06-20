@@ -10,10 +10,7 @@
 
 import { TelnyxRTC, RunPreCallOptions } from './TelnyxRTC';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
-import type {
-  PreCallDiagnosticOptions,
-  PreCallDiagnosticReport,
-} from './PreCallDiagnostic/types';
+import type { PreCallDiagnosticOptions } from './PreCallDiagnostic/types';
 import { PreCallDiagnosis } from './PreCallDiagnosis';
 
 // --- Mock PreCallDiagnostic to intercept constructor options ---
@@ -42,14 +39,19 @@ jest.mock('./PreCallDiagnostic', () => {
 
 // --- Mock the Verto base class so TelnyxRTC can be instantiated without a real WS ---
 
+interface MockVertoOptions {
+  [key: string]: unknown;
+  login_token?: string;
+}
+
 jest.mock('./Modules/Verto', () => {
   return class MockVerto {
-    options: any;
+    options: MockVertoOptions;
     iceServers: RTCIceServer[] = [
       { urls: 'stun:stun.l.google.com:19302' },
     ];
-    calls: any = {};
-    constructor(options: any) {
+    calls: Record<string, unknown> = {};
+    constructor(options: MockVertoOptions) {
       this.options = options;
     }
     newCall() {
@@ -72,7 +74,7 @@ jest.mock('./Modules/Verto', () => {
 
 // --- Helper ---
 
-function createClient(overrides: Record<string, any> = {}): TelnyxRTC {
+function createClient(overrides: Partial<MockVertoOptions> = {}): TelnyxRTC {
   return new TelnyxRTC({
     login_token: 'test-token',
     ...overrides,
