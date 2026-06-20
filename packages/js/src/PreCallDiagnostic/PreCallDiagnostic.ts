@@ -46,7 +46,6 @@ const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_CALL_SETUP_TIMEOUT_MS = 15000;
 
 /** Default interval between stats samples in milliseconds. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 
 /** Default duration to keep the diagnostic call active in milliseconds. */
@@ -89,11 +88,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       context.timings.callCreatedAt = Date.now();
 
       // Wait for call setup (placeholder — real implementation in future tickets)
-      // For T1, we just record the timing
+      // For now, we just record the timing when the call becomes active
       context.timings.callActiveAt = Date.now();
 
-      // Collect stats samples (placeholder — real sampling in future tickets)
-      await this.collectSamples();
+      // Collect stats samples from the diagnostic call
+      await this.collectSamples(call, context);
 
       // Mark completion before building the report so timings include it
       context.timings.completedAt = Date.now();
@@ -180,16 +179,186 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   /**
    * Collect stats samples during the diagnostic call.
    *
-   * Placeholder for T1 — real sampling will be added in future tickets.
-   * This method exists as an extension point.
+   * Periodically polls the diagnostic call's stats source (call.getStats()
+   * or call.peerConnection.getStats()), normalizes each RTCStatsReport into
+   * a frame matching the SDK stats shapes, and pushes frames into
+   * context.statsSamples for module builders (e.g. network report).
    */
-  private async collectSamples(): Promise<void> {
-    // Placeholder — real stats sampling to be implemented in future tickets.
-    // The duration and interval options will be used here to control
-    // how many samples are collected.
+  private async collectSamples(
+    call: CallLike,
+    context: PreCallDiagnosticContext
+  ): Promise<void> {
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
-    // Wait for the configured duration so the diagnostic call stays active
-    await new Promise((resolve) => setTimeout(resolve, Math.min(durationMs, DEFAULT_DURATION_MS)));
+    const intervalMs = this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
+
+    const startTime = Date.now();
+    const deadline = startTime + Math.min(durationMs, DEFAULT_DURATION_MS);
+
+    // Collect at least one sample immediately
+    await this.collectOneSample(call, context);
+
+    // Continue collecting at the configured interval until the duration expires
+    while (Date.now() < deadline) {
+      const nextSampleTime = Math.min(
+        startTime + Math.round((context.statsSamples.length) * intervalMs),
+        deadline
+      );
+      const waitMs = nextSampleTime - Date.now();
+      if (waitMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+      if (Date.now() >= deadline) break;
+      await this.collectOneSample(call, context);
+    }
+  }
+
+  /**
+   * Collect a single stats sample from the diagnostic call and push it
+   * into context.statsSamples.
+   *
+   * Tries call.getStats() first (test-friendly override), then falls back
+   * to call.peerConnection.getStats(). Normalizes the raw RTCStatsReport
+   * into a structured frame that buildPreCallNetworkReport() can consume.
+   */
+  private async collectOneSample(
+    call: CallLike,
+    context: PreCallDiagnosticContext
+  ): Promise<void> {
+    try {
+      let rawStats: RTCStatsReport | unknown | undefined;
+
+      // Prefer call.getStats() — allows tests to inject stats without
+      // needing a full RTCPeerConnection mock.
+      if (typeof call.getStats === 'function') {
+        rawStats = await call.getStats();
+      } else if (call.peerConnection && typeof call.peerConnection.getStats === 'function') {
+        rawStats = await call.peerConnection.getStats();
+      }
+
+      if (!rawStats) return;
+
+      const frame = this.normalizeStatsFrame(rawStats);
+      if (frame) {
+        context.statsSamples.push(frame);
+      }
+    } catch {
+      // Stats collection failures should not abort the diagnostic.
+      // Individual sample failures are non-fatal — the report is built
+      // from whatever samples were successfully collected.
+    }
+  }
+
+  /**
+   * Normalize a raw RTCStatsReport (or equivalent) into a structured
+   * stats frame that buildPreCallNetworkReport() can consume.
+   *
+   * Handles two shapes:
+   * 1. Standard RTCStatsReport (Map-like with typed stat entries)
+   * 2. Pre-normalized frame objects (e.g. from test mocks or the SDK's
+   *    CallReportCollector IStatsInterval shape) — passed through directly.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private normalizeStatsFrame(rawStats: RTCStatsReport | unknown): Record<string, any> | undefined {
+    // If rawStats is already a structured object (not a Map/RTCStatsReport),
+    // pass it through — this supports test mocks and IStatsInterval shapes.
+    if (rawStats && typeof rawStats === 'object' && !(rawStats instanceof Map)) {
+      // Check if it behaves like a real RTCStatsReport (has forEach and is
+      // Map-like with a size property) vs. a plain pre-normalized frame object.
+      const obj = rawStats as Record<string, unknown>;
+      const hasForEach = typeof obj.forEach === 'function';
+      const hasSize = typeof obj.size === 'number';
+      if (hasForEach && hasSize) {
+        // It's a real RTCStatsReport — parse it
+        return this.parseRTCStatsReport(rawStats as RTCStatsReport);
+      }
+      // It's a pre-normalized frame — pass through
+      return rawStats as Record<string, unknown>;
+    }
+
+    // Map-like RTCStatsReport
+    if (rawStats instanceof Map || (rawStats && typeof (rawStats as Map<unknown, unknown>).forEach === 'function')) {
+      return this.parseRTCStatsReport(rawStats as RTCStatsReport);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Parse a standard RTCStatsReport into a structured stats frame.
+   *
+   * Reads inbound-rtp, outbound-rtp, remote-inbound-rtp, and transport
+   * stat entries and organizes them into the audio/connection shape that
+   * buildPreCallNetworkReport() expects.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private parseRTCStatsReport(report: RTCStatsReport): Record<string, any> {
+    const timestamp = Date.now();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const audioInbound: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const audioOutbound: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const remoteAudioInbound: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const connection: Record<string, any> = {};
+
+    report.forEach((stats) => {
+      const entry = stats as Record<string, unknown>;
+      if (entry.kind === 'audio' || entry.mediaType === 'audio') {
+        switch (entry.type) {
+          case 'inbound-rtp':
+            audioInbound.push({
+              packetsReceived: entry.packetsReceived,
+              packetsLost: entry.packetsLost,
+              jitter: entry.jitter,
+              bytesReceived: entry.bytesReceived,
+            });
+            break;
+          case 'outbound-rtp':
+            audioOutbound.push({
+              packetsSent: entry.packetsSent,
+              bytesSent: entry.bytesSent,
+            });
+            break;
+          case 'remote-inbound-rtp':
+            remoteAudioInbound.push({
+              roundTripTime: entry.roundTripTime,
+              jitter: entry.jitter,
+              packetsReceived: entry.packetsReceived,
+              packetsLost: entry.packetsLost,
+            });
+            break;
+        }
+      }
+
+      // Transport-level stats (candidate-pair RTT, bytes, packets)
+      if (entry.type === 'candidate-pair' && (entry as Record<string, unknown>).selected === true) {
+        connection.currentRoundTripTime = entry.currentRoundTripTime;
+        connection.bytesSent = entry.bytesSent;
+        connection.bytesReceived = entry.bytesReceived;
+        connection.packetsSent = entry.packetsSent;
+        connection.packetsReceived = entry.packetsReceived;
+      }
+      if (entry.type === 'transport') {
+        if (entry.bytesSent !== undefined) connection.bytesSent = entry.bytesSent;
+        if (entry.bytesReceived !== undefined) connection.bytesReceived = entry.bytesReceived;
+      }
+    });
+
+    const frame: Record<string, unknown> = { timestamp };
+    if (audioInbound.length > 0 || audioOutbound.length > 0) {
+      frame.audio = {
+        ...(audioInbound.length > 0 ? { inbound: audioInbound } : {}),
+        ...(audioOutbound.length > 0 ? { outbound: audioOutbound } : {}),
+      };
+    }
+    if (remoteAudioInbound.length > 0) {
+      frame.remote = { audio: { inbound: remoteAudioInbound } };
+    }
+    if (Object.keys(connection).length > 0) {
+      frame.connection = connection;
+    }
+    return frame;
   }
 
   /**
