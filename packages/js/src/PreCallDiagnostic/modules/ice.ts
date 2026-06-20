@@ -33,7 +33,7 @@ import type {
 export async function buildPreCallIceReport(
   context: PreCallDiagnosticContext
 ): Promise<PreCallIceReport | undefined> {
-  const peerConnection = context.call?.peerConnection;
+  const peerConnection = context.call?.peer?.instance;
   if (!peerConnection) {
     return undefined;
   }

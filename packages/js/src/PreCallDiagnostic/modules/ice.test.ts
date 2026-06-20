@@ -18,9 +18,7 @@ import { buildPreCallIceReport } from './ice';
 import type {
   PreCallDiagnosticContext,
 } from '../context';
-import type {
-  CallLike,
-} from '../types';
+import type Call from '../../Modules/Verto/webrtc/Call';
 
 // --- Mock helpers ---
 
@@ -76,28 +74,30 @@ function createMockPeerConnection(overrides: {
 }
 
 /**
- * Create a mock CallLike with a peer connection.
+ * Create a mock Call with a peer connection.
+ * Uses the real runtime shape: `peer.instance` instead of the
+ * old `peerConnection` property.
  */
 function createMockCall(
   peerConnection?: RTCPeerConnection
-): CallLike {
+): Call {
   return {
     id: 'test-call-id',
-    hangup: jest.fn(),
-    peerConnection,
-  };
+    hangup: jest.fn().mockResolvedValue(undefined),
+    peer: peerConnection ? { instance: peerConnection } : undefined,
+  } as unknown as Call;
 }
 
 /**
  * Create a minimal diagnostic context.
  */
 function createContext(overrides: {
-  call?: CallLike;
+  call?: Call;
   [key: string]: unknown;
 }): PreCallDiagnosticContext {
   return {
     options: {
-      client: { newCall: jest.fn() },
+      client: { newCall: jest.fn() } as unknown as import('../../TelnyxRTC').TelnyxRTC,
       destinationNumber: '1234',
     },
     statsSamples: [],
@@ -584,7 +584,7 @@ describe('buildPreCallIceReport', () => {
       expect(report).toBeUndefined();
     });
 
-    it('returns undefined when call has no peer connection', async () => {
+    it('returns undefined when call has no peer.instance', async () => {
       const context = createContext({ call: createMockCall(undefined) });
 
       const report = await buildPreCallIceReport(context);
@@ -592,7 +592,7 @@ describe('buildPreCallIceReport', () => {
       expect(report).toBeUndefined();
     });
 
-    it('returns undefined when peerConnection.getStats is not a function', async () => {
+    it('returns undefined when peer.instance.getStats is not a function', async () => {
       const pc = { iceGatheringState: 'new', iceConnectionState: 'new' } as unknown as RTCPeerConnection;
       const context = createContext({ call: createMockCall(pc) });
 
@@ -691,6 +691,66 @@ describe('buildPreCallIceReport', () => {
       // Only the local candidate should be counted
       expect(report!.candidateCounts.total).toBe(1);
       expect(report!.candidateCounts.host).toBe(1);
+    });
+  });
+
+  describe('integration with real SDK call shape (peer.instance)', () => {
+    it('builds ICE report from a call-like object using peer.instance.getStats()', async () => {
+      // Simulate the real SDK Call runtime shape:
+      // Real Call has: call.peer.instance (RTCPeerConnection)
+      // Real Call does NOT have: call.peerConnection
+      const stats = makeMixedCandidateStats();
+      const mockPC = createMockPeerConnection({ getStatsResult: stats });
+
+      // Call-like object matching the real SDK shape
+      const callLike = {
+        id: 'real-sdk-call-id',
+        hangup: jest.fn(),
+        peer: { instance: mockPC },
+      } as unknown as Call;
+
+      const context = createContext({ call: callLike });
+      const report = await buildPreCallIceReport(context);
+
+      expect(report).toBeDefined();
+      expect(report!.candidateCounts).toEqual({
+        total: 3,
+        host: 1,
+        srflx: 1,
+        prflx: 0,
+        relay: 1,
+        unknown: 0,
+      });
+      expect(report!.hasRelayCandidate).toBe(true);
+      expect(report!.onlyHostCandidates).toBe(false);
+      expect(report!.hasSelectedPair).toBe(true);
+      expect(report!.selectedPair!.id).toBe('cp-1');
+      expect(report!.selectedPair!.state).toBe('succeeded');
+    });
+
+    it('returns undefined when call has peer but no peer.instance', async () => {
+      const callLike = {
+        id: 'no-instance-call',
+        hangup: jest.fn(),
+        peer: { instance: undefined },
+      } as unknown as Call;
+
+      const context = createContext({ call: callLike });
+      const report = await buildPreCallIceReport(context);
+
+      expect(report).toBeUndefined();
+    });
+
+    it('returns undefined when call has no peer property at all', async () => {
+      const callLike = {
+        id: 'no-peer-call',
+        hangup: jest.fn(),
+      } as unknown as Call;
+
+      const context = createContext({ call: callLike });
+      const report = await buildPreCallIceReport(context);
+
+      expect(report).toBeUndefined();
     });
   });
 });
