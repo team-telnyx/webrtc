@@ -108,6 +108,7 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
   const samples: number[] = [];
   for (const frame of frames) {
     // Try remote inbound audio first (standard WebRTC stats path)
+    let frameProducedRtt = false;
     const remoteInbound: InboundAudioEntry[] | undefined =
       frame?.remote?.audio?.inbound;
     if (Array.isArray(remoteInbound)) {
@@ -118,13 +119,17 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
           const rttMs = rttSec * 1000;
           if (rttMs >= 0) {
             samples.push(rttMs);
+            frameProducedRtt = true;
           }
         }
       }
     }
 
-    // Fallback: try connection-level RTT (older SDK stats format)
-    if (samples.length === 0) {
+    // Fallback: try connection-level RTT (older SDK stats format).
+    // Decision is per-frame so that mixed/partial stats streams are handled
+    // correctly — if this frame had no remote inbound RTT, we still want to
+    // include connection.currentRoundTripTime in min/max/average.
+    if (!frameProducedRtt) {
       const currentRtt = safeNumber(frame?.connection?.currentRoundTripTime);
       if (currentRtt !== undefined) {
         const rttMs = currentRtt * 1000;
@@ -145,6 +150,7 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
 function extractJitterSamples(frames: StatsFrame[]): number[] {
   const samples: number[] = [];
   for (const frame of frames) {
+    let frameProducedJitter = false;
     const remoteInbound: InboundAudioEntry[] | undefined =
       frame?.remote?.audio?.inbound;
     if (Array.isArray(remoteInbound)) {
@@ -154,13 +160,14 @@ function extractJitterSamples(frames: StatsFrame[]): number[] {
           const jitterMs = jitterSec * 1000;
           if (jitterMs >= 0) {
             samples.push(jitterMs);
+            frameProducedJitter = true;
           }
         }
       }
     }
 
     // Fallback: local inbound audio jitter
-    if (samples.length === 0) {
+    if (!frameProducedJitter) {
       const localInbound: InboundAudioEntry[] | undefined =
         frame?.audio?.inbound;
       if (Array.isArray(localInbound)) {
@@ -170,8 +177,23 @@ function extractJitterSamples(frames: StatsFrame[]): number[] {
             const jitterMs = jitterSec * 1000;
             if (jitterMs >= 0) {
               samples.push(jitterMs);
+              frameProducedJitter = true;
             }
           }
+        }
+      }
+    }
+
+    // Fallback: IStatsInterval shape — audio.inbound is an object (not array)
+    // with jitterAvg already in milliseconds (no *1000 conversion needed).
+    // This supports the existing CallReportCollector stats shape so that
+    // jitter degradation is not missed when wired to that collector.
+    if (!frameProducedJitter) {
+      const inboundObj = frame?.audio?.inbound;
+      if (inboundObj && typeof inboundObj === 'object' && !Array.isArray(inboundObj)) {
+        const jitterAvgMs = safeNumber(inboundObj.jitterAvg);
+        if (jitterAvgMs !== undefined && jitterAvgMs >= 0) {
+          samples.push(jitterAvgMs);
         }
       }
     }

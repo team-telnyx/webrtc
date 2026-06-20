@@ -859,4 +859,121 @@ describe('buildPreCallNetworkReport', () => {
       checkNoNaN(report);
     });
   });
+
+  describe('RTT per-frame fallback', () => {
+    it('includes connection.currentRoundTripTime for later partial frames after an initial remote RTT frame', () => {
+      // Frame 1 has remote inbound RTT (primary source)
+      // Frame 2 only has connection.currentRoundTripTime (partial/alternate stats)
+      // Both RTT samples should be included in min/max/average
+      const frames = [
+        {
+          timestamp: 1000,
+          remote: {
+            audio: {
+              inbound: [{ roundTripTime: 0.02 }], // 20ms
+            },
+          },
+        },
+        {
+          timestamp: 2000,
+          connection: {
+            currentRoundTripTime: 0.06, // 60ms — no remote inbound data
+          },
+        },
+      ];
+      const context = createContext({ statsSamples: frames });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.rtt).toBeDefined();
+      expect(report?.rtt?.min).toBeCloseTo(20, 0);
+      expect(report?.rtt?.max).toBeCloseTo(60, 0);
+      // average = (20 + 60) / 2 = 40
+      expect(report?.rtt?.average).toBeCloseTo(40, 0);
+    });
+
+    it('does not duplicate RTT when a frame has both remote inbound and connection-level RTT', () => {
+      const frame = {
+        timestamp: 1000,
+        remote: {
+          audio: {
+            inbound: [{ roundTripTime: 0.05 }], // 50ms — primary source
+          },
+        },
+        connection: {
+          currentRoundTripTime: 0.04, // 40ms — should NOT be used since primary was found
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.rtt).toBeDefined();
+      // Only the remote inbound RTT should be used, not the connection-level fallback
+      expect(report?.rtt?.average).toBeCloseTo(50, 0);
+    });
+  });
+
+  describe('IStatsInterval jitter support', () => {
+    it('reads jitterAvg (ms) from IStatsInterval-shaped frames', () => {
+      // Simulate a frame from CallReportCollector's IStatsInterval shape:
+      // audio.inbound is an object (not array) with jitterAvg already in ms
+      const frame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: {
+            packetsReceived: 1000,
+            packetsLost: 0,
+            jitterAvg: 5, // already in ms — should NOT be multiplied by 1000
+          },
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.jitter).toBeDefined();
+      expect(report?.jitter?.average).toBeCloseTo(5, 0);
+    });
+
+    it('detects jitter degradation from IStatsInterval jitterAvg', () => {
+      const frame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: {
+            packetsReceived: 1000,
+            packetsLost: 0,
+            jitterAvg: 50, // 50ms — above degraded threshold (30ms)
+          },
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('fair');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_degraded')).toBe(true);
+    });
+
+    it('prefers raw WebRTC jitter over jitterAvg when both are available', () => {
+      // Frame has both array-based inbound (raw WebRTC) and jitterAvg (IStatsInterval).
+      // The raw jitter path (seconds → ms) should take priority.
+      const frame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 0,
+              jitter: 0.003, // 3ms in seconds
+              bytesReceived: 160000,
+            },
+          ],
+        },
+        // This object-level inbound should NOT be read because the array path succeeded
+        _inboundObj: { jitterAvg: 80 },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.jitter).toBeDefined();
+      expect(report?.jitter?.average).toBeCloseTo(3, 0);
+    });
+  });
 });
