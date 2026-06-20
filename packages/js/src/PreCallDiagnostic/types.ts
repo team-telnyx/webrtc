@@ -140,12 +140,83 @@ export interface PreCallIceReport {
 }
 
 /**
+ * Summary statistics with min/max/average, used for RTT and jitter.
+ * All values in milliseconds.
+ */
+export interface NetworkMinMaxAverage {
+  /** Minimum observed value in ms. */
+  min?: number;
+  /** Maximum observed value in ms. */
+  max?: number;
+  /** Average of observed values in ms. */
+  average?: number;
+}
+
+/**
+ * Packet counters from the diagnostic call.
+ */
+export interface NetworkPacketCounters {
+  /** Total RTP packets sent. */
+  packetsSent?: number;
+  /** Total RTP packets received. */
+  packetsReceived?: number;
+  /** Total RTP packets lost (cumulative). */
+  packetsLost?: number;
+  /** Packet loss fraction (0–1), computed from packetsLost / (packetsReceived + packetsLost). */
+  packetLossFraction?: number;
+}
+
+/**
+ * Byte counters from the diagnostic call.
+ */
+export interface NetworkByteCounters {
+  /** Total bytes sent. */
+  bytesSent?: number;
+  /** Total bytes received. */
+  bytesReceived?: number;
+}
+
+/**
+ * Bitrate measurements computed from consecutive stats samples.
+ * All values in bits per second (bps).
+ */
+export interface NetworkBitrate {
+  /** Estimated outbound audio bitrate in bps. */
+  outbound?: number;
+  /** Estimated inbound audio bitrate in bps. */
+  inbound?: number;
+}
+
+/**
  * Report from the network diagnostic module.
- * Placeholder structure — to be filled in by T4/VSDK-301.
+ *
+ * Produces normalized network quality metrics from raw WebRTC stats,
+ * with quality classification and reason inputs for verdict logic.
  */
 export interface PreCallNetworkReport {
-  /** Overall network quality assessment. */
+  /** Overall network quality assessment based on RTT, jitter, and packet loss. */
   quality?: 'good' | 'fair' | 'poor' | 'unknown';
+
+  /** Round-trip time statistics in milliseconds. */
+  rtt?: NetworkMinMaxAverage;
+
+  /** Jitter statistics in milliseconds. */
+  jitter?: NetworkMinMaxAverage;
+
+  /** Packet loss and counter statistics. */
+  packets?: NetworkPacketCounters;
+
+  /** Byte transfer counters. */
+  bytes?: NetworkByteCounters;
+
+  /** Estimated audio bitrate in bps (computed from byte deltas between samples). */
+  bitrate?: NetworkBitrate;
+
+  /**
+   * Reason inputs for the verdict module.
+   * Each entry describes a specific network degradation detected.
+   */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**

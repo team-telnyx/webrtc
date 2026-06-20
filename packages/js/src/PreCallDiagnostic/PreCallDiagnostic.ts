@@ -100,7 +100,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
       // Build module reports
       const ice = await this.getIceReport(context);
-      const network = await this.getNetworkReport(context);
+      const network = this.getNetworkReport(context);
       const media = await this.getMediaReport(context);
       const microphone = await this.getMicrophoneReport(context);
 
@@ -210,9 +210,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * Build the network report section.
    * Delegates to the network module builder.
    */
-  private async getNetworkReport(
+  private getNetworkReport(
     context: PreCallDiagnosticContext
-  ): Promise<PreCallDiagnosticReport['network']> {
+  ): PreCallDiagnosticReport['network'] {
     const networkEnabled = this.options.network !== false;
     if (!networkEnabled) {
       return undefined;

@@ -1,0 +1,862 @@
+/**
+ * Tests for the network quality report module — T4 (VSDK-301).
+ *
+ * Verifies:
+ * - buildPreCallNetworkReport produces typed, normalized output
+ * - RTT, jitter, packet loss, byte counters, and bitrate are normalized
+ * - Quality classification is correct for good/fair/poor/unknown
+ * - No NaN values are emitted
+ * - Partial/missing stats are handled safely
+ * - Reason inputs are generated for degraded/poor metrics
+ */
+
+import { buildPreCallNetworkReport } from '../modules/network';
+import type {
+  PreCallDiagnosticContext,
+} from '../context';
+import type {
+  PreCallDiagnosticOptions,
+} from '../types';
+
+// --- Helpers ---
+
+function createContext(
+  overrides: Partial<PreCallDiagnosticContext> = {}
+): PreCallDiagnosticContext {
+  const defaultOptions: PreCallDiagnosticOptions = {
+    client: {
+      newCall: jest.fn().mockReturnValue({
+        id: 'test-call',
+        hangup: jest.fn(),
+      }),
+    },
+    destinationNumber: '1234',
+  };
+
+  return {
+    options: defaultOptions,
+    statsSamples: [],
+    timings: {
+      startedAt: Date.now(),
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Create a stats frame mimicking the SDK's stats collector output.
+ * The SDK stats collector produces frames with:
+ *   - audio.inbound[] — local inbound audio stats
+ *   - audio.outbound[] — local outbound audio stats
+ *   - remote.audio.inbound[] — remote inbound audio stats (RTT source)
+ *   - connection — candidate-pair level stats
+ */
+function createStatsFrame(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    timestamp: Date.now(),
+    audio: {
+      inbound: [
+        {
+          packetsReceived: 100,
+          packetsLost: 0,
+          jitter: 0.005, // 5ms
+          bytesReceived: 16000,
+        },
+      ],
+      outbound: [
+        {
+          packetsSent: 100,
+          bytesSent: 16000,
+        },
+      ],
+    },
+    remote: {
+      audio: {
+        inbound: [
+          {
+            roundTripTime: 0.05, // 50ms
+            jitter: 0.005, // 5ms
+          },
+        ],
+      },
+    },
+    connection: {
+      bytesSent: 16000,
+      bytesReceived: 16000,
+      packetsSent: 100,
+      packetsReceived: 100,
+    },
+    ...overrides,
+  };
+}
+
+// --- Tests ---
+
+describe('buildPreCallNetworkReport', () => {
+  describe('with no stats samples', () => {
+    it('returns quality: unknown when statsSamples is empty', () => {
+      const context = createContext({ statsSamples: [] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      expect(report?.quality).toBe('unknown');
+    });
+
+    it('returns an empty reasons array when statsSamples is empty', () => {
+      const context = createContext({ statsSamples: [] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.reasons).toEqual([]);
+    });
+  });
+
+  describe('with good network stats', () => {
+    it('returns quality: good for low RTT, jitter, and packet loss', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.02, // 20ms RTT
+                jitter: 0.003, // 3ms jitter
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 0,
+              jitter: 0.003, // 3ms
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      expect(report?.quality).toBe('good');
+      expect(report?.rtt).toBeDefined();
+      expect(report?.rtt?.average).toBeCloseTo(20, 0); // ~20ms
+      expect(report?.jitter).toBeDefined();
+      expect(report?.jitter?.average).toBeCloseTo(3, 0); // ~3ms
+    });
+
+    it('normalizes RTT from seconds to milliseconds', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.1, // 100ms
+                jitter: 0.01, // 10ms
+              },
+            ],
+          },
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.rtt?.average).toBeCloseTo(100, 0);
+      expect(report?.jitter?.average).toBeCloseTo(10, 0);
+    });
+
+    it('computes packet loss fraction', () => {
+      const frame = createStatsFrame({
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 990,
+              packetsLost: 10,
+              jitter: 0.003,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.packets).toBeDefined();
+      expect(report?.packets?.packetsReceived).toBe(990);
+      expect(report?.packets?.packetsLost).toBe(10);
+      expect(report?.packets?.packetLossFraction).toBeCloseTo(10 / 1000, 4);
+    });
+
+    it('includes byte counters', () => {
+      const frame = createStatsFrame();
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.bytes).toBeDefined();
+      expect(report?.bytes?.bytesSent).toBe(16000);
+      expect(report?.bytes?.bytesReceived).toBe(16000);
+    });
+  });
+
+  describe('with degraded network stats', () => {
+    it('returns quality: fair for RTT >= 300ms', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.35, // 350ms
+                jitter: 0.005,
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 5,
+              jitter: 0.005,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('fair');
+      expect(report?.reasons).toBeDefined();
+      expect(report?.reasons?.length).toBeGreaterThanOrEqual(1);
+      expect(report?.reasons?.[0]?.code).toBe('network_high_rtt_degraded');
+    });
+
+    it('returns quality: fair for jitter >= 30ms', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.02,
+                jitter: 0.04, // 40ms
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 0,
+              jitter: 0.04, // 40ms
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('fair');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_degraded')).toBe(true);
+    });
+
+    it('returns quality: fair for packet loss >= 2%', () => {
+      const frame = createStatsFrame({
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 980,
+              packetsLost: 20, // 2% loss
+              jitter: 0.005,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('fair');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_packet_loss_degraded')).toBe(true);
+    });
+  });
+
+  describe('with poor network stats', () => {
+    it('returns quality: poor for RTT >= 500ms', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.6, // 600ms
+                jitter: 0.005,
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 5,
+              jitter: 0.005,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('poor');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_rtt_poor')).toBe(true);
+    });
+
+    it('returns quality: poor for jitter >= 100ms', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.02,
+                jitter: 0.12, // 120ms
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 0,
+              jitter: 0.12, // 120ms
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('poor');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_poor')).toBe(true);
+    });
+
+    it('returns quality: poor for packet loss >= 5%', () => {
+      const frame = createStatsFrame({
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 950,
+              packetsLost: 50, // 5% loss
+              jitter: 0.005,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.quality).toBe('poor');
+      expect(report?.reasons?.some((r) => r.code === 'network_high_packet_loss_poor')).toBe(true);
+    });
+  });
+
+  describe('with partial stats', () => {
+    it('handles frames with only RTT (no jitter, no packet loss)', () => {
+      const frame = {
+        timestamp: Date.now(),
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.02, // 20ms
+              },
+            ],
+          },
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      expect(report?.quality).toBe('good');
+      expect(report?.rtt?.average).toBeCloseTo(20, 0);
+      expect(report?.jitter).toBeUndefined();
+    });
+
+    it('handles frames with only connection-level stats', () => {
+      const frame = {
+        timestamp: Date.now(),
+        connection: {
+          currentRoundTripTime: 0.03, // 30ms
+          bytesSent: 10000,
+          bytesReceived: 10000,
+          packetsSent: 50,
+          packetsReceived: 50,
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      expect(report?.rtt?.average).toBeCloseTo(30, 0);
+    });
+
+    it('handles empty inbound/outbound arrays', () => {
+      const frame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: [],
+          outbound: [],
+        },
+        remote: {
+          audio: {
+            inbound: [],
+          },
+        },
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      // No usable data, quality should be unknown
+      expect(report?.quality).toBe('unknown');
+    });
+
+    it('handles frames with NaN values', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: NaN,
+                jitter: NaN,
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: NaN,
+              packetsLost: NaN,
+              jitter: NaN,
+              bytesReceived: NaN,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: NaN,
+              bytesSent: NaN,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      // NaN values must not appear in the report
+      if (report?.rtt) {
+        expect(Number.isNaN(report.rtt.average ?? 0)).toBe(false);
+        expect(Number.isNaN(report.rtt.min ?? 0)).toBe(false);
+        expect(Number.isNaN(report.rtt.max ?? 0)).toBe(false);
+      }
+      if (report?.jitter) {
+        expect(Number.isNaN(report.jitter.average ?? 0)).toBe(false);
+      }
+      if (report?.packets?.packetLossFraction !== undefined) {
+        expect(Number.isNaN(report.packets.packetLossFraction)).toBe(false);
+      }
+    });
+
+    it('handles frames with Infinity values', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: Infinity,
+                jitter: -Infinity,
+              },
+            ],
+          },
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      // Infinity values should be filtered out
+      if (report?.rtt?.average !== undefined) {
+        expect(Number.isFinite(report.rtt.average)).toBe(true);
+      }
+    });
+  });
+
+  describe('with multiple samples', () => {
+    it('computes min/max/average across samples', () => {
+      const frames = [
+        createStatsFrame({
+          timestamp: 1000,
+          remote: {
+            audio: {
+              inbound: [{ roundTripTime: 0.02, jitter: 0.003 }],
+            },
+          },
+        }),
+        createStatsFrame({
+          timestamp: 2000,
+          remote: {
+            audio: {
+              inbound: [{ roundTripTime: 0.05, jitter: 0.008 }],
+            },
+          },
+        }),
+        createStatsFrame({
+          timestamp: 3000,
+          remote: {
+            audio: {
+              inbound: [{ roundTripTime: 0.03, jitter: 0.005 }],
+            },
+          },
+        }),
+      ];
+      const context = createContext({ statsSamples: frames });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.rtt).toBeDefined();
+      expect(report?.rtt?.min).toBeCloseTo(20, 0);
+      expect(report?.rtt?.max).toBeCloseTo(50, 0);
+      // average = (20 + 50 + 30) / 3 = 33.3
+      expect(report?.rtt?.average).toBeCloseTo(33.3, 0);
+    });
+
+    it('computes bitrate from byte deltas between first and last frames', () => {
+      const frames = [
+        createStatsFrame({
+          timestamp: 1000,
+          audio: {
+            inbound: [
+              {
+                packetsReceived: 50,
+                packetsLost: 0,
+                jitter: 0.005,
+                bytesReceived: 8000,
+              },
+            ],
+            outbound: [
+              {
+                packetsSent: 50,
+                bytesSent: 8000,
+              },
+            ],
+          },
+        }),
+        createStatsFrame({
+          timestamp: 2000,
+          audio: {
+            inbound: [
+              {
+                packetsReceived: 100,
+                packetsLost: 0,
+                jitter: 0.005,
+                bytesReceived: 16000,
+              },
+            ],
+            outbound: [
+              {
+                packetsSent: 100,
+                bytesSent: 16000,
+              },
+            ],
+          },
+        }),
+      ];
+      const context = createContext({ statsSamples: frames });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.bitrate).toBeDefined();
+      // Outbound: (16000 - 8000) * 8 / 1s = 64000 bps
+      expect(report?.bitrate?.outbound).toBeCloseTo(64000, -3);
+      // Inbound: (16000 - 8000) * 8 / 1s = 64000 bps
+      expect(report?.bitrate?.inbound).toBeCloseTo(64000, -3);
+    });
+
+    it('uses last frame for cumulative packet counters', () => {
+      const frames = [
+        createStatsFrame({
+          audio: {
+            inbound: [
+              {
+                packetsReceived: 50,
+                packetsLost: 0,
+                jitter: 0.005,
+                bytesReceived: 8000,
+              },
+            ],
+            outbound: [
+              {
+                packetsSent: 50,
+                bytesSent: 8000,
+              },
+            ],
+          },
+        }),
+        createStatsFrame({
+          audio: {
+            inbound: [
+              {
+                packetsReceived: 200,
+                packetsLost: 5,
+                jitter: 0.005,
+                bytesReceived: 32000,
+              },
+            ],
+            outbound: [
+              {
+                packetsSent: 200,
+                bytesSent: 32000,
+              },
+            ],
+          },
+        }),
+      ];
+      const context = createContext({ statsSamples: frames });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.packets?.packetsReceived).toBe(200);
+      expect(report?.packets?.packetsLost).toBe(5);
+      expect(report?.packets?.packetsSent).toBe(200);
+    });
+  });
+
+  describe('with no relevant stats at all', () => {
+    it('returns quality: unknown for frames with no audio or remote stats', () => {
+      const frame = {
+        timestamp: Date.now(),
+        someOtherField: 'value',
+      };
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      expect(report?.quality).toBe('unknown');
+    });
+  });
+
+  describe('module disabled', () => {
+    it('returns undefined when network option is false', () => {
+      const context = createContext({
+        statsSamples: [createStatsFrame()],
+        options: {
+          client: {
+            newCall: jest.fn().mockReturnValue({ id: 'test', hangup: jest.fn() }),
+          },
+          destinationNumber: '1234',
+          network: false,
+        },
+      });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeUndefined();
+    });
+  });
+
+  describe('reason inputs', () => {
+    it('includes no reasons for good quality', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [{ roundTripTime: 0.01, jitter: 0.002 }],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 0,
+              jitter: 0.002,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.reasons).toBeUndefined();
+    });
+
+    it('reason entries have correct source field', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [{ roundTripTime: 0.6, jitter: 0.005 }],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 5,
+              jitter: 0.005,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      for (const reason of report?.reasons ?? []) {
+        expect(reason.source).toBe('network');
+        expect(reason.code).toMatch(/^network_/);
+        expect(reason.message).toBeDefined();
+        expect(typeof reason.message).toBe('string');
+      }
+    });
+
+    it('can produce multiple reasons when multiple metrics are degraded', () => {
+      const frame = createStatsFrame({
+        remote: {
+          audio: {
+            inbound: [{ roundTripTime: 0.6, jitter: 0.12 }],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 950,
+              packetsLost: 50,
+              jitter: 0.12,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.reasons?.length).toBeGreaterThanOrEqual(2);
+      const codes = report?.reasons?.map((r) => r.code) ?? [];
+      expect(codes).toContain('network_high_rtt_poor');
+      expect(codes).toContain('network_high_jitter_poor');
+    });
+  });
+
+  describe('no NaN guarantee', () => {
+    it('never emits NaN in any report field', () => {
+      // Use stats with 0/0 (which could produce NaN)
+      const frame = createStatsFrame({
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 0,
+              packetsLost: 0,
+              jitter: 0,
+              bytesReceived: 0,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 0,
+              bytesSent: 0,
+            },
+          ],
+        },
+      });
+      const context = createContext({ statsSamples: [frame] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+
+      // Recursively check for NaN in numeric fields
+      const checkNoNaN = (obj: unknown, path: string = ''): void => {
+        if (obj === null || obj === undefined) return;
+        if (typeof obj === 'number') {
+          expect({ path, value: obj }).toEqual(
+            expect.objectContaining({ value: expect.not.stringContaining?.('NaN') })
+          );
+          expect(Number.isNaN(obj)).toBe(false);
+        }
+        if (typeof obj === 'object') {
+          for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+            checkNoNaN(value, `${path}.${key}`);
+          }
+        }
+      };
+
+      checkNoNaN(report);
+    });
+  });
+});

@@ -20,6 +20,10 @@ export type {
   PreCallMediaOptions,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
+  NetworkMinMaxAverage,
+  NetworkPacketCounters,
+  NetworkByteCounters,
+  NetworkBitrate,
 } from './types';
 export type { Call } from './types';
 export type {
