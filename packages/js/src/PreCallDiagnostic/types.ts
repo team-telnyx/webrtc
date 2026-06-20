@@ -160,18 +160,40 @@ export interface PreCallDiagnosticReason {
 
 /**
  * Timing measurements for the diagnostic run.
+ *
+ * All duration fields (*Ms) are measured in milliseconds using a monotonic
+ * clock (performance.now() or Date.now() fallback) to avoid clock skew.
+ * Epoch timestamp fields (startedAt, completedAt) use Date.now() for
+ * correlation with external systems.
+ *
+ * All fields are optional — missing timing sources result in omitted fields
+ * rather than zero or placeholder values. Timings never block report generation.
  */
 export interface PreCallTimingsReport {
-  /** Time in ms from diagnostic start to call creation. */
-  callCreateMs?: number;
-  /** Time in ms from call creation to call active. */
-  callSetupMs?: number;
-  /** Total time in ms for the diagnostic run. */
-  totalMs?: number;
-  /** Timestamp when the diagnostic started (epoch ms). */
+  /** Timestamp when the diagnostic started (epoch ms, Date.now()). */
   startedAt?: number;
-  /** Timestamp when the diagnostic completed (epoch ms). */
+  /** Timestamp when the diagnostic completed (epoch ms, Date.now()). */
   completedAt?: number;
+  /** Total duration of the diagnostic run in ms (monotonic). */
+  totalMs?: number;
+  /** Time in ms from diagnostic start to client ready/connect, if observable (monotonic). */
+  clientReadyMs?: number;
+  /** Time in ms from diagnostic start to call creation (monotonic). */
+  callCreateMs?: number;
+  /** Time in ms from call creation to call active (monotonic). */
+  callSetupMs?: number;
+  /** Time in ms from call creation to call answered, if observable (monotonic). */
+  callAnsweredMs?: number;
+  /** Time in ms from call creation to ICE connected, if observable (monotonic). */
+  iceConnectedMs?: number;
+  /** Time in ms from diagnostic start to first stats received, if observable (monotonic). */
+  firstStatsMs?: number;
+  /** Time in ms from diagnostic start to first media stats, if observable (monotonic). */
+  firstMediaStatsMs?: number;
+  /** Duration of stats sampling phase in ms (monotonic). */
+  statsSamplingMs?: number;
+  /** Duration of cleanup phase (hangup/resource release) in ms (monotonic). */
+  cleanupMs?: number;
 }
 
 /**

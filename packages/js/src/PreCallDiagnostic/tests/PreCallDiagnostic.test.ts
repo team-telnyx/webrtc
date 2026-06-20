@@ -325,6 +325,11 @@ describe('PreCallDiagnostic', () => {
       expect(timings).toBeDefined();
       expect(timings?.startedAt).toBeDefined();
       expect(timings?.completedAt).toBeDefined();
+      expect(timings?.totalMs).toBeGreaterThanOrEqual(0);
+      expect(timings?.callCreateMs).toBeGreaterThanOrEqual(0);
+      expect(timings?.callSetupMs).toBeGreaterThanOrEqual(0);
+      expect(timings?.statsSamplingMs).toBeGreaterThanOrEqual(0);
+      expect(timings?.cleanupMs).toBeGreaterThanOrEqual(0);
     });
   });
 });

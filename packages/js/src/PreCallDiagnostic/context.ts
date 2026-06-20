@@ -17,16 +17,42 @@ import type {
 /**
  * Internal timing marks for the diagnostic run.
  * Used to compute the PreCallTimingsReport.
+ *
+ * Epoch timestamps (Date.now()) are used for absolute timestamps in the report.
+ * Monotonic timestamps (performance.now() or Date.now() fallback) are used
+ * for duration calculations to avoid clock skew from NTP adjustments.
+ *
+ * All timestamps are in milliseconds.
  */
 export interface DiagnosticTimings {
-  /** Timestamp (epoch ms) when PreCallDiagnostic.run() was called. */
-  startedAt: number;
-  /** Timestamp (epoch ms) when the diagnostic call was created. */
-  callCreatedAt?: number;
-  /** Timestamp (epoch ms) when the diagnostic call became active. */
-  callActiveAt?: number;
-  /** Timestamp (epoch ms) when the diagnostic run completed. */
-  completedAt?: number;
+  /** Epoch timestamp (Date.now()) when run() was called. */
+  startedAtEpochMs: number;
+  /** Monotonic timestamp (performance.now() or Date.now()) when run() was called. */
+  startedAtMonoMs: number;
+  /** Epoch timestamp when the diagnostic completed. */
+  completedAtEpochMs?: number;
+  /** Monotonic timestamp when the diagnostic completed. */
+  completedAtMonoMs?: number;
+  /** Monotonic timestamp when the diagnostic call was created. */
+  callCreatedAtMonoMs?: number;
+  /** Monotonic timestamp when the diagnostic call became active. */
+  callActiveAtMonoMs?: number;
+  /** Monotonic timestamp when the call was answered (if observable). */
+  callAnsweredAtMonoMs?: number;
+  /** Monotonic timestamp when ICE connected (if observable). */
+  iceConnectedAtMonoMs?: number;
+  /** Monotonic timestamp when the first stats report was received (if observable). */
+  firstStatsAtMonoMs?: number;
+  /** Monotonic timestamp when the first media stats were received (if observable). */
+  firstMediaStatsAtMonoMs?: number;
+  /** Monotonic timestamp when stats sampling started. */
+  statsSamplingStartedAtMonoMs?: number;
+  /** Monotonic timestamp when stats sampling completed. */
+  statsSamplingCompletedAtMonoMs?: number;
+  /** Monotonic timestamp when cleanup started. */
+  cleanupStartedAtMonoMs?: number;
+  /** Monotonic timestamp when cleanup completed. */
+  cleanupCompletedAtMonoMs?: number;
 }
 
 /**
@@ -59,7 +85,25 @@ export function createDiagnosticContext(
     options,
     statsSamples: [],
     timings: {
-      startedAt: Date.now(),
+      startedAtEpochMs: Date.now(),
+      startedAtMonoMs: nowMonoMs(),
     },
   };
+}
+
+/**
+ * Safe monotonic clock for duration measurements.
+ *
+ * Uses performance.now() when available (browser, some Node.js environments)
+ * for sub-millisecond precision and monotonic guarantees. Falls back to
+ * Date.now() when performance is not available.
+ *
+ * All values are in milliseconds. Monotonic values should NOT be used
+ * as absolute timestamps — only for computing durations via subtraction.
+ */
+export function nowMonoMs(): number {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    return performance.now();
+  }
+  return Date.now();
 }

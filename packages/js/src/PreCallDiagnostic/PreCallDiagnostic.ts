@@ -16,6 +16,7 @@
  *
  * Future tickets add real diagnostic logic to the module files.
  * This T1 ticket only creates the skeleton and extension points.
+ * T10 adds timing/lifecycle measurements with monotonic clock support.
  */
 
 import type {
@@ -27,6 +28,7 @@ import type {
 } from './types';
 import {
   createDiagnosticContext,
+  nowMonoMs,
 } from './context';
 import type {
   PreCallDiagnosticContext,
@@ -53,6 +55,22 @@ const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 const DEFAULT_DURATION_MS = 5000;
 
 /**
+ * Internal structure for holding partial report data before timings
+ * are finalized. This allows cleanup timing to be included in the
+ * final report even though cleanup runs in the finally block.
+ */
+interface PartialReportData {
+  ice?: PreCallDiagnosticReport['ice'];
+  network?: PreCallDiagnosticReport['network'];
+  media?: PreCallDiagnosticReport['media'];
+  microphone?: PreCallDiagnosticReport['microphone'];
+  verdict?: PreCallDiagnosticReport['verdict'];
+  reasons?: PreCallDiagnosticReport['reasons'];
+  raw?: PreCallDiagnosticReport['raw'];
+  error?: Error;
+}
+
+/**
  * PreCallDiagnostic executes a temporary diagnostic call and collects
  * reports from registered module builders.
  *
@@ -76,27 +94,31 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * 4. Call each module report builder with the context.
    * 5. Build the verdict from module results.
    * 6. Clean up the temporary call (unless autoHangup is false).
-   * 7. Return the complete PreCallDiagnosticReport.
+   * 7. Build the timings report (including cleanup timing).
+   * 8. Return the complete PreCallDiagnosticReport.
    */
   async run(): Promise<PreCallDiagnosticReport> {
     const context = createDiagnosticContext(this.options);
     let call: CallLike | undefined;
+    let partialData: PartialReportData;
 
     try {
       // Establish temporary diagnostic call
       call = this.createDiagnosticCall();
       context.call = call;
-      context.timings.callCreatedAt = Date.now();
+      context.timings.callCreatedAtMonoMs = nowMonoMs();
+
+      // Set up PeerConnection event listeners for ICE/media timing
+      this.setupTimingListeners(call, context);
 
       // Wait for call setup (placeholder — real implementation in future tickets)
       // For T1, we just record the timing
-      context.timings.callActiveAt = Date.now();
+      context.timings.callActiveAtMonoMs = nowMonoMs();
 
       // Collect stats samples (placeholder — real sampling in future tickets)
+      context.timings.statsSamplingStartedAtMonoMs = nowMonoMs();
       await this.collectSamples();
-
-      // Mark completion before building the report so timings include it
-      context.timings.completedAt = Date.now();
+      context.timings.statsSamplingCompletedAtMonoMs = nowMonoMs();
 
       // Build module reports
       const ice = await this.getIceReport(context);
@@ -104,17 +126,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       const media = await this.getMediaReport(context);
       const microphone = await this.getMicrophoneReport(context);
 
-      // Build timings report
-      const timings = this.buildTimingsReport(context);
-
-      // Build partial report
+      // Build partial report (without timings — those are finalized after cleanup)
       const partialReport: Partial<PreCallDiagnosticReport> = {
         version: 1,
         ice,
         network,
         media,
         microphone,
-        timings,
         raw: {
           stats: undefined,
           samples: context.statsSamples.length > 0 ? context.statsSamples : undefined,
@@ -124,41 +142,59 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       // Build verdict
       const { verdict, reasons } = buildVerdict(partialReport, context);
 
-      const report: PreCallDiagnosticReport = {
-        version: 1,
-        verdict,
-        reasons: reasons.length > 0 ? reasons : undefined,
-        timings,
+      partialData = {
         ice,
         network,
         media,
         microphone,
+        verdict,
+        reasons: reasons.length > 0 ? reasons : undefined,
         raw: partialReport.raw,
       };
-
-      return report;
     } catch (error) {
       context.error = error instanceof Error ? error : new Error(String(error));
-      context.timings.completedAt = Date.now();
+      partialData = { error: context.error };
+    } finally {
+      // Cleanup temporary resources — must await because cleanupCall is async
+      // and hangup() may return a Promise (real SDK Call).
+      context.timings.cleanupStartedAtMonoMs = nowMonoMs();
 
-      // Return an error report with whatever we collected
-      const timings = this.buildTimingsReport(context);
+      if (call && this.options.autoHangup !== false) {
+        await this.cleanupCall(call);
+      }
+
+      context.timings.cleanupCompletedAtMonoMs = nowMonoMs();
+
+      // Record final completion timestamps (after cleanup)
+      context.timings.completedAtEpochMs = Date.now();
+      context.timings.completedAtMonoMs = nowMonoMs();
+    }
+
+    // Build the timings report AFTER cleanup so cleanup timing is included
+    const timings = this.buildTimingsReport(context);
+
+    // Assemble the final report
+    if (partialData.error) {
       const { verdict, reasons } = buildVerdict({}, context);
-
       return {
         version: 1,
         verdict: verdict ?? 'inconclusive',
         reasons: reasons.length > 0 ? reasons : undefined,
         timings,
       };
-    } finally {
-      // Cleanup temporary resources — must await because cleanupCall is async
-      // and hangup() may return a Promise (real SDK Call).
-      if (call && this.options.autoHangup !== false) {
-        await this.cleanupCall(call);
-      }
-      context.timings.completedAt = Date.now();
     }
+
+    return {
+      version: 1,
+      verdict: partialData.verdict,
+      reasons: partialData.reasons,
+      timings,
+      ice: partialData.ice,
+      network: partialData.network,
+      media: partialData.media,
+      microphone: partialData.microphone,
+      raw: partialData.raw,
+    };
   }
 
   /**
@@ -175,6 +211,64 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       audio,
       debug: true,
     });
+  }
+
+  /**
+   * Set up PeerConnection event listeners for ICE and media timing.
+   *
+   * These listeners observe the call's PeerConnection for ICE connection
+   * state changes and track events to capture timing marks without
+   * altering call behavior.
+   */
+  private setupTimingListeners(
+    call: CallLike,
+    context: PreCallDiagnosticContext
+  ): void {
+    const pc = call.peerConnection;
+    if (!pc) return;
+
+    // ICE connection state listener
+    const onIceConnectionStateChange = (): void => {
+      try {
+        const state = pc.iceConnectionState;
+        if (
+          state === 'connected' ||
+          state === 'completed'
+        ) {
+          if (!context.timings.iceConnectedAtMonoMs) {
+            context.timings.iceConnectedAtMonoMs = nowMonoMs();
+          }
+          // Remove listener after first connected/completed event
+          pc.removeEventListener(
+            'iceconnectionstatechange',
+            onIceConnectionStateChange
+          );
+        }
+      } catch {
+        // Swallow errors from listener — timing must not block behavior
+      }
+    };
+
+    // Track listener for first media stats detection
+    const onTrack = (): void => {
+      try {
+        if (!context.timings.firstMediaStatsAtMonoMs) {
+          context.timings.firstMediaStatsAtMonoMs = nowMonoMs();
+        }
+        // Remove listener after first track event
+        pc.removeEventListener('track', onTrack);
+      } catch {
+        // Swallow errors from listener — timing must not block behavior
+      }
+    };
+
+    try {
+      pc.addEventListener('iceconnectionstatechange', onIceConnectionStateChange);
+      pc.addEventListener('track', onTrack);
+    } catch {
+      // PeerConnection may not support addEventListener in all environments
+      // Swallow — timing is optional
+    }
   }
 
   /**
@@ -249,25 +343,81 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
+   * Compute a safe duration from two monotonic timestamps.
+   * Returns undefined if either timestamp is missing, or if the
+   * resulting duration is negative, NaN, or Infinity.
+   */
+  private safeDurationMs(
+    startMonoMs?: number,
+    endMonoMs?: number
+  ): number | undefined {
+    if (startMonoMs == null || endMonoMs == null) return undefined;
+    const duration = endMonoMs - startMonoMs;
+    if (!isFinite(duration) || duration < 0) return undefined;
+    return duration;
+  }
+
+  /**
    * Build the timings report from the diagnostic context.
+   *
+   * Computes durations using monotonic timestamps and epoch timestamps
+   * for absolute correlation. Omits fields when timing sources are
+   * unavailable — never reports fake zero-duration values.
    */
   private buildTimingsReport(
     context: PreCallDiagnosticContext
   ): PreCallTimingsReport | undefined {
     const { timings } = context;
+
+    const totalMs = this.safeDurationMs(
+      timings.startedAtMonoMs,
+      timings.completedAtMonoMs
+    );
+    const callCreateMs = this.safeDurationMs(
+      timings.startedAtMonoMs,
+      timings.callCreatedAtMonoMs
+    );
+    const callSetupMs = this.safeDurationMs(
+      timings.callCreatedAtMonoMs,
+      timings.callActiveAtMonoMs
+    );
+    const callAnsweredMs = this.safeDurationMs(
+      timings.callCreatedAtMonoMs,
+      timings.callAnsweredAtMonoMs
+    );
+    const iceConnectedMs = this.safeDurationMs(
+      timings.callCreatedAtMonoMs,
+      timings.iceConnectedAtMonoMs
+    );
+    const firstStatsMs = this.safeDurationMs(
+      timings.startedAtMonoMs,
+      timings.firstStatsAtMonoMs
+    );
+    const firstMediaStatsMs = this.safeDurationMs(
+      timings.startedAtMonoMs,
+      timings.firstMediaStatsAtMonoMs
+    );
+    const statsSamplingMs = this.safeDurationMs(
+      timings.statsSamplingStartedAtMonoMs,
+      timings.statsSamplingCompletedAtMonoMs
+    );
+    const cleanupMs = this.safeDurationMs(
+      timings.cleanupStartedAtMonoMs,
+      timings.cleanupCompletedAtMonoMs
+    );
+
     return {
-      callCreateMs: timings.callCreatedAt
-        ? timings.callCreatedAt - timings.startedAt
-        : undefined,
-      callSetupMs:
-        timings.callCreatedAt && timings.callActiveAt
-          ? timings.callActiveAt - timings.callCreatedAt
-          : undefined,
-      totalMs: timings.completedAt
-        ? timings.completedAt - timings.startedAt
-        : undefined,
-      startedAt: timings.startedAt,
-      completedAt: timings.completedAt,
+      startedAt: timings.startedAtEpochMs,
+      completedAt: timings.completedAtEpochMs,
+      totalMs,
+      callCreateMs,
+      callSetupMs,
+      callAnsweredMs,
+      iceConnectedMs,
+      firstStatsMs,
+      firstMediaStatsMs,
+      statsSamplingMs,
+      cleanupMs,
     };
   }
 
