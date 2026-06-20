@@ -21,6 +21,8 @@ export type {
   PreCallNetworkOptions,
   PreCallMediaReport,
   PreCallMediaOptions,
+  MediaRtpCounters,
+  MediaAudioDirection,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
 } from './types';

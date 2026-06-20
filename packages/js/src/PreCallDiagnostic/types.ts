@@ -197,12 +197,51 @@ export interface PreCallNetworkReport {
 }
 
 /**
+ * RTP packet and byte counters for a single audio direction.
+ */
+export interface MediaRtpCounters {
+  /** Total RTP packets sent or received. */
+  packets?: number;
+  /** Total RTP bytes sent or received. */
+  bytes?: number;
+}
+
+/**
+ * Audio stats for a single direction of the diagnostic call.
+ *
+ * Combines RTP counters (packets/bytes) with quality indicators
+ * (packets lost, jitter) where available.
+ */
+export interface MediaAudioDirection {
+  /** Whether RTP was observed in this direction. */
+  rtpObserved: boolean;
+  /** RTP packet and byte counters. */
+  rtp?: MediaRtpCounters;
+  /** Cumulative packets lost (inbound only, undefined for outbound). */
+  packetsLost?: number;
+  /** Jitter in milliseconds (inbound only, undefined for outbound). */
+  jitterMs?: number;
+}
+
+/**
  * Report from the media diagnostic module.
- * Placeholder structure — to be filled in by T5/VSDK-302.
+ *
+ * Reports whether audio media (RTP) is flowing in each direction
+ * during the diagnostic call, with basic stats and reason inputs
+ * for the verdict module.
  */
 export interface PreCallMediaReport {
-  /** Whether media (audio) is flowing in both directions. */
+  /** Whether audio is flowing in both directions. */
   audioFlowing?: boolean;
+  /** Outbound audio RTP stats (sent to remote). */
+  outboundAudio?: MediaAudioDirection;
+  /** Inbound audio RTP stats (received from remote). */
+  inboundAudio?: MediaAudioDirection;
+  /**
+   * Reason inputs for the verdict module.
+   * Each entry describes a specific media flow issue detected.
+   */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**
