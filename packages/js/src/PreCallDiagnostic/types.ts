@@ -55,8 +55,17 @@ export interface CallLike {
    * Consumers should await the result when possible.
    */
   hangup(): void | Promise<void>;
-  /** The underlying RTCPeerConnection, if available. */
+  /**
+   * The underlying RTCPeerConnection, if available directly.
+   * Some adapters expose the peer connection at this level.
+   */
   peerConnection?: RTCPeerConnection;
+  /**
+   * The SDK's Peer wrapper, which holds the RTCPeerConnection at `peer.instance`.
+   * This matches the real SDK shape where `BaseCall.peer.instance` is the
+   * RTCPeerConnection. Used as a fallback when `peerConnection` is not set.
+   */
+  peer?: { instance?: RTCPeerConnection };
 }
 
 /**

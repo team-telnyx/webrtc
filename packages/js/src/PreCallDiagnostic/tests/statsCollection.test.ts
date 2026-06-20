@@ -432,4 +432,107 @@ describe('PreCallDiagnostic stats collection integration', () => {
       expect(report.media?.inboundAudio?.rtp?.packets).toBe(100);
     });
   });
+
+  describe('with an SDK-shaped call using peer.instance (not peerConnection)', () => {
+    /**
+     * The real SDK's BaseCall exposes the RTCPeerConnection at
+     * `call.peer.instance`, not `call.peerConnection`. This test
+     * verifies that collectSamples() resolves the PC from peer.instance
+     * when peerConnection is not set.
+     */
+    it('collects stats from peer.instance when peerConnection is absent', async () => {
+      const statsReport = createMockStatsReport(createTwoWayAudioEntries());
+      const pc = createMockPeerConnection(statsReport);
+      // SDK-shaped call: peer.instance instead of peerConnection
+      const options = createOptions({
+        client: {
+          newCall: jest.fn().mockReturnValue({
+            id: 'sdk-call-id',
+            hangup: jest.fn(),
+            peerConnection: undefined,
+            peer: { instance: pc },
+          }),
+        },
+      });
+      const diagnostic = new PreCallDiagnostic(options);
+      const report = await diagnostic.run();
+
+      expect(report.media).toBeDefined();
+      expect(report.media?.audioFlowing).toBe(true);
+      expect(report.media?.outboundAudio?.rtpObserved).toBe(true);
+      expect(report.media?.inboundAudio?.rtpObserved).toBe(true);
+    });
+
+    it('prefers peerConnection over peer.instance when both are set', async () => {
+      const explicitReport = createMockStatsReport(createTwoWayAudioEntries());
+      const explicitPc = createMockPeerConnection(explicitReport);
+      const peerInstancePc = {
+        getStats: jest.fn().mockResolvedValue(createMockStatsReport([])),
+      } as unknown as RTCPeerConnection;
+
+      const options = createOptions({
+        client: {
+          newCall: jest.fn().mockReturnValue({
+            id: 'sdk-call-id',
+            hangup: jest.fn(),
+            peerConnection: explicitPc,
+            peer: { instance: peerInstancePc },
+          }),
+        },
+      });
+      const diagnostic = new PreCallDiagnostic(options);
+      const report = await diagnostic.run();
+
+      // Should use explicitPc (two-way audio), not peerInstancePc (empty)
+      expect(report.media?.audioFlowing).toBe(true);
+      expect(explicitPc.getStats).toHaveBeenCalled();
+      // peer.instance's getStats should NOT have been called since peerConnection was used
+      expect((peerInstancePc as unknown as { getStats: jest.Mock }).getStats).not.toHaveBeenCalled();
+    });
+
+    it('produces media_no_stats when both peerConnection and peer.instance are absent', async () => {
+      const options = createOptions({
+        client: {
+          newCall: jest.fn().mockReturnValue({
+            id: 'sdk-call-id',
+            hangup: jest.fn(),
+            peerConnection: undefined,
+            peer: { instance: undefined },
+          }),
+        },
+      });
+      const diagnostic = new PreCallDiagnostic(options);
+      const report = await diagnostic.run();
+
+      expect(report.media).toBeDefined();
+      expect(report.media?.audioFlowing).toBeUndefined();
+      expect(report.media?.reasons).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'media_no_stats' }),
+        ])
+      );
+    });
+
+    it('produces media_no_stats when peer property is absent entirely', async () => {
+      const options = createOptions({
+        client: {
+          newCall: jest.fn().mockReturnValue({
+            id: 'sdk-call-id',
+            hangup: jest.fn(),
+            peerConnection: undefined,
+            // No peer property at all — mimics minimal CallLike
+          }),
+        },
+      });
+      const diagnostic = new PreCallDiagnostic(options);
+      const report = await diagnostic.run();
+
+      expect(report.media?.audioFlowing).toBeUndefined();
+      expect(report.media?.reasons).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'media_no_stats' }),
+        ])
+      );
+    });
+  });
 });

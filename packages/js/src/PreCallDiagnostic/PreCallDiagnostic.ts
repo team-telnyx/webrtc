@@ -308,7 +308,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * diagnostics.
    */
   private async collectSamples(context: PreCallDiagnosticContext): Promise<void> {
-    const pc = context.call?.peerConnection;
+    // Resolve the RTCPeerConnection from either the explicit `peerConnection`
+    // property (used by test mocks) or the SDK's `peer.instance` shape
+    // (used by the real BaseCall returned by client.newCall()).
+    const call = context.call;
+    const pc = call?.peerConnection ?? call?.peer?.instance;
     if (!pc) {
       // No peer connection available — wait the configured duration
       // so the diagnostic call still stays active, but collect nothing.
