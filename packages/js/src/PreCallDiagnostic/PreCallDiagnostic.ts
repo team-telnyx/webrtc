@@ -224,7 +224,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     call: CallLike,
     context: PreCallDiagnosticContext
   ): void {
-    const pc = call.peerConnection;
+    const pc = call.peer?.instance;
     if (!pc) return;
 
     // ICE connection state listener

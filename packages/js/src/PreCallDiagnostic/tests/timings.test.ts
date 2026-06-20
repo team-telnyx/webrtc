@@ -27,7 +27,7 @@ function createMockCall(overrides: Partial<CallLike> = {}): CallLike {
   return {
     id: 'test-call-id',
     hangup: jest.fn(),
-    peerConnection: undefined,
+    peer: undefined,
     ...overrides,
   };
 }
@@ -323,7 +323,7 @@ describe('PreCallDiagnostic timings (T10)', () => {
     it('captures iceConnectedMs when ICE connects', async () => {
       const { pc, dispatchIceStateChange } = createMockPeerConnection();
       const mockCall = createMockCall({
-        peerConnection: pc,
+        peer: { instance: pc },
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockImplementation(() => {
@@ -348,7 +348,7 @@ describe('PreCallDiagnostic timings (T10)', () => {
     it('captures firstMediaStatsMs when track event fires', async () => {
       const { pc, dispatchTrack } = createMockPeerConnection();
       const mockCall = createMockCall({
-        peerConnection: pc,
+        peer: { instance: pc },
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockImplementation(() => {
@@ -392,7 +392,7 @@ describe('PreCallDiagnostic timings (T10)', () => {
           hangup: jest.fn().mockImplementation(() => {
             throw new Error('break');
           }),
-          peerConnection: undefined,
+          peer: undefined,
         }),
       });
       const diagnostic = new PreCallDiagnostic(

@@ -25,7 +25,7 @@ function createMockCall(overrides: Partial<CallLike> = {}): CallLike {
   return {
     id: 'test-call-id',
     hangup: jest.fn(),
-    peerConnection: undefined,
+    peer: undefined,
     ...overrides,
   };
 }
