@@ -37,6 +37,125 @@ import { buildPreCallMediaReport } from './modules/media';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
 import { buildVerdict } from './modules/verdict';
 
+// --- Stats frame parsing ---
+
+/**
+ * Shape of a single audio RTP stats entry from `getStats()`.
+ * Uses `any` because browser RTCStatsReport entries vary in shape;
+ * we read only known fields defensively.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RtcStatsEntry = any;
+
+/**
+ * Parsed stats frame — the structured format consumed by module builders.
+ *
+ * Each frame contains audio inbound/outbound arrays (from RTCStatsReport
+ * entries of type `inbound-rtp` / `outbound-rtp` with `kind === 'audio'`),
+ * optional remote inbound entries (from `remote-inbound-rtp`), and
+ * optional connection-level counters.
+ */
+interface ParsedStatsFrame {
+  timestamp: number;
+  audio: {
+    inbound: RtcStatsEntry[];
+    outbound: RtcStatsEntry[];
+  };
+  remote?: {
+    audio: {
+      inbound: RtcStatsEntry[];
+    };
+  };
+  connection?: {
+    packetsSent?: number;
+    packetsReceived?: number;
+    bytesSent?: number;
+    bytesReceived?: number;
+  };
+}
+
+/**
+ * Parse a raw `RTCStatsReport` into a structured stats frame that
+ * module builders can consume.
+ *
+ * The output format matches what `buildPreCallMediaReport()` reads:
+ * - `audio.inbound[]` from `inbound-rtp` entries with `kind === 'audio'`
+ * - `audio.outbound[]` from `outbound-rtp` entries with `kind === 'audio'`
+ * - `remote.audio.inbound[]` from `remote-inbound-rtp` entries
+ * - `connection.*` from the `transport` entry's related counters
+ *
+ * Entries that are not audio or transport-related are silently skipped.
+ */
+function parseStatsFrame(stats: RTCStatsReport): ParsedStatsFrame {
+  const frame: ParsedStatsFrame = {
+    timestamp: Date.now(),
+    audio: {
+      inbound: [],
+      outbound: [],
+    },
+  };
+
+  const remoteInbound: RtcStatsEntry[] = [];
+  let transportPacketsSent: number | undefined;
+  let transportPacketsReceived: number | undefined;
+  let transportBytesSent: number | undefined;
+  let transportBytesReceived: number | undefined;
+
+  stats.forEach((report: RTCStats) => {
+    const entry = report as unknown as Record<string, unknown>;
+    switch (report.type) {
+      case 'inbound-rtp':
+        if (entry.kind === 'audio' || entry.mediaType === 'audio') {
+          frame.audio.inbound.push(entry);
+        }
+        break;
+      case 'outbound-rtp':
+        if (entry.kind === 'audio' || entry.mediaType === 'audio') {
+          frame.audio.outbound.push(entry);
+        }
+        break;
+      case 'remote-inbound-rtp':
+        if (entry.kind === 'audio' || entry.mediaType === 'audio') {
+          remoteInbound.push(entry);
+        }
+        break;
+      case 'transport': {
+        // Transport-level counters are a fallback when audio-level
+        // stats are missing. Read them defensively.
+        transportPacketsSent = typeof entry.packetsSent === 'number'
+          ? entry.packetsSent : undefined;
+        transportPacketsReceived = typeof entry.packetsReceived === 'number'
+          ? entry.packetsReceived : undefined;
+        transportBytesSent = typeof entry.bytesSent === 'number'
+          ? entry.bytesSent : undefined;
+        transportBytesReceived = typeof entry.bytesReceived === 'number'
+          ? entry.bytesReceived : undefined;
+        break;
+      }
+    }
+  });
+
+  if (remoteInbound.length > 0) {
+    frame.remote = { audio: { inbound: remoteInbound } };
+  }
+
+  if (
+    transportPacketsSent !== undefined ||
+    transportPacketsReceived !== undefined ||
+    transportBytesSent !== undefined ||
+    transportBytesReceived !== undefined
+  ) {
+    frame.connection = {
+      packetsSent: transportPacketsSent,
+      packetsReceived: transportPacketsReceived,
+      bytesSent: transportBytesSent,
+      bytesReceived: transportBytesReceived,
+    };
+  }
+
+  return frame;
+}
+
 /** Default timeout for the overall diagnostic run in milliseconds. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -46,7 +165,6 @@ const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_CALL_SETUP_TIMEOUT_MS = 15000;
 
 /** Default interval between stats samples in milliseconds. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 
 /** Default duration to keep the diagnostic call active in milliseconds. */
@@ -92,8 +210,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       // For T1, we just record the timing
       context.timings.callActiveAt = Date.now();
 
-      // Collect stats samples (placeholder — real sampling in future tickets)
-      await this.collectSamples();
+      // Collect stats samples from the diagnostic call
+      await this.collectSamples(context);
 
       // Mark completion before building the report so timings include it
       context.timings.completedAt = Date.now();
@@ -180,16 +298,51 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   /**
    * Collect stats samples during the diagnostic call.
    *
-   * Placeholder for T1 — real sampling will be added in future tickets.
-   * This method exists as an extension point.
+   * Calls `peerConnection.getStats()` at regular intervals and pushes
+   * parsed stats frames into `context.statsSamples` so that module
+   * builders (media, network, etc.) can consume real data.
+   *
+   * If the call has no `peerConnection`, or if `getStats()` throws,
+   * the method exits gracefully — modules will see an empty
+   * `statsSamples` array and produce appropriate `media_no_stats`
+   * diagnostics.
    */
-  private async collectSamples(): Promise<void> {
-    // Placeholder — real stats sampling to be implemented in future tickets.
-    // The duration and interval options will be used here to control
-    // how many samples are collected.
+  private async collectSamples(context: PreCallDiagnosticContext): Promise<void> {
+    const pc = context.call?.peerConnection;
+    if (!pc) {
+      // No peer connection available — wait the configured duration
+      // so the diagnostic call still stays active, but collect nothing.
+      const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
+      await new Promise((resolve) => setTimeout(resolve, durationMs));
+      return;
+    }
+
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
-    // Wait for the configured duration so the diagnostic call stays active
-    await new Promise((resolve) => setTimeout(resolve, Math.min(durationMs, DEFAULT_DURATION_MS)));
+    const intervalMs = this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
+    const startTime = Date.now();
+
+    // Collect at least one sample immediately, then at intervals
+    while (true) {
+      try {
+        const rawStats = await pc.getStats();
+        const frame = parseStatsFrame(rawStats);
+        context.statsSamples.push(frame);
+      } catch {
+        // Stats collection failed — skip this sample.
+        // Modules will see fewer frames than expected and can
+        // report missing stats accordingly.
+      }
+
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= durationMs) {
+        break;
+      }
+
+      // Wait for the next interval (or the remaining duration, whichever is shorter)
+      const remaining = durationMs - elapsed;
+      const waitMs = Math.min(intervalMs, remaining);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
   }
 
   /**
