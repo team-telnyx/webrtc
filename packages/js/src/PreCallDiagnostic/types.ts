@@ -38,6 +38,17 @@ export interface CallLikeOptions {
   audio?: boolean | MediaStreamConstraints['audio'];
   /** Whether to enable debug/stats collection on the call. */
   debug?: boolean;
+  /**
+   * Optional RTC configuration override for the diagnostic call.
+   * When provided, fields from this configuration are merged with
+   * the SDK's default RTC configuration. Explicit overrides take
+   * precedence; omitted fields fall back to SDK defaults.
+   *
+   * TURN credentials (username/credential) must not appear in
+   * logs, reports, or snapshots — use sanitizeRtcConfig() for
+   * any output paths.
+   */
+  rtcConfig?: RTCConfiguration;
 }
 
 /**

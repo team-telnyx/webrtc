@@ -28,3 +28,12 @@ export type {
   PreCallDiagnosticContext,
   DiagnosticTimings,
 } from './context';
+export {
+  sanitizeRtcConfig,
+  sanitizeIceServer,
+  sanitizeCallOptionsRtcConfig,
+} from './sanitize';
+export type {
+  SanitizedRtcConfig,
+  SanitizedIceServer,
+} from './sanitize';

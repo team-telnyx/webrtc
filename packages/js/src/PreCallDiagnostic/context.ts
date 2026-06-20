@@ -13,6 +13,7 @@ import type {
   PreCallDiagnosticOptions,
   CallLike,
 } from './types';
+import type { SanitizedRtcConfig } from './sanitize';
 
 /**
  * Internal timing marks for the diagnostic run.
@@ -47,6 +48,17 @@ export interface PreCallDiagnosticContext {
   timings: DiagnosticTimings;
   /** Any error that occurred during the diagnostic run. */
   error?: Error;
+  /**
+   * Sanitized RTC configuration used for the diagnostic call.
+   * TURN credentials (username/credential) are redacted — only
+   * boolean indicators (hasUsername, hasCredential) are included.
+   * Non-secret metadata (urls, credentialType, iceTransportPolicy,
+   * bundlePolicy, iceCandidatePoolSize) is preserved.
+   *
+   * Module builders should use this (not options.rtcConfig) when
+   * including RTC config data in their reports.
+   */
+  sanitizedRtcConfig?: SanitizedRtcConfig;
 }
 
 /**

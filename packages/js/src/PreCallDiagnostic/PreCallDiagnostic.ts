@@ -36,6 +36,7 @@ import { buildPreCallNetworkReport } from './modules/network';
 import { buildPreCallMediaReport } from './modules/media';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
 import { buildVerdict } from './modules/verdict';
+import { sanitizeRtcConfig } from './sanitize';
 
 /** Default timeout for the overall diagnostic run in milliseconds. */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -80,6 +81,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    */
   async run(): Promise<PreCallDiagnosticReport> {
     const context = createDiagnosticContext(this.options);
+
+    // Sanitize rtcConfig for the context so modules never see raw credentials.
+    // This is set once at context creation time and used by all module builders.
+    if (this.options.rtcConfig) {
+      context.sanitizedRtcConfig = sanitizeRtcConfig(this.options.rtcConfig);
+    }
+
     let call: CallLike | undefined;
 
     try {
@@ -163,10 +171,23 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
   /**
    * Create a temporary diagnostic call using the client dependency.
+   *
+   * When rtcConfig is provided in the diagnostic options, it is passed
+   * through to the call so the Peer layer can merge it with the SDK's
+   * default RTC configuration. Explicit rtcConfig fields take precedence;
+   * omitted fields fall back to SDK defaults.
    */
   private createDiagnosticCall(): CallLike {
-    const { client, destinationNumber, callerName, callerNumber, audio } =
+    const { client, destinationNumber, callerName, callerNumber, audio, rtcConfig } =
       this.options;
+
+    // Log sanitized rtcConfig for diagnostics — never log raw credentials
+    if (rtcConfig) {
+      const sanitized = sanitizeRtcConfig(rtcConfig);
+      if (typeof console !== 'undefined' && console.debug) {
+        console.debug('[PreCallDiagnostic] Using custom RTC config:', sanitized);
+      }
+    }
 
     return client.newCall({
       destinationNumber,
@@ -174,6 +195,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       callerNumber,
       audio,
       debug: true,
+      rtcConfig,
     });
   }
 
