@@ -51,7 +51,7 @@ function createContext(
         id: 'test-call-id',
         hangup: jest.fn(),
       }),
-    },
+    } as unknown as PreCallDiagnosticOptions["client"],
     destinationNumber: '1234',
     ...overrides,
   };
