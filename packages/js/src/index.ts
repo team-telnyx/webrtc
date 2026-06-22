@@ -50,3 +50,7 @@ export type {
 export * from './PreCallDiagnosis';
 export * from './PreCallDiagnostic';
 export type { RunPreCallOptions } from './TelnyxRTC';
+export type {
+  RunNetworkCheckOptions,
+  RunMicrophoneCheckOptions,
+} from './TelnyxRTC';
