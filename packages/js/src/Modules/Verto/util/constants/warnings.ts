@@ -367,6 +367,25 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  33010: {
+    name: 'MULTIPLE_ACTIVE_CALLS_DETECTED',
+    message: 'Multiple active calls detected in one SDK session',
+    description:
+      'A new call was created or received while another call is still active (ringing, answering, active, held, or recovering) in the same SDK session. This may be intentional for some applications (e.g. call waiting, transfer) but is often abnormal and makes call reports and application behavior harder to reason about. The new call proceeds normally — this warning is diagnostic only.',
+    causes: [
+      'Application created an outbound call while another call is active',
+      'An inbound call arrived while another call is already active',
+      'Application did not hang up the previous call before starting a new one',
+      'Call waiting or multi-call scenario (may be intentional)',
+    ],
+    solutions: [
+      'Verify this is the expected behavior for your application',
+      'Ensure the previous call is hung up before creating a new one if only one call is expected',
+      'Use call.hold() before starting a new call if needed',
+      'Check the warning payload for call IDs to correlate which calls are involved',
+    ],
+  },
+
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35002: {
     name: 'UNKNOWN_REATTACHED_SESSION',

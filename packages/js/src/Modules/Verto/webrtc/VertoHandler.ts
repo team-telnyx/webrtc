@@ -237,6 +237,12 @@ class VertoHandler {
         call.direction = Direction.Inbound;
         call.playRingtone();
         call.setState(State.Ringing);
+
+        // Emit warning if there are already active calls in this session.
+        // Note: this could be a false positive if the client rejects the
+        // inbound call — the warning fires at ring time, not at answer time.
+        this.session.emitMultipleActiveCallsWarning(call.id);
+
         this._ack(id, method);
         break;
       }
@@ -250,6 +256,10 @@ class VertoHandler {
           );
           const call = _buildCall({ recoveredCallId: callID });
           call.answer();
+
+          // Emit warning if there are other active calls (recovered calls are active calls too)
+          this.session.emitMultipleActiveCallsWarning(call.id);
+
           this._ack(id, method);
           break;
         }
@@ -281,6 +291,10 @@ class VertoHandler {
             mutedMicOnStart: matchedCall.isAudioMuted,
           });
           call.answer();
+
+          // Emit warning if there are other active calls (recovered calls are active calls too)
+          this.session.emitMultipleActiveCallsWarning(call.id);
+
           this._ack(id, method);
           break;
         }

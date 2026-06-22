@@ -66,7 +66,18 @@ export default class Verto extends BrowserSession {
       );
       throw telnyxError;
     }
+
     const call = new Call(this, options);
+
+    // Emit warning if there are already active calls in this session.
+    // The call ID is available after Call construction, even if the
+    // application did not supply one (BaseCall._init generates it).
+    if (!options.id) {
+      logger.debug(
+        `newCall: callId was not provided in options, SDK-generated ID: ${call.id}`
+      );
+    }
+    this.emitMultipleActiveCallsWarning(call.id);
     performance.mark(callMarkName(call.id, 'new-call-start'));
     call.invite();
     return call;

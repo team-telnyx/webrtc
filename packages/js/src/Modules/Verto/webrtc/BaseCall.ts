@@ -504,6 +504,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    // Debug log for answering an inbound call while *other* active calls exist.
+    // The MULTIPLE_ACTIVE_CALLS_DETECTED warning fires at ring time, but the
+    // client may reject the call — this log confirms the call was actually answered.
+    // Filter this.id out so a normal single inbound call doesn't trigger a
+    // misleading multi-call diagnostic.
+    const otherActiveCalls = (this.session.getActiveCalls?.() ?? []).filter(
+      (call) => call.id !== this.id
+    );
+    if (otherActiveCalls.length > 0) {
+      logger.debug(
+        `[${this.id}] answer(): answering inbound call while ${otherActiveCalls.length} other active call(s) exist in session ${this.session.sessionid}`
+      );
+    }
+
     if (
       this._creatingPeer ||
       (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
