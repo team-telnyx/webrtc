@@ -24,6 +24,7 @@ import type {
   PreCallDiagnosticRunner,
   PreCallTimingsReport,
   CallLike,
+  CallLikeOptions,
 } from './types';
 import {
   createDiagnosticContext,
@@ -163,18 +164,43 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
   /**
    * Create a temporary diagnostic call using the client dependency.
+   *
+   * The diagnostic ICE servers (custom or client-default) live in
+   * `options.rtcConfig.iceServers`. The public SDK call path consumes
+   * per-call ICE servers via `ICallOptions.iceServers` (which overrides
+   * the client default for this single call without mutating persistent
+   * client config), so we pass them through here instead of carrying a
+   * full `rtcConfig` (the SDK's per-call surface only exposes `iceServers`).
+   * When `rtcConfig` is undefined or carries no ICE servers, no `iceServers`
+   * is forwarded and the call uses the client's own default ICE
+   * configuration (normal behavior).
    */
   private createDiagnosticCall(): CallLike {
     const { client, destinationNumber, callerName, callerNumber, audio } =
       this.options;
 
-    return client.newCall({
+    const callOptions: CallLikeOptions = {
       destinationNumber,
       callerName,
       callerNumber,
       audio,
       debug: true,
-    });
+    };
+
+    // Only forward `iceServers` when the diagnostic options carry a non-empty
+    // `rtcConfig.iceServers`. The TelnyxRTC public methods
+    // (`runPreCall`/`runNetworkCheck`/`runMicrophoneCheck`) always build
+    // `rtcConfig` from `options.iceServers ?? this.iceServers`, so this
+    // branch is taken on every diagnostic run that goes through the public
+    // API. Lower-level callers who construct `PreCallDiagnosticOptions`
+    // directly without `rtcConfig` (or with an empty `iceServers` array)
+    // fall back to the client's default ICE configuration (matches normal
+    // `client.newCall()` behavior).
+    if (this.options.rtcConfig?.iceServers?.length) {
+      callOptions.iceServers = this.options.rtcConfig.iceServers;
+    }
+
+    return client.newCall(callOptions);
   }
 
   /**

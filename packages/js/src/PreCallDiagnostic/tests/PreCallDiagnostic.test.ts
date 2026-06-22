@@ -249,6 +249,138 @@ describe('PreCallDiagnostic', () => {
         })
       );
     });
+
+    // --- Runtime ICE servers wiring (VSDK-306 changes-requested resolution) ---
+    // The TelnyxRTC public methods (runPreCall/runNetworkCheck/runMicrophoneCheck)
+    // build `PreCallDiagnosticOptions.rtcConfig` from `options.iceServers ?? this.iceServers`.
+    // createDiagnosticCall() must thread `rtcConfig.iceServers` through to the
+    // real `client.newCall()` call options — not just leave it on the
+    // PreCallDiagnostic constructor options. These tests exercise the runtime
+    // path (no PreCallDiagnostic mock) to assert that wiring.
+
+    it('passes rtcConfig.iceServers through to client.newCall at runtime', async () => {
+      const customIceServers: RTCIceServer[] = [
+        { urls: 'turn:turn.example.com', username: 'user', credential: 'pass' },
+      ];
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          destinationNumber: '1234',
+          rtcConfig: { iceServers: customIceServers },
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).toHaveBeenCalledTimes(1);
+      expect(mockClient.newCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destinationNumber: '1234',
+          debug: true,
+          iceServers: customIceServers,
+        })
+      );
+      // Identity must be preserved (no copy/mutation) so the same array
+      // the caller supplied reaches the SDK call path.
+      const callArg = (mockClient.newCall as jest.Mock).mock.calls[0][0];
+      expect(callArg.iceServers).toBe(customIceServers);
+    });
+
+    it('does NOT pass iceServers to client.newCall when rtcConfig is undefined', async () => {
+      // Lower-level callers who construct PreCallDiagnosticOptions directly
+      // without rtcConfig should let the SDK fall back to the client's own
+      // default ICE server configuration (normal call behavior).
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          destinationNumber: '1234',
+          // rtcConfig intentionally omitted
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).toHaveBeenCalledTimes(1);
+      const callArg = (mockClient.newCall as jest.Mock).mock.calls[0][0];
+      // iceServers must NOT be present on the call options — the SDK should
+      // apply its own default ICE server configuration for this call.
+      expect(callArg).not.toHaveProperty('iceServers');
+    });
+
+    it('does NOT pass iceServers to client.newCall when rtcConfig.iceServers is empty', async () => {
+      // An empty iceServers array is treated as "no explicit override" so the
+      // call falls back to the client default rather than dialing with no
+      // ICE servers at all.
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          destinationNumber: '1234',
+          rtcConfig: { iceServers: [] },
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).toHaveBeenCalledTimes(1);
+      const callArg = (mockClient.newCall as jest.Mock).mock.calls[0][0];
+      expect(callArg).not.toHaveProperty('iceServers');
+    });
+
+    it('still passes destinationNumber/audio/debug to client.newCall when iceServers is wired', async () => {
+      // Ensure threading iceServers through does not regress other call fields.
+      const customIceServers: RTCIceServer[] = [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ];
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          destinationNumber: '4321',
+          callerName: 'Wired',
+          callerNumber: '15551110000',
+          audio: false,
+          rtcConfig: { iceServers: customIceServers },
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          destinationNumber: '4321',
+          callerName: 'Wired',
+          callerNumber: '15551110000',
+          audio: false,
+          debug: true,
+          iceServers: customIceServers,
+        })
+      );
+    });
+
+    it('passes the same iceServers array to client.newCall when rtcConfig.iceServers matches the client default', async () => {
+      // The public API builds rtcConfig.iceServers from `this.iceServers`
+      // when the caller omits iceServers. The runtime path must forward
+      // that same array reference to client.newCall (no copy, no mutation).
+      const clientIceServers: RTCIceServer[] = [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ];
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          destinationNumber: '1234',
+          rtcConfig: { iceServers: clientIceServers },
+        })
+      );
+
+      await diagnostic.run();
+
+      const callArg = (mockClient.newCall as jest.Mock).mock.calls[0][0];
+      expect(callArg.iceServers).toBe(clientIceServers);
+    });
   });
 
   describe('module extension points', () => {

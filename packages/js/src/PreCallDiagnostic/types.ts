@@ -38,6 +38,19 @@ export interface CallLikeOptions {
   audio?: boolean | MediaStreamConstraints['audio'];
   /** Whether to enable debug/stats collection on the call. */
   debug?: boolean;
+  /**
+   * Custom ICE servers for the diagnostic call only (folded VSDK-308).
+   *
+   * Mirrors the SDK's public `ICallOptions.iceServers` (call-level override
+   * that does not mutate the client's persistent ICE server configuration).
+   * `PreCallDiagnostic.createDiagnosticCall()` derives this from
+   * `options.rtcConfig?.iceServers` and passes it through to
+   * `client.newCall()` so the temporary diagnostic call honors caller-provided
+   * or client-default ICE servers at runtime. When omitted, the call falls
+   * back to the client's own default ICE server configuration (normal
+   * call behavior).
+   */
+  iceServers?: RTCIceServer[];
 }
 
 /**
