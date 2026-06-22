@@ -58,6 +58,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#disableMicrophone" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>disable<wbr/>Microphone</span></a>
 <a href="TelnyxRTC.html#disconnect" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>disconnect</span></a>
 <a href="TelnyxRTC.html#enableMicrophone" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>enable<wbr/>Microphone</span></a>
+<a href="TelnyxRTC.html#getActiveCalls" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Active<wbr/>Calls</span></a>
 <a href="TelnyxRTC.html#getAudioInDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Audio<wbr/>In<wbr/>Devices</span></a>
 <a href="TelnyxRTC.html#getAudioOutDevices" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Audio<wbr/>Out<wbr/>Devices</span></a>
 <a href="TelnyxRTC.html#getDeviceResolutions" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Device<wbr/>Resolutions</span></a>
@@ -356,6 +357,18 @@ specified when creating a new call.</p>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.enableMicrophone</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="getActiveCalls" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>get<wbr/>Active<wbr/>Calls</span><a href="#getActiveCalls" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature tsd-anchor-link" id="getActiveCalls.getActiveCalls-1"><span class="tsd-kind-call-signature">get<wbr/>Active<wbr/>Calls</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type ">IWebRTCCall</span><span class="tsd-signature-symbol">[]</span><a href="#getActiveCalls.getActiveCalls-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Returns an array of calls currently in a non-terminal state.
+Used by the multi-call detector to decide whether to emit a
+<code>MULTIPLE_ACTIVE_CALLS_DETECTED</code> warning.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type ">IWebRTCCall</span><span class="tsd-signature-symbol">[]</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.getActiveCalls</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="getAudioInDevices" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>get<wbr/>Audio<wbr/>In<wbr/>Devices</span><a href="#getAudioInDevices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1036,6 +1049,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#disableMicrophone" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>disable<wbr/>Microphone</span></a></li>
 <li><a href="#disconnect" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>disconnect</span></a></li>
 <li><a href="#enableMicrophone" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>enable<wbr/>Microphone</span></a></li>
+<li><a href="#getActiveCalls" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Active<wbr/>Calls</span></a></li>
 <li><a href="#getAudioInDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Audio<wbr/>In<wbr/>Devices</span></a></li>
 <li><a href="#getAudioOutDevices" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Audio<wbr/>Out<wbr/>Devices</span></a></li>
 <li><a href="#getDeviceResolutions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>get<wbr/>Device<wbr/>Resolutions</span></a></li>
