@@ -45,6 +45,24 @@ export interface PreCallMicrophoneOptions {
   checkPermission?: boolean;
   /** Whether to check device availability. Default: true. */
   checkDeviceAvailability?: boolean;
+  /**
+   * Whether to perform active microphone capture and audio-level detection.
+   * When true, getUserMedia({ audio: true }) is called and the audio level
+   * is measured during a short sample window. All tracks are stopped after
+   * the sample completes.
+   * Default: false (active capture is opt-in).
+   */
+  activeCapture?: boolean;
+  /**
+   * Duration in ms for the audio-level sample window during active capture.
+   * Default: 2000.
+   */
+  sampleDurationMs?: number;
+  /**
+   * RMS threshold below which audio is considered silent.
+   * Value between 0 and 1. Default: 0.01.
+   */
+  silenceThreshold?: number;
 }
 
 /**
@@ -158,14 +176,83 @@ export interface PreCallMediaReport {
 }
 
 /**
+ * Permission state values for the microphone diagnostic module.
+ *
+ * Mirrors the browser Permissions API states where supported.
+ * 'unknown' is used when the Permissions API is not available or
+ * returns an unrecognized state.
+ */
+export type MicrophonePermissionState =
+  | 'granted'
+  | 'denied'
+  | 'prompt'
+  | 'unknown';
+
+/**
  * Report from the microphone diagnostic module.
- * Placeholder structure — to be filled in by T6/VSDK-303 and T7/VSDK-304.
+ *
+ * Populated by T6 (VSDK-303) for passive permission/device checks and
+ * T7 (VSDK-304, folded into VSDK-303) for active microphone capture
+ * and audio-level detection.
  */
 export interface PreCallMicrophoneReport {
-  /** Whether microphone permission was granted. */
+  /** Microphone permission state from the Permissions API (or best-effort inference). */
+  permissionState?: MicrophonePermissionState;
+  /**
+   * Whether microphone permission was granted.
+   * Convenience boolean: true when permissionState is 'granted', false otherwise.
+   * Undefined when permission state could not be determined.
+   */
   permissionGranted?: boolean;
-  /** Whether a microphone device is available. */
+  /**
+   * Whether at least one audio input device is available.
+   * Undefined when device enumeration is not available.
+   */
   deviceAvailable?: boolean;
+  /**
+   * Number of audio input devices found via enumerateDevices.
+   * Undefined when device enumeration is not available.
+   */
+  deviceCount?: number;
+  /**
+   * Whether device labels are accessible (implies permission was granted).
+   * When false, device labels may be empty strings.
+   * Undefined when device enumeration is not available.
+   */
+  labelsAccessible?: boolean;
+  /**
+   * Whether active microphone capture was performed.
+   * Undefined when activeCapture is disabled or the module is skipped.
+   */
+  activeCapturePerformed?: boolean;
+  /**
+   * Peak RMS audio level observed during the sample window (0–1).
+   * Undefined when activeCapture is disabled or capture failed.
+   */
+  audioLevel?: number;
+  /**
+   * Whether audio energy above the silence threshold was detected.
+   * Undefined when activeCapture is disabled or capture failed.
+   */
+  audioDetected?: boolean;
+  /**
+   * Structured capture error code, if active capture was requested but failed.
+   * - 'permission_denied': getUserMedia was rejected (NotAllowedError, SecurityError).
+   * - 'no_device': No microphone device found (NotFoundError, OverconstrainedError).
+   * - 'not_supported': getUserMedia is not available in this environment.
+   * - 'unknown': An unexpected error occurred during capture.
+   */
+  captureError?: 'permission_denied' | 'no_device' | 'not_supported' | 'unknown';
+  /**
+   * Human-readable description of the capture error, if any.
+   */
+  captureErrorMessage?: string;
+  /**
+   * Reason codes for any issues found, suitable for verdict/reason module input.
+   * E.g. 'microphone_permission_denied', 'microphone_no_device',
+   * 'microphone_capture_permission_denied', 'microphone_silent'.
+   */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**

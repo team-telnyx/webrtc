@@ -20,6 +20,7 @@ export type {
   PreCallMediaOptions,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
+  MicrophonePermissionState,
 } from './types';
 export type { Call } from './types';
 export type {

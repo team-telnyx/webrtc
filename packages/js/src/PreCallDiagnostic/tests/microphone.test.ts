@@ -1,0 +1,1187 @@
+/**
+ * Tests for the microphone diagnostic module (T6+T7 / VSDK-303).
+ *
+ * These tests verify:
+ * - Permission state checking via the Permissions API
+ * - Fallback to 'unknown' when Permissions API is unavailable
+ * - Device availability checking via enumerateDevices
+ * - No device labels leaked in the report output
+ * - Reason codes for denied/no-device states
+ * - Option gating: checkPermission and checkDeviceAvailability can be disabled
+ * - Unsupported APIs return 'unknown' instead of throwing
+ * - Active capture success with audio level detection
+ * - Silence detection with configurable threshold
+ * - Capture error classification (permission denied, no device, not supported, unknown)
+ * - Track cleanup on success, error, and measurement failure
+ * - AudioContext cleanup after measurement
+ * - Custom sampleDurationMs and silenceThreshold
+ * - activeCapture: false skips capture (default)
+ *
+ * Browser APIs are mocked via the `env` parameter injection rather than
+ * overriding `navigator` globals, which is incompatible with the existing
+ * test setup (browsers.ts defines `navigator.mediaDevices` as non-configurable).
+ */
+
+import {
+  buildPreCallMicrophoneReport,
+  BrowserEnv,
+  AudioContextLike,
+  AnalyserNodeLike,
+  MediaStreamSourceLike,
+} from '../modules/microphone';
+import type {
+  PreCallDiagnosticContext,
+} from '../context';
+import type {
+  PreCallDiagnosticOptions,
+} from '../types';
+
+// --- Mock helpers ---
+
+/**
+ * Create a diagnostic context with the given options.
+ * Uses minimal required options for testing.
+ */
+function createContext(
+  overrides: Partial<PreCallDiagnosticOptions> = {}
+): PreCallDiagnosticContext {
+  const options: PreCallDiagnosticOptions = {
+    client: {
+      newCall: jest.fn().mockReturnValue({
+        id: 'test-call-id',
+        hangup: jest.fn(),
+      }),
+    } as unknown as PreCallDiagnosticOptions["client"],
+    destinationNumber: '1234',
+    ...overrides,
+  };
+  return {
+    options,
+    statsSamples: [],
+    timings: { startedAt: Date.now() },
+  };
+}
+
+// --- Browser environment mocks ---
+
+function createEnv(overrides: Partial<BrowserEnv> = {}): BrowserEnv {
+  return overrides;
+}
+
+function envWithPermission(state: PermissionState, extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    permissions: {
+      query: jest.fn().mockResolvedValue({ state }),
+    },
+    ...extra,
+  });
+}
+
+function envWithPermissionError(extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    permissions: {
+      query: jest.fn().mockRejectedValue(new TypeError('Not supported')),
+    },
+    ...extra,
+  });
+}
+
+function envWithoutPermissions(extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    permissions: undefined,
+    ...extra,
+  });
+}
+
+function envWithDevices(devices: MediaDeviceInfo[], extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    mediaDevices: {
+      enumerateDevices: jest.fn().mockResolvedValue(devices),
+    },
+    ...extra,
+  });
+}
+
+function envWithDevicesError(extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    mediaDevices: {
+      enumerateDevices: jest.fn().mockRejectedValue(new Error('Not available')),
+    },
+    ...extra,
+  });
+}
+
+function envWithoutDevices(extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    mediaDevices: undefined,
+    ...extra,
+  });
+}
+
+// --- Active capture mock helpers ---
+
+/**
+ * Create a mock MediaStream with a stoppable track.
+ */
+function createMockStream(trackStop?: jest.Mock): {
+  stream: MediaStream;
+  trackStop: jest.Mock;
+} {
+  const stop = trackStop ?? jest.fn();
+  const stream = {
+    getTracks: jest.fn().mockReturnValue([{ stop }]),
+  } as unknown as MediaStream;
+  return { stream, trackStop: stop };
+}
+
+/**
+ * Create a BrowserEnv with getUserMedia mock.
+ */
+function envWithGetUserMedia(
+  stream: MediaStream,
+  extra: Partial<BrowserEnv> = {}
+): BrowserEnv {
+  return createEnv({
+    mediaDevices: {
+      getUserMedia: jest.fn().mockResolvedValue(stream),
+      enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+    },
+    permissions: {
+      query: jest.fn().mockResolvedValue({ state: 'granted' }),
+    },
+    ...extra,
+  });
+}
+
+/**
+ * Create a BrowserEnv where getUserMedia throws.
+ */
+function envWithGetUserMediaError(
+  error: Error,
+  extra: Partial<BrowserEnv> = {}
+): BrowserEnv {
+  return createEnv({
+    mediaDevices: {
+      getUserMedia: jest.fn().mockRejectedValue(error),
+      enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+    },
+    permissions: {
+      query: jest.fn().mockResolvedValue({ state: 'granted' }),
+    },
+    ...extra,
+  });
+}
+
+/**
+ * Create a BrowserEnv without getUserMedia.
+ */
+function envWithoutGetUserMedia(extra: Partial<BrowserEnv> = {}): BrowserEnv {
+  return createEnv({
+    mediaDevices: {
+      enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+      // getUserMedia deliberately omitted
+    },
+    permissions: {
+      query: jest.fn().mockResolvedValue({ state: 'granted' }),
+    },
+    ...extra,
+  });
+}
+
+/**
+ * Create a mock AudioContext that produces a configurable audio level.
+ */
+function createMockAudioContext(audioLevel: number = 0.5): {
+  AudioContext: new () => AudioContextLike;
+  mockClose: jest.Mock;
+  mockAnalyser: AnalyserNodeLike;
+  mockSource: MediaStreamSourceLike;
+} {
+  const fftSize = 2048;
+  const data = new Float32Array(fftSize);
+  for (let i = 0; i < fftSize; i++) {
+    data[i] = audioLevel * Math.sin((2 * Math.PI * i) / fftSize);
+  }
+
+  const mockAnalyser: AnalyserNodeLike = {
+    fftSize,
+    getFloatTimeDomainData: jest.fn().mockImplementation((arr: Float32Array) => {
+      arr.set(data);
+    }),
+    disconnect: jest.fn(),
+  };
+
+  const mockSource: MediaStreamSourceLike = {
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+  };
+
+  const mockClose = jest.fn().mockResolvedValue(undefined);
+
+  const AudioContextClass = class MockAudioContext implements AudioContextLike {
+    createAnalyser() { return mockAnalyser; }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    createMediaStreamSource(_stream: MediaStream) { return mockSource; }
+    close() { return mockClose(); }
+  };
+
+  return {
+    AudioContext: AudioContextClass,
+    mockClose,
+    mockAnalyser,
+    mockSource,
+  };
+}
+
+/**
+ * Create a BrowserEnv with both getUserMedia and AudioContext mocks.
+ */
+function envWithActiveCapture(
+  audioLevel: number = 0.5,
+  extra: Partial<BrowserEnv> = {}
+): { env: BrowserEnv; trackStop: jest.Mock; audioCtx: ReturnType<typeof createMockAudioContext> } {
+  const { stream, trackStop } = createMockStream();
+  const audioCtx = createMockAudioContext(audioLevel);
+  const env = envWithGetUserMedia(stream, {
+    AudioContext: audioCtx.AudioContext,
+    ...extra,
+  });
+  return { env, trackStop, audioCtx };
+}
+
+// --- Device factory helpers ---
+
+function createAudioInputDevice(
+  overrides: Partial<MediaDeviceInfo> = {}
+): MediaDeviceInfo {
+  return {
+    deviceId: overrides.deviceId ?? 'default-mic',
+    kind: 'audioinput',
+    label: overrides.label ?? 'Default Microphone',
+    groupId: overrides.groupId ?? 'default-group',
+    toJSON: jest.fn(),
+    ...overrides,
+  };
+}
+
+function createAudioOutputDevice(
+  overrides: Partial<MediaDeviceInfo> = {}
+): MediaDeviceInfo {
+  return {
+    deviceId: overrides.deviceId ?? 'default-speaker',
+    kind: 'audiooutput',
+    label: overrides.label ?? 'Default Speaker',
+    groupId: overrides.groupId ?? 'default-group',
+    toJSON: jest.fn(),
+    ...overrides,
+  };
+}
+
+function createVideoInputDevice(
+  overrides: Partial<MediaDeviceInfo> = {}
+): MediaDeviceInfo {
+  return {
+    deviceId: overrides.deviceId ?? 'default-cam',
+    kind: 'videoinput',
+    label: overrides.label ?? 'Default Camera',
+    groupId: overrides.groupId ?? 'default-group',
+    toJSON: jest.fn(),
+    ...overrides,
+  };
+}
+
+// --- Tests ---
+
+describe('buildPreCallMicrophoneReport', () => {
+  describe('permission checking', () => {
+    it('returns "granted" when Permissions API reports granted', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('granted');
+      expect(report?.permissionGranted).toBe(true);
+    });
+
+    it('returns "denied" when Permissions API reports denied', async () => {
+      const env = envWithPermission('denied', envWithDevices([]));
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('denied');
+      expect(report?.permissionGranted).toBe(false);
+    });
+
+    it('returns "prompt" when Permissions API reports prompt', async () => {
+      const env = envWithPermission(
+        'prompt',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('prompt');
+      expect(report?.permissionGranted).toBe(false);
+    });
+
+    it('returns "unknown" when Permissions API is not available', async () => {
+      const env = envWithoutPermissions(
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('unknown');
+      expect(report?.permissionGranted).toBe(false);
+    });
+
+    it('returns "unknown" when Permissions API throws', async () => {
+      const env = envWithPermissionError(
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('unknown');
+    });
+
+    it('returns "unknown" for unrecognized permission state', async () => {
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'custom-state' }),
+        },
+        mediaDevices: {
+          enumerateDevices: jest
+            .fn()
+            .mockResolvedValue([createAudioInputDevice()]),
+        },
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('unknown');
+    });
+  });
+
+  describe('device availability', () => {
+    it('reports deviceAvailable=true when audio input devices exist', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice(), createAudioOutputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.deviceAvailable).toBe(true);
+      expect(report?.deviceCount).toBe(1);
+    });
+
+    it('reports deviceAvailable=false when no audio input devices exist', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioOutputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.deviceAvailable).toBe(false);
+      expect(report?.deviceCount).toBe(0);
+    });
+
+    it('reports deviceAvailable=false when device list is empty', async () => {
+      const env = envWithPermission('granted', envWithDevices([]));
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.deviceAvailable).toBe(false);
+      expect(report?.deviceCount).toBe(0);
+    });
+
+    it('counts only audio input devices, not video or audio output', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([
+          createAudioInputDevice({ deviceId: 'mic1' }),
+          createAudioInputDevice({ deviceId: 'mic2' }),
+          createAudioOutputDevice(),
+          createVideoInputDevice(),
+        ])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.deviceCount).toBe(2);
+      expect(report?.deviceAvailable).toBe(true);
+    });
+
+    it('returns undefined device fields when enumerateDevices is not available', async () => {
+      const env = envWithPermission('granted', envWithoutDevices());
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('granted');
+      expect(report?.deviceAvailable).toBeUndefined();
+      expect(report?.deviceCount).toBeUndefined();
+      expect(report?.labelsAccessible).toBeUndefined();
+    });
+
+    it('returns undefined device fields when enumerateDevices throws', async () => {
+      const env = envWithPermission('granted', envWithDevicesError());
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.deviceAvailable).toBeUndefined();
+    });
+  });
+
+  describe('device labels', () => {
+    it('reports labelsAccessible=true when device has a non-empty label', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([
+          createAudioInputDevice({ label: 'Built-in Microphone' }),
+        ])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.labelsAccessible).toBe(true);
+    });
+
+    it('reports labelsAccessible=false when device labels are empty', async () => {
+      const env = envWithPermission(
+        'prompt',
+        envWithDevices([createAudioInputDevice({ label: '' })])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.labelsAccessible).toBe(false);
+    });
+
+    it('does not leak device labels in the report', async () => {
+      const env = envWithPermission(
+        'prompt',
+        envWithDevices([
+          createAudioInputDevice({ label: 'Sensitive Microphone Name' }),
+        ])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      // The report should NOT contain any label strings
+      const reportStr = JSON.stringify(report);
+      expect(reportStr).not.toContain('Sensitive Microphone Name');
+    });
+  });
+
+  describe('reason codes', () => {
+    it('produces microphone_permission_denied reason when permission is denied', async () => {
+      const env = envWithPermission('denied', envWithDevices([]));
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeDefined();
+      expect(report?.reasons?.length).toBeGreaterThanOrEqual(1);
+      expect(
+        report?.reasons?.some(
+          (r) => r.code === 'microphone_permission_denied'
+        )
+      ).toBe(true);
+    });
+
+    it('produces microphone_no_device reason when no audio input devices', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioOutputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeDefined();
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_no_device')
+      ).toBe(true);
+    });
+
+    it('produces both reasons when permission denied AND no device', async () => {
+      const env = envWithPermission('denied', envWithDevices([]));
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeDefined();
+      expect(report?.reasons?.length).toBe(2);
+      expect(
+        report?.reasons?.some(
+          (r) => r.code === 'microphone_permission_denied'
+        )
+      ).toBe(true);
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_no_device')
+      ).toBe(true);
+    });
+
+    it('does not produce reasons when everything is fine', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeUndefined();
+    });
+
+    it('reason codes have source: "microphone"', async () => {
+      const env = envWithPermission('denied', envWithDevices([]));
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      report?.reasons?.forEach((r) => {
+        expect(r.source).toBe('microphone');
+        expect(r.code).toMatch(/^microphone_/);
+        expect(r.message).toBeTruthy();
+      });
+    });
+
+    it('does not produce reason for prompt state', async () => {
+      const env = envWithPermission(
+        'prompt',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeUndefined();
+    });
+  });
+
+  describe('option gating', () => {
+    it('skips permission check when checkPermission is false', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext({
+        microphone: { checkPermission: false, checkDeviceAvailability: true },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBeUndefined();
+      expect(report?.permissionGranted).toBeUndefined();
+      expect(report?.deviceAvailable).toBe(true);
+    });
+
+    it('skips device availability check when checkDeviceAvailability is false', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext({
+        microphone: { checkPermission: true, checkDeviceAvailability: false },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('granted');
+      expect(report?.deviceAvailable).toBeUndefined();
+      expect(report?.deviceCount).toBeUndefined();
+    });
+
+    it('runs both checks when microphone is true', async () => {
+      const env = envWithPermission(
+        'granted',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext({ microphone: true });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('granted');
+      expect(report?.deviceAvailable).toBe(true);
+    });
+
+    it('runs both checks when microphone is undefined (default)', async () => {
+      const env = envWithPermission(
+        'prompt',
+        envWithDevices([createAudioInputDevice()])
+      );
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('prompt');
+      expect(report?.deviceAvailable).toBe(true);
+    });
+  });
+
+  describe('unknown APIs', () => {
+    it('returns report with permissionState=unknown when both APIs are unavailable', async () => {
+      // Empty env — no permissions API, no mediaDevices
+      const env: BrowserEnv = {};
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      // Permission check runs and returns 'unknown' (a valid finding)
+      // Device check is skipped because mediaDevices is unavailable
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('unknown');
+      expect(report?.deviceAvailable).toBeUndefined();
+    });
+
+    it('returns report with permissionState=unknown when only Permissions API is unavailable', async () => {
+      const env: BrowserEnv = {
+        mediaDevices: {
+          enumerateDevices: jest
+            .fn()
+            .mockResolvedValue([createAudioInputDevice()]),
+        },
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('unknown');
+      expect(report?.deviceAvailable).toBe(true);
+    });
+
+    it('returns report without device fields when only enumerateDevices is unavailable', async () => {
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'prompt' }),
+        },
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.permissionState).toBe('prompt');
+      expect(report?.deviceAvailable).toBeUndefined();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles enumerateDevices returning an empty array for audio inputs', async () => {
+      // No audio input devices but has video devices
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'granted' }),
+        },
+        mediaDevices: {
+          enumerateDevices: jest
+            .fn()
+            .mockResolvedValue([createVideoInputDevice()]),
+        },
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.deviceAvailable).toBe(false);
+      expect(report?.deviceCount).toBe(0);
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_no_device')
+      ).toBe(true);
+    });
+
+    it('handles permissions.query returning null (defensive)', async () => {
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue(null),
+        },
+        mediaDevices: {
+          enumerateDevices: jest
+            .fn()
+            .mockResolvedValue([createAudioInputDevice()]),
+        },
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      // Should gracefully handle the null return
+      expect(report).toBeDefined();
+    });
+
+    it('produces no device reason when deviceAvailable is undefined (unknown)', async () => {
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'denied' }),
+        },
+        // No mediaDevices — deviceAvailable will be undefined
+      };
+      const context = createContext();
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeDefined();
+      expect(report?.reasons?.length).toBe(1);
+      expect(report?.reasons?.[0].code).toBe('microphone_permission_denied');
+    });
+  });
+
+  // --- T7: Active capture tests ---
+
+  describe('active capture — success', () => {
+    it('returns report with audioLevel and audioDetected when capture succeeds', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBe(true);
+      expect(report?.permissionGranted).toBe(true);
+      expect(report?.deviceAvailable).toBe(true);
+      expect(typeof report?.audioLevel).toBe('number');
+      expect(report?.audioLevel).toBeGreaterThan(0);
+      expect(report?.audioDetected).toBe(true);
+    });
+
+    it('stops all tracks after successful capture', async () => {
+      const { env, trackStop } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      await buildPreCallMicrophoneReport(context, env);
+
+      expect(trackStop).toHaveBeenCalled();
+    });
+
+    it('closes the AudioContext after measurement', async () => {
+      const { env, audioCtx } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      await buildPreCallMicrophoneReport(context, env);
+
+      expect(audioCtx.mockClose).toHaveBeenCalled();
+    });
+
+    it('disconnects source and analyser after measurement', async () => {
+      const { env, audioCtx } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      await buildPreCallMicrophoneReport(context, env);
+
+      expect(audioCtx.mockSource.disconnect).toHaveBeenCalled();
+      expect(audioCtx.mockAnalyser.disconnect).toHaveBeenCalled();
+    });
+  });
+
+  describe('active capture — silence detection', () => {
+    it('returns audioDetected: false when audio level is below threshold', async () => {
+      const { env } = envWithActiveCapture(0.001);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBe(true);
+      expect(report?.audioDetected).toBe(false);
+      expect(typeof report?.audioLevel).toBe('number');
+    });
+
+    it('produces microphone_silent reason when audio is not detected', async () => {
+      const { env } = envWithActiveCapture(0.001);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.reasons).toBeDefined();
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_silent')
+      ).toBe(true);
+    });
+
+    it('respects custom silenceThreshold', async () => {
+      const { env } = envWithActiveCapture(0.05);
+      const context = createContext({
+        microphone: {
+          activeCapture: true,
+          silenceThreshold: 0.1,
+          sampleDurationMs: 50,
+        },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      // 0.05 < 0.1 threshold, so not detected
+      expect(report?.audioDetected).toBe(false);
+    });
+
+    it('detects audio above custom threshold', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: {
+          activeCapture: true,
+          silenceThreshold: 0.1,
+          sampleDurationMs: 50,
+        },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      // 0.5 >= 0.1 threshold → detected
+      expect(report?.audioDetected).toBe(true);
+    });
+  });
+
+  describe('active capture — not supported', () => {
+    it('returns not_supported when getUserMedia is not available', async () => {
+      const env = envWithoutGetUserMedia();
+      const context = createContext({
+        microphone: { activeCapture: true },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.captureError).toBe('not_supported');
+      expect(report?.captureErrorMessage).toContain('getUserMedia is not available');
+      expect(report?.activeCapturePerformed).toBe(false);
+    });
+
+    it('produces microphone_capture_not_supported reason', async () => {
+      const env = envWithoutGetUserMedia();
+      const context = createContext({
+        microphone: { activeCapture: true },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_capture_not_supported')
+      ).toBe(true);
+    });
+  });
+
+  describe('active capture — permission denied', () => {
+    it('returns permission_denied when getUserMedia throws NotAllowedError', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Permission denied', 'NotAllowedError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.captureError).toBe('permission_denied');
+      expect(report?.captureErrorMessage).toContain('Permission denied');
+      expect(report?.activeCapturePerformed).toBe(false);
+      expect(report?.permissionGranted).toBe(false);
+    });
+
+    it('returns permission_denied when getUserMedia throws SecurityError', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Blocked by security policy', 'SecurityError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.captureError).toBe('permission_denied');
+      expect(report?.captureErrorMessage).toContain('security policy');
+    });
+
+    it('produces microphone_capture_permission_denied reason', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Permission denied', 'NotAllowedError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_capture_permission_denied')
+      ).toBe(true);
+    });
+  });
+
+  describe('active capture — no device', () => {
+    it('returns no_device when getUserMedia throws NotFoundError', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Requested device not found', 'NotFoundError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.captureError).toBe('no_device');
+      expect(report?.captureErrorMessage).toContain('not found');
+      expect(report?.activeCapturePerformed).toBe(false);
+      expect(report?.permissionGranted).toBe(true);
+      expect(report?.deviceAvailable).toBe(false);
+    });
+
+    it('returns no_device when getUserMedia throws OverconstrainedError', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Constraint not satisfied', 'OverconstrainedError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.captureError).toBe('no_device');
+      expect(report?.captureErrorMessage).toContain('constraint not satisfied');
+    });
+
+    it('produces microphone_capture_no_device reason', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Requested device not found', 'NotFoundError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_capture_no_device')
+      ).toBe(true);
+    });
+  });
+
+  describe('active capture — unknown/unexpected errors', () => {
+    it('returns unknown for NotReadableError', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Could not start audio source', 'NotReadableError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.captureError).toBe('unknown');
+      expect(report?.captureErrorMessage).toContain('not readable');
+    });
+
+    it('returns unknown for unexpected Error', async () => {
+      const env = envWithGetUserMediaError(
+        new Error('Unexpected internal error')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.captureError).toBe('unknown');
+      expect(report?.captureErrorMessage).toContain('Unexpected internal error');
+      expect(report?.activeCapturePerformed).toBe(false);
+    });
+
+    it('handles non-Error throws', async () => {
+      const env: BrowserEnv = envWithGetUserMediaError(
+        new Error('string error') // Will be re-classified
+      );
+      // Override to throw a string
+      env.mediaDevices = {
+        getUserMedia: jest.fn().mockRejectedValue('string error'),
+        enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+      };
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.captureError).toBe('unknown');
+      expect(report?.captureErrorMessage).toBe('string error');
+    });
+
+    it('returns not_supported for TypeError from getUserMedia', async () => {
+      const env: BrowserEnv = {
+        mediaDevices: {
+          getUserMedia: jest.fn().mockRejectedValue(
+            new TypeError('malformed constraint')
+          ),
+          enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+        },
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'granted' }),
+        },
+      };
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report?.captureError).toBe('not_supported');
+      expect(report?.captureErrorMessage).toContain('malformed constraint');
+    });
+
+    it('produces microphone_capture_failed reason for unknown errors', async () => {
+      const env = envWithGetUserMediaError(
+        new Error('Unexpected internal error')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(
+        report?.reasons?.some((r) => r.code === 'microphone_capture_failed')
+      ).toBe(true);
+    });
+  });
+
+  describe('active capture — cleanup', () => {
+    it('stops tracks even when measurement fails after capture succeeds', async () => {
+      const { stream, trackStop } = createMockStream();
+
+      // Create an AudioContext that throws during construction
+      const ThrowingAudioContext = class {
+        constructor() {
+          throw new Error('AudioContext failed');
+        }
+      };
+
+      const env: BrowserEnv = {
+        mediaDevices: {
+          getUserMedia: jest.fn().mockResolvedValue(stream),
+          enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+        },
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'granted' }),
+        },
+        // AudioContext that throws
+        AudioContext: ThrowingAudioContext as unknown as new () => AudioContextLike,
+      };
+
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      // Tracks should be stopped despite AudioContext failure
+      expect(trackStop).toHaveBeenCalled();
+      // Capture was attempted but failed due to measurement error
+      expect(report?.activeCapturePerformed).toBe(false);
+      expect(report?.captureError).toBe('unknown');
+    });
+
+    it('stops tracks on successful capture and measurement', async () => {
+      const { env, trackStop } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      await buildPreCallMicrophoneReport(context, env);
+
+      expect(trackStop).toHaveBeenCalled();
+    });
+
+    it('does not call getUserMedia when activeCapture is false', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: false },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBeUndefined();
+      expect(report?.audioLevel).toBeUndefined();
+      expect(report?.audioDetected).toBeUndefined();
+      expect(env.mediaDevices?.getUserMedia).not.toHaveBeenCalled();
+    });
+
+    it('does not call getUserMedia when activeCapture is not specified (default)', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { checkPermission: true, checkDeviceAvailability: true },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBeUndefined();
+      expect(env.mediaDevices?.getUserMedia).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('active capture — AudioContext unavailable', () => {
+    it('returns audioLevel 0 and audioDetected false when AudioContext is not available', async () => {
+      const { stream } = createMockStream();
+      const env: BrowserEnv = {
+        mediaDevices: {
+          getUserMedia: jest.fn().mockResolvedValue(stream),
+          enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+        },
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'granted' }),
+        },
+        // No AudioContext
+      };
+
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBe(true);
+      expect(report?.audioLevel).toBe(0);
+      expect(report?.audioDetected).toBe(false);
+    });
+  });
+
+  describe('active capture — custom options', () => {
+    it('uses custom sampleDurationMs', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: {
+          activeCapture: true,
+          sampleDurationMs: 50,
+        },
+      });
+
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeDefined();
+      expect(report?.activeCapturePerformed).toBe(true);
+    });
+  });
+
+  describe('active capture — report shape', () => {
+    it('includes all expected fields on success', async () => {
+      const { env } = envWithActiveCapture(0.5);
+      const context = createContext({
+        microphone: { activeCapture: true, sampleDurationMs: 50 },
+      });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toHaveProperty('activeCapturePerformed');
+      expect(report).toHaveProperty('permissionGranted');
+      expect(report).toHaveProperty('deviceAvailable');
+      expect(report).toHaveProperty('audioLevel');
+      expect(report).toHaveProperty('audioDetected');
+      expect(report?.captureError).toBeUndefined();
+      expect(report?.captureErrorMessage).toBeUndefined();
+    });
+
+    it('includes error fields on failure', async () => {
+      const env = envWithGetUserMediaError(
+        new DOMException('Permission denied', 'NotAllowedError')
+      );
+      const context = createContext({ microphone: { activeCapture: true } });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toHaveProperty('captureError');
+      expect(report).toHaveProperty('captureErrorMessage');
+      expect(report?.activeCapturePerformed).toBe(false);
+    });
+  });
+
+  describe('disabled options', () => {
+    it('returns undefined when microphone is false', async () => {
+      const env: BrowserEnv = {
+        permissions: {
+          query: jest.fn().mockResolvedValue({ state: 'granted' }),
+        },
+        mediaDevices: {
+          enumerateDevices: jest.fn().mockResolvedValue([createAudioInputDevice()]),
+        },
+      };
+      const context = createContext({ microphone: false });
+      const report = await buildPreCallMicrophoneReport(context, env);
+
+      expect(report).toBeUndefined();
+    });
+  });
+});
