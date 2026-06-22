@@ -1,63 +1,15 @@
 /**
  * Type definitions for the new PreCallDiagnostic system.
  *
- * This module defines the public API surface, report interfaces, and
- * narrow dependency interfaces used by PreCallDiagnostic and its
- * module builders.
+ * This module defines the public API surface and report interfaces
+ * used by PreCallDiagnostic and its module builders.
  *
  * The existing PreCallDiagnosis class is NOT modified — this is a
  * separate, extensible diagnostic framework.
  */
 
-/**
- * Narrow interface representing the client/call runtime dependency.
- *
- * PreCallDiagnostic uses this instead of importing TelnyxRTC directly,
- * so that tests and future consumers can provide mock implementations
- * without pulling in the full SDK.
- */
-export interface ClientLike {
-  /**
-   * Make a new outbound call.
-   * Returns a CallLike instance for the diagnostic call.
-   */
-  newCall(options: CallLikeOptions): CallLike;
-}
-
-/**
- * Options for creating a diagnostic call via ClientLike.
- */
-export interface CallLikeOptions {
-  /** The destination number to dial for the diagnostic call. */
-  destinationNumber: string;
-  /** Caller name to identify the diagnostic call source. */
-  callerName?: string;
-  /** Caller number for the diagnostic call. */
-  callerNumber?: string;
-  /** Audio constraints for the diagnostic call. */
-  audio?: boolean | MediaStreamConstraints['audio'];
-  /** Whether to enable debug/stats collection on the call. */
-  debug?: boolean;
-}
-
-/**
- * Narrow interface representing a call object returned by ClientLike.
- *
- * This provides just the methods PreCallDiagnostic needs for lifecycle
- * management and stats access.
- */
-export interface CallLike {
-  /** Unique identifier for this call. */
-  id: string;
-  /**
-   * Hang up the call.
-   * May return a Promise (e.g. SDK Call.hangup()) or void synchronously.
-   * Consumers should await the result when possible.
-   */
-  hangup(): void | Promise<void>;
-  /** The underlying RTCPeerConnection, if available. */
-  peerConnection?: RTCPeerConnection;
-}
+import type { TelnyxRTC } from '../TelnyxRTC';
+import type Call from '../Modules/Verto/webrtc/Call';
 
 /**
  * Options for the ICE diagnostic module.
@@ -100,7 +52,7 @@ export interface PreCallMicrophoneOptions {
  */
 export interface PreCallDiagnosticOptions {
   /** Required runtime dependency for creating diagnostic calls. */
-  client: ClientLike;
+  client: TelnyxRTC;
 
   /** The destination number to dial for the diagnostic call. */
   destinationNumber: string;
@@ -260,3 +212,9 @@ export interface PreCallDiagnosticRunner {
    */
   run(): Promise<PreCallDiagnosticReport>;
 }
+
+/**
+ * Re-export Call type for consumers that need to reference the diagnostic call.
+ * Using the SDK's own Call class rather than a duplicate interface.
+ */
+export type { Call };

@@ -11,8 +11,8 @@
 
 import type {
   PreCallDiagnosticOptions,
-  CallLike,
 } from './types';
+import type Call from '../Modules/Verto/webrtc/Call';
 
 /**
  * Internal timing marks for the diagnostic run.
@@ -40,7 +40,7 @@ export interface PreCallDiagnosticContext {
   /** The options used for this diagnostic run. */
   options: PreCallDiagnosticOptions;
   /** The temporary diagnostic call, if one was established. */
-  call?: CallLike;
+  call?: Call;
   /** Collected stats samples from the diagnostic call. */
   statsSamples: unknown[];
   /** Internal timing marks for computing the timings report. */

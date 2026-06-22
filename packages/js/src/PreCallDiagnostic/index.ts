@@ -7,9 +7,6 @@
 
 export { PreCallDiagnostic } from './PreCallDiagnostic';
 export type {
-  ClientLike,
-  CallLike,
-  CallLikeOptions,
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
@@ -24,6 +21,7 @@ export type {
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
 } from './types';
+export type { Call } from './types';
 export type {
   PreCallDiagnosticContext,
   DiagnosticTimings,

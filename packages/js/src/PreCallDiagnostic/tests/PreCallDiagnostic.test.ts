@@ -13,29 +13,29 @@
 
 import { PreCallDiagnostic } from '../PreCallDiagnostic';
 import type {
-  ClientLike,
-  CallLike,
   PreCallDiagnosticOptions,
 } from '../types';
+import type Call from '../../Modules/Verto/webrtc/Call';
+import type { TelnyxRTC } from '../../TelnyxRTC';
 import { PreCallDiagnosis } from '../../PreCallDiagnosis';
 
 // --- Mock helpers ---
 
-function createMockCall(overrides: Partial<CallLike> = {}): CallLike {
+function createMockCall(overrides: Partial<Call> = {}): Call {
   return {
     id: 'test-call-id',
-    hangup: jest.fn(),
-    peerConnection: undefined,
+    hangup: jest.fn().mockResolvedValue(undefined),
+    peer: { instance: null },
     ...overrides,
-  };
+  } as unknown as Call;
 }
 
-function createMockClient(overrides: Partial<ClientLike> = {}): ClientLike {
+function createMockClient(overrides: Partial<TelnyxRTC> = {}): TelnyxRTC {
   const mockCall = createMockCall();
   return {
     newCall: jest.fn().mockReturnValue(mockCall),
     ...overrides,
-  };
+  } as unknown as TelnyxRTC;
 }
 
 function createOptions(
@@ -125,7 +125,7 @@ describe('PreCallDiagnostic', () => {
       const mockCall = createMockCall();
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient })
       );
@@ -139,7 +139,7 @@ describe('PreCallDiagnostic', () => {
       const mockCall = createMockCall();
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient, autoHangup: false })
       );
@@ -154,7 +154,7 @@ describe('PreCallDiagnostic', () => {
         newCall: jest.fn().mockImplementation(() => {
           throw new Error('Call creation failed');
         }),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient })
       );
@@ -173,7 +173,7 @@ describe('PreCallDiagnostic', () => {
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient })
       );
@@ -191,7 +191,7 @@ describe('PreCallDiagnostic', () => {
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient })
       );
@@ -211,7 +211,7 @@ describe('PreCallDiagnostic', () => {
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
-      });
+      } as unknown as Partial<TelnyxRTC>);
       const diagnostic = new PreCallDiagnostic(
         createOptions({ client: mockClient })
       );

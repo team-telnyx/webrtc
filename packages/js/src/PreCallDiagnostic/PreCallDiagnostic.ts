@@ -23,8 +23,8 @@ import type {
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
   PreCallTimingsReport,
-  CallLike,
 } from './types';
+import Call from '../Modules/Verto/webrtc/Call';
 import {
   createDiagnosticContext,
 } from './context';
@@ -80,7 +80,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    */
   async run(): Promise<PreCallDiagnosticReport> {
     const context = createDiagnosticContext(this.options);
-    let call: CallLike | undefined;
+    let call: Call | undefined;
 
     try {
       // Establish temporary diagnostic call
@@ -153,7 +153,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       };
     } finally {
       // Cleanup temporary resources — must await because cleanupCall is async
-      // and hangup() may return a Promise (real SDK Call).
+      // and hangup() returns a Promise (real SDK Call).
       if (call && this.options.autoHangup !== false) {
         await this.cleanupCall(call);
       }
@@ -164,7 +164,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   /**
    * Create a temporary diagnostic call using the client dependency.
    */
-  private createDiagnosticCall(): CallLike {
+  private createDiagnosticCall(): Call {
     const { client, destinationNumber, callerName, callerNumber, audio } =
       this.options;
 
@@ -273,10 +273,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
   /**
    * Clean up a temporary diagnostic call.
-   * Awaits hangup() (which may return a Promise from the real SDK Call)
+   * Awaits hangup() (which returns a Promise from the real SDK Call)
    * and swallows/logs any errors so the diagnostic report is never lost.
    */
-  private async cleanupCall(call: CallLike): Promise<void> {
+  private async cleanupCall(call: Call): Promise<void> {
     try {
       await call.hangup();
     } catch (error) {
