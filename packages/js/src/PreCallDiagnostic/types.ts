@@ -93,6 +93,24 @@ export interface PreCallMicrophoneOptions {
   checkPermission?: boolean;
   /** Whether to check device availability. Default: true. */
   checkDeviceAvailability?: boolean;
+  /**
+   * Whether to perform active microphone capture and audio-level detection.
+   * When true, getUserMedia({ audio: true }) is called and the audio level
+   * is measured during a short sample window. All tracks are stopped after
+   * the sample completes.
+   * Default: false (active capture is opt-in).
+   */
+  activeCapture?: boolean;
+  /**
+   * Duration in ms for the audio-level sample window during active capture.
+   * Default: 2000.
+   */
+  sampleDurationMs?: number;
+  /**
+   * RMS threshold below which audio is considered silent.
+   * Value between 0 and 1. Default: 0.01.
+   */
+  silenceThreshold?: number;
 }
 
 /**
@@ -219,10 +237,11 @@ export type MicrophonePermissionState =
   | 'unknown';
 
 /**
- * Report from the microphone permission and device availability check.
+ * Report from the microphone diagnostic module.
  *
- * Implemented by T6 (VSDK-303). T7 (VSDK-304) adds active capture
- * and audio-level diagnostics as a separate concern.
+ * Populated by T6 (VSDK-303) for passive permission/device checks and
+ * T7 (VSDK-304, folded into VSDK-303) for active microphone capture
+ * and audio-level detection.
  */
 export interface PreCallMicrophoneReport {
   /** Microphone permission state from the Permissions API (or best-effort inference). */
@@ -250,8 +269,36 @@ export interface PreCallMicrophoneReport {
    */
   labelsAccessible?: boolean;
   /**
+   * Whether active microphone capture was performed.
+   * Undefined when activeCapture is disabled or the module is skipped.
+   */
+  activeCapturePerformed?: boolean;
+  /**
+   * Peak RMS audio level observed during the sample window (0–1).
+   * Undefined when activeCapture is disabled or capture failed.
+   */
+  audioLevel?: number;
+  /**
+   * Whether audio energy above the silence threshold was detected.
+   * Undefined when activeCapture is disabled or capture failed.
+   */
+  audioDetected?: boolean;
+  /**
+   * Structured capture error code, if active capture was requested but failed.
+   * - 'permission_denied': getUserMedia was rejected (NotAllowedError, SecurityError).
+   * - 'no_device': No microphone device found (NotFoundError, OverconstrainedError).
+   * - 'not_supported': getUserMedia is not available in this environment.
+   * - 'unknown': An unexpected error occurred during capture.
+   */
+  captureError?: 'permission_denied' | 'no_device' | 'not_supported' | 'unknown';
+  /**
+   * Human-readable description of the capture error, if any.
+   */
+  captureErrorMessage?: string;
+  /**
    * Reason codes for any issues found, suitable for verdict/reason module input.
-   * E.g. 'microphone_permission_denied', 'microphone_no_device'.
+   * E.g. 'microphone_permission_denied', 'microphone_no_device',
+   * 'microphone_capture_permission_denied', 'microphone_silent'.
    */
   reasons?: PreCallDiagnosticReason[];
 }
