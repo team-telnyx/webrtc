@@ -19,6 +19,12 @@ import Call from '../../webrtc/Call';
 import { State } from '../../webrtc/constants';
 const Connection = require('../../services/Connection');
 import Verto from '../..';
+import {
+  setActiveCallsRecoveryMarker,
+  getActiveCallsRecoveryMarker,
+  clearActiveCallsRecoveryMarker,
+  RECOVERY_MARKER_MAX_AGE_MS,
+} from '../../util/reconnect';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -1029,6 +1035,216 @@ describe('VertoHandler', () => {
         expect(instance.calls['call-a']).toBeDefined();
         expect(instance.calls['call-b']).toBeDefined();
         expect(onError).not.toHaveBeenCalled();
+      });
+    });
+
+    // ── Page-reload recovery marker (sessionStorage-backed) ─────────────
+    // After a page reload the SDK has no in-memory calls, so the in-process
+    // reattach block above does not run. These tests verify the persisted
+    // recovery marker path: saved markers are compared against
+    // reattached_sessions for the current session id and SESSION_NOT_REATTACHED
+    // is emitted for missing calls. The marker is consumed exactly once.
+    describe('page-reload recovery marker', () => {
+      beforeEach(() => {
+        clearActiveCallsRecoveryMarker();
+      });
+
+      afterEach(() => {
+        clearActiveCallsRecoveryMarker();
+      });
+
+      const setSession = (sessid: string) => {
+        (instance as any).sessionid = sessid;
+      };
+
+      const sendReattachForSession = (
+        reattachedSessions: string[]
+      ) => {
+        const msg = JSON.parse(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 999,
+            method: 'telnyx_rtc.clientReady',
+            params: {
+              reattached_sessions: reattachedSessions,
+              state: 'REGED',
+            },
+          })
+        );
+        handler.handleMessage(msg);
+      };
+
+      it('emits SESSION_NOT_REATTACHED once for a saved call missing from reattached_sessions (same sessid)', async () => {
+        await instance.connect();
+        setSession('sess-reload');
+
+        // Simulate a marker written before the previous page unloaded.
+        setActiveCallsRecoveryMarker([
+          {
+            callId: 'lost-call',
+            sessid: 'sess-reload',
+            storedAt: Date.now(),
+            telnyxSessionId: 'tsid-lost',
+            telnyxCallControlId: 'ccid-lost',
+          },
+        ]);
+
+        // No in-memory calls and reattached_sessions is empty.
+        sendReattachForSession([]);
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId: 'lost-call',
+            sessionId: 'sess-reload',
+            telnyxSessionId: 'tsid-lost',
+            telnyxCallControlId: 'ccid-lost',
+          })
+        );
+
+        // Marker must be cleared after consumption.
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('does NOT emit an error when the saved marker sessid differs from the current session', async () => {
+        await instance.connect();
+        setSession('sess-current');
+
+        setActiveCallsRecoveryMarker([
+          {
+            callId: 'other-session-call',
+            sessid: 'sess-different',
+            storedAt: Date.now(),
+          },
+        ]);
+
+        sendReattachForSession([]);
+
+        expect(onError).not.toHaveBeenCalled();
+        // Storage is still cleared (unconditionally) even on mismatch.
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {
+        await instance.connect();
+        setSession('sess-recovered');
+
+        setActiveCallsRecoveryMarker([
+          {
+            callId: 'recovered-call',
+            sessid: 'sess-recovered',
+            storedAt: Date.now(),
+          },
+        ]);
+
+        sendReattachForSession(['recovered-call']);
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('does NOT emit an error and clears storage for stale markers (>30 min)', async () => {
+        await instance.connect();
+        setSession('sess-stale');
+
+        const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              callId: 'stale-call',
+              sessid: 'sess-stale',
+              storedAt: staleTime,
+            },
+          ],
+          staleTime
+        );
+
+        sendReattachForSession([]);
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('does NOT emit an error and does not mutate storage when there are no saved markers', async () => {
+        await instance.connect();
+        setSession('sess-empty');
+
+        sendReattachForSession([]);
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('emits at most one notification per saved call across duplicate reattach events (cleanup-after-read)', async () => {
+        await instance.connect();
+        setSession('sess-dedup');
+
+        setActiveCallsRecoveryMarker([
+          {
+            callId: 'dup-call',
+            sessid: 'sess-dedup',
+            storedAt: Date.now(),
+          },
+        ]);
+
+        // First reattach — should emit once and clear storage.
+        sendReattachForSession([]);
+        expect(onError).toHaveBeenCalledTimes(1);
+
+        // Second reattach (duplicate event) — storage is empty, no new error.
+        sendReattachForSession([]);
+        expect(onError).toHaveBeenCalledTimes(1);
+
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      });
+
+      it('does NOT hang up any call represented by saved markers (notification-only)', async () => {
+        await instance.connect();
+        setSession('sess-no-hangup');
+
+        setActiveCallsRecoveryMarker([
+          {
+            callId: 'marker-only-call',
+            sessid: 'sess-no-hangup',
+            storedAt: Date.now(),
+          },
+        ]);
+
+        Connection.mockSend.mockClear();
+        sendReattachForSession([]);
+
+        expect(onError).toHaveBeenCalledTimes(1);
+
+        // No BYE should be sent for the marker-only call.
+        const byeCalls = Connection.mockSend.mock.calls.filter(
+          (c: { request: { method: string } }[]) =>
+            c[0]?.request?.method === 'telnyx_rtc.bye'
+        );
+        expect(byeCalls.length).toBe(0);
+      });
+
+      it('emits SESSION_NOT_REATTACHED for each of multiple saved missing calls', async () => {
+        await instance.connect();
+        setSession('sess-multi');
+
+        setActiveCallsRecoveryMarker([
+          { callId: 'lost-1', sessid: 'sess-multi', storedAt: Date.now() },
+          { callId: 'lost-2', sessid: 'sess-multi', storedAt: Date.now() },
+          // Different sessid — should be ignored.
+          { callId: 'other', sessid: 'other-sess', storedAt: Date.now() },
+        ]);
+
+        sendReattachForSession(['recovered-elsewhere']);
+
+        expect(onError).toHaveBeenCalledTimes(2);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ callId: 'lost-1' })
+        );
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({ callId: 'lost-2' })
+        );
+        expect(getActiveCallsRecoveryMarker().length).toBe(0);
       });
     });
   });

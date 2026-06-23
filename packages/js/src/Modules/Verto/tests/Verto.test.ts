@@ -14,6 +14,9 @@ import {
   RECONNECT_SESSION_ID_MAX_AGE_MS,
   setReconnectSessionId,
   setReconnectToken,
+  getActiveCallsRecoveryMarker,
+  setActiveCallsRecoveryMarker,
+  clearActiveCallsRecoveryMarker,
 } from '../util/reconnect';
 
 const Connection = require('../services/Connection');
@@ -141,17 +144,161 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
+      // A beforeunload listener IS registered (to save the recovery marker),
+      // but it does NOT hang up calls and does NOT clear the reconnect token.
       expect(
         addEventListenerSpy.mock.calls.some(
           ([eventName]) => eventName === 'beforeunload'
         )
-      ).toBe(false);
+      ).toBe(true);
 
       expect(getReconnectToken()).toBe('voice-sdk-id');
       expect(getReconnectSessionId()).toBe('previous-sessid');
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should save recovery markers for active calls before unload when hangupOnBeforeUnload is false', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+
+      // Simulate a logged-in session with active calls. The marker save path
+      // projects only safe identifier fields from each Call's options.
+      telnyxRTC.sessionid = 'session-abc';
+      const hangup = jest.fn();
+      telnyxRTC.calls = {
+        'call-1': ({
+          id: 'call-1',
+          hangup,
+          options: {
+            telnyxSessionId: 'tsid-1',
+            telnyxCallControlId: 'ccid-1',
+          },
+        } as unknown) as IWebRTCCall,
+        'call-2': ({
+          id: 'call-2',
+          hangup,
+          options: {},
+        } as unknown) as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+
+      expect(beforeUnloadHandler).toBeDefined();
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // No hangup is called in this branch.
+      expect(hangup).not.toHaveBeenCalled();
+
+      const markers = getActiveCallsRecoveryMarker();
+      expect(markers.length).toBe(2);
+
+      const ids = markers.map((m) => m.callId).sort();
+      expect(ids).toEqual(['call-1', 'call-2']);
+
+      const m1 = markers.find((m) => m.callId === 'call-1');
+      expect(m1.sessid).toBe('session-abc');
+      expect(typeof m1.storedAt).toBe('number');
+      expect(m1.telnyxSessionId).toBe('tsid-1');
+      expect(m1.telnyxCallControlId).toBe('ccid-1');
+
+      // call-2 had no telnyx correlation ids — they should be absent.
+      const m2 = markers.find((m) => m.callId === 'call-2');
+      expect(m2.sessid).toBe('session-abc');
+      expect(m2.telnyxSessionId).toBeUndefined();
+      expect(m2.telnyxCallControlId).toBeUndefined();
+
+      // Ensure no live RTCPeerConnection/MediaStream/SDP fields leaked into
+      // the persisted record — only the safe identifier fields.
+      const serialized = JSON.stringify(markers[0]);
+      expect(serialized).not.toContain('peer');
+      expect(serialized).not.toContain('localStream');
+      expect(serialized).not.toContain('remoteSdp');
+      expect(serialized).not.toContain('password');
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should clear any stale recovery marker when hangupOnBeforeUnload is false and there are no active calls', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+
+      // Pre-seed a stale marker from a previous page.
+      setActiveCallsRecoveryMarker([
+        {
+          callId: 'stale-call',
+          sessid: 'old-session',
+          storedAt: Date.now(),
+        },
+      ]);
+      expect(getActiveCallsRecoveryMarker().length).toBe(1);
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      // No sessionid and no active calls.
+      telnyxRTC.sessionid = '';
+      telnyxRTC.calls = {};
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // Stale marker should have been wiped.
+      expect(getActiveCallsRecoveryMarker().length).toBe(0);
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should NOT write a recovery marker when hangupOnBeforeUnload is not false (default branch)', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        // default hangupOnBeforeUnload
+      });
+      telnyxRTC.sessionid = 'session-default';
+      telnyxRTC.calls = {
+        'call-x': ({
+          id: 'call-x',
+          hangup: jest.fn(),
+          options: {},
+        } as unknown) as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // Default branch hangs up and clears the reconnect token — no marker.
+      expect(getActiveCallsRecoveryMarker().length).toBe(0);
+
+      addEventListenerSpy.mockRestore();
+      clearReconnectToken();
+      clearActiveCallsRecoveryMarker();
     });
   });
 
