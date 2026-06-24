@@ -18,8 +18,14 @@ export type {
   PreCallNetworkOptions,
   PreCallMediaReport,
   PreCallMediaOptions,
+  MediaAudioDirection,
+  MediaRtpDetails,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
+  NetworkMinMaxAverage,
+  NetworkPacketCounters,
+  NetworkByteCounters,
+  NetworkBitrate,
 } from './types';
 export type { Call } from './types';
 export type {

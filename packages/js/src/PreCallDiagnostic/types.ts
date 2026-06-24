@@ -140,21 +140,136 @@ export interface PreCallIceReport {
 }
 
 /**
- * Report from the network diagnostic module.
- * Placeholder structure — to be filled in by T4/VSDK-301.
+ * Summary statistics with min/max/average, used for RTT and jitter.
+ * All values in milliseconds.
  */
-export interface PreCallNetworkReport {
-  /** Overall network quality assessment. */
-  quality?: 'good' | 'fair' | 'poor' | 'unknown';
+export interface NetworkMinMaxAverage {
+  /** Minimum observed value in ms. */
+  min?: number;
+  /** Maximum observed value in ms. */
+  max?: number;
+  /** Average of observed values in ms. */
+  average?: number;
 }
 
 /**
- * Report from the media diagnostic module.
- * Placeholder structure — to be filled in by T5/VSDK-302.
+ * Packet counters from the diagnostic call.
+ */
+export interface NetworkPacketCounters {
+  /** Total RTP packets sent. */
+  packetsSent?: number;
+  /** Total RTP packets received. */
+  packetsReceived?: number;
+  /** Total RTP packets lost (cumulative). */
+  packetsLost?: number;
+  /** Packet loss fraction (0–1), computed from packetsLost / (packetsReceived + packetsLost). */
+  packetLossFraction?: number;
+}
+
+/**
+ * Byte counters from the diagnostic call.
+ */
+export interface NetworkByteCounters {
+  /** Total bytes sent. */
+  bytesSent?: number;
+  /** Total bytes received. */
+  bytesReceived?: number;
+}
+
+/**
+ * Bitrate measurements computed from consecutive stats samples.
+ * All values in bits per second (bps).
+ */
+export interface NetworkBitrate {
+  /** Estimated outbound audio bitrate in bps. */
+  outbound?: number;
+  /** Estimated inbound audio bitrate in bps. */
+  inbound?: number;
+}
+
+/**
+ * Report from the network diagnostic module.
+ *
+ * Produces normalized network quality metrics from raw WebRTC stats,
+ * with quality classification and reason inputs for verdict logic.
+ */
+export interface PreCallNetworkReport {
+  /** Overall network quality assessment based on RTT, jitter, and packet loss. */
+  quality?: 'good' | 'fair' | 'poor' | 'unknown';
+
+  /** Round-trip time statistics in milliseconds. */
+  rtt?: NetworkMinMaxAverage;
+
+  /** Jitter statistics in milliseconds. */
+  jitter?: NetworkMinMaxAverage;
+
+  /** Packet loss and counter statistics. */
+  packets?: NetworkPacketCounters;
+
+  /** Byte transfer counters. */
+  bytes?: NetworkByteCounters;
+
+  /** Estimated audio bitrate in bps (computed from byte deltas between samples). */
+  bitrate?: NetworkBitrate;
+
+  /**
+   * Reason inputs for the verdict module.
+   * Each entry describes a specific network degradation detected.
+   */
+  reasons?: PreCallDiagnosticReason[];
+}
+
+/**
+ * Per-direction audio flow details from the media diagnostic module.
+ *
+ * Describes whether audio RTP packets/bytes are observed increasing in one
+ * direction during the diagnostic call, plus the raw counters and the
+ * delta between the first and last samples.
+ */
+export interface MediaAudioDirection {
+  /** Whether audio packets or bytes increased across samples. */
+  flowing: boolean;
+  /** Cumulative RTP packet count from the last sample. */
+  packets?: number;
+  /** Cumulative byte count from the last sample. */
+  bytes?: number;
+  /** Delta in packet count between first and last sample. */
+  packetsDelta?: number;
+  /** Delta in byte count between first and last sample. */
+  bytesDelta?: number;
+}
+
+/**
+ * RTP-level details in the media report.
+ */
+export interface MediaRtpDetails {
+  /** Outbound (send-side) audio flow details. */
+  outbound?: MediaAudioDirection;
+  /** Inbound (receive-side) audio flow details. */
+  inbound?: MediaAudioDirection;
+}
+
+/**
+ * Report from the media diagnostic module — T5 (folded into VSDK-301).
+ *
+ * Describes whether audio RTP is flowing in both directions during the
+ * diagnostic call, derived from the shared stats sample timeline
+ * (`context.statsSamples`). The module reads only `context.statsSamples`;
+ * it does not poll the peer connection or own timers.
  */
 export interface PreCallMediaReport {
-  /** Whether media (audio) is flowing in both directions. */
+  /** Whether audio is flowing in both directions (derived from inbound + outbound). */
   audioFlowing?: boolean;
+  /** Whether outbound audio RTP packets/bytes are increasing. */
+  outboundAudioFlowing?: boolean;
+  /** Whether inbound audio RTP packets/bytes are increasing. */
+  inboundAudioFlowing?: boolean;
+  /** Per-direction RTP packet/byte counters and deltas. */
+  rtp?: MediaRtpDetails;
+  /** Number of stats samples the report was built from. */
+  sampleCount?: number;
+  /** Reason inputs for the verdict module (namespaced with `media_*`). */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**

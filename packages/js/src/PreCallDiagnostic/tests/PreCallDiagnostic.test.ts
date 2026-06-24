@@ -16,6 +16,7 @@ import type {
   PreCallDiagnosticOptions,
 } from '../types';
 import type Call from '../../Modules/Verto/webrtc/Call';
+import type Peer from '../../Modules/Verto/webrtc/Peer';
 import type { TelnyxRTC } from '../../TelnyxRTC';
 import { PreCallDiagnosis } from '../../PreCallDiagnosis';
 
@@ -298,6 +299,329 @@ describe('PreCallDiagnostic', () => {
       expect(report).toHaveProperty('network');
       expect(report).toHaveProperty('media');
       expect(report).toHaveProperty('microphone');
+    });
+  });
+
+  describe('stats sampling from diagnostic call', () => {
+    it('produces a populated network report when call.getStats() returns SDK-shaped stats', async () => {
+      // Simulate an SDK-shaped call that provides stats via getStats().
+      // The stats frame uses the IStatsInterval / raw WebRTC shapes that
+      // buildPreCallNetworkReport() knows how to consume.
+      const sdkStatsFrame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 2,
+              jitter: 0.005, // 5ms in seconds
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.025, // 25ms RTT
+                jitter: 0.005, // 5ms jitter
+              },
+            ],
+          },
+        },
+        connection: {
+          currentRoundTripTime: 0.025,
+          bytesSent: 160000,
+          bytesReceived: 160000,
+        },
+      };
+
+      const mockCall = createMockCall({
+        getStats: jest.fn().mockResolvedValue(sdkStatsFrame),
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10, // Short duration for test speed
+          statsSampleIntervalMs: 5,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      // The network report should be populated (not quality: 'unknown')
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).not.toBe('unknown');
+      expect(report.network?.quality).toBe('good');
+      expect(report.network?.rtt).toBeDefined();
+      expect(report.network?.rtt?.average).toBeCloseTo(25, 0);
+      expect(report.network?.jitter).toBeDefined();
+      expect(report.network?.jitter?.average).toBeCloseTo(5, 0);
+      expect(report.network?.packets).toBeDefined();
+      expect(report.network?.packets?.packetsReceived).toBe(1000);
+      expect(report.network?.packets?.packetsLost).toBe(2);
+      expect(report.network?.bytes).toBeDefined();
+      expect(report.network?.bytes?.bytesSent).toBe(160000);
+      expect(report.network?.bytes?.bytesReceived).toBe(160000);
+
+      // Raw samples should be recorded in the report
+      expect(report.raw?.samples).toBeDefined();
+      expect(report.raw?.samples?.length).toBeGreaterThan(0);
+    });
+
+    it('produces a degraded network report when call stats show high RTT', async () => {
+      const sdkStatsFrame = {
+        timestamp: Date.now(),
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 1000,
+              packetsLost: 5,
+              jitter: 0.01,
+              bytesReceived: 160000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 1000,
+              bytesSent: 160000,
+            },
+          ],
+        },
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.4, // 400ms — degraded (>= 300ms)
+                jitter: 0.01,
+              },
+            ],
+          },
+        },
+      };
+
+      const mockCall = createMockCall({
+        getStats: jest.fn().mockResolvedValue(sdkStatsFrame),
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10,
+          statsSampleIntervalMs: 5,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).toBe('fair');
+      expect(report.network?.reasons?.some((r) => r.code === 'network_high_rtt')).toBe(true);
+    });
+
+    it('produces network report with quality: unknown when call provides no stats', async () => {
+      // Call has no getStats() and no peerConnection
+      const mockCall = createMockCall();
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).toBe('unknown');
+    });
+
+    it('collects stats from peerConnection.getStats() when call.getStats() is not available', async () => {
+      const sdkStatsFrame = {
+        timestamp: Date.now(),
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.03, // 30ms
+                jitter: 0.004, // 4ms
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 500,
+              packetsLost: 0,
+              jitter: 0.004,
+              bytesReceived: 80000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 500,
+              bytesSent: 80000,
+            },
+          ],
+        },
+      };
+
+      const mockPeerConnection = {
+        getStats: jest.fn().mockResolvedValue(sdkStatsFrame),
+      };
+
+      const mockCall = createMockCall({
+        peer: { instance: mockPeerConnection } as unknown as Peer,
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10,
+          statsSampleIntervalMs: 5,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).not.toBe('unknown');
+      expect(report.network?.quality).toBe('good');
+      expect(report.network?.rtt?.average).toBeCloseTo(30, 0);
+    });
+
+    it('falls back to peerConnection.getStats() when call.getStats is callback-based (SDK BaseCall shape)', async () => {
+      // Regression: The real SDK's BaseCall.getStats(callback, constraints) is
+      // callback-based and returns undefined. Because call.getStats exists as a
+      // function, the old code would await call.getStats() (getting undefined)
+      // and never fall through to peerConnection.getStats(). This test verifies
+      // that the callback-based getStats (length === 2) is detected and skipped
+      // in favor of peerConnection.getStats().
+      const sdkStatsFrame = {
+        timestamp: Date.now(),
+        remote: {
+          audio: {
+            inbound: [
+              {
+                roundTripTime: 0.04, // 40ms
+                jitter: 0.006, // 6ms
+              },
+            ],
+          },
+        },
+        audio: {
+          inbound: [
+            {
+              packetsReceived: 800,
+              packetsLost: 1,
+              jitter: 0.006,
+              bytesReceived: 128000,
+            },
+          ],
+          outbound: [
+            {
+              packetsSent: 800,
+              bytesSent: 128000,
+            },
+          ],
+        },
+      };
+
+      // Simulate the real SDK's BaseCall.getStats(callback, constraints) —
+      // it takes 2 args and returns undefined (callback registration, not a promise).
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      function callbackGetStats(_callback: () => void, _constraints: unknown) {
+        // Real SDK would register the callback and return undefined
+        return undefined;
+      }
+
+      const mockPeerConnection = {
+        getStats: jest.fn().mockResolvedValue(sdkStatsFrame),
+      };
+
+      const mockCall = createMockCall({
+        getStats: callbackGetStats as unknown as () => Promise<unknown>,
+        peer: { instance: mockPeerConnection } as unknown as Peer,
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 10,
+          statsSampleIntervalMs: 5,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      // The peerConnection.getStats() should have been used as fallback
+      expect(mockPeerConnection.getStats).toHaveBeenCalled();
+
+      // The network report should be populated (not quality: 'unknown')
+      expect(report.network).toBeDefined();
+      expect(report.network?.quality).not.toBe('unknown');
+      expect(report.network?.quality).toBe('good');
+      expect(report.network?.rtt?.average).toBeCloseTo(40, 0);
+      expect(report.network?.jitter?.average).toBeCloseTo(6, 0);
+      expect(report.network?.packets?.packetsReceived).toBe(800);
+    });
+
+    it('collects multiple stats samples over the duration', async () => {
+      let callCount = 0;
+      const mockCall = createMockCall({
+        getStats: jest.fn().mockImplementation(async () => {
+          callCount++;
+          return {
+            timestamp: Date.now(),
+            remote: {
+              audio: {
+                inbound: [{ roundTripTime: 0.02 + callCount * 0.01 }],
+              },
+            },
+          };
+        }),
+      });
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          durationMs: 50,
+          statsSampleIntervalMs: 15,
+        })
+      );
+
+      const report = await diagnostic.run();
+
+      // Multiple samples should have been collected
+      expect(report.raw?.samples).toBeDefined();
+      expect(report.raw?.samples?.length).toBeGreaterThan(1);
+      expect(callCount).toBeGreaterThan(1);
     });
   });
 
