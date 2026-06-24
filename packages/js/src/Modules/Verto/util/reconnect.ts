@@ -1,3 +1,5 @@
+import logger from './logger';
+
 const STORAGE_KEY = 'telnyx-voice-sdk-id';
 const SESSION_ID_STORAGE_KEY = 'telnyx-voice-sdk-session-id';
 const SESSION_ID_STORED_AT_STORAGE_KEY =
@@ -6,32 +8,40 @@ const SESSION_ID_STORED_AT_STORAGE_KEY =
 export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
 
 // ── Active-calls recovery marker (page-reload recovery detection) ──────
-// Minimal, safe metadata persisted for active calls before page unload so
-// that, on the next SDK startup, the SDK can detect whether previously
-// active calls were reattached by the server. No call objects, SDP, ICE,
-// media, credentials, or other sensitive material are persisted here — only
-// identifier/diagnostic fields projected from each live Call.
+// The entire Call object is persisted before page unload so that, on the
+// next SDK startup, the SDK can detect whether previously active calls
+// were reattached by the server and emit SESSION_NOT_REATTACHED for any
+// that were not. Live host objects (RTCPeerConnection, MediaStream) are
+// dropped by the JSON replacer; the persisted record is a snapshot of the
+// call's serializable fields (id, options, state, direction, etc.).
 const ACTIVE_CALLS_STORAGE_KEY = 'telnyx-voice-sdk-active-calls';
 const ACTIVE_CALLS_STORED_AT_STORAGE_KEY =
   'telnyx-voice-sdk-active-calls-stored-at';
+const ACTIVE_CALLS_SESSID_STORAGE_KEY = 'telnyx-voice-sdk-active-calls-sessid';
 
 /** Max age for a saved recovery marker before it is considered stale. */
 export const RECOVERY_MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 
-/** Shape of a single persisted active-call record. Notification-only. */
+/**
+ * Shape of a single persisted active-call record. The entire Call object is
+ * serialized, so this is a permissive shape — the only guaranteed field is
+ * `id` (the call identifier). Additional fields from the Call/options may be
+ * present and are passed through untouched.
+ */
 export interface IActiveCallRecoveryMarker {
-  callId: string;
-  sessid: string;
-  storedAt: number;
-  /** Optional safe correlation identifiers (no sensitive data). */
-  telnyxSessionId?: string;
-  telnyxCallControlId?: string;
+  id: string;
+  [key: string]: unknown;
 }
 
 function safeGetItem(key: string): string | null {
   try {
     return sessionStorage.getItem(key);
-  } catch {
+  } catch (err) {
+    logger.debug(
+      `safeGetItem('${key}') failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
     return null;
   }
 }
@@ -39,17 +49,26 @@ function safeGetItem(key: string): string | null {
 function safeSetItem(key: string, value: string): void {
   try {
     sessionStorage.setItem(key, value);
-  } catch {
+  } catch (err) {
     // sessionStorage may be unavailable (private mode, disabled storage).
     // Fail silently — recovery detection is a best-effort feature.
+    logger.debug(
+      `safeSetItem('${key}') failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
   }
 }
 
 function safeRemoveItem(key: string): void {
   try {
     sessionStorage.removeItem(key);
-  } catch {
-    // Fail silently — see safeSetItem.
+  } catch (err) {
+    logger.debug(
+      `safeRemoveItem('${key}') failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
   }
 }
 
@@ -104,95 +123,98 @@ export function clearReconnectToken(): void {
 // ── Active-calls recovery marker helpers ────────────────────────────────
 
 /**
- * Read the persisted active-calls recovery marker. Returns an empty array
- * when nothing is stored, storage is unavailable, the payload is malformed,
- * or the marker is older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
- *
- * Stale markers are cleared as a side effect (matches the pattern used by
- * `getReconnectSessionId` for the reconnect-session-id helpers).
- *
- * This is a *pure read*: it does NOT clear the marker. The consumer is the
- * sole owner of clearing (see `clearActiveCallsRecoveryMarker`) so that an
- * at-most-once notification guarantee can be enforced by the caller.
+ * Remove the persisted active-calls recovery marker (all keys).
  */
-export function getActiveCallsRecoveryMarker(
-  now = Date.now()
-): IActiveCallRecoveryMarker[] {
-  const raw = safeGetItem(ACTIVE_CALLS_STORAGE_KEY);
-  if (!raw) return [];
+export function clearActiveCallsRecoveryMarker(): void {
+  safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
+  safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
+  safeRemoveItem(ACTIVE_CALLS_SESSID_STORAGE_KEY);
+}
 
+/**
+ * Read the persisted active-calls recovery marker. Returns the saved marker
+ * records (entire serialized Call objects) plus the sessid that was active
+ * when the marker was written. Returns `{ markers: [], sessid: null }` when
+ * nothing is stored, storage is unavailable, the payload is malformed, or the
+ * marker is older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
+ *
+ * Storage is cleaned up immediately after the read — once we have the
+ * in-memory copy the persisted copy is no longer needed, and clearing it
+ * here guarantees the record cannot be re-consumed by a duplicate recovery
+ * event, a stale tab, or a future page load (at-most-once notification).
+ *
+ * Validation is minimal: each record only needs an `id` field (the call
+ * identifier). All other fields are passed through untouched.
+ */
+export function getActiveCallsRecoveryMarker(now = Date.now()): {
+  markers: IActiveCallRecoveryMarker[];
+  sessid: string | null;
+} {
+  const raw = safeGetItem(ACTIVE_CALLS_STORAGE_KEY);
   const storedAtRaw = safeGetItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
+  const sessidRaw = safeGetItem(ACTIVE_CALLS_SESSID_STORAGE_KEY);
+
+  // Once we have all items from storage we won't need it again — clean up
+  // immediately so the record cannot be re-consumed.
+  clearActiveCallsRecoveryMarker();
+
+  if (!raw) {
+    return { markers: [], sessid: null };
+  }
+
   const storedAt = Number(storedAtRaw);
   if (!Number.isFinite(storedAt) || now - storedAt > RECOVERY_MARKER_MAX_AGE_MS) {
-    // Stale or invalid — clear both keys so it can't be re-consumed.
-    safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
-    safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
-    return [];
+    // Stale or invalid — storage already cleared above.
+    logger.debug(
+      'Active-calls recovery marker was stale or had an invalid timestamp — discarded.'
+    );
+    return { markers: [], sessid: null };
   }
 
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) {
-      safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
-      safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
-      return [];
+      logger.debug(
+        'Active-calls recovery marker payload was not an array — discarded.'
+      );
+      return { markers: [], sessid: null };
     }
-    // Defensive: keep only well-formed records (callId + sessid required).
-    return parsed
-      .filter(
-        (r: unknown): r is IActiveCallRecoveryMarker =>
-          !!r &&
-          typeof r === 'object' &&
-          typeof (r as IActiveCallRecoveryMarker).callId === 'string' &&
-          typeof (r as IActiveCallRecoveryMarker).sessid === 'string' &&
-          typeof (r as IActiveCallRecoveryMarker).storedAt === 'number'
-      )
-      .map((r) => ({
-        callId: r.callId,
-        sessid: r.sessid,
-        storedAt: r.storedAt,
-        ...(r.telnyxSessionId !== undefined
-          ? { telnyxSessionId: r.telnyxSessionId }
-          : {}),
-        ...(r.telnyxCallControlId !== undefined
-          ? { telnyxCallControlId: r.telnyxCallControlId }
-          : {}),
-      }));
-  } catch {
-    // Malformed JSON — clear and ignore.
-    safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
-    safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
-    return [];
+    // Defensive: keep only well-formed records — each must have a string `id`.
+    const markers = parsed.filter(
+      (r: unknown): r is IActiveCallRecoveryMarker =>
+        !!r &&
+        typeof r === 'object' &&
+        typeof (r as IActiveCallRecoveryMarker).id === 'string'
+    );
+    return { markers, sessid: sessidRaw };
+  } catch (err) {
+    logger.debug(
+      `Active-calls recovery marker JSON parse failed — discarded: ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    );
+    return { markers: [], sessid: null };
   }
 }
 
 /**
- * Persist an array of active-call recovery markers before page unload.
+ * Persist an array of active-call recovery markers (entire Call objects)
+ * before page unload, along with the sessid that was active at save time.
  * Writes are wrapped in try/catch so a blocked/unavailable `sessionStorage`
- * silently no-ops, matching the safety pattern of the reconnect-token
- * helpers.
+ * silently no-ops, matching the safety pattern of the reconnect-token helpers.
  */
 export function setActiveCallsRecoveryMarker(
   markers: IActiveCallRecoveryMarker[],
+  sessid: string,
   storedAt = Date.now()
 ): void {
   if (!Array.isArray(markers) || markers.length === 0) {
     // Defensive: never persist an empty marker — a future reload would have
     // nothing to compare and the entry would be dead state.
-    safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
-    safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
+    clearActiveCallsRecoveryMarker();
     return;
   }
   safeSetItem(ACTIVE_CALLS_STORAGE_KEY, JSON.stringify(markers));
   safeSetItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY, String(storedAt));
-}
-
-/**
- * Remove the persisted active-calls recovery marker (both keys).
- * Must be called by the consumer after reading the marker to guarantee
- * at-most-once notification semantics.
- */
-export function clearActiveCallsRecoveryMarker(): void {
-  safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
-  safeRemoveItem(ACTIVE_CALLS_STORED_AT_STORAGE_KEY);
+  safeSetItem(ACTIVE_CALLS_SESSID_STORAGE_KEY, sessid);
 }

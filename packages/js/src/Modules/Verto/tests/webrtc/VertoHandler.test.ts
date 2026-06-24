@@ -1079,15 +1079,22 @@ describe('VertoHandler', () => {
         setSession('sess-reload');
 
         // Simulate a marker written before the previous page unloaded.
-        setActiveCallsRecoveryMarker([
-          {
-            callId: 'lost-call',
-            sessid: 'sess-reload',
-            storedAt: Date.now(),
-            telnyxSessionId: 'tsid-lost',
-            telnyxCallControlId: 'ccid-lost',
-          },
-        ]);
+        // The entire Call object is saved; telnyxSessionId/telnyxCallControlId
+        // live inside options.
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: 'lost-call',
+              state: 'active',
+              direction: 'outbound',
+              options: {
+                telnyxSessionId: 'tsid-lost',
+                telnyxCallControlId: 'ccid-lost',
+              },
+            },
+          ],
+          'sess-reload'
+        );
 
         // No in-memory calls and reattached_sessions is empty.
         sendReattachForSession([]);
@@ -1104,44 +1111,38 @@ describe('VertoHandler', () => {
         );
 
         // Marker must be cleared after consumption.
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('does NOT emit an error when the saved marker sessid differs from the current session', async () => {
         await instance.connect();
         setSession('sess-current');
 
-        setActiveCallsRecoveryMarker([
-          {
-            callId: 'other-session-call',
-            sessid: 'sess-different',
-            storedAt: Date.now(),
-          },
-        ]);
+        setActiveCallsRecoveryMarker(
+          [{ id: 'other-session-call', state: 'active' }],
+          'sess-different'
+        );
 
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // Storage is still cleared (unconditionally) even on mismatch.
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        // Storage is cleared (getActiveCallsRecoveryMarker clears on read).
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {
         await instance.connect();
         setSession('sess-recovered');
 
-        setActiveCallsRecoveryMarker([
-          {
-            callId: 'recovered-call',
-            sessid: 'sess-recovered',
-            storedAt: Date.now(),
-          },
-        ]);
+        setActiveCallsRecoveryMarker(
+          [{ id: 'recovered-call', state: 'active' }],
+          'sess-recovered'
+        );
 
         sendReattachForSession(['recovered-call']);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('does NOT emit an error and clears storage for stale markers (>30 min)', async () => {
@@ -1150,20 +1151,15 @@ describe('VertoHandler', () => {
 
         const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
         setActiveCallsRecoveryMarker(
-          [
-            {
-              callId: 'stale-call',
-              sessid: 'sess-stale',
-              storedAt: staleTime,
-            },
-          ],
+          [{ id: 'stale-call', state: 'active' }],
+          'sess-stale',
           staleTime
         );
 
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('does NOT emit an error and does not mutate storage when there are no saved markers', async () => {
@@ -1173,20 +1169,17 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('emits at most one notification per saved call across duplicate reattach events (cleanup-after-read)', async () => {
         await instance.connect();
         setSession('sess-dedup');
 
-        setActiveCallsRecoveryMarker([
-          {
-            callId: 'dup-call',
-            sessid: 'sess-dedup',
-            storedAt: Date.now(),
-          },
-        ]);
+        setActiveCallsRecoveryMarker(
+          [{ id: 'dup-call', state: 'active' }],
+          'sess-dedup'
+        );
 
         // First reattach — should emit once and clear storage.
         sendReattachForSession([]);
@@ -1196,20 +1189,17 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
         expect(onError).toHaveBeenCalledTimes(1);
 
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
 
       it('does NOT hang up any call represented by saved markers (notification-only)', async () => {
         await instance.connect();
         setSession('sess-no-hangup');
 
-        setActiveCallsRecoveryMarker([
-          {
-            callId: 'marker-only-call',
-            sessid: 'sess-no-hangup',
-            storedAt: Date.now(),
-          },
-        ]);
+        setActiveCallsRecoveryMarker(
+          [{ id: 'marker-only-call', state: 'active' }],
+          'sess-no-hangup'
+        );
 
         Connection.mockSend.mockClear();
         sendReattachForSession([]);
@@ -1228,12 +1218,17 @@ describe('VertoHandler', () => {
         await instance.connect();
         setSession('sess-multi');
 
-        setActiveCallsRecoveryMarker([
-          { callId: 'lost-1', sessid: 'sess-multi', storedAt: Date.now() },
-          { callId: 'lost-2', sessid: 'sess-multi', storedAt: Date.now() },
-          // Different sessid — should be ignored.
-          { callId: 'other', sessid: 'other-sess', storedAt: Date.now() },
-        ]);
+        // All markers share the same sessid (stored once at the array level).
+        // A marker with a different sessid is now handled by the array-level
+        // sessid check — since all markers in this array share sess-multi,
+        // all are evaluated against reattached_sessions.
+        setActiveCallsRecoveryMarker(
+          [
+            { id: 'lost-1', state: 'active' },
+            { id: 'lost-2', state: 'active' },
+          ],
+          'sess-multi'
+        );
 
         sendReattachForSession(['recovered-elsewhere']);
 
@@ -1244,7 +1239,7 @@ describe('VertoHandler', () => {
         expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({ callId: 'lost-2' })
         );
-        expect(getActiveCallsRecoveryMarker().length).toBe(0);
+        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
       });
     });
   });

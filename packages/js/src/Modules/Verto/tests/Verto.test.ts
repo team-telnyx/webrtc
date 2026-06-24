@@ -144,13 +144,11 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
-      // A beforeunload listener IS registered (to save the recovery marker),
-      // but it does NOT hang up calls and does NOT clear the reconnect token.
-      expect(
-        addEventListenerSpy.mock.calls.some(
-          ([eventName]) => eventName === 'beforeunload'
-        )
-      ).toBe(true);
+      // A single beforeunload listener is registered (merged handler).
+      const beforeUnloadCalls = addEventListenerSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'beforeunload'
+      );
+      expect(beforeUnloadCalls.length).toBe(1);
 
       expect(getReconnectToken()).toBe('voice-sdk-id');
       expect(getReconnectSessionId()).toBe('previous-sessid');
@@ -172,14 +170,18 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
-      // Simulate a logged-in session with active calls. The marker save path
-      // projects only safe identifier fields from each Call's options.
+      // Simulate a logged-in session with active calls. The save path
+      // serializes the entire Call object (with `session`/`peer` stripped).
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
         'call-1': ({
           id: 'call-1',
           hangup,
+          state: 'active',
+          direction: 'outbound',
+          session: {}, // stripped by replacer
+          peer: {}, // stripped by replacer
           options: {
             telnyxSessionId: 'tsid-1',
             telnyxCallControlId: 'ccid-1',
@@ -188,6 +190,10 @@ describe('Verto', () => {
         'call-2': ({
           id: 'call-2',
           hangup,
+          state: 'active',
+          direction: 'inbound',
+          session: {},
+          peer: {},
           options: {},
         } as unknown) as IWebRTCCall,
       };
@@ -202,31 +208,34 @@ describe('Verto', () => {
       // No hangup is called in this branch.
       expect(hangup).not.toHaveBeenCalled();
 
-      const markers = getActiveCallsRecoveryMarker();
-      expect(markers.length).toBe(2);
+      const result = getActiveCallsRecoveryMarker();
+      expect(result.markers.length).toBe(2);
+      expect(result.sessid).toBe('session-abc');
 
-      const ids = markers.map((m) => m.callId).sort();
+      const ids = result.markers.map((m) => m.id).sort();
       expect(ids).toEqual(['call-1', 'call-2']);
 
-      const m1 = markers.find((m) => m.callId === 'call-1');
-      expect(m1.sessid).toBe('session-abc');
-      expect(typeof m1.storedAt).toBe('number');
-      expect(m1.telnyxSessionId).toBe('tsid-1');
-      expect(m1.telnyxCallControlId).toBe('ccid-1');
+      const m1 = result.markers.find((m) => m.id === 'call-1');
+      expect(m1.state).toBe('active');
+      expect(m1.direction).toBe('outbound');
+      expect((m1.options as Record<string, unknown>)?.telnyxSessionId).toBe(
+        'tsid-1'
+      );
+      expect(
+        (m1.options as Record<string, unknown>)?.telnyxCallControlId
+      ).toBe('ccid-1');
 
       // call-2 had no telnyx correlation ids — they should be absent.
-      const m2 = markers.find((m) => m.callId === 'call-2');
-      expect(m2.sessid).toBe('session-abc');
-      expect(m2.telnyxSessionId).toBeUndefined();
-      expect(m2.telnyxCallControlId).toBeUndefined();
+      const m2 = result.markers.find((m) => m.id === 'call-2');
+      expect((m2.options as Record<string, unknown>)?.telnyxSessionId).toBe(
+        undefined
+      );
 
-      // Ensure no live RTCPeerConnection/MediaStream/SDP fields leaked into
-      // the persisted record — only the safe identifier fields.
-      const serialized = JSON.stringify(markers[0]);
-      expect(serialized).not.toContain('peer');
-      expect(serialized).not.toContain('localStream');
-      expect(serialized).not.toContain('remoteSdp');
-      expect(serialized).not.toContain('password');
+      // Ensure the `session` and `peer` keys were stripped by the replacer
+      // (no circular ref or non-serializable host objects persisted).
+      const serialized = JSON.stringify(result.markers[0]);
+      expect(serialized).not.toContain('"session"');
+      expect(serialized).not.toContain('"peer"');
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -237,14 +246,17 @@ describe('Verto', () => {
       addEventListenerSpy.mockClear();
 
       // Pre-seed a stale marker from a previous page.
-      setActiveCallsRecoveryMarker([
-        {
-          callId: 'stale-call',
-          sessid: 'old-session',
-          storedAt: Date.now(),
-        },
-      ]);
-      expect(getActiveCallsRecoveryMarker().length).toBe(1);
+      setActiveCallsRecoveryMarker(
+        [{ id: 'stale-call', state: 'active' }],
+        'old-session'
+      );
+      expect(getActiveCallsRecoveryMarker().markers.length).toBe(1);
+
+      // Re-seed since getActiveCallsRecoveryMarker clears on read.
+      setActiveCallsRecoveryMarker(
+        [{ id: 'stale-call', state: 'active' }],
+        'old-session'
+      );
 
       const telnyxRTC = _buildInstance({
         host: 'example.telnyx.com',
@@ -262,7 +274,7 @@ describe('Verto', () => {
       beforeUnloadHandler(new Event('beforeunload'));
 
       // Stale marker should have been wiped.
-      expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -284,6 +296,7 @@ describe('Verto', () => {
         'call-x': ({
           id: 'call-x',
           hangup: jest.fn(),
+          state: 'active',
           options: {},
         } as unknown) as IWebRTCCall,
       };
@@ -294,7 +307,7 @@ describe('Verto', () => {
       beforeUnloadHandler(new Event('beforeunload'));
 
       // Default branch hangs up and clears the reconnect token — no marker.
-      expect(getActiveCallsRecoveryMarker().length).toBe(0);
+      expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();

@@ -24,6 +24,19 @@ import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
+/**
+ * JSON.stringify replacer that skips the `session` and `peer` keys on Call
+ * objects to avoid circular-reference errors and non-serializable host
+ * objects (RTCPeerConnection, BrowserSession). Everything else on the Call
+ * (id, options, state, direction, cause, channels, etc.) is serialized.
+ */
+const CALL_REPLACER = (key: string, value: unknown) => {
+  if (key === 'session' || key === 'peer') {
+    return undefined;
+  }
+  return value;
+};
+
 export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL;
 
@@ -35,10 +48,15 @@ export default class Verto extends BrowserSession {
     super(options);
     this._vertoHandler = new VertoHandler(this);
 
-    if (options.hangupOnBeforeUnload !== false) {
-      // hang up current call when browser closes or refreshes.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      window.addEventListener('beforeunload', (_e) => {
+    // Single beforeunload handler for both hangup and recovery-marker paths.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    window.addEventListener('beforeunload', (_e) => {
+      logger.info('Window beforeunload triggered.');
+
+      if (options.hangupOnBeforeUnload !== false) {
+        // Default / true: hang up current calls when the browser closes or
+        // refreshes, and clear the reconnect token. There is nothing to
+        // recover from, so no recovery marker is written.
         clearReconnectToken();
         if (this.calls) {
           Object.keys(this.calls).forEach((callId) => {
@@ -51,65 +69,57 @@ export default class Verto extends BrowserSession {
             }
           });
         }
-      });
-    } else {
+        return;
+      }
+
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
-      // that those calls were lost. Persist minimal, safe recovery metadata
-      // here so that, on the next SDK startup, VertoHandler can compare the
-      // saved markers against the server's reattached_sessions and emit
-      // SESSION_NOT_REATTACHED for any call that was not reattached.
-      //
-      // Only safe identifier/diagnostic fields are persisted — never call
-      // objects, SDP, ICE/TURN secrets, media, or credentials.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      window.addEventListener('beforeunload', (_e) => {
-        try {
-          const callIds = this.calls ? Object.keys(this.calls) : [];
-          const activeCallIds = callIds.filter(
-            (callId) => !!this.calls[callId]
-          );
+      // that those calls were lost. Persist the entire Call object (with
+      // `session`/`peer` stripped to avoid circular refs) so that, on the
+      // next SDK startup, VertoHandler can compare the saved markers against
+      // the server's reattached_sessions and emit SESSION_NOT_REATTACHED for
+      // any call that was not reattached.
+      try {
+        const callIds = this.calls ? Object.keys(this.calls) : [];
+        const activeCallIds = callIds.filter(
+          (callId) => !!this.calls[callId]
+        );
 
-          if (!this.sessionid || activeCallIds.length === 0) {
-            // No active calls or no session context — wipe any stale marker
-            // left over from a previous page so it can't be re-consumed.
-            clearActiveCallsRecoveryMarker();
-            return;
-          }
-
-          const markers: IActiveCallRecoveryMarker[] = activeCallIds.map(
-            (callId) => {
-              const call = this.calls[callId];
-              const opts = call?.options ?? {};
-              return {
-                callId,
-                sessid: this.sessionid,
-                storedAt: Date.now(),
-                ...(opts.telnyxSessionId !== undefined
-                  ? { telnyxSessionId: opts.telnyxSessionId }
-                  : {}),
-                ...(opts.telnyxCallControlId !== undefined
-                  ? { telnyxCallControlId: opts.telnyxCallControlId }
-                  : {}),
-              };
-            }
-          );
-
-          logger.info(
-            `Saving recovery marker for ${markers.length} active call(s) before unload (sessid=${this.sessionid}).`
-          );
-          setActiveCallsRecoveryMarker(markers);
-        } catch (err) {
-          // Any failure here must not break unload or normal call setup.
-          logger.debug(
-            `Failed to save active-calls recovery marker before unload: ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
+        if (!this.sessionid || activeCallIds.length === 0) {
+          // No active calls or no session context — wipe any stale marker
+          // left over from a previous page so it can't be re-consumed.
+          clearActiveCallsRecoveryMarker();
+          return;
         }
-      });
-    }
+
+        // Serialize each entire Call object. The CALL_REPLACER skips
+        // `session` (circular ref back to BrowserSession) and `peer`
+        // (RTCPeerConnection) to avoid JSON circular-reference errors and
+        // non-serializable host objects.
+        const markers: IActiveCallRecoveryMarker[] = activeCallIds.map(
+          (callId) => {
+            const call = this.calls[callId];
+            const serialized = JSON.parse(
+              JSON.stringify(call, CALL_REPLACER)
+            ) as IActiveCallRecoveryMarker;
+            return serialized;
+          }
+        );
+
+        logger.info(
+          `Saving recovery marker for ${markers.length} active call(s) before unload (sessid=${this.sessionid}).`
+        );
+        setActiveCallsRecoveryMarker(markers, this.sessionid);
+      } catch (err) {
+        // Any failure here must not break unload or normal call setup.
+        logger.debug(
+          `Failed to save active-calls recovery marker before unload: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    });
   }
 
   validateOptions() {

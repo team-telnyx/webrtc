@@ -28,10 +28,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import {
-  getActiveCallsRecoveryMarker,
-  clearActiveCallsRecoveryMarker,
-} from '../util/reconnect';
+import { getActiveCallsRecoveryMarker } from '../util/reconnect';
 
 /**
  * @ignore Hide in docs output
@@ -131,60 +128,58 @@ class VertoHandler {
     // does NOT hang up. The records represent calls from a prior page that
     // no longer have real Call instances here.
     //
-    // The marker is read and immediately cleared so a duplicate recovery
-    // event, a stale tab, or a future reload cannot re-emit the error
-    // (at-most-once notification).
+    // `getActiveCallsRecoveryMarker()` reads and immediately clears storage
+    // (at-most-once guarantee) — no separate clear is needed.
     if (Array.isArray(params?.reattached_sessions) && session.sessionid) {
-      const savedMarkers = getActiveCallsRecoveryMarker();
-      // Clear unconditionally — the in-memory `savedMarkers` array is the
-      // authoritative copy for the rest of this block.
-      clearActiveCallsRecoveryMarker();
+      const { markers: savedMarkers, sessid: savedSessid } =
+        getActiveCallsRecoveryMarker();
 
       if (savedMarkers.length > 0) {
-        const reattachedIds = new Set(
-          params.reattached_sessions as string[]
-        );
-
-        for (const marker of savedMarkers) {
-          if (marker.sessid !== session.sessionid) {
-            // Different session context — drop silently, do not notify.
-            logger.debug(
-              `Recovery marker for call ${marker.callId} has different sessid (marker=${marker.sessid}, current=${session.sessionid}) — ignoring.`
-            );
-            continue;
-          }
-
-          if (reattachedIds.has(marker.callId)) {
-            // Call was reattached — recovered, do not notify.
-            logger.debug(
-              `Recovery marker for call ${marker.callId} was reattached — no notification.`
-            );
-            continue;
-          }
-
-          // Call was not reattached for the same sessid — emit
-          // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
-          // call object on this page.
-          logger.info(
-            `Recovery marker for call ${marker.callId} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+        if (savedSessid !== session.sessionid) {
+          // Different session context — drop silently, do not notify.
+          logger.debug(
+            `Recovery markers were saved for a different sessid (saved=${savedSessid}, current=${session.sessionid}) — ignoring all.`
           );
-          const error = createTelnyxError(SESSION_NOT_REATTACHED);
-          trigger(
-            SwEvent.Error,
-            {
-              error,
-              callId: marker.callId,
-              sessionId: session.sessionid,
-              // Safe diagnostic correlation only.
-              ...(marker.telnyxSessionId !== undefined
-                ? { telnyxSessionId: marker.telnyxSessionId }
-                : {}),
-              ...(marker.telnyxCallControlId !== undefined
-                ? { telnyxCallControlId: marker.telnyxCallControlId }
-                : {}),
-            },
-            session.uuid
+        } else {
+          const reattachedIds = new Set(
+            params.reattached_sessions as string[]
           );
+
+          for (const marker of savedMarkers) {
+            if (reattachedIds.has(marker.id)) {
+              // Call was reattached — recovered, do not notify.
+              logger.debug(
+                `Recovery marker for call ${marker.id} was reattached — no notification.`
+              );
+              continue;
+            }
+
+            // Call was not reattached for the same sessid — emit
+            // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
+            // call object on this page.
+            logger.info(
+              `Recovery marker for call ${marker.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+            );
+            const error = createTelnyxError(SESSION_NOT_REATTACHED);
+            // The entire Call object was persisted, so telnyxSessionId /
+            // telnyxCallControlId live inside marker.options if present.
+            const opts = (marker.options ?? {}) as Record<string, unknown>;
+            trigger(
+              SwEvent.Error,
+              {
+                error,
+                callId: marker.id,
+                sessionId: session.sessionid,
+                ...(opts.telnyxSessionId !== undefined
+                  ? { telnyxSessionId: opts.telnyxSessionId }
+                  : {}),
+                ...(opts.telnyxCallControlId !== undefined
+                  ? { telnyxCallControlId: opts.telnyxCallControlId }
+                  : {}),
+              },
+              session.uuid
+            );
+          }
         }
       }
     }
