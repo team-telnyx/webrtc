@@ -24,6 +24,7 @@ import {
   getActiveCallsRecoveryMarker,
   clearActiveCallsRecoveryMarker,
   RECOVERY_MARKER_MAX_AGE_MS,
+  type IStoredActiveCall,
 } from '../../util/reconnect';
 
 const DEFAULT_PARAMS = {
@@ -1091,7 +1092,7 @@ describe('VertoHandler', () => {
                 telnyxCallControlId: 'ccid-lost',
               },
             },
-          ] as unknown as Call[],
+          ] as unknown as IStoredActiveCall[],
           'sess-reload'
         );
 
@@ -1118,7 +1119,7 @@ describe('VertoHandler', () => {
         setSession('sess-current');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'other-session-call', state: 'active', options: {} }] as unknown as Call[],
+          [{ id: 'other-session-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
           'sess-different'
         );
 
@@ -1134,7 +1135,7 @@ describe('VertoHandler', () => {
         setSession('sess-recovered');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'recovered-call', state: 'active', options: {} }] as unknown as Call[],
+          [{ id: 'recovered-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
           'sess-recovered'
         );
 
@@ -1150,7 +1151,7 @@ describe('VertoHandler', () => {
 
         const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
         setActiveCallsRecoveryMarker(
-          [{ id: 'stale-call', state: 'active', options: {} }] as unknown as Call[],
+          [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
           'sess-stale',
           staleTime
         );
@@ -1176,7 +1177,7 @@ describe('VertoHandler', () => {
         setSession('sess-dedup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'dup-call', state: 'active', options: {} }] as unknown as Call[],
+          [{ id: 'dup-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
           'sess-dedup'
         );
 
@@ -1196,7 +1197,7 @@ describe('VertoHandler', () => {
         setSession('sess-no-hangup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'marker-only-call', state: 'active', options: {} }] as unknown as Call[],
+          [{ id: 'marker-only-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
           'sess-no-hangup'
         );
 
@@ -1223,7 +1224,7 @@ describe('VertoHandler', () => {
           [
             { id: 'lost-1', state: 'active', options: {} },
             { id: 'lost-2', state: 'active', options: {} },
-          ] as unknown as Call[],
+          ] as unknown as IStoredActiveCall[],
           'sess-multi'
         );
 

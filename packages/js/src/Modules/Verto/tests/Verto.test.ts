@@ -3,7 +3,6 @@ import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
-import type Call from '../webrtc/Call';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -18,6 +17,7 @@ import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
   clearActiveCallsRecoveryMarker,
+  type IStoredActiveCall,
 } from '../util/reconnect';
 
 const Connection = require('../services/Connection');
@@ -172,7 +172,7 @@ describe('Verto', () => {
       });
 
       // Simulate a logged-in session with active calls. The save path
-      // serializes the entire Call object (session/peer stripped).
+      // projects each active call to a narrow shape (id + options.telnyx*Id).
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
@@ -181,8 +181,8 @@ describe('Verto', () => {
           hangup,
           state: 'active',
           direction: 'outbound',
-          session: {}, // not persisted — stringify replacer strips it
-          peer: {}, // not persisted — stringify replacer strips it
+          session: {}, // not persisted — narrow projection drops it
+          peer: {}, // not persisted — narrow projection drops it
           options: {
             telnyxSessionId: 'tsid-1',
             telnyxCallControlId: 'ccid-1',
@@ -193,8 +193,8 @@ describe('Verto', () => {
           hangup,
           state: 'active',
           direction: 'inbound',
-          session: {}, // not persisted — stringify replacer strips it
-          peer: {}, // not persisted — stringify replacer strips it
+          session: {}, // not persisted — narrow projection drops it
+          peer: {}, // not persisted — narrow projection drops it
           options: {},
         } as unknown) as IWebRTCCall,
       };
@@ -218,37 +218,29 @@ describe('Verto', () => {
 
       const m1 = result!.calls.find((m) => m.id === 'call-1');
       expect(m1!.id).toBe('call-1');
-      // The entire Call object is persisted (minus session/peer), so state,
-      // direction, and options are retained.
-      expect(m1!.state).toBe('active');
-      expect(m1!.direction).toBe('outbound');
-      expect(
-        (m1!.options as { telnyxSessionId?: string }).telnyxSessionId
-      ).toBe('tsid-1');
-      expect(
-        (m1!.options as { telnyxCallControlId?: string }).telnyxCallControlId
-      ).toBe('ccid-1');
+      // Only the narrow projection is persisted: id + options.telnyx*Id.
+      // State, direction, session, peer are all dropped by the projection.
+      expect(m1!.options?.telnyxSessionId).toBe('tsid-1');
+      expect(m1!.options?.telnyxCallControlId).toBe('ccid-1');
 
       // call-2 had no telnyx correlation ids — they should be absent.
       const m2 = result!.calls.find((m) => m.id === 'call-2');
       expect(m2!.id).toBe('call-2');
-      expect(m2!.state).toBe('active');
-      expect(
-        (m2!.options as { telnyxSessionId?: string }).telnyxSessionId
-      ).toBeUndefined();
-      expect(
-        (m2!.options as { telnyxCallControlId?: string }).telnyxCallControlId
-      ).toBeUndefined();
+      expect(m2!.options?.telnyxSessionId).toBeUndefined();
+      expect(m2!.options?.telnyxCallControlId).toBeUndefined();
 
-      // The entire Call object is persisted minus the non-serializable host
-      // fields (session/peer), which the stringify replacer strips. Everything
-      // else — options, state, direction — is retained.
+      // The narrow projection excludes sensitive / host fields — only id
+      // and options (with telnyx*Id) are persisted. No session, peer, state,
+      // direction, localStream, remoteStream, iceServers, customHeaders.
       const serialized = JSON.stringify(result!.calls[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
+      expect(serialized).not.toContain('"state"');
+      expect(serialized).not.toContain('"direction"');
+      expect(serialized).not.toContain('"localStream"');
+      expect(serialized).not.toContain('"iceServers"');
       expect(serialized).toContain('"options"');
-      expect(serialized).toContain('"state"');
-      expect(serialized).toContain('"direction"');
+      expect(serialized).toContain('"telnyxSessionId"');
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -260,7 +252,7 @@ describe('Verto', () => {
 
       // Pre-seed a stale marker from a previous page.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as Call[],
+        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
         'old-session'
       );
       const seeded = getActiveCallsRecoveryMarker();
@@ -269,7 +261,7 @@ describe('Verto', () => {
 
       // Re-seed since getActiveCallsRecoveryMarker clears on read.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as Call[],
+        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
         'old-session'
       );
 

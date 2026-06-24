@@ -18,6 +18,7 @@ import {
   clearReconnectToken,
   clearActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
+  type IStoredActiveCall,
 } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
@@ -61,15 +62,15 @@ export default class Verto extends BrowserSession {
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
-      // that those calls were lost. Persist the ENTIRE Call object for each
-      // active call so that on the next SDK startup VertoHandler can compare
-      // the saved markers against the server's reattached_sessions and emit
-      // SESSION_NOT_REATTACHED for any call that was not reattached. The full
-      // Call picture (id, options, state, direction, cause, channels, ...) is
-      // available to consumers and future diagnostics, not just a minimal
-      // identifier projection. The `session`/`peer` host fields are stripped
-      // inside `setActiveCallsRecoveryMarker` to avoid circular references and
-      // non-serializable host objects.
+      // that those calls were lost. Persist a NARROW projection of each active
+      // call (only `id` plus the optional `telnyxSessionId` /
+      // `telnyxCallControlId` correlation ids) so that on the next SDK startup
+      // VertoHandler can compare the saved markers against the server's
+      // reattached_sessions and emit SESSION_NOT_REATTACHED for any call that
+      // was not reattached. Persisting only this projection — rather than the
+      // entire Call — keeps credentials, SDP, ICE/TURN secrets, custom header
+      // values, and non-serializable host objects out of sessionStorage
+      // (VSDK-316 security constraints).
       try {
         const callIds = this.calls ? Object.keys(this.calls) : [];
         const activeCalls = callIds
@@ -83,15 +84,21 @@ export default class Verto extends BrowserSession {
           return;
         }
 
+        // Project each active call to the narrow persisted shape. Only `id`
+        // and the two correlation ids under `options` are needed by the
+        // consume path; everything else is intentionally dropped.
+        const marker: IStoredActiveCall[] = activeCalls.map((call) => ({
+          id: call.id,
+          options: {
+            telnyxSessionId: call.options?.telnyxSessionId,
+            telnyxCallControlId: call.options?.telnyxCallControlId,
+          },
+        }));
+
         logger.info(
-          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}).`
+          `Saving recovery marker for ${marker.length} active call(s) before unload (sessid=${this.sessionid}).`
         );
-        // The calls map is typed as IWebRTCCall, but at runtime the entries
-        // are Call instances. Cast to Call[] to satisfy the marker API.
-        setActiveCallsRecoveryMarker(
-          activeCalls as unknown as Call[],
-          this.sessionid
-        );
+        setActiveCallsRecoveryMarker(marker, this.sessionid);
       } catch (err) {
         // Any failure here must not break unload or normal call setup.
         logger.debug(

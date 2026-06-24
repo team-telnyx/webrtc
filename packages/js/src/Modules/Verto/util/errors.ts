@@ -21,7 +21,7 @@ import {
   MEDIA_GET_USER_MEDIA_FAILED,
 } from './constants/errorCodes';
 
-export { SDK_ERRORS, SdkErrorCode } from './constants/errors';
+export { SDK_ERRORS, SdkErrorCode };
 export { SDK_WARNINGS, SdkWarningCode, ITelnyxWarning, createTelnyxWarning };
 
 export type TelnyxMediaErrorCode =
@@ -44,20 +44,6 @@ export interface ITelnyxError {
   solutions: string[];
   /** The original error that triggered this, if any */
   originalError?: unknown;
-  /**
-   * `true` when the situation is terminal — operation/call/session is dead
-   * and the client should stop. `false` when the SDK is handling recovery
-   * (auto-reconnect, gateway retry, media-recovery, signaling-recovery via
-   * SignalingHealth, etc.) or when the failure is benign enough to ignore.
-   * Set from `SDK_ERRORS[code].fatal` at construction; emit sites override
-   * per context when needed.
-   *
-   * Distinct from the top-level `ITelnyxStandardErrorEvent.recoverable`
-   * field, which stays untouched for backward compatibility: `recoverable`
-   * signals "SDK is recovering via an app-facing helper"; `fatal` signals
-   * "give up vs wait vs ignore."
-   */
-  fatal: boolean;
 }
 
 export interface ITelnyxMediaError extends Omit<ITelnyxError, 'code'> {
@@ -66,13 +52,13 @@ export interface ITelnyxMediaError extends Omit<ITelnyxError, 'code'> {
 }
 
 export interface ITelnyxStandardErrorEvent {
-  /** Structured SDK error — carries the `fatal` field. */
+  /** Structured SDK error */
   error: ITelnyxError;
   /** Current SDK session identifier */
   sessionId: string;
   /** Call identifier when the error is associated with a call */
   callId?: string;
-  /** Non-recoverable errors omit recovery helpers — kept as-is. */
+  /** Non-recoverable errors omit recovery helpers */
   recoverable?: false;
 }
 
@@ -83,7 +69,7 @@ export interface ITelnyxMediaRecoveryErrorEvent {
   sessionId: string;
   /** Inbound call being recovered */
   callId: string;
-  /** Indicates that the app can still recover by resuming the flow — kept as-is. */
+  /** Indicates that the app can still recover by resuming the flow */
   recoverable: true;
   /** Epoch timestamp in ms after which the SDK will stop waiting */
   retryDeadline: number;
@@ -103,7 +89,6 @@ export class TelnyxError extends Error implements ITelnyxError {
   public readonly causes: string[];
   public readonly solutions: string[];
   public readonly originalError?: unknown;
-  public readonly fatal: boolean;
 
   constructor(params: Omit<ITelnyxError, 'message'> & { message?: string }) {
     const message = params.message || `[${params.code}] ${params.name}`;
@@ -115,7 +100,6 @@ export class TelnyxError extends Error implements ITelnyxError {
     this.causes = params.causes;
     this.solutions = params.solutions;
     this.originalError = params.originalError;
-    this.fatal = params.fatal;
 
     // Maintain proper prototype chain
     Object.setPrototypeOf(this, TelnyxError.prototype);
@@ -130,7 +114,6 @@ export class TelnyxError extends Error implements ITelnyxError {
       causes: this.causes,
       solutions: this.solutions,
       originalError: this.originalError,
-      fatal: this.fatal,
     };
   }
 }
@@ -174,17 +157,11 @@ export function classifyMediaErrorCode(
  * @param code - One of the numeric keys from `SDK_ERRORS`
  * @param originalError - The underlying error, if available
  * @param message - Optional override for the default message
- * @param fatal - Optional override for the `fatal` flag. When omitted, the
- *   default from `SDK_ERRORS[code].fatal` is used. Pass this only when the
- *   emit site's context differs from the registry default (e.g.
- *   `UNEXPECTED_ERROR` sites, the non-recovery `MEDIA_*` path,
- *   login-after-retry-exhaustion, etc.).
  */
 export function createTelnyxError(
   code: SdkErrorCode,
   originalError?: unknown,
-  message?: string,
-  fatal?: boolean
+  message?: string
 ): TelnyxError {
   const entry = SDK_ERRORS[code];
   const normalizedError =
@@ -201,7 +178,6 @@ export function createTelnyxError(
     causes: [...entry.causes],
     solutions: [...entry.solutions],
     originalError: normalizedError,
-    fatal: fatal ?? entry.fatal,
   });
 }
 

@@ -145,47 +145,54 @@ class VertoHandler {
           );
 
           for (const call of saved.calls) {
-            // The entire Call object was persisted (with `session`/`peer`
-            // stripped), so the call id lives at `call.id` and the
-            // correlation identifiers live nested under
-            // `call.options` (Call.options.telnyxSessionId /
-            // telnyxCallControlId).
-            if (reattachedIds.has(call.id)) {
-              // Call was reattached — recovered, do not notify.
-              logger.debug(
-                `Recovery marker for call ${call.id} was reattached — no notification.`
-              );
-              continue;
-            }
+            // Defense-in-depth: `getActiveCallsRecoveryMarker` already filters
+            // out malformed records, but guard the loop body so a single bad
+            // record (or an unexpected throw mid-emit) can never break recovery
+            // for the remaining records.
+            try {
+              // Only the narrow projection was persisted (`id` plus optional
+              // `options.telnyxSessionId` / `options.telnyxCallControlId`), so
+              // the correlation identifiers live nested under `call.options`.
+              if (reattachedIds.has(call.id)) {
+                // Call was reattached — recovered, do not notify.
+                logger.debug(
+                  `Recovery marker for call ${call.id} was reattached — no notification.`
+                );
+                continue;
+              }
 
-            // Call was not reattached for the same sessid — emit
-            // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
-            // call object on this page.
-            logger.info(
-              `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
-            );
-            const error = createTelnyxError(SESSION_NOT_REATTACHED);
-            // The entire Call object was persisted, so the correlation
-            // identifiers live nested under `call.options` (matching
-            // Call.options.telnyxSessionId / telnyxCallControlId).
-            const callOptions = call.options as
-              | { telnyxSessionId?: string; telnyxCallControlId?: string }
-              | undefined;
-            trigger(
-              SwEvent.Error,
-              {
-                error,
-                callId: call.id,
-                sessionId: session.sessionid,
-                ...(callOptions?.telnyxSessionId !== undefined
-                  ? { telnyxSessionId: callOptions.telnyxSessionId }
-                  : {}),
-                ...(callOptions?.telnyxCallControlId !== undefined
-                  ? { telnyxCallControlId: callOptions.telnyxCallControlId }
-                  : {}),
-              },
-              session.uuid
-            );
+              // Call was not reattached for the same sessid — emit
+              // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
+              // call object on this page.
+              logger.info(
+                `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+              );
+              const error = createTelnyxError(SESSION_NOT_REATTACHED);
+              trigger(
+                SwEvent.Error,
+                {
+                  error,
+                  callId: call.id,
+                  sessionId: session.sessionid,
+                  ...(call.options?.telnyxSessionId !== undefined
+                    ? { telnyxSessionId: call.options.telnyxSessionId }
+                    : {}),
+                  ...(call.options?.telnyxCallControlId !== undefined
+                    ? {
+                        telnyxCallControlId:
+                          call.options.telnyxCallControlId,
+                      }
+                    : {}),
+                },
+                session.uuid
+              );
+            } catch (err) {
+              logger.debug(
+                `Recovery marker for a saved call failed to process (callId=${call?.id}) — skipping: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              );
+            }
           }
         }
       }
