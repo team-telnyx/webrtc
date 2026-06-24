@@ -18,6 +18,8 @@ export type {
   PreCallNetworkOptions,
   PreCallMediaReport,
   PreCallMediaOptions,
+  MediaAudioDirection,
+  MediaRtpDetails,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
   NetworkMinMaxAverage,

@@ -220,12 +220,56 @@ export interface PreCallNetworkReport {
 }
 
 /**
- * Report from the media diagnostic module.
- * Placeholder structure — to be filled in by T5/VSDK-302.
+ * Per-direction audio flow details from the media diagnostic module.
+ *
+ * Describes whether audio RTP packets/bytes are observed increasing in one
+ * direction during the diagnostic call, plus the raw counters and the
+ * delta between the first and last samples.
+ */
+export interface MediaAudioDirection {
+  /** Whether audio packets or bytes increased across samples. */
+  flowing: boolean;
+  /** Cumulative RTP packet count from the last sample. */
+  packets?: number;
+  /** Cumulative byte count from the last sample. */
+  bytes?: number;
+  /** Delta in packet count between first and last sample. */
+  packetsDelta?: number;
+  /** Delta in byte count between first and last sample. */
+  bytesDelta?: number;
+}
+
+/**
+ * RTP-level details in the media report.
+ */
+export interface MediaRtpDetails {
+  /** Outbound (send-side) audio flow details. */
+  outbound?: MediaAudioDirection;
+  /** Inbound (receive-side) audio flow details. */
+  inbound?: MediaAudioDirection;
+}
+
+/**
+ * Report from the media diagnostic module — T5 (folded into VSDK-301).
+ *
+ * Describes whether audio RTP is flowing in both directions during the
+ * diagnostic call, derived from the shared stats sample timeline
+ * (`context.statsSamples`). The module reads only `context.statsSamples`;
+ * it does not poll the peer connection or own timers.
  */
 export interface PreCallMediaReport {
-  /** Whether media (audio) is flowing in both directions. */
+  /** Whether audio is flowing in both directions (derived from inbound + outbound). */
   audioFlowing?: boolean;
+  /** Whether outbound audio RTP packets/bytes are increasing. */
+  outboundAudioFlowing?: boolean;
+  /** Whether inbound audio RTP packets/bytes are increasing. */
+  inboundAudioFlowing?: boolean;
+  /** Per-direction RTP packet/byte counters and deltas. */
+  rtp?: MediaRtpDetails;
+  /** Number of stats samples the report was built from. */
+  sampleCount?: number;
+  /** Reason inputs for the verdict module (namespaced with `media_*`). */
+  reasons?: PreCallDiagnosticReason[];
 }
 
 /**
