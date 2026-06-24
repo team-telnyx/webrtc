@@ -58,7 +58,12 @@ import {
 } from '../util/webrtc';
 import Call from './Call';
 import { MCULayoutEventHandler } from './LayoutHandler';
-import { callMarkName, clearCallMarks } from './CallEstablishmentTimings';
+import {
+  callMarkName,
+  clearCallMarks,
+  collectCallEstablishmentTimings,
+  type ICallEstablishmentTimings,
+} from './CallEstablishmentTimings';
 import Peer from './Peer';
 import {
   ConferenceAction,
@@ -2497,6 +2502,31 @@ export default abstract class BaseCall implements IWebRTCCall {
       `New Call — region: ${this.session.region ?? 'unknown'}, dc: ${this.session.dc ?? 'unknown'}`,
       this.options
     );
+  }
+
+  /**
+   * Return structured call-establishment timings for this call.
+   *
+   * Reads the W3C `performance.mark()` lifecycle recorded by the SDK call
+   * path (BaseCall, VertoHandler, Verto instance) and the
+   * `CallEstablishmentTimings` collector. Returns undefined if the
+   * `new-call-start` mark is missing — e.g. the call was not created via
+   * `client.newCall()` or the marks were already cleared by `_finalize()`.
+   *
+   * Mode is derived from the active ICE mode: trickle unless an ICE restart
+   * forced the non-trickle path. Direction comes from the existing `Direction`
+   * enum (string values already match the literal type).
+   *
+   * This is the ONLY place outside `CallEstablishmentTimings.ts` itself that
+   * imports from that module — diagnostic callers consume the structured
+   * result through this seam.
+   */
+  public getEstablishmentTimings(): ICallEstablishmentTimings | undefined {
+    const mode: 'trickle' | 'non-trickle' =
+      this.options?.trickleIce && !this.peer?.isIceRestarting
+        ? 'trickle'
+        : 'non-trickle';
+    return collectCallEstablishmentTimings(this.id, mode, this.direction);
   }
 
   protected _finalize() {

@@ -112,18 +112,46 @@ export interface PreCallDiagnosticReason {
 
 /**
  * Timing measurements for the diagnostic run.
+ *
+ * All duration fields are milliseconds. Missing sources result in omitted
+ * fields (undefined), not zero placeholders.
+ *
+ * Lifecycle fields (`callCreateMs`, `callSetupMs`, `callAnsweredMs`,
+ * `iceConnectedMs`, `dtlsConnectedMs`, `ringingMs`, `firstMediaStatsMs`) are
+ * measured from the start of the call (the SDK `new-call-start` performance
+ * mark) via the existing `CallEstablishmentTimings` system. Diagnostic-only
+ * fields (`firstStatsMs`, `statsSamplingMs`, `cleanupMs`, `totalMs`) are
+ * measured by the `TimingsCollector` inside the PreCallDiagnostic runner.
  */
 export interface PreCallTimingsReport {
-  /** Time in ms from diagnostic start to call creation. */
-  callCreateMs?: number;
-  /** Time in ms from call creation to call active. */
-  callSetupMs?: number;
-  /** Total time in ms for the diagnostic run. */
-  totalMs?: number;
-  /** Timestamp when the diagnostic started (epoch ms). */
+  /** Epoch timestamp (Date.now()) when the diagnostic started. */
   startedAt?: number;
-  /** Timestamp when the diagnostic completed (epoch ms). */
+  /** Epoch timestamp (Date.now()) when the diagnostic completed. */
   completedAt?: number;
+  /** Total duration of the diagnostic run in ms (monotonic). */
+  totalMs?: number;
+  /** Time from diagnostic start to client ready/connect, if observable. */
+  clientReadyMs?: number;
+  /** Time from start to call creation (new-call-start mark). */
+  callCreateMs?: number;
+  /** Time from call creation to call active. */
+  callSetupMs?: number;
+  /** Time from call creation to call answered (telnyx-rtc-answer mark). */
+  callAnsweredMs?: number;
+  /** Time from call creation to ICE connected. */
+  iceConnectedMs?: number;
+  /** Time from start to DTLS connected, if observable. */
+  dtlsConnectedMs?: number;
+  /** Time from start to ringing, if observable. */
+  ringingMs?: number;
+  /** Time from start to first media stats (first-remote-media-track mark). */
+  firstMediaStatsMs?: number;
+  /** Time from start to first stats sample received inside collectSamples. */
+  firstStatsMs?: number;
+  /** Duration of the stats sampling phase. */
+  statsSamplingMs?: number;
+  /** Duration of cleanup (hangup + resource release). */
+  cleanupMs?: number;
 }
 
 /**

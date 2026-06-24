@@ -24,5 +24,6 @@ export type {
 export type { Call } from './types';
 export type {
   PreCallDiagnosticContext,
-  DiagnosticTimings,
 } from './context';
+export { createTimingsCollector, TimingsCollector } from './modules/timings';
+export type { TimingsCallLike, TimingsBuildOptions } from './modules/timings';
