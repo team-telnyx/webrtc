@@ -215,7 +215,12 @@ export default class Connection {
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
-      const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
+      const telnyxError = createTelnyxError(
+        WEBSOCKET_CONNECTION_FAILED,
+        error,
+        undefined,
+        true // fatal: true (explicit) — auto-reconnect can't recover, no socket object
+      );
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this.session.sessionid },

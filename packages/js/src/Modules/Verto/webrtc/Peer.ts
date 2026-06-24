@@ -516,7 +516,12 @@ export default class Peer {
             trigger(
               SwEvent.Error,
               {
-                error: createTelnyxError(classifyMediaErrorCode(error), error),
+                error: createTelnyxError(
+                  classifyMediaErrorCode(error),
+                  error,
+                  undefined,
+                  false // recovery flow: fatal=false (override of registry default true)
+                ),
                 callId: this.options.id,
                 sessionId: this._session.sessionid,
                 recoverable: true,
@@ -894,6 +899,7 @@ export default class Peer {
         { error: telnyxError, sessionId: this._session.sessionid },
         this.options.id
       );
+      throw error; // surface the failure to the caller
     }
   }
 
@@ -964,6 +970,7 @@ export default class Peer {
         { error: telnyxError, sessionId: this._session.sessionid },
         this.options.id
       );
+      throw error; // surface the failure to the caller
     }
   }
 

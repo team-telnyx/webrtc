@@ -221,7 +221,12 @@ export default abstract class BaseSession {
       }
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
-          const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
+          const telnyxError = createTelnyxError(
+            AUTHENTICATION_REQUIRED,
+            error,
+            undefined,
+            true // fatal: true (no recovery path — autoReconnect is disabled)
+          );
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -1210,6 +1215,19 @@ export default abstract class BaseSession {
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
+  }
+
+  /**
+   * Report that an ICE restart attempt failed for the given call.
+   * Called by BaseCall when the ICE restart Modify request could not be
+   * sent or the server returned an error.
+   *
+   * The health monitor owns the recovery decision (whether to reconnect
+   * the socket, when, etc.). BaseCall does NOT trigger recovery itself —
+   * this handoff keeps recovery logic in one place.
+   */
+  reportIceRestartFailed(callId: string): void {
+    this._signalingHealthMonitor.onIceRestartFailed(callId);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -421,7 +421,9 @@ class VertoHandler {
                 );
                 const telnyxError = createTelnyxError(
                   LOGIN_FAILED,
-                  originalError
+                  originalError,
+                  undefined,
+                  true // fatal: true (SDK has given up after RETRY_REGISTER_TIME)
                 );
                 trigger(
                   SwEvent.Error,

@@ -477,7 +477,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           ? error
           : createTelnyxError(
               UNEXPECTED_ERROR,
-              error instanceof Error ? error : undefined
+              error instanceof Error ? error : undefined,
+              undefined,
+              true // fatal: true (explicit at every UNEXPECTED_ERROR site)
             );
       trigger(
         SwEvent.Error,
@@ -572,7 +574,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           ? error
           : createTelnyxError(
               UNEXPECTED_ERROR,
-              error instanceof Error ? error : undefined
+              error instanceof Error ? error : undefined,
+              undefined,
+              true // fatal: true (explicit at every UNEXPECTED_ERROR site)
             );
       trigger(
         SwEvent.Error,
@@ -1735,6 +1739,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.error(message, error);
     this.peer?.finishIceRestart();
     const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    // fatal: false (registry default) — SignalingHealth will decide on recovery.
     trigger(
       SwEvent.Error,
       {
@@ -1744,6 +1749,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       },
       this.session.uuid
     );
+
+    // Notify SignalingHealth that ICE restart failed. The Signaling service
+    // decides what to do next (it may trigger socket recovery, or it may take
+    // a different action). This handoff keeps recovery logic in one place.
+    this.session.reportIceRestartFailed?.(this.id);
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
@@ -1803,21 +1813,33 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _requestAnotherLocalDescription() {
     if (isFunction(this.peer.onSdpReadyTwice)) {
-      trigger(
-        SwEvent.Error,
-        {
-          error: new Error('SDP without candidates for the second time!'),
-          sessionId: this.session.sessionid,
-        },
-        this.session.uuid
-      );
+      this._emitSdpWithoutCandidatesError();
       return;
     }
+    this._retryLocalDescription();
+  }
+
+  private _retryLocalDescription() {
     Object.defineProperty(this.peer, 'onSdpReadyTwice', {
       value: this._onIceSdp.bind(this),
     });
     this.peer.iceDone = false;
     this.peer.startNegotiation();
+  }
+
+  private _emitSdpWithoutCandidatesError() {
+    const error = new Error('SDP without candidates for the second time!');
+    const telnyxError = createTelnyxError(
+      SDP_SEND_FAILED,
+      error,
+      undefined,
+      true // fatal: true (explicit, matches registry default for SDP_SEND_FAILED)
+    );
+    trigger(
+      SwEvent.Error,
+      { error: telnyxError, sessionId: this.session.sessionid },
+      this.session.uuid
+    );
   }
 
   private _onIceSdp(data: RTCSessionDescription | null) {
