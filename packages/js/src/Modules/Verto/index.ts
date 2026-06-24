@@ -24,19 +24,6 @@ import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
-/**
- * JSON.stringify replacer that skips the `session` and `peer` keys on Call
- * objects to avoid circular-reference errors and non-serializable host
- * objects (RTCPeerConnection, BrowserSession). Everything else on the Call
- * (id, options, state, direction, cause, channels, etc.) is serialized.
- */
-const CALL_REPLACER = (key: string, value: unknown) => {
-  if (key === 'session' || key === 'peer') {
-    return undefined;
-  }
-  return value;
-};
-
 export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL;
 
@@ -75,11 +62,14 @@ export default class Verto extends BrowserSession {
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
-      // that those calls were lost. Persist the entire Call object (with
-      // `session`/`peer` stripped to avoid circular refs) so that, on the
-      // next SDK startup, VertoHandler can compare the saved markers against
-      // the server's reattached_sessions and emit SESSION_NOT_REATTACHED for
-      // any call that was not reattached.
+      // that those calls were lost. Persist a minimal, safe metadata record
+      // for each active call — only the explicit safe fields
+      // (callId, sessid, storedAt, telnyxSessionId, telnyxCallControlId) — so
+      // that on the next SDK startup VertoHandler can compare the saved
+      // markers against the server's reattached_sessions and emit
+      // SESSION_NOT_REATTACHED for any call that was not reattached.
+      // No SDP, ICE candidates, peer connection, session, media streams, or
+      // other internal/host state is ever persisted.
       try {
         const callIds = this.calls ? Object.keys(this.calls) : [];
         const activeCallIds = callIds.filter(
@@ -93,17 +83,26 @@ export default class Verto extends BrowserSession {
           return;
         }
 
-        // Serialize each entire Call object. The CALL_REPLACER skips
-        // `session` (circular ref back to BrowserSession) and `peer`
-        // (RTCPeerConnection) to avoid JSON circular-reference errors and
-        // non-serializable host objects.
+        // Explicitly project only the safe identifier fields from each Call.
+        // This avoids serializing the entire Call object (SDP, ICE, peer
+        // connection, session, internal state) and avoids any
+        // JSON.parse(JSON.stringify(...)) round-trip on the constrained
+        // beforeunload path.
+        const storedAt = Date.now();
         const markers: IActiveCallRecoveryMarker[] = activeCallIds.map(
           (callId) => {
             const call = this.calls[callId];
-            const serialized = JSON.parse(
-              JSON.stringify(call, CALL_REPLACER)
-            ) as IActiveCallRecoveryMarker;
-            return serialized;
+            return {
+              callId: call.id,
+              sessid: this.sessionid,
+              storedAt,
+              ...(call.options?.telnyxSessionId !== undefined
+                ? { telnyxSessionId: call.options.telnyxSessionId }
+                : {}),
+              ...(call.options?.telnyxCallControlId !== undefined
+                ? { telnyxCallControlId: call.options.telnyxCallControlId }
+                : {}),
+            };
           }
         );
 

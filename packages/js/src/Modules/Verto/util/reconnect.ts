@@ -8,12 +8,13 @@ const SESSION_ID_STORED_AT_STORAGE_KEY =
 export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
 
 // ── Active-calls recovery marker (page-reload recovery detection) ──────
-// The entire Call object is persisted before page unload so that, on the
-// next SDK startup, the SDK can detect whether previously active calls
-// were reattached by the server and emit SESSION_NOT_REATTACHED for any
-// that were not. Live host objects (RTCPeerConnection, MediaStream) are
-// dropped by the JSON replacer; the persisted record is a snapshot of the
-// call's serializable fields (id, options, state, direction, etc.).
+// Before page unload, only a minimal set of safe identifier fields is
+// projected from each active Call and persisted, so that on the next SDK
+// startup the SDK can detect whether previously active calls were
+// reattached by the server and emit SESSION_NOT_REATTACHED for any that
+// were not. No SDP, ICE candidates, peer connection, session, media
+// streams, or other internal/host state is ever persisted — only the
+// explicit safe fields enumerated in {@link IActiveCallRecoveryMarker}.
 const ACTIVE_CALLS_STORAGE_KEY = 'telnyx-voice-sdk-active-calls';
 const ACTIVE_CALLS_STORED_AT_STORAGE_KEY =
   'telnyx-voice-sdk-active-calls-stored-at';
@@ -23,14 +24,25 @@ const ACTIVE_CALLS_SESSID_STORAGE_KEY = 'telnyx-voice-sdk-active-calls-sessid';
 export const RECOVERY_MARKER_MAX_AGE_MS = 30 * 60 * 1000;
 
 /**
- * Shape of a single persisted active-call record. The entire Call object is
- * serialized, so this is a permissive shape — the only guaranteed field is
- * `id` (the call identifier). Additional fields from the Call/options may be
- * present and are passed through untouched.
+ * Shape of a single persisted active-call recovery marker.
+ *
+ * This is a strict, minimal-safe-metadata contract: ONLY these fields are
+ * ever persisted to `sessionStorage`. No other Call fields (SDP, ICE
+ * candidates, peer connection, session, media streams, internal state, etc.)
+ * are stored. `callId` is required; the correlation identifiers are
+ * optional because they may not yet be assigned when the marker is written.
  */
 export interface IActiveCallRecoveryMarker {
-  id: string;
-  [key: string]: unknown;
+  /** The call identifier (Call.id). */
+  callId: string;
+  /** The session id active when the marker was written (Call.session.sessionid). */
+  sessid: string;
+  /** Epoch ms when the marker was written (used for staleness checks). */
+  storedAt: number;
+  /** Optional safe correlation identifier (Call.options.telnyxSessionId). */
+  telnyxSessionId?: string;
+  /** Optional safe correlation identifier (Call.options.telnyxCallControlId). */
+  telnyxCallControlId?: string;
 }
 
 function safeGetItem(key: string): string | null {
@@ -133,18 +145,19 @@ export function clearActiveCallsRecoveryMarker(): void {
 
 /**
  * Read the persisted active-calls recovery marker. Returns the saved marker
- * records (entire serialized Call objects) plus the sessid that was active
- * when the marker was written. Returns `{ markers: [], sessid: null }` when
- * nothing is stored, storage is unavailable, the payload is malformed, or the
- * marker is older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
+ * records (minimal safe identifier fields only) plus the sessid that was
+ * active when the marker was written. Returns `{ markers: [], sessid: null }`
+ * when nothing is stored, storage is unavailable, the payload is malformed,
+ * or the marker is older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
  *
  * Storage is cleaned up immediately after the read — once we have the
  * in-memory copy the persisted copy is no longer needed, and clearing it
  * here guarantees the record cannot be re-consumed by a duplicate recovery
  * event, a stale tab, or a future page load (at-most-once notification).
  *
- * Validation is minimal: each record only needs an `id` field (the call
- * identifier). All other fields are passed through untouched.
+ * Validation is minimal: each record only needs a string `callId` field.
+ * Only the explicit safe fields from {@link IActiveCallRecoveryMarker} are
+ * ever written, so read-back does not need to strip anything else.
  */
 export function getActiveCallsRecoveryMarker(now = Date.now()): {
   markers: IActiveCallRecoveryMarker[];
@@ -182,12 +195,14 @@ export function getActiveCallsRecoveryMarker(now = Date.now()): {
       );
       return { markers: [], sessid: null };
     }
-    // Defensive: keep only well-formed records — each must have a string `id`.
+    // Defensive: keep only well-formed records — each must have a string
+    // `callId`. Only the explicit safe fields are ever written, so no other
+    // fields need to be stripped on read-back.
     const markers = parsed.filter(
       (r: unknown): r is IActiveCallRecoveryMarker =>
         !!r &&
         typeof r === 'object' &&
-        typeof (r as IActiveCallRecoveryMarker).id === 'string'
+        typeof (r as IActiveCallRecoveryMarker).callId === 'string'
     );
     return { markers, sessid: sessidRaw };
   } catch (err) {
@@ -201,10 +216,11 @@ export function getActiveCallsRecoveryMarker(now = Date.now()): {
 }
 
 /**
- * Persist an array of active-call recovery markers (entire Call objects)
- * before page unload, along with the sessid that was active at save time.
- * Writes are wrapped in try/catch so a blocked/unavailable `sessionStorage`
- * silently no-ops, matching the safety pattern of the reconnect-token helpers.
+ * Persist an array of active-call recovery markers (minimal safe identifier
+ * fields only — never the entire Call object) before page unload, along with
+ * the sessid that was active at save time. Writes are wrapped in try/catch
+ * so a blocked/unavailable `sessionStorage` silently no-ops, matching the
+ * safety pattern of the reconnect-token helpers.
  */
 export function setActiveCallsRecoveryMarker(
   markers: IActiveCallRecoveryMarker[],

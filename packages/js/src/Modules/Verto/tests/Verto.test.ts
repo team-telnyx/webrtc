@@ -171,7 +171,7 @@ describe('Verto', () => {
       });
 
       // Simulate a logged-in session with active calls. The save path
-      // serializes the entire Call object (with `session`/`peer` stripped).
+      // projects only the minimal safe identifier fields from each Call.
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
@@ -180,8 +180,8 @@ describe('Verto', () => {
           hangup,
           state: 'active',
           direction: 'outbound',
-          session: {}, // stripped by replacer
-          peer: {}, // stripped by replacer
+          session: {}, // not persisted — explicit projection skips it
+          peer: {}, // not persisted — explicit projection skips it
           options: {
             telnyxSessionId: 'tsid-1',
             telnyxCallControlId: 'ccid-1',
@@ -212,30 +212,30 @@ describe('Verto', () => {
       expect(result.markers.length).toBe(2);
       expect(result.sessid).toBe('session-abc');
 
-      const ids = result.markers.map((m) => m.id).sort();
+      const ids = result.markers.map((m) => m.callId).sort();
       expect(ids).toEqual(['call-1', 'call-2']);
 
-      const m1 = result.markers.find((m) => m.id === 'call-1');
-      expect(m1.state).toBe('active');
-      expect(m1.direction).toBe('outbound');
-      expect((m1.options as Record<string, unknown>)?.telnyxSessionId).toBe(
-        'tsid-1'
-      );
-      expect(
-        (m1.options as Record<string, unknown>)?.telnyxCallControlId
-      ).toBe('ccid-1');
+      const m1 = result.markers.find((m) => m.callId === 'call-1');
+      expect(m1.callId).toBe('call-1');
+      expect(m1.sessid).toBe('session-abc');
+      expect(typeof m1.storedAt).toBe('number');
+      expect(m1.telnyxSessionId).toBe('tsid-1');
+      expect(m1.telnyxCallControlId).toBe('ccid-1');
 
       // call-2 had no telnyx correlation ids — they should be absent.
-      const m2 = result.markers.find((m) => m.id === 'call-2');
-      expect((m2.options as Record<string, unknown>)?.telnyxSessionId).toBe(
-        undefined
-      );
+      const m2 = result.markers.find((m) => m.callId === 'call-2');
+      expect(m2.callId).toBe('call-2');
+      expect(m2.telnyxSessionId).toBeUndefined();
+      expect(m2.telnyxCallControlId).toBeUndefined();
 
-      // Ensure the `session` and `peer` keys were stripped by the replacer
-      // (no circular ref or non-serializable host objects persisted).
+      // Ensure only the explicit safe fields are persisted — no SDP, ICE,
+      // peer connection, session, media streams, or other internal state.
       const serialized = JSON.stringify(result.markers[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
+      expect(serialized).not.toContain('"options"');
+      expect(serialized).not.toContain('"state"');
+      expect(serialized).not.toContain('"direction"');
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -247,14 +247,14 @@ describe('Verto', () => {
 
       // Pre-seed a stale marker from a previous page.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active' }],
+        [{ callId: 'stale-call', sessid: 'old-session', storedAt: Date.now() }],
         'old-session'
       );
       expect(getActiveCallsRecoveryMarker().markers.length).toBe(1);
 
       // Re-seed since getActiveCallsRecoveryMarker clears on read.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active' }],
+        [{ callId: 'stale-call', sessid: 'old-session', storedAt: Date.now() }],
         'old-session'
       );
 

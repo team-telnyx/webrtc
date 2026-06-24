@@ -146,10 +146,10 @@ class VertoHandler {
           );
 
           for (const marker of savedMarkers) {
-            if (reattachedIds.has(marker.id)) {
+            if (reattachedIds.has(marker.callId)) {
               // Call was reattached — recovered, do not notify.
               logger.debug(
-                `Recovery marker for call ${marker.id} was reattached — no notification.`
+                `Recovery marker for call ${marker.callId} was reattached — no notification.`
               );
               continue;
             }
@@ -158,23 +158,23 @@ class VertoHandler {
             // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
             // call object on this page.
             logger.info(
-              `Recovery marker for call ${marker.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+              `Recovery marker for call ${marker.callId} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
             );
             const error = createTelnyxError(SESSION_NOT_REATTACHED);
-            // The entire Call object was persisted, so telnyxSessionId /
-            // telnyxCallControlId live inside marker.options if present.
-            const opts = (marker.options ?? {}) as Record<string, unknown>;
+            // Only minimal safe identifier fields were persisted, so
+            // telnyxSessionId / telnyxCallControlId live directly on the
+            // marker (not nested under an `options` property).
             trigger(
               SwEvent.Error,
               {
                 error,
-                callId: marker.id,
+                callId: marker.callId,
                 sessionId: session.sessionid,
-                ...(opts.telnyxSessionId !== undefined
-                  ? { telnyxSessionId: opts.telnyxSessionId }
+                ...(marker.telnyxSessionId !== undefined
+                  ? { telnyxSessionId: marker.telnyxSessionId }
                   : {}),
-                ...(opts.telnyxCallControlId !== undefined
-                  ? { telnyxCallControlId: opts.telnyxCallControlId }
+                ...(marker.telnyxCallControlId !== undefined
+                  ? { telnyxCallControlId: marker.telnyxCallControlId }
                   : {}),
               },
               session.uuid

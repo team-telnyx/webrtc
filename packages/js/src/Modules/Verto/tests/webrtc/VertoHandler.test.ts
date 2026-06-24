@@ -1079,18 +1079,16 @@ describe('VertoHandler', () => {
         setSession('sess-reload');
 
         // Simulate a marker written before the previous page unloaded.
-        // The entire Call object is saved; telnyxSessionId/telnyxCallControlId
-        // live inside options.
+        // Only minimal safe identifier fields are persisted (flat shape,
+        // not nested under an `options` property).
         setActiveCallsRecoveryMarker(
           [
             {
-              id: 'lost-call',
-              state: 'active',
-              direction: 'outbound',
-              options: {
-                telnyxSessionId: 'tsid-lost',
-                telnyxCallControlId: 'ccid-lost',
-              },
+              callId: 'lost-call',
+              sessid: 'sess-reload',
+              storedAt: Date.now(),
+              telnyxSessionId: 'tsid-lost',
+              telnyxCallControlId: 'ccid-lost',
             },
           ],
           'sess-reload'
@@ -1119,7 +1117,7 @@ describe('VertoHandler', () => {
         setSession('sess-current');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'other-session-call', state: 'active' }],
+          [{ callId: 'other-session-call', sessid: 'sess-different', storedAt: Date.now() }],
           'sess-different'
         );
 
@@ -1135,7 +1133,7 @@ describe('VertoHandler', () => {
         setSession('sess-recovered');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'recovered-call', state: 'active' }],
+          [{ callId: 'recovered-call', sessid: 'sess-recovered', storedAt: Date.now() }],
           'sess-recovered'
         );
 
@@ -1151,7 +1149,7 @@ describe('VertoHandler', () => {
 
         const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
         setActiveCallsRecoveryMarker(
-          [{ id: 'stale-call', state: 'active' }],
+          [{ callId: 'stale-call', sessid: 'sess-stale', storedAt: staleTime }],
           'sess-stale',
           staleTime
         );
@@ -1177,7 +1175,7 @@ describe('VertoHandler', () => {
         setSession('sess-dedup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'dup-call', state: 'active' }],
+          [{ callId: 'dup-call', sessid: 'sess-dedup', storedAt: Date.now() }],
           'sess-dedup'
         );
 
@@ -1197,7 +1195,7 @@ describe('VertoHandler', () => {
         setSession('sess-no-hangup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'marker-only-call', state: 'active' }],
+          [{ callId: 'marker-only-call', sessid: 'sess-no-hangup', storedAt: Date.now() }],
           'sess-no-hangup'
         );
 
@@ -1224,8 +1222,8 @@ describe('VertoHandler', () => {
         // all are evaluated against reattached_sessions.
         setActiveCallsRecoveryMarker(
           [
-            { id: 'lost-1', state: 'active' },
-            { id: 'lost-2', state: 'active' },
+            { callId: 'lost-1', sessid: 'sess-multi', storedAt: Date.now() },
+            { callId: 'lost-2', sessid: 'sess-multi', storedAt: Date.now() },
           ],
           'sess-multi'
         );
