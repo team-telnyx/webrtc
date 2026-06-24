@@ -190,8 +190,15 @@ function computeDelta(
 export function buildPreCallMediaReport(
   context: PreCallDiagnosticContext
 ): PreCallMediaReport | undefined {
-  // If the media module is explicitly disabled, return undefined
-  if (context.options.media === false) {
+  // If the media module is explicitly disabled, return undefined.
+  // Honors both `media: false` and `media: { enabled: false }`.
+  // (The runner also normalizes this, but the module defends independently
+  // so it can be unit-tested directly with a disabled-options context.)
+  const mediaOpt = context.options.media;
+  const mediaDisabled =
+    mediaOpt === false ||
+    (typeof mediaOpt === 'object' && mediaOpt !== null && mediaOpt.enabled === false);
+  if (mediaDisabled) {
     return undefined;
   }
 

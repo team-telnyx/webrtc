@@ -324,7 +324,17 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private parseRTCStatsReport(report: RTCStatsReport): Record<string, any> {
-    const timestamp = Date.now();
+    // Prefer the actual RTCStats timestamp from the report rather than the
+    // wall-clock time of parsing. RTCStatsReport is a Map of RTCStats objects,
+    // each of which carries its own `timestamp` (epoch ms) from the browser;
+    // the report itself may also expose a top-level `timestamp`. Using the
+    // stats timestamp keeps bitrate/time-delta math consistent with the
+    // browser's sample timing. Fall back to Date.now() only if no stats
+    // timestamp is present (e.g. synthetic report with no entries).
+    let timestamp: number | undefined =
+      typeof (report as unknown as { timestamp?: unknown }).timestamp === 'number'
+        ? (report as unknown as { timestamp: number }).timestamp
+        : undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const audioInbound: any[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,6 +346,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
     report.forEach((stats) => {
       const entry = stats as Record<string, unknown>;
+      // Capture the first per-stat timestamp if we don't yet have one.
+      if (timestamp === undefined && typeof entry.timestamp === 'number') {
+        timestamp = entry.timestamp;
+      }
       if (entry.kind === 'audio' || entry.mediaType === 'audio') {
         switch (entry.type) {
           case 'inbound-rtp':
@@ -377,6 +391,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       }
     });
 
+    // Fall back to wall-clock time only if the report carried no stats
+    // timestamp (e.g. a synthetic/empty report). This keeps the frame
+    // timestamp defined for downstream bitrate/time-delta math.
+    if (timestamp === undefined) {
+      timestamp = Date.now();
+    }
+
     const frame: Record<string, unknown> = { timestamp };
     if (audioInbound.length > 0 || audioOutbound.length > 0) {
       frame.audio = {
@@ -394,14 +415,41 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
+   * Normalize a module option that may be a boolean or an options object
+   * with an `enabled` flag into a single enabled boolean.
+   *
+   * - `undefined` / `true` → enabled (default-on)
+   * - `false` → disabled
+   * - `{ enabled: false }` → disabled
+   * - `{ enabled: true }` (or any object without an `enabled: false`) → enabled
+   *
+   * This is the single normalization point in the runner so that the
+   * `enabled: false` form is honored consistently instead of being
+   * duplicated across each module getter. Module builders also defend
+   * independently so they remain unit-testable with a disabled context.
+   *
+   * The parameter is intentionally loose (`unknown`) so it accepts every
+   * module option shape (network/media use `{ enabled? }`; ice/microphone
+   * use their own option objects without an `enabled` field).
+   */
+  private isModuleEnabled(opt: unknown): boolean {
+    if (opt === false) return false;
+    if (opt === undefined || opt === true) return true;
+    if (typeof opt === 'object' && opt !== null) {
+      const enabled = (opt as { enabled?: unknown }).enabled;
+      if (enabled === false) return false;
+    }
+    return true;
+  }
+
+  /**
    * Build the ICE report section.
    * Delegates to the ICE module builder.
    */
   private async getIceReport(
     context: PreCallDiagnosticContext
   ): Promise<PreCallDiagnosticReport['ice']> {
-    const iceEnabled = this.options.ice !== false;
-    if (!iceEnabled) {
+    if (!this.isModuleEnabled(this.options.ice)) {
       return undefined;
     }
     return buildPreCallIceReport(context);
@@ -414,8 +462,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   private getNetworkReport(
     context: PreCallDiagnosticContext
   ): PreCallDiagnosticReport['network'] {
-    const networkEnabled = this.options.network !== false;
-    if (!networkEnabled) {
+    if (!this.isModuleEnabled(this.options.network)) {
       return undefined;
     }
     return buildPreCallNetworkReport(context);
@@ -428,8 +475,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   private async getMediaReport(
     context: PreCallDiagnosticContext
   ): Promise<PreCallDiagnosticReport['media']> {
-    const mediaEnabled = this.options.media !== false;
-    if (!mediaEnabled) {
+    if (!this.isModuleEnabled(this.options.media)) {
       return undefined;
     }
     return buildPreCallMediaReport(context);
@@ -442,8 +488,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   private async getMicrophoneReport(
     context: PreCallDiagnosticContext
   ): Promise<PreCallDiagnosticReport['microphone']> {
-    const micEnabled = this.options.microphone !== false;
-    if (!micEnabled) {
+    if (!this.isModuleEnabled(this.options.microphone)) {
       return undefined;
     }
     return buildPreCallMicrophoneReport(context);

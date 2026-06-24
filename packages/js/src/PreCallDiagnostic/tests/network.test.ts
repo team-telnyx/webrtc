@@ -247,7 +247,7 @@ describe('buildPreCallNetworkReport', () => {
       expect(report?.quality).toBe('fair');
       expect(report?.reasons).toBeDefined();
       expect(report?.reasons?.length).toBeGreaterThanOrEqual(1);
-      expect(report?.reasons?.[0]?.code).toBe('network_high_rtt_degraded');
+      expect(report?.reasons?.[0]?.code).toBe('network_high_rtt');
     });
 
     it('returns quality: fair for jitter >= 30ms', () => {
@@ -283,7 +283,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('fair');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_degraded')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter')).toBe(true);
     });
 
     it('returns quality: fair for packet loss >= 2%', () => {
@@ -309,7 +309,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('fair');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_packet_loss_degraded')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_packet_loss')).toBe(true);
     });
   });
 
@@ -347,7 +347,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('poor');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_rtt_poor')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_high_rtt')).toBe(true);
     });
 
     it('returns quality: poor for jitter >= 100ms', () => {
@@ -383,7 +383,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('poor');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_poor')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter')).toBe(true);
     });
 
     it('returns quality: poor for packet loss >= 5%', () => {
@@ -409,7 +409,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('poor');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_packet_loss_poor')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_packet_loss')).toBe(true);
     });
   });
 
@@ -713,6 +713,40 @@ describe('buildPreCallNetworkReport', () => {
 
       expect(report).toBeUndefined();
     });
+
+    it('returns undefined when network.enabled is false (object form)', () => {
+      const context = createContext({
+        statsSamples: [createStatsFrame()],
+        options: {
+          client: {
+            newCall: jest.fn().mockReturnValue({ id: 'test', hangup: jest.fn() }),
+          } as unknown as TelnyxRTC,
+          destinationNumber: '1234',
+          network: { enabled: false },
+        },
+      });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeUndefined();
+    });
+
+    it('returns a report when network.enabled is true (object form)', () => {
+      const context = createContext({
+        statsSamples: [createStatsFrame()],
+        options: {
+          client: {
+            newCall: jest.fn().mockReturnValue({ id: 'test', hangup: jest.fn() }),
+          } as unknown as TelnyxRTC,
+          destinationNumber: '1234',
+          network: { enabled: true },
+        },
+      });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report).toBeDefined();
+      // The frame has good defaults, so quality should not be 'unknown'.
+      expect(report?.quality).not.toBe('unknown');
+    });
   });
 
   describe('reason inputs', () => {
@@ -810,8 +844,61 @@ describe('buildPreCallNetworkReport', () => {
 
       expect(report?.reasons?.length).toBeGreaterThanOrEqual(2);
       const codes = report?.reasons?.map((r) => r.code) ?? [];
-      expect(codes).toContain('network_high_rtt_poor');
-      expect(codes).toContain('network_high_jitter_poor');
+      expect(codes).toContain('network_high_rtt');
+      expect(codes).toContain('network_high_jitter');
+    });
+
+    it('emits network_low_bitrate when audio bitrate falls below the threshold', () => {
+      // Two frames 1 second apart with a tiny outbound byte delta.
+      // bitrate = delta(bytes) * 8 / dtSec = 500 * 8 / 1 = 4000 bps (< 8000).
+      // Inbound uses a larger delta so only outbound is flagged low here.
+      const base = 1_000_000;
+      const frame1 = createStatsFrame({
+        timestamp: base,
+        audio: {
+          inbound: [{ packetsReceived: 100, packetsLost: 0, jitter: 0.002, bytesReceived: 160000 }],
+          outbound: [{ packetsSent: 100, bytesSent: 160000 }],
+        },
+      });
+      const frame2 = createStatsFrame({
+        timestamp: base + 1000,
+        audio: {
+          inbound: [{ packetsReceived: 200, packetsLost: 0, jitter: 0.002, bytesReceived: 160500 }],
+          outbound: [{ packetsSent: 200, bytesSent: 160500 }],
+        },
+      });
+      const context = createContext({ statsSamples: [frame1, frame2] });
+      const report = buildPreCallNetworkReport(context);
+
+      expect(report?.reasons).toBeDefined();
+      const codes = report?.reasons?.map((r) => r.code) ?? [];
+      // 500 bytes over 1s = 4000 bps outbound, 4000 bps inbound → both low.
+      expect(codes).toContain('network_low_bitrate');
+    });
+
+    it('does not emit network_low_bitrate when bitrate is healthy', () => {
+      // Two frames 1 second apart with a large outbound byte delta.
+      // bitrate = 16000 * 8 / 1 = 128000 bps (well above the 8000 floor).
+      const base = 1_000_000;
+      const frame1 = createStatsFrame({
+        timestamp: base,
+        audio: {
+          inbound: [{ packetsReceived: 100, packetsLost: 0, jitter: 0.002, bytesReceived: 160000 }],
+          outbound: [{ packetsSent: 100, bytesSent: 160000 }],
+        },
+      });
+      const frame2 = createStatsFrame({
+        timestamp: base + 1000,
+        audio: {
+          inbound: [{ packetsReceived: 200, packetsLost: 0, jitter: 0.002, bytesReceived: 176000 }],
+          outbound: [{ packetsSent: 200, bytesSent: 176000 }],
+        },
+      });
+      const context = createContext({ statsSamples: [frame1, frame2] });
+      const report = buildPreCallNetworkReport(context);
+
+      const codes = report?.reasons?.map((r) => r.code) ?? [];
+      expect(codes).not.toContain('network_low_bitrate');
     });
   });
 
@@ -949,7 +1036,7 @@ describe('buildPreCallNetworkReport', () => {
       const report = buildPreCallNetworkReport(context);
 
       expect(report?.quality).toBe('fair');
-      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter_degraded')).toBe(true);
+      expect(report?.reasons?.some((r) => r.code === 'network_high_jitter')).toBe(true);
     });
 
     it('prefers raw WebRTC jitter over jitterAvg when both are available', () => {

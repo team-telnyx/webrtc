@@ -40,6 +40,17 @@ const PACKET_LOSS_DEGRADED_FRACTION = 0.02;
 /** Packet loss fraction above this is considered poor (0–1). */
 const PACKET_LOSS_POOR_FRACTION = 0.05;
 
+/**
+ * Audio bitrate below this is considered "low" (bits per second).
+ *
+ * The VSDK-301 spec lists `network_low_bitrate` as a required reason code
+ * but does not define an explicit numeric threshold. This constant uses a
+ * conservative audio-only floor of 8 kbps (8000 bps): below this, an audio
+ * diagnostic call is effectively starved of media. The deviation from an
+ * unspecified threshold is documented in the PR review.
+ */
+const LOW_BITRATE_BPS = 8000;
+
 // --- Internal stat-entry types ---
 
 /**
@@ -409,25 +420,31 @@ function classifyQuality(
 
 /**
  * Build reason entries for the verdict module based on detected degradations.
+ *
+ * Reason codes are aligned with the VSDK-301 ticket spec, which uses singular
+ * degradation codes (e.g. `network_high_rtt`) rather than `_degraded`/`_poor`
+ * suffixes. Each degradation emits a single code; the human-readable message
+ * conveys the severity and the crossed threshold.
  */
 function buildReasons(
   rtt: NetworkMinMaxAverage | undefined,
   jitter: NetworkMinMaxAverage | undefined,
   packets: NetworkPacketCounters | undefined,
+  bitrate: NetworkBitrate | undefined,
 ): PreCallDiagnosticReason[] {
   const reasons: PreCallDiagnosticReason[] = [];
 
   if (rtt?.average !== undefined) {
     if (rtt.average >= RTT_POOR_MS) {
       reasons.push({
-        code: 'network_high_rtt_poor',
-        message: `Average RTT is ${Math.round(rtt.average)}ms (≥${RTT_POOR_MS}ms threshold)`,
+        code: 'network_high_rtt',
+        message: `Average RTT is ${Math.round(rtt.average)}ms (poor: ≥${RTT_POOR_MS}ms threshold)`,
         source: 'network',
       });
     } else if (rtt.average >= RTT_DEGRADED_MS) {
       reasons.push({
-        code: 'network_high_rtt_degraded',
-        message: `Average RTT is ${Math.round(rtt.average)}ms (≥${RTT_DEGRADED_MS}ms threshold)`,
+        code: 'network_high_rtt',
+        message: `Average RTT is ${Math.round(rtt.average)}ms (degraded: ≥${RTT_DEGRADED_MS}ms threshold)`,
         source: 'network',
       });
     }
@@ -436,14 +453,14 @@ function buildReasons(
   if (jitter?.average !== undefined) {
     if (jitter.average >= JITTER_POOR_MS) {
       reasons.push({
-        code: 'network_high_jitter_poor',
-        message: `Average jitter is ${Math.round(jitter.average)}ms (≥${JITTER_POOR_MS}ms threshold)`,
+        code: 'network_high_jitter',
+        message: `Average jitter is ${Math.round(jitter.average)}ms (poor: ≥${JITTER_POOR_MS}ms threshold)`,
         source: 'network',
       });
     } else if (jitter.average >= JITTER_DEGRADED_MS) {
       reasons.push({
-        code: 'network_high_jitter_degraded',
-        message: `Average jitter is ${Math.round(jitter.average)}ms (≥${JITTER_DEGRADED_MS}ms threshold)`,
+        code: 'network_high_jitter',
+        message: `Average jitter is ${Math.round(jitter.average)}ms (degraded: ≥${JITTER_DEGRADED_MS}ms threshold)`,
         source: 'network',
       });
     }
@@ -452,14 +469,34 @@ function buildReasons(
   if (packets?.packetLossFraction !== undefined) {
     if (packets.packetLossFraction >= PACKET_LOSS_POOR_FRACTION) {
       reasons.push({
-        code: 'network_high_packet_loss_poor',
-        message: `Packet loss is ${(packets.packetLossFraction * 100).toFixed(1)}% (≥${PACKET_LOSS_POOR_FRACTION * 100}% threshold)`,
+        code: 'network_packet_loss',
+        message: `Packet loss is ${(packets.packetLossFraction * 100).toFixed(1)}% (poor: ≥${PACKET_LOSS_POOR_FRACTION * 100}% threshold)`,
         source: 'network',
       });
     } else if (packets.packetLossFraction >= PACKET_LOSS_DEGRADED_FRACTION) {
       reasons.push({
-        code: 'network_high_packet_loss_degraded',
-        message: `Packet loss is ${(packets.packetLossFraction * 100).toFixed(1)}% (≥${PACKET_LOSS_DEGRADED_FRACTION * 100}% threshold)`,
+        code: 'network_packet_loss',
+        message: `Packet loss is ${(packets.packetLossFraction * 100).toFixed(1)}% (degraded: ≥${PACKET_LOSS_DEGRADED_FRACTION * 100}% threshold)`,
+        source: 'network',
+      });
+    }
+  }
+
+  // Low-bitrate detection: fires when a measured audio bitrate falls below the
+  // configured floor. Only considers directions with a defined bitrate value so
+  // that a missing counter (e.g. no inbound audio) does not trigger a false low.
+  if (bitrate) {
+    if (bitrate.outbound !== undefined && bitrate.outbound < LOW_BITRATE_BPS) {
+      reasons.push({
+        code: 'network_low_bitrate',
+        message: `Outbound audio bitrate is ${Math.round(bitrate.outbound)} bps (<${LOW_BITRATE_BPS} bps threshold)`,
+        source: 'network',
+      });
+    }
+    if (bitrate.inbound !== undefined && bitrate.inbound < LOW_BITRATE_BPS) {
+      reasons.push({
+        code: 'network_low_bitrate',
+        message: `Inbound audio bitrate is ${Math.round(bitrate.inbound)} bps (<${LOW_BITRATE_BPS} bps threshold)`,
         source: 'network',
       });
     }
@@ -482,8 +519,15 @@ function buildReasons(
 export function buildPreCallNetworkReport(
   context: PreCallDiagnosticContext
 ): PreCallNetworkReport | undefined {
-  // If the network module is explicitly disabled, return undefined
-  if (context.options.network === false) {
+  // If the network module is explicitly disabled, return undefined.
+  // Honors both `network: false` and `network: { enabled: false }`.
+  // (The runner also normalizes this, but the module defends independently
+  // so it can be unit-tested directly with a disabled-options context.)
+  const networkOpt = context.options.network;
+  const networkDisabled =
+    networkOpt === false ||
+    (typeof networkOpt === 'object' && networkOpt !== null && networkOpt.enabled === false);
+  if (networkDisabled) {
     return undefined;
   }
 
@@ -510,7 +554,7 @@ export function buildPreCallNetworkReport(
   const quality = classifyQuality(rtt, jitter, packets);
 
   // Build reason inputs
-  const reasons = buildReasons(rtt, jitter, packets);
+  const reasons = buildReasons(rtt, jitter, packets, bitrate);
 
   return {
     quality,

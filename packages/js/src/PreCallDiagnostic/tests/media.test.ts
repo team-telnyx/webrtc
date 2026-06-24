@@ -90,6 +90,30 @@ describe('buildPreCallMediaReport', () => {
       const report = buildPreCallMediaReport(context);
       expect(report).toBeUndefined();
     });
+
+    it('returns undefined when media.enabled is false (object form)', () => {
+      const context = createContext({
+        options: {
+          ...createContext().options,
+          media: { enabled: false },
+        },
+        statsSamples: [createMediaFrame()],
+      });
+      const report = buildPreCallMediaReport(context);
+      expect(report).toBeUndefined();
+    });
+
+    it('returns a report when media.enabled is true (object form)', () => {
+      const context = createContext({
+        options: {
+          ...createContext().options,
+          media: { enabled: true },
+        },
+        statsSamples: [createMediaFrame()],
+      });
+      const report = buildPreCallMediaReport(context);
+      expect(report).toBeDefined();
+    });
   });
 
   describe('no stats samples', () => {

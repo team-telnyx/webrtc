@@ -16,6 +16,7 @@ import type {
   PreCallDiagnosticOptions,
 } from '../types';
 import type Call from '../../Modules/Verto/webrtc/Call';
+import type Peer from '../../Modules/Verto/webrtc/Peer';
 import type { TelnyxRTC } from '../../TelnyxRTC';
 import { PreCallDiagnosis } from '../../PreCallDiagnosis';
 
@@ -428,7 +429,7 @@ describe('PreCallDiagnostic', () => {
 
       expect(report.network).toBeDefined();
       expect(report.network?.quality).toBe('fair');
-      expect(report.network?.reasons?.some((r) => r.code === 'network_high_rtt_degraded')).toBe(true);
+      expect(report.network?.reasons?.some((r) => r.code === 'network_high_rtt')).toBe(true);
     });
 
     it('produces network report with quality: unknown when call provides no stats', async () => {
@@ -487,7 +488,7 @@ describe('PreCallDiagnostic', () => {
       };
 
       const mockCall = createMockCall({
-        peerConnection: mockPeerConnection as unknown as RTCPeerConnection,
+        peer: { instance: mockPeerConnection } as unknown as Peer,
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
@@ -560,7 +561,7 @@ describe('PreCallDiagnostic', () => {
 
       const mockCall = createMockCall({
         getStats: callbackGetStats as unknown as () => Promise<unknown>,
-        peerConnection: mockPeerConnection as unknown as RTCPeerConnection,
+        peer: { instance: mockPeerConnection } as unknown as Peer,
       });
       const mockClient = createMockClient({
         newCall: jest.fn().mockReturnValue(mockCall),
