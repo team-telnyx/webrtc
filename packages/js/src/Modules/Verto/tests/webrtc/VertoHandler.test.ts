@@ -1091,7 +1091,7 @@ describe('VertoHandler', () => {
                 telnyxCallControlId: 'ccid-lost',
               },
             },
-          ],
+          ] as unknown as Call[],
           'sess-reload'
         );
 
@@ -1118,7 +1118,7 @@ describe('VertoHandler', () => {
         setSession('sess-current');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'other-session-call', state: 'active', options: {} }],
+          [{ id: 'other-session-call', state: 'active', options: {} }] as unknown as Call[],
           'sess-different'
         );
 
@@ -1134,7 +1134,7 @@ describe('VertoHandler', () => {
         setSession('sess-recovered');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'recovered-call', state: 'active', options: {} }],
+          [{ id: 'recovered-call', state: 'active', options: {} }] as unknown as Call[],
           'sess-recovered'
         );
 
@@ -1150,7 +1150,7 @@ describe('VertoHandler', () => {
 
         const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
         setActiveCallsRecoveryMarker(
-          [{ id: 'stale-call', state: 'active', options: {} }],
+          [{ id: 'stale-call', state: 'active', options: {} }] as unknown as Call[],
           'sess-stale',
           staleTime
         );
@@ -1176,7 +1176,7 @@ describe('VertoHandler', () => {
         setSession('sess-dedup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'dup-call', state: 'active', options: {} }],
+          [{ id: 'dup-call', state: 'active', options: {} }] as unknown as Call[],
           'sess-dedup'
         );
 
@@ -1196,7 +1196,7 @@ describe('VertoHandler', () => {
         setSession('sess-no-hangup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'marker-only-call', state: 'active', options: {} }],
+          [{ id: 'marker-only-call', state: 'active', options: {} }] as unknown as Call[],
           'sess-no-hangup'
         );
 
@@ -1223,7 +1223,7 @@ describe('VertoHandler', () => {
           [
             { id: 'lost-1', state: 'active', options: {} },
             { id: 'lost-2', state: 'active', options: {} },
-          ],
+          ] as unknown as Call[],
           'sess-multi'
         );
 

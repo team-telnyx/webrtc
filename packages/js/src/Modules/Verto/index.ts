@@ -18,25 +18,10 @@ import {
   clearReconnectToken,
   clearActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
-  IActiveCallRecoveryMarker,
 } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
-
-/**
- * JSON.stringify replacer that skips the `session` and `peer` keys on Call
- * objects to avoid circular-reference errors and non-serializable host
- * objects (RTCPeerConnection, BrowserSession). Everything else on the Call
- * (id, options, state, direction, cause, channels, etc.) is serialized so
- * the persisted recovery marker carries the full Call picture.
- */
-const CALL_REPLACER = (key: string, value: unknown) => {
-  if (key === 'session' || key === 'peer') {
-    return undefined;
-  }
-  return value;
-};
 
 export default class Verto extends BrowserSession {
   public relayProtocol: string = VERTO_PROTOCOL;
@@ -77,44 +62,36 @@ export default class Verto extends BrowserSession {
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
       // that those calls were lost. Persist the ENTIRE Call object for each
-      // active call (with `session`/`peer` stripped to avoid circular refs and
-      // non-serializable host objects) so that on the next SDK startup
-      // VertoHandler can compare the saved markers against the server's
-      // reattached_sessions and emit SESSION_NOT_REATTACHED for any call that
-      // was not reattached. The full Call picture (id, options, state,
-      // direction, cause, channels, ...) is available to consumers and future
-      // diagnostics, not just a minimal identifier projection.
+      // active call so that on the next SDK startup VertoHandler can compare
+      // the saved markers against the server's reattached_sessions and emit
+      // SESSION_NOT_REATTACHED for any call that was not reattached. The full
+      // Call picture (id, options, state, direction, cause, channels, ...) is
+      // available to consumers and future diagnostics, not just a minimal
+      // identifier projection. The `session`/`peer` host fields are stripped
+      // inside `setActiveCallsRecoveryMarker` to avoid circular references and
+      // non-serializable host objects.
       try {
         const callIds = this.calls ? Object.keys(this.calls) : [];
-        const activeCallIds = callIds.filter(
-          (callId) => !!this.calls[callId]
-        );
+        const activeCalls = callIds
+          .filter((callId) => !!this.calls[callId])
+          .map((callId) => this.calls[callId]);
 
-        if (!this.sessionid || activeCallIds.length === 0) {
+        if (!this.sessionid || activeCalls.length === 0) {
           // No active calls or no session context — wipe any stale marker
           // left over from a previous page so it can't be re-consumed.
           clearActiveCallsRecoveryMarker();
           return;
         }
 
-        // Serialize each entire Call object. The CALL_REPLACER skips
-        // `session` (circular ref back to BrowserSession) and `peer`
-        // (RTCPeerConnection) to avoid JSON circular-reference errors and
-        // non-serializable host objects. All other public Call fields
-        // (id, options, state, direction, cause, channels, ...) are retained.
-        const markers: IActiveCallRecoveryMarker[] = activeCallIds.map(
-          (callId) => {
-            const call = this.calls[callId];
-            return JSON.parse(
-              JSON.stringify(call, CALL_REPLACER)
-            ) as IActiveCallRecoveryMarker;
-          }
-        );
-
         logger.info(
-          `Saving recovery marker for ${markers.length} active call(s) before unload (sessid=${this.sessionid}).`
+          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}).`
         );
-        setActiveCallsRecoveryMarker(markers, this.sessionid);
+        // The calls map is typed as IWebRTCCall, but at runtime the entries
+        // are Call instances. Cast to Call[] to satisfy the marker API.
+        setActiveCallsRecoveryMarker(
+          activeCalls as unknown as Call[],
+          this.sessionid
+        );
       } catch (err) {
         // Any failure here must not break unload or normal call setup.
         logger.debug(
