@@ -17,6 +17,7 @@ import type {
 import type {
   PreCallDiagnosticOptions,
 } from '../types';
+import type { TelnyxRTC } from '../../TelnyxRTC';
 
 // --- Helpers ---
 
@@ -29,7 +30,7 @@ function createContext(
         id: 'test-call',
         hangup: jest.fn(),
       }),
-    },
+    } as unknown as TelnyxRTC,
     destinationNumber: '1234',
   };
 
@@ -703,7 +704,7 @@ describe('buildPreCallNetworkReport', () => {
         options: {
           client: {
             newCall: jest.fn().mockReturnValue({ id: 'test', hangup: jest.fn() }),
-          },
+          } as unknown as TelnyxRTC,
           destinationNumber: '1234',
           network: false,
         },
