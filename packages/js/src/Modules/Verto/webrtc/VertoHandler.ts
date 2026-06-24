@@ -146,10 +146,14 @@ class VertoHandler {
           );
 
           for (const marker of savedMarkers) {
-            if (reattachedIds.has(marker.callId)) {
+            // The marker is the entire serialized Call object (with
+            // `session`/`peer` stripped), so the call id lives at `marker.id`
+            // and the correlation identifiers live nested under
+            // `marker.options` (Call.options.telnyxSessionId / telnyxCallControlId).
+            if (reattachedIds.has(marker.id)) {
               // Call was reattached — recovered, do not notify.
               logger.debug(
-                `Recovery marker for call ${marker.callId} was reattached — no notification.`
+                `Recovery marker for call ${marker.id} was reattached — no notification.`
               );
               continue;
             }
@@ -158,23 +162,26 @@ class VertoHandler {
             // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
             // call object on this page.
             logger.info(
-              `Recovery marker for call ${marker.callId} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+              `Recovery marker for call ${marker.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
             );
             const error = createTelnyxError(SESSION_NOT_REATTACHED);
-            // Only minimal safe identifier fields were persisted, so
-            // telnyxSessionId / telnyxCallControlId live directly on the
-            // marker (not nested under an `options` property).
+            // The entire Call object was persisted, so the correlation
+            // identifiers live nested under `marker.options` (matching
+            // Call.options.telnyxSessionId / telnyxCallControlId).
+            const markerOptions = marker.options as
+              | { telnyxSessionId?: string; telnyxCallControlId?: string }
+              | undefined;
             trigger(
               SwEvent.Error,
               {
                 error,
-                callId: marker.callId,
+                callId: marker.id,
                 sessionId: session.sessionid,
-                ...(marker.telnyxSessionId !== undefined
-                  ? { telnyxSessionId: marker.telnyxSessionId }
+                ...(markerOptions?.telnyxSessionId !== undefined
+                  ? { telnyxSessionId: markerOptions.telnyxSessionId }
                   : {}),
-                ...(marker.telnyxCallControlId !== undefined
-                  ? { telnyxCallControlId: marker.telnyxCallControlId }
+                ...(markerOptions?.telnyxCallControlId !== undefined
+                  ? { telnyxCallControlId: markerOptions.telnyxCallControlId }
                   : {}),
               },
               session.uuid
