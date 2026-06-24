@@ -9,15 +9,10 @@ const SESSION_ID_STORED_AT_STORAGE_KEY =
 export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
 
 // ── Active-calls recovery marker (page-reload recovery detection) ──────
-// Before page unload, the entire active Call objects are serialized (with
-// `session` and `peer` stripped to avoid circular references and
-// non-serializable host objects) and persisted to a single sessionStorage
-// entry, so that on the next SDK startup the SDK can detect whether
-// previously active calls were reattached by the server and emit
-// SESSION_NOT_REATTACHED for any that were not. The serialized objects
-// retain every public Call field (id, options, state, direction, cause,
-// channels, etc.) so consumers and future diagnostics have access to the
-// full picture, not a minimal projection.
+// Before page unload, the entire active Call objects are persisted to a
+// single sessionStorage entry, so that on the next SDK startup the SDK can
+// detect whether previously active calls were reattached by the server and
+// emit SESSION_NOT_REATTACHED for any that were not.
 const ACTIVE_CALLS_STORAGE_KEY = 'telnyx-voice-sdk-active-calls';
 
 /** Max age for a saved recovery marker before it is considered stale. */
@@ -28,11 +23,9 @@ export const RECOVERY_MARKER_MAX_AGE_MS = 30 * 60 * 1000;
  * the session context and write timestamp. Stored as one JSON blob under
  * a single sessionStorage key.
  *
- * `calls` is the full serialized Call array (with `session`/`peer` stripped
- * to avoid circular references and non-serializable host objects). Each
- * Call retains its public fields (id, options, state, direction, cause,
- * channels, ...) so consumers and future diagnostics have the complete
- * picture rather than a minimal projection.
+ * `calls` is the serialized Call array. `session`/`peer` host fields are
+ * stripped at write time (see `setActiveCallsRecoveryMarker`) to avoid
+ * circular references and non-serializable host objects.
  *
  * `sessionId` is the sessid that was active at save time; the consume path
  * only notifies when it matches the current session's sessid.
@@ -47,31 +40,6 @@ export interface IStoredActiveCalls {
   calls: Call[];
   /** Epoch milliseconds when the record was written. */
   storedAt: number;
-}
-
-/**
- * Permissive read-back shape for a single persisted Call. The `session` and
- * `peer` host fields are stripped at write time, so they never appear here.
- * Only `id` is required to validate a record on read-back; all other Call
- * fields are optional (they may be `undefined` on the live object at write
- * time, e.g. `cause`/`causeCode` before hangup, or `telnyxSessionId` before
- * the server assigns it).
- */
-export interface IActiveCallRecoveryMarker {
-  /** The call identifier (Call.id). Required to validate a record. */
-  id: string;
-  /** Any other serialized Call field (options, state, direction, cause, ...). */
-  [key: string]: unknown;
-}
-
-/**
- * Read-back shape returned by {@link getActiveCallsRecoveryMarker}:
- * the permissive marker array plus the session id that was active at save
- * time (null when nothing is stored or storage is unavailable).
- */
-export interface IActiveCallsRecoveryResult {
-  markers: IActiveCallRecoveryMarker[];
-  sessid: string | null;
 }
 
 function safeGetItem(key: string): string | null {
@@ -171,24 +139,19 @@ export function clearActiveCallsRecoveryMarker(): void {
 }
 
 /**
- * Read the persisted active-calls recovery marker. Returns the saved marker
- * records (the serialized Call array) plus the session id that was active
- * when the marker was written. Returns `{ markers: [], sessid: null }` when
- * nothing is stored, storage is unavailable, the payload is malformed, or
- * the marker is older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
+ * Read the persisted active-calls recovery marker. Returns the saved
+ * {@link IStoredActiveCalls} record, or `null` when nothing is stored,
+ * storage is unavailable, the payload is malformed, or the marker is
+ * older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
  *
  * Storage is cleaned up immediately after the read — once we have the
  * in-memory copy the persisted copy is no longer needed, and clearing it
  * here guarantees the record cannot be re-consumed by a duplicate recovery
  * event, a stale tab, or a future page load (at-most-once notification).
- *
- * Validation is minimal: each Call only needs a string `id` field. The
- * `session`/`peer` host fields are never serialized (stripped at write
- * time), so read-back does not need to strip them.
  */
 export function getActiveCallsRecoveryMarker(
   now = Date.now()
-): IActiveCallsRecoveryResult {
+): IStoredActiveCalls | null {
   const raw = safeGetItem(ACTIVE_CALLS_STORAGE_KEY);
 
   // Once we have the item from storage we won't need it again — clean up
@@ -199,19 +162,21 @@ export function getActiveCallsRecoveryMarker(
     logger.debug(
       'Active-calls recovery marker not found in storage — nothing to recover.'
     );
-    return { markers: [], sessid: null };
+    return null;
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<IStoredActiveCalls> & {
-      [key: string]: unknown;
-    };
+    const parsed = JSON.parse(raw) as IStoredActiveCalls;
 
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.calls)) {
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !Array.isArray(parsed.calls)
+    ) {
       logger.debug(
         'Active-calls recovery marker payload was malformed — discarded.'
       );
-      return { markers: [], sessid: null };
+      return null;
     }
 
     const storedAt = Number(parsed.storedAt);
@@ -222,55 +187,28 @@ export function getActiveCallsRecoveryMarker(
       logger.debug(
         'Active-calls recovery marker was stale or had an invalid timestamp — discarded.'
       );
-      return { markers: [], sessid: null };
+      return null;
     }
 
-    // Defensive: keep only well-formed Call records — each must have a string
-    // `id`. The `session`/`peer` host fields are stripped at write time, so
-    // read-back does not need to strip them.
-    const markers = (parsed.calls as unknown[]).filter(
-      (r: unknown): r is IActiveCallRecoveryMarker =>
-        !!r &&
-        typeof r === 'object' &&
-        typeof (r as IActiveCallRecoveryMarker).id === 'string'
-    );
-
-    const sessid =
-      typeof parsed.sessionId === 'string' ? parsed.sessionId : null;
-
-    return { markers, sessid };
+    return parsed;
   } catch (err) {
     logger.debug(
       `Active-calls recovery marker JSON parse failed — discarded: ${
         err instanceof Error ? err.message : String(err)
       }`
     );
-    return { markers: [], sessid: null };
+    return null;
   }
 }
 
 /**
- * JSON.stringify replacer that skips the `session` and `peer` keys on Call
- * objects to avoid circular-reference errors and non-serializable host
- * objects (RTCPeerConnection, BrowserSession). Everything else on the Call
- * (id, options, state, direction, cause, channels, etc.) is serialized so
- * the persisted recovery marker carries the full Call picture.
- */
-const CALL_REPLACER = (key: string, value: unknown) => {
-  if (key === 'session' || key === 'peer') {
-    return undefined;
-  }
-  return value;
-};
-
-/**
  * Persist the active-call recovery marker (the entire serialized Call
- * objects, with `session`/`peer` stripped via the {@link CALL_REPLACER} to
- * avoid circular references and non-serializable host objects) before page
- * unload, along with the sessid that was active at save time. Stored as a
- * single JSON blob under a single sessionStorage key. Writes are wrapped in
- * try/catch so a blocked/unavailable `sessionStorage` silently no-ops,
- * matching the safety pattern of the reconnect-token helpers.
+ * objects, with `session`/`peer` stripped to avoid circular references and
+ * non-serializable host objects) before page unload, along with the sessid
+ * that was active at save time. Stored as a single JSON blob under a single
+ * sessionStorage key. Writes are wrapped in try/catch so a blocked/unavailable
+ * `sessionStorage` silently no-ops, matching the safety pattern of the
+ * reconnect-token helpers.
  */
 export function setActiveCallsRecoveryMarker(
   calls: Call[],
@@ -283,15 +221,23 @@ export function setActiveCallsRecoveryMarker(
     clearActiveCallsRecoveryMarker();
     return;
   }
-  // Serialize each Call with the replacer to strip `session`/`peer`. The
-  // serialized form (plain objects) is what goes into the persisted array.
-  const serializedCalls = calls.map((call) =>
-    JSON.parse(JSON.stringify(call, CALL_REPLACER))
-  );
   const payload: IStoredActiveCalls = {
     sessionId,
-    calls: serializedCalls,
+    calls,
     storedAt,
   };
-  safeSetItem(ACTIVE_CALLS_STORAGE_KEY, JSON.stringify(payload));
+  safeSetItem(ACTIVE_CALLS_STORAGE_KEY, JSON.stringify(payload, replacer));
+}
+
+/**
+ * JSON.stringify replacer that skips the `session` and `peer` keys to avoid
+ * circular-reference errors and non-serializable host objects
+ * (RTCPeerConnection, BrowserSession). Everything else is serialized so the
+ * persisted recovery marker carries the full Call picture.
+ */
+function replacer(key: string, value: unknown): unknown {
+  if (key === 'session' || key === 'peer') {
+    return undefined;
+  }
+  return value;
 }

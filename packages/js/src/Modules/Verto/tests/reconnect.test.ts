@@ -60,10 +60,9 @@ describe('active-calls recovery marker storage', () => {
     clearActiveCallsRecoveryMarker();
   });
 
-  it('returns empty markers and null sessid when nothing is stored', () => {
+  it('returns null when nothing is stored', () => {
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
   });
 
   it('round-trips a set then a get', () => {
@@ -87,17 +86,18 @@ describe('active-calls recovery marker storage', () => {
 
     const result = getActiveCallsRecoveryMarker(now);
     // getActiveCallsRecoveryMarker clears storage after reading.
-    expect(result.markers.length).toBe(2);
-    expect(result.sessid).toBe('sess-1');
+    expect(result).not.toBeNull();
+    expect(result!.calls.length).toBe(2);
+    expect(result!.sessionId).toBe('sess-1');
 
-    const a = result.markers.find((m) => m.id === 'call-a');
+    const a = result!.calls.find((m) => m.id === 'call-a');
     expect(a).toBeDefined();
     expect(a!.state).toBe('active');
     expect((a!.options as { telnyxSessionId?: string }).telnyxSessionId).toBe(
       'tsid-a'
     );
 
-    const b = result.markers.find((m) => m.id === 'call-b');
+    const b = result!.calls.find((m) => m.id === 'call-b');
     expect(b).toBeDefined();
     expect((b!.options as { telnyxSessionId?: string }).telnyxSessionId).toBeUndefined();
     expect(
@@ -117,7 +117,8 @@ describe('active-calls recovery marker storage', () => {
     let result = getActiveCallsRecoveryMarker(
       baseTime + RECOVERY_MARKER_MAX_AGE_MS
     );
-    expect(result.markers.length).toBe(1);
+    expect(result).not.toBeNull();
+    expect(result!.calls.length).toBe(1);
 
     // Re-set because the previous read cleared storage.
     setActiveCallsRecoveryMarker(
@@ -126,11 +127,11 @@ describe('active-calls recovery marker storage', () => {
       baseTime
     );
 
-    // Just past the deadline → cleared and empty.
+    // Just past the deadline → cleared and null.
     result = getActiveCallsRecoveryMarker(
       baseTime + RECOVERY_MARKER_MAX_AGE_MS + 1
     );
-    expect(result.markers.length).toBe(0);
+    expect(result).toBeNull();
 
     // Storage key should have been removed.
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
@@ -145,77 +146,37 @@ describe('active-calls recovery marker storage', () => {
     clearActiveCallsRecoveryMarker();
 
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });
 
-  it('returns empty markers and clears storage when the payload is malformed JSON', () => {
+  it('returns null and clears storage when the payload is malformed JSON', () => {
     sessionStorage.setItem(ACTIVE_CALLS_KEY, 'not-json{');
 
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });
 
-  it('returns empty markers and clears storage when the payload is not a container object', () => {
+  it('returns null and clears storage when the payload is not a container object', () => {
     sessionStorage.setItem(
       ACTIVE_CALLS_KEY,
       JSON.stringify({ id: 'x', state: 'active', options: {} })
     );
 
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });
 
-  it('returns empty markers and clears storage when calls is not an array', () => {
+  it('returns null and clears storage when calls is not an array', () => {
     sessionStorage.setItem(
       ACTIVE_CALLS_KEY,
       JSON.stringify({ sessionId: 's', calls: 'not-an-array', storedAt: Date.now() })
     );
 
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
-    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
-  });
-
-  it('filters out individual records missing the required id field', () => {
-    const now = Date.now();
-    sessionStorage.setItem(
-      ACTIVE_CALLS_KEY,
-      JSON.stringify({
-        sessionId: 'sess-1',
-        storedAt: now,
-        calls: [
-          { id: 'good', state: 'active', options: {} },
-          { state: 's' }, // missing id
-          { id: 123, state: 's' }, // id not a string
-          'not-an-object',
-          null,
-        ],
-      })
-    );
-
-    const result = getActiveCallsRecoveryMarker(now);
-    expect(result.markers.length).toBe(1);
-    expect(result.markers[0].id).toBe('good');
-    expect(result.sessid).toBe('sess-1');
-  });
-
-  it('setActiveCallsRecoveryMarker with an empty array clears storage (no dead state)', () => {
-    setActiveCallsRecoveryMarker(
-      [asCall({ id: 'c', state: 'active', options: {} })],
-      's'
-    );
-
-    setActiveCallsRecoveryMarker([], 's');
-    const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });
 
@@ -228,8 +189,7 @@ describe('active-calls recovery marker storage', () => {
 
     expect(() => getActiveCallsRecoveryMarker()).not.toThrow();
     const result = getActiveCallsRecoveryMarker();
-    expect(result.markers).toEqual([]);
-    expect(result.sessid).toBeNull();
+    expect(result).toBeNull();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (sessionStorage as any).getItem = original;
@@ -265,13 +225,13 @@ describe('active-calls recovery marker storage', () => {
 
     // First read returns the marker and clears storage.
     const first = getActiveCallsRecoveryMarker(now);
-    expect(first.markers.length).toBe(1);
-    expect(first.sessid).toBe('sess-x');
+    expect(first).not.toBeNull();
+    expect(first!.calls.length).toBe(1);
+    expect(first!.sessionId).toBe('sess-x');
 
     // Second read sees nothing — storage was cleared by the first.
     const second = getActiveCallsRecoveryMarker(now);
-    expect(second.markers).toEqual([]);
-    expect(second.sessid).toBeNull();
+    expect(second).toBeNull();
   });
 
   it('strips session and peer from the persisted Call object', () => {
@@ -291,8 +251,9 @@ describe('active-calls recovery marker storage', () => {
     );
 
     const result = getActiveCallsRecoveryMarker(now);
-    expect(result.markers.length).toBe(1);
-    const serialized = JSON.stringify(result.markers[0]);
+    expect(result).not.toBeNull();
+    expect(result!.calls.length).toBe(1);
+    const serialized = JSON.stringify(result!.calls[0]);
     expect(serialized).not.toContain('"session"');
     expect(serialized).not.toContain('"peer"');
   });

@@ -181,8 +181,8 @@ describe('Verto', () => {
           hangup,
           state: 'active',
           direction: 'outbound',
-          session: {}, // not persisted — CALL_REPLACER strips it
-          peer: {}, // not persisted — CALL_REPLACER strips it
+          session: {}, // not persisted — stringify replacer strips it
+          peer: {}, // not persisted — stringify replacer strips it
           options: {
             telnyxSessionId: 'tsid-1',
             telnyxCallControlId: 'ccid-1',
@@ -193,8 +193,8 @@ describe('Verto', () => {
           hangup,
           state: 'active',
           direction: 'inbound',
-          session: {}, // not persisted — CALL_REPLACER strips it
-          peer: {}, // not persisted — CALL_REPLACER strips it
+          session: {}, // not persisted — stringify replacer strips it
+          peer: {}, // not persisted — stringify replacer strips it
           options: {},
         } as unknown) as IWebRTCCall,
       };
@@ -210,13 +210,13 @@ describe('Verto', () => {
       expect(hangup).not.toHaveBeenCalled();
 
       const result = getActiveCallsRecoveryMarker();
-      expect(result.markers.length).toBe(2);
-      expect(result.sessid).toBe('session-abc');
+      expect(result!.calls.length).toBe(2);
+      expect(result!.sessionId).toBe('session-abc');
 
-      const ids = result.markers.map((m) => m.id).sort();
+      const ids = result!.calls.map((m) => m.id).sort();
       expect(ids).toEqual(['call-1', 'call-2']);
 
-      const m1 = result.markers.find((m) => m.id === 'call-1');
+      const m1 = result!.calls.find((m) => m.id === 'call-1');
       expect(m1!.id).toBe('call-1');
       // The entire Call object is persisted (minus session/peer), so state,
       // direction, and options are retained.
@@ -230,7 +230,7 @@ describe('Verto', () => {
       ).toBe('ccid-1');
 
       // call-2 had no telnyx correlation ids — they should be absent.
-      const m2 = result.markers.find((m) => m.id === 'call-2');
+      const m2 = result!.calls.find((m) => m.id === 'call-2');
       expect(m2!.id).toBe('call-2');
       expect(m2!.state).toBe('active');
       expect(
@@ -241,9 +241,9 @@ describe('Verto', () => {
       ).toBeUndefined();
 
       // The entire Call object is persisted minus the non-serializable host
-      // fields (session/peer), which the CALL_REPLACER strips. Everything
+      // fields (session/peer), which the stringify replacer strips. Everything
       // else — options, state, direction — is retained.
-      const serialized = JSON.stringify(result.markers[0]);
+      const serialized = JSON.stringify(result!.calls[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
       expect(serialized).toContain('"options"');
@@ -263,7 +263,9 @@ describe('Verto', () => {
         [{ id: 'stale-call', state: 'active', options: {} }] as unknown as Call[],
         'old-session'
       );
-      expect(getActiveCallsRecoveryMarker().markers.length).toBe(1);
+      const seeded = getActiveCallsRecoveryMarker();
+      expect(seeded).not.toBeNull();
+      expect(seeded!.calls.length).toBe(1);
 
       // Re-seed since getActiveCallsRecoveryMarker clears on read.
       setActiveCallsRecoveryMarker(
@@ -287,7 +289,7 @@ describe('Verto', () => {
       beforeUnloadHandler(new Event('beforeunload'));
 
       // Stale marker should have been wiped.
-      expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -320,7 +322,7 @@ describe('Verto', () => {
       beforeUnloadHandler(new Event('beforeunload'));
 
       // Default branch hangs up and clears the reconnect token — no marker.
-      expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();

@@ -131,29 +131,29 @@ class VertoHandler {
     // `getActiveCallsRecoveryMarker()` reads and immediately clears storage
     // (at-most-once guarantee) — no separate clear is needed.
     if (Array.isArray(params?.reattached_sessions) && session.sessionid) {
-      const { markers: savedMarkers, sessid: savedSessid } =
-        getActiveCallsRecoveryMarker();
+      const saved = getActiveCallsRecoveryMarker();
 
-      if (savedMarkers.length > 0) {
-        if (savedSessid !== session.sessionid) {
+      if (saved && saved.calls.length > 0) {
+        if (saved.sessionId !== session.sessionid) {
           // Different session context — drop silently, do not notify.
           logger.debug(
-            `Recovery markers were saved for a different sessid (saved=${savedSessid}, current=${session.sessionid}) — ignoring all.`
+            `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
           );
         } else {
           const reattachedIds = new Set(
             params.reattached_sessions as string[]
           );
 
-          for (const marker of savedMarkers) {
-            // The marker is the entire serialized Call object (with
-            // `session`/`peer` stripped), so the call id lives at `marker.id`
-            // and the correlation identifiers live nested under
-            // `marker.options` (Call.options.telnyxSessionId / telnyxCallControlId).
-            if (reattachedIds.has(marker.id)) {
+          for (const call of saved.calls) {
+            // The entire Call object was persisted (with `session`/`peer`
+            // stripped), so the call id lives at `call.id` and the
+            // correlation identifiers live nested under
+            // `call.options` (Call.options.telnyxSessionId /
+            // telnyxCallControlId).
+            if (reattachedIds.has(call.id)) {
               // Call was reattached — recovered, do not notify.
               logger.debug(
-                `Recovery marker for call ${marker.id} was reattached — no notification.`
+                `Recovery marker for call ${call.id} was reattached — no notification.`
               );
               continue;
             }
@@ -162,26 +162,26 @@ class VertoHandler {
             // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
             // call object on this page.
             logger.info(
-              `Recovery marker for call ${marker.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+              `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
             );
             const error = createTelnyxError(SESSION_NOT_REATTACHED);
             // The entire Call object was persisted, so the correlation
-            // identifiers live nested under `marker.options` (matching
+            // identifiers live nested under `call.options` (matching
             // Call.options.telnyxSessionId / telnyxCallControlId).
-            const markerOptions = marker.options as
+            const callOptions = call.options as
               | { telnyxSessionId?: string; telnyxCallControlId?: string }
               | undefined;
             trigger(
               SwEvent.Error,
               {
                 error,
-                callId: marker.id,
+                callId: call.id,
                 sessionId: session.sessionid,
-                ...(markerOptions?.telnyxSessionId !== undefined
-                  ? { telnyxSessionId: markerOptions.telnyxSessionId }
+                ...(callOptions?.telnyxSessionId !== undefined
+                  ? { telnyxSessionId: callOptions.telnyxSessionId }
                   : {}),
-                ...(markerOptions?.telnyxCallControlId !== undefined
-                  ? { telnyxCallControlId: markerOptions.telnyxCallControlId }
+                ...(callOptions?.telnyxCallControlId !== undefined
+                  ? { telnyxCallControlId: callOptions.telnyxCallControlId }
                   : {}),
               },
               session.uuid

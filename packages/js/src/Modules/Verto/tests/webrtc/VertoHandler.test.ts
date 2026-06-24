@@ -1110,7 +1110,7 @@ describe('VertoHandler', () => {
         );
 
         // Marker must be cleared after consumption.
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT emit an error when the saved marker sessid differs from the current session', async () => {
@@ -1126,7 +1126,7 @@ describe('VertoHandler', () => {
 
         expect(onError).not.toHaveBeenCalled();
         // Storage is cleared (getActiveCallsRecoveryMarker clears on read).
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {
@@ -1141,7 +1141,7 @@ describe('VertoHandler', () => {
         sendReattachForSession(['recovered-call']);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT emit an error and clears storage for stale markers (>30 min)', async () => {
@@ -1158,7 +1158,7 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT emit an error and does not mutate storage when there are no saved markers', async () => {
@@ -1168,7 +1168,7 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('emits at most one notification per saved call across duplicate reattach events (cleanup-after-read)', async () => {
@@ -1188,7 +1188,7 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
         expect(onError).toHaveBeenCalledTimes(1);
 
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT hang up any call represented by saved markers (notification-only)', async () => {
@@ -1236,7 +1236,7 @@ describe('VertoHandler', () => {
         expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({ callId: 'lost-2' })
         );
-        expect(getActiveCallsRecoveryMarker().markers.length).toBe(0);
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
     });
   });
