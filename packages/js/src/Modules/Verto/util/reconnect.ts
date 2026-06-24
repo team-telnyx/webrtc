@@ -159,6 +159,9 @@ export function getActiveCallsRecoveryMarker(now = Date.now()): {
   clearActiveCallsRecoveryMarker();
 
   if (!raw) {
+    logger.debug(
+      'Active-calls recovery marker not found in storage — nothing to recover.'
+    );
     return { markers: [], sessid: null };
   }
 
