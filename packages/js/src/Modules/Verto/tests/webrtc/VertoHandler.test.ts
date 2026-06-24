@@ -1032,4 +1032,75 @@ describe('VertoHandler', () => {
       });
     });
   });
+
+  // ── VSDK-318 Step 4.d — local call teardown on RECONNECTION_EXHAUSTED ──
+  describe('VSDK-318 — RECONNECTION_EXHAUSTED local call teardown (no BYE)', () => {
+    let onError: jest.Mock;
+
+    beforeEach(() => {
+      onError = jest.fn();
+      instance.on('telnyx.error', onError);
+    });
+
+    afterEach(() => {
+      instance.off('telnyx.error');
+    });
+
+    it('tears down active calls locally before emitting RECONNECTION_EXHAUSTED (autoReconnect disabled + TIMEOUT)', async () => {
+      await instance.connect();
+      const callId = 'call-recon-318';
+      _setupCall({ id: callId, telnyxSessionId: 'session-recon' });
+      call.setState(State.Active);
+      expect(instance.calls[callId]).toBeDefined();
+
+      // autoReconnect disabled → a TIMEOUT gateway state emits both
+      // GATEWAY_FAILED and RECONNECTION_EXHAUSTED immediately.
+      (instance as any)._autoReconnect = false;
+      instance.connection.previousGatewayState = '';
+      Connection.mockSend.mockClear();
+
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-recon","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      // RECONNECTION_EXHAUSTED (45003) must have been emitted.
+      const reconErrors = onError.mock.calls.filter(
+        (c: any) => c[0]?.error?.code === 45003
+      );
+      expect(reconErrors.length).toBe(1);
+
+      // The active call must have been torn down locally — removed from the
+      // session's call map by hangup({}, false).
+      expect(instance.calls[callId]).toBeUndefined();
+
+      // CRITICAL: no BYE must have been sent on the wire — the socket is
+      // already dead and sending BYE would only generate BYE_SEND_FAILED noise.
+      const byeCalls = Connection.mockSend.mock.calls.filter(
+        (c: { request: { method: string } }[]) =>
+          c[0]?.request?.method === 'telnyx_rtc.bye'
+      );
+      expect(byeCalls.length).toBe(0);
+    });
+
+    it('emits RECONNECTION_EXHAUSTED with fatal: true (registry default)', async () => {
+      await instance.connect();
+      _setupCall({ id: 'call-fatal', telnyxSessionId: 'session-fatal' });
+      call.setState(State.Active);
+      (instance as any)._autoReconnect = false;
+      instance.connection.previousGatewayState = '';
+      Connection.mockSend.mockClear();
+
+      const timeoutMsg = JSON.parse(
+        '{"jsonrpc":"2.0","id":"gs-fatal","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+      );
+      handler.handleMessage(timeoutMsg);
+
+      const reconCall = onError.mock.calls.find(
+        (c: any) => c[0]?.error?.code === 45003
+      );
+      expect(reconCall).toBeDefined();
+      expect(reconCall[0].error.fatal).toBe(true);
+    });
+  });
 });

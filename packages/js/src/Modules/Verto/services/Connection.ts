@@ -226,6 +226,10 @@ export default class Connection {
         { error: telnyxError, sessionId: this.session.sessionid },
         this.session.uuid
       );
+      // Auto-reconnect cannot recover from a failed WebSocket construction
+      // (there is no socket object), so tear down any active calls LOCALLY
+      // — no BYE on the wire. (VSDK-318 Step 4.e)
+      this.session._terminateActiveCallsLocally();
     }
   }
 

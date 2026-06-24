@@ -697,3 +697,73 @@ describe('Connection - Safety Timeout', () => {
     });
   });
 });
+
+// ── VSDK-318 Step 4.e — WEBSOCKET_CONNECTION_FAILED local teardown ──
+describe('Connection - VSDK-318 WEBSOCKET_CONNECTION_FAILED teardown', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  // A WebSocket class whose constructor always throws — simulates
+  // `new WebSocket(...)` failing synchronously (e.g. invalid URL, blocked port).
+  class ThrowingWebSocket {
+    constructor(public url: string) {
+      throw new Error('WebSocket construction failed (VSDK-318 test)');
+    }
+  }
+
+  beforeAll(() => {
+    setWebSocket(ThrowingWebSocket as any);
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+
+    mockSession = {
+      uuid: 'vsdk318-uuid',
+      sessionid: 'vsdk318-session',
+      callReportVoiceSdkId: null,
+      options: {
+        host: 'wss://test.telnyx.com',
+        login: 'test-login',
+        password: 'test-password',
+      },
+      // Spy for the local-only teardown added in Step 4.e.
+      _terminateActiveCallsLocally: jest.fn(),
+    };
+
+    connection = new Connection(mockSession);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('emits WEBSOCKET_CONNECTION_FAILED with fatal: true when WebSocket construction throws', () => {
+    (trigger as jest.Mock).mockClear();
+    (logger.error as jest.Mock).mockClear();
+
+    connection.connect();
+
+    // Find the SwEvent.Error emission for WEBSOCKET_CONNECTION_FAILED (45001).
+    const errorCalls = (trigger as jest.Mock).mock.calls.filter(
+      (c: any[]) => c[0] === SwEvent.Error
+    );
+    expect(errorCalls.length).toBe(1);
+    const payload = errorCalls[0][1];
+    expect(payload.error.code).toBe(45001);
+    expect(payload.error.name).toBe('WEBSOCKET_CONNECTION_FAILED');
+    expect(payload.error.fatal).toBe(true);
+    expect(payload.sessionId).toBe('vsdk318-session');
+  });
+
+  it('tears down active calls locally (no BYE) after the construction failure', () => {
+    (trigger as jest.Mock).mockClear();
+    (logger.error as jest.Mock).mockClear();
+
+    connection.connect();
+
+    // The session's local-only teardown must have been invoked exactly once.
+    expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledTimes(1);
+  });
+});

@@ -870,6 +870,11 @@ export default abstract class BaseSession {
         this._reconnectAttempts = 0;
         this._autoReconnect = false;
 
+        // Tear down any active calls LOCALLY before declaring reconnection
+        // exhausted. The socket is already dead, so sending BYE would only
+        // generate BYE_SEND_FAILED noise. (VSDK-318 Step 4.d)
+        this._terminateActiveCallsLocally();
+
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         trigger(
           SwEvent.Error,
@@ -1106,6 +1111,39 @@ export default abstract class BaseSession {
     return Object.values(calls).some(
       (call) => call && call._state != null && activeStates.has(call._state)
     );
+  }
+
+  /**
+   * Tear down every active call LOCALLY without sending BYE on the wire.
+   *
+   * Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
+   * the signaling socket is already dead). Sending BYE over a dead socket
+   * would only generate `BYE_SEND_FAILED` noise, so each call is finalized
+   * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
+   * media, fires the local hangup notification, and removes the call from
+   * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   *
+   * `BaseSession` is abstract and does not own the `calls` map directly
+   * (that lives on `BrowserSession`), so the map is reached via a cast that
+   * exposes only the `hangup` method the teardown needs.
+   */
+  public _terminateActiveCallsLocally(): void {
+    const calls = (
+      this as unknown as {
+        calls?: Record<string, { hangup: (p?: unknown, e?: boolean) => Promise<void> } | null>;
+      }
+    ).calls;
+    if (!calls) return;
+    const callIds = Object.keys(calls);
+    if (callIds.length === 0) return;
+    logger.debug(
+      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE).`
+    );
+    for (const callId of callIds) {
+      const call = calls[callId];
+      // Local-only teardown: execute=false skips the outbound BYE.
+      void call?.hangup({}, false);
+    }
   }
 
   /**
