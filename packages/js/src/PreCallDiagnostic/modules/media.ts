@@ -131,6 +131,12 @@ function readInboundCounters(frame: StatsFrame): {
  * Determine if counters increased across two samples.
  * Flowing = packets OR bytes increased by at least 1.
  * If both are undefined in both samples, flowing is false.
+ *
+ * Handles mixed-shape counters where a browser may drop one counter
+ * between samples (e.g. `packetsReceived` disappears but `bytesReceived`
+ * still updates). When a counter appears in one sample but not the
+ * other, single-side presence is treated as an increase (a value that
+ * newly appeared implies progression).
  */
 function didIncrease(
   first: { packets?: number; bytes?: number },
@@ -142,10 +148,16 @@ function didIncrease(
   let packetsIncreased = false;
   if (first.packets !== undefined && last.packets !== undefined) {
     packetsIncreased = last.packets > first.packets;
+  } else if (first.packets === undefined && last.packets !== undefined) {
+    // Single-side presence: counter newly appeared => progression
+    packetsIncreased = true;
   }
   let bytesIncreased = false;
   if (first.bytes !== undefined && last.bytes !== undefined) {
     bytesIncreased = last.bytes > first.bytes;
+  } else if (first.bytes === undefined && last.bytes !== undefined) {
+    // Single-side presence: counter newly appeared => progression
+    bytesIncreased = true;
   }
   return packetsIncreased || bytesIncreased;
 }

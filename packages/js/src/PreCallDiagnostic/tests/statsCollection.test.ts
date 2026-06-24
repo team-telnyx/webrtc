@@ -18,33 +18,38 @@
 
 import { PreCallDiagnostic } from '../PreCallDiagnostic';
 import type {
-  ClientLike,
-  CallLike,
   PreCallDiagnosticOptions,
 } from '../types';
+import type Call from '../../Modules/Verto/webrtc/Call';
+import type { TelnyxRTC } from '../../TelnyxRTC';
 
 // --- Mock helpers ---
 
-function createMockCall(overrides: Partial<CallLike> = {}): CallLike {
+// Permissive overrides type: allows partial `peer` with just `instance`
+// (the real Peer type has 53+ properties we don't need in tests).
+type MockCallOverrides = Partial<Omit<Call, 'peer'>> & {
+  peer?: { instance?: RTCPeerConnection | null };
+  getStats?: (...args: unknown[]) => unknown;
+};
+function createMockCall(overrides: MockCallOverrides = {}): Call {
   return {
     id: 'test-call-id',
     hangup: jest.fn(),
-    peerConnection: undefined,
-    peer: undefined,
+    peer: { instance: undefined },
     ...overrides,
-  };
+  } as unknown as Call;
 }
 
 function createMockClient(
-  mockCall: CallLike
-): ClientLike {
+  mockCall: Call
+): TelnyxRTC {
   return {
     newCall: jest.fn().mockReturnValue(mockCall),
-  };
+  } as unknown as TelnyxRTC;
 }
 
 function createOptions(
-  overrides: Partial<PreCallDiagnosticOptions> & { client: ClientLike }
+  overrides: Partial<PreCallDiagnosticOptions> & { client: TelnyxRTC }
 ): PreCallDiagnosticOptions {
   return {
     destinationNumber: '1234',
@@ -259,9 +264,12 @@ describe('PreCallDiagnostic stats collection pipeline', () => {
         getStats: jest.fn().mockResolvedValue(validFrame),
       };
 
+      // Real SDK Call shape: uses peer.instance (not peerConnection)
       const mockCall = createMockCall({
         getStats: callbackGetStats as unknown as () => Promise<unknown>,
-        peerConnection: mockPeerConnection as unknown as RTCPeerConnection,
+        peer: {
+          instance: mockPeerConnection as unknown as RTCPeerConnection,
+        },
       });
       const mockClient = createMockClient(mockCall);
       const diagnostic = new PreCallDiagnostic(
@@ -270,7 +278,7 @@ describe('PreCallDiagnostic stats collection pipeline', () => {
 
       const report = await diagnostic.run();
 
-      // peerConnection.getStats() should have been used as fallback
+      // peer.instance.getStats() should have been used as fallback
       expect(mockPeerConnection.getStats).toHaveBeenCalled();
       // Stats should be collected → network quality not unknown
       expect(report.network?.quality).not.toBe('unknown');
@@ -293,10 +301,9 @@ describe('PreCallDiagnostic stats collection pipeline', () => {
         getStats: jest.fn().mockResolvedValue(validFrame),
       };
 
-      // Real SDK Call shape: has peer.instance, no peerConnection
+      // Real SDK Call shape: has peer.instance
       const mockCall = createMockCall({
         getStats: callbackGetStats as unknown as () => Promise<unknown>,
-        peerConnection: undefined,
         peer: {
           instance: mockPeerConnection as unknown as RTCPeerConnection,
         },
@@ -326,9 +333,12 @@ describe('PreCallDiagnostic stats collection pipeline', () => {
         return undefined;
       }
 
+      // Real SDK Call shape: uses peer.instance
       const mockCall = createMockCall({
         getStats: callbackGetStats as unknown as () => Promise<unknown>,
-        peerConnection: mockPeerConnection as unknown as RTCPeerConnection,
+        peer: {
+          instance: mockPeerConnection as unknown as RTCPeerConnection,
+        },
       });
       const mockClient = createMockClient(mockCall);
       const diagnostic = new PreCallDiagnostic(
@@ -340,7 +350,7 @@ describe('PreCallDiagnostic stats collection pipeline', () => {
       // The callback-style getStats should NOT have been called at all
       // (we detect it via length === 2 and skip it)
       expect(callbackGetStatsCallCount).toBe(0);
-      // The peerConnection fallback should have been used
+      // The peer.instance fallback should have been used
       expect(mockPeerConnection.getStats).toHaveBeenCalled();
     });
   });

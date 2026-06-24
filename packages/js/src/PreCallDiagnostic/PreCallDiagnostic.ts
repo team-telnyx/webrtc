@@ -185,7 +185,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * context.statsSamples for module builders (e.g. network report).
    */
   private async collectSamples(
-    call: CallLike,
+    call: Call,
     context: PreCallDiagnosticContext
   ): Promise<void> {
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
@@ -213,16 +213,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
-   * Resolve the RTCPeerConnection from a CallLike object.
+   * Resolve the RTCPeerConnection from a real SDK Call object.
    *
-   * Tries two paths:
-   * 1. `call.peerConnection` — explicit CallLike property (test mocks)
-   * 2. `call.peer?.instance` — real SDK Call structure (BaseCall.peer.instance)
+   * The real SDK Call exposes `peer.instance` (BaseCall.peer.instance)
+   * as the RTCPeerConnection. Test mocks provide `peer.instance` via
+   * `as unknown as Call` casts.
    */
-  private resolvePeerConnection(call: CallLike): RTCPeerConnection | undefined {
-    // Try explicit CallLike property first (used by test mocks)
-    if (call.peerConnection) return call.peerConnection;
-    // Try real SDK's BaseCall.peer.instance path
+  private resolvePeerConnection(call: Call): RTCPeerConnection | undefined {
     if (call.peer?.instance) return call.peer.instance;
     return undefined;
   }
@@ -236,7 +233,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * into a structured frame that buildPreCallNetworkReport() can consume.
    */
   private async collectOneSample(
-    call: CallLike,
+    call: Call,
     context: PreCallDiagnosticContext
   ): Promise<void> {
     try {
@@ -250,12 +247,15 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       // When call.getStats exists but returns undefined (or a non-thenable),
       // we must fall through to peerConnection.getStats() so that production
       // calls still collect stats. The SDK's callback-style getStats has
-      // length > 0 (it declares 2 parameters), while the CallLike interface
+      // length > 0 (it declares 2 parameters), while the real SDK Call type
       // declares getStats(): Promise<...> with length === 0. We use this to
       // distinguish the two shapes without calling the wrong one.
       if (typeof call.getStats === 'function' && call.getStats.length === 0) {
-        // Promise-returning, zero-arg getStats (test-friendly override)
-        rawStats = await call.getStats();
+        // Promise-returning, zero-arg getStats (test-friendly override).
+        // Cast to a zero-arg function type: we verified length === 0 above,
+        // so this is NOT the SDK's callback-based getStats(callback, constraints).
+        const getStatsZeroArg = call.getStats as unknown as () => Promise<RTCStatsReport | unknown>;
+        rawStats = await getStatsZeroArg();
       }
 
       // Fall back to peer connection getStats() when:
