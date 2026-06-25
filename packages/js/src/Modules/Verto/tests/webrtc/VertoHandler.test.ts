@@ -1105,9 +1105,24 @@ describe('VertoHandler', () => {
             error: expect.objectContaining({ code: 48501 }),
             callId: 'lost-call',
             sessionId: 'sess-reload',
-            telnyxSessionId: 'tsid-lost',
-            telnyxCallControlId: 'ccid-lost',
+            // The implementation promotes only `call.customHeaders` to the
+            // error payload; it does NOT promote the nested correlation ids
+            // (`options.telnyxSessionId` / `options.telnyxCallControlId`) to
+            // the top level. The marker saved above has no `customHeaders`,
+            // so the payload carries `customHeaders: undefined`.
+            customHeaders: undefined,
           })
+        );
+
+        // The correlation ids remain nested under the saved marker's
+        // `options` and are NOT surfaced on the public error event — pin this
+        // so a future change that promotes them is a deliberate, reviewed
+        // decision rather than an accident.
+        expect(onError.mock.calls[0][0]).not.toHaveProperty(
+          'telnyxSessionId'
+        );
+        expect(onError.mock.calls[0][0]).not.toHaveProperty(
+          'telnyxCallControlId'
         );
 
         // Marker must be cleared after consumption.

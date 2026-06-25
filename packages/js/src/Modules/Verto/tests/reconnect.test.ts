@@ -68,17 +68,19 @@ describe('active-calls recovery marker storage', () => {
 
   it('round-trips a set then a get', () => {
     const now = Date.now();
+    // The producer (Verto/index.ts beforeunload handler) projects each active
+    // call to the narrow `{ id, customHeaders }` shape — it pulls
+    // `call.options.customHeaders`, NOT `options.telnyxSessionId`. The tests
+    // mirror that real projection so they pin the actual persisted shape.
     setActiveCallsRecoveryMarker(
       [
         asStoredCall({
           id: 'call-a',
-          state: 'active',
-          options: { telnyxSessionId: 'tsid-a' },
+          customHeaders: [{ name: 'X-Test', value: 'a' }],
         }),
         asStoredCall({
           id: 'call-b',
-          state: 'active',
-          options: {},
+          customHeaders: undefined,
         }),
       ],
       'sess-1',
@@ -93,18 +95,14 @@ describe('active-calls recovery marker storage', () => {
 
     const a = result!.calls.find((m) => m.id === 'call-a');
     expect(a).toBeDefined();
-    // Only the narrow projection (id + options.telnyx*Id) is persisted; the
-    // extra `state` field on the input is dropped by the narrow type, but
-    // since tests write directly with JSON the round-trip preserves whatever
-    // was serialized. The consume path only reads id + options, so verify
-    // those.
+    // Only the narrow projection (id + customHeaders) is persisted; the
+    // consume path (VertoHandler) reads only `id` and `customHeaders`.
     expect(a!.id).toBe('call-a');
-    expect(a!.options?.telnyxSessionId).toBe('tsid-a');
+    expect(a!.customHeaders).toEqual([{ name: 'X-Test', value: 'a' }]);
 
     const b = result!.calls.find((m) => m.id === 'call-b');
     expect(b).toBeDefined();
-    expect(b!.options?.telnyxSessionId).toBeUndefined();
-    expect(b!.options?.telnyxCallControlId).toBeUndefined();
+    expect(b!.customHeaders).toBeUndefined();
   });
 
   it('drops records older than RECOVERY_MARKER_MAX_AGE_MS and clears storage', () => {
@@ -240,16 +238,13 @@ describe('active-calls recovery marker storage', () => {
     const now = Date.now();
     // The producer (Verto/index.ts) projects each active call to the narrow
     // shape before calling setActiveCallsRecoveryMarker. Simulate that here:
-    // the persisted record carries only id + options.telnyx*Id, never the full
+    // the persisted record carries only `id` + `customHeaders`, never the full
     // Call (which would include session/peer/localStream/remoteStream/iceServers/...).
     setActiveCallsRecoveryMarker(
       [
         asStoredCall({
           id: 'call-narrow',
-          options: {
-            telnyxSessionId: 'tsid-narrow',
-            telnyxCallControlId: 'ccid-narrow',
-          },
+          customHeaders: [{ name: 'X-Custom', value: 'narrow' }],
         }),
       ],
       'sess-narrow',
@@ -266,16 +261,25 @@ describe('active-calls recovery marker storage', () => {
     expect(serialized).not.toContain('"localStream"');
     expect(serialized).not.toContain('"remoteStream"');
     expect(serialized).not.toContain('"iceServers"');
-    expect(serialized).not.toContain('"customHeaders"');
-    // The correlation ids ARE persisted.
-    expect(serialized).toContain('"telnyxSessionId"');
-    expect(serialized).toContain('"telnyxCallControlId"');
+    // The persisted custom headers ARE present.
+    expect(serialized).toContain('"customHeaders"');
+    expect(serialized).toContain('"X-Custom"');
+    // The legacy correlation-id fields are NOT part of the narrow projection
+    // (the producer maps only `customHeaders`, not `options.telnyxSessionId`).
+    expect(serialized).not.toContain('"telnyxSessionId"');
+    expect(serialized).not.toContain('"telnyxCallControlId"');
   });
 
-  it('filters out malformed records (null / non-object / missing id) on read', () => {
+  it('returns the parsed payload verbatim (no per-record filtering) when the top-level shape is valid', () => {
     const now = Date.now();
     // Manually inject a payload with a mix of well-formed and malformed records.
-    // getActiveCallsRecoveryMarker must drop the bad ones and keep the good one.
+    // getActiveCallsRecoveryMarker validates only the top-level shape
+    // (`calls` is a non-empty array, fresh `storedAt`); it does NOT filter
+    // individual records. Per the accepted PR direction ("return
+    // IStoredActiveCalls object or null. No extra logic here"), the consumer
+    // (VertoHandler) is responsible for tolerating malformed entries via its
+    // per-record try/catch. This test pins that contract: the raw `calls`
+    // array is returned as-is.
     sessionStorage.setItem(
       ACTIVE_CALLS_KEY,
       JSON.stringify({
@@ -293,13 +297,23 @@ describe('active-calls recovery marker storage', () => {
 
     const result = getActiveCallsRecoveryMarker(now);
     expect(result).not.toBeNull();
-    expect(result!.calls.length).toBe(1);
+    expect(result!.sessionId).toBe('sess-malformed');
+    // The calls array is returned verbatim — no per-record filtering.
+    expect(result!.calls.length).toBe(5);
     expect(result!.calls[0].id).toBe('good-call');
-    expect(result!.calls[0].options?.telnyxSessionId).toBe('tsid-good');
+    expect(result!.calls[1]).toBeNull();
+    expect(result!.calls[2]).toBe('not-an-object');
+    // Storage is cleared after the read (at-most-once).
+    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });
 
-  it('returns null when all records are malformed (no well-formed call records)', () => {
+  it('returns the parsed payload (not null) when all records are malformed but the top-level shape is valid', () => {
     const now = Date.now();
+    // Top-level shape is valid: `calls` is a non-empty array and `storedAt`
+    // is fresh. getActiveCallsRecoveryMarker does not inspect individual
+    // records, so it returns the parsed object even when every record is
+    // malformed. The `null` cases (malformed top-level, stale, empty array,
+    // missing payload) are covered by the tests above.
     sessionStorage.setItem(
       ACTIVE_CALLS_KEY,
       JSON.stringify({
@@ -310,7 +324,10 @@ describe('active-calls recovery marker storage', () => {
     );
 
     const result = getActiveCallsRecoveryMarker(now);
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(result!.sessionId).toBe('sess-all-bad');
+    expect(result!.calls.length).toBe(3);
+    expect(result!.calls[0]).toBeNull();
     // Storage is still cleared after the read.
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
   });

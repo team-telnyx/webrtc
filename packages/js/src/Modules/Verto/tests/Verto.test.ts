@@ -172,7 +172,8 @@ describe('Verto', () => {
       });
 
       // Simulate a logged-in session with active calls. The save path
-      // projects each active call to a narrow shape (id + options.telnyx*Id).
+      // (Verto/index.ts beforeunload handler) projects each active call to a
+      // narrow shape (`id` + `options.customHeaders`).
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
@@ -184,8 +185,7 @@ describe('Verto', () => {
           session: {}, // not persisted — narrow projection drops it
           peer: {}, // not persisted — narrow projection drops it
           options: {
-            telnyxSessionId: 'tsid-1',
-            telnyxCallControlId: 'ccid-1',
+            customHeaders: [{ name: 'X-Test', value: '1' }],
           },
         } as unknown) as IWebRTCCall,
         'call-2': ({
@@ -218,20 +218,18 @@ describe('Verto', () => {
 
       const m1 = result!.calls.find((m) => m.id === 'call-1');
       expect(m1!.id).toBe('call-1');
-      // Only the narrow projection is persisted: id + options.telnyx*Id.
+      // Only the narrow projection is persisted: id + customHeaders.
       // State, direction, session, peer are all dropped by the projection.
-      expect(m1!.options?.telnyxSessionId).toBe('tsid-1');
-      expect(m1!.options?.telnyxCallControlId).toBe('ccid-1');
+      expect(m1!.customHeaders).toEqual([{ name: 'X-Test', value: '1' }]);
 
-      // call-2 had no telnyx correlation ids — they should be absent.
+      // call-2 had no custom headers — `customHeaders` is undefined.
       const m2 = result!.calls.find((m) => m.id === 'call-2');
       expect(m2!.id).toBe('call-2');
-      expect(m2!.options?.telnyxSessionId).toBeUndefined();
-      expect(m2!.options?.telnyxCallControlId).toBeUndefined();
+      expect(m2!.customHeaders).toBeUndefined();
 
       // The narrow projection excludes sensitive / host fields — only id
-      // and options (with telnyx*Id) are persisted. No session, peer, state,
-      // direction, localStream, remoteStream, iceServers, customHeaders.
+      // and customHeaders are persisted. No session, peer, state,
+      // direction, localStream, remoteStream, iceServers, options.
       const serialized = JSON.stringify(result!.calls[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
@@ -239,8 +237,11 @@ describe('Verto', () => {
       expect(serialized).not.toContain('"direction"');
       expect(serialized).not.toContain('"localStream"');
       expect(serialized).not.toContain('"iceServers"');
-      expect(serialized).toContain('"options"');
-      expect(serialized).toContain('"telnyxSessionId"');
+      expect(serialized).toContain('"customHeaders"');
+      // The legacy correlation-id fields are NOT part of the narrow
+      // projection (the producer maps only `customHeaders`).
+      expect(serialized).not.toContain('"options"');
+      expect(serialized).not.toContain('"telnyxSessionId"');
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
