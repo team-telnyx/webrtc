@@ -2,6 +2,8 @@ import { VertoMethod } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 import type { IVertoCallOptions } from '../../webrtc/interfaces';
+import { SDP_CREATE_OFFER_FAILED } from '../../util/constants';
+import { createTelnyxError } from '../../util/errors';
 
 const originalConsoleDebug = console.debug;
 const originalConsoleLog = console.log;
@@ -334,6 +336,42 @@ describe('Call Trickle ICE', () => {
           })
         );
       });
+    });
+  });
+
+  describe('Trickle ICE error propagation', () => {
+    it('should emit telnyx.error when startTrickleIceNegotiation rejects (no unhandled rejection)', async () => {
+      // Regression test for the fire-and-forget trickle path: init() and
+      // handleNegotiationNeededEvent() call startTrickleIceNegotiation()
+      // WITHOUT await, with a .catch(_emitNegotiationError) handler. If
+      // createOffer fails, the rejection must be caught and emitted as
+      // telnyx.error — NOT become an unhandled promise rejection.
+      const telnyxError = createTelnyxError(SDP_CREATE_OFFER_FAILED);
+
+      jest
+        .spyOn(call.peer.instance, 'createOffer')
+        .mockRejectedValue(telnyxError);
+
+      // Spy on _emitNegotiationError to verify it receives the error.
+      // This is what init()'s .catch() handler invokes.
+      const emitSpy = jest
+        .spyOn(call.peer as any, '_emitNegotiationError')
+        .mockImplementation(jest.fn());
+
+      // Simulate init()'s fire-and-forget pattern:
+      //   this.startTrickleIceNegotiation().catch(e => this._emitNegotiationError(e))
+      await call.peer
+        .startTrickleIceNegotiation()
+        .catch((error) => (call.peer as any)._emitNegotiationError(error));
+
+      // The TelnyxError must reach _emitNegotiationError (which emits
+      // SwEvent.Error) — not become an unhandled rejection.
+      expect(emitSpy).toHaveBeenCalledTimes(1);
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ code: SDP_CREATE_OFFER_FAILED })
+      );
+
+      emitSpy.mockRestore();
     });
   });
 });

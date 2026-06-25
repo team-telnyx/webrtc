@@ -221,8 +221,10 @@ export default class Peer {
 
     this._negotiating = true;
 
-    // Awaited path: errors propagate up to init() → invite()/answer()
-    // which catch and emit. We must NOT emit here to avoid double emission.
+    // Fire-and-forget from init() and handleNegotiationNeededEvent(): callers
+    // attach a .catch(_emitNegotiationError) so a rejection emits telnyx.error
+    // instead of becoming an unhandled promise rejection. We must NOT emit
+    // here to avoid double emission — the .catch handler does it.
     if (this._isOffer() || this.isIceRestarting) {
       await this._createOffer().then(this._trickleIceSdpFn.bind(this));
     } else {
@@ -231,10 +233,10 @@ export default class Peer {
   }
 
   /**
-   * Emit an SDP negotiation error as a telnyx.error event. Only used by
-   * the fire-and-forget `startNegotiation()` path — the awaited trickle
-   * path propagates errors to `init()` → `invite()`/`answer()` which emit
-   * at the upper level to avoid double emission.
+   * Emit an SDP negotiation error as a telnyx.error event. Used by the
+   * fire-and-forget negotiation paths (startNegotiation and the .catch
+   * handlers on startTrickleIceNegotiation) so a rejection emits telnyx.error
+   * instead of becoming an unhandled promise rejection.
    */
   private _emitNegotiationError(error: unknown): void {
     if (error instanceof TelnyxError) {
@@ -313,7 +315,11 @@ export default class Peer {
     // ICE restart requires a complete SDP (backend doesn't support
     // trickle ICE for Modify), so force the non-trickle path.
     if (this._isTrickleIce() && !this.isIceRestarting) {
-      this.startTrickleIceNegotiation();
+      // Fire-and-forget event handler: catch and emit here to avoid an
+      // unhandled promise rejection when SDP negotiation fails.
+      this.startTrickleIceNegotiation().catch((error) =>
+        this._emitNegotiationError(error)
+      );
     } else {
       this.startNegotiation();
     }
@@ -868,7 +874,12 @@ export default class Peer {
     }
 
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation();
+      // Fire-and-forget like startNegotiation(): init() must not await this,
+      // so catch and emit here — otherwise a rejection becomes an unhandled
+      // promise rejection with no telnyx.error event (regression vs main).
+      this.startTrickleIceNegotiation().catch((error) =>
+        this._emitNegotiationError(error)
+      );
     }
 
     this._logTransceivers();
