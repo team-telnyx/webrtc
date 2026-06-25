@@ -140,9 +140,7 @@ class VertoHandler {
             `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
           );
         } else {
-          const reattachedIds = new Set(
-            params.reattached_sessions as string[]
-          );
+          const reattachedIds = new Set(params.reattached_sessions as string[]);
 
           for (const call of saved.calls) {
             // Defense-in-depth: `getActiveCallsRecoveryMarker` already filters
@@ -174,15 +172,7 @@ class VertoHandler {
                   error,
                   callId: call.id,
                   sessionId: session.sessionid,
-                  ...(call.options?.telnyxSessionId !== undefined
-                    ? { telnyxSessionId: call.options.telnyxSessionId }
-                    : {}),
-                  ...(call.options?.telnyxCallControlId !== undefined
-                    ? {
-                        telnyxCallControlId:
-                          call.options.telnyxCallControlId,
-                      }
-                    : {}),
+                  customHeaders: call.customHeaders,
                 },
                 session.uuid
               );
