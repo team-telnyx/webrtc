@@ -1,8 +1,3 @@
-## Unreleased
-
-- **feat: add `fatal` boolean to every WebRTC SDK error event (VSDK-318)**
-  Every `telnyx.error` / `SwEvent.Error` payload now exposes `event.error.fatal: boolean` as a mandatory field on `ITelnyxError`. `true` means the situation is terminal — the operation/call/session is dead and the client should stop; `false` means the SDK is handling recovery (auto-reconnect, gateway retry, media-recovery helpers, signaling-recovery via `SignalingHealth`) or the failure is benign enough to ignore. The top-level `event.recoverable` field is unchanged for backward compatibility — apps reading `event.recoverable` see exactly the same shape. Customers can branch on `event.error.fatal === true` for terminal errors, `event.recoverable === true` for media-recovery helpers, or ignore non-fatal events the SDK handles. No error code/name/message changes. Alongside the field, several call/signaling paths whose recovery story was unclear are hardened: `Peer._createOffer`/`_createAnswer` now re-throw after emitting (4.a); the legacy plain-`Error` SDP retry path is converted to a `TelnyxError` with `fatal: true` (4.b); `ICE_RESTART_FAILED` notifies `SignalingHealth` instead of triggering recovery from `BaseCall` (4.c); active calls are torn down **locally** (no BYE on the wire) before `RECONNECTION_EXHAUSTED` is emitted, since the socket is already dead (4.d); `WEBSOCKET_CONNECTION_FAILED` (rare `new WebSocket()` throw path) cleans up the session and is marked `fatal: true` (4.e).
-
 ## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
 
 - fix: include sessid on reconnect login (#657)

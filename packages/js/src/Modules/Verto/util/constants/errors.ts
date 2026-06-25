@@ -279,9 +279,9 @@ export const _SDK_ERRORS = {
       'Generate a new authentication token',
       'Check account status',
     ],
-    // `_handleLoginError` retries automatically; not terminal. One emit site
-    // (after RETRY_REGISTER_TIME is exhausted) overrides to `true`.
-    fatal: false,
+    // Per review: even though `_handleLoginError` retries, the retry will most
+    // likely fail again with LOGIN_FAILED, so the client needs to take action.
+    fatal: true,
   },
   46002: {
     name: 'INVALID_CREDENTIALS',

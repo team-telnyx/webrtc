@@ -421,9 +421,7 @@ class VertoHandler {
                 );
                 const telnyxError = createTelnyxError(
                   LOGIN_FAILED,
-                  originalError,
-                  undefined,
-                  true // fatal: true (SDK has given up after RETRY_REGISTER_TIME)
+                  originalError
                 );
                 trigger(
                   SwEvent.Error,
@@ -480,10 +478,8 @@ class VertoHandler {
                   // Local-only teardown of active calls before declaring
                   // reconnection exhausted. The socket is already dead, so
                   // sending BYE would only generate noise (BYE_SEND_FAILED).
-                  // Each call.hangup({}, false) closes the RTCPeerConnection
-                  // and fires the local hangup notification WITHOUT sending a
-                  // BYE on the wire. (VSDK-318 Step 4.d)
-                  this._terminateActiveCallsLocally(session);
+                  // (VSDK-318 Step 4.d)
+                  this.session._terminateActiveCallsLocally();
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     originalError
@@ -504,9 +500,9 @@ class VertoHandler {
                   this.retriedConnect = 0;
                   // Local-only teardown of active calls before declaring
                   // reconnection exhausted (see above). (VSDK-318 Step 4.d)
-                  this._terminateActiveCallsLocally(session);
+                  this.session._terminateActiveCallsLocally();
                   const telnyxError = createTelnyxError(
-                    45003,
+                    RECONNECTION_EXHAUSTED,
                     new Error('Connection Retry Failed')
                   );
                   trigger(
@@ -729,33 +725,6 @@ class VertoHandler {
         trigger(SwEvent.Notification, notification, this.session.uuid);
         break;
       }
-    }
-  }
-
-  /**
-   * Tear down every active call LOCALLY without sending BYE on the wire.
-   *
-   * Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
-   * the signaling socket is already dead). Sending BYE over a dead socket
-   * would only generate `BYE_SEND_FAILED` noise, so each call is finalized
-   * via `hangup({}, false)` — which closes the RTCPeerConnection, stops media,
-   * fires the local hangup notification, and removes the call from
-   * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
-   *
-   * @param session The session whose active calls should be torn down.
-   */
-  private _terminateActiveCallsLocally(session: BrowserSession) {
-    const callIds = Object.keys(session.calls);
-    if (callIds.length === 0) {
-      return;
-    }
-    logger.debug(
-      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE).`
-    );
-    for (const callId of callIds) {
-      const call = session.calls[callId];
-      // Local-only teardown: execute=false skips the outbound BYE.
-      void call?.hangup({}, false);
     }
   }
 }

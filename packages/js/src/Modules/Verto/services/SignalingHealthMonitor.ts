@@ -301,20 +301,21 @@ export default class SignalingHealthMonitor {
    * ICE restart Modify request fails — it could not be sent or the server
    * returned an error.
    *
-   * BaseCall only *notifies* the monitor; the monitor owns the recovery
-   * decision. This keeps all recovery logic in one place (the Signaling
-   * service) rather than triggering recovery directly from the call layer.
-   *
-   * Currently this logs the notification. Future recovery decisions
-   * (e.g. triggering a socket reconnect) can be added here without
-   * changing BaseCall.
+   * The monitor owns the recovery decision: when an ICE restart fails, the
+   * media path cannot recover via another ICE restart, so the monitor forces
+   * a socket reconnect + reattach as the recovery path. This keeps all
+   * recovery logic in one place (the Signaling service) rather than triggering
+   * recovery directly from the call layer.
    *
    * @param callId The call whose ICE restart failed.
    */
   onIceRestartFailed(callId: string): void {
     logger.warn(
-      `Signaling health: ICE restart failed reported (callId=${callId}) — ` +
-        `monitor notified; recovery decision lives in the Signaling service`
+      `Signaling health: ICE restart failed (callId=${callId}) — triggering socket reconnect`
+    );
+    this._triggerSignalingRecovery(
+      `ICE restart failed for call ${callId}`,
+      'peer_failure'
     );
   }
 

@@ -217,9 +217,7 @@ export default class Connection {
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(
         WEBSOCKET_CONNECTION_FAILED,
-        error,
-        undefined,
-        true // fatal: true (explicit) — auto-reconnect can't recover, no socket object
+        error
       );
       trigger(
         SwEvent.Error,

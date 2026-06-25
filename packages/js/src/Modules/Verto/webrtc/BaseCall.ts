@@ -477,9 +477,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           ? error
           : createTelnyxError(
               UNEXPECTED_ERROR,
-              error instanceof Error ? error : undefined,
-              undefined,
-              true // fatal: true (explicit at every UNEXPECTED_ERROR site)
+              error instanceof Error ? error : undefined
             );
       trigger(
         SwEvent.Error,
@@ -574,9 +572,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           ? error
           : createTelnyxError(
               UNEXPECTED_ERROR,
-              error instanceof Error ? error : undefined,
-              undefined,
-              true // fatal: true (explicit at every UNEXPECTED_ERROR site)
+              error instanceof Error ? error : undefined
             );
       trigger(
         SwEvent.Error,
@@ -1813,33 +1809,22 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _requestAnotherLocalDescription() {
     if (isFunction(this.peer.onSdpReadyTwice)) {
-      this._emitSdpWithoutCandidatesError();
+      const telnyxError = createTelnyxError(
+        SDP_SEND_FAILED,
+        new Error('SDP without candidates for the second time!')
+      );
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
       return;
     }
-    this._retryLocalDescription();
-  }
-
-  private _retryLocalDescription() {
     Object.defineProperty(this.peer, 'onSdpReadyTwice', {
       value: this._onIceSdp.bind(this),
     });
     this.peer.iceDone = false;
     this.peer.startNegotiation();
-  }
-
-  private _emitSdpWithoutCandidatesError() {
-    const error = new Error('SDP without candidates for the second time!');
-    const telnyxError = createTelnyxError(
-      SDP_SEND_FAILED,
-      error,
-      undefined,
-      true // fatal: true (explicit, matches registry default for SDP_SEND_FAILED)
-    );
-    trigger(
-      SwEvent.Error,
-      { error: telnyxError, sessionId: this.session.sessionid },
-      this.session.uuid
-    );
   }
 
   private _onIceSdp(data: RTCSessionDescription | null) {

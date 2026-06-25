@@ -1122,17 +1122,10 @@ export default abstract class BaseSession {
    * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
    * media, fires the local hangup notification, and removes the call from
    * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
-   *
-   * `BaseSession` is abstract and does not own the `calls` map directly
-   * (that lives on `BrowserSession`), so the map is reached via a cast that
-   * exposes only the `hangup` method the teardown needs.
    */
   public _terminateActiveCallsLocally(): void {
-    const calls = (
-      this as unknown as {
-        calls?: Record<string, { hangup: (p?: unknown, e?: boolean) => Promise<void> } | null>;
-      }
-    ).calls;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calls = (this as any).calls;
     if (!calls) return;
     const callIds = Object.keys(calls);
     if (callIds.length === 0) return;

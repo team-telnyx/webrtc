@@ -55,6 +55,7 @@ describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
       42001, 42002, 42003, // Media (default; recovery flow overrides)
       44002, 44005, // Invalid call params, peer closed during init
       45001, 45003, // WS connection failed, reconnection exhausted
+      46001, // LOGIN_FAILED (review: retry will likely fail again)
       46002, // Invalid credentials
       48501, // Session not reattached
       49001, // Unexpected
@@ -71,7 +72,6 @@ describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
       44004, // SUBSCRIBE_FAILED
       45002, // WEBSOCKET_ERROR
       45004, // GATEWAY_FAILED
-      46001, // LOGIN_FAILED
       46003, // AUTHENTICATION_REQUIRED
       47001, // ICE_RESTART_FAILED
       48001, // NETWORK_OFFLINE
