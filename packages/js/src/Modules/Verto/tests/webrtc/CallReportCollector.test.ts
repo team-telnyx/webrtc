@@ -826,6 +826,106 @@ describe('CallReportCollector cadence', () => {
   });
 });
 
+describe('CallReportCollector outbound RTP fields', () => {
+  it('collects additional outbound-rtp fields (retransmission, headers, nack, targetBitrate, totalPacketSendDelay, active)', async () => {
+    const outboundRtp = {
+      id: 'outbound-audio',
+      type: 'outbound-rtp',
+      kind: 'audio',
+      mediaType: 'audio',
+      ssrc: 1234,
+      timestamp: Date.now(),
+      packetsSent: 100,
+      bytesSent: 4800,
+      retransmittedPacketsSent: 3,
+      retransmittedBytesSent: 144,
+      headerBytesSent: 800,
+      nackCount: 1,
+      targetBitrate: 32000,
+      totalPacketSendDelay: 0.5,
+      active: true,
+    };
+    const stats = new Map<string, unknown>([['outbound-audio', outboundRtp]]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const outbound = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer()[0].audio?.outbound;
+
+    // New fields are collected with their expected values.
+    expect(outbound).toEqual(
+      expect.objectContaining({
+        retransmittedPacketsSent: 3,
+        retransmittedBytesSent: 144,
+        headerBytesSent: 800,
+        nackCount: 1,
+        targetBitrate: 32000,
+        totalPacketSendDelay: 0.5,
+        active: true,
+      })
+    );
+
+    // Existing fields are still present.
+    expect(outbound).toEqual(
+      expect.objectContaining({
+        packetsSent: 100,
+        bytesSent: 4800,
+      })
+    );
+    expect(outbound).toHaveProperty('audioLevelAvg');
+    expect(outbound).toHaveProperty('bitrateAvg');
+  });
+
+  it('does not set the new outbound-rtp fields when the report omits them', async () => {
+    const outboundRtp = {
+      id: 'outbound-audio',
+      type: 'outbound-rtp',
+      kind: 'audio',
+      mediaType: 'audio',
+      ssrc: 1234,
+      timestamp: Date.now(),
+      packetsSent: 50,
+      bytesSent: 2400,
+    };
+    const stats = new Map<string, unknown>([['outbound-audio', outboundRtp]]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const outbound = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer()[0].audio?.outbound;
+
+    expect(outbound).toEqual(
+      expect.objectContaining({
+        packetsSent: 50,
+        bytesSent: 2400,
+      })
+    );
+    expect(outbound).not.toHaveProperty('retransmittedPacketsSent');
+    expect(outbound).not.toHaveProperty('retransmittedBytesSent');
+    expect(outbound).not.toHaveProperty('headerBytesSent');
+    expect(outbound).not.toHaveProperty('nackCount');
+    expect(outbound).not.toHaveProperty('targetBitrate');
+    expect(outbound).not.toHaveProperty('totalPacketSendDelay');
+    expect(outbound).not.toHaveProperty('active');
+  });
+});
+
 describe('CallReportCollector intermediate flushes', () => {
   it('requests time-based intermediate flushes while a call is active', async () => {
     const collector = new CallReportCollector({

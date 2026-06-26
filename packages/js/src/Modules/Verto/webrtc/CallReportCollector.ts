@@ -58,10 +58,26 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
 
 /**
  * Extended RTCOutboundRtpStreamStats
+ *
+ * `nackCount` is already declared on the base lib.dom type, so it is not
+ * re-declared here. The remaining outbound-rtp fields below are produced by
+ * Chromium but are not yet in the bundled TypeScript lib definitions.
  */
 interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
   trackId?: string;
   mediaSourceId?: string;
+  /** Packets retransmitted to recover from loss (cumulative). */
+  retransmittedPacketsSent?: number;
+  /** Bytes retransmitted to recover from loss (cumulative). */
+  retransmittedBytesSent?: number;
+  /** RTP/RTCP header bytes sent (cumulative). */
+  headerBytesSent?: number;
+  /** Target bitrate the encoder is aiming for, in bits per second. */
+  targetBitrate?: number;
+  /** Cumulative time packets spent buffered before being sent, in seconds. */
+  totalPacketSendDelay?: number;
+  /** Whether the sender is currently active. */
+  active?: boolean;
 }
 
 /**
@@ -214,6 +230,13 @@ export interface IStatsInterval {
       bitrateAvg?: number;
       localTrack?: ILocalAudioTrackSnapshot;
       mediaSource?: ILocalAudioSourceStats;
+      retransmittedPacketsSent?: number;
+      retransmittedBytesSent?: number;
+      headerBytesSent?: number;
+      nackCount?: number;
+      targetBitrate?: number;
+      totalPacketSendDelay?: number;
+      active?: boolean;
     };
     inbound?: {
       packetsReceived?: number;
@@ -1512,6 +1535,27 @@ export class CallReportCollector {
         bitrateAvg: this._average(this.intervalBitrates.outbound),
         ...(localAudioTrack ? { localTrack: localAudioTrack } : {}),
         ...(localAudioSource ? { mediaSource: localAudioSource } : {}),
+        ...(outboundAudio.retransmittedPacketsSent !== undefined
+          ? { retransmittedPacketsSent: outboundAudio.retransmittedPacketsSent }
+          : {}),
+        ...(outboundAudio.retransmittedBytesSent !== undefined
+          ? { retransmittedBytesSent: outboundAudio.retransmittedBytesSent }
+          : {}),
+        ...(outboundAudio.headerBytesSent !== undefined
+          ? { headerBytesSent: outboundAudio.headerBytesSent }
+          : {}),
+        ...(outboundAudio.nackCount !== undefined
+          ? { nackCount: outboundAudio.nackCount }
+          : {}),
+        ...(outboundAudio.targetBitrate !== undefined
+          ? { targetBitrate: outboundAudio.targetBitrate }
+          : {}),
+        ...(outboundAudio.totalPacketSendDelay !== undefined
+          ? { totalPacketSendDelay: outboundAudio.totalPacketSendDelay }
+          : {}),
+        ...(outboundAudio.active !== undefined
+          ? { active: outboundAudio.active }
+          : {}),
       };
     }
 
