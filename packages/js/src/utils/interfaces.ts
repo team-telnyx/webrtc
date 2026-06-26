@@ -104,6 +104,13 @@ export interface IClientOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
+   * Preferred audio/video codecs for calls created by this client. When omitted,
+   * audio defaults to Opus first with the remaining browser-supported codecs as
+   * fallbacks.
+   */
+  preferred_codecs?: RTCRtpCodecCapability[];
+
+  /**
    * Enable or disable prefetching ICE candidates. Defaults to true.
    */
   prefetchIceCandidates?: boolean;
@@ -426,7 +433,8 @@ export interface ICallOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
-   * Preferred codecs for the call.
+   * Preferred codecs for the call. When omitted, audio defaults to Opus first
+   * with the remaining browser-supported codecs as fallbacks.
    */
   preferred_codecs?: RTCRtpCodecCapability[];
 

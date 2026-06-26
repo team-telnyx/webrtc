@@ -301,6 +301,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
+        preferred_codecs: options.preferred_codecs,
         prefetchIceCandidates: options.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:

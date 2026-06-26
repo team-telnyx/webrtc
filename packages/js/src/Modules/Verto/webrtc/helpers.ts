@@ -831,15 +831,43 @@ function stopAudio(audioElement: IAudio): void {
   }
 }
 
+const isAudioOpusCodec = (codec: RTCRtpCodecCapability) =>
+  codec.mimeType.toLocaleLowerCase() === 'audio/opus';
+
+const getDefaultAudioCodecs = (): RTCRtpCodecCapability[] => {
+  if (typeof RTCRtpReceiver === 'undefined') {
+    return [];
+  }
+
+  const supportedAudioCodecs =
+    RTCRtpReceiver.getCapabilities?.('audio')?.codecs ?? [];
+  const opusCodecs: RTCRtpCodecCapability[] = [];
+  const fallbackCodecs: RTCRtpCodecCapability[] = [];
+
+  supportedAudioCodecs.forEach((codec) => {
+    if (isAudioOpusCodec(codec)) {
+      opusCodecs.push(codec);
+    } else if (codec.mimeType.toLocaleLowerCase().startsWith('audio/')) {
+      fallbackCodecs.push(codec);
+    }
+  });
+
+  return opusCodecs.length > 0 ? [...opusCodecs, ...fallbackCodecs] : [];
+};
+
 const getPreferredCodecs = (preferred_codecs?: RTCRtpCodecCapability[]) => {
   const audioCodecs: RTCRtpCodecCapability[] = [];
   const videoCodecs: RTCRtpCodecCapability[] = [];
+  const codecs =
+    preferred_codecs && preferred_codecs.length > 0
+      ? preferred_codecs
+      : getDefaultAudioCodecs();
 
-  if (!preferred_codecs || preferred_codecs.length === 0) {
+  if (codecs.length === 0) {
     return { audioCodecs, videoCodecs };
   }
 
-  preferred_codecs.forEach((codec) => {
+  codecs.forEach((codec) => {
     const mimeType = codec.mimeType.toLocaleLowerCase();
 
     if (mimeType.startsWith('audio/')) {
