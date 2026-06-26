@@ -892,7 +892,7 @@ export class CallReportCollector {
       return;
     }
 
-    const interval = this._collectionIntervalFor(this.intervalStartTime);
+    const interval = this._collectionIntervalFor();
     this.intervalId = setTimeout(() => {
       this.intervalId = null;
       this._collectStats().finally(() => {
@@ -903,13 +903,10 @@ export class CallReportCollector {
     }, interval);
   }
 
-  private _collectionIntervalFor(intervalStartTime: Date): number {
+  private _collectionIntervalFor(): number {
     const defaultInterval = this._positiveInterval(this.options.interval, 5000);
 
     // Stats are collected every second for the full call duration.
-    // intervalStartTime is retained in the signature for callers but no
-    // longer affects the cadence — the interval is now constant.
-    void intervalStartTime;
     return Math.min(
       CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
       defaultInterval
@@ -1127,9 +1124,7 @@ export class CallReportCollector {
       // short calls (shorter than the collection interval) still produce
       // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-      const currentInterval = this._collectionIntervalFor(
-        this.intervalStartTime
-      );
+    const currentInterval = this._collectionIntervalFor();
       if (isFinal || intervalDuration >= currentInterval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
