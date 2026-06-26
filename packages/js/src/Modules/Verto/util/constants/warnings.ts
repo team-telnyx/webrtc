@@ -121,6 +121,24 @@ export const SDK_WARNINGS = {
       'Verify the microphone is not muted at the operating system or hardware level',
     ],
   },
+  31006: {
+    name: 'LOW_INBOUND_AUDIO',
+    message: 'Low inbound audio detected',
+    description:
+      'Inbound (remote) audio level stayed below the acceptable threshold for multiple consecutive stats intervals while RTP packets continued to flow. This may indicate the remote party is sending silence or comfort-noise (e.g. one-way audio caused by a media bridge issue), as opposed to LOW_BYTES_RECEIVED which fires when no bytes arrive at all.',
+    causes: [
+      'Remote party microphone is muted or capturing very low audio',
+      'Media bridge or PBX is injecting comfort-noise/silence instead of forwarding real audio',
+      'One-way audio where RTP flows but content is silent (server-side media issue)',
+      'Remote party is on hold or not speaking',
+    ],
+    solutions: [
+      'Verify the remote party is not muted and is actively speaking',
+      'Check the media bridge / PBX for comfort-noise injection or transcoding issues',
+      'Inspect PCAP RTP payload uniqueness to distinguish real audio from comfort-noise',
+      'If the issue persists, report the call for server-side media investigation',
+    ],
+  },
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   32001: {
@@ -403,7 +421,6 @@ export const SDK_WARNINGS = {
       'If a call should be active, start a new call manually',
     ],
   },
-
 } as const;
 
 export type SdkWarningCode = keyof typeof SDK_WARNINGS;

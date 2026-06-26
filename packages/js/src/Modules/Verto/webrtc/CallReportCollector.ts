@@ -30,6 +30,7 @@ import {
   HIGH_PACKET_LOSS,
   LOW_MOS,
   LOW_LOCAL_AUDIO,
+  LOW_INBOUND_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
@@ -414,6 +415,14 @@ export class CallReportCollector {
   // agent/customer pauses.
   private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
   private static readonly CONFIRMED_LOCAL_AUDIO_SILENCE_MS = 30_000;
+
+  // Inbound (remote) audio level threshold. Same value as local — near-zero
+  // RMS in [0, 1]. The inbound warning uses consecutive breaches rather than
+  // a confirmation window because the remote party's silence/comfort-noise is
+  // the exact condition we want to surface. However, we still require 3
+  // consecutive breaches (CONSECUTIVE_BREACHES_REQUIRED) to avoid firing on
+  // brief natural pauses in conversation.
+  private static readonly THRESHOLD_INBOUND_AUDIO_LEVEL = 0.001;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
@@ -1285,6 +1294,14 @@ export class CallReportCollector {
     // on normal 5-10s pauses; require a long continuous silence window instead.
     this._trackLowLocalAudio(statsEntry);
 
+    // Inbound (remote) audio warning — checks audioLevelAvg of received
+    // audio. Unlike LOW_BYTES_RECEIVED (which fires when NO bytes arrive),
+    // this catches the case where RTP flows but carries silence or
+    // comfort-noise (e.g. one-way audio from a media bridge issue). Requires
+    // CONSECUTIVE_BREACHES_REQUIRED intervals below threshold to avoid
+    // firing on natural conversation pauses.
+    this._trackLowInboundAudio(statsEntry);
+
     // MOS warning — simplified E-model
     if (
       rtt !== undefined &&
@@ -1379,6 +1396,37 @@ export class CallReportCollector {
     return Number.isFinite(duration) && duration > 0
       ? duration
       : this.options.interval;
+  }
+
+  /**
+   * Track low inbound (remote) audio level.
+   *
+   * Unlike LOW_LOCAL_AUDIO which uses a confirmation window to avoid false
+   * positives during natural local pauses, the inbound check uses the
+   * standard consecutive-breach mechanism (3 intervals below threshold).
+   * This is because sustained near-zero inbound audio while RTP flows is
+   * the exact one-way-audio condition we want to surface — it indicates the
+   * remote party or media bridge is sending silence/comfort-noise rather
+   * than real speech.
+   *
+   * Only fires when audioLevelAvg data is available (not undefined). If the
+   * inbound audio level is unavailable for a given interval (e.g. first
+   * sample, missing totalAudioEnergy), the breach counter is reset to avoid
+   * false positives from data gaps.
+   */
+  private _trackLowInboundAudio(statsEntry: IStatsInterval): void {
+    const inbound = statsEntry.audio?.inbound;
+    const audioLevel = inbound?.audioLevelAvg;
+
+    // No inbound audio data for this interval — reset to avoid false positives
+    if (audioLevel === undefined) {
+      this._trackBreach(LOW_INBOUND_AUDIO, false);
+      return;
+    }
+
+    const isLow =
+      audioLevel <= CallReportCollector.THRESHOLD_INBOUND_AUDIO_LEVEL;
+    this._trackBreach(LOW_INBOUND_AUDIO, isLow);
   }
 
   /**
