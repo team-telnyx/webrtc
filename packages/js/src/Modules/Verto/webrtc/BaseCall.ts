@@ -30,6 +30,8 @@ import {
   SDP_SET_REMOTE_DESCRIPTION_FAILED,
   SDP_SEND_FAILED,
   ONLY_HOST_ICE_CANDIDATES,
+  ONLY_HOST_ICE_CANDIDATES_EXHAUSTED,
+  ONLY_HOST_ICE_CANDIDATES_THRESHOLD,
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
   HAS_NON_HOST_ICE_CANDIDATE_REGEX,
@@ -244,6 +246,23 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
+
+  /**
+   * Number of consecutive ICE gathering attempts that produced only host
+   * candidates. Reset when a non-host candidate (srflx/prflx/relay) is
+   * found. When this reaches ONLY_HOST_ICE_CANDIDATES_THRESHOLD the SDK
+   * terminates the call.
+   */
+  private _onlyHostIceCandidateCount: number = 0;
+
+  /**
+   * Timeout ID for the only-host ICE retry mechanism. When
+   * `allowCallWithHostCandidatesOnly` is `false` (default), the SDK
+   * schedules an ICE regathering attempt after a 1s delay instead of
+   * proceeding with only-host candidates.
+   */
+  private _onlyHostIceRetryTimeoutId: ReturnType<typeof setTimeout> | null =
+    null;
 
   private _isRecovering: boolean = false;
 
@@ -731,6 +750,13 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     logger.debug(`[${this.id}] Closing peer from hangup`);
+
+    // Clear any pending only-host ICE retry
+    if (this._onlyHostIceRetryTimeoutId) {
+      clearTimeout(this._onlyHostIceRetryTimeoutId);
+      this._onlyHostIceRetryTimeoutId = null;
+    }
+
     this.peer?.close();
     this.setState(State.Destroy);
   }
@@ -1846,15 +1872,17 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
 
-    // W5d: Check for host-only ICE candidates (non-trickle path)
-    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
-      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
-      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
-      trigger(
-        SwEvent.Warning,
-        { warning, callId: this.id, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
+    // W5d: Check for host-only ICE candidates (non-trickle path).
+    // Send Bye for inbound (backend knows about the call) and for
+    // outbound when the call is already signaling (trickle or ICE
+    // restart). Skip Bye only for outbound non-trickle where the
+    // Invite hasn't been sent yet.
+    const sendBye =
+      this.direction === Direction.Inbound ||
+      !!this.options.trickleIce ||
+      !!this.peer?.isIceRestarting;
+    if (this._handleOnlyHostIceCandidates(sdp, sendBye)) {
+      return;
     }
 
     performance.mark(callMarkName(this.id, 'ice-gathering-end'));
@@ -2063,7 +2091,22 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._trackCandidateMarks(event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
-      this._sendEndOfCandidates();
+      // End-of-candidates: check if only host candidates were gathered
+      // before signaling completion to VSP/b2bua. If the terminal
+      // threshold is reached the call will be hung up and we must NOT
+      // send EndOfCandidates for an unusable ICE set.
+      const localSdp = this.peer?.instance?.localDescription?.sdp;
+      if (!localSdp || localSdp.indexOf('candidate') === -1) {
+        this._sendEndOfCandidates();
+        return;
+      }
+      // Trickle ICE always sends Bye on terminal hangup because the
+      // Invite with empty SDP was already sent — the backend knows
+      // about the call.
+      const terminated = this._handleOnlyHostIceCandidates(localSdp, true);
+      if (!terminated) {
+        this._sendEndOfCandidates();
+      }
     }
   }
 
@@ -2118,6 +2161,137 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
+   * Shared handler for detecting only-host ICE candidates and deciding
+   * whether to emit the warning, schedule a retry, or terminate the call.
+   * Used by both the non-trickle path (`_onIceSdp`) and the trickle path
+   * (`_onTrickleIce` → end-of-candidates).
+   *
+   * Behavior based on `allowCallWithHostCandidatesOnly`:
+   * - `true`: emit warning, allow the call to proceed. If the threshold
+   *   is reached across consecutive attempts, emit exhausted error and
+   *   hang up.
+   * - `false` (default): emit warning, schedule ICE regathering with 1s
+   *   delay between attempts. If all attempts produce only-host candidates,
+   *   emit exhausted error and hang up. For non-trickle ICE this prevents
+   *   the Invite/Answer from being sent until non-host candidates are found
+   *   or the threshold is reached.
+   *
+   * In both cases the `ONLY_HOST_ICE_CANDIDATES_EXHAUSTED` error is emitted
+   * when the consecutive only-host threshold is reached.
+   *
+   * @param sdp The local SDP to check for only-host candidates.
+   * @param sendBye Whether to send a Bye message on terminal hangup.
+   *   - Inbound: always `true` (backend knows about the call).
+   *   - Outbound + trickle: `true` (Invite with empty SDP was already sent).
+   *   - Outbound + ICE restart: `true` (call was already established).
+   *   - Outbound + non-trickle (no restart): `false` (Invite hasn't been sent).
+   * @returns `true` if the call should NOT proceed with the current SDP
+   *   (either the threshold was reached and the call was hung up, or a
+   *   retry has been scheduled); `false` if the call may proceed normally.
+   */
+  private _handleOnlyHostIceCandidates(sdp: string, sendBye: boolean): boolean {
+    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
+      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
+      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
+      trigger(
+        SwEvent.Warning,
+        { warning, callId: this.id, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+
+      const allowHostOnly =
+        this.session.options.allowCallWithHostCandidatesOnly === true;
+
+      this._onlyHostIceCandidateCount++;
+      if (
+        this._onlyHostIceCandidateCount >= ONLY_HOST_ICE_CANDIDATES_THRESHOLD
+      ) {
+        // Threshold reached: emit exhausted error + hangup regardless
+        // of the allowCallWithHostCandidatesOnly option.
+        const error = createTelnyxError(ONLY_HOST_ICE_CANDIDATES_EXHAUSTED);
+        logger.error(
+          `[${this.id}] Error ${error.code}: ${error.message} (consecutive only-host attempts: ${this._onlyHostIceCandidateCount})`
+        );
+        trigger(
+          SwEvent.Error,
+          { error, callId: this.id, sessionId: this.session.sessionid },
+          this.session.uuid
+        );
+        void this.hangup(
+          { initiator: 'sdk:only-host-ice-candidates-exhausted' },
+          sendBye
+        );
+        return true;
+      }
+
+      if (!allowHostOnly) {
+        // Default behavior: schedule ICE regathering with 1s delay.
+        // This prevents call establishment when only host candidates
+        // are available — for non-trickle the Invite/Answer is not
+        // sent until non-host candidates are found or the threshold
+        // is reached.
+        this._scheduleOnlyHostIceRetry();
+        return true; // Don't proceed with current SDP
+      }
+
+      // allowHostOnly=true: call proceeds despite only-host candidates.
+      // The warning has been emitted; the application can decide whether
+      // to continue. If the threshold is reached across subsequent
+      // attempts (e.g., during ICE restart), the exhausted error will
+      // fire then.
+      return false;
+    } else {
+      this._onlyHostIceCandidateCount = 0;
+    }
+    return false;
+  }
+
+  /**
+   * Schedule an ICE regathering attempt after a 1s delay. Called when
+   * `allowCallWithHostCandidatesOnly` is `false` (default) and only
+   * host candidates were gathered. The retry triggers a new ICE
+   * gathering cycle — for non-trickle ICE this creates a new offer,
+   * and for trickle ICE this initiates an ICE restart (Modify).
+   */
+  private _scheduleOnlyHostIceRetry() {
+    if (this._onlyHostIceRetryTimeoutId) {
+      clearTimeout(this._onlyHostIceRetryTimeoutId);
+    }
+
+    logger.info(
+      `[${this.id}] Scheduling only-host ICE regathering after 1000ms (attempt ${this._onlyHostIceCandidateCount}/${ONLY_HOST_ICE_CANDIDATES_THRESHOLD})`
+    );
+
+    this._onlyHostIceRetryTimeoutId = setTimeout(() => {
+      this._onlyHostIceRetryTimeoutId = null;
+
+      if (this._isTerminatingOrTerminated()) {
+        return;
+      }
+      if (!this.peer?.instance) {
+        return;
+      }
+
+      // Reset peer state for new gathering cycle
+      this.peer.iceDone = false;
+      this._iceTimeout = null;
+
+      if (this.options.trickleIce) {
+        // For trickle ICE: the Invite with empty SDP was already sent,
+        // so we need an ICE restart (Modify with new SDP).
+        this.peer.restartIce();
+      } else {
+        // For non-trickle ICE: regather candidates with a fresh
+        // offer/answer cycle. Using regatherCandidates() instead of
+        // startNegotiation() because the answer-side peer is in stable
+        // state after the previous answer cycle and createAnswer() would
+        // fail without re-applying the remote offer first.
+        this.peer.regatherCandidates();
+      }
+    }, 1000);
+  }
+
+  /**
    * Track first candidate and first non-host candidate performance marks.
    * Called from both _onIce and _onTrickleIce.
    */
@@ -2127,12 +2301,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._firstCandidateSent = true;
     }
 
-    if (!this._firstNonHostCandidateSent) {
-      const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
-      if (candidateType && candidateType !== 'host') {
+    const candidateType = candidate.candidate.match(/typ (\w+)/)?.[1];
+    if (candidateType && candidateType !== 'host') {
+      if (!this._firstNonHostCandidateSent) {
         performance.mark(callMarkName(this.id, 'first-non-host-candidate'));
         this._firstNonHostCandidateSent = true;
       }
+      // Non-host candidate found — reset the only-host counter
+      this._onlyHostIceCandidateCount = 0;
     }
   }
 
@@ -2189,6 +2365,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (instance.iceGatheringState === 'complete') {
         logger.debug('Finished gathering candidates');
         performance.mark(callMarkName(this.id, 'ice-gathering-completed'));
+      }
+    };
+
+    instance.oniceconnectionstatechange = () => {
+      const state = instance.iceConnectionState;
+      if (state === 'connected') {
+        // ICE pair succeeded — reset the only-host counter so that
+        // a future ICE restart (e.g. network change) starts fresh.
+        this._onlyHostIceCandidateCount = 0;
       }
     };
 

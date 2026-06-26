@@ -312,6 +312,30 @@ export interface IClientOptions {
     /** Called when retry fails, the timeout expires, or the app calls `reject()`. */
     onError?: (error: Error) => void;
   };
+
+  /**
+   * Control behavior when ICE gathering produces only host (local
+   * network) candidates.
+   *
+   * - `false` (default): The SDK retries ICE gathering with a 1-second
+   *   delay between attempts. For non-trickle ICE this prevents the
+   *   Invite/Answer from being sent until non-host candidates are found
+   *   or the threshold is reached. If all attempts produce only-host
+   *   candidates, the `ONLY_HOST_ICE_CANDIDATES_EXHAUSTED` error is
+   *   emitted and the call is terminated.
+   * - `true`: The SDK emits the `ONLY_HOST_ICE_CANDIDATES` warning but
+   *   allows the call to proceed — useful for controlled environments
+   *   where local-network connectivity is acceptable. If the threshold
+   *   is reached across consecutive attempts (e.g., during ICE restart),
+   *   the `ONLY_HOST_ICE_CANDIDATES_EXHAUSTED` error is emitted and the
+   *   call is terminated.
+   *
+   * In both cases the exhausted error fires when the consecutive
+   * only-host threshold is reached.
+   *
+   * @default false
+   */
+  allowCallWithHostCandidatesOnly?: boolean;
 }
 
 /**
