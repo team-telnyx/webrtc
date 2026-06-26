@@ -53,6 +53,20 @@ type TestableCallReportCollector = {
     stats: RTCStatsReport,
     outboundAudio: RTCOutboundRtpStreamStats & { mediaSourceId?: string }
   ) => number | null;
+  _getCodec: (
+    stats: RTCStatsReport,
+    codecId?: string
+  ) =>
+    | {
+        type: string;
+        id: string;
+        mimeType?: string;
+        clockRate?: number;
+        channels?: number;
+        sdpFmtpLine?: string;
+        payloadType?: number;
+      }
+    | undefined;
   _logLocalAudioTrackSnapshot: (
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats
@@ -1440,5 +1454,127 @@ describe('CallReportCollector remote RTCP stats', () => {
     const entry = await collectOnce(stats);
 
     expect(entry.remoteRtcp).toBeUndefined();
+  });
+});
+
+describe('CallReportCollector codec identity collection', () => {
+  it('collects codec identity for outbound and inbound audio from getStats', async () => {
+    const codecStat = {
+      id: 'C_audio',
+      type: 'codec',
+      mimeType: 'audio/opus',
+      clockRate: 48000,
+      channels: 2,
+      payloadType: 111,
+      sdpFmtpLine: 'minptime=10;useinbandfec=1',
+    };
+    const stats = new Map<string, unknown>([
+      [
+        'OB_audio',
+        {
+          id: 'OB_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          ssrc: 1111,
+          codecId: 'C_audio',
+          packetsSent: 100,
+          bytesSent: 4800,
+        },
+      ],
+      [
+        'IB_audio',
+        {
+          id: 'IB_audio',
+          type: 'inbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          ssrc: 2222,
+          codecId: 'C_audio',
+          packetsReceived: 90,
+          bytesReceived: 4320,
+        },
+      ],
+      ['C_audio', codecStat],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const entry = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer()[0];
+    expect(entry.audio?.outbound?.codec).toEqual(
+      expect.objectContaining({
+        mimeType: 'audio/opus',
+        clockRate: 48000,
+        channels: 2,
+        payloadType: 111,
+        codecId: 'C_audio',
+      })
+    );
+    expect(entry.audio?.outbound?.codec?.sdpFmtpLine).toBeTruthy();
+    expect(entry.audio?.inbound?.codec).toEqual(
+      expect.objectContaining({
+        mimeType: 'audio/opus',
+        clockRate: 48000,
+        channels: 2,
+        payloadType: 111,
+        codecId: 'C_audio',
+      })
+    );
+    expect(entry.audio?.inbound?.codec?.sdpFmtpLine).toBeTruthy();
+  });
+
+  it('omits codec identity when the rtp stream has no codecId', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'OB_audio',
+        {
+          id: 'OB_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          ssrc: 1111,
+          packetsSent: 100,
+          bytesSent: 4800,
+        },
+      ],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const entry = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer()[0];
+    expect(entry.audio?.outbound?.codec).toBeUndefined();
+  });
+
+  it('resolves a codec stat by id and validates its type', () => {
+    const collector = createCollector();
+    const stats = new Map<string, unknown>([
+      ['C_audio', { id: 'C_audio', type: 'codec', mimeType: 'audio/opus' }],
+      ['not-a-codec', { id: 'not-a-codec', type: 'transport' }],
+    ]) as unknown as RTCStatsReport;
+
+    expect(collector._getCodec(stats, 'C_audio')).toEqual(
+      expect.objectContaining({ mimeType: 'audio/opus', type: 'codec' })
+    );
+    expect(collector._getCodec(stats, 'not-a-codec')).toBeUndefined();
+    expect(collector._getCodec(stats, undefined)).toBeUndefined();
+    expect(collector._getCodec(stats, 'missing')).toBeUndefined();
   });
 });
