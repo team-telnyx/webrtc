@@ -1291,3 +1291,154 @@ describe('CallReportCollector additional inbound RTP fields (VSDK-387)', () => {
     expect(inbound).not.toHaveProperty('totalSamplesDuration');
   });
 });
+
+describe('CallReportCollector remote RTCP stats', () => {
+  // Helper: wire up a collector with the given RTCStatsReport and run one
+  // final (isFinal=true) collection so a single stats entry lands in the
+  // buffer regardless of how short the interval is.
+  const collectOnce = async (
+    stats: RTCStatsReport
+  ): Promise<IStatsInterval> => {
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const buffer = (collector as unknown as CallReportCollector).getStatsBuffer();
+    expect(buffer).toHaveLength(1);
+    return buffer[0];
+  };
+
+  it('parses remote-inbound-rtp and remote-outbound-rtp audio stats into remoteRtcp', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'OB_audio',
+        {
+          id: 'OB_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          packetsSent: 1000,
+          bytesSent: 48000,
+        },
+      ],
+      [
+        'RIB_audio',
+        {
+          id: 'RIB_audio',
+          type: 'remote-inbound-rtp',
+          kind: 'audio',
+          // NOTE: no mediaType field on remote RTCP reports.
+          jitter: 0.02, // seconds -> ~20ms
+          packetsLost: 3,
+          packetsReceived: 997,
+          fractionLost: 0.01,
+          roundTripTime: 0.15, // seconds — media-path RTT
+          totalRoundTripTime: 1.5,
+          roundTripTimeMeasurements: 10,
+          nackCount: 2,
+          reportsReceived: 10,
+          packetsDiscarded: 1,
+          localId: 'OB_audio',
+        },
+      ],
+      [
+        'ROB_audio',
+        {
+          id: 'ROB_audio',
+          type: 'remote-outbound-rtp',
+          kind: 'audio',
+          packetsSent: 500,
+          bytesSent: 24000,
+          reportsCount: 10,
+          roundTripTime: 0.12,
+          totalPacketSendDelay: 1.2,
+          localId: 'IB_audio',
+          remoteId: 'RIB_audio',
+        },
+      ],
+    ]) as unknown as RTCStatsReport;
+
+    const entry = await collectOnce(stats);
+
+    // remote-inbound-rtp -> remoteRtcp.inbound (outbound quality as seen by
+    // the remote peer). jitter converted to ms; roundTripTimeAvg derived
+    // from totalRoundTripTime / roundTripTimeMeasurements.
+    expect(entry.remoteRtcp?.inbound).toEqual(
+      expect.objectContaining({
+        packetsLost: 3,
+        packetsReceived: 997,
+        fractionLost: 0.01,
+        roundTripTime: 0.15,
+        totalRoundTripTime: 1.5,
+        roundTripTimeMeasurements: 10,
+        nackCount: 2,
+        reportsReceived: 10,
+        packetsDiscarded: 1,
+      })
+    );
+    expect(entry.remoteRtcp?.inbound?.jitter).toBeCloseTo(20, 5);
+    expect(entry.remoteRtcp?.inbound?.roundTripTimeAvg).toBeCloseTo(0.15, 5);
+
+    // remote-outbound-rtp -> remoteRtcp.outbound (remote Sender Report).
+    expect(entry.remoteRtcp?.outbound).toEqual(
+      expect.objectContaining({
+        packetsSent: 500,
+        bytesSent: 24000,
+        reportsCount: 10,
+      })
+    );
+  });
+
+  it('omits roundTripTimeAvg when roundTripTimeMeasurements is missing or zero', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'RIB_audio',
+        {
+          id: 'RIB_audio',
+          type: 'remote-inbound-rtp',
+          kind: 'audio',
+          jitter: 0.03,
+          roundTripTime: 0.2,
+          totalRoundTripTime: 0.6,
+          // roundTripTimeMeasurements intentionally absent.
+        },
+      ],
+    ]) as unknown as RTCStatsReport;
+
+    const entry = await collectOnce(stats);
+
+    expect(entry.remoteRtcp?.inbound).toBeDefined();
+    expect(entry.remoteRtcp?.inbound?.roundTripTimeAvg).toBeUndefined();
+    // Other passthrough fields are still captured.
+    expect(entry.remoteRtcp?.inbound?.roundTripTime).toBe(0.2);
+    expect(entry.remoteRtcp?.inbound?.totalRoundTripTime).toBe(0.6);
+    // No remote-outbound-rtp in this report -> outbound block absent.
+    expect(entry.remoteRtcp?.outbound).toBeUndefined();
+  });
+
+  it('does not set remoteRtcp when no remote RTCP reports are present', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'OB_audio',
+        {
+          id: 'OB_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          packetsSent: 1,
+          bytesSent: 48,
+        },
+      ],
+    ]) as unknown as RTCStatsReport;
+
+    const entry = await collectOnce(stats);
+
+    expect(entry.remoteRtcp).toBeUndefined();
+  });
+});
