@@ -1171,3 +1171,123 @@ describe('CallReportCollector media-playout stats', () => {
     expect(entry.mediaPlayout).toBeUndefined();
   });
 });
+
+describe('CallReportCollector additional inbound RTP fields (VSDK-387)', () => {
+  const buildInboundStats = (extra?: Record<string, unknown>) => {
+    const inboundAudio = {
+      id: 'inbound-audio',
+      type: 'inbound-rtp',
+      kind: 'audio',
+      mediaType: 'audio',
+      packetsReceived: 100,
+      bytesReceived: 4800,
+      packetsLost: 1,
+      packetsDiscarded: 0,
+      jitterBufferDelay: 0.1,
+      jitterBufferEmittedCount: 100,
+      totalSamplesReceived: 48000,
+      concealedSamples: 50,
+      concealmentEvents: 5,
+      ...extra,
+    };
+    return inboundAudio;
+  };
+
+  const buildOutboundStats = () => ({
+    id: 'outbound-audio',
+    type: 'outbound-rtp',
+    kind: 'audio',
+    mediaType: 'audio',
+    packetsSent: 100,
+    bytesSent: 4800,
+  });
+
+  const runCollect = async (
+    inboundAudio: Record<string, unknown>
+  ): Promise<IStatsInterval> => {
+    const stats = new Map<string, unknown>([
+      ['inbound-audio', inboundAudio],
+      ['outbound-audio', buildOutboundStats()],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    return (collector as unknown as CallReportCollector).getStatsBuffer()[0];
+  };
+
+  it('collects nack, header bytes, FEC, jitter-buffer, decode, and energy fields from inbound-rtp', async () => {
+    const entry = await runCollect(
+      buildInboundStats({
+        nackCount: 5,
+        headerBytesReceived: 1200,
+        fecPacketsReceived: 10,
+        fecPacketsDiscarded: 2,
+        jitterBufferTargetDelay: 0.05,
+        jitterBufferMinimumDelay: 0.02,
+        totalSamplesDecoded: 48000,
+        samplesDecodedWithSilence: 100,
+        samplesDecodedWithConcealment: 200,
+        totalAudioEnergy: 1.5,
+        totalSamplesDuration: 1.0,
+      })
+    );
+
+    expect(entry.audio?.inbound).toEqual(
+      expect.objectContaining({
+        // Existing fields still present
+        packetsReceived: 100,
+        bytesReceived: 4800,
+        packetsLost: 1,
+        packetsDiscarded: 0,
+        jitterBufferDelay: 0.1,
+        jitterBufferEmittedCount: 100,
+        totalSamplesReceived: 48000,
+        concealedSamples: 50,
+        concealmentEvents: 5,
+        // New inbound RTP fields
+        nackCount: 5,
+        headerBytesReceived: 1200,
+        fecPacketsReceived: 10,
+        fecPacketsDiscarded: 2,
+        jitterBufferTargetDelay: 0.05,
+        jitterBufferMinimumDelay: 0.02,
+        totalSamplesDecoded: 48000,
+        samplesDecodedWithSilence: 100,
+        samplesDecodedWithConcealment: 200,
+        totalAudioEnergy: 1.5,
+        totalSamplesDuration: 1.0,
+      })
+    );
+  });
+
+  it('omits the additional inbound fields when not reported by getStats', async () => {
+    const entry = await runCollect(buildInboundStats());
+
+    const inbound = entry.audio?.inbound;
+    expect(inbound).toEqual(
+      expect.objectContaining({
+        packetsReceived: 100,
+        bytesReceived: 4800,
+      })
+    );
+    // New optional fields should NOT be present when undefined
+    expect(inbound).not.toHaveProperty('nackCount');
+    expect(inbound).not.toHaveProperty('headerBytesReceived');
+    expect(inbound).not.toHaveProperty('fecPacketsReceived');
+    expect(inbound).not.toHaveProperty('fecPacketsDiscarded');
+    expect(inbound).not.toHaveProperty('jitterBufferTargetDelay');
+    expect(inbound).not.toHaveProperty('jitterBufferMinimumDelay');
+    expect(inbound).not.toHaveProperty('totalSamplesDecoded');
+    expect(inbound).not.toHaveProperty('samplesDecodedWithSilence');
+    expect(inbound).not.toHaveProperty('samplesDecodedWithConcealment');
+    expect(inbound).not.toHaveProperty('totalAudioEnergy');
+    expect(inbound).not.toHaveProperty('totalSamplesDuration');
+  });
+});

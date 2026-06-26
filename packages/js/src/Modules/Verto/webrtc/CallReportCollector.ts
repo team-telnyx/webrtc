@@ -54,6 +54,24 @@ interface ExtendedInboundRtpStreamStats extends RTCInboundRtpStreamStats {
   totalAudioEnergy?: number;
   /** Cumulative duration of received audio in seconds */
   totalSamplesDuration?: number;
+  /** Number of NACK packets received (negative acknowledgements) */
+  nackCount?: number;
+  /** Total RTP header bytes received */
+  headerBytesReceived?: number;
+  /** FEC packets received */
+  fecPacketsReceived?: number;
+  /** FEC packets that could not be recovered and were discarded */
+  fecPacketsDiscarded?: number;
+  /** Target delay for the jitter buffer, in seconds */
+  jitterBufferTargetDelay?: number;
+  /** Minimum delay for the jitter buffer, in seconds */
+  jitterBufferMinimumDelay?: number;
+  /** Total number of audio samples decoded */
+  totalSamplesDecoded?: number;
+  /** Samples decoded as silence (inserted by the decoder) */
+  samplesDecodedWithSilence?: number;
+  /** Samples decoded using concealment (PLC) */
+  samplesDecodedWithConcealment?: number;
 }
 
 /**
@@ -265,6 +283,17 @@ export interface IStatsInterval {
       audioLevelAvg?: number;
       jitterAvg?: number;
       bitrateAvg?: number;
+      nackCount?: number;
+      headerBytesReceived?: number;
+      fecPacketsReceived?: number;
+      fecPacketsDiscarded?: number;
+      jitterBufferTargetDelay?: number;
+      jitterBufferMinimumDelay?: number;
+      totalSamplesDecoded?: number;
+      samplesDecodedWithSilence?: number;
+      samplesDecodedWithConcealment?: number;
+      totalAudioEnergy?: number;
+      totalSamplesDuration?: number;
     };
   };
   connection?: {
@@ -1595,6 +1624,42 @@ export class CallReportCollector {
         audioLevelAvg: this._average(this.intervalAudioLevels.inbound),
         jitterAvg: this._average(this.intervalJitters),
         bitrateAvg: this._average(this.intervalBitrates.inbound),
+        ...(inboundAudio.nackCount !== undefined
+          ? { nackCount: inboundAudio.nackCount }
+          : {}),
+        ...(inboundAudio.headerBytesReceived !== undefined
+          ? { headerBytesReceived: inboundAudio.headerBytesReceived }
+          : {}),
+        ...(inboundAudio.fecPacketsReceived !== undefined
+          ? { fecPacketsReceived: inboundAudio.fecPacketsReceived }
+          : {}),
+        ...(inboundAudio.fecPacketsDiscarded !== undefined
+          ? { fecPacketsDiscarded: inboundAudio.fecPacketsDiscarded }
+          : {}),
+        ...(inboundAudio.jitterBufferTargetDelay !== undefined
+          ? { jitterBufferTargetDelay: inboundAudio.jitterBufferTargetDelay }
+          : {}),
+        ...(inboundAudio.jitterBufferMinimumDelay !== undefined
+          ? { jitterBufferMinimumDelay: inboundAudio.jitterBufferMinimumDelay }
+          : {}),
+        ...(inboundAudio.totalSamplesDecoded !== undefined
+          ? { totalSamplesDecoded: inboundAudio.totalSamplesDecoded }
+          : {}),
+        ...(inboundAudio.samplesDecodedWithSilence !== undefined
+          ? { samplesDecodedWithSilence: inboundAudio.samplesDecodedWithSilence }
+          : {}),
+        ...(inboundAudio.samplesDecodedWithConcealment !== undefined
+          ? {
+              samplesDecodedWithConcealment:
+                inboundAudio.samplesDecodedWithConcealment,
+            }
+          : {}),
+        ...(inboundAudio.totalAudioEnergy !== undefined
+          ? { totalAudioEnergy: inboundAudio.totalAudioEnergy }
+          : {}),
+        ...(inboundAudio.totalSamplesDuration !== undefined
+          ? { totalSamplesDuration: inboundAudio.totalSamplesDuration }
+          : {}),
       };
     }
 
