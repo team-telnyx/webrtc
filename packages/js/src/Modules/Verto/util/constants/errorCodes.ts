@@ -61,6 +61,8 @@ export const TELNYX_WARNING_CODES = {
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   LOW_BYTES_RECEIVED: 32001,
   LOW_BYTES_SENT: 32002,
+  RECORDING_UNAVAILABLE: 32003,
+  RECORDING_BUFFER_OVERFLOW: 32004,
 
   // ── Call connection warnings (330xx) ─────────────────────────────────
   ICE_CONNECTIVITY_LOST: 33001,
@@ -123,6 +125,8 @@ export const {
   LOW_INBOUND_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  RECORDING_UNAVAILABLE,
+  RECORDING_BUFFER_OVERFLOW,
   ICE_CONNECTIVITY_LOST,
   ICE_GATHERING_TIMEOUT,
   ICE_GATHERING_EMPTY,

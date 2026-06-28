@@ -173,6 +173,38 @@ export const SDK_WARNINGS = {
       'Check network connectivity',
     ],
   },
+  32003: {
+    name: 'RECORDING_UNAVAILABLE',
+    message: 'Call recording is not available in this browser',
+    description:
+      'Call recording was enabled (enableCallRecording: true) but the browser does not support MediaStreamTrackProcessor (required to capture raw audio PCM). Recording is disabled for this call; the call proceeds normally. Currently affects Firefox and older Chromium (< 94).',
+    causes: [
+      'Browser does not implement MediaStreamTrackProcessor (Firefox, Safari)',
+      'Chromium version older than 94',
+      'Recording enabled on an unsupported platform',
+    ],
+    solutions: [
+      'Use a recent Chromium-based browser (Chrome 94+, Edge 94+) to capture recordings',
+      'Disable enableCallRecording if recording is not required for this deployment',
+      'See the enableCallRecording JSDoc for platform support details',
+    ],
+  },
+  32004: {
+    name: 'RECORDING_BUFFER_OVERFLOW',
+    message: 'Call recording buffer overflow — oldest packets dropped',
+    description:
+      'The in-memory call recording buffer reached its maxBufferBytes cap before the next scheduled flush. The oldest captured RTP packets were dropped to keep memory bounded. This indicates the flush interval is too long for the call audio rate, or the upload endpoint is slow/unreachable. The recording continues with the remaining (newer) packets.',
+    causes: [
+      'Flush interval (callRecordingFlushIntervalMs) is larger than the buffer can hold at the current audio rate',
+      'Upload endpoint (/call_recording) is slow or unreachable, so intermediate flushes back up',
+      'A very long call with high sample rate filling the buffer between flushes',
+    ],
+    solutions: [
+      'Reduce callRecordingFlushIntervalMs so flushes happen more frequently',
+      'Increase callRecordingMaxBufferBytes if memory headroom allows',
+      'Check the /call_recording endpoint health and network path to voice-sdk-proxy',
+    ],
+  },
 
   // ── Call connection warnings (330xx) ─────────────────────────────────
   33001: {
