@@ -356,9 +356,7 @@ export class CallRecorder {
 
     const endpoint = this._resolveEndpointFromContext();
     if (!endpoint) {
-      logger.debug(
-        'CallRecorder: postFinalReport skipped — no host available'
-      );
+      logger.debug('CallRecorder: postFinalReport skipped — no host available');
       return;
     }
     // Post each track's buffered packets as its own final segment. The wire
@@ -476,7 +474,11 @@ export class CallRecorder {
     audioData.close?.();
 
     // Raw Float32 PCM bytes (little-endian) — the RTP payload.
-    const payloadBytes = new Uint8Array(float32.buffer, float32.byteOffset, float32.byteLength);
+    const payloadBytes = new Uint8Array(
+      float32.buffer,
+      float32.byteOffset,
+      float32.byteLength
+    );
 
     // Synthesize RTP header values (per-track).
     state.seq = (state.seq + 1) & 0xffff;
@@ -517,8 +519,7 @@ export class CallRecorder {
         const dropped = buffer.shift();
         if (dropped) {
           this._bufferBytes[track] -=
-            dropped.payloadBytes.length +
-            CallRecorder.PACKET_OVERHEAD_BYTES;
+            dropped.payloadBytes.length + CallRecorder.PACKET_OVERHEAD_BYTES;
         }
       }
       if (!this._overflowWarnedThisWindow) {
@@ -535,8 +536,7 @@ export class CallRecorder {
 
   private _flushIntervalMs(): number {
     return (
-      this.options.flushIntervalMs ??
-      DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
+      this.options.flushIntervalMs ?? DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
     );
   }
 
@@ -664,6 +664,27 @@ export class CallRecorder {
     this._host = host;
   }
 
+  private _callReportId: string | null = null;
+  /**
+   * Set/update the call_report_id. BaseCall constructs the recorder in
+   * `_init()` — before the server has assigned `session.callReportId` (it
+   * arrives on the verto invite/answer response) — so the value snapshotted
+   * in `callContext.callReportId` is typically empty. BaseCall calls this once
+   * the id is available (at the Active state and again before the final flush)
+   * so every envelope carries the real call_report_id and recordings correlate
+   * with the call report.
+   */
+  public _setCallReportId(callReportId: string): void {
+    if (callReportId) {
+      this._callReportId = callReportId;
+    }
+  }
+
+  /** Resolve the call_report_id, preferring the lazily-set value. */
+  private _resolveCallReportId(): string {
+    return this._callReportId || this.callContext.callReportId;
+  }
+
   private _resolveEndpoint(host: string): string {
     const path = this.options.endpoint || '/call_recording';
     try {
@@ -698,7 +719,7 @@ export class CallRecorder {
       };
     });
     return {
-      call_report_id: this.callContext.callReportId,
+      call_report_id: this._resolveCallReportId(),
       call_id: this.callContext.callId,
       ...(this.callContext.voiceSdkId
         ? { voice_sdk_id: this.callContext.voiceSdkId }

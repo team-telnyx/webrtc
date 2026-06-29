@@ -161,8 +161,9 @@ describe('CallRecorder', () => {
     // Install the fake MediaStreamTrackProcessor on the global.
     originalMSTP = (globalThis as { MediaStreamTrackProcessor?: unknown })
       .MediaStreamTrackProcessor;
-    (globalThis as { MediaStreamTrackProcessor?: unknown }).MediaStreamTrackProcessor =
-      FakeMediaStreamTrackProcessor as unknown;
+    (
+      globalThis as { MediaStreamTrackProcessor?: unknown }
+    ).MediaStreamTrackProcessor = FakeMediaStreamTrackProcessor as unknown;
   });
 
   afterEach(() => {
@@ -171,8 +172,9 @@ describe('CallRecorder', () => {
       delete (globalThis as { MediaStreamTrackProcessor?: unknown })
         .MediaStreamTrackProcessor;
     } else {
-      (globalThis as { MediaStreamTrackProcessor?: unknown }).MediaStreamTrackProcessor =
-        originalMSTP;
+      (
+        globalThis as { MediaStreamTrackProcessor?: unknown }
+      ).MediaStreamTrackProcessor = originalMSTP;
     }
     jest.restoreAllMocks();
   });
@@ -187,7 +189,9 @@ describe('CallRecorder', () => {
       const recorder = makeRecorder({}, undefined);
       recorder.onWarning = onWarning;
 
-      expect(() => recorder.start(fakeAudioTrack(), fakeAudioTrack())).not.toThrow();
+      expect(() =>
+        recorder.start(fakeAudioTrack(), fakeAudioTrack())
+      ).not.toThrow();
 
       // A single RECORDING_UNAVAILABLE warning should be surfaced.
       expect(onWarning).toHaveBeenCalledTimes(1);
@@ -202,7 +206,11 @@ describe('CallRecorder', () => {
     it('accumulates packets from captured frames', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000 }, // no periodic flush during the test
         fetchImpl
@@ -223,7 +231,11 @@ describe('CallRecorder', () => {
       // after a couple of packets.
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
       const onWarning = jest.fn();
       const recorder = makeRecorder(
         {
@@ -253,11 +265,12 @@ describe('CallRecorder', () => {
     it('fires _periodicFlush and clears the buffer on success', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
-      const recorder = makeRecorder(
-        { flushIntervalMs: 10 },
-        fetchImpl
-      );
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
+      const recorder = makeRecorder({ flushIntervalMs: 10 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
       // Wait long enough for the pump + at least one 10ms flush tick.
       await flushMicrotasks(60);
@@ -273,9 +286,7 @@ describe('CallRecorder', () => {
         'test-call-report-id'
       );
       expect(firstCall[1].headers['x-call-id']).toBe('test-call-id');
-      expect(firstCall[1].headers['x-voice-sdk-id']).toBe(
-        'test-voice-sdk-id'
-      );
+      expect(firstCall[1].headers['x-voice-sdk-id']).toBe('test-voice-sdk-id');
 
       recorder.stop();
       recorder.cleanup();
@@ -286,9 +297,21 @@ describe('CallRecorder', () => {
     it('retries on fetch returning 500 and succeeds on the third attempt', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValueOnce({ ok: false, status: 500, text: () => Promise.resolve('err') })
-        .mockResolvedValueOnce({ ok: false, status: 500, text: () => Promise.resolve('err') })
-        .mockResolvedValueOnce({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve('err'),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve('err'),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
 
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, tracks: ['local'] },
@@ -314,7 +337,11 @@ describe('CallRecorder', () => {
     it('throws after retry exhaustion and cleanup still runs', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve('err') });
+        .mockResolvedValue({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve('err'),
+        });
 
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, tracks: ['local'] },
@@ -337,12 +364,13 @@ describe('CallRecorder', () => {
       // Use a single small frame so the final payload is small.
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
 
-      const recorder = makeRecorder(
-        { flushIntervalMs: 100_000 },
-        fetchImpl
-      );
+      const recorder = makeRecorder({ flushIntervalMs: 100_000 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
       await flushMicrotasks();
       recorder.stop();
@@ -377,15 +405,24 @@ describe('CallRecorder', () => {
           this.readable = new BigReadableStream();
         }
       }
-      (globalThis as { MediaStreamTrackProcessor?: unknown }).MediaStreamTrackProcessor =
-        BigMSTP as unknown;
+      (
+        globalThis as { MediaStreamTrackProcessor?: unknown }
+      ).MediaStreamTrackProcessor = BigMSTP as unknown;
 
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
 
       const recorder = makeRecorder(
-        { flushIntervalMs: 100_000, maxBufferBytes: 200_000, tracks: ['local'] },
+        {
+          flushIntervalMs: 100_000,
+          maxBufferBytes: 200_000,
+          tracks: ['local'],
+        },
         fetchImpl
       );
       recorder.start(fakeAudioTrack());
@@ -403,15 +440,78 @@ describe('CallRecorder', () => {
     });
   });
 
+  describe('call_report_id resolution (VSDK-279)', () => {
+    it('posts the lazily-set call_report_id when the context value was empty at construction', async () => {
+      // BaseCall constructs the recorder in _init() before the server assigns
+      // session.callReportId, so the context value is empty. _setCallReportId
+      // is called later (at the Active state / before the final flush).
+      const fetchImpl = jest
+        .fn()
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
+
+      const recorder = makeRecorder(
+        { flushIntervalMs: 100_000, tracks: ['local'] },
+        fetchImpl,
+        { callReportId: '' } // empty at construction, as in _init()
+      );
+      recorder._setCallReportId('real-call-report-id');
+      recorder.start(fakeAudioTrack());
+      await flushMicrotasks();
+      recorder.stop();
+
+      await recorder.postFinalReport();
+
+      expect(fetchImpl).toHaveBeenCalled();
+      const init = fetchImpl.mock.calls[0][1];
+      const body = JSON.parse(init.body);
+      expect(body.call_report_id).toBe('real-call-report-id');
+      // The header mirrors the envelope value.
+      expect(init.headers['x-call-report-id']).toBe('real-call-report-id');
+
+      recorder.cleanup();
+    });
+
+    it('ignores empty _setCallReportId and keeps the context value', async () => {
+      const fetchImpl = jest
+        .fn()
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
+
+      const recorder = makeRecorder(
+        { flushIntervalMs: 100_000, tracks: ['local'] },
+        fetchImpl
+      );
+      recorder._setCallReportId(''); // must not clobber the context value
+      recorder.start(fakeAudioTrack());
+      await flushMicrotasks();
+      recorder.stop();
+
+      await recorder.postFinalReport();
+
+      const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+      expect(body.call_report_id).toBe('test-call-report-id');
+
+      recorder.cleanup();
+    });
+  });
+
   describe('cleanup', () => {
     it('is idempotent and clears the timer', () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
-      const recorder = makeRecorder(
-        { flushIntervalMs: 10 },
-        fetchImpl
-      );
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
+      const recorder = makeRecorder({ flushIntervalMs: 10 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
 
       // Multiple cleanup calls must not throw.
@@ -440,10 +540,7 @@ describe('CallRecorder', () => {
   describe('disabled / never started', () => {
     it('postFinalReport is a no-op when never started', async () => {
       const fetchImpl = jest.fn();
-      const recorder = makeRecorder(
-        { enabled: true },
-        fetchImpl
-      );
+      const recorder = makeRecorder({ enabled: true }, fetchImpl);
       // Don't call start().
       await expect(recorder.postFinalReport()).resolves.not.toThrow();
       expect(fetchImpl).not.toHaveBeenCalled();
@@ -451,10 +548,7 @@ describe('CallRecorder', () => {
 
     it('disabled recorder does nothing', async () => {
       const fetchImpl = jest.fn();
-      const recorder = makeRecorder(
-        { enabled: false },
-        fetchImpl
-      );
+      const recorder = makeRecorder({ enabled: false }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
       await flushMicrotasks();
       await recorder.postFinalReport();
@@ -466,12 +560,14 @@ describe('CallRecorder', () => {
     it('converts ws/wss host to http/https endpoint', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
-      const recorder = makeRecorder(
-        { flushIntervalMs: 100_000 },
-        fetchImpl,
-        { host: 'wss://example.fs.telnyx' }
-      );
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
+      const recorder = makeRecorder({ flushIntervalMs: 100_000 }, fetchImpl, {
+        host: 'wss://example.fs.telnyx',
+      });
       recorder.start(fakeAudioTrack());
       await flushMicrotasks();
       recorder.stop();
@@ -484,7 +580,11 @@ describe('CallRecorder', () => {
     it('honors a custom endpoint path', async () => {
       const fetchImpl = jest
         .fn()
-        .mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('') });
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(''),
+        });
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, endpoint: '/custom_recording' },
         fetchImpl,
