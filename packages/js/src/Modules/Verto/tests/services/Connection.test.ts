@@ -254,6 +254,7 @@ describe('Connection - Safety Timeout', () => {
           reason:
             'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
+          socketGeneration: expect.any(Number),
         },
         mockSession.uuid
       );
@@ -383,7 +384,12 @@ describe('Connection - Safety Timeout', () => {
 
       expect(trigger).toHaveBeenCalledWith(
         SwEvent.SocketClose,
-        closeEvent,
+        expect.objectContaining({
+          code: 1000,
+          reason: 'normal',
+          wasClean: true,
+          socketGeneration: expect.any(Number),
+        }),
         mockSession.uuid
       );
     });
@@ -417,10 +423,11 @@ describe('Connection - Safety Timeout', () => {
 
       expect(trigger).toHaveBeenCalledWith(
         SwEvent.SocketError,
-        {
+        expect.objectContaining({
           error: errorEvent,
           sessionId: mockSession.sessionid,
-        },
+          socketGeneration: expect.any(Number),
+        }),
         mockSession.uuid
       );
     });
@@ -586,6 +593,65 @@ describe('Connection - Safety Timeout', () => {
       // New socket should NOT be nulled
       expect((connection as any)._wsClient).toBe(newWs);
       expect((connection as any)._wsClient).not.toBeNull();
+    });
+
+    it('should carry registration-time generation in SocketClose even after reconnect increments socketGeneration', async () => {
+      // This is the race: Connection registers handlers for socket gen N.
+      // A reconnect creates gen N+1. The old socket's delayed onclose
+      // fires, but the SocketClose event must carry gen N (not N+1),
+      // so onNetworkClose dedupes correctly.
+      connection.connect();
+      await Promise.resolve();
+
+      const oldWs = (connection as any)._wsClient;
+      const oldGeneration = connection.socketGeneration; // 1
+
+      // Simulate reconnect: connect() increments socketGeneration
+      connection.connect();
+      await Promise.resolve();
+
+      const newGeneration = connection.socketGeneration; // 2
+      expect(newGeneration).toBeGreaterThan(oldGeneration);
+
+      // Old socket's onclose fires late (stale event)
+      oldWs.simulateClose(1000, 'stale close');
+
+      // SocketClose event must carry the old generation, not the new one
+      expect(trigger).toHaveBeenCalledWith(
+        SwEvent.SocketClose,
+        expect.objectContaining({
+          socketGeneration: oldGeneration,
+        }),
+        mockSession.uuid
+      );
+    });
+
+    it('should carry registration-time generation in SocketError even after reconnect increments socketGeneration', async () => {
+      // Same race as above, but for onerror
+      connection.connect();
+      await Promise.resolve();
+
+      const oldWs = (connection as any)._wsClient;
+      const oldGeneration = connection.socketGeneration; // 1
+
+      // Simulate reconnect
+      connection.connect();
+      await Promise.resolve();
+
+      const newGeneration = connection.socketGeneration; // 2
+      expect(newGeneration).toBeGreaterThan(oldGeneration);
+
+      // Old socket's onerror fires late
+      oldWs.simulateError({ type: 'error', message: 'stale error' });
+
+      // SocketError event must carry the old generation, not the new one
+      expect(trigger).toHaveBeenCalledWith(
+        SwEvent.SocketError,
+        expect.objectContaining({
+          socketGeneration: oldGeneration,
+        }),
+        mockSession.uuid
+      );
     });
   });
 

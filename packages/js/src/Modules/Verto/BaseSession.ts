@@ -36,7 +36,6 @@ import {
   isFunction,
   isValidAnonymousLoginOptions,
   isValidLoginOptions,
-  randomInt,
 } from './util/helpers';
 import {
   BroadcastParams,
@@ -94,6 +93,16 @@ export default abstract class BaseSession {
   protected _autoReconnect: boolean = true;
   protected _idle: boolean = false;
   protected _reconnectAttempts: number = 0;
+  /**
+   * Socket generation that has already been handled by onNetworkClose.
+   * Used to dedupe SocketError + SocketClose for the same socket failure —
+   * browsers commonly emit both events for one physical disconnect.
+   *
+   * The dedupe guard runs BEFORE destructive cleanup, so a duplicate
+   * SocketClose cannot clear the reconnect timer already scheduled by the
+   * first SocketError for the same generation.
+   */
+  private _reconnectCountedGeneration: number = -1;
   /** True while an intentional disconnect/cleanup is in progress.
    *  Prevents RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT from firing
    *  on normal app teardown or token refresh. */
@@ -154,8 +163,39 @@ export default abstract class BaseSession {
     return this.registerAgent.getIsRegistered();
   }
 
+  /**
+   * Reconnect delay with exponential backoff and jitter.
+   *
+   * Uses the current `_reconnectAttempts` counter to compute the delay:
+   * - Attempt 1: base 1s + jitter
+   * - Attempt 2: ~2s + jitter
+   * - Attempt 3: ~4s + jitter
+   * - ... capped at 30s
+   *
+   * The backoff is reset only on confirmed healthy registration (REGED),
+   * not merely on socket open.
+   */
   get reconnectDelay() {
-    return randomInt(2, 6) * 1000;
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS = 30000;
+    const attempt = this._reconnectAttempts;
+    const delayMs = Math.min(
+      BASE_DELAY_MS * Math.pow(2, attempt - 1),
+      MAX_DELAY_MS
+    );
+    // Add ±25% jitter to avoid thundering herd
+    const jitterMs = Math.floor(delayMs * 0.25 * (Math.random() * 2 - 1));
+    const totalDelay = delayMs + jitterMs;
+    logger.debug('Reconnect delay computed', {
+      attempt,
+      baseDelayMs: BASE_DELAY_MS,
+      maxDelayMs: MAX_DELAY_MS,
+      delayMs,
+      jitterMs,
+      totalDelay,
+      sessionId: this.sessionid,
+    });
+    return totalDelay;
   }
 
   /**
@@ -471,6 +511,7 @@ export default abstract class BaseSession {
    */
   public resetReconnectAttempts(): void {
     this._reconnectAttempts = 0;
+    this._reconnectCountedGeneration = -1;
   }
 
   /**
@@ -818,7 +859,47 @@ export default abstract class BaseSession {
     reason?: string;
     wasClean?: boolean;
     error?: unknown;
+    socketGeneration?: number;
   }): void {
+    // ── Stale event guard ───────────────────────────────────────────────
+    // If a newer socket generation exists, this close/error event belongs
+    // to an old socket that has already been replaced. Running cleanup
+    // here would tear down the replacement socket's state (flush its call
+    // reports, deregister its subscriptions, stop its health monitor,
+    // clear its timers, and schedule a redundant reconnect). Return early
+    // to protect the current generation.
+    //
+    // Race scenario this prevents:
+    //   1. Gen-N SocketError fires → onNetworkClose runs cleanup, schedules reconnect
+    //   2. Reconnect creates gen-N+1, health monitor starts
+    //   3. Gen-N SocketClose arrives late → without this guard, cleanup would
+    //      tear down gen-N+1's state before the generation check runs
+    const currentGeneration = this.connection?.socketGeneration ?? 0;
+    const eventGeneration = event?.socketGeneration ?? currentGeneration;
+    if (eventGeneration < currentGeneration) {
+      logger.debug(
+        `Skipping stale onNetworkClose for socket generation ${eventGeneration} ` +
+          `(current generation is ${currentGeneration})`
+      );
+      return;
+    }
+
+    // ── Same-generation dedupe guard ────────────────────────────────────
+    // When a socket fails, browsers commonly emit both SocketError and
+    // SocketClose for the same physical disconnect. Both events carry the
+    // same socketGeneration. The first event runs the full cleanup and
+    // schedules a reconnect timer. The second (duplicate) event must not
+    // re-run cleanup — in particular, it must not clear the already-
+    // scheduled reconnect timer (which would delay active-call recovery)
+    // or schedule a redundant reconnect.
+    if (eventGeneration === this._reconnectCountedGeneration) {
+      logger.debug(
+        `Skipping duplicate onNetworkClose for socket generation ${eventGeneration} ` +
+          `(already handled, reconnect attempt ${this._reconnectAttempts})`
+      );
+      return;
+    }
+
     this._flushIntermediateCallReports(
       this._createSocketCloseFlushReason(event)
     );
@@ -861,6 +942,11 @@ export default abstract class BaseSession {
     if (this._autoReconnect) {
       const maxAttempts = this.options.maxReconnectAttempts ?? 10;
 
+      // Mark this generation as handled and increment the attempt counter.
+      // The early same-generation dedupe guard above ensures we only reach
+      // here for the first event of each generation, so no inline dedupe
+      // is needed.
+      this._reconnectCountedGeneration = eventGeneration;
       this._reconnectAttempts += 1;
 
       if (maxAttempts > 0 && this._reconnectAttempts > maxAttempts) {
