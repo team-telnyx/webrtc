@@ -670,24 +670,16 @@ describe('CallReportCollector cadence', () => {
     jest.useRealTimers();
   });
 
-  it('defaults to 1 second intervals during the first 10 seconds, then the default interval', () => {
+  it('collects every second for the full call duration', () => {
     const collector = new CallReportCollector({
       enabled: true,
       interval: 5000,
     });
     const testable = collector as unknown as {
-      callStartTime: Date;
-      _collectionIntervalFor: (intervalStartTime: Date) => number;
+      _collectionIntervalFor: () => number;
     };
-    const callStart = testable.callStartTime.getTime();
 
-    expect(testable._collectionIntervalFor(new Date(callStart))).toEqual(1000);
-    expect(testable._collectionIntervalFor(new Date(callStart + 9000))).toEqual(
-      1000
-    );
-    expect(
-      testable._collectionIntervalFor(new Date(callStart + 10000))
-    ).toEqual(5000);
+    expect(testable._collectionIntervalFor()).toEqual(1000);
   });
 
   it('does not slow down collection if the configured default interval is shorter than the initial cadence', () => {
@@ -696,13 +688,10 @@ describe('CallReportCollector cadence', () => {
       interval: 500,
     });
     const testable = collector as unknown as {
-      callStartTime: Date;
-      _collectionIntervalFor: (intervalStartTime: Date) => number;
+      _collectionIntervalFor: () => number;
     };
 
-    expect(testable._collectionIntervalFor(testable.callStartTime)).toEqual(
-      500
-    );
+    expect(testable._collectionIntervalFor()).toEqual(500);
   });
 
   it('collects a final stats interval for calls shorter than the current cadence interval', async () => {

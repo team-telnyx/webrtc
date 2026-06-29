@@ -5,7 +5,7 @@
  * at the end of the call for quality analysis and debugging.
  *
  * Stats Collection Strategy (based on Twilio/Jitsi best practices):
- * - Collects stats every second for the first 10 seconds, then at a regular interval (default 5 seconds)
+ * - Collects stats every second for the full call duration
  * - Stores cumulative values (packets, bytes) from WebRTC API
  * - Calculates averages for variable metrics (audio level, jitter, RTT)
  * - Uses in-memory buffer with size limits for long calls
@@ -431,7 +431,6 @@ export class CallReportCollector {
   private previousCandidatePairSnapshot: IICECandidatePair | null = null;
 
   private static readonly INITIAL_COLLECTION_INTERVAL_MS = 1000;
-  private static readonly INITIAL_COLLECTION_DURATION_MS = 10000;
 
   // Maximum buffer size to prevent memory issues on long calls
   private readonly MAX_BUFFER_SIZE = 360; // 30 minutes at 5-second intervals, plus denser startup samples
@@ -551,7 +550,6 @@ export class CallReportCollector {
     logger.info('CallReportCollector: Starting stats collection', {
       interval: this.options.interval,
       initialInterval: CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
-      initialDuration: CallReportCollector.INITIAL_COLLECTION_DURATION_MS,
       logCollectorActive: this.logCollector?.isActive() ?? false,
     });
 
@@ -941,7 +939,7 @@ export class CallReportCollector {
       return;
     }
 
-    const interval = this._collectionIntervalFor(this.intervalStartTime);
+    const interval = this._collectionIntervalFor();
     this.intervalId = setTimeout(() => {
       this.intervalId = null;
       this._collectStats().finally(() => {
@@ -952,20 +950,14 @@ export class CallReportCollector {
     }, interval);
   }
 
-  private _collectionIntervalFor(intervalStartTime: Date): number {
+  private _collectionIntervalFor(): number {
     const defaultInterval = this._positiveInterval(this.options.interval, 5000);
 
-    if (
-      intervalStartTime.getTime() - this.callStartTime.getTime() <
-      CallReportCollector.INITIAL_COLLECTION_DURATION_MS
-    ) {
-      return Math.min(
-        CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
-        defaultInterval
-      );
-    }
-
-    return defaultInterval;
+    // Stats are collected every second for the full call duration.
+    return Math.min(
+      CallReportCollector.INITIAL_COLLECTION_INTERVAL_MS,
+      defaultInterval
+    );
   }
 
   private _positiveInterval(
@@ -1185,9 +1177,7 @@ export class CallReportCollector {
       // short calls (shorter than the collection interval) still produce
       // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-      const currentInterval = this._collectionIntervalFor(
-        this.intervalStartTime
-      );
+    const currentInterval = this._collectionIntervalFor();
       if (isFinal || intervalDuration >= currentInterval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
