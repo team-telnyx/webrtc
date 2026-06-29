@@ -1379,6 +1379,14 @@ export default abstract class BaseCall implements IWebRTCCall {
           if (activeHost) {
             this._callRecorder._setHost(activeHost);
           }
+          // Set the call_report_id now that the server has assigned it. It is
+          // not available when the recorder is constructed in _init(), so the
+          // value snapshotted in the recorder context is empty; without this,
+          // every recording envelope would post an empty call_report_id and
+          // fail to correlate with the call report.
+          if (this.session.callReportId) {
+            this._callRecorder._setCallReportId(this.session.callReportId);
+          }
           const localAudioTrack = this.options.localStream?.getAudioTracks()[0];
           const remoteAudioTrack =
             this.options.remoteStream?.getAudioTracks()[0];
@@ -2863,6 +2871,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       const finalHost = this.session.connection?.host;
       if (finalHost) {
         this._callRecorder._setHost(finalHost);
+      }
+      // Ensure the final segment carries the real call_report_id even if the
+      // call never reached the Active state where it is normally set.
+      if (this.session.callReportId) {
+        this._callRecorder._setCallReportId(this.session.callReportId);
       }
       const recorderUpload = this._callRecorder
         .postFinalReport()

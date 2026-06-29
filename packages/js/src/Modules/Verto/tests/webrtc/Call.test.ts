@@ -907,6 +907,7 @@ describe('Call', () => {
           fakeRecorder._bufferedPackets = 0;
         }),
         _setHost: jest.fn(),
+        _setCallReportId: jest.fn(),
       };
 
       // _finalize must NOT call cleanup() (which nulls the buffer) — only stop().
