@@ -155,6 +155,22 @@ interface ExtendedMediaPlayoutStats {
 }
 
 /**
+ * Extended RTCCodecStats (type: 'codec').
+ *
+ * Captures codec identity for an RTP stream. The `outbound-rtp` and
+ * `inbound-rtp` stats reference their codec via `codecId`.
+ */
+interface ExtendedCodecStats {
+  type: string;
+  id: string;
+  mimeType?: string;
+  clockRate?: number;
+  channels?: number;
+  sdpFmtpLine?: string;
+  payloadType?: number;
+}
+
+/**
  * Extended RTCAudioSourceStats (type: 'media-source', kind: 'audio')
  * Available in Chrome 96+ via outbound-rtp.mediaSourceId
  */
@@ -311,6 +327,14 @@ export interface IStatsInterval {
       targetBitrate?: number;
       totalPacketSendDelay?: number;
       active?: boolean;
+      codec?: {
+        mimeType?: string;
+        clockRate?: number;
+        channels?: number;
+        payloadType?: number;
+        sdpFmtpLine?: string;
+        codecId?: string;
+      };
     };
     inbound?: {
       packetsReceived?: number;
@@ -336,6 +360,14 @@ export interface IStatsInterval {
       samplesDecodedWithConcealment?: number;
       totalAudioEnergy?: number;
       totalSamplesDuration?: number;
+      codec?: {
+        mimeType?: string;
+        clockRate?: number;
+        channels?: number;
+        payloadType?: number;
+        sdpFmtpLine?: string;
+        codecId?: string;
+      };
     };
   };
   connection?: {
@@ -1159,6 +1191,11 @@ export class CallReportCollector {
             | undefined)
         : undefined;
 
+      // Resolve codec identity for the audio RTP streams. The `outbound-rtp`
+      // and `inbound-rtp` stats reference their codec via `codecId`.
+      const outboundCodec = this._getCodec(stats, outboundAudio?.codecId);
+      const inboundCodec = this._getCodec(stats, inboundAudio?.codecId);
+
       if (selectedCandidatePair?.type === 'candidate-pair') {
         candidatePair = selectedCandidatePair;
       } else if (selectedCandidatePairId) {
@@ -1320,7 +1357,9 @@ export class CallReportCollector {
           localAudioSource,
           mediaPlayout,
           remoteInboundAudio,
-          remoteOutboundAudio
+          remoteOutboundAudio,
+          outboundCodec,
+          inboundCodec
         );
 
         // Add to buffer with size limit
@@ -1670,7 +1709,9 @@ export class CallReportCollector {
     localAudioSource?: ILocalAudioSourceStats,
     mediaPlayout?: ExtendedMediaPlayoutStats | null,
     remoteInboundAudio?: ExtendedRemoteInboundRtpStreamStats | null,
-    remoteOutboundAudio?: ExtendedRemoteOutboundRtpStreamStats | null
+    remoteOutboundAudio?: ExtendedRemoteOutboundRtpStreamStats | null,
+    outboundCodec?: ExtendedCodecStats,
+    inboundCodec?: ExtendedCodecStats
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -1708,6 +1749,14 @@ export class CallReportCollector {
           : {}),
         ...(outboundAudio.active !== undefined
           ? { active: outboundAudio.active }
+          : {}),
+        ...(outboundCodec
+          ? {
+              codec: this._buildCodecSnapshot(
+                outboundCodec,
+                outboundAudio.codecId
+              ),
+            }
           : {}),
       };
     }
@@ -1761,6 +1810,14 @@ export class CallReportCollector {
           : {}),
         ...(inboundAudio.totalSamplesDuration !== undefined
           ? { totalSamplesDuration: inboundAudio.totalSamplesDuration }
+          : {}),
+        ...(inboundCodec
+          ? {
+              codec: this._buildCodecSnapshot(
+                inboundCodec,
+                inboundAudio.codecId
+              ),
+            }
           : {}),
       };
     }
@@ -1946,6 +2003,47 @@ export class CallReportCollector {
     }
 
     return info;
+  }
+
+  /**
+   * Resolve a `codec` stat from the RTCStatsReport by its stat id.
+   *
+   * The `outbound-rtp` and `inbound-rtp` stats reference their codec via the
+   * `codecId` field. Returns undefined when the referenced stat is missing
+   * or is not a `codec`-typed report.
+   */
+  private _getCodec(
+    stats: RTCStatsReport,
+    codecId?: string
+  ): ExtendedCodecStats | undefined {
+    if (!codecId) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const codec = (stats as any).get(codecId);
+    if (!codec || codec.type !== 'codec') return undefined;
+    return codec as ExtendedCodecStats;
+  }
+
+  /**
+   * Build the `codec` snapshot persisted on an audio stats interval.
+   *
+   * Includes identity fields from the resolved `codec` stat and the
+   * rtp-level `codecId` (same value as the codec stat's `id`, stored for
+   * traceability back to the rtp stream).
+   */
+  private _buildCodecSnapshot(
+    codec: ExtendedCodecStats,
+    codecId?: string
+  ): NonNullable<NonNullable<IStatsInterval['audio']>['outbound']>['codec'] {
+    const snapshot = this._withoutUndefined({
+      mimeType: codec.mimeType,
+      clockRate: codec.clockRate,
+      channels: codec.channels,
+      payloadType: codec.payloadType,
+      sdpFmtpLine: codec.sdpFmtpLine,
+      // Store the rtp-level codecId for traceability to the rtp stream.
+      ...(codecId !== undefined ? { codecId } : {}),
+    });
+    return Object.keys(snapshot).length > 0 ? snapshot : undefined;
   }
 
   /**
