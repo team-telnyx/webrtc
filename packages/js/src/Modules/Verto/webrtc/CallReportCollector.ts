@@ -30,6 +30,7 @@ import {
   HIGH_PACKET_LOSS,
   LOW_MOS,
   LOW_LOCAL_AUDIO,
+  LOW_INBOUND_AUDIO,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
@@ -147,11 +148,14 @@ interface ExtendedCandidatePairStats extends RTCIceCandidatePairStats {
  * ICE candidate info extracted from local-candidate / remote-candidate stats
  */
 interface ICECandidateInfo {
+  id?: string;
   address?: string;
   port?: number;
   candidateType?: string; // host | srflx | prflx | relay
   protocol?: string; // udp | tcp
   networkType?: string; // wifi | cellular | ethernet | vpn | unknown
+  url?: string;
+  relayProtocol?: string;
 }
 
 /**
@@ -159,9 +163,12 @@ interface ICECandidateInfo {
  */
 export interface IICECandidatePair {
   id?: string;
+  localCandidateId?: string;
+  remoteCandidateId?: string;
   state?: string; // frozen | waiting | in-progress | failed | succeeded
   nominated?: boolean;
   writable?: boolean;
+  currentRoundTripTime?: number;
   local?: ICECandidateInfo;
   remote?: ICECandidateInfo;
   requestsSent?: number;
@@ -177,6 +184,7 @@ export interface ITransportStats {
   srtpCipher?: string;
   tlsVersion?: string;
   selectedCandidatePairChanges?: number;
+  selectedCandidatePairId?: string;
 }
 
 export interface ICallReportOptions {
@@ -224,6 +232,8 @@ export interface IStatsInterval {
   };
   connection?: {
     roundTripTimeAvg?: number;
+    currentRoundTripTime?: number;
+    roundTripTimeSource?: string;
     packetsSent?: number;
     packetsReceived?: number;
     bytesSent?: number;
@@ -246,7 +256,70 @@ export interface ICallSummary {
   sdkVersion?: string;
   startTimestamp?: string;
   endTimestamp?: string;
+  /** Sanitized client/session/call options in effect for this call. */
+  clientSummary?: IClientSummary;
 }
+
+export interface IClientSummary {
+  authentication?: {
+    type?:
+      | 'anonymous_login'
+      | 'login_token'
+      | 'login_password'
+      | 'token'
+      | 'unknown';
+    anonymousLogin?: {
+      targetType?: string;
+      targetId?: string;
+      targetVersionId?: string;
+      targetParams?: SanitizedClientOption;
+    };
+  };
+  connection?: {
+    env?: string;
+    host?: string;
+    project?: string;
+    region?: string;
+    dc?: string;
+    rtcIp?: string;
+    rtcPort?: number;
+    autoReconnect?: boolean;
+    maxReconnectAttempts?: number;
+    keepConnectionAliveOnSocketClose?: boolean;
+    hangupOnBeforeUnload?: boolean;
+    useCanaryRtcServer?: boolean;
+    skipLastVoiceSdkId?: boolean;
+    skipTrailing?: boolean;
+  };
+  media?: {
+    audio?: unknown;
+    video?: unknown;
+    mutedMicOnStart?: boolean;
+    prefetchIceCandidates?: boolean;
+    forceRelayCandidate?: boolean;
+    trickleIce?: boolean;
+    iceServers?: Array<{
+      urls?: string | string[];
+      hasUsername?: boolean;
+      hasCredential?: boolean;
+    }>;
+  };
+  callReports?: {
+    enabled?: boolean;
+    intervalMs?: number;
+    flushIntervalMs?: number;
+    debugLogLevel?: string;
+    debugLogMaxEntries?: number;
+  };
+}
+
+export type SanitizedClientOption =
+  | string
+  | number
+  | boolean
+  | null
+  | SanitizedClientOption[]
+  | { [key: string]: SanitizedClientOption };
 
 export interface ICallReportFlushReason {
   type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
@@ -342,6 +415,14 @@ export class CallReportCollector {
   // agent/customer pauses.
   private static readonly THRESHOLD_LOCAL_AUDIO_LEVEL = 0.001;
   private static readonly CONFIRMED_LOCAL_AUDIO_SILENCE_MS = 30_000;
+
+  // Inbound (remote) audio level threshold. Same value as local — near-zero
+  // RMS in [0, 1]. The inbound warning uses consecutive breaches rather than
+  // a confirmation window because the remote party's silence/comfort-noise is
+  // the exact condition we want to surface. However, we still require 3
+  // consecutive breaches (CONSECUTIVE_BREACHES_REQUIRED) to avoid firing on
+  // brief natural pauses in conversation.
+  private static readonly THRESHOLD_INBOUND_AUDIO_LEVEL = 0.001;
 
   // Consecutive breach counters (per warning code)
   private _breachCounters: Record<number, number> = {};
@@ -476,7 +557,20 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
-    if (this._flushing || this.statsBuffer.length === 0) {
+    const statsCount = this.statsBuffer.length;
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+    const isSocketFlush =
+      flushReason?.type === 'socket-close' ||
+      flushReason?.type === 'socket-error';
+    const hasFlushableData = statsCount > 0 || logCount > 0 || isSocketFlush;
+
+    if (this._flushing || !hasFlushableData) {
+      logger.debug('CallReportCollector: Skipping intermediate flush', {
+        reason: this._flushing ? 'already-flushing' : 'no-stats-or-logs',
+        flushReason,
+        statsIntervals: statsCount,
+        logEntries: logCount,
+      });
       return null;
     }
 
@@ -855,6 +949,7 @@ export class CallReportCollector {
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
+      const candidatePairs: ExtendedCandidatePairStats[] = [];
       let transportStats: ExtendedTransportStats | null = null;
 
       stats.forEach((report) => {
@@ -874,7 +969,7 @@ export class CallReportCollector {
               (report as ExtendedCandidatePairStats).nominated ||
               (report as ExtendedCandidatePairStats).state === 'succeeded'
             ) {
-              candidatePair = report as ExtendedCandidatePairStats;
+              candidatePairs.push(report as ExtendedCandidatePairStats);
             }
             break;
           case 'transport':
@@ -882,6 +977,26 @@ export class CallReportCollector {
             break;
         }
       });
+
+      const selectedCandidatePairId = transportStats?.selectedCandidatePairId;
+      const selectedCandidatePair = selectedCandidatePairId
+        ? ((
+            stats as unknown as { get?: (id: string) => RTCStats | undefined }
+          ).get?.(selectedCandidatePairId) as
+            | ExtendedCandidatePairStats
+            | undefined)
+        : undefined;
+
+      if (selectedCandidatePair?.type === 'candidate-pair') {
+        candidatePair = selectedCandidatePair;
+      } else if (selectedCandidatePairId) {
+        candidatePair =
+          candidatePairs.find((pair) => pair.id === selectedCandidatePairId) ||
+          candidatePairs[candidatePairs.length - 1] ||
+          null;
+      } else {
+        candidatePair = candidatePairs[candidatePairs.length - 1] || null;
+      }
 
       // Collect sample values for averaging
       if (outboundAudio) {
@@ -970,9 +1085,12 @@ export class CallReportCollector {
       if (candidatePair) {
         currentCandidatePairSnapshot = {
           id: candidatePair.id,
+          localCandidateId: candidatePair.localCandidateId,
+          remoteCandidateId: candidatePair.remoteCandidateId,
           state: candidatePair.state,
           nominated: candidatePair.nominated,
           writable: candidatePair.writable,
+          currentRoundTripTime: candidatePair.currentRoundTripTime,
           requestsSent: candidatePair.requestsSent,
           responsesReceived: candidatePair.responsesReceived,
           ...(localCandidate ? { local: localCandidate } : {}),
@@ -1064,16 +1182,20 @@ export class CallReportCollector {
   }
 
   private _requestIntermediateFlushIfNeeded(now: Date): void {
-    if (
-      !this.onFlushNeeded ||
-      this._flushing ||
-      this.statsBuffer.length === 0
-    ) {
+    const statsCount = this.statsBuffer.length;
+    const logCount = this.logCollector?.getLogCount() ?? 0;
+
+    if (!this.onFlushNeeded || this._flushing) {
       return;
     }
 
-    const statsCount = this.statsBuffer.length;
-    const logCount = this.logCollector?.getLogCount() ?? 0;
+    if (statsCount === 0 && logCount === 0) {
+      logger.debug(
+        'CallReportCollector: Skipping intermediate flush request — no stats or logs buffered'
+      );
+      return;
+    }
+
     const intermediateReportInterval = this._getIntermediateReportInterval();
     const msSinceLastFlush =
       now.getTime() - this._lastIntermediateFlushTime.getTime();
@@ -1172,6 +1294,14 @@ export class CallReportCollector {
     // on normal 5-10s pauses; require a long continuous silence window instead.
     this._trackLowLocalAudio(statsEntry);
 
+    // Inbound (remote) audio warning — checks audioLevelAvg of received
+    // audio. Unlike LOW_BYTES_RECEIVED (which fires when NO bytes arrive),
+    // this catches the case where RTP flows but carries silence or
+    // comfort-noise (e.g. one-way audio from a media bridge issue). Requires
+    // CONSECUTIVE_BREACHES_REQUIRED intervals below threshold to avoid
+    // firing on natural conversation pauses.
+    this._trackLowInboundAudio(statsEntry);
+
     // MOS warning — simplified E-model
     if (
       rtt !== undefined &&
@@ -1266,6 +1396,37 @@ export class CallReportCollector {
     return Number.isFinite(duration) && duration > 0
       ? duration
       : this.options.interval;
+  }
+
+  /**
+   * Track low inbound (remote) audio level.
+   *
+   * Unlike LOW_LOCAL_AUDIO which uses a confirmation window to avoid false
+   * positives during natural local pauses, the inbound check uses the
+   * standard consecutive-breach mechanism (3 intervals below threshold).
+   * This is because sustained near-zero inbound audio while RTP flows is
+   * the exact one-way-audio condition we want to surface — it indicates the
+   * remote party or media bridge is sending silence/comfort-noise rather
+   * than real speech.
+   *
+   * Only fires when audioLevelAvg data is available (not undefined). If the
+   * inbound audio level is unavailable for a given interval (e.g. first
+   * sample, missing totalAudioEnergy), the breach counter is reset to avoid
+   * false positives from data gaps.
+   */
+  private _trackLowInboundAudio(statsEntry: IStatsInterval): void {
+    const inbound = statsEntry.audio?.inbound;
+    const audioLevel = inbound?.audioLevelAvg;
+
+    // No inbound audio data for this interval — reset to avoid false positives
+    if (audioLevel === undefined) {
+      this._trackBreach(LOW_INBOUND_AUDIO, false);
+      return;
+    }
+
+    const isLow =
+      audioLevel <= CallReportCollector.THRESHOLD_INBOUND_AUDIO_LEVEL;
+    this._trackBreach(LOW_INBOUND_AUDIO, isLow);
   }
 
   /**
@@ -1375,6 +1536,10 @@ export class CallReportCollector {
     if (candidatePair) {
       entry.connection = {
         roundTripTimeAvg: this._average(this.intervalRTTs),
+        currentRoundTripTime: candidatePair.currentRoundTripTime,
+        ...(candidatePair.currentRoundTripTime !== undefined
+          ? { roundTripTimeSource: 'candidate-pair.currentRoundTripTime' }
+          : {}),
         packetsSent: candidatePair.packetsSent,
         packetsReceived: candidatePair.packetsReceived,
         bytesSent: candidatePair.bytesSent,
@@ -1384,9 +1549,12 @@ export class CallReportCollector {
       // ICE candidate pair details
       entry.ice = {
         id: candidatePair.id,
+        localCandidateId: candidatePair.localCandidateId,
+        remoteCandidateId: candidatePair.remoteCandidateId,
         state: candidatePair.state,
         nominated: candidatePair.nominated,
         writable: candidatePair.writable,
+        currentRoundTripTime: candidatePair.currentRoundTripTime,
         requestsSent: candidatePair.requestsSent,
         responsesReceived: candidatePair.responsesReceived,
         ...(localCandidate ? { local: localCandidate } : {}),
@@ -1414,6 +1582,9 @@ export class CallReportCollector {
               selectedCandidatePairChanges:
                 transportStats.selectedCandidatePairChanges,
             }
+          : {}),
+        ...(transportStats.selectedCandidatePairId !== undefined
+          ? { selectedCandidatePairId: transportStats.selectedCandidatePairId }
           : {}),
       };
     }
@@ -1446,6 +1617,7 @@ export class CallReportCollector {
     }
 
     const info: ICECandidateInfo = {};
+    if (report.id !== undefined) info.id = report.id;
     // Fallback from report.address to report.ip for browser compatibility
     // (Firefox uses 'ip' while Chrome uses 'address')
     if (report.address !== undefined) {
@@ -1459,6 +1631,11 @@ export class CallReportCollector {
     if (report.protocol !== undefined) info.protocol = report.protocol;
     // networkType is only available on local candidates and may be absent in some browsers
     if (report.networkType !== undefined) info.networkType = report.networkType;
+    // url identifies the ICE server used to discover local srflx/relay candidates.
+    // relayProtocol is present for TURN relay candidates in Chromium.
+    if (report.url !== undefined) info.url = report.url;
+    if (report.relayProtocol !== undefined)
+      info.relayProtocol = report.relayProtocol;
 
     if (Object.keys(info).length === 0) {
       logger.debug(

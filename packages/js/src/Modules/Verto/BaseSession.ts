@@ -23,6 +23,7 @@ import {
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
+  RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
   WS_CLOSE_CODES,
 } from './util/constants';
 import {
@@ -102,6 +103,10 @@ export default abstract class BaseSession {
    * first SocketError for the same generation.
    */
   private _reconnectCountedGeneration: number = -1;
+  /** True while an intentional disconnect/cleanup is in progress.
+   *  Prevents RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT from firing
+   *  on normal app teardown or token refresh. */
+  protected _intentionalClose: boolean = false;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -177,7 +182,17 @@ export default abstract class BaseSession {
     const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempt - 1), MAX_DELAY_MS);
     // Add ±25% jitter to avoid thundering herd
     const jitterMs = Math.floor(delayMs * 0.25 * (Math.random() * 2 - 1));
-    return delayMs + jitterMs;
+    const totalDelay = delayMs + jitterMs;
+    logger.debug('Reconnect delay computed', {
+      attempt,
+      baseDelayMs: BASE_DELAY_MS,
+      maxDelayMs: MAX_DELAY_MS,
+      delayMs,
+      jitterMs,
+      totalDelay,
+      sessionId: this.sessionid,
+    });
+    return totalDelay;
   }
 
   /**
@@ -243,7 +258,12 @@ export default abstract class BaseSession {
       }
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
-          const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
+          const telnyxError = createTelnyxError(
+            AUTHENTICATION_REQUIRED,
+            error,
+            undefined,
+            true // fatal: true (no recovery path — autoReconnect is disabled)
+          );
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -336,6 +356,7 @@ export default abstract class BaseSession {
     this._clearTokenExpiryTimeout();
     this.subscriptions = {};
     this._autoReconnect = false;
+    this._intentionalClose = true;
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
     await this._drainCallReportUploads();
@@ -466,12 +487,15 @@ export default abstract class BaseSession {
     // If auto-reconnect was disabled (e.g. after exhaustion or disconnect),
     // reset the counter so a fresh retry sequence starts.
     if (!this._autoReconnect) {
+      logger.debug('autoReconnect was disabled, resetting reconnect attempts');
       this._reconnectAttempts = 0;
     }
 
     this._autoReconnect = true;
     if (!this.connection.isAlive) {
-      logger.debug('Initiating connection to the server...');
+      logger.debug(
+        "Connection wasn't alive, initiating connection to the server..."
+      );
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
@@ -877,6 +901,20 @@ export default abstract class BaseSession {
       this._createSocketCloseFlushReason(event)
     );
 
+    // ── Debug: WebSocket close event ──
+    // Note: reconnectDelay is NOT logged here because it is a random getter
+    // (randomInt(2,6)*1000). The actual delay used for setTimeout is computed
+    // once after incrementing the attempt counter and logged there.
+    logger.debug('onNetworkClose called', {
+      closeCode: event?.code,
+      closeReason: event?.reason,
+      wasClean: event?.wasClean,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+      autoReconnect: this._autoReconnect,
+      reconnectAttempts: this._reconnectAttempts,
+    });
+
     if (this.relayProtocol) {
       deRegisterAll(this.relayProtocol);
     }
@@ -915,6 +953,11 @@ export default abstract class BaseSession {
         this._reconnectAttempts = 0;
         this._autoReconnect = false;
 
+        // Tear down any active calls LOCALLY before declaring reconnection
+        // exhausted. The socket is already dead, so sending BYE would only
+        // generate BYE_SEND_FAILED noise. (VSDK-318 Step 4.d)
+        this._terminateActiveCallsLocally();
+
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         trigger(
           SwEvent.Error,
@@ -924,8 +967,13 @@ export default abstract class BaseSession {
         return;
       }
 
+      // Compute the reconnect delay once so the logged value matches the
+      // actual setTimeout delay. reconnectDelay is a random getter
+      // (randomInt(2,6)*1000) — reading it twice yields different values.
+      const delayMs = this.reconnectDelay;
+
       logger.debug(
-        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''}`
+        `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''} (delay=${delayMs}ms)`
       );
 
       this._reconnectTimeout = setTimeout(() => {
@@ -933,8 +981,36 @@ export default abstract class BaseSession {
           'Calling connect due to network close and auto-reconnect enabled.'
         );
         this.connect();
-      }, this.reconnectDelay);
+      }, delayMs);
+    } else {
+      // Auto-reconnect is disabled — emit warning only for unexpected
+      // socket closes (e.g. network failure with auto-reconnect off).
+      // Intentional disconnect/cleanup should NOT surface a public
+      // telnyx.warning since no reconnection failure occurred.
+      logger.debug('auto_reconnect disabled, not reconnecting', {
+        voiceSdkId: this.callReportVoiceSdkId,
+        sessid: this.sessionid || undefined,
+        intentionalClose: this._intentionalClose,
+      });
+
+      if (!this._intentionalClose) {
+        const warning = createTelnyxWarning(
+          RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
+        );
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            reason: 'auto_reconnect_disabled',
+            sessionId: this.sessionid,
+          },
+          this.uuid
+        );
+      }
     }
+    // Reset intentionalClose flag — it only applies to this
+    // onNetworkClose invocation.
+    this._intentionalClose = false;
   }
 
   /**
@@ -1006,6 +1082,7 @@ export default abstract class BaseSession {
    */
   private _attachListeners() {
     this._detachListeners();
+    logger.debug('Attaching socket event listeners');
     this.on(SwEvent.SocketOpen, this._onSocketOpen);
     this.on(SwEvent.SocketClose, this.onNetworkClose);
     this.on(SwEvent.SocketError, this.onNetworkClose);
@@ -1018,6 +1095,7 @@ export default abstract class BaseSession {
    * @return void
    */
   private _detachListeners() {
+    logger.debug('Detaching socket event listeners');
     this.off(SwEvent.SocketOpen, this._onSocketOpen);
     this.off(SwEvent.SocketClose, this.onNetworkClose);
     this.off(SwEvent.SocketError, this.onNetworkClose);
@@ -1048,6 +1126,14 @@ export default abstract class BaseSession {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
     this.stopSignalingHealthMonitor();
+
+    logger.debug('_closeConnection called', {
+      connected: this.connection?.connected,
+      socketGeneration: this.connection?.socketGeneration,
+      voiceSdkId: this.callReportVoiceSdkId,
+      sessid: this.sessionid || undefined,
+    });
+
     if (this.connection) {
       this.connection.close();
     }
@@ -1111,6 +1197,32 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Tear down every active call LOCALLY without sending BYE on the wire.
+   *
+   * Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
+   * the signaling socket is already dead). Sending BYE over a dead socket
+   * would only generate `BYE_SEND_FAILED` noise, so each call is finalized
+   * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
+   * media, fires the local hangup notification, and removes the call from
+   * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   */
+  public _terminateActiveCallsLocally(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calls = (this as any).calls;
+    if (!calls) return;
+    const callIds = Object.keys(calls);
+    if (callIds.length === 0) return;
+    logger.debug(
+      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE): ${callIds.join(', ')}`
+    );
+    for (const callId of callIds) {
+      const call = calls[callId];
+      // Local-only teardown: execute=false skips the outbound BYE.
+      void call?.hangup({}, false);
+    }
+  }
+
+  /**
    * Start the signaling health monitor. Called when a call becomes active
    * or on reconnect if calls exist.
    */
@@ -1152,16 +1264,10 @@ export default abstract class BaseSession {
       return { started: false, reason: 'call not found' };
     }
 
-    if (call.options?.attach || call.recoveredCallId) {
-      logger.warn(
-        `Signaling health: ICE restart skipped for call ${callId}: call was recovered via attach`
-      );
-      return {
-        started: false,
-        reason: 'call recovered via attach',
-        recoverSignaling: true,
-      };
-    }
+    // Reattached/recovered calls use the same ICE restart path as normal
+    // active calls now that b2bua-rtc supports Modify after attach recovery.
+    // Socket reconnect + attach remains the owner only when signaling itself
+    // is unhealthy (handled by the signaling health monitor).
 
     const peer = call.peer;
     if (!peer?.restartIce) {
@@ -1217,6 +1323,19 @@ export default abstract class BaseSession {
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
+  }
+
+  /**
+   * Report that an ICE restart attempt failed for the given call.
+   * Called by BaseCall when the ICE restart Modify request could not be
+   * sent or the server returned an error.
+   *
+   * The health monitor owns the recovery decision (whether to reconnect
+   * the socket, when, etc.). BaseCall does NOT trigger recovery itself —
+   * this handoff keeps recovery logic in one place.
+   */
+  reportIceRestartFailed(callId: string): void {
+    this._signalingHealthMonitor.onIceRestartFailed(callId);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

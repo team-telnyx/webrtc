@@ -14,7 +14,11 @@ import {
 } from './util/helpers';
 import logger from './util/logger';
 import { createTelnyxError } from './util/errors';
-import { clearReconnectToken } from './util/reconnect';
+import {
+  clearReconnectToken,
+  clearActiveCallsRecoveryMarker,
+  setActiveCallsRecoveryMarker,
+} from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
@@ -30,10 +34,15 @@ export default class Verto extends BrowserSession {
     super(options);
     this._vertoHandler = new VertoHandler(this);
 
-    if (options.hangupOnBeforeUnload !== false) {
-      // hang up current call when browser closes or refreshes.
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      window.addEventListener('beforeunload', (_e) => {
+    // Single beforeunload handler for both hangup and recovery-marker paths.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    window.addEventListener('beforeunload', (_e) => {
+      logger.debug('Window beforeunload triggered.');
+
+      if (options.hangupOnBeforeUnload !== false) {
+        // Default / true: hang up current calls when the browser closes or
+        // refreshes, and clear the reconnect token. There is nothing to
+        // recover from, so no recovery marker is written.
         clearReconnectToken();
         if (this.calls) {
           Object.keys(this.calls).forEach((callId) => {
@@ -46,8 +55,63 @@ export default class Verto extends BrowserSession {
             }
           });
         }
-      });
-    }
+        return;
+      }
+
+      // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
+      // before unload, so the server may still know about them. After a page
+      // reload the SDK starts with a fresh in-memory cache and may not detect
+      // that those calls were lost. Persist a NARROW projection of each active
+      // call so that on the next SDK startup
+      // VertoHandler can compare the saved markers against the server's
+      // reattached_sessions and emit SESSION_NOT_REATTACHED for any call that
+      // was not reattached. Persisting only this projection — rather than the
+      // entire Call — keeps credentials, SDP, ICE/TURN secrets, custom header
+      // values, and non-serializable host objects out of sessionStorage
+      //
+      // No false-positive interaction with `keepConnectionAliveOnSocketClose`:
+      // that option only governs PUNT/server-initiated socket disconnects
+      // (see VertoHandler PUNT case → `socketDisconnect()`), which never fire
+      // `beforeunload`. This handler runs exclusively on a genuine browser
+      // page-unload (close/refresh/navigation), so recovery markers are only
+      // written when the page is truly going away, regardless of how the SDK
+      // handles transient socket drops.
+      try {
+        const callIds = this.calls ? Object.keys(this.calls) : [];
+        const activeCalls = callIds
+          .filter((callId) => !!this.calls[callId])
+          .map((callId) => this.calls[callId])
+          .map((call) => ({
+            id: call.id,
+            customHeaders: call.options.customHeaders,
+          }));
+
+        if (!this.sessionid || activeCalls.length === 0) {
+          logger.debug(
+            `No sessionID ${this.sessionid} or activeCalls ${activeCalls.length} during saving calls recover marker!`
+          );
+          // No active calls or no session context — wipe any stale marker
+          // left over from a previous page so it can't be re-consumed.
+          clearActiveCallsRecoveryMarker();
+          return;
+        }
+
+        logger.info(
+          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${activeCalls
+            .map((c) => c.id)
+            .join(', ')}].`
+        );
+        setActiveCallsRecoveryMarker(activeCalls, this.sessionid);
+      } catch (err) {
+        // Any failure here must not break unload or normal call setup.
+        const idsOnError = this.calls ? Object.keys(this.calls) : [];
+        logger.debug(
+          `Failed to save active-calls recovery marker before unload (active call ids: [${idsOnError.join(
+            ', '
+          )}]): ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    });
   }
 
   validateOptions() {
@@ -66,7 +130,18 @@ export default class Verto extends BrowserSession {
       );
       throw telnyxError;
     }
+
     const call = new Call(this, options);
+
+    // Emit warning if there are already active calls in this session.
+    // The call ID is available after Call construction, even if the
+    // application did not supply one (BaseCall._init generates it).
+    if (!options.id) {
+      logger.debug(
+        `newCall: callId was not provided in options, SDK-generated ID: ${call.id}`
+      );
+    }
+    this.emitMultipleActiveCallsWarning(call.id);
     performance.mark(callMarkName(call.id, 'new-call-start'));
     call.invite();
     return call;

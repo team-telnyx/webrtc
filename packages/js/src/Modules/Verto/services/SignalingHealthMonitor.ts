@@ -1,8 +1,6 @@
 import { trigger } from './Handler';
 import { SwEvent, NETWORK_OFFLINE } from '../util/constants';
 import {
-  SIGNALING_HEALTH_PROBE_TIMEOUT,
-  SIGNALING_REQUEST_TIMEOUT,
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
 } from '../util/constants/errorCodes';
@@ -178,6 +176,7 @@ export default class SignalingHealthMonitor {
     logger.debug('Signaling health: probe resolved by matching Ping response');
 
     if (!this._pendingMediaRecovery) {
+      logger.debug('Signaling health: probe resolved but no pending media recovery');
       return;
     }
 
@@ -412,6 +411,28 @@ export default class SignalingHealthMonitor {
     this._offlineHandler = null;
     this._browserWasOffline = false;
   }
+  /**
+   * Called by BaseCall (via BaseSession.reportIceRestartFailed) when an
+   * ICE restart Modify request fails — it could not be sent or the server
+   * returned an error.
+   *
+   * The monitor owns the recovery decision: when an ICE restart fails, the
+   * media path cannot recover via another ICE restart, so the monitor forces
+   * a socket reconnect + reattach as the recovery path. This keeps all
+   * recovery logic in one place (the Signaling service) rather than triggering
+   * recovery directly from the call layer.
+   *
+   * @param callId The call whose ICE restart failed.
+   */
+  onIceRestartFailed(callId: string): void {
+    logger.warn(
+      `Signaling health: ICE restart failed (callId=${callId}) — triggering socket reconnect`
+    );
+    this._triggerSignalingRecovery(
+      `ICE restart failed for call ${callId}`,
+      'peer_failure'
+    );
+  }
 
   // ── Private ─────────────────────────────────────────────────────────
 
@@ -578,19 +599,11 @@ export default class SignalingHealthMonitor {
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
 
-    // Emit the appropriate warning code based on what triggered recovery.
-    // For probe/request sources, use the specific existing warning codes.
-    // For peer_failure/no_rtp sources, use the new SIGNALING_RECOVERY_REQUIRED.
-    let warningCode;
-    if (source === 'probe') {
-      warningCode = SIGNALING_HEALTH_PROBE_TIMEOUT;
-    } else if (source === 'request') {
-      warningCode = SIGNALING_REQUEST_TIMEOUT;
-    } else {
-      warningCode = SIGNALING_RECOVERY_REQUIRED;
-    }
+    logger.debug(
+      `Signaling recovery triggered (source=${source}, reason=${reason})`
+    );
 
-    const warning = createTelnyxWarning(warningCode);
+    const warning = createTelnyxWarning(SIGNALING_RECOVERY_REQUIRED);
     trigger(
       SwEvent.Warning,
       { warning, reason, source, sessionId: this._session.sessionid },
@@ -602,6 +615,12 @@ export default class SignalingHealthMonitor {
         'Signaling health: force-closing WebSocket to trigger reconnect'
       );
       this._session.socketDisconnect();
+    } else {
+      logger.debug('Signaling health: recovery triggered but connection not connected', {
+        connected: this._session.connection?.connected,
+        hasConnection: !!this._session.connection,
+        socketGeneration: this._session.connection?.socketGeneration,
+      });
     }
   }
 
@@ -627,13 +646,12 @@ export default class SignalingHealthMonitor {
         `Signaling health: ICE restart not started for call ${callId}: ${result.reason}`
       );
 
-      if (result.recoverSignaling) {
-        this._triggerSignalingRecovery(
-          `${reason}; ICE restart disabled for reattached call, forcing socket reconnect`,
-          signalingSource
-        );
-      }
-
+      // Do not force socket reconnect solely because ICE restart did not
+      // start. Signaling recovery is owned by the monitor's own health
+      // checks: when signaling is unhealthy, _recoverMediaOrSignaling()
+      // already routes to _triggerSignalingRecovery() before reaching here.
+      // Modify request timeout/failure still flows through execute()'s
+      // timeout handling and _onIceRestartFailed().
       return;
     }
 

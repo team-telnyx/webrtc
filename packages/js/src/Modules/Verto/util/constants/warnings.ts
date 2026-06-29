@@ -121,6 +121,24 @@ export const SDK_WARNINGS = {
       'Verify the microphone is not muted at the operating system or hardware level',
     ],
   },
+  31006: {
+    name: 'LOW_INBOUND_AUDIO',
+    message: 'Low inbound audio detected',
+    description:
+      'Inbound (remote) audio level stayed below the acceptable threshold for multiple consecutive stats intervals while RTP packets continued to flow. This may indicate the remote party is sending silence or comfort-noise (e.g. one-way audio caused by a media bridge issue), as opposed to LOW_BYTES_RECEIVED which fires when no bytes arrive at all.',
+    causes: [
+      'Remote party microphone is muted or capturing very low audio',
+      'Media bridge or PBX is injecting comfort-noise/silence instead of forwarding real audio',
+      'One-way audio where RTP flows but content is silent (server-side media issue)',
+      'Remote party is on hold or not speaking',
+    ],
+    solutions: [
+      'Verify the remote party is not muted and is actively speaking',
+      'Check the media bridge / PBX for comfort-noise injection or transcoding issues',
+      'Inspect PCAP RTP payload uniqueness to distinguish real audio from comfort-noise',
+      'If the issue persists, report the call for server-side media investigation',
+    ],
+  },
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   32001: {
@@ -301,45 +319,12 @@ export const SDK_WARNINGS = {
     ],
   },
 
-  // ── Signaling health warnings (340xx is auth, use 360xx) ───────────
-  36001: {
-    name: 'SIGNALING_HEALTH_PROBE_TIMEOUT',
-    message: 'Signaling health probe timed out',
-    description:
-      'A signaling liveness probe (Ping) was sent during an active call but no response was received within the timeout window. This indicates the WebSocket may be half-dead — the browser reports it as OPEN but data is not flowing. The SDK will force-close the socket to trigger reconnection.',
-    causes: [
-      'Network interface removed mid-call while another interface remains',
-      'TCP connection bound to a removed IP/route became half-dead',
-      'Firewall or NAT state expired silently',
-      'WebSocket proxy or load balancer dropped the connection without a close frame',
-    ],
-    solutions: [
-      'The SDK will automatically force-close the socket and reconnect',
-      'Check for network interface changes during the call',
-      'Verify firewall/NAT timeout settings',
-    ],
-  },
-  36002: {
-    name: 'SIGNALING_REQUEST_TIMEOUT',
-    message: 'Signaling request timed out',
-    description:
-      'A signaling-critical JSON-RPC request (e.g. ICE restart Modify) did not receive a response within the timeout window while the socket reports OPEN. This may indicate the WebSocket is half-dead or the server is unresponsive. The SDK will mark signaling as unhealthy and force reconnection.',
-    causes: [
-      'Half-dead WebSocket (browser reports OPEN but data does not flow)',
-      'Server unresponsive or overloaded',
-      'Network path interruption without TCP RST',
-    ],
-    solutions: [
-      'The SDK will automatically force-close the socket and reconnect',
-      'Check server health and response times',
-      'Check for network path issues',
-    ],
-  },
+  // ── Signaling health warnings (360xx) ──────────────────────────────
   36003: {
     name: 'SIGNALING_RECOVERY_REQUIRED',
     message: 'Signaling recovery required',
     description:
-      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. If media was still flowing, the reconnect is delayed briefly to allow the application to notify the user about a short interruption. Active calls will be recovered via reattach after reconnection.',
+      'The signaling (WebSocket) path has been detected as unhealthy and the SDK will force-close the socket and reconnect. The source field in the warning payload indicates what triggered the recovery (probe, request, peer_failure, or no_rtp). Active calls will be recovered via reattach after reconnection.',
     causes: [
       'WebSocket probe timed out with no response',
       'Critical signaling request timed out',
@@ -365,6 +350,57 @@ export const SDK_WARNINGS = {
       'The SDK will automatically attempt ICE restart',
       'Check network connectivity and ICE candidate availability',
       'Verify TURN server configuration',
+    ],
+  },
+  36005: {
+    name: 'RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT',
+    message: 'Reconnection failed — auto-reconnect disabled',
+    description:
+      'The WebSocket was closed and auto-reconnect is disabled, so the SDK will not attempt to reconnect. This typically occurs after the user called disconnect() or after reconnection attempts were exhausted.',
+    causes: [
+      'Auto-reconnect was disabled by the application',
+      'Reconnection attempts were previously exhausted',
+      'The session was intentionally disconnected',
+    ],
+    solutions: [
+      'Call connect() manually to re-establish the session',
+      'Check if disconnect() was called intentionally',
+      'Review maxReconnectAttempts configuration',
+    ],
+  },
+  33009: {
+    name: 'AUDIO_INPUT_DEVICE_CHANGE_SKIPPED',
+    message: 'Audio input device change skipped',
+    description:
+      'The SDK could not change the microphone because the active peer connection has no audio RTP sender to replace. The existing local media and mute state were left unchanged.',
+    causes: [
+      'The call was created without an audio sender',
+      'The peer connection was not ready when setAudioInDevice was called',
+      'The call is already ending or the local media sender was removed',
+    ],
+    solutions: [
+      'Retry after the call is active and local media is attached',
+      'Verify the call was started with audio enabled',
+      'Inspect call state and peer connection sender availability',
+    ],
+  },
+
+  33010: {
+    name: 'MULTIPLE_ACTIVE_CALLS_DETECTED',
+    message: 'Multiple active calls detected in one SDK session',
+    description:
+      'A new call was created or received while another call is still active (ringing, answering, active, held, or recovering) in the same SDK session. This may be intentional for some applications (e.g. call waiting, transfer) but is often abnormal and makes call reports and application behavior harder to reason about. The new call proceeds normally — this warning is diagnostic only.',
+    causes: [
+      'Application created an outbound call while another call is active',
+      'An inbound call arrived while another call is already active',
+      'Application did not hang up the previous call before starting a new one',
+      'Call waiting or multi-call scenario (may be intentional)',
+    ],
+    solutions: [
+      'Verify this is the expected behavior for your application',
+      'Ensure the previous call is hung up before creating a new one if only one call is expected',
+      'Use call.hold() before starting a new call if needed',
+      'Check the warning payload for call IDs to correlate which calls are involved',
     ],
   },
 

@@ -6,6 +6,8 @@ import BaseMessage from '../messages/BaseMessage';
 
 import {
   CallReportCollector,
+  type IClientSummary,
+  type SanitizedClientOption,
   type ICallReportFlushReason,
 } from './CallReportCollector';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
@@ -34,6 +36,7 @@ import {
   UNEXPECTED_ERROR,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  AUDIO_INPUT_DEVICE_CHANGE_SKIPPED,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -75,7 +78,8 @@ import {
   disableVideoTracks,
   enableAudioTracks,
   enableVideoTracks,
-  isAudioTrackEnabled,
+  getStreamTrackDebugInfo,
+  getTrackDebugInfo,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -227,6 +231,16 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _creatingPeer: boolean = false;
 
+  /**
+   * Durable call-level desired mute state for the microphone.
+   * Initialized from `mutedMicOnStart`, then updated by muteAudio()/unmuteAudio()
+   * and the explicit `muted` arg of setAudioInDevice().
+   * Applied to every local audio track the SDK creates or replaces so that
+   * ICE restart, device switch, reattach, and renegotiation never
+   * accidentally un-mute the mic.
+   */
+  private _desiredAudioMuted: boolean = false;
+
   private _firstCandidateSent: boolean = false;
 
   private _firstNonHostCandidateSent: boolean = false;
@@ -303,6 +317,16 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onPeerConnectionSignalingStateClosed.bind(this);
     this._onTrickleIceSdp = this._onTrickleIceSdp.bind(this);
     this._registerPeerEvents = this._registerPeerEvents.bind(this);
+    // Initialize desired mute state BEFORE _init() so that the first
+    // callUpdate notification (dispatched inside _init -> setState)
+    // already reflects mutedMicOnStart correctly.
+    this._desiredAudioMuted = Boolean(this.options.mutedMicOnStart);
+
+    // Expose the callback so Peer can apply the desired mute state
+    // whenever it creates or replaces local audio tracks.
+    this.options.applyDesiredAudioMuteState =
+      this._applyDesiredAudioMuteState.bind(this);
+
     this._init();
 
     // Create _rings HTMLAudioElement
@@ -380,7 +404,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Checks whether the microphone is muted.
+   * Returns the call-level desired mute state for the microphone.
+   * Unlike checking individual track.enabled values, this persists across
+   * track replacements (device switch, reattach, ICE restart) so callers
+   * always see a consistent value.
    *
    * @examples
    *
@@ -389,7 +416,11 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   get isAudioMuted(): boolean {
-    return !isAudioTrackEnabled(this.options.localStream);
+    return this._desiredAudioMuted;
+  }
+
+  private _getLocalAudioTrackId(): string | undefined {
+    return this.options.localStream?.getAudioTracks()[0]?.id;
   }
 
   private _hasActiveUnmutedLocalAudioTrack(): boolean {
@@ -473,6 +504,20 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   async answer(params: AnswerParams = {}) {
+    // Debug log for answering an inbound call while *other* active calls exist.
+    // The MULTIPLE_ACTIVE_CALLS_DETECTED warning fires at ring time, but the
+    // client may reject the call — this log confirms the call was actually answered.
+    // Filter this.id out so a normal single inbound call doesn't trigger a
+    // misleading multi-call diagnostic.
+    const otherActiveCalls = (this.session.getActiveCalls?.() ?? []).filter(
+      (call) => call.id !== this.id
+    );
+    if (otherActiveCalls.length > 0) {
+      logger.debug(
+        `[${this.id}] answer(): answering inbound call while ${otherActiveCalls.length} other active call(s) exist in session ${this.session.sessionid}`
+      );
+    }
+
     if (
       this._creatingPeer ||
       (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
@@ -831,6 +876,12 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   muteAudio(): void {
+    logger.debug('muteAudio called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = true;
     disableAudioTracks(this.options.localStream);
   }
 
@@ -845,7 +896,33 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   unmuteAudio(): void {
+    logger.debug('unmuteAudio called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = false;
     enableAudioTracks(this.options.localStream);
+  }
+
+  /**
+   * Apply the current desired mute state to all local audio tracks.
+   * Called internally after track creation/replacement (Peer init,
+   * setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+   * ensure the mic stays muted when the SDK creates or replaces
+   * local audio tracks.
+   */
+  _applyDesiredAudioMuteState(): void {
+    logger.debug('applyDesiredAudioMuteState called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    if (this._desiredAudioMuted) {
+      disableAudioTracks(this.options.localStream);
+    } else {
+      enableAudioTracks(this.options.localStream);
+    }
   }
 
   /**
@@ -858,7 +935,13 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    */
   toggleAudioMute() {
-    toggleAudioTracks(this.options.localStream);
+    logger.debug('toggleAudioMute called', {
+      callId: this.id,
+      previousAudioState: this._desiredAudioMuted,
+      audioTrackId: this._getLocalAudioTrackId(),
+    });
+    this._desiredAudioMuted = !this._desiredAudioMuted;
+    this._applyDesiredAudioMuteState();
   }
 
   /**
@@ -891,41 +974,105 @@ export default abstract class BaseCall implements IWebRTCCall {
    * ```
    *
    * @param deviceId The target audio input device ID
-   * @param muted Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option.
+   * @param muted Whether the audio track should be muted. Defaults to the current desired mute state.
    * @returns Promise that resolves if the audio input device has been updated
    */
   async setAudioInDevice(
     deviceId: string,
-    muted = this.options.mutedMicOnStart
+    muted = this._desiredAudioMuted
   ): Promise<void> {
+    const newDesiredMuted = Boolean(muted);
+
     const { instance } = this.peer;
     const sender = instance
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
-    if (sender) {
-      let newStream: MediaStream;
-      try {
-        newStream = await getUserMedia({
-          audio: { deviceId: { exact: deviceId } },
-        });
-      } catch (error) {
-        const telnyxError = createTelnyxError(
-          classifyMediaErrorCode(error),
-          error
-        );
-        trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
-        return;
-      }
-      const audioTrack = newStream.getAudioTracks()[0];
-      audioTrack.enabled = !muted;
-      sender.replaceTrack(audioTrack);
-      this.options.micId = deviceId;
 
-      const { localStream } = this.options;
-      localStream.getAudioTracks().forEach((t) => t.stop());
-      localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
-      this.options.localStream = newStream;
+    if (!sender) {
+      // No audio sender — nothing to replace. Keep the current desired state.
+      logger.warn('Skipping audio input device change: no audio sender found', {
+        callId: this.id,
+        deviceId,
+        audioMuted: this._desiredAudioMuted,
+        audioTrackId: this._getLocalAudioTrackId(),
+      });
+      trigger(
+        SwEvent.Warning,
+        {
+          warning: createTelnyxWarning(AUDIO_INPUT_DEVICE_CHANGE_SKIPPED),
+          callId: this.id,
+          deviceId,
+          sessionId: this.session.sessionid,
+        },
+        this.options?.id || this.id
+      );
+      return;
     }
+
+    logger.debug('Starting audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      previousDesiredAudioMuted: this._desiredAudioMuted,
+      newDesiredMuted,
+      currentSenderTrack: getTrackDebugInfo(sender.track),
+      localTracks: getStreamTrackDebugInfo(this.options.localStream),
+    });
+
+    let newStream: MediaStream;
+    try {
+      newStream = await getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      });
+    } catch (error) {
+      // getUserMedia failed (missing device / permission error).
+      // Don't change the desired mute state — the old track is still active.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      return;
+    }
+
+    const audioTrack = newStream.getAudioTracks()[0];
+    audioTrack.enabled = !newDesiredMuted;
+
+    try {
+      await sender.replaceTrack(audioTrack);
+    } catch (error) {
+      // replaceTrack rejected — the RTP sender did not switch tracks.
+      // Don't commit any state changes. Keep the old stream and desired
+      // mute state. Surface the failure as a media error.
+      const telnyxError = createTelnyxError(
+        classifyMediaErrorCode(error),
+        error
+      );
+      trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
+      // Stop the new stream we acquired but didn't use
+      newStream.getTracks().forEach((t) => t.stop());
+      return;
+    }
+
+    // Only commit the new desired mute state after getUserMedia + sender
+    // replacement succeeds. This prevents isAudioMuted from flipping on
+    // failure while the actual audio track stays unchanged.
+    this._desiredAudioMuted = newDesiredMuted;
+    this.options.micId = deviceId;
+
+    const { localStream } = this.options;
+    localStream.getAudioTracks().forEach((t) => t.stop());
+    localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
+    this.options.localStream = newStream;
+
+    logger.debug('Finished audio input device change', {
+      callId: this.id,
+      state: this.state,
+      deviceId,
+      desiredAudioMuted: this._desiredAudioMuted,
+      senderTrack: getTrackDebugInfo(sender.track),
+      localTracks: getStreamTrackDebugInfo(this.options.localStream),
+    });
   }
 
   /**
@@ -1023,6 +1170,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       localStream.getAudioTracks().forEach((t) => newStream.addTrack(t));
       localStream.getVideoTracks().forEach((t) => t.stop());
       this.options.localStream = newStream;
+
+      // Preserve audio mute state after stream replacement
+      this._applyDesiredAudioMuteState();
     }
   }
 
@@ -1545,15 +1695,21 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
-  private _sendIceRestartModify(sdp: string) {
+  private _sendIceRestartModify(
+    sdp: string,
+    options: { trickle?: boolean } = {}
+  ) {
     const modifyMsg = new Modify({
       sessid: this.session.sessionid,
       action: VertoModifyAction.UpdateMedia,
       callID: this.options.id,
       sdp,
+      ...(options.trickle ? { trickle: true } : {}),
       dialogParams: this.options,
     });
-    logger.info('ICE restart: sending Modify with new offer SDP');
+    logger.info(
+      `ICE restart: sending ${options.trickle ? 'trickle ' : ''}Modify with new offer SDP`
+    );
 
     // Note: We do NOT set a separate manual timeout here. During active
     // calls, session.execute() already applies Connection.DEFAULT_REQUEST_TIMEOUT_MS
@@ -1585,6 +1741,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.error(message, error);
     this.peer?.finishIceRestart();
     const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    // fatal: false (registry default) — SignalingHealth will decide on recovery.
     trigger(
       SwEvent.Error,
       {
@@ -1594,6 +1751,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       },
       this.session.uuid
     );
+
+    // Notify SignalingHealth that ICE restart failed. The Signaling service
+    // decides what to do next (it may trigger socket recovery, or it may take
+    // a different action). This handoff keeps recovery logic in one place.
+    this.session.reportIceRestartFailed?.(this.id);
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
@@ -1653,12 +1815,13 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _requestAnotherLocalDescription() {
     if (isFunction(this.peer.onSdpReadyTwice)) {
+      const telnyxError = createTelnyxError(
+        SDP_SEND_FAILED,
+        new Error('SDP without candidates for the second time!')
+      );
       trigger(
         SwEvent.Error,
-        {
-          error: new Error('SDP without candidates for the second time!'),
-          sessionId: this.session.sessionid,
-        },
+        { error: telnyxError, sessionId: this.session.sessionid },
         this.session.uuid
       );
       return;
@@ -1810,9 +1973,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       'User-Agent': `Web-${SDK_VERSION}`,
     };
 
-    // ICE restart: send Modify with new SDP regardless of original call direction
+    // ICE restart: send a trickle Modify with the new offer SDP; subsequent
+    // candidates/end-of-candidates flow through the normal trickle path.
     if (this.peer?.isIceRestarting) {
-      this._sendIceRestartModify(sdp);
+      this._sendIceRestartModify(sdp, { trickle: true });
       return;
     }
 
@@ -2009,25 +2173,24 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Register peer connection event handlers.
    *
-   * Previously, trickle and non-trickle ICE had separate registration methods
-   * (_registerTrickleIcePeerEvents and _registerPeerEvents). They have been
-   * consolidated into this single method so that the `onicecandidate` handler
-   * can choose the trickle vs non-trickle path *at runtime* — this is required
-   * for ICE restart, which forces non-trickle Modify even when the call was
-   * originally trickle. The check `this.options.trickleIce && !this.peer?.isIceRestarting`
-   * determines the path dynamically per-candidate.
+   * The onicecandidate handler chooses the trickle vs non-trickle path from
+   * the call configuration. ICE restart follows the same configured path:
+   * trickle-enabled calls send restart candidates as Candidate/EndOfCandidates
+   * after the Modify offer; non-trickle calls wait for complete SDP before
+   * Modify. b2bua-rtc now supports trickled Modify candidates, so the
+   * `isIceRestarting` flag no longer forces the non-trickle path.
    */
   private _registerPeerEvents(instance: RTCPeerConnection) {
     instance.onicecandidate = (event) => {
-      const useTrickle = this.options.trickleIce && !this.peer?.isIceRestarting;
-      if (useTrickle) {
+      if (this.options.trickleIce) {
         this._onTrickleIce(event);
-      } else {
-        if (this.peer?.iceDone) {
-          return;
-        }
-        this._onIce(event);
+        return;
       }
+
+      if (this.peer?.iceDone) {
+        return;
+      }
+      this._onIce(event);
     };
 
     instance.onicegatheringstatechange = (event) => {
@@ -2400,6 +2563,132 @@ export default abstract class BaseCall implements IWebRTCCall {
     return this.session.callReportVoiceSdkId || undefined;
   }
 
+  private _getClientSummary(): IClientSummary {
+    const options = this.session.options;
+    const anonymousLogin = options.anonymous_login;
+
+    return {
+      authentication: {
+        type: this._getAuthenticationType(),
+        ...(anonymousLogin
+          ? {
+              anonymousLogin: {
+                targetType: anonymousLogin.target_type,
+                targetId: anonymousLogin.target_id,
+                targetVersionId: anonymousLogin.target_version_id,
+                targetParams: this._sanitizeClientOption(
+                  anonymousLogin.target_params
+                ),
+              },
+            }
+          : {}),
+      },
+      connection: {
+        env: options.env,
+        host: options.host,
+        project: options.project,
+        region: this.session.region ?? options.region,
+        dc: this.session.dc,
+        rtcIp: options.rtcIp,
+        rtcPort: options.rtcPort,
+        autoReconnect: options.autoReconnect ?? true,
+        maxReconnectAttempts: options.maxReconnectAttempts ?? 10,
+        keepConnectionAliveOnSocketClose:
+          options.keepConnectionAliveOnSocketClose ?? false,
+        hangupOnBeforeUnload: options.hangupOnBeforeUnload !== false,
+        useCanaryRtcServer: options.useCanaryRtcServer ?? false,
+        skipLastVoiceSdkId: options.skipLastVoiceSdkId ?? false,
+        skipTrailing: options.skipTrailing ?? false,
+      },
+      media: {
+        audio: this._sanitizeClientOption(this.options.audio),
+        video: this._sanitizeClientOption(this.options.video),
+        mutedMicOnStart: this.options.mutedMicOnStart ?? false,
+        prefetchIceCandidates: this.options.prefetchIceCandidates ?? true,
+        forceRelayCandidate: this.options.forceRelayCandidate ?? false,
+        trickleIce: this.options.trickleIce ?? false,
+        iceServers: this._sanitizeIceServers(this.options.iceServers),
+      },
+      callReports: {
+        enabled: options.enableCallReports !== false,
+        intervalMs: options.callReportInterval || 5000,
+        flushIntervalMs: options.callReportFlushInterval ?? 180_000,
+        debugLogLevel: options.debugLogLevel || 'debug',
+        debugLogMaxEntries: options.debugLogMaxEntries || 1000,
+      },
+    };
+  }
+
+  private _getAuthenticationType(): NonNullable<
+    IClientSummary['authentication']
+  >['type'] {
+    const options = this.session.options;
+
+    if (options.anonymous_login) return 'anonymous_login';
+    if (options.login_token) return 'login_token';
+    if (options.login && (options.password || options.passwd)) {
+      return 'login_password';
+    }
+    if (options.token) return 'token';
+
+    return 'unknown';
+  }
+
+  private _sanitizeIceServers(
+    iceServers?: RTCIceServer[]
+  ): NonNullable<IClientSummary['media']>['iceServers'] {
+    if (!iceServers || iceServers.length === 0) return undefined;
+
+    return iceServers.map(({ urls, username, credential }) => ({
+      urls,
+      hasUsername: Boolean(username),
+      hasCredential: Boolean(credential),
+    }));
+  }
+
+  private _sanitizeClientOption(
+    value: unknown,
+    depth = 0
+  ): SanitizedClientOption | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number')
+      return Number.isFinite(value) ? value : undefined;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'function') return undefined;
+    if (depth >= 4) return '[truncated]';
+
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => this._sanitizeClientOption(item, depth + 1))
+        .filter((item): item is SanitizedClientOption => item !== undefined);
+    }
+
+    if (typeof value === 'object') {
+      const sanitizedEntries = Object.entries(value as Record<string, unknown>)
+        .filter(([key]) => !this._isSensitiveClientOptionKey(key))
+        .map(
+          ([key, childValue]) =>
+            [key, this._sanitizeClientOption(childValue, depth + 1)] as const
+        )
+        .filter(
+          (entry): entry is readonly [string, SanitizedClientOption] =>
+            entry[1] !== undefined
+        );
+
+      return Object.fromEntries(sanitizedEntries);
+    }
+
+    return undefined;
+  }
+
+  private _isSensitiveClientOptionKey(key: string): boolean {
+    return /(password|passwd|credential|secret|token|authorization|auth|api[_-]?key)/i.test(
+      key
+    );
+  }
+
   /**
    * Flush an intermediate call report segment mid-call.
    * Used for periodic, size-limit, and socket-close safety flushes without
@@ -2443,6 +2732,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      clientSummary: this._getClientSummary(),
     };
 
     const payload = this._callReportCollector.flush(summary, flushReason);
@@ -2496,6 +2786,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       telnyxSessionId: this.options.telnyxSessionId,
       telnyxLegId: this.options.telnyxLegId,
       sdkVersion: SDK_VERSION,
+      clientSummary: this._getClientSummary(),
     };
 
     // Post report asynchronously (don't wait for it)

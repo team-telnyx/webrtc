@@ -2,6 +2,7 @@ import logger from '../../util/logger';
 import {
   LOW_BYTES_RECEIVED,
   LOW_LOCAL_AUDIO,
+  LOW_INBOUND_AUDIO,
 } from '../../util/constants/errorCodes';
 import type { ITelnyxWarning } from '../../util/constants/warnings';
 import {
@@ -82,7 +83,125 @@ const createStatsEntry = (audioLevelAvg: number): IStatsInterval => ({
   },
 });
 
+/**
+ * Create a stats entry with an inbound audioLevelAvg, simulating
+ * one-way audio (RTP flowing but carrying silence/comfort-noise).
+ * Outbound is set to a healthy level to isolate the inbound check.
+ * bytesReceived increments across calls to simulate RTP flowing
+ * (prevents LOW_BYTES_RECEIVED from firing).
+ */
+let _inboundBytesCounter = 1000;
+const createInboundStatsEntry = (
+  inboundAudioLevelAvg: number
+): IStatsInterval => {
+  _inboundBytesCounter += 4800; // ~100 packets * 48 bytes per 5s interval
+  return {
+    intervalStartUtc: '2026-05-15T00:00:00.000Z',
+    intervalEndUtc: '2026-05-15T00:00:05.000Z',
+    audio: {
+      outbound: {
+        audioLevelAvg: 0.5,
+        localTrack: {
+          id: 'track-id',
+          enabled: true,
+          muted: false,
+        },
+      },
+      inbound: {
+        audioLevelAvg: inboundAudioLevelAvg,
+        bytesReceived: _inboundBytesCounter,
+      },
+    },
+  };
+};
+
 describe('CallReportCollector intermediate reports', () => {
+  it('allows socket-close intermediate reports with logs but no stats', () => {
+    const collector = createCollector();
+    const logEntry = {
+      timestamp: '2026-06-17T20:49:00.000Z',
+      level: 'warn' as const,
+      message: 'socket closed after safety flush',
+      context: { socketGeneration: 2 },
+    };
+    (collector as unknown as { logCollector: unknown }).logCollector = {
+      getLogCount: jest.fn(() => 1),
+      drain: jest.fn(() => [logEntry]),
+    };
+
+    const payload = collector.flush(
+      { callId: 'call-id' },
+      {
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network changed',
+          wasClean: false,
+        },
+      }
+    );
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        segment: 0,
+        stats: [],
+        logs: [logEntry],
+        flushReason: {
+          type: 'socket-close',
+          socketClose: {
+            code: 1006,
+            codeName: 'ABNORMAL_CLOSURE',
+            reason: 'network changed',
+            wasClean: false,
+          },
+        },
+      })
+    );
+  });
+
+  it('allows socket-close intermediate reports with metadata but no stats or logs', () => {
+    const collector = createCollector();
+
+    const payload = collector.flush(
+      { callId: 'call-id' },
+      {
+        type: 'socket-close',
+        socketClose: {
+          code: 1006,
+          codeName: 'ABNORMAL_CLOSURE',
+          reason: 'network changed',
+          wasClean: false,
+        },
+      }
+    );
+
+    expect(payload).toEqual(
+      expect.objectContaining({
+        segment: 0,
+        stats: [],
+        flushReason: expect.objectContaining({ type: 'socket-close' }),
+      })
+    );
+  });
+
+  it('logs why non-socket intermediate flushes are skipped when nothing is buffered', () => {
+    const debugSpy = jest.spyOn(logger, 'debug').mockImplementation(jest.fn());
+    const collector = createCollector();
+
+    expect(collector.flush({ callId: 'call-id' })).toBeNull();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'CallReportCollector: Skipping intermediate flush',
+      expect.objectContaining({
+        reason: 'no-stats-or-logs',
+        statsIntervals: 0,
+        logEntries: 0,
+      })
+    );
+
+    debugSpy.mockRestore();
+  });
+
   it('includes flush reason metadata in intermediate report payloads', () => {
     const collector = createCollector();
     const statsEntry = createStatsEntry(0.5);
@@ -446,6 +565,105 @@ describe('CallReportCollector local audio diagnostics', () => {
   });
 });
 
+describe('CallReportCollector LOW_INBOUND_AUDIO warning', () => {
+  beforeEach(() => {
+    _inboundBytesCounter = 1000;
+  });
+
+  it('emits low inbound audio warning after consecutive inbound audio breaches', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    expect(onWarning).not.toHaveBeenCalled();
+
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+
+    expect(onWarning).toHaveBeenCalledTimes(1);
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: LOW_INBOUND_AUDIO,
+        name: 'LOW_INBOUND_AUDIO',
+      })
+    );
+  });
+
+  it('does not emit low inbound audio warning when inbound audio is healthy', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    for (let i = 0; i < 5; i += 1) {
+      collector._checkQualityWarnings(createInboundStatsEntry(0.5), null);
+    }
+
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it('does not emit low inbound audio warning on brief silence (fewer than 3 breaches)', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    // Recovery before the 3rd breach
+    collector._checkQualityWarnings(createInboundStatsEntry(0.5), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it('resets breach counter when inbound audio level is unavailable', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    // Two low breaches (not enough to fire)
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+
+    // Interval with no inbound audioLevelAvg — should reset breach counter
+    const noInboundEntry = createStatsEntry(0.5);
+    collector._checkQualityWarnings(noInboundEntry, null);
+
+    // Two more low breaches should NOT fire (counter was reset)
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+
+    expect(onWarning).not.toHaveBeenCalled();
+
+    // Third breach after reset DOES fire
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    expect(onWarning).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits low inbound audio when comfort-noise scenario: RTP bytes flow but audioLevelAvg is near-zero', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    // Simulate comfort-noise: bytesReceived increasing (RTP flowing)
+    // but audioLevelAvg near-zero (silence/comfort-noise content).
+    // createInboundStatsEntry auto-increments bytesReceived so
+    // LOW_BYTES_RECEIVED won't fire — only LOW_INBOUND_AUDIO should.
+    collector._checkQualityWarnings(createInboundStatsEntry(0.0001), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0.0001), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0.0001), null);
+
+    expect(onWarning).toHaveBeenCalledTimes(1);
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: LOW_INBOUND_AUDIO,
+        name: 'LOW_INBOUND_AUDIO',
+      })
+    );
+  });
+});
+
 describe('CallReportCollector cadence', () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -503,6 +721,108 @@ describe('CallReportCollector cadence', () => {
 
     expect(peerConnection.getStats).toHaveBeenCalledTimes(1);
     expect(collector.getStatsBuffer()).toHaveLength(1);
+  });
+
+  it('records selected ICE pair ids, candidate URL, and RTT source from getStats', async () => {
+    const selectedPair = {
+      id: 'CP_selected',
+      type: 'candidate-pair',
+      state: 'succeeded',
+      nominated: true,
+      localCandidateId: 'local_srflx',
+      remoteCandidateId: 'remote_media',
+      currentRoundTripTime: 0.42,
+      requestsSent: 7,
+      responsesReceived: 7,
+    };
+    const stats = new Map<string, unknown>([
+      [
+        'transport_0',
+        {
+          id: 'transport_0',
+          type: 'transport',
+          iceState: 'connected',
+          selectedCandidatePairId: 'CP_selected',
+          selectedCandidatePairChanges: 1,
+        },
+      ],
+      [
+        'CP_old',
+        {
+          id: 'CP_old',
+          type: 'candidate-pair',
+          state: 'succeeded',
+          nominated: true,
+          localCandidateId: 'local_old',
+          remoteCandidateId: 'remote_old',
+          currentRoundTripTime: 0.01,
+        },
+      ],
+      ['CP_selected', selectedPair],
+      [
+        'local_srflx',
+        {
+          id: 'local_srflx',
+          type: 'local-candidate',
+          address: '203.0.113.10',
+          port: 50000,
+          candidateType: 'srflx',
+          protocol: 'udp',
+          networkType: 'wifi',
+          url: 'stun:stun.telnyx.com:3478',
+        },
+      ],
+      [
+        'remote_media',
+        {
+          id: 'remote_media',
+          type: 'remote-candidate',
+          address: '64.16.248.141',
+          port: 20000,
+          candidateType: 'host',
+          protocol: 'udp',
+        },
+      ],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    expect(
+      (collector as unknown as CallReportCollector).getStatsBuffer()[0]
+    ).toEqual(
+      expect.objectContaining({
+        connection: expect.objectContaining({
+          currentRoundTripTime: 0.42,
+          roundTripTimeSource: 'candidate-pair.currentRoundTripTime',
+        }),
+        ice: expect.objectContaining({
+          id: 'CP_selected',
+          localCandidateId: 'local_srflx',
+          remoteCandidateId: 'remote_media',
+          currentRoundTripTime: 0.42,
+          local: expect.objectContaining({
+            id: 'local_srflx',
+            candidateType: 'srflx',
+            url: 'stun:stun.telnyx.com:3478',
+          }),
+          remote: expect.objectContaining({
+            id: 'remote_media',
+            address: '64.16.248.141',
+          }),
+        }),
+        transport: expect.objectContaining({
+          selectedCandidatePairId: 'CP_selected',
+          selectedCandidatePairChanges: 1,
+        }),
+      })
+    );
   });
 });
 

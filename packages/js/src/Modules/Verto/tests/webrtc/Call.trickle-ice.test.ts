@@ -1,7 +1,9 @@
-import { VertoMethod } from '../../webrtc/constants';
+import { VertoMethod, VertoModifyAction } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 import type { IVertoCallOptions } from '../../webrtc/interfaces';
+import { SDP_CREATE_OFFER_FAILED } from '../../util/constants';
+import { createTelnyxError } from '../../util/errors';
 
 const originalConsoleDebug = console.debug;
 const originalConsoleLog = console.log;
@@ -334,6 +336,172 @@ describe('Call Trickle ICE', () => {
           })
         );
       });
+    });
+  });
+
+  describe('Trickle ICE error propagation', () => {
+    it('should emit telnyx.error when startTrickleIceNegotiation rejects (no unhandled rejection)', async () => {
+      // Regression test for the fire-and-forget trickle path: init() and
+      // handleNegotiationNeededEvent() call startTrickleIceNegotiation()
+      // WITHOUT await, with a .catch(_emitNegotiationError) handler. If
+      // createOffer fails, the rejection must be caught and emitted as
+      // telnyx.error — NOT become an unhandled promise rejection.
+      const telnyxError = createTelnyxError(SDP_CREATE_OFFER_FAILED);
+
+      jest
+        .spyOn(call.peer.instance, 'createOffer')
+        .mockRejectedValue(telnyxError);
+
+      // Spy on _emitNegotiationError to verify it receives the error.
+      // This is what init()'s .catch() handler invokes.
+      const emitSpy = jest
+        .spyOn(call.peer as any, '_emitNegotiationError')
+        .mockImplementation(jest.fn());
+
+      // Simulate init()'s fire-and-forget pattern:
+      //   this.startTrickleIceNegotiation().catch(e => this._emitNegotiationError(e))
+      await call.peer
+        .startTrickleIceNegotiation()
+        .catch((error) => (call.peer as any)._emitNegotiationError(error));
+
+      // The TelnyxError must reach _emitNegotiationError (which emits
+      // SwEvent.Error) — not become an unhandled rejection.
+      expect(emitSpy).toHaveBeenCalledTimes(1);
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ code: SDP_CREATE_OFFER_FAILED })
+      );
+
+      emitSpy.mockRestore();
+    });
+  });
+  describe('ICE restart Modify', () => {
+    const restartSdp =
+      'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx';
+
+    it('trickle-enabled restart sends a trickle Modify with the new offer SDP', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: call.id,
+              sdp: restartSdp,
+              trickle: true,
+            }),
+          }),
+        })
+      );
+    });
+
+    it('routes restart candidates through the trickle Candidate/EndOfCandidates path', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({});
+
+      call.peer.isIceRestarting = true;
+
+      const candidateEvent = {
+        type: 'icecandidate',
+        candidate: {
+          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        },
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      const endEvent = {
+        type: 'icecandidate',
+        candidate: null,
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      // Use the real onicecandidate handler registered by _registerPeerEvents.
+      call.peer.instance.onicecandidate(candidateEvent);
+      call.peer.instance.onicecandidate(endEvent);
+
+      const methods = sessionExecuteSpy.mock.calls.map(
+        (c) => (c[0] as any)?.request?.method
+      );
+      expect(methods).toContain(VertoMethod.Candidate);
+      expect(methods).toContain(VertoMethod.EndOfCandidates);
+    });
+
+    it('non-trickle restart sends a complete-SDP Modify without trickle', () => {
+      const nonTrickleCall = new Call(session, {
+        ...defaultParams,
+        trickleIce: false,
+      });
+      nonTrickleCall.invite();
+
+      const sessionExecuteSpy = jest
+        .spyOn((nonTrickleCall as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      nonTrickleCall.peer.isIceRestarting = true;
+
+      (nonTrickleCall as any)._onIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: nonTrickleCall.id,
+              sdp: restartSdp,
+            }),
+          }),
+        })
+      );
+
+      // trickle must NOT be present on a non-trickle restart Modify
+      const modifyCall = sessionExecuteSpy.mock.calls.find(
+        (c) => (c[0] as any)?.request?.method === VertoMethod.Modify
+      );
+      expect((modifyCall?.[0] as any)?.request?.params?.trickle).toBeUndefined();
+    });
+
+    it('reattached/recovered trickle call follows the trickle restart Modify flow', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      // Simulate a call recovered via attach — recoveredCallId is set.
+      (call as any).recoveredCallId = 'previous-call-id';
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: call.id,
+              sdp: restartSdp,
+              trickle: true,
+            }),
+          }),
+        })
+      );
     });
   });
 });

@@ -994,32 +994,27 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('recovers reattached calls through socket reconnect instead of ICE restart', () => {
+  it('does not force socket reconnect when triggerIceRestart returns not started without unhealthy signaling', () => {
+    // Restored behavior: a not-started ICE restart (e.g. already in progress,
+    // no peer, session disconnected) no longer forces socket reconnect. Signaling
+    // recovery is owned by the monitor's own health checks, not by the
+    // reattached-call workaround that was removed.
     mockSession.connection = connection;
     mockSession.triggerIceRestart.mockReturnValue({
       started: false,
-      reason: 'call recovered via attach',
-      recoverSignaling: true,
+      reason: 'already in progress',
     });
     monitor.onSocketActivity();
 
     monitor.onPeerFailure('call-1', 'ice_failed');
 
     expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
-    expect(mockSession.socketDisconnect).toHaveBeenCalledTimes(1);
-    expect(trigger).toHaveBeenCalledWith(
-      SwEvent.Warning,
-      expect.objectContaining({ source: 'peer_failure' }),
-      mockSession.uuid
-    );
-    expect(trigger).not.toHaveBeenCalledWith(
-      SwEvent.Warning,
-      expect.objectContaining({ callId: 'call-1' }),
-      mockSession.uuid
-    );
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 
-  it('BaseSession.triggerIceRestart skips calls created by attach recovery', () => {
+  it('BaseSession.triggerIceRestart allows calls created by attach recovery', () => {
+    // Restored behavior: reattached calls use the same ICE restart path as
+    // normal active calls now that b2bua-rtc supports Modify after attach.
     const restartIce = jest.fn(() => ({ started: true }));
     const sessionLike = {
       calls: {
@@ -1035,15 +1030,13 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
       'call-1'
     );
 
-    expect(restartIce).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      started: false,
-      reason: 'call recovered via attach',
-      recoverSignaling: true,
-    });
+    expect(restartIce).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ started: true });
   });
 
-  it('BaseSession.triggerIceRestart skips calls with recoveredCallId', () => {
+  it('BaseSession.triggerIceRestart allows calls with recoveredCallId', () => {
+    // Restored behavior: calls recovered via attach (recoveredCallId set)
+    // no longer skip ICE restart.
     const restartIce = jest.fn(() => ({ started: true }));
     const sessionLike = {
       calls: {
@@ -1060,12 +1053,8 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
       'call-1'
     );
 
-    expect(restartIce).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      started: false,
-      reason: 'call recovered via attach',
-      recoverSignaling: true,
-    });
+    expect(restartIce).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ started: true });
   });
 
   it('BaseSession.execute rethrows stale request errors without invoking signaling recovery', async () => {
