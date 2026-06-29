@@ -1058,9 +1058,7 @@ describe('VertoHandler', () => {
         (instance as any).sessionid = sessid;
       };
 
-      const sendReattachForSession = (
-        reattachedSessions: string[]
-      ) => {
+      const sendReattachForSession = (reattachedSessions: string[]) => {
         const msg = JSON.parse(
           JSON.stringify({
             jsonrpc: '2.0',
@@ -1118,9 +1116,7 @@ describe('VertoHandler', () => {
         // `options` and are NOT surfaced on the public error event — pin this
         // so a future change that promotes them is a deliberate, reviewed
         // decision rather than an accident.
-        expect(onError.mock.calls[0][0]).not.toHaveProperty(
-          'telnyxSessionId'
-        );
+        expect(onError.mock.calls[0][0]).not.toHaveProperty('telnyxSessionId');
         expect(onError.mock.calls[0][0]).not.toHaveProperty(
           'telnyxCallControlId'
         );
@@ -1134,7 +1130,9 @@ describe('VertoHandler', () => {
         setSession('sess-current');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'other-session-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+          [
+            { id: 'other-session-call', state: 'active', options: {} },
+          ] as unknown as IStoredActiveCall[],
           'sess-different'
         );
 
@@ -1150,7 +1148,9 @@ describe('VertoHandler', () => {
         setSession('sess-recovered');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'recovered-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+          [
+            { id: 'recovered-call', state: 'active', options: {} },
+          ] as unknown as IStoredActiveCall[],
           'sess-recovered'
         );
 
@@ -1160,13 +1160,15 @@ describe('VertoHandler', () => {
         expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
-      it('does NOT emit an error and clears storage for stale markers (>30 min)', async () => {
+      it('does NOT emit an error and clears storage for stale markers (>15 min)', async () => {
         await instance.connect();
         setSession('sess-stale');
 
         const staleTime = Date.now() - (RECOVERY_MARKER_MAX_AGE_MS + 1000);
         setActiveCallsRecoveryMarker(
-          [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+          [
+            { id: 'stale-call', state: 'active', options: {} },
+          ] as unknown as IStoredActiveCall[],
           'sess-stale',
           staleTime
         );
@@ -1192,7 +1194,9 @@ describe('VertoHandler', () => {
         setSession('sess-dedup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'dup-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+          [
+            { id: 'dup-call', state: 'active', options: {} },
+          ] as unknown as IStoredActiveCall[],
           'sess-dedup'
         );
 
@@ -1212,7 +1216,9 @@ describe('VertoHandler', () => {
         setSession('sess-no-hangup');
 
         setActiveCallsRecoveryMarker(
-          [{ id: 'marker-only-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+          [
+            { id: 'marker-only-call', state: 'active', options: {} },
+          ] as unknown as IStoredActiveCall[],
           'sess-no-hangup'
         );
 

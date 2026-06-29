@@ -68,6 +68,14 @@ export default class Verto extends BrowserSession {
       // was not reattached. Persisting only this projection — rather than the
       // entire Call — keeps credentials, SDP, ICE/TURN secrets, custom header
       // values, and non-serializable host objects out of sessionStorage
+      //
+      // No false-positive interaction with `keepConnectionAliveOnSocketClose`:
+      // that option only governs PUNT/server-initiated socket disconnects
+      // (see VertoHandler PUNT case → `socketDisconnect()`), which never fire
+      // `beforeunload`. This handler runs exclusively on a genuine browser
+      // page-unload (close/refresh/navigation), so recovery markers are only
+      // written when the page is truly going away, regardless of how the SDK
+      // handles transient socket drops.
       try {
         const callIds = this.calls ? Object.keys(this.calls) : [];
         const activeCalls = callIds
@@ -89,15 +97,18 @@ export default class Verto extends BrowserSession {
         }
 
         logger.info(
-          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}).`
+          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${activeCalls
+            .map((c) => c.id)
+            .join(', ')}].`
         );
         setActiveCallsRecoveryMarker(activeCalls, this.sessionid);
       } catch (err) {
         // Any failure here must not break unload or normal call setup.
+        const idsOnError = this.calls ? Object.keys(this.calls) : [];
         logger.debug(
-          `Failed to save active-calls recovery marker before unload: ${
-            err instanceof Error ? err.message : String(err)
-          }`
+          `Failed to save active-calls recovery marker before unload (active call ids: [${idsOnError.join(
+            ', '
+          )}]): ${err instanceof Error ? err.message : String(err)}`
         );
       }
     });

@@ -18,7 +18,7 @@ const SESSION_ID_STORED_AT_STORAGE_KEY =
 const ACTIVE_CALLS_STORAGE_KEY = 'telnyx-voice-sdk-active-calls';
 
 export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
-export const RECOVERY_MARKER_MAX_AGE_MS = 30 * 60 * 1000;
+export const RECOVERY_MARKER_MAX_AGE_MS = 15 * 60 * 1000;
 
 function getReconnectSessionIdStoredAt(): number | null {
   const storedAt = Number(
