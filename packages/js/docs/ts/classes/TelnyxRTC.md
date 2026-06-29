@@ -53,17 +53,20 @@ client.off('telnyx.notification');
 - [connected](#connected)
 - [localElement](#localelement)
 - [mediaConstraints](#mediaconstraints)
+- [reconnectDelay](#reconnectdelay)
 - [remoteElement](#remoteelement)
 - [speaker](#speaker)
 
 ### Methods
 
+- [\_terminateActiveCallsLocally](#_terminateactivecallslocally)
 - [checkPermissions](#checkpermissions)
 - [clearReconnectToken](#clearreconnecttoken)
 - [connect](#connect)
 - [disableMicrophone](#disablemicrophone)
 - [disconnect](#disconnect)
 - [enableMicrophone](#enablemicrophone)
+- [getActiveCalls](#getactivecalls)
 - [getAudioInDevices](#getaudioindevices)
 - [getAudioOutDevices](#getaudiooutdevices)
 - [getDeviceResolutions](#getdeviceresolutions)
@@ -77,6 +80,7 @@ client.off('telnyx.notification');
 - [off](#off)
 - [on](#on)
 - [onSignalingRequestTimeout](#onsignalingrequesttimeout)
+- [reportIceRestartFailed](#reporticerestartfailed)
 - [reportNoRtp](#reportnortp)
 - [reportPeerFailure](#reportpeerfailure)
 - [resetReconnectAttempts](#resetreconnectattempts)
@@ -273,6 +277,32 @@ TelnyxRTCClient.mediaConstraints
 
 ---
 
+### reconnectDelay
+
+• `get` **reconnectDelay**(): `number`
+
+Reconnect delay with exponential backoff and jitter.
+
+Uses the current `_reconnectAttempts` counter to compute the delay:
+
+- Attempt 1: base 1s + jitter
+- Attempt 2: ~2s + jitter
+- Attempt 3: ~4s + jitter
+- ... capped at 30s
+
+The backoff is reset only on confirmed healthy registration (REGED),
+not merely on socket open.
+
+#### Returns
+
+`number`
+
+#### Inherited from
+
+TelnyxRTCClient.reconnectDelay
+
+---
+
 ### remoteElement
 
 • `get` **remoteElement**(): `string` \| `Function` \| `HTMLMediaElement`
@@ -375,6 +405,29 @@ if (result.length) {
 TelnyxRTCClient.speaker
 
 ## Methods
+
+### \_terminateActiveCallsLocally
+
+▸ **\_terminateActiveCallsLocally**(): `void`
+
+Tear down every active call LOCALLY without sending BYE on the wire.
+
+Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
+the signaling socket is already dead). Sending BYE over a dead socket
+would only generate `BYE_SEND_FAILED` noise, so each call is finalized
+via `hangup({}, false)` — which closes the RTCPeerConnection, stops
+media, fires the local hangup notification, and removes the call from
+`session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.\_terminateActiveCallsLocally
+
+---
 
 ### checkPermissions
 
@@ -556,6 +609,24 @@ client.enableMicrophone();
 #### Inherited from
 
 TelnyxRTCClient.enableMicrophone
+
+---
+
+### getActiveCalls
+
+▸ **getActiveCalls**(): `IWebRTCCall`[]
+
+Returns an array of calls currently in a non-terminal state.
+Used by the multi-call detector to decide whether to emit a
+`MULTIPLE_ACTIVE_CALLS_DETECTED` warning.
+
+#### Returns
+
+`IWebRTCCall`[]
+
+#### Inherited from
+
+TelnyxRTCClient.getActiveCalls
 
 ---
 
@@ -1218,6 +1289,34 @@ non-critical timeouts are just logged.
 #### Inherited from
 
 TelnyxRTCClient.onSignalingRequestTimeout
+
+---
+
+### reportIceRestartFailed
+
+▸ **reportIceRestartFailed**(`callId`): `void`
+
+Report that an ICE restart attempt failed for the given call.
+Called by BaseCall when the ICE restart Modify request could not be
+sent or the server returned an error.
+
+The health monitor owns the recovery decision (whether to reconnect
+the socket, when, etc.). BaseCall does NOT trigger recovery itself —
+this handoff keeps recovery logic in one place.
+
+#### Parameters
+
+| Name     | Type     |
+| :------- | :------- |
+| `callId` | `string` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.reportIceRestartFailed
 
 ---
 

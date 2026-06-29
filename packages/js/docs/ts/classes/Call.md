@@ -68,6 +68,7 @@ call.muteAudio();
 
 ### Methods
 
+- [\_applyDesiredAudioMuteState](#_applydesiredaudiomutestate)
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
@@ -191,7 +192,10 @@ BaseCall.state
 
 • `get` **isAudioMuted**(): `boolean`
 
-Checks whether the microphone is muted.
+Returns the call-level desired mute state for the microphone.
+Unlike checking individual track.enabled values, this persists across
+track replacements (device switch, reattach, ICE restart) so callers
+always see a consistent value.
 
 #### Returns
 
@@ -305,6 +309,26 @@ const { telnyxCallControlId, telnyxSessionId, telnyxLegId } = call.telnyxIDs;
 BaseCall.telnyxIDs
 
 ## Methods
+
+### \_applyDesiredAudioMuteState
+
+▸ **\_applyDesiredAudioMuteState**(): `void`
+
+Apply the current desired mute state to all local audio tracks.
+Called internally after track creation/replacement (Peer init,
+setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+ensure the mic stays muted when the SDK creates or replaces
+local audio tracks.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.\_applyDesiredAudioMuteState
+
+---
 
 ### answer
 
@@ -525,10 +549,10 @@ Changes the audio input device (i.e. microphone) used for the call.
 
 #### Parameters
 
-| Name       | Type      | Description                                                                         |
-| :--------- | :-------- | :---------------------------------------------------------------------------------- |
-| `deviceId` | `string`  | The target audio input device ID                                                    |
-| `muted`    | `boolean` | Whether the audio track should be muted. Defaults to `mutedMicOnStart` call option. |
+| Name       | Type      | Description                                                                          |
+| :--------- | :-------- | :----------------------------------------------------------------------------------- |
+| `deviceId` | `string`  | The target audio input device ID                                                     |
+| `muted`    | `boolean` | Whether the audio track should be muted. Defaults to the current desired mute state. |
 
 #### Returns
 
