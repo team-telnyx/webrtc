@@ -1695,15 +1695,21 @@ export default abstract class BaseCall implements IWebRTCCall {
     return false;
   }
 
-  private _sendIceRestartModify(sdp: string) {
+  private _sendIceRestartModify(
+    sdp: string,
+    options: { trickle?: boolean } = {}
+  ) {
     const modifyMsg = new Modify({
       sessid: this.session.sessionid,
       action: VertoModifyAction.UpdateMedia,
       callID: this.options.id,
       sdp,
+      ...(options.trickle ? { trickle: true } : {}),
       dialogParams: this.options,
     });
-    logger.info('ICE restart: sending Modify with new offer SDP');
+    logger.info(
+      `ICE restart: sending ${options.trickle ? 'trickle ' : ''}Modify with new offer SDP`
+    );
 
     // Note: We do NOT set a separate manual timeout here. During active
     // calls, session.execute() already applies Connection.DEFAULT_REQUEST_TIMEOUT_MS
@@ -1960,9 +1966,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       'User-Agent': `Web-${SDK_VERSION}`,
     };
 
-    // ICE restart: send Modify with new SDP regardless of original call direction
+    // ICE restart: send a trickle Modify with the new offer SDP; subsequent
+    // candidates/end-of-candidates flow through the normal trickle path.
     if (this.peer?.isIceRestarting) {
-      this._sendIceRestartModify(sdp);
+      this._sendIceRestartModify(sdp, { trickle: true });
       return;
     }
 
@@ -2159,25 +2166,24 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Register peer connection event handlers.
    *
-   * Previously, trickle and non-trickle ICE had separate registration methods
-   * (_registerTrickleIcePeerEvents and _registerPeerEvents). They have been
-   * consolidated into this single method so that the `onicecandidate` handler
-   * can choose the trickle vs non-trickle path *at runtime* — this is required
-   * for ICE restart, which forces non-trickle Modify even when the call was
-   * originally trickle. The check `this.options.trickleIce && !this.peer?.isIceRestarting`
-   * determines the path dynamically per-candidate.
+   * The onicecandidate handler chooses the trickle vs non-trickle path from
+   * the call configuration. ICE restart follows the same configured path:
+   * trickle-enabled calls send restart candidates as Candidate/EndOfCandidates
+   * after the Modify offer; non-trickle calls wait for complete SDP before
+   * Modify. b2bua-rtc now supports trickled Modify candidates, so the
+   * `isIceRestarting` flag no longer forces the non-trickle path.
    */
   private _registerPeerEvents(instance: RTCPeerConnection) {
     instance.onicecandidate = (event) => {
-      const useTrickle = this.options.trickleIce && !this.peer?.isIceRestarting;
-      if (useTrickle) {
+      if (this.options.trickleIce) {
         this._onTrickleIce(event);
-      } else {
-        if (this.peer?.iceDone) {
-          return;
-        }
-        this._onIce(event);
+        return;
       }
+
+      if (this.peer?.iceDone) {
+        return;
+      }
+      this._onIce(event);
     };
 
     instance.onicegatheringstatechange = (event) => {

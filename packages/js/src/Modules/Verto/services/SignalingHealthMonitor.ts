@@ -508,13 +508,12 @@ export default class SignalingHealthMonitor {
         `Signaling health: ICE restart not started for call ${callId}: ${result.reason}`
       );
 
-      if (result.recoverSignaling) {
-        this._triggerSignalingRecovery(
-          `${reason}; ICE restart disabled for reattached call, forcing socket reconnect`,
-          signalingSource
-        );
-      }
-
+      // Do not force socket reconnect solely because ICE restart did not
+      // start. Signaling recovery is owned by the monitor's own health
+      // checks: when signaling is unhealthy, _recoverMediaOrSignaling()
+      // already routes to _triggerSignalingRecovery() before reaching here.
+      // Modify request timeout/failure still flows through execute()'s
+      // timeout handling and _onIceRestartFailed().
       return;
     }
 

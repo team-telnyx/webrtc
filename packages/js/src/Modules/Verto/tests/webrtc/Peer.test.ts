@@ -86,3 +86,56 @@ describe('Peer connection state recovery', () => {
     );
   });
 });
+
+describe('Peer negotiation during ICE restart', () => {
+  const createTricklePeer = (opts: Partial<IVertoCallOptions> = {}) => {
+    const session: SessionDouble = {
+      options: {},
+      sessionid: 'session-1',
+      connected: true,
+      reportPeerFailure: jest.fn(),
+    };
+
+    const peer = new Peer(
+      PeerType.Offer,
+      { id: 'call-1', debug: false, ...opts } as IVertoCallOptions,
+      session as unknown as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+
+    peer.instance = {
+      connectionState: 'connected',
+      iceConnectionState: 'connected',
+      signalingState: 'stable',
+    } as RTCPeerConnection;
+
+    return { peer, session };
+  };
+
+  it('uses trickle negotiation for ICE restart on a trickle-enabled call', () => {
+    const { peer } = createTricklePeer({ trickleIce: true });
+    peer.isIceRestarting = true;
+
+    const trickleSpy = jest.spyOn(peer, 'startTrickleIceNegotiation');
+    const nonTrickleSpy = jest.spyOn(peer, 'startNegotiation');
+
+    (peer as any).handleNegotiationNeededEvent();
+
+    expect(trickleSpy).toHaveBeenCalledTimes(1);
+    expect(nonTrickleSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses non-trickle negotiation for ICE restart on a non-trickle call', () => {
+    const { peer } = createTricklePeer({ trickleIce: false });
+    peer.isIceRestarting = true;
+
+    const trickleSpy = jest.spyOn(peer, 'startTrickleIceNegotiation');
+    const nonTrickleSpy = jest.spyOn(peer, 'startNegotiation');
+
+    (peer as any).handleNegotiationNeededEvent();
+
+    expect(nonTrickleSpy).toHaveBeenCalledTimes(1);
+    expect(trickleSpy).not.toHaveBeenCalled();
+  });
+});

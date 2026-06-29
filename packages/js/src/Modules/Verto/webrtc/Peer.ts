@@ -288,9 +288,10 @@ export default class Peer {
       );
       return;
     }
-    // ICE restart requires a complete SDP (backend doesn't support
-    // trickle ICE for Modify), so force the non-trickle path.
-    if (this._isTrickleIce() && !this.isIceRestarting) {
+    // Trickle-enabled calls (including ICE restart) use the trickle
+    // negotiation path so candidates are sent incrementally. b2bua-rtc
+    // now supports trickled Modify candidates.
+    if (this._isTrickleIce()) {
       this.startTrickleIceNegotiation();
     } else {
       this.startNegotiation();
