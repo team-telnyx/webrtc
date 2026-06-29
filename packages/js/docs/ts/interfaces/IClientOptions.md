@@ -29,6 +29,7 @@ IClientOptions
 - [rtcIp](#rtcip)
 - [rtcPort](#rtcport)
 - [skipLastVoiceSdkId](#skiplastvoicesdkid)
+- [skipTrailing](#skiptrailing)
 - [trickleIce](#trickleice)
 - [useCanaryRtcServer](#usecanaryrtcserver)
 
@@ -221,6 +222,12 @@ Recovery is attempted only for inbound calls. If the app calls
 or does not respond before `timeout`, recovery fails and the call is
 terminated with the usual media error flow.
 
+In the recovery flow the emitted error carries `event.recoverable === true`
+(top-level) plus the `resume`/`reject`/`retryDeadline` helpers, and
+`event.error.fatal === false` (the SDK is actively handling recovery via
+the app's cooperation). Outside the recovery flow, media failures are
+terminal (`event.error.fatal === true`, no top-level `recoverable`).
+
 **`Example`**
 
 ```js
@@ -238,10 +245,13 @@ const client = new TelnyxRTC({
 
 client.on('telnyx.error', (event) => {
   if (isMediaRecoveryErrorEvent(event)) {
+    // event.recoverable === true, event.error.fatal === false
     showPermissionDialog({
       onContinue: () => event.resume(),
       onCancel: () => event.reject?.(),
     });
+  } else if (event.error.fatal) {
+    // Terminal error — give up on this call/session
   }
 });
 ```
@@ -333,6 +343,28 @@ When reconnecting with a stored `voice_sdk_id`, append
 the connection to a different b2bua-rtc instance instead of sticky-
 reconnecting to the same one. Useful when retrying after errors
 caused by stale state on a specific b2bua-rtc node.
+
+**`Default`**
+
+```ts
+false;
+```
+
+---
+
+### skipTrailing
+
+• `Optional` **skipTrailing**: `boolean`
+
+When set to `true`, appends `skip_trailing=true` to the VSP WebSocket
+URL so VSP skips pre-routing identity resolution (telephony-tokens
+validation and UsersClass trailing checks) for this connection.
+
+This is intended for internal/test-infra usage (e.g. BBT-generated
+credentials) where the connection should not participate in trailing
+release routing. The actual login still goes to the upstream RTC
+service for normal authentication — this only skips VSP's pre-routing
+lookup used for trailing target selection.
 
 **`Default`**
 
