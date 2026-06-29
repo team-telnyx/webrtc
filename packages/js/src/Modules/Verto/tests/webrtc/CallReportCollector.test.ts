@@ -1099,3 +1099,86 @@ describe('CallReportCollector call report uploads', () => {
     expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('keepalive');
   });
 });
+
+describe('CallReportCollector media-playout stats', () => {
+  it('collects playout delay and synthesized sample indicators from media-playout stats', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'outbound_audio',
+        {
+          id: 'outbound_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          packetsSent: 100,
+          bytesSent: 4800,
+        },
+      ],
+      [
+        'MP_audio',
+        {
+          id: 'MP_audio',
+          type: 'media-playout',
+          kind: 'audio',
+          synthesizedSamples: 1500,
+          synthesizedDuration: 0.03,
+          totalPlayoutDelay: 0.12,
+          totalSampleCount: 48000,
+        },
+      ],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    expect(
+      (collector as unknown as CallReportCollector).getStatsBuffer()[0]
+    ).toEqual(
+      expect.objectContaining({
+        mediaPlayout: {
+          synthesizedSamples: 1500,
+          synthesizedDuration: 0.03,
+          totalPlayoutDelay: 0.12,
+          totalSampleCount: 48000,
+        },
+      })
+    );
+  });
+
+  it('omits mediaPlayout when no media-playout stat is present', async () => {
+    const stats = new Map<string, unknown>([
+      [
+        'outbound_audio',
+        {
+          id: 'outbound_audio',
+          type: 'outbound-rtp',
+          kind: 'audio',
+          mediaType: 'audio',
+          packetsSent: 100,
+          bytesSent: 4800,
+        },
+      ],
+    ]);
+    const collector = createCollector();
+    collector.peerConnection = {
+      getStats: jest.fn().mockResolvedValue(stats as unknown as RTCStatsReport),
+      getSenders: () => [],
+    };
+    (collector as unknown as { intervalStartTime: Date }).intervalStartTime =
+      new Date(Date.now() - 5000);
+
+    await collector._collectStats(true);
+
+    const entry = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer()[0];
+    expect(entry).toBeDefined();
+    expect(entry.mediaPlayout).toBeUndefined();
+  });
+});

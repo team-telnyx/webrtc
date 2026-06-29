@@ -81,6 +81,20 @@ interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
 }
 
 /**
+ * Extended media-playout stats (type: 'media-playout', audio).
+ * Reports playout delay and synthesized-sample indicators.
+ */
+interface ExtendedMediaPlayoutStats {
+  type: string;
+  id: string;
+  kind?: string;
+  synthesizedSamples?: number;
+  synthesizedDuration?: number;
+  totalPlayoutDelay?: number;
+  totalSampleCount?: number;
+}
+
+/**
  * Extended RTCAudioSourceStats (type: 'media-source', kind: 'audio')
  * Available in Chrome 96+ via outbound-rtp.mediaSourceId
  */
@@ -264,6 +278,16 @@ export interface IStatsInterval {
   };
   ice?: IICECandidatePair;
   transport?: ITransportStats;
+  /**
+   * Audio playout stats from the `media-playout` RTCStatsType.
+   * Reports playout delay and synthesized-sample indicators.
+   */
+  mediaPlayout?: {
+    synthesizedSamples?: number;
+    synthesizedDuration?: number;
+    totalPlayoutDelay?: number;
+    totalSampleCount?: number;
+  };
 }
 
 export interface ICallSummary {
@@ -971,6 +995,7 @@ export class CallReportCollector {
       // Process stats reports
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
+      let mediaPlayout: ExtendedMediaPlayoutStats | null = null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
       const candidatePairs: ExtendedCandidatePairStats[] = [];
       let transportStats: ExtendedTransportStats | null = null;
@@ -985,6 +1010,11 @@ export class CallReportCollector {
           case 'inbound-rtp':
             if (report.kind === 'audio' && report.mediaType === 'audio') {
               inboundAudio = report as ExtendedInboundRtpStreamStats;
+            }
+            break;
+          case 'media-playout':
+            if (report.kind === 'audio') {
+              mediaPlayout = report as ExtendedMediaPlayoutStats;
             }
             break;
           case 'candidate-pair':
@@ -1170,7 +1200,8 @@ export class CallReportCollector {
           remoteCandidate,
           transportStats,
           localAudioTrack,
-          localAudioSource
+          localAudioSource,
+          mediaPlayout
         );
 
         // Add to buffer with size limit
@@ -1517,7 +1548,8 @@ export class CallReportCollector {
     remoteCandidate?: ICECandidateInfo,
     transportStats?: ExtendedTransportStats | null,
     localAudioTrack?: ILocalAudioTrackSnapshot,
-    localAudioSource?: ILocalAudioSourceStats
+    localAudioSource?: ILocalAudioSourceStats,
+    mediaPlayout?: ExtendedMediaPlayoutStats | null
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -1631,6 +1663,16 @@ export class CallReportCollector {
           ? { selectedCandidatePairId: transportStats.selectedCandidatePairId }
           : {}),
       };
+    }
+
+    // Media-playout stats (audio playout delay + synthesized samples)
+    if (mediaPlayout) {
+      entry.mediaPlayout = this._withoutUndefined({
+        synthesizedSamples: mediaPlayout.synthesizedSamples,
+        synthesizedDuration: mediaPlayout.synthesizedDuration,
+        totalPlayoutDelay: mediaPlayout.totalPlayoutDelay,
+        totalSampleCount: mediaPlayout.totalSampleCount,
+      });
     }
 
     return entry;
