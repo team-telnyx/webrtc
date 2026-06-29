@@ -1,3 +1,6 @@
+## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
+
+- No notable changes
 ## [2.27.2-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.1...webrtc/v2.27.2-beta.0) (2026-06-29)
 
 - docs: update ts docs
