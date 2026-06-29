@@ -1,4 +1,4 @@
-import { VertoMethod } from '../../webrtc/constants';
+import { VertoMethod, VertoModifyAction } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 import type { IVertoCallOptions } from '../../webrtc/interfaces';
@@ -372,6 +372,136 @@ describe('Call Trickle ICE', () => {
       );
 
       emitSpy.mockRestore();
+    });
+  });
+  describe('ICE restart Modify', () => {
+    const restartSdp =
+      'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\na=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx';
+
+    it('trickle-enabled restart sends a trickle Modify with the new offer SDP', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: call.id,
+              sdp: restartSdp,
+              trickle: true,
+            }),
+          }),
+        })
+      );
+    });
+
+    it('routes restart candidates through the trickle Candidate/EndOfCandidates path', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({});
+
+      call.peer.isIceRestarting = true;
+
+      const candidateEvent = {
+        type: 'icecandidate',
+        candidate: {
+          candidate: 'candidate:1 1 UDP 1694498815 203.0.113.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        },
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      const endEvent = {
+        type: 'icecandidate',
+        candidate: null,
+      } as unknown as RTCPeerConnectionIceEvent;
+
+      // Use the real onicecandidate handler registered by _registerPeerEvents.
+      call.peer.instance.onicecandidate(candidateEvent);
+      call.peer.instance.onicecandidate(endEvent);
+
+      const methods = sessionExecuteSpy.mock.calls.map(
+        (c) => (c[0] as any)?.request?.method
+      );
+      expect(methods).toContain(VertoMethod.Candidate);
+      expect(methods).toContain(VertoMethod.EndOfCandidates);
+    });
+
+    it('non-trickle restart sends a complete-SDP Modify without trickle', () => {
+      const nonTrickleCall = new Call(session, {
+        ...defaultParams,
+        trickleIce: false,
+      });
+      nonTrickleCall.invite();
+
+      const sessionExecuteSpy = jest
+        .spyOn((nonTrickleCall as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      nonTrickleCall.peer.isIceRestarting = true;
+
+      (nonTrickleCall as any)._onIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: nonTrickleCall.id,
+              sdp: restartSdp,
+            }),
+          }),
+        })
+      );
+
+      // trickle must NOT be present on a non-trickle restart Modify
+      const modifyCall = sessionExecuteSpy.mock.calls.find(
+        (c) => (c[0] as any)?.request?.method === VertoMethod.Modify
+      );
+      expect((modifyCall?.[0] as any)?.request?.params?.trickle).toBeUndefined();
+    });
+
+    it('reattached/recovered trickle call follows the trickle restart Modify flow', () => {
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      // Simulate a call recovered via attach — recoveredCallId is set.
+      (call as any).recoveredCallId = 'previous-call-id';
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      expect(sessionExecuteSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.Modify,
+            params: expect.objectContaining({
+              action: VertoModifyAction.UpdateMedia,
+              callID: call.id,
+              sdp: restartSdp,
+              trickle: true,
+            }),
+          }),
+        })
+      );
     });
   });
 });

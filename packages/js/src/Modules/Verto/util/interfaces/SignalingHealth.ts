@@ -8,7 +8,6 @@ export type PeerFailureEvidence = 'ice_failed' | 'connection_failed';
 export type TriggerIceRestartResult = {
   started: boolean;
   reason?: string;
-  recoverSignaling?: boolean;
 };
 
 /**

@@ -1181,16 +1181,10 @@ export default abstract class BaseSession {
       return { started: false, reason: 'call not found' };
     }
 
-    if (call.options?.attach || call.recoveredCallId) {
-      logger.warn(
-        `Signaling health: ICE restart skipped for call ${callId}: call was recovered via attach`
-      );
-      return {
-        started: false,
-        reason: 'call recovered via attach',
-        recoverSignaling: true,
-      };
-    }
+    // Reattached/recovered calls use the same ICE restart path as normal
+    // active calls now that b2bua-rtc supports Modify after attach recovery.
+    // Socket reconnect + attach remains the owner only when signaling itself
+    // is unhealthy (handled by the signaling health monitor).
 
     const peer = call.peer;
     if (!peer?.restartIce) {

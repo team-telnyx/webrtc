@@ -14,6 +14,10 @@ import {
   RECONNECT_SESSION_ID_MAX_AGE_MS,
   setReconnectSessionId,
   setReconnectToken,
+  getActiveCallsRecoveryMarker,
+  setActiveCallsRecoveryMarker,
+  clearActiveCallsRecoveryMarker,
+  type IStoredActiveCall,
 } from '../util/reconnect';
 
 const Connection = require('../services/Connection');
@@ -141,17 +145,181 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
-      expect(
-        addEventListenerSpy.mock.calls.some(
-          ([eventName]) => eventName === 'beforeunload'
-        )
-      ).toBe(false);
+      // A single beforeunload listener is registered (merged handler).
+      const beforeUnloadCalls = addEventListenerSpy.mock.calls.filter(
+        ([eventName]) => eventName === 'beforeunload'
+      );
+      expect(beforeUnloadCalls.length).toBe(1);
 
       expect(getReconnectToken()).toBe('voice-sdk-id');
       expect(getReconnectSessionId()).toBe('previous-sessid');
 
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should save recovery markers for active calls before unload when hangupOnBeforeUnload is false', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+
+      // Simulate a logged-in session with active calls. The save path
+      // (Verto/index.ts beforeunload handler) projects each active call to a
+      // narrow shape (`id` + `options.customHeaders`).
+      telnyxRTC.sessionid = 'session-abc';
+      const hangup = jest.fn();
+      telnyxRTC.calls = {
+        'call-1': ({
+          id: 'call-1',
+          hangup,
+          state: 'active',
+          direction: 'outbound',
+          session: {}, // not persisted — narrow projection drops it
+          peer: {}, // not persisted — narrow projection drops it
+          options: {
+            customHeaders: [{ name: 'X-Test', value: '1' }],
+          },
+        } as unknown) as IWebRTCCall,
+        'call-2': ({
+          id: 'call-2',
+          hangup,
+          state: 'active',
+          direction: 'inbound',
+          session: {}, // not persisted — narrow projection drops it
+          peer: {}, // not persisted — narrow projection drops it
+          options: {},
+        } as unknown) as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+
+      expect(beforeUnloadHandler).toBeDefined();
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // No hangup is called in this branch.
+      expect(hangup).not.toHaveBeenCalled();
+
+      const result = getActiveCallsRecoveryMarker();
+      expect(result!.calls.length).toBe(2);
+      expect(result!.sessionId).toBe('session-abc');
+
+      const ids = result!.calls.map((m) => m.id).sort();
+      expect(ids).toEqual(['call-1', 'call-2']);
+
+      const m1 = result!.calls.find((m) => m.id === 'call-1');
+      expect(m1!.id).toBe('call-1');
+      // Only the narrow projection is persisted: id + customHeaders.
+      // State, direction, session, peer are all dropped by the projection.
+      expect(m1!.customHeaders).toEqual([{ name: 'X-Test', value: '1' }]);
+
+      // call-2 had no custom headers — `customHeaders` is undefined.
+      const m2 = result!.calls.find((m) => m.id === 'call-2');
+      expect(m2!.id).toBe('call-2');
+      expect(m2!.customHeaders).toBeUndefined();
+
+      // The narrow projection excludes sensitive / host fields — only id
+      // and customHeaders are persisted. No session, peer, state,
+      // direction, localStream, remoteStream, iceServers, options.
+      const serialized = JSON.stringify(result!.calls[0]);
+      expect(serialized).not.toContain('"session"');
+      expect(serialized).not.toContain('"peer"');
+      expect(serialized).not.toContain('"state"');
+      expect(serialized).not.toContain('"direction"');
+      expect(serialized).not.toContain('"localStream"');
+      expect(serialized).not.toContain('"iceServers"');
+      expect(serialized).toContain('"customHeaders"');
+      // The legacy correlation-id fields are NOT part of the narrow
+      // projection (the producer maps only `customHeaders`).
+      expect(serialized).not.toContain('"options"');
+      expect(serialized).not.toContain('"telnyxSessionId"');
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should clear any stale recovery marker when hangupOnBeforeUnload is false and there are no active calls', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+
+      // Pre-seed a stale marker from a previous page.
+      setActiveCallsRecoveryMarker(
+        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+        'old-session'
+      );
+      const seeded = getActiveCallsRecoveryMarker();
+      expect(seeded).not.toBeNull();
+      expect(seeded!.calls.length).toBe(1);
+
+      // Re-seed since getActiveCallsRecoveryMarker clears on read.
+      setActiveCallsRecoveryMarker(
+        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+        'old-session'
+      );
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      // No sessionid and no active calls.
+      telnyxRTC.sessionid = '';
+      telnyxRTC.calls = {};
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // Stale marker should have been wiped.
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should NOT write a recovery marker when hangupOnBeforeUnload is not false (default branch)', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        // default hangupOnBeforeUnload
+      });
+      telnyxRTC.sessionid = 'session-default';
+      telnyxRTC.calls = {
+        'call-x': ({
+          id: 'call-x',
+          hangup: jest.fn(),
+          state: 'active',
+          options: {},
+        } as unknown) as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // Default branch hangs up and clears the reconnect token — no marker.
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
+
+      addEventListenerSpy.mockRestore();
+      clearReconnectToken();
+      clearActiveCallsRecoveryMarker();
     });
   });
 
