@@ -1130,7 +1130,7 @@ export default abstract class BaseSession {
     const callIds = Object.keys(calls);
     if (callIds.length === 0) return;
     logger.debug(
-      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE).`
+      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE): ${callIds.join(', ')}`
     );
     for (const callId of callIds) {
       const call = calls[callId];

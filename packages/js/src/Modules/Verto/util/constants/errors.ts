@@ -19,6 +19,17 @@ type SdkErrorDefinition = {
   description: string;
   causes: readonly string[];
   solutions: readonly string[];
+  /**
+   * Whether the situation is terminal — the operation/call/session is dead and
+   * the client should stop (`true`), or the SDK is handling recovery / the
+   * failure is benign enough to ignore (`false`).
+   *
+   * Convention for new entries: the safe default is `false` (not terminal).
+   * Only set `true` when the SDK genuinely has no recovery path for the error
+   * (e.g. SDP failures, invalid credentials, session/call lost). This default
+   * mirrors `createTelnyxError()`, which inherits the registry value and only
+   * emit sites override it when their context differs.
+   */
   fatal: boolean;
 };
 
