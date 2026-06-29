@@ -385,9 +385,7 @@ describe('Connection - Safety Timeout', () => {
       expect(trigger).toHaveBeenCalledWith(
         SwEvent.SocketClose,
         expect.objectContaining({
-          code: 1000,
-          reason: 'normal',
-          wasClean: true,
+          event: closeEvent,
           socketGeneration: expect.any(Number),
         }),
         mockSession.uuid
