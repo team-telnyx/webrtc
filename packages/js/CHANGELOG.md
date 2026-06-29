@@ -1,3 +1,6 @@
+## [2.27.2-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.1...webrtc/v2.27.2-beta.0) (2026-06-29)
+
+- docs: update ts docs
 ## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
 
 - fix: include sessid on reconnect login (#657)
