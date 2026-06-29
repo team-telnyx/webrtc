@@ -28,6 +28,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
+import { getActiveCallsRecoveryMarker } from '../util/reconnect';
 
 /**
  * @ignore Hide in docs output
@@ -110,6 +111,79 @@ class VertoHandler {
 
           // Local cleanup only — do not send BYE because the server no longer has the session.
           void call.hangup({}, false);
+        }
+      }
+    }
+
+    // ── Page-reload recovery marker check ────────────────────────────────
+    // After a page reload the SDK starts with a fresh in-memory cache, so
+    // the in-process reattach block above (gated on `activeCallsIDs.size`)
+    // does not run. To still detect calls that were active before unload
+    // but were not reattached by the server, compare the persisted recovery
+    // markers (written by the Verto constructor's beforeunload listener
+    // when `hangupOnBeforeUnload === false`) against the server's
+    // `reattached_sessions` for the current session id.
+    //
+    // This block is notification-only: it does NOT recreate call objects and
+    // does NOT hang up. The records represent calls from a prior page that
+    // no longer have real Call instances here.
+    //
+    // `getActiveCallsRecoveryMarker()` reads and immediately clears storage
+    // (at-most-once guarantee) — no separate clear is needed.
+    if (Array.isArray(params?.reattached_sessions) && session.sessionid) {
+      const saved = getActiveCallsRecoveryMarker();
+
+      if (saved && saved.calls.length > 0) {
+        if (saved.sessionId !== session.sessionid) {
+          // Different session context — drop silently, do not notify.
+          logger.debug(
+            `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
+          );
+        } else {
+          const reattachedIds = new Set(params.reattached_sessions as string[]);
+
+          for (const call of saved.calls) {
+            // Defense-in-depth: `getActiveCallsRecoveryMarker` already filters
+            // out malformed records, but guard the loop body so a single bad
+            // record (or an unexpected throw mid-emit) can never break recovery
+            // for the remaining records.
+            try {
+              // Only the narrow projection was persisted (`id` plus optional
+              // `options.telnyxSessionId` / `options.telnyxCallControlId`), so
+              // the correlation identifiers live nested under `call.options`.
+              if (reattachedIds.has(call.id)) {
+                // Call was reattached — recovered, do not notify.
+                logger.debug(
+                  `Recovery marker for call ${call.id} was reattached — no notification.`
+                );
+                continue;
+              }
+
+              // Call was not reattached for the same sessid — emit
+              // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
+              // call object on this page.
+              logger.info(
+                `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
+              );
+              const error = createTelnyxError(SESSION_NOT_REATTACHED);
+              trigger(
+                SwEvent.Error,
+                {
+                  error,
+                  callId: call.id,
+                  sessionId: session.sessionid,
+                  customHeaders: call.customHeaders,
+                },
+                session.uuid
+              );
+            } catch (err) {
+              logger.debug(
+                `Recovery marker for a saved call failed to process (callId=${call?.id}) — skipping: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              );
+            }
+          }
         }
       }
     }
