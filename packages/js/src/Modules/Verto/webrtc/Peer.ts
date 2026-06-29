@@ -15,6 +15,7 @@ import {
   classifyMediaErrorCode,
   createTelnyxError,
   createTelnyxWarning,
+  TelnyxError,
 } from '../util/errors';
 import {
   MEDIA_GET_USER_MEDIA_FAILED,
@@ -207,9 +208,12 @@ export default class Peer {
     this._negotiating = true;
 
     if (this._isOffer() || this.isIceRestarting) {
-      this._createOffer();
+      // Fire-and-forget: the caller does not await this promise, so we
+      // must catch and emit here — otherwise the TelnyxError is lost as
+      // an unhandled rejection.
+      this._createOffer().catch((error) => this._emitNegotiationError(error));
     } else {
-      this._createAnswer();
+      this._createAnswer().catch((error) => this._emitNegotiationError(error));
     }
   }
   async startTrickleIceNegotiation() {
@@ -217,10 +221,30 @@ export default class Peer {
 
     this._negotiating = true;
 
+    // Fire-and-forget from init() and handleNegotiationNeededEvent(): callers
+    // attach a .catch(_emitNegotiationError) so a rejection emits telnyx.error
+    // instead of becoming an unhandled promise rejection. We must NOT emit
+    // here to avoid double emission — the .catch handler does it.
     if (this._isOffer() || this.isIceRestarting) {
       await this._createOffer().then(this._trickleIceSdpFn.bind(this));
     } else {
       await this._createAnswer().then(this._trickleIceSdpFn.bind(this));
+    }
+  }
+
+  /**
+   * Emit an SDP negotiation error as a telnyx.error event. Used by the
+   * fire-and-forget negotiation paths (startNegotiation and the .catch
+   * handlers on startTrickleIceNegotiation) so a rejection emits telnyx.error
+   * instead of becoming an unhandled promise rejection.
+   */
+  private _emitNegotiationError(error: unknown): void {
+    if (error instanceof TelnyxError) {
+      trigger(
+        SwEvent.Error,
+        { error, sessionId: this._session.sessionid },
+        this.options.id
+      );
     }
   }
 
@@ -292,7 +316,11 @@ export default class Peer {
     // negotiation path so candidates are sent incrementally. b2bua-rtc
     // now supports trickled Modify candidates.
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation();
+      // Fire-and-forget event handler: catch and emit here to avoid an
+      // unhandled promise rejection when SDP negotiation fails.
+      this.startTrickleIceNegotiation().catch((error) =>
+        this._emitNegotiationError(error)
+      );
     } else {
       this.startNegotiation();
     }
@@ -517,7 +545,12 @@ export default class Peer {
             trigger(
               SwEvent.Error,
               {
-                error: createTelnyxError(classifyMediaErrorCode(error), error),
+                error: createTelnyxError(
+                  classifyMediaErrorCode(error),
+                  error,
+                  undefined,
+                  false // recovery flow: fatal=false (override of registry default true)
+                ),
                 callId: this.options.id,
                 sessionId: this._session.sessionid,
                 recoverable: true,
@@ -842,7 +875,12 @@ export default class Peer {
     }
 
     if (this._isTrickleIce()) {
-      this.startTrickleIceNegotiation();
+      // Fire-and-forget like startNegotiation(): init() must not await this,
+      // so catch and emit here — otherwise a rejection becomes an unhandled
+      // promise rejection with no telnyx.error event (regression vs main).
+      this.startTrickleIceNegotiation().catch((error) =>
+        this._emitNegotiationError(error)
+      );
     }
 
     this._logTransceivers();
@@ -889,12 +927,15 @@ export default class Peer {
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
-      const telnyxError = createTelnyxError(SDP_CREATE_OFFER_FAILED, error);
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this._session.sessionid },
-        this.options.id
-      );
+      // If the error is already a TelnyxError (e.g. from _setLocalDescription
+      // throwing SDP_SET_LOCAL_DESCRIPTION_FAILED), propagate it as-is. For
+      // unexpected errors, wrap in SDP_CREATE_OFFER_FAILED. Emission happens
+      // at the upper level (BaseCall invite/answer, or _emitNegotiationError
+      // for the fire-and-forget path) to avoid double emission.
+      if (error instanceof TelnyxError) {
+        throw error;
+      }
+      throw createTelnyxError(SDP_CREATE_OFFER_FAILED, error);
     }
   }
 
@@ -910,12 +951,7 @@ export default class Peer {
         SDP_SET_REMOTE_DESCRIPTION_FAILED,
         error
       );
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this._session.sessionid },
-        this.options.id
-      );
-      throw error;
+      throw telnyxError;
     }
   }
 
@@ -959,12 +995,15 @@ export default class Peer {
       return answer;
     } catch (error) {
       logger.error('Peer _createAnswer error:', error);
-      const telnyxError = createTelnyxError(SDP_CREATE_ANSWER_FAILED, error);
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this._session.sessionid },
-        this.options.id
-      );
+      // If the error is already a TelnyxError (e.g. from _setRemoteDescription
+      // or _setLocalDescription throwing), propagate it as-is. For unexpected
+      // errors, wrap in SDP_CREATE_ANSWER_FAILED. Emission happens at the
+      // upper level (BaseCall invite/answer, or _emitNegotiationError for the
+      // fire-and-forget path) to avoid double emission.
+      if (error instanceof TelnyxError) {
+        throw error;
+      }
+      throw createTelnyxError(SDP_CREATE_ANSWER_FAILED, error);
     }
   }
 
@@ -979,12 +1018,7 @@ export default class Peer {
         SDP_SET_LOCAL_DESCRIPTION_FAILED,
         error
       );
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this._session.sessionid },
-        this.options.id
-      );
-      throw error;
+      throw telnyxError;
     }
   }
 

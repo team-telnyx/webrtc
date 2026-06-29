@@ -296,6 +296,29 @@ export default class SignalingHealthMonitor {
     );
   }
 
+  /**
+   * Called by BaseCall (via BaseSession.reportIceRestartFailed) when an
+   * ICE restart Modify request fails — it could not be sent or the server
+   * returned an error.
+   *
+   * The monitor owns the recovery decision: when an ICE restart fails, the
+   * media path cannot recover via another ICE restart, so the monitor forces
+   * a socket reconnect + reattach as the recovery path. This keeps all
+   * recovery logic in one place (the Signaling service) rather than triggering
+   * recovery directly from the call layer.
+   *
+   * @param callId The call whose ICE restart failed.
+   */
+  onIceRestartFailed(callId: string): void {
+    logger.warn(
+      `Signaling health: ICE restart failed (callId=${callId}) — triggering socket reconnect`
+    );
+    this._triggerSignalingRecovery(
+      `ICE restart failed for call ${callId}`,
+      'peer_failure'
+    );
+  }
+
   // ── Private ─────────────────────────────────────────────────────────
 
   /**

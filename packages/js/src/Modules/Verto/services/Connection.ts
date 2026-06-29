@@ -215,12 +215,19 @@ export default class Connection {
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
-      const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
+      const telnyxError = createTelnyxError(
+        WEBSOCKET_CONNECTION_FAILED,
+        error
+      );
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this.session.sessionid },
         this.session.uuid
       );
+      // Auto-reconnect cannot recover from a failed WebSocket construction
+      // (there is no socket object), so tear down any active calls LOCALLY
+      // — no BYE on the wire. (VSDK-318 Step 4.e)
+      this.session._terminateActiveCallsLocally();
     }
   }
 

@@ -549,6 +549,11 @@ class VertoHandler {
                     `Fail to connect the server, the server tried ${RETRY_CONNECT_TIME} times`,
                     'FAILED|FAIL_WAIT|TIMEOUT'
                   );
+                  // Local-only teardown of active calls before declaring
+                  // reconnection exhausted. The socket is already dead, so
+                  // sending BYE would only generate noise (BYE_SEND_FAILED).
+                  // (VSDK-318 Step 4.d)
+                  this.session._terminateActiveCallsLocally();
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     originalError
@@ -567,8 +572,11 @@ class VertoHandler {
                 this.retriedConnect += 1;
                 if (this.retriedConnect === RETRY_CONNECT_TIME) {
                   this.retriedConnect = 0;
+                  // Local-only teardown of active calls before declaring
+                  // reconnection exhausted (see above). (VSDK-318 Step 4.d)
+                  this.session._terminateActiveCallsLocally();
                   const telnyxError = createTelnyxError(
-                    45003,
+                    RECONNECTION_EXHAUSTED,
                     new Error('Connection Retry Failed')
                   );
                   trigger(

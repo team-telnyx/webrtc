@@ -1741,6 +1741,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.error(message, error);
     this.peer?.finishIceRestart();
     const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    // fatal: false (registry default) — SignalingHealth will decide on recovery.
     trigger(
       SwEvent.Error,
       {
@@ -1750,6 +1751,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       },
       this.session.uuid
     );
+
+    // Notify SignalingHealth that ICE restart failed. The Signaling service
+    // decides what to do next (it may trigger socket recovery, or it may take
+    // a different action). This handoff keeps recovery logic in one place.
+    this.session.reportIceRestartFailed?.(this.id);
   }
 
   private async _onRemoteSdp(remoteSdp: string) {
@@ -1809,12 +1815,13 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _requestAnotherLocalDescription() {
     if (isFunction(this.peer.onSdpReadyTwice)) {
+      const telnyxError = createTelnyxError(
+        SDP_SEND_FAILED,
+        new Error('SDP without candidates for the second time!')
+      );
       trigger(
         SwEvent.Error,
-        {
-          error: new Error('SDP without candidates for the second time!'),
-          sessionId: this.session.sessionid,
-        },
+        { error: telnyxError, sessionId: this.session.sessionid },
         this.session.uuid
       );
       return;

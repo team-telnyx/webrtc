@@ -221,7 +221,12 @@ export default abstract class BaseSession {
       }
       if (error?.code === this.authenticationRequiredErrorCode) {
         if (!this._autoReconnect) {
-          const telnyxError = createTelnyxError(AUTHENTICATION_REQUIRED, error);
+          const telnyxError = createTelnyxError(
+            AUTHENTICATION_REQUIRED,
+            error,
+            undefined,
+            true // fatal: true (no recovery path — autoReconnect is disabled)
+          );
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -865,6 +870,11 @@ export default abstract class BaseSession {
         this._reconnectAttempts = 0;
         this._autoReconnect = false;
 
+        // Tear down any active calls LOCALLY before declaring reconnection
+        // exhausted. The socket is already dead, so sending BYE would only
+        // generate BYE_SEND_FAILED noise. (VSDK-318 Step 4.d)
+        this._terminateActiveCallsLocally();
+
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         trigger(
           SwEvent.Error,
@@ -1104,6 +1114,32 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Tear down every active call LOCALLY without sending BYE on the wire.
+   *
+   * Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
+   * the signaling socket is already dead). Sending BYE over a dead socket
+   * would only generate `BYE_SEND_FAILED` noise, so each call is finalized
+   * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
+   * media, fires the local hangup notification, and removes the call from
+   * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   */
+  public _terminateActiveCallsLocally(): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calls = (this as any).calls;
+    if (!calls) return;
+    const callIds = Object.keys(calls);
+    if (callIds.length === 0) return;
+    logger.debug(
+      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE): ${callIds.join(', ')}`
+    );
+    for (const callId of callIds) {
+      const call = calls[callId];
+      // Local-only teardown: execute=false skips the outbound BYE.
+      void call?.hangup({}, false);
+    }
+  }
+
+  /**
    * Start the signaling health monitor. Called when a call becomes active
    * or on reconnect if calls exist.
    */
@@ -1204,6 +1240,19 @@ export default abstract class BaseSession {
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
+  }
+
+  /**
+   * Report that an ICE restart attempt failed for the given call.
+   * Called by BaseCall when the ICE restart Modify request could not be
+   * sent or the server returned an error.
+   *
+   * The health monitor owns the recovery decision (whether to reconnect
+   * the socket, when, etc.). BaseCall does NOT trigger recovery itself —
+   * this handoff keeps recovery logic in one place.
+   */
+  reportIceRestartFailed(callId: string): void {
+    this._signalingHealthMonitor.onIceRestartFailed(callId);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

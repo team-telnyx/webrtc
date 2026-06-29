@@ -278,6 +278,12 @@ export interface IClientOptions {
    * or does not respond before `timeout`, recovery fails and the call is
    * terminated with the usual media error flow.
    *
+   * In the recovery flow the emitted error carries `event.recoverable === true`
+   * (top-level) plus the `resume`/`reject`/`retryDeadline` helpers, and
+   * `event.error.fatal === false` (the SDK is actively handling recovery via
+   * the app's cooperation). Outside the recovery flow, media failures are
+   * terminal (`event.error.fatal === true`, no top-level `recoverable`).
+   *
    * @example
    * ```js
    * import {isMediaRecoveryErrorEvent} from "@telnyx/webrtc"
@@ -294,10 +300,13 @@ export interface IClientOptions {
    *
    * client.on('telnyx.error', (event) => {
    *   if (isMediaRecoveryErrorEvent(event)) {
+   *     // event.recoverable === true, event.error.fatal === false
    *     showPermissionDialog({
    *       onContinue: () => event.resume(),
    *       onCancel: () => event.reject?.(),
    *     });
+   *   } else if (event.error.fatal) {
+   *     // Terminal error — give up on this call/session
    *   }
    * });
    * ```
