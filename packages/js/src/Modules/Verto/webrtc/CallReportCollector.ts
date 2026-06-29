@@ -99,6 +99,48 @@ interface ExtendedOutboundRtpStreamStats extends RTCOutboundRtpStreamStats {
 }
 
 /**
+ * Extended remote-inbound-rtp stats — the remote peer's inbound-rtp as
+ * reported via RTCP Receiver Report. Reflects OUR outbound stream quality
+ * (loss/jitter/RTT as observed by the remote side).
+ */
+interface ExtendedRemoteInboundRtpStreamStats {
+  type: string;
+  id: string;
+  kind?: string;
+  jitter?: number; // seconds
+  packetsLost?: number;
+  packetsReceived?: number;
+  fractionLost?: number;
+  /** seconds — media-path RTT */
+  roundTripTime?: number;
+  totalRoundTripTime?: number;
+  roundTripTimeMeasurements?: number;
+  nackCount?: number;
+  reportsReceived?: number;
+  packetsDiscarded?: number;
+  /** links to our outbound-rtp stat id */
+  localId?: string;
+}
+
+/**
+ * Extended remote-outbound-rtp stats — the remote peer's outbound-rtp as
+ * reported via RTCP Sender Report.
+ */
+interface ExtendedRemoteOutboundRtpStreamStats {
+  type: string;
+  id: string;
+  kind?: string;
+  localId?: string;
+  remoteId?: string;
+  packetsSent?: number;
+  bytesSent?: number;
+  reportsCount?: number;
+  /** seconds */
+  roundTripTime?: number;
+  totalPacketSendDelay?: number;
+}
+
+/**
  * Extended media-playout stats (type: 'media-playout', audio).
  * Reports playout delay and synthesized-sample indicators.
  */
@@ -316,6 +358,40 @@ export interface IStatsInterval {
     synthesizedDuration?: number;
     totalPlayoutDelay?: number;
     totalSampleCount?: number;
+  };
+  /**
+   * Remote RTCP stats parsed from `remote-inbound-rtp` (RTCP Receiver Report
+   * describing OUR outbound stream) and `remote-outbound-rtp` (RTCP Sender
+   * Report from the remote peer).
+   */
+  remoteRtcp?: {
+    // remote-inbound-rtp: RTCP Receiver Report for OUR outbound stream.
+    inbound?: {
+      packetsReceived?: number;
+      packetsLost?: number;
+      fractionLost?: number;
+      /** ms (converted from seconds x1000 for consistency with jitterAvg) */
+      jitter?: number;
+      /** seconds — media-path RTT */
+      roundTripTime?: number;
+      /** seconds */
+      totalRoundTripTime?: number;
+      roundTripTimeMeasurements?: number;
+      /** Cumulative media-path RTT average = totalRoundTripTime / roundTripTimeMeasurements (seconds). */
+      roundTripTimeAvg?: number;
+      nackCount?: number;
+      reportsReceived?: number;
+      packetsDiscarded?: number;
+    };
+    // remote-outbound-rtp: RTCP Sender Report from the remote peer.
+    outbound?: {
+      packetsSent?: number;
+      bytesSent?: number;
+      reportsCount?: number;
+      /** seconds */
+      roundTripTime?: number;
+      totalPacketSendDelay?: number;
+    };
   };
 }
 
@@ -1017,6 +1093,13 @@ export class CallReportCollector {
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
       let inboundAudio: ExtendedInboundRtpStreamStats | null = null;
       let mediaPlayout: ExtendedMediaPlayoutStats | null = null;
+      // remote-inbound-rtp / remote-outbound-rtp are RTCP reports from the
+      // remote peer describing OUR outbound (and the remote's outbound)
+      // streams. They may not carry a mediaType field, so we gate on
+      // report.kind === 'audio' only.
+      let remoteInboundAudio: ExtendedRemoteInboundRtpStreamStats | null = null;
+      let remoteOutboundAudio: ExtendedRemoteOutboundRtpStreamStats | null =
+        null;
       let candidatePair: ExtendedCandidatePairStats | null = null;
       const candidatePairs: ExtendedCandidatePairStats[] = [];
       let transportStats: ExtendedTransportStats | null = null;
@@ -1036,6 +1119,21 @@ export class CallReportCollector {
           case 'media-playout':
             if (report.kind === 'audio') {
               mediaPlayout = report as ExtendedMediaPlayoutStats;
+            }
+            break;
+          case 'remote-inbound-rtp':
+            // RTCP Receiver Report for OUR outbound stream. Note: this report
+            // type does NOT include a mediaType field, so gate on kind only.
+            if (report.kind === 'audio') {
+              remoteInboundAudio =
+                report as ExtendedRemoteInboundRtpStreamStats;
+            }
+            break;
+          case 'remote-outbound-rtp':
+            // RTCP Sender Report from the remote peer. Same mediaType caveat.
+            if (report.kind === 'audio') {
+              remoteOutboundAudio =
+                report as ExtendedRemoteOutboundRtpStreamStats;
             }
             break;
           case 'candidate-pair':
@@ -1220,7 +1318,9 @@ export class CallReportCollector {
           transportStats,
           localAudioTrack,
           localAudioSource,
-          mediaPlayout
+          mediaPlayout,
+          remoteInboundAudio,
+          remoteOutboundAudio
         );
 
         // Add to buffer with size limit
@@ -1568,7 +1668,9 @@ export class CallReportCollector {
     transportStats?: ExtendedTransportStats | null,
     localAudioTrack?: ILocalAudioTrackSnapshot,
     localAudioSource?: ILocalAudioSourceStats,
-    mediaPlayout?: ExtendedMediaPlayoutStats | null
+    mediaPlayout?: ExtendedMediaPlayoutStats | null,
+    remoteInboundAudio?: ExtendedRemoteInboundRtpStreamStats | null,
+    remoteOutboundAudio?: ExtendedRemoteOutboundRtpStreamStats | null
   ): IStatsInterval {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
@@ -1728,6 +1830,63 @@ export class CallReportCollector {
         totalPlayoutDelay: mediaPlayout.totalPlayoutDelay,
         totalSampleCount: mediaPlayout.totalSampleCount,
       });
+    }
+
+    // Remote RTCP stats — gives us the remote's view of OUR outbound stream
+    // (loss/jitter/RTT from remote-inbound-rtp) and the remote's outbound
+    // counters (remote-outbound-rtp). Only set when at least one side has data.
+    if (remoteInboundAudio || remoteOutboundAudio) {
+      const remoteRtcp: IStatsInterval['remoteRtcp'] = {};
+
+      if (remoteInboundAudio) {
+        // Jitter from remote-inbound-rtp is in seconds — convert to ms to
+        // match jitterAvg semantics elsewhere in the report.
+        const jitterMs =
+          remoteInboundAudio.jitter !== undefined
+            ? remoteInboundAudio.jitter * 1000
+            : undefined;
+
+        // Cumulative media-path RTT average = totalRoundTripTime /
+        // roundTripTimeMeasurements (both in seconds). Only compute when both
+        // are present and measurements > 0 to avoid NaN/Infinity.
+        let roundTripTimeAvg: number | undefined;
+        if (
+          typeof remoteInboundAudio.totalRoundTripTime === 'number' &&
+          typeof remoteInboundAudio.roundTripTimeMeasurements === 'number' &&
+          remoteInboundAudio.roundTripTimeMeasurements > 0
+        ) {
+          roundTripTimeAvg =
+            remoteInboundAudio.totalRoundTripTime /
+            remoteInboundAudio.roundTripTimeMeasurements;
+        }
+
+        remoteRtcp.inbound = this._withoutUndefined({
+          packetsReceived: remoteInboundAudio.packetsReceived,
+          packetsLost: remoteInboundAudio.packetsLost,
+          fractionLost: remoteInboundAudio.fractionLost,
+          jitter: jitterMs,
+          roundTripTime: remoteInboundAudio.roundTripTime,
+          totalRoundTripTime: remoteInboundAudio.totalRoundTripTime,
+          roundTripTimeMeasurements:
+            remoteInboundAudio.roundTripTimeMeasurements,
+          roundTripTimeAvg,
+          nackCount: remoteInboundAudio.nackCount,
+          reportsReceived: remoteInboundAudio.reportsReceived,
+          packetsDiscarded: remoteInboundAudio.packetsDiscarded,
+        });
+      }
+
+      if (remoteOutboundAudio) {
+        remoteRtcp.outbound = this._withoutUndefined({
+          packetsSent: remoteOutboundAudio.packetsSent,
+          bytesSent: remoteOutboundAudio.bytesSent,
+          reportsCount: remoteOutboundAudio.reportsCount,
+          roundTripTime: remoteOutboundAudio.roundTripTime,
+          totalPacketSendDelay: remoteOutboundAudio.totalPacketSendDelay,
+        });
+      }
+
+      entry.remoteRtcp = remoteRtcp;
     }
 
     return entry;
