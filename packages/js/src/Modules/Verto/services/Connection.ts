@@ -372,10 +372,15 @@ export default class Connection {
         socketGeneration: registeredGeneration,
         sessionId: this.session.sessionid,
       });
-      const enriched = Object.assign({}, event, {
-        socketGeneration: registeredGeneration,
-      });
-      return trigger(SwEvent.SocketClose, enriched, this.session.uuid);
+
+      return trigger(
+        SwEvent.SocketClose,
+        {
+          event,
+          socketGeneration: registeredGeneration,
+        },
+        this.session.uuid
+      );
     };
 
     ws.onerror = (event): boolean => {
