@@ -176,7 +176,9 @@ export default class SignalingHealthMonitor {
     logger.debug('Signaling health: probe resolved by matching Ping response');
 
     if (!this._pendingMediaRecovery) {
-      logger.debug('Signaling health: probe resolved but no pending media recovery');
+      logger.debug(
+        'Signaling health: probe resolved but no pending media recovery'
+      );
       return;
     }
 
@@ -187,7 +189,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
       );
-      this._triggerIceRestart(pending.callId, pending.reason, pending.source);
+      this._triggerIceRestart(pending.callId, pending.reason);
     }
   }
 
@@ -378,9 +380,7 @@ export default class SignalingHealthMonitor {
       // registrations — so the offline hint triggers a probe regardless
       // of whether a call is currently active.
       if (this.isRunning) {
-        this._probeIfNeeded(
-          'browser offline signal while monitor is active'
-        );
+        this._probeIfNeeded('browser offline signal while monitor is active');
       }
     };
 
@@ -532,7 +532,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
       );
-      this._triggerIceRestart(callId, mediaReason, signalingSource);
+      this._triggerIceRestart(callId, mediaReason);
       return;
     }
 
@@ -616,11 +616,14 @@ export default class SignalingHealthMonitor {
       );
       this._session.socketDisconnect();
     } else {
-      logger.debug('Signaling health: recovery triggered but connection not connected', {
-        connected: this._session.connection?.connected,
-        hasConnection: !!this._session.connection,
-        socketGeneration: this._session.connection?.socketGeneration,
-      });
+      logger.debug(
+        'Signaling health: recovery triggered but connection not connected',
+        {
+          connected: this._session.connection?.connected,
+          hasConnection: !!this._session.connection,
+          socketGeneration: this._session.connection?.socketGeneration,
+        }
+      );
     }
   }
 
@@ -633,11 +636,7 @@ export default class SignalingHealthMonitor {
    * @param callId The call to restart ICE on.
    * @param reason Human-readable reason for diagnostics.
    */
-  private _triggerIceRestart(
-    callId: string,
-    reason: string,
-    signalingSource: 'peer_failure' | 'no_rtp'
-  ): void {
+  private _triggerIceRestart(callId: string, reason: string): void {
     logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
     const result = this._session.triggerIceRestart(callId);
 
