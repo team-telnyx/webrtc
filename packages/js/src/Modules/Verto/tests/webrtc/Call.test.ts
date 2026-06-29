@@ -95,6 +95,20 @@ describe('Call', () => {
     });
   });
 
+  describe('call recording default option', () => {
+    it('constructs CallRecorder by default', () => {
+      expect(call['_callRecorder']).toBeTruthy();
+    });
+
+    it('does not construct CallRecorder when enableCallRecording is false', () => {
+      session.options.enableCallRecording = false;
+
+      call = new Call(session, defaultParams);
+
+      expect(call['_callRecorder']).toBeNull();
+    });
+  });
+
   describe('.setState()', () => {
     beforeEach(() => {
       call = new Call(session, { ...defaultParams, onNotification: noop });

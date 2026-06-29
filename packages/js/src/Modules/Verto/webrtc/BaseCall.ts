@@ -2537,7 +2537,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     // telnyx.warning events. The recorder is started at the Active state
     // (once tracks are attached) and finalized at end of call.
     const enableCallRecording =
-      this.session.options.enableCallRecording === true; // Default: false
+      this.session.options.enableCallRecording !== false; // Default: true
     if (enableCallRecording) {
       const flushIntervalMs =
         this.session.options.callRecordingFlushIntervalMs ??

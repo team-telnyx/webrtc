@@ -177,7 +177,7 @@ export const SDK_WARNINGS = {
     name: 'RECORDING_UNAVAILABLE',
     message: 'Call recording is not available in this browser',
     description:
-      'Call recording was enabled (enableCallRecording: true) but the browser does not support MediaStreamTrackProcessor (required to capture raw audio PCM). Recording is disabled for this call; the call proceeds normally. Currently affects Firefox and older Chromium (< 94).',
+      'Call recording is enabled by default (unless enableCallRecording is false), but the browser does not support MediaStreamTrackProcessor (required to capture raw audio PCM). Recording is disabled for this call; the call proceeds normally. Currently affects Firefox and older Chromium (< 94).',
     causes: [
       'Browser does not implement MediaStreamTrackProcessor (Firefox, Safari)',
       'Chromium version older than 94',

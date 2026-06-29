@@ -285,10 +285,10 @@ export interface IClientOptions {
    * applications that enable recording are responsible for the consent flow.
    *
    * **CPU cost:** Two `MediaStreamTrackProcessor` instances per call add
-   * measurable CPU on lower-end devices. Recommended only when
-   * troubleshooting.
+   * measurable CPU on lower-end devices. Set `enableCallRecording: false` to
+   * opt out for deployments that do not need diagnostic recordings.
    *
-   * @default false
+   * @default true
    */
   enableCallRecording?: boolean;
 
