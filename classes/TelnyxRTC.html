@@ -47,6 +47,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <div class="tsd-index-list"><a href="TelnyxRTC.html#connected" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-262144"><rect fill="var(--color-icon-background)" stroke="#FF4D4D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M8.85 16L11.13 7.24H12.582L14.85 16H13.758L13.182 13.672H10.53L9.954 16H8.85ZM10.746 12.76H12.954L12.282 10.06C12.154 9.548 12.054 9.12 11.982 8.776C11.91 8.432 11.866 8.208 11.85 8.104C11.834 8.208 11.79 8.432 11.718 8.776C11.646 9.12 11.546 9.544 11.418 10.048L10.746 12.76Z" fill="var(--color-text)"></path></g></svg><span>connected</span></a>
 <a href="TelnyxRTC.html#localElement" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a>
 <a href="TelnyxRTC.html#mediaConstraints" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a>
+<a href="TelnyxRTC.html#reconnectDelay" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>reconnect<wbr/>Delay</span></a>
 <a href="TelnyxRTC.html#remoteElement" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element</span></a>
 <a href="TelnyxRTC.html#speaker" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>speaker</span></a>
 </div></section>
@@ -194,6 +195,25 @@ configuration (Inbound tab.)</p>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.mediaConstraints</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="reconnectDelay" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>reconnect<wbr/>Delay</span><a href="#reconnectDelay" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature" id="reconnectDelay.reconnectDelay-1"><span class="tsd-signature-symbol">get</span> reconnectDelay<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">number</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Reconnect delay with exponential backoff and jitter.</p>
+<p>Uses the current <code>_reconnectAttempts</code> counter to compute the delay:</p>
+<ul>
+<li>Attempt 1: base 1s + jitter</li>
+<li>Attempt 2: ~2s + jitter</li>
+<li>Attempt 3: ~4s + jitter</li>
+<li>... capped at 30s</li>
+</ul>
+<p>The backoff is reset only on confirmed healthy registration (REGED),
+not merely on socket open.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.reconnectDelay</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="remoteElement" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>remote<wbr/>Element</span><a href="#remoteElement" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1079,6 +1099,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#connected" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>connected</span></a></li>
 <li><a href="#localElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a></li>
 <li><a href="#mediaConstraints" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a></li>
+<li><a href="#reconnectDelay" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>reconnect<wbr/>Delay</span></a></li>
 <li><a href="#remoteElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element</span></a></li>
 <li><a href="#speaker" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>speaker</span></a></li>
 <li><a href="#_terminateActiveCallsLocally" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>_terminate<wbr/>Active<wbr/>Calls<wbr/>Locally</span></a></li>
