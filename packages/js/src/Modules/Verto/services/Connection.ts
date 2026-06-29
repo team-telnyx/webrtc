@@ -215,10 +215,7 @@ export default class Connection {
       this._registerSocketEvents(this._wsClient);
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
-      const telnyxError = createTelnyxError(
-        WEBSOCKET_CONNECTION_FAILED,
-        error
-      );
+      const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this.session.sessionid },
@@ -348,6 +345,15 @@ export default class Connection {
   }
 
   private _registerSocketEvents(ws: WebSocket): void {
+    // Capture the generation at registration time — when this socket's
+    // event handlers are being attached — not at event-dispatch time.
+    // If a reconnect creates a new socket (incrementing socketGeneration)
+    // before this old socket's close/error handler runs, reading
+    // this.socketGeneration inside the handler would return the new
+    // generation, causing onNetworkClose to treat the stale event as a
+    // new reconnect attempt.
+    const registeredGeneration = this.socketGeneration;
+
     ws.onopen = (event): boolean => {
       logger.debug('WebSocket onopen', {
         socketGeneration: this.socketGeneration,
@@ -363,10 +369,18 @@ export default class Connection {
         code: event?.code,
         reason: event?.reason,
         wasClean: event?.wasClean,
-        socketGeneration: this.socketGeneration,
+        socketGeneration: registeredGeneration,
         sessionId: this.session.sessionid,
       });
-      return trigger(SwEvent.SocketClose, event, this.session.uuid);
+
+      return trigger(
+        SwEvent.SocketClose,
+        {
+          event,
+          socketGeneration: registeredGeneration,
+        },
+        this.session.uuid
+      );
     };
 
     ws.onerror = (event): boolean => {
@@ -387,7 +401,11 @@ export default class Connection {
 
       return trigger(
         SwEvent.SocketError,
-        { error: event, sessionId: this.session.sessionid },
+        {
+          error: event,
+          sessionId: this.session.sessionid,
+          socketGeneration: registeredGeneration,
+        },
         this.session.uuid
       );
     };
@@ -493,14 +511,18 @@ export default class Connection {
           reason:
             'STUCK_WS_TIMEOUT: Socket got stuck in CLOSING state and was forcefully cleaned up by safety timeout',
           wasClean: false,
+          socketGeneration: this.socketGeneration,
         },
         this.session.uuid
       );
     } else {
-      logger.debug('Safety timeout: socket was replaced, not emitting SocketClose', {
-        hasWsClient: !!this._wsClient,
-        isSameSocket: this._wsClient === closingSocket,
-      });
+      logger.debug(
+        'Safety timeout: socket was replaced, not emitting SocketClose',
+        {
+          hasWsClient: !!this._wsClient,
+          isSameSocket: this._wsClient === closingSocket,
+        }
+      );
     }
   }
 

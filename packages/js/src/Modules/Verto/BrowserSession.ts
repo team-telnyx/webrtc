@@ -6,7 +6,11 @@ import {
   IVertoOptions,
 } from './util/interfaces';
 import { registerOnce, trigger } from './services/Handler';
-import { classifyMediaErrorCode, createTelnyxError, createTelnyxWarning } from './util/errors';
+import {
+  classifyMediaErrorCode,
+  createTelnyxError,
+  createTelnyxWarning,
+} from './util/errors';
 import {
   SwEvent,
   DEFAULT_PROD_ICE_SERVERS,
@@ -202,10 +206,6 @@ export default abstract class BrowserSession extends BaseSession {
     this.ringtoneFile = options.ringtoneFile;
     this.ringbackFile = options.ringbackFile;
     this._setupNetworkListeners();
-  }
-
-  get reconnectDelay() {
-    return 1000;
   }
 
   async getIsRegistered(): Promise<boolean> {
