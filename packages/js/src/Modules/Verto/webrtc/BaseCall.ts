@@ -1379,8 +1379,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           if (activeHost) {
             this._callRecorder._setHost(activeHost);
           }
-          const localAudioTrack =
-            this.options.localStream?.getAudioTracks()[0];
+          const localAudioTrack = this.options.localStream?.getAudioTracks()[0];
           const remoteAudioTrack =
             this.options.remoteStream?.getAudioTracks()[0];
           this._callRecorder.start(localAudioTrack, remoteAudioTrack);
@@ -2549,8 +2548,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       const sampleRate =
         this.session.options.callRecordingSampleRate ??
         DEFAULT_CALL_RECORDING_SAMPLE_RATE;
-      const tracks: RecordingTrackKind[] =
-        this.session.options.callRecordingTracks ?? ['local', 'remote'];
+      const tracks: RecordingTrackKind[] = this.session.options
+        .callRecordingTracks ?? ['local', 'remote'];
       const endpoint =
         this.session.options.callRecordingEndpoint ?? '/call_recording';
 
@@ -2604,10 +2603,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;
 
-    // Defensive recorder cleanup so failed/aborted calls (which may not reach
-    // _postCallReport's recorder branch) still release the flush timer and
-    // buffer. cleanup() is idempotent; _postCallReport calls it again safely.
-    this._callRecorder?.cleanup();
+    // Stop capture (cancel readers + flush timer) but PRESERVE the buffer so
+    // _postCallReport's recorder branch can drain and POST the final segment.
+    // Calling cleanup() here would null the buffer before postFinalReport()
+    // runs, dropping the final recording payload on every normal teardown.
+    // _postCallReport owns the recorder cleanup (idempotent, in finally blocks).
+    // If _postCallReport never runs (failed/aborted early), the recorder's own
+    // flush timer + readers are still released by stop() here.
+    this._callRecorder?.stop();
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).

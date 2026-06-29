@@ -785,8 +785,10 @@ describe('Call', () => {
 
       // The debug log for "answering inbound call while N other active call(s) exist"
       // should NOT fire when the only active call is the one being answered.
-      const multiCallLog = debugSpy.mock.calls.find(
-        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      const multiCallLog = debugSpy.mock.calls.find((args: string[]) =>
+        /answer\(\): answering inbound call while \d+ other active call/.test(
+          args[0]
+        )
       );
       expect(multiCallLog).toBeUndefined();
 
@@ -809,8 +811,10 @@ describe('Call', () => {
       await answerCall.answer();
 
       // The debug log should fire because at least one other active call exists.
-      const multiCallLog = debugSpy.mock.calls.find(
-        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      const multiCallLog = debugSpy.mock.calls.find((args: string[]) =>
+        /answer\(\): answering inbound call while \d+ other active call/.test(
+          args[0]
+        )
       );
       expect(multiCallLog).toBeDefined();
       // The log should NOT count the call being answered itself
@@ -859,6 +863,83 @@ describe('Call', () => {
       // The element should NOT have been cleared — it belongs to a different call
       expect(remoteElement.srcObject).toBe(otherStream);
       expect(localElement.srcObject).toBe(otherStream);
+    });
+  });
+
+  // Regression test for the VSDK-279 reviewer finding: _finalize() previously
+  // called _callRecorder.cleanup() before _postCallReport() ran, which nulled
+  // the packet buffer so postFinalReport() had nothing to upload on every
+  // normal teardown. _finalize() must call stop() (release readers + flush
+  // timer) but PRESERVE the buffer; _postCallReport owns the final cleanup.
+  describe('_finalize() recorder lifecycle (VSDK-279)', () => {
+    it('_finalize calls stop() (not cleanup()) so postFinalReport can still drain the buffer', async () => {
+      // Stand up a fake recorder that records call order and buffers data.
+      const calls: string[] = [];
+      const fakeRecorder = {
+        _bufferedPackets: 7, // simulate packets sitting in the buffer
+        stop: jest.fn(() => {
+          calls.push('stop');
+        }),
+        postFinalReport: jest.fn(async () => {
+          // postFinalReport must still see the buffered packets.
+          calls.push('postFinalReport');
+          // If cleanup() ran before us, the buffer would already be empty.
+          expect(fakeRecorder._bufferedPackets).toBe(7);
+          // Drain the buffer (as the real _drain() does).
+          fakeRecorder._bufferedPackets = 0;
+        }),
+        cleanup: jest.fn(() => {
+          calls.push('cleanup');
+          fakeRecorder._bufferedPackets = 0;
+        }),
+        _setHost: jest.fn(),
+      };
+
+      // _finalize must NOT call cleanup() (which nulls the buffer) — only stop().
+      (
+        call as unknown as { _callRecorder: typeof fakeRecorder }
+      )._callRecorder = fakeRecorder;
+
+      // Stub the call-report collector so _postCallReport can run without a
+      // real collector / host / callReportId setup.
+      const collector = {
+        stop: jest.fn().mockResolvedValue(undefined),
+        postReport: jest.fn().mockResolvedValue(undefined),
+        cleanup: jest.fn(),
+      };
+      (
+        call as unknown as { _callReportCollector: typeof collector }
+      )._callReportCollector = collector;
+      (session.connection as unknown as { host?: string }).host =
+        'wss://rtc.telnyx.com';
+      session.callReportId = 'call-report-id';
+      const trackSpy = jest.spyOn(session, 'trackCallReportUpload');
+
+      call['_finalize']();
+
+      // stop() must be called, cleanup() must NOT be called from _finalize.
+      expect(fakeRecorder.stop).toHaveBeenCalledTimes(1);
+      expect(fakeRecorder.cleanup).not.toHaveBeenCalled();
+
+      // _finalize kicks off _postCallReport in the background and tracks it.
+      expect(trackSpy).toHaveBeenCalled();
+      // Wait for the background _postCallReport promise to settle.
+      await Promise.all(trackSpy.mock.calls.map((p) => p[0]));
+
+      // postFinalReport must have run (it drains the preserved buffer) and
+      // cleanup must have run AFTER it (from the .finally in _postCallReport).
+      expect(fakeRecorder.postFinalReport).toHaveBeenCalledTimes(1);
+      expect(fakeRecorder.cleanup).toHaveBeenCalled();
+
+      // Ordering: stop() (from _finalize) before postFinalReport (from
+      // _postCallReport), and cleanup() AFTER postFinalReport. This proves
+      // _finalize preserved the buffer for postFinalReport to drain.
+      expect(calls.indexOf('stop')).toBeLessThan(
+        calls.indexOf('postFinalReport')
+      );
+      expect(calls.indexOf('postFinalReport')).toBeLessThan(
+        calls.indexOf('cleanup')
+      );
     });
   });
 });
