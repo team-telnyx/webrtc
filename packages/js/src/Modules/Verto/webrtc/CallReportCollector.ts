@@ -808,29 +808,46 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string
   ): Promise<void> {
-    // Get remaining logs (getLogs for final, drain was used for intermediates)
-    const logs = this.logCollector?.getLogs();
-    const hasLogs = logs && logs.length > 0;
+    const payload = this.buildFinalPayload(summary);
+    if (!payload) return;
 
+    await this._sendPayload(payload, callReportId, host, voiceSdkId, true);
+  }
+
+  /**
+   * Build the final call report payload (the remaining stats + logs after
+   * all intermediate flushes) without sending it.
+   *
+   * Exposed so callers can persist the payload to browser storage when the
+   * HTTP POST fails (socket disconnect / network down) and retry later.
+   *
+   * Returns `null` when call reports are disabled or no stats/logs were
+   * collected — matching the skip conditions of {@link postReport}.
+   */
+  public buildFinalPayload(
+    summary: ICallSummary
+  ): ICallReportPayload | null {
     if (!this.options.enabled) {
       logger.info(
         'CallReportCollector: Skipping report — call reports disabled'
       );
-      return;
+      return null;
     }
+
+    const logs = this.logCollector?.getLogs();
+    const hasLogs = logs && logs.length > 0;
 
     if (this.statsBuffer.length === 0 && !hasLogs) {
       logger.info(
         'CallReportCollector: Skipping report — no stats or logs collected'
       );
-      return;
+      return null;
     }
 
     const isMultiSegment = this._segmentIndex > 0;
     const segment = this._segmentIndex;
 
-    // Build the report payload
-    const payload: ICallReportPayload = {
+    return {
       summary: {
         ...summary,
         durationSeconds:
@@ -844,8 +861,6 @@ export class CallReportCollector {
       ...(logs && logs.length > 0 ? { logs } : {}),
       ...(isMultiSegment ? { segment } : {}),
     };
-
-    await this._sendPayload(payload, callReportId, host, voiceSdkId, true);
   }
 
   /**
