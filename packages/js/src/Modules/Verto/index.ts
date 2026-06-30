@@ -183,8 +183,21 @@ export default class Verto extends BrowserSession {
   }
 
   protected async _onSocketOpen() {
-    // Let BaseSession resume signaling health monitor for active calls
-    await super._onSocketOpen();
+    // Start the signaling health monitor synchronously — do NOT await.
+    //
+    // super._onSocketOpen() only calls startSignalingHealthMonitor() which
+    // is fully synchronous (sets fields + setInterval). Awaiting it wraps
+    // the call in a resolved Promise and creates a microtask yield between
+    // the WebSocket onopen event and the login send. During event loop
+    // congestion (session transitions, heavy GC, main-thread blocking),
+    // this yield delays authentication by seconds — observed 9s in
+    // production (ch1, 2026-06-29) where the old session's main thread was
+    // blocked for ~32s during a reconnection transition.
+    //
+    // By calling super._onSocketOpen() without await, the login message
+    // is sent synchronously in the same call stack as the onopen handler,
+    // before any microtask or macrotask can intercept.
+    void super._onSocketOpen();
 
     if (isValidLoginOptions(this.options)) {
       return this.handleLoginOnSocketOpen();
