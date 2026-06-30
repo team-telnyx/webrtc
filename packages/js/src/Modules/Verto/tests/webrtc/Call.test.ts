@@ -271,7 +271,8 @@ describe('Call', () => {
         expect.objectContaining({ callId: call.id }),
         'call-report-id',
         'wss://rtc.telnyx.com',
-        'owning-session-voice-sdk-id'
+        'owning-session-voice-sdk-id',
+        undefined // eventLoopCongestion — null when no congestion detected
       );
       const submittedSummary = collector.postReport.mock.calls[0][0];
       expect(submittedSummary.clientSummary).toEqual(
@@ -785,8 +786,10 @@ describe('Call', () => {
 
       // The debug log for "answering inbound call while N other active call(s) exist"
       // should NOT fire when the only active call is the one being answered.
-      const multiCallLog = debugSpy.mock.calls.find(
-        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      const multiCallLog = debugSpy.mock.calls.find((args: string[]) =>
+        /answer\(\): answering inbound call while \d+ other active call/.test(
+          args[0]
+        )
       );
       expect(multiCallLog).toBeUndefined();
 
@@ -809,8 +812,10 @@ describe('Call', () => {
       await answerCall.answer();
 
       // The debug log should fire because at least one other active call exists.
-      const multiCallLog = debugSpy.mock.calls.find(
-        (args: string[]) => /answer\(\): answering inbound call while \d+ other active call/.test(args[0])
+      const multiCallLog = debugSpy.mock.calls.find((args: string[]) =>
+        /answer\(\): answering inbound call while \d+ other active call/.test(
+          args[0]
+        )
       );
       expect(multiCallLog).toBeDefined();
       // The log should NOT count the call being answered itself

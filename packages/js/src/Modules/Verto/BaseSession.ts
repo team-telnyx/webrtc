@@ -10,6 +10,7 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import SignalingHealthMonitor from './services/SignalingHealthMonitor';
+import EventLoopMonitor from './services/EventLoopMonitor';
 import type {
   ISignalingHealthSession,
   PeerFailureEvidence,
@@ -32,6 +33,7 @@ import {
   StaleRequestError,
 } from './util/errors';
 import type { ITelnyxErrorEvent } from './util/errors';
+import { EVENT_LOOP_CONGESTION } from './util/constants/errorCodes';
 import {
   isFunction,
   isValidAnonymousLoginOptions,
@@ -117,6 +119,10 @@ export default abstract class BaseSession {
   /** Handles liveness detection, health probing, and force-reconnect. */
   private _signalingHealthMonitor: SignalingHealthMonitor =
     new SignalingHealthMonitor(this as unknown as ISignalingHealthSession);
+
+  // ── Event loop monitor ────────────────────────────────────────────────
+  /** Detects main-thread blocking / event-loop congestion. Session-level. */
+  private _eventLoopMonitor: EventLoopMonitor = new EventLoopMonitor();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type, @typescript-eslint/no-explicit-any
   private _executeQueue: { resolve?: Function; msg: any }[] = [];
@@ -362,6 +368,7 @@ export default abstract class BaseSession {
     this._intentionalClose = true;
     this._reconnectAttempts = 0;
     this.relayProtocol = null;
+    this._eventLoopMonitor.stop();
     await this._drainCallReportUploads();
     this._closeConnection();
     await sessionStorage.removeItem(this.signature);
@@ -780,6 +787,22 @@ export default abstract class BaseSession {
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
+
+    // Start event-loop congestion monitoring for the session. This detects
+    // main-thread blocking that delays time-sensitive operations (login,
+    // keepalive pings, call setup). Each episode emits a warning event.
+    this._eventLoopMonitor.start((episode) => {
+      const warning = createTelnyxWarning(EVENT_LOOP_CONGESTION);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          sessionId: this.sessionid,
+          ...episode,
+        },
+        this.uuid
+      );
+    });
   }
 
   private _flushIntermediateCallReports(
@@ -1129,6 +1152,7 @@ export default abstract class BaseSession {
     this._idle = true;
     clearTimeout(this._keepAliveTimeout);
     this.stopSignalingHealthMonitor();
+    this._eventLoopMonitor.stop();
 
     logger.debug('_closeConnection called', {
       connected: this.connection?.connected,
@@ -1239,6 +1263,24 @@ export default abstract class BaseSession {
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Get the event-loop congestion summary for inclusion in a call report.
+   * Returns null if no congestion was detected during the session.
+   */
+  getEventLoopCongestionSummary(): {
+    totalEpisodes: number;
+    maxLagMs: number;
+    episodes: Array<{
+      timestamp: string;
+      lagMs?: number;
+      intervalMs?: number;
+      taskDurationMs?: number;
+      source: 'heartbeat' | 'longtask';
+    }>;
+  } | null {
+    return this._eventLoopMonitor.getSummary();
   }
 
   /**

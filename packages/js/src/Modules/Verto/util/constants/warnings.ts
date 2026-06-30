@@ -368,6 +368,26 @@ export const SDK_WARNINGS = {
       'Review maxReconnectAttempts configuration',
     ],
   },
+
+  // ── Performance warnings (370xx) ───────────────────────────────────
+  37001: {
+    name: 'EVENT_LOOP_CONGESTION',
+    message: 'Event loop congestion detected',
+    description:
+      'The JavaScript main thread was blocked for an extended period, delaying time-sensitive operations including WebSocket message processing, login authentication, and call setup. This can cause delayed login, missed keepalive pings, and slow call establishment even when the network is healthy.',
+    causes: [
+      'Heavy synchronous JavaScript execution blocking the main thread',
+      'Garbage collection pauses in the browser',
+      'Complex DOM rendering or layout thrashing during session transitions',
+      'Large JSON parsing or serialization blocking the event loop',
+    ],
+    solutions: [
+      'Move heavy computations to a Web Worker to keep the main thread free',
+      'Break up long synchronous operations into async chunks using setTimeout or requestAnimationFrame',
+      'Profile the application with Chrome DevTools Performance tab to identify blocking tasks',
+      'Reduce DOM complexity during call transitions',
+    ],
+  },
   33009: {
     name: 'AUDIO_INPUT_DEVICE_CHANGE_SKIPPED',
     message: 'Audio input device change skipped',
