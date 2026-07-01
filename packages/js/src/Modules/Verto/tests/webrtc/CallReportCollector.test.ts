@@ -17,7 +17,11 @@ type SendPayload = (
   payload: unknown,
   callReportId: string,
   host: string,
-  voiceSdkId?: string
+  voiceSdkId?: string,
+  // 5th/6th positional args differ between the public `sendPayload`
+  // (forceKeepalive) and private `_sendPayload` (isFinalReport, forceKeepalive).
+  isFinalReportOrForceKeepalive?: boolean,
+  forceKeepalive?: boolean
 ) => Promise<void>;
 
 type TestableCallReportCollector = {
@@ -1101,6 +1105,26 @@ describe('CallReportCollector call report uploads', () => {
 
     expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('keepalive');
   });
+
+  it('uses keepalive for an intermediate report when forceKeepalive is set (page-hidden flush)', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      text: () => Promise.resolve(''),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const collector = createCollector();
+    await collector.sendPayload(
+      { ...payload, segment: 0 },
+      'call-report-id',
+      'wss://rtc.telnyx.com',
+      'voice-sdk-id',
+      true // forceKeepalive
+    );
+
+    expect(fetchMock.mock.calls[0][1]).toHaveProperty('keepalive', true);
+  });
 });
 
 describe('CallReportCollector media-playout stats', () => {
@@ -1323,7 +1347,9 @@ describe('CallReportCollector remote RTCP stats', () => {
 
     await collector._collectStats(true);
 
-    const buffer = (collector as unknown as CallReportCollector).getStatsBuffer();
+    const buffer = (
+      collector as unknown as CallReportCollector
+    ).getStatsBuffer();
     expect(buffer).toHaveLength(1);
     return buffer[0];
   };

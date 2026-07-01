@@ -2746,10 +2746,20 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
+    // A page-hidden flush fires as the document is being torn down, so the
+    // POST must be allowed to outlive the page — send it with keepalive.
+    const forceKeepalive = flushReason.type === 'page-hidden';
+
     // Fire-and-forget — don't block the stats collection interval,
     // but track the upload so disconnect() can drain in-flight reports.
     const upload = this._callReportCollector
-      .sendPayload(payload, callReportId, host, callReportVoiceSdkId)
+      .sendPayload(
+        payload,
+        callReportId,
+        host,
+        callReportVoiceSdkId,
+        forceKeepalive
+      )
       .catch((error) => {
         logger.error('Failed to post intermediate call report segment', {
           error,

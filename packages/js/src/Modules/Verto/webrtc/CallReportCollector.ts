@@ -506,7 +506,12 @@ export type SanitizedClientOption =
   | { [key: string]: SanitizedClientOption };
 
 export interface ICallReportFlushReason {
-  type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
+  type:
+    | 'buffer-limit'
+    | 'manual'
+    | 'socket-close'
+    | 'socket-error'
+    | 'page-hidden';
   socketClose?: {
     code?: number;
     codeName?: string;
@@ -856,9 +861,20 @@ export class CallReportCollector {
     payload: ICallReportPayload,
     callReportId: string,
     host: string,
-    voiceSdkId?: string
+    voiceSdkId?: string,
+    // Force `keepalive: true` even though this is not the final report. Used
+    // for page-hidden flushes, where the request must be allowed to outlive
+    // the document being torn down.
+    forceKeepalive: boolean = false
   ): Promise<void> {
-    await this._sendPayload(payload, callReportId, host, voiceSdkId, false);
+    await this._sendPayload(
+      payload,
+      callReportId,
+      host,
+      voiceSdkId,
+      false,
+      forceKeepalive
+    );
   }
 
   /**
@@ -873,7 +889,8 @@ export class CallReportCollector {
     callReportId: string,
     host: string,
     voiceSdkId?: string,
-    isFinalReport: boolean = true
+    isFinalReport: boolean = true,
+    forceKeepalive: boolean = false
   ): Promise<void> {
     const wsUrl = new URL(host);
     const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
@@ -901,7 +918,7 @@ export class CallReportCollector {
 
     const body = JSON.stringify(payload);
     const useKeepalive =
-      isFinalReport &&
+      (isFinalReport || forceKeepalive) &&
       body.length <= CallReportCollector.KEEPALIVE_BODY_LIMIT_BYTES;
 
     let lastError: unknown;
@@ -1341,7 +1358,7 @@ export class CallReportCollector {
       // short calls (shorter than the collection interval) still produce
       // at least one stats entry in the buffer.
       const intervalDuration = now.getTime() - this.intervalStartTime.getTime();
-    const currentInterval = this._collectionIntervalFor();
+      const currentInterval = this._collectionIntervalFor();
       if (isFinal || intervalDuration >= currentInterval) {
         // Create stats entry for this interval
         const statsEntry = this._createStatsEntry(
@@ -1797,7 +1814,9 @@ export class CallReportCollector {
           ? { totalSamplesDecoded: inboundAudio.totalSamplesDecoded }
           : {}),
         ...(inboundAudio.samplesDecodedWithSilence !== undefined
-          ? { samplesDecodedWithSilence: inboundAudio.samplesDecodedWithSilence }
+          ? {
+              samplesDecodedWithSilence: inboundAudio.samplesDecodedWithSilence,
+            }
           : {}),
         ...(inboundAudio.samplesDecodedWithConcealment !== undefined
           ? {

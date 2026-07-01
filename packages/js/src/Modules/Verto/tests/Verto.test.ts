@@ -430,6 +430,116 @@ describe('Verto', () => {
     });
   });
 
+  describe('visibilitychange call-report flush', () => {
+    const setVisibility = (state: 'visible' | 'hidden') => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: state,
+        configurable: true,
+      });
+    };
+
+    const buildWithVisHandler = (props: Partial<IVertoOptions>) => {
+      const spy = jest.spyOn(document, 'addEventListener');
+      spy.mockClear();
+      const instance = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...props,
+      } as IVertoOptions);
+      const handler = spy.mock.calls.find(
+        ([eventName]) => eventName === 'visibilitychange'
+      )?.[1] as EventListener;
+      return { instance, handler, restore: () => spy.mockRestore() };
+    };
+
+    afterEach(() => {
+      delete (document as unknown as { visibilityState?: string })
+        .visibilityState;
+    });
+
+    it('flushes a page-hidden report for active calls when hidden (hangupOnBeforeUnload=false)', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      expect(handler).toBeDefined();
+
+      const flush = jest.fn();
+      instance.hasActiveCall = jest.fn(() => true);
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(flush).toHaveBeenCalledWith({ type: 'page-hidden' });
+      restore();
+    });
+
+    it('does not flush while the page is still visible', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      const flush = jest.fn();
+      instance.hasActiveCall = jest.fn(() => true);
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      setVisibility('visible');
+      handler(new Event('visibilitychange'));
+
+      expect(flush).not.toHaveBeenCalled();
+      restore();
+    });
+
+    it('does not flush when hangupOnBeforeUnload is not false (call is hung up on unload instead)', () => {
+      const { instance, handler, restore } = buildWithVisHandler({});
+      const flush = jest.fn();
+      instance.hasActiveCall = jest.fn(() => true);
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(flush).not.toHaveBeenCalled();
+      restore();
+    });
+
+    it('does not flush when there is no active call', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      const flush = jest.fn();
+      instance.hasActiveCall = jest.fn(() => false);
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(flush).not.toHaveBeenCalled();
+      restore();
+    });
+  });
+
   describe('reconnect login', () => {
     it('should include the persisted sessid whenever a stored voice_sdk_id marks the login as a reconnect', async () => {
       setReconnectToken('voice-sdk-id');
