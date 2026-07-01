@@ -445,6 +445,9 @@ class VertoHandler {
                 // reconnect loop if we reset too early.
                 if (gateWayState === GatewayStateType.REGED) {
                   this.session.resetReconnectAttempts();
+                  // Clear consecutive timeout counter and b2bua-rtc
+                  // rotation flag — the current instance is healthy.
+                  this.session.resetConsecutiveTimeouts();
                 }
 
                 // Capture call_report_id for SDK call reporting

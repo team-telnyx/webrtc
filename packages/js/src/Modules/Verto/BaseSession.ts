@@ -20,6 +20,7 @@ import {
   SwEvent,
   AUTHENTICATION_REQUIRED,
   LOGIN_FAILED,
+  LOGIN_RESPONSE_TIMEOUT,
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
@@ -58,6 +59,14 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+
+/**
+ * Login response timeout (ms). The WebSocket must be OPEN to send login,
+ * but the upstream signaling path (VSP → gateway) may be stalled. If no
+ * login response arrives within this duration, the socket is force-closed
+ * to trigger reconnect + re-login.
+ */
+const LOGIN_TIMEOUT_MS = 5000;
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -107,6 +116,16 @@ export default abstract class BaseSession {
    *  Prevents RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT from firing
    *  on normal app teardown or token refresh. */
   protected _intentionalClose: boolean = false;
+
+  /**
+   * Count of consecutive client-side WebSocket timeouts (connect timeout
+   * 36006 + login timeout 36007). After {@link TIMEOUT_ROTATION_THRESHOLD}
+   * consecutive timeouts, the SDK sets `skipLastVoiceSdkId = true` so VSP
+   * routes the next connection to a different b2bua-rtc instance.
+   * Reset on successful REGED.
+   */
+  private _consecutiveTimeoutCount: number = 0;
+  private static readonly TIMEOUT_ROTATION_THRESHOLD = 2;
 
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
@@ -204,7 +223,7 @@ export default abstract class BaseSession {
    * @ignore
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  execute(msg: BaseMessage): Promise<any> {
+  execute(msg: BaseMessage, timeoutMsOverride?: number): Promise<any> {
     if (this._idle) {
       return new Promise((resolve) =>
         this._executeQueue.push({ resolve, msg })
@@ -220,15 +239,16 @@ export default abstract class BaseSession {
       });
     }
 
-    // Apply a request-level timeout only to signaling-critical requests
-    // so socket health is monitored even without an active call while
-    // fire-and-forget/non-critical requests cannot create unhandled
-    // timeout rejections.
-    const timeoutMs = SignalingHealthMonitor.isCriticalMethod(
-      msg.request?.method || ''
-    )
-      ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
-      : undefined;
+    // Use the caller-provided timeout, or apply the default timeout only
+    // to signaling-critical requests so socket health is monitored even
+    // without an active call while fire-and-forget/non-critical requests
+    // cannot create unhandled timeout rejections.
+    const timeoutMs =
+      timeoutMsOverride != null
+        ? timeoutMsOverride
+        : SignalingHealthMonitor.isCriticalMethod(msg.request?.method || '')
+          ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
+          : undefined;
 
     const sendPromise =
       timeoutMs != null
@@ -515,6 +535,46 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Called when a client-side WebSocket timeout occurs (connect timeout
+   * 36006 or login timeout 36007). Increments the consecutive timeout
+   * counter and, after {@link TIMEOUT_ROTATION_THRESHOLD} consecutive
+   * timeouts, sets `skipLastVoiceSdkId = true` so VSP routes the next
+   * connection to a different b2bua-rtc instance.
+   */
+  public handleConsecutiveTimeout(): void {
+    this._consecutiveTimeoutCount += 1;
+    logger.debug(
+      `Consecutive WebSocket timeout count: ${this._consecutiveTimeoutCount} ` +
+        `(threshold: ${BaseSession.TIMEOUT_ROTATION_THRESHOLD})`
+    );
+
+    if (this._consecutiveTimeoutCount >= BaseSession.TIMEOUT_ROTATION_THRESHOLD) {
+      if (!this.options.skipLastVoiceSdkId) {
+        this.options.skipLastVoiceSdkId = true;
+        logger.info(
+          `${this._consecutiveTimeoutCount} consecutive WebSocket timeouts — ` +
+            `setting skipLastVoiceSdkId=true to route next connection to a different b2bua-rtc instance`
+        );
+      }
+    }
+  }
+
+  /**
+   * Reset the consecutive timeout counter and clear the b2bua-rtc
+   * rotation flag. Called on successful REGED (healthy registration)
+   * to indicate the current b2bua-rtc instance is healthy.
+   */
+  public resetConsecutiveTimeouts(): void {
+    if (this._consecutiveTimeoutCount > 0 || this.options.skipLastVoiceSdkId) {
+      logger.debug(
+        'Resetting consecutive timeout count and skipLastVoiceSdkId on successful registration'
+      );
+    }
+    this._consecutiveTimeoutCount = 0;
+    this.options.skipLastVoiceSdkId = false;
+  }
+
+  /**
    * Handle login error
    * @return void
    */
@@ -757,10 +817,31 @@ export default abstract class BaseSession {
       });
     }
 
-    const response = await this.execute(msg).catch((error) => {
-      this._handleLoginError(error);
-      if (onError) onError(error);
-    });
+    const response = await this.execute(msg, LOGIN_TIMEOUT_MS).catch(
+      (error) => {
+        if (error?.name === 'RequestTimeoutError') {
+          // Login timed out — the signaling path (VSP → upstream) is stalled.
+          // Emit a warning so voice-sdk-debug can collect metrics, then
+          // force-close the socket to trigger onNetworkClose → reconnect,
+          // which will re-attempt login. Do NOT emit LOGIN_FAILED — the
+          // issue is network, not credentials.
+          logger.warn(
+            `Login response timed out after ${LOGIN_TIMEOUT_MS}ms — forcing socket reconnect`
+          );
+          const warning = createTelnyxWarning(LOGIN_RESPONSE_TIMEOUT);
+          trigger(
+            SwEvent.Warning,
+            { warning, sessionId: this.sessionid },
+            this.uuid
+          );
+          this.handleConsecutiveTimeout();
+          this.connection?.close();
+          return;
+        }
+        this._handleLoginError(error);
+        if (onError) onError(error);
+      }
+    );
 
     if (response) {
       this.sessionid = response.sessid;

@@ -368,6 +368,39 @@ export const SDK_WARNINGS = {
       'Review maxReconnectAttempts configuration',
     ],
   },
+  36006: {
+    name: 'WEBSOCKET_CONNECT_TIMEOUT',
+    message: 'WebSocket connection timed out',
+    description:
+      'The WebSocket connection to the signaling server did not reach the OPEN state within the connect timeout (5s). The browser WebSocket API provides no built-in connect timeout, so the SDK enforces one to avoid hanging on stalled TCP/TLS handshakes. The socket will be force-closed to trigger automatic reconnection.',
+    causes: [
+      'Network unreachable or severe packet loss on TCP/TLS handshake',
+      'Firewall or proxy blocking WebSocket connections',
+      'DNS resolution delay',
+      'Server overloaded and not accepting new connections',
+    ],
+    solutions: [
+      'Check network connectivity',
+      'Verify the signaling server URL is reachable',
+      'Ensure WebSocket connections are not blocked by a firewall',
+    ],
+  },
+  36007: {
+    name: 'LOGIN_RESPONSE_TIMEOUT',
+    message: 'Login response timed out',
+    description:
+      'The login request was sent but no response was received from the server within the timeout (5s). The WebSocket opened successfully, but the upstream signaling path may be stalled. The socket will be force-closed to trigger automatic reconnection, which will re-attempt login.',
+    causes: [
+      'Upstream server not responding to login requests',
+      'Network delay between the proxy and the upstream gateway',
+      'Server overloaded and processing login requests slowly',
+    ],
+    solutions: [
+      'Check upstream server health',
+      'Verify network connectivity to the signaling server',
+      'The SDK will automatically reconnect and retry login',
+    ],
+  },
   33009: {
     name: 'AUDIO_INPUT_DEVICE_CHANGE_SKIPPED',
     message: 'Audio input device change skipped',
