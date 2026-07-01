@@ -1,6 +1,91 @@
-## [2.27.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2) (2026-07-01)
+## [2.27.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.1...webrtc/v2.27.2) (2026-07-01)
 
-- chore: release webrtc@2.27.2-beta.1 (#712)
+### Reconnect and recovery hardening
+
+- **fix(sdk): dedupe reconnect attempts and add exponential backoff** (#709, VSDK-214 part 1)
+  Browsers commonly emit both `socket.onerror` and `socket.onclose` for one physical disconnect, previously consuming two logical reconnect attempts. `BaseSession.onNetworkClose` now tracks the socket generation that was already handled (`_reconnectCountedGeneration`) and skips same-generation duplicate events before destructive cleanup, so a stale event can no longer clear an already-scheduled reconnect timer or schedule a redundant one. `Connection._registerSocketEvents` captures `registeredGeneration` at registration time so stale events from an old socket carry their own generation, and `onNetworkClose` guards against `eventGeneration < currentGeneration` *before* flushing call reports or clearing timers. Reconnect delay is now exponential backoff with jitter (base 1s, doubling per attempt, capped at 30s, 25% jitter), replacing the old fixed 1000ms / `randomInt(2,6)*1000ms`. Backoff resets only on a confirmed `REGED`. `BrowserSession` no longer overrides the delay — it inherits the backoff from `BaseSession`.
+
+- **feat: add reconnection lifecycle diagnostics for SDK WebSocket recovery visibility** (#678, VSDK-275)
+  Adds call-report-visible diagnostics for the SDK WebSocket close/reconnect lifecycle after `SignalingHealthService` requests recovery, without overloading reports with noisy logs. Consolidates the previous per-source warning codes into a single `SIGNALING_RECOVERY_REQUIRED` warning (with a `source` field), and adds a new `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT` (36005) warning gated on a new `_intentionalClose` flag so it only fires on unexpected socket close when auto-reconnect is disabled — not on normal `disconnect()`/cleanup. The flag resets at the end of `onNetworkClose`. Adds debug lifecycle logging in `Connection` (constructor, connect, close, `_handleCloseTimeout`), `BrowserSession.connect()`, and `SignalingHealthMonitor` (no pending recovery, connection not connected). `reconnectDelay` is now computed once before logging and `setTimeout`, so the logged value matches the scheduled delay.
+
+- **VSDK-315: Remove ICE restart Modify workarounds for trickle ICE and reattached calls** (#697)
+  Removes two temporary SDK workarounds now that `b2bua-rtc` supports both trickle ICE for Modify and ICE restart after attach recovery. `Peer.handleNegotiationNeededEvent()` no longer gates the trickle path on `!isIceRestarting` — trickle-enabled calls now use `startTrickleIceNegotiation()` for ICE restart just as they do for initial negotiation. The `isIceRestarting` suppression is removed from the `onicecandidate` handler in `_registerPeerEvents()`, so restart candidates route through `_onTrickleIce()`. `_sendIceRestartModify()` accepts an optional `{ trickle?: boolean }` flag so the backend knows to expect trickled candidates. `triggerIceRestart()` no longer skips attach/recovered calls — reattached/recovered calls now use the same ICE restart path as normal active calls. `SignalingHealthMonitor` no longer forces a socket reconnect when ICE restart returns `{ started: false }`; signaling recovery is owned by the monitor's own health checks.
+
+- **feat(webrtc): persist active-call recovery markers and emit SESSION_NOT_REATTACHED after page reload** (#698, VSDK-316)
+  Before page unload (when `hangupOnBeforeUnload === false`), the SDK now persists a minimal safe projection of active calls to `sessionStorage` under a single-key `IStoredActiveCalls` container (`{ sessionId, calls: [{ id, customHeaders }], storedAt }`). After reload/reconnect recovery, `VertoHandler` compares saved markers against the server's reattached sessions for the current `sessid` and emits `SESSION_NOT_REATTACHED` (48501, moved from warning 35001 to a proper error code) once for any saved call that was not reattached, then clears storage immediately (at-most-once). Storage has a 15-minute staleness deadline and is fail-safe (try/catch with debug logs on all return/catch paths). `keepConnectionAliveOnSocketClose` does not interfere — that path only governs PUNT/server-initiated socket disconnects and never fires `beforeunload`. The SDK does **not** recreate call objects from saved records and does **not** hang up calls represented only by markers (notification-only). A new `UNKNOWN_REATTACHED_SESSION` warning (35002) was added for the inverse case.
+
+- **feat(webrtc): harden RECONNECTION_EXHAUSTED + WEBSOCKET_CONNECTION_FAILED local call teardown** (#700, VSDK-318)
+  Adds a mandatory `fatal: boolean` to every SDK error in the registry, surfaced on `ITelnyxError`/`TelnyxError` (and `toJSON`). Defaults are per-code: terminal errors (`UNEXPECTED_ERROR`, `BYE_SEND_FAILED`, `WEBSOCKET_CONNECTION_FAILED`, `LOGIN_FAILED`, `AUTHENTICATION_REQUIRED`, `RECONNECTION_EXHAUSTED`, etc.) default to `fatal: true`; recoverable errors default to `fatal: false`. Emit sites override only when context flips the default (e.g. Peer media-recovery flow emits `fatal: false`). A new `BaseSession._terminateActiveCallsLocally()` tears down all active calls via `call.hangup({}, false)` (execute=false, no outbound BYE since the socket is already dead) before emitting `RECONNECTION_EXHAUSTED` at all three sites: `VertoHandler` (autoReconnect-disabled TIMEOUT path + retry-exhaustion path) and `BaseSession.onNetworkClose` exhaustion. `WEBSOCKET_CONNECTION_FAILED` now triggers the same local teardown. `SignalingHealthMonitor.onIceRestartFailed` now triggers socket reconnect via `_triggerSignalingRecovery('peer_failure')` instead of only logging. `Peer` no longer double-emits `telnyx.error` from `_setLocalDescription`/`_setRemoteDescription` — it propagates the `TelnyxError` as-is so the upper-level catch in `BaseCall.invite()`/`answer()` emits once; unexpected errors are wrapped in `SDP_CREATE_OFFER_FAILED`/`SDP_CREATE_ANSWER_FAILED`. The fire-and-forget `startTrickleIceNegotiation()` call sites in `init()` and `handleNegotiationNeededEvent()` now have `.catch(_emitNegotiationError)` to avoid an unhandled rejection regressing `telnyx.error` delivery during trickle ICE setup. Top-level `recoverable` field is untouched for backward compatibility.
+
+### Call/media state and lifecycle
+
+- **fix(webrtc): add null guards to connection state event handlers** (#671)
+  Adds null-guard clauses to `_handleIceConnectionStateChange` and `handleConnectionStateChange` that return early with debug logging if the peer connection instance is already null/closed, preventing `NullReferenceException` crashes on event handlers fired during teardown.
+
+- **feat: emit MULTIPLE_ACTIVE_CALLS_DETECTED warning** (#676, VSDK-276)
+  Emits a diagnostic warning (33010) via `SwEvent.Warning` when a new call is created (outbound via `newCall`) or received (inbound via `Invite`) while other calls are already active in the session. The payload includes safe correlation IDs per call (`callId`, `state`, `direction`, and `telnyxSessionId`/`telnyxLegId`/`sipCallId` where present) — no credentials, SDP, or phone numbers. Recovered calls reached via `Attach` are treated as active calls (no recovery-call filtering). Warning-only: it does **not** block or reject any call. A debug log in `answer()` (filtering `this.id` out of the active-calls check) records when an inbound call is actually answered while other calls exist, complementing the ring-time warning.
+
+- **feat: add LOW_INBOUND_AUDIO warning to detect one-way audio with RTP flow** (#701)
+  The SDK already monitored local microphone audio (`LOW_LOCAL_AUDIO`) and whether any bytes arrived at all (`LOW_BYTES_RECEIVED`), but had no warning for the case where RTP packets flow normally yet carry silence or comfort-noise instead of real speech — the exact signature of one-way audio caused by a media bridge (e.g. FreeSWITCH comfort-noise injection). Adds `LOW_INBOUND_AUDIO` (31006) which fires when `inboundAudioLevelAvg` stays below `0.001` for 3 consecutive stats intervals (the same consecutive-breach mechanism used by other quality warnings). The interval resets when no inbound audio data is available for a given interval to avoid false positives.
+
+- **BYE execution timeout guard** (#671)
+  `BaseCall.hangup()` now wraps `_execute(bye)` in a `Promise.race` with a 5-second `BYE_TIMEOUT_MS` guard. If BYE execution hangs (socket stalled, server unresponsive), the call proceeds to `Destroy` after 5s so the call is always cleaned up. The timeout handle is cleared in all paths (resolve, reject, timeout) via the `finally` block.
+
+- **Audio mute state now persists across track replacement** (#671)
+  Introduces a `_desiredAudioMuted` field on `BaseCall` (initialized from `mutedMicOnStart`) that is the source of truth for `isAudioMuted` (previously derived from `!isAudioTrackEnabled(localStream)`). `muteAudio`/`unmuteAudio`/`toggleAudioMute` now update `_desiredAudioMuted` and call a new internal `_applyDesiredAudioMuteState()`, which is also exposed to `Peer` via `options.applyDesiredAudioMuteState` and re-applied whenever `Peer` creates or replaces local audio tracks (init, reattach, `setAudioInDevice`, `setVideoDevice`, ICE restart). This fixes mute being lost when the SDK swaps the local audio track. `setAudioInDevice` now defaults the `muted` argument to `_desiredAudioMuted` (instead of `mutedMicOnStart`).
+
+- **AUDIO_INPUT_DEVICE_CHANGE_SKIPPED warning + setAudioInDevice hardening** (#671)
+  `setAudioInDevice` now warns (33009, `AUDIO_INPUT_DEVICE_CHANGE_SKIPPED`) and returns early when no audio sender is found, instead of silently no-op'ing. `getUserMedia` failures no longer change the desired mute state (the old track stays active). Added structured debug logging for the device-change flow (state, deviceId, previous/new desired mute, current sender track, local tracks) via new `getTrackDebugInfo`/`getStreamTrackDebugInfo` helpers.
+
+- **MediaDeviceCollector for device-change diagnostics** (#671)
+  New `MediaDeviceCollector` logs all enumerated audio input/output devices at debug level on call start, and logs connect/disconnect events on `devicechange`. Helps identify whether the right mic/speaker was available and whether devices changed mid-call when a customer reports "agent could not hear audio" but inbound RTP stats are healthy.
+
+### Call reports and observability
+
+- **fix: include selected ICE evidence in call reports** (#686)
+  Call reports now include the *selected* candidate pair (resolved from `transportStats.selectedCandidatePairId`, with a fallback search when the stat isn't directly retrievable) plus the `localCandidateId`/`remoteCandidateId` references and the `selectedCandidatePairId` itself, so investigators can reconstruct the actually-nominated ICE path rather than only candidate-pair snapshots.
+
+- **Collect call report stats every second for full call duration** (#702, VSDK-387)
+  Replaces the previous two-phase cadence (1s for the first 10s, then 5s) with a constant 1-second collection interval for the full call duration, giving full-resolution stats for every call regardless of length. Removed the now-dead `intervalStartTime` parameter from `_collectionIntervalFor`.
+
+- **feat(webrtc): collect additional inbound RTP fields in call reports** (#705, VSDK-387)
+  Adds `nackCount`, `jitterBufferTargetDelay`, and `jitterBufferMinimumDelay` to inbound RTP stats, plus a per-stream `codec` snapshot.
+
+- **feat(webrtc): collect additional outbound RTP fields in call reports** (#706, VSDK-387)
+  Extends outbound RTP stats with the additional fields needed for outbound loss/jitter/RTT visibility.
+
+- **feat(webrtc): collect remote RTCP stats for outbound loss/jitter/RTT visibility** (#703, VSDK-387)
+  Parses `remote-inbound-rtp` (RTCP Receiver Report describing *our* outbound stream) and `remote-outbound-rtp` (RTCP Sender Report from the remote peer) into a new `remoteRtcp` block on call reports: `inbound` carries `packetsLost`, `jitter` (ms), `roundTripTime`, `roundTripTimeMeasurements`, `nackCount`, `localId`; `outbound` carries `localId`, `remoteId`, `roundTripTime`. `roundTripTimeSource` is recorded on the audio stats so investigators know which RTCP report the RTT came from.
+
+- **feat(webrtc): collect codec identity in call reports** (#704, VSDK-387)
+  Adds an extended `RTCCodecStats` snapshot (`mimeType`, `clockRate`, `channels`, `payloadType`, `codecId`) referenced by `outbound-rtp`/`inbound-rtp` via `codecId`, so call reports identify the negotiated codec for each RTP stream.
+
+- **feat(webrtc): collect media-playout stats in call reports** (#707, VSDK-387)
+  Adds extended `media-playout` stats (type `media-playout`, audio) reporting playout delay and synthesized-sample indicators — useful for detecting client-side playout anomalies and comfort-noise/synthesized audio.
+
+### Public API / configuration
+
+- **feat: add `skipTrailing` option to `IClientOptions` / `IVertoOptions`** (#671)
+  When `true`, appends `skip_trailing=true` to the VSP WebSocket URL so VSP skips pre-routing identity resolution (telephony-tokens validation and UsersClass trailing checks) for this connection. Intended for internal/test-infra usage (e.g. BBT-generated credentials) where the connection should not participate in trailing-release routing. The actual login still goes to the upstream RTC service for normal authentication — this only skips VSP's pre-routing lookup. Default `false`.
+
+- **docs: clarify `target_params.conversation_id` semantics** (#671)
+  Rewrites the `TargetParams.conversation_id` JSDoc to make explicit that it is **not** a customer-defined correlation ID — it joins an existing Telnyx AI conversation. When omitted, the TeXML endpoint starts a new conversation by rendering `<AIAssistant id="...">`; when provided, `voice-sdk-proxy` maps it to `X-AI-Assistant-Conversation-ID` and the TeXML endpoint renders `<AIAssistant join="...">`. Documents that a non-existent / non-owned conversation id will fail (e.g. AI Assistant error code `10007`).
+
+### Internal / tooling
+
+- History between the two tags was re-based through a squashed root commit (#671, orphan commit with no parent); the squashed state folded in the audio-mute, BYE-timeout, `MediaDeviceCollector`, `skipTrailing`, and `conversation_id` docs work above, which did not land as standalone PRs. Functional end-state diff between `v2.27.1` and `v2.27.2` is the source of truth for this changelog.
+
+### Consumer-visible notes
+
+- **Reconnect behavior:** socket reconnect now uses exponential backoff (1s → 30s cap, 25% jitter) and is dedup'd against duplicate `onerror`/`onclose` events for the same socket generation. Reset happens only on a confirmed `REGED`.
+- **Fatal errors:** `ITelnyxError` now carries a `fatal: boolean`. Terminal errors (`RECONNECTION_EXHAUSTED`, `WEBSOCKET_CONNECTION_FAILED`, `LOGIN_FAILED`, `AUTHENTICATION_REQUIRED`, `UNEXPECTED_ERROR`, `BYE_SEND_FAILED`, …) default to `fatal: true`; recoverable ones default to `false`. When reconnect is exhausted or the WebSocket fails to connect, all active calls are now torn down locally (no BYE) before the error is emitted.
+- **Recovery after page reload:** if `hangupOnBeforeUnload` is `false`, active calls are persisted to `sessionStorage` (15-min TTL) and a `SESSION_NOT_REATTACHED` error is emitted post-reload for any saved call the server did not reattach. The SDK does not recreate or hang up those calls.
+- **ICE restart:** reattached/recovered calls now go through the same ICE restart path as normal calls (workarounds removed); trickle ICE is used for ICE restart Modify; a failed ICE restart now triggers signaling/socket recovery.
+- **Mute:** mute now survives track replacement (device switch, reattach, ICE restart). `isAudioMuted` reflects the desired state, not the live track flag. `setAudioInDevice` no longer silently no-ops when no sender exists — it emits `AUDIO_INPUT_DEVICE_CHANGE_SKIPPED`.
+- **Diagnostics:** new warnings `LOW_INBOUND_AUDIO`, `MULTIPLE_ACTIVE_CALLS_DETECTED`, `AUDIO_INPUT_DEVICE_CHANGE_SKIPPED`, `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT`, `UNKNOWN_REATTACHED_SESSION`; new error `SESSION_NOT_REATTACHED`; removed warning codes `SESSION_NOT_REATTACHED` (35001, promoted to error), `SIGNALING_HEALTH_PROBE_TIMEOUT`, `SIGNALING_REQUEST_TIMEOUT`.
+- **Call reports:** 1-second collection for the full call duration; richer inbound/outbound RTP, remote RTCP (loss/jitter/RTT), codec identity, media-playout, and selected ICE evidence for RTC investigations.
+- **Config:** new `skipTrailing` option (internal/test-infra).
+
 ## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
 
 - No notable changes
