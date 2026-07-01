@@ -177,7 +177,7 @@ describe('Verto', () => {
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
-        'call-1': ({
+        'call-1': {
           id: 'call-1',
           hangup,
           state: 'active',
@@ -187,8 +187,8 @@ describe('Verto', () => {
           options: {
             customHeaders: [{ name: 'X-Test', value: '1' }],
           },
-        } as unknown) as IWebRTCCall,
-        'call-2': ({
+        } as unknown as IWebRTCCall,
+        'call-2': {
           id: 'call-2',
           hangup,
           state: 'active',
@@ -196,7 +196,7 @@ describe('Verto', () => {
           session: {}, // not persisted — narrow projection drops it
           peer: {}, // not persisted — narrow projection drops it
           options: {},
-        } as unknown) as IWebRTCCall,
+        } as unknown as IWebRTCCall,
       };
 
       const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
@@ -253,7 +253,9 @@ describe('Verto', () => {
 
       // Pre-seed a stale marker from a previous page.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+        [
+          { id: 'stale-call', state: 'active', options: {} },
+        ] as unknown as IStoredActiveCall[],
         'old-session'
       );
       const seeded = getActiveCallsRecoveryMarker();
@@ -262,7 +264,9 @@ describe('Verto', () => {
 
       // Re-seed since getActiveCallsRecoveryMarker clears on read.
       setActiveCallsRecoveryMarker(
-        [{ id: 'stale-call', state: 'active', options: {} }] as unknown as IStoredActiveCall[],
+        [
+          { id: 'stale-call', state: 'active', options: {} },
+        ] as unknown as IStoredActiveCall[],
         'old-session'
       );
 
@@ -301,12 +305,12 @@ describe('Verto', () => {
       });
       telnyxRTC.sessionid = 'session-default';
       telnyxRTC.calls = {
-        'call-x': ({
+        'call-x': {
           id: 'call-x',
           hangup: jest.fn(),
           state: 'active',
           options: {},
-        } as unknown) as IWebRTCCall,
+        } as unknown as IWebRTCCall,
       };
 
       const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
@@ -320,6 +324,109 @@ describe('Verto', () => {
       addEventListenerSpy.mockRestore();
       clearReconnectToken();
       clearActiveCallsRecoveryMarker();
+    });
+  });
+
+  describe('visibilitychange session-id re-stamp', () => {
+    const STORED_AT_KEY = 'telnyx-voice-sdk-session-id-stored-at';
+
+    const setVisibility = (state: 'visible' | 'hidden') => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: state,
+        configurable: true,
+      });
+    };
+
+    // Build an instance and return its registered visibilitychange handler.
+    const buildWithVisHandler = (
+      props: Partial<IVertoOptions>
+    ): { instance: Verto; handler: EventListener; restore: () => void } => {
+      const spy = jest.spyOn(document, 'addEventListener');
+      spy.mockClear();
+      const instance = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...props,
+      } as IVertoOptions);
+      const handler = spy.mock.calls.find(
+        ([eventName]) => eventName === 'visibilitychange'
+      )?.[1] as EventListener;
+      return { instance, handler, restore: () => spy.mockRestore() };
+    };
+
+    afterEach(() => {
+      // Restore jsdom's default visibility and clear storage between tests.
+      delete (document as unknown as { visibilityState?: string })
+        .visibilityState;
+      clearReconnectToken();
+    });
+
+    it('re-stamps freshness when the page is hidden with an active call (hangupOnBeforeUnload=false)', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      expect(handler).toBeDefined();
+
+      instance.sessionid = 'session-abc';
+      instance.hasActiveCall = jest.fn(() => true);
+      const oldStoredAt = Date.now() - 80 * 1000;
+      setReconnectSessionId('session-abc', oldStoredAt);
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(Number(sessionStorage.getItem(STORED_AT_KEY))).toBeGreaterThan(
+        oldStoredAt
+      );
+      expect(getReconnectSessionId()).toBe('session-abc');
+      restore();
+    });
+
+    it('does not re-stamp while the page is still visible', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      instance.sessionid = 'session-abc';
+      instance.hasActiveCall = jest.fn(() => true);
+      const oldStoredAt = Date.now() - 80 * 1000;
+      setReconnectSessionId('session-abc', oldStoredAt);
+
+      setVisibility('visible');
+      handler(new Event('visibilitychange'));
+
+      expect(Number(sessionStorage.getItem(STORED_AT_KEY))).toBe(oldStoredAt);
+      restore();
+    });
+
+    it('does not re-stamp when there is no active call', () => {
+      const { instance, handler, restore } = buildWithVisHandler({
+        hangupOnBeforeUnload: false,
+      });
+      instance.sessionid = 'session-abc';
+      instance.hasActiveCall = jest.fn(() => false);
+      const oldStoredAt = Date.now() - 80 * 1000;
+      setReconnectSessionId('session-abc', oldStoredAt);
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(Number(sessionStorage.getItem(STORED_AT_KEY))).toBe(oldStoredAt);
+      restore();
+    });
+
+    it('does not re-stamp when hangupOnBeforeUnload is not false', () => {
+      const { instance, handler, restore } = buildWithVisHandler({});
+      instance.sessionid = 'session-abc';
+      instance.hasActiveCall = jest.fn(() => true);
+      const oldStoredAt = Date.now() - 80 * 1000;
+      setReconnectSessionId('session-abc', oldStoredAt);
+
+      setVisibility('hidden');
+      handler(new Event('visibilitychange'));
+
+      expect(Number(sessionStorage.getItem(STORED_AT_KEY))).toBe(oldStoredAt);
+      restore();
     });
   });
 
