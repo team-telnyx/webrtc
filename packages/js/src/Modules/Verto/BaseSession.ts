@@ -58,6 +58,9 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import pkg from '../../../package.json';
+
+const SDK_VERSION = pkg.version;
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -112,6 +115,17 @@ export default abstract class BaseSession {
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
+
+  /**
+   * One-shot fallback timer that fires when the socket has been closed for
+   * {@link SOCKET_CLOSE_REPORT_TIMEOUT_MS}. The SDK requires an active socket
+   * connection — if it's still down after 15s, generate a synthetic
+   * call_report_id (when the server never assigned one) and submit a
+   * session-level report so voice-sdk-debug has visibility into the outage.
+   */
+  private _socketCloseReportWatcher: ReturnType<typeof setTimeout> | null =
+    null;
+  private static readonly SOCKET_CLOSE_REPORT_TIMEOUT_MS = 15_000;
 
   // ── Signaling health monitor ──────────────────────────────────────────
   /** Handles liveness detection, health probing, and force-reconnect. */
@@ -357,6 +371,7 @@ export default abstract class BaseSession {
   async disconnect() {
     clearTimeout(this._reconnectTimeout);
     this._clearTokenExpiryTimeout();
+    this._cancelSocketCloseReportWatcher();
     this.subscriptions = {};
     this._autoReconnect = false;
     this._intentionalClose = true;
@@ -777,6 +792,9 @@ export default abstract class BaseSession {
    * @return void
    */
   protected async _onSocketOpen() {
+    // Socket reconnected — cancel the socket-close report watcher.
+    this._cancelSocketCloseReportWatcher();
+
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
@@ -814,6 +832,146 @@ export default abstract class BaseSession {
         });
       }
     });
+  }
+
+  /**
+   * Submit a session-level call report when the socket has been down for
+   * {@link SOCKET_CLOSE_REPORT_TIMEOUT_MS}. This is used when there are no
+   * active calls — the report has empty stats but carries the flush reason
+   * and generated call_report_id so voice-sdk-debug can see the outage.
+   *
+   * When there *are* active calls, their reports are flushed via
+   * {@link _flushIntermediateCallReports} (which uses the per-call
+   * CallReportCollector). This method handles the no-call case.
+   */
+  private _submitSocketDownReport(
+    flushReason: ICallReportFlushReason
+  ): void {
+    const host = this.connection?.host ?? this.options.host;
+    if (!host) {
+      logger.debug(
+        'Cannot submit socket-down report: no host available (connection or options)'
+      );
+      return;
+    }
+
+    if (!this.callReportId) {
+      this.callReportId = `gen-${uuidv4()}`;
+      logger.info(
+        'Generated synthetic call_report_id for socket-down report',
+        { callReportId: this.callReportId }
+      );
+    }
+
+    const wsUrl = new URL(host);
+    const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
+
+    const payload = {
+      summary: {
+        callId: this.callReportId,
+        sdkVersion: SDK_VERSION,
+        voiceSdkSessionId: this.sessionid || undefined,
+        startTimestamp: new Date().toISOString(),
+      },
+      stats: [],
+      flushReason,
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-call-report-id': this.callReportId,
+      'x-call-id': this.callReportId,
+    };
+    if (this.callReportVoiceSdkId) {
+      headers['x-voice-sdk-id'] = this.callReportVoiceSdkId;
+    }
+
+    logger.info(
+      `Socket still closed after ${BaseSession.SOCKET_CLOSE_REPORT_TIMEOUT_MS}ms — submitting session-level report`,
+      { callReportId: this.callReportId, endpoint, flushReason }
+    );
+
+    const upload = fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      keepalive: true,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          logger.error(
+            `Socket-down report POST failed with status ${response.status}`,
+            { callReportId: this.callReportId }
+          );
+        }
+      })
+      .catch((error) => {
+        logger.error('Failed to post socket-down report', {
+          callReportId: this.callReportId,
+          error,
+        });
+      });
+
+    this._pendingCallReportUploads.add(upload);
+    upload.finally(() => this._pendingCallReportUploads.delete(upload));
+  }
+
+  /**
+   * Schedule a one-shot fallback timer that fires when the socket has been
+   * closed for {@link SOCKET_CLOSE_REPORT_TIMEOUT_MS}. When the timer fires:
+   *
+   * 1. If the socket reconnected, do nothing (the watcher was already
+   *    cancelled in `_onSocketOpen`).
+   * 2. If `callReportId` is still null (server never assigned one), generate
+   *    a synthetic `gen-{uuid}` ID so the report can be submitted.
+   * 3. Flush any active call reports via `_flushIntermediateCallReports`.
+   * 4. Submit a session-level report via `_submitSocketDownReport` so
+   *    voice-sdk-debug has visibility into the outage even without an
+   *    active call.
+   *
+   * The SDK requires an active socket connection for its entire lifetime —
+   * if the socket is still down after 15s, that's a problem worth reporting.
+   */
+  private _scheduleSocketCloseReportWatcher(
+    flushReason: ICallReportFlushReason
+  ): void {
+    if (this._socketCloseReportWatcher) {
+      clearTimeout(this._socketCloseReportWatcher);
+    }
+
+    this._socketCloseReportWatcher = setTimeout(() => {
+      this._socketCloseReportWatcher = null;
+
+      // Socket reconnected before the timer fired — nothing to report.
+      if (this.connection?.connected) return;
+
+      // Generate callReportId if the server never assigned one.
+      if (!this.callReportId) {
+        this.callReportId = `gen-${uuidv4()}`;
+        logger.info(
+          'Generated synthetic call_report_id for socket-close fallback',
+          { callReportId: this.callReportId }
+        );
+      }
+
+      // Flush any active call reports (uses per-call CallReportCollector).
+      this._flushIntermediateCallReports(flushReason);
+
+      // Submit a session-level report so voice-sdk-debug sees the outage
+      // even when there are no active calls.
+      this._submitSocketDownReport(flushReason);
+    }, BaseSession.SOCKET_CLOSE_REPORT_TIMEOUT_MS);
+  }
+
+  /**
+   * Cancel the socket-close report watcher. Called when the socket
+   * reconnects or the session is intentionally disconnected.
+   */
+  private _cancelSocketCloseReportWatcher(): void {
+    if (this._socketCloseReportWatcher) {
+      clearTimeout(this._socketCloseReportWatcher);
+      this._socketCloseReportWatcher = null;
+    }
   }
 
   /**
@@ -901,6 +1059,15 @@ export default abstract class BaseSession {
     }
 
     this._flushIntermediateCallReports(
+      this._createSocketCloseFlushReason(event)
+    );
+
+    // Schedule a delayed fallback: if the socket is still closed after
+    // SOCKET_CLOSE_REPORT_TIMEOUT_MS, generate a synthetic call_report_id
+    // (when the server never assigned one) and submit a session-level
+    // report so voice-sdk-debug has visibility into the outage. The SDK
+    // requires an active socket — if it's still down after 15s, report it.
+    this._scheduleSocketCloseReportWatcher(
       this._createSocketCloseFlushReason(event)
     );
 
