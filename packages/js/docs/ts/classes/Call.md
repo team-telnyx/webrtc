@@ -77,6 +77,7 @@ call.muteAudio();
 - [hold](#hold)
 - [muteAudio](#muteaudio)
 - [muteVideo](#mutevideo)
+- [sendAIConversationMessage](#sendaiconversationmessage)
 - [setAudioInDevice](#setaudioindevice)
 - [setAudioOutDevice](#setaudiooutdevice)
 - [setVideoDevice](#setvideodevice)
@@ -538,6 +539,61 @@ call.muteVideo();
 #### Inherited from
 
 BaseCall.muteVideo
+
+---
+
+### sendAIConversationMessage
+
+▸ **sendAIConversationMessage**(`item`): `void`
+
+Sends an AI conversation message (e.g. a `function_call_output`) over
+the active VSP WebSocket session.
+
+Use this to return the result of a client-side tool execution back to
+the AI backend after receiving a `function_call` via the
+`telnyx.ai.conversation` event.
+
+This is a fire-and-forget JSON-RPC notification (no `id`): the backend
+is not expected to ack each tool result, and the SDK does not wait for
+a response or register a one-shot handler.
+
+**Requires an active WebSocket connection.** Throws if the session is
+disconnected — callers must handle the disconnect immediately rather
+than having the output silently queued for a future reconnect (which
+could deliver stale results after ACA has timed out the waiter).
+
+#### Parameters
+
+| Name   | Type                                                                                                              | Description                                                                                                                          |
+| :----- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| `item` | [`FunctionCallOutputItem`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#functioncalloutputitem) | The function call output item to send. Must include `type: "function_call_output"`, the matching `call_id`, and the `output` string. |
+
+#### Returns
+
+`void`
+
+**`Throws`**
+
+If the session is not connected.
+
+**`Example`**
+
+```js
+client.on('telnyx.ai.conversation', (event) => {
+  if (
+    event.params.type === 'conversation.item.created' &&
+    event.params.item?.type === 'function_call'
+  ) {
+    const { call_id, name, arguments: argsJson } = event.params.item;
+    // Execute the tool...
+    call.sendAIConversationMessage({
+      type: 'function_call_output',
+      call_id,
+      output: JSON.stringify({ status: 'found' }),
+    });
+  }
+});
+```
 
 ---
 
