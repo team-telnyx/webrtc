@@ -506,7 +506,12 @@ export type SanitizedClientOption =
   | { [key: string]: SanitizedClientOption };
 
 export interface ICallReportFlushReason {
-  type: 'buffer-limit' | 'manual' | 'socket-close' | 'socket-error';
+  type:
+    | 'buffer-limit'
+    | 'manual'
+    | 'socket-close'
+    | 'socket-error'
+    | 'socket-never-opened';
   socketClose?: {
     code?: number;
     codeName?: string;

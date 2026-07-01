@@ -630,3 +630,221 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     });
   });
 });
+
+/**
+ * Tests for the 15-second socket-close fallback watcher.
+ *
+ * When the socket closes, a one-shot timer is scheduled. If the socket
+ * is still down after 15s, the watcher generates a synthetic call_report_id
+ * (when the server never assigned one) and submits a session-level report
+ * — regardless of whether there's an active call. The SDK requires an
+ * active socket connection for its entire lifetime; a 15s outage is a
+ * problem worth reporting.
+ */
+describe('BaseSession - Socket-Close Report Watcher (15s fallback)', () => {
+  let session: any;
+  let mockConnection: any;
+
+  const createSession = (options: any = {}) => {
+    return new TestSession({
+      login: 'testuser',
+      password: 'testpass',
+      host: 'wss://rtc.telnyx.com:8082',
+      ...options,
+    });
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockTrigger.mockClear();
+
+    // Mock global fetch so we can assert calls without hitting the network
+    (global as any).fetch = jest.fn(() =>
+      Promise.resolve({ ok: true, status: 200 } as any)
+    );
+
+    session = createSession();
+    mockConnection = {
+      close: jest.fn(),
+      connect: jest.fn(),
+      isAlive: false,
+      connected: false,
+      previousGatewayState: '',
+      socketGeneration: 0,
+      host: 'wss://rtc.telnyx.com:8082',
+    };
+    session.connection = mockConnection;
+    session._autoReconnect = true;
+    session._idle = false;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('should generate a gen-{uuid} callReportId and submit a report after 15s (no active call)', () => {
+    simulateSocketFailure(session);
+
+    // Before the timer, no report submitted
+    expect((global as any).fetch).not.toHaveBeenCalled();
+
+    // Advance past 15s
+    jest.advanceTimersByTime(15_000);
+
+    // callReportId was generated
+    expect(session.callReportId).toMatch(/^gen-/);
+
+    // fetch was called with a POST to /call_report
+    expect((global as any).fetch).toHaveBeenCalledTimes(1);
+    const [endpoint, init] = (global as any).fetch.mock.calls[0];
+    expect(endpoint).toContain('/call_report');
+    expect(init.method).toBe('POST');
+    expect(init.headers['x-call-report-id']).toMatch(/^gen-/);
+
+    // Body has empty stats and a flushReason
+    const body = JSON.parse(init.body);
+    expect(body.stats).toEqual([]);
+    expect(body.flushReason).toBeDefined();
+  });
+
+  it('should preserve an existing server-assigned callReportId', () => {
+    session.callReportId = 'server-assigned-123';
+
+    simulateSocketFailure(session);
+    jest.advanceTimersByTime(15_000);
+
+    // Still the server-assigned ID, not overwritten
+    expect(session.callReportId).toBe('server-assigned-123');
+    expect((global as any).fetch).toHaveBeenCalledTimes(1);
+    const init = (global as any).fetch.mock.calls[0][1];
+    expect(init.headers['x-call-report-id']).toBe('server-assigned-123');
+  });
+
+  it('should NOT fire if the socket reconnects before 15s', () => {
+    simulateSocketFailure(session);
+
+    // Reconnect after 5s
+    jest.advanceTimersByTime(5_000);
+    mockConnection.connected = true;
+    session._onSocketOpen();
+
+    // Advance well past 15s
+    jest.advanceTimersByTime(20_000);
+
+    // No report submitted — watcher was cancelled
+    expect((global as any).fetch).not.toHaveBeenCalled();
+    expect(session.callReportId).toBeNull();
+  });
+
+  it('should NOT fire if connection is already reconnected when timer fires', () => {
+    simulateSocketFailure(session);
+
+    // Socket reconnects just before timer fires
+    jest.advanceTimersByTime(14_999);
+    mockConnection.connected = true;
+
+    jest.advanceTimersByTime(1);
+
+    // No report — connection.connected is true
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+
+  it('should be cancelled on intentional disconnect()', async () => {
+    simulateSocketFailure(session);
+
+    await session.disconnect();
+
+    // Advance past 15s
+    jest.advanceTimersByTime(20_000);
+
+    // No report — watcher was cancelled during disconnect
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+
+  it('should include callReportVoiceSdkId in headers when available', () => {
+    session.callReportVoiceSdkId = 'voice-sdk-id-abc';
+
+    simulateSocketFailure(session);
+    jest.advanceTimersByTime(15_000);
+
+    const init = (global as any).fetch.mock.calls[0][1];
+    expect(init.headers['x-voice-sdk-id']).toBe('voice-sdk-id-abc');
+  });
+
+  it('should track the upload promise in _pendingCallReportUploads', () => {
+    simulateSocketFailure(session);
+    jest.advanceTimersByTime(15_000);
+
+    // The fetch promise was added to the pending uploads set
+    expect(session._pendingCallReportUploads.size).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should use options.host as fallback when connection.host is unavailable', () => {
+    // Connection is null after disconnect — but options.host is still set
+    session.connection = null;
+    session.options.host = 'wss://fallback.telnyx.com:8082';
+
+    // onNetworkClose guards against connection being null for the watcher?
+    // The watcher checks connection?.connected — if connection is null,
+    // it proceeds (socket is not connected).
+    // Simulate: schedule watcher manually since onNetworkClose uses connection
+    session._scheduleSocketCloseReportWatcher({ type: 'socket-close' });
+    jest.advanceTimersByTime(15_000);
+
+    expect((global as any).fetch).toHaveBeenCalledTimes(1);
+    const endpoint = (global as any).fetch.mock.calls[0][0];
+    expect(endpoint).toContain('fallback.telnyx.com');
+  });
+
+  it('should NOT submit if no host is available at all', () => {
+    session.connection = null;
+    session.options.host = undefined;
+
+    session._scheduleSocketCloseReportWatcher({ type: 'socket-close' });
+    jest.advanceTimersByTime(15_000);
+
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+
+  it('should fire on connect() if the socket never opens within 15s', () => {
+    // Simulate connect() being called but socket never opening
+    // (connection.isAlive stays false, connected stays false)
+    session.connection.isAlive = false;
+    session.connect();
+
+    // Before the timer, no report submitted
+    expect((global as any).fetch).not.toHaveBeenCalled();
+
+    // Advance past 15s — socket never opened
+    jest.advanceTimersByTime(15_000);
+
+    // Watcher fired: generated callReportId and submitted a report
+    expect(session.callReportId).toMatch(/^gen-/);
+    expect((global as any).fetch).toHaveBeenCalledTimes(1);
+
+    const [endpoint, init] = (global as any).fetch.mock.calls[0];
+    expect(endpoint).toContain('/call_report');
+    expect(init.method).toBe('POST');
+
+    // Body has flushReason type 'socket-never-opened'
+    const body = JSON.parse(init.body);
+    expect(body.flushReason.type).toBe('socket-never-opened');
+  });
+
+  it('should cancel the never-opened watcher when socket opens before 15s', () => {
+    session.connection.isAlive = false;
+    session.connect();
+
+    // Socket opens after 5s
+    jest.advanceTimersByTime(5_000);
+    mockConnection.connected = true;
+    session._onSocketOpen();
+
+    // Advance well past 15s
+    jest.advanceTimersByTime(20_000);
+
+    // No report — watcher was cancelled on socket open
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
+});
