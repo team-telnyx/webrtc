@@ -1,3 +1,9 @@
+## [2.27.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.3) (2026-07-01)
+
+- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
+- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
+- chore: release webrtc@2.27.2 (#716)
+- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.1...webrtc/v2.27.2) (2026-07-01)
 
 ### Reconnect and recovery hardening
