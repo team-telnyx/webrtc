@@ -703,4 +703,90 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       expect(mockDrainPendingReports).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('socket-close report watcher (15s fallback flush)', () => {
+    it('should generate a gen- callReportId and flush when socket stays closed for 15s', () => {
+      session.callReportId = null;
+      // Simulate an active call so the watcher has something to flush
+      jest.spyOn(session, 'hasActiveCall').mockReturnValue(true);
+      const flushSpy = jest.spyOn(session, '_flushIntermediateCallReports');
+
+      // Trigger socket close — schedules the 15s watcher
+      session.onNetworkClose({ socketGeneration: 1 });
+
+      // Watcher is scheduled but hasn't fired yet
+      expect(session._socketCloseReportWatcher).not.toBeNull();
+      expect(flushSpy).toHaveBeenCalledTimes(1); // immediate flush only
+
+      // Advance 15s — watcher fires
+      jest.advanceTimersByTime(15_000);
+
+      expect(session._socketCloseReportWatcher).toBeNull();
+      expect(session.callReportId).toMatch(/^gen-/);
+      // Immediate flush + watcher flush = 2 calls
+      expect(flushSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should NOT flush when socket reconnects before 15s', async () => {
+      session.callReportId = null;
+      jest.spyOn(session, 'hasActiveCall').mockReturnValue(true);
+      const flushSpy = jest.spyOn(session, '_flushIntermediateCallReports');
+
+      // Trigger socket close
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._socketCloseReportWatcher).not.toBeNull();
+
+      // Socket reconnects before the 15s timer fires
+      session.connection.connected = true;
+      await session._onSocketOpen();
+
+      // Watcher was cancelled
+      expect(session._socketCloseReportWatcher).toBeNull();
+
+      // Advance past 15s — nothing should fire
+      jest.advanceTimersByTime(20_000);
+      expect(flushSpy).toHaveBeenCalledTimes(1); // only the immediate flush
+      expect(session.callReportId).toBeNull(); // no gen- ID generated
+    });
+
+    it('should NOT flush when there is no active call', () => {
+      session.callReportId = null;
+      jest.spyOn(session, 'hasActiveCall').mockReturnValue(false);
+      const flushSpy = jest.spyOn(session, '_flushIntermediateCallReports');
+
+      session.onNetworkClose({ socketGeneration: 1 });
+
+      jest.advanceTimersByTime(15_000);
+
+      expect(session._socketCloseReportWatcher).toBeNull();
+      // Only the immediate flush from onNetworkClose, no fallback flush
+      expect(flushSpy).toHaveBeenCalledTimes(1);
+      expect(session.callReportId).toBeNull();
+    });
+
+    it('should use existing callReportId if already assigned', () => {
+      session.callReportId = 'server-assigned-id';
+      jest.spyOn(session, 'hasActiveCall').mockReturnValue(true);
+      const flushSpy = jest.spyOn(session, '_flushIntermediateCallReports');
+
+      session.onNetworkClose({ socketGeneration: 1 });
+
+      jest.advanceTimersByTime(15_000);
+
+      // Should NOT generate a new gen- ID
+      expect(session.callReportId).toBe('server-assigned-id');
+      expect(flushSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should cancel the watcher on disconnect()', async () => {
+      jest.spyOn(session, 'hasActiveCall').mockReturnValue(true);
+
+      session.onNetworkClose({ socketGeneration: 1 });
+      expect(session._socketCloseReportWatcher).not.toBeNull();
+
+      await session.disconnect();
+
+      expect(session._socketCloseReportWatcher).toBeNull();
+    });
+  });
 });

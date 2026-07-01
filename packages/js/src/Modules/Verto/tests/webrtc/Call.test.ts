@@ -256,7 +256,11 @@ describe('Call', () => {
 
       const collector = {
         stop: jest.fn().mockResolvedValue(undefined),
-        postReport: jest.fn().mockResolvedValue(undefined),
+        buildFinalPayload: jest.fn().mockReturnValue({
+          summary: { callId: call.id },
+          stats: [{ intervalStartUtc: '2026-01-01T00:00:00.000Z' }],
+        }),
+        sendPayload: jest.fn().mockResolvedValue(undefined),
         cleanup: jest.fn(),
       };
       (
@@ -267,13 +271,16 @@ describe('Call', () => {
         call as unknown as { _postCallReport: () => Promise<void> }
       )._postCallReport();
 
-      expect(collector.postReport).toHaveBeenCalledWith(
-        expect.objectContaining({ callId: call.id }),
+      expect(collector.buildFinalPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ callId: call.id })
+      );
+      expect(collector.sendPayload).toHaveBeenCalledWith(
+        expect.objectContaining({ summary: expect.objectContaining({ callId: call.id }) }),
         'call-report-id',
         'wss://rtc.telnyx.com',
         'owning-session-voice-sdk-id'
       );
-      const submittedSummary = collector.postReport.mock.calls[0][0];
+      const submittedSummary = collector.buildFinalPayload.mock.calls[0][0];
       expect(submittedSummary.clientSummary).toEqual(
         expect.objectContaining({
           authentication: expect.objectContaining({

@@ -114,6 +114,17 @@ export default abstract class BaseSession {
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
+  /**
+   * One-shot timer started on socket close. If the socket is still closed
+   * after {@link SOCKET_CLOSE_REPORT_TIMEOUT_MS} and there's an active call,
+   * a synthetic call_report_id is generated (when the server never assigned
+   * one) and intermediate reports are flushed so call data isn't lost during
+   * prolonged outages. Cleared on socket open or disconnect.
+   */
+  private _socketCloseReportWatcher: ReturnType<typeof setTimeout> | null =
+    null;
+  private static readonly SOCKET_CLOSE_REPORT_TIMEOUT_MS = 15_000;
+
   // ── Signaling health monitor ──────────────────────────────────────────
   /** Handles liveness detection, health probing, and force-reconnect. */
   private _signalingHealthMonitor: SignalingHealthMonitor =
@@ -358,6 +369,10 @@ export default abstract class BaseSession {
   async disconnect() {
     clearTimeout(this._reconnectTimeout);
     this._clearTokenExpiryTimeout();
+    if (this._socketCloseReportWatcher) {
+      clearTimeout(this._socketCloseReportWatcher);
+      this._socketCloseReportWatcher = null;
+    }
     this.subscriptions = {};
     this._autoReconnect = false;
     this._intentionalClose = true;
@@ -782,6 +797,16 @@ export default abstract class BaseSession {
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
 
+    // Cancel the socket-close fallback watcher — the socket is open, so the
+    // delayed flush is no longer needed.
+    if (this._socketCloseReportWatcher) {
+      clearTimeout(this._socketCloseReportWatcher);
+      this._socketCloseReportWatcher = null;
+      logger.debug(
+        'Socket-close report watcher cancelled — socket reconnected'
+      );
+    }
+
     // Drain any pending call reports that were persisted to browser storage
     // because the previous socket closed (1001) or the HTTP POST failed while
     // the network was down. Now that the socket is open the network is
@@ -912,6 +937,51 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Schedule a one-shot fallback flush that fires when the socket has been
+   * closed for {@link SOCKET_CLOSE_REPORT_TIMEOUT_MS}. When the timer fires:
+   *
+   * 1. If the socket reconnected, do nothing (the watcher was already
+   *    cancelled in `_onSocketOpen`).
+   * 2. If there's no active call, do nothing.
+   * 3. If `callReportId` is still null (server never assigned one), generate
+   *    a synthetic `gen-{uuid}` ID so the report can be submitted.
+   * 4. Flush intermediate call reports with the saved flush reason.
+   *
+   * This ensures call data (stats + logs) is submitted even when the socket
+   * disconnects and doesn't reconnect quickly — the generated-ID report
+   * gives voice-sdk-debug visibility into calls that would otherwise vanish.
+   */
+  private _scheduleSocketCloseReportWatcher(
+    flushReason: ICallReportFlushReason
+  ): void {
+    if (this._socketCloseReportWatcher) {
+      clearTimeout(this._socketCloseReportWatcher);
+    }
+
+    this._socketCloseReportWatcher = setTimeout(() => {
+      this._socketCloseReportWatcher = null;
+
+      if (this.connection?.connected) return;
+      if (!this.hasActiveCall()) return;
+
+      if (!this.callReportId) {
+        this.callReportId = `gen-${uuidv4()}`;
+        logger.info(
+          'Generated synthetic call_report_id for socket-close fallback flush',
+          { callReportId: this.callReportId }
+        );
+      }
+
+      logger.info(
+        `Socket still closed after ${BaseSession.SOCKET_CLOSE_REPORT_TIMEOUT_MS}ms — flushing call reports with generated ID`,
+        { callReportId: this.callReportId }
+      );
+
+      this._flushIntermediateCallReports(flushReason);
+    }, BaseSession.SOCKET_CLOSE_REPORT_TIMEOUT_MS);
+  }
+
+  /**
    * Callback when the ws connection is going to close or get an error
    * @return void
    * @private
@@ -995,9 +1065,14 @@ export default abstract class BaseSession {
       return;
     }
 
-    this._flushIntermediateCallReports(
-      this._createSocketCloseFlushReason(event)
-    );
+    const flushReason = this._createSocketCloseFlushReason(event);
+    this._flushIntermediateCallReports(flushReason);
+
+    // Schedule a delayed fallback: if the socket is still closed after
+    // SOCKET_CLOSE_REPORT_TIMEOUT_MS and there's an active call, generate a
+    // synthetic call_report_id (when the server never assigned one) and flush
+    // intermediate reports so call data isn't lost during prolonged outages.
+    this._scheduleSocketCloseReportWatcher(flushReason);
 
     // ── Debug: WebSocket close event ──
     // Note: reconnectDelay is NOT logged here because it is a random getter
