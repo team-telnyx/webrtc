@@ -1,3 +1,6 @@
+## [2.27.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2) (2026-07-01)
+
+- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
 
 - No notable changes
