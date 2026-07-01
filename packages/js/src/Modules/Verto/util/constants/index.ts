@@ -51,17 +51,30 @@ export const TURN_DEV_SERVER = [
     credential: 'testpassword',
   },
 ];
+// TURN over TLS/TCP on port 443 — fallback for restrictive firewalls that block UDP and TCP/3478
+export const TURN_TLS_TCP_443_SERVER = {
+  urls: 'turns:turn.telnyx.com:443?transport=tcp',
+  username: 'testuser',
+  credential: 'testpassword',
+};
+export const TURN_TLS_TCP_443_DEV_SERVER = {
+  urls: 'turns:turndev.telnyx.com:443?transport=tcp',
+  username: 'testuser',
+  credential: 'testpassword',
+};
 
 export const DEFAULT_PROD_ICE_SERVERS: RTCIceServer[] = [
   STUN_SERVER,
   GOOGLE_STUN_SERVER,
   ...TURN_SERVER,
+  TURN_TLS_TCP_443_SERVER,
 ];
 
 export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   STUN_DEV_SERVER,
   GOOGLE_STUN_SERVER,
   ...TURN_DEV_SERVER,
+  TURN_TLS_TCP_443_DEV_SERVER,
 ];
 
 export enum SwEvent {

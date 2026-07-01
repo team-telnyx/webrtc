@@ -442,6 +442,15 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
+  it('should include TURNS port 443 entry in DEFAULT_PROD_ICE_SERVERS', () => {
+    const turns443Entry = DEFAULT_PROD_ICE_SERVERS.find(
+      (server) => server.urls === 'turns:turn.telnyx.com:443?transport=tcp'
+    );
+    expect(turns443Entry).toBeDefined();
+    expect(turns443Entry!.username).toBe('testuser');
+    expect(turns443Entry!.credential).toBe('testpassword');
+  });
+
   it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
     const telnyxRTC = _buildInstance({
       env: 'development',
@@ -451,6 +460,15 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_DEV_ICE_SERVERS);
   });
 
+  it('should include TURNS port 443 dev entry in DEFAULT_DEV_ICE_SERVERS', () => {
+    const turns443DevEntry = DEFAULT_DEV_ICE_SERVERS.find(
+      (server) => server.urls === 'turns:turndev.telnyx.com:443?transport=tcp'
+    );
+    expect(turns443DevEntry).toBeDefined();
+    expect(turns443DevEntry!.username).toBe('testuser');
+    expect(turns443DevEntry!.credential).toBe('testpassword');
+  });
+
   it('should return iceServers with DEFAULT_PROD_ICE_SERVERS when env is production', () => {
     const telnyxRTC = _buildInstance({
       env: 'production',
@@ -458,6 +476,18 @@ describe('Verto', () => {
       password: 'password',
     });
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
+  });
+
+  it('should list TURNS 443 after TURN 3478 entries in production defaults', () => {
+    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
+    const turnTcp3478Index = urls.indexOf(
+      'turn:turn.telnyx.com:3478?transport=tcp'
+    );
+    const turns443Index = urls.indexOf(
+      'turns:turn.telnyx.com:443?transport=tcp'
+    );
+    expect(turnTcp3478Index).toBeGreaterThan(-1);
+    expect(turns443Index).toBeGreaterThan(turnTcp3478Index);
   });
 
   it('should return iceServers with provided value when iceServers is provided', () => {
