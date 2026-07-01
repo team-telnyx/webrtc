@@ -18,6 +18,7 @@ import {
   clearReconnectToken,
   clearActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
+  setReconnectSessionId,
 } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
@@ -111,6 +112,38 @@ export default class Verto extends BrowserSession {
           )}]): ${err instanceof Error ? err.message : String(err)}`
         );
       }
+    });
+
+    // Re-stamp the reconnect session-id freshness at the last moment the page
+    // is reliably observable: the visibilitychange transition to `hidden`.
+    //
+    // The sessid the SDK sends on the next login is only accepted for reattach
+    // while the persisted session-id is fresh (< RECONNECT_SESSION_ID_MAX_AGE_MS,
+    // 90s), and that timestamp is otherwise only written at login/socket-close.
+    // A leg connected longer than 90s (e.g. a conference host waiting for
+    // participants) would therefore reload with a stale sessid and fail to
+    // reattach. Per MDN guidance, `visibilitychange` → `hidden` is the last
+    // event that fires reliably before a tab is backgrounded, discarded, or
+    // closed — including on mobile, where `beforeunload`/`pagehide` are not
+    // dependable — so it is the correct place to persist this state. The write
+    // is synchronous (sessionStorage), so it completes even as the page goes
+    // away, unlike async work such as a call-report POST.
+    //
+    // Only relevant when calls are meant to survive unload
+    // (hangupOnBeforeUnload === false) and there is an active call to reattach.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'hidden') return;
+      if (
+        options.hangupOnBeforeUnload !== false ||
+        !this.sessionid ||
+        !this.hasActiveCall()
+      ) {
+        return;
+      }
+      logger.debug(
+        'visibilitychange → hidden: re-stamping reconnect session-id freshness.'
+      );
+      setReconnectSessionId(this.sessionid);
     });
   }
 
