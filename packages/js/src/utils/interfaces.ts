@@ -267,6 +267,84 @@ export interface IClientOptions {
   callReportFlushInterval?: number;
 
   /**
+   * Enable client-side call recording of the raw audio payload (depacketized
+   * PCM) flowing through the active WebRTC audio tracks. When enabled, the SDK
+   * captures PCM via `MediaStreamTrackProcessor` (Chromium-only), synthesizes
+   * RTP packets, buffers them with a bounded in-memory ring buffer, and
+   * submits intermediate flushes every `callRecordingFlushIntervalMs` plus a
+   * final flush at end of call. Recordings are stored as `.pcap` files by
+   * voice-sdk-debug for Wireshark-based audio-quality diagnosis.
+   *
+   * **Browser support:** Requires `MediaStreamTrackProcessor` (Chrome 94+,
+   * Edge 94+). Firefox and Safari are NOT supported — on those browsers the
+   * recorder logs a single `RECORDING_UNAVAILABLE` warning and no-ops for the
+   * rest of the call; the call itself is never affected.
+   *
+   * **Privacy / consent:** Recording audio on the client requires user
+   * consent by law in most jurisdictions. The SDK does NOT request consent —
+   * applications that enable recording are responsible for the consent flow.
+   *
+   * **CPU cost:** Two `MediaStreamTrackProcessor` instances per call add
+   * measurable CPU on lower-end devices. Set `enableCallRecording: false` to
+   * opt out for deployments that do not need diagnostic recordings.
+   *
+   * @default true
+   */
+  enableCallRecording?: boolean;
+
+  /**
+   * Interval in milliseconds between intermediate call-recording flushes.
+   * Every interval the recorder POSTs its buffered RTP packets to the
+   * `/call_recording` endpoint and clears the buffer. A final flush at end of
+   * call submits the tail. Set to a value small enough that one interval of
+   * audio (at the configured sample rate) stays below
+   * `callRecordingMaxBufferBytes`.
+   *
+   * @default 240000 (4 minutes)
+   */
+  callRecordingFlushIntervalMs?: number;
+
+  /**
+   * Hard cap in bytes on the in-memory call-recording packet buffer. On
+   * overflow the recorder drops the oldest packets and emits a
+   * `RECORDING_BUFFER_OVERFLOW` warning (once per flush window) so memory
+   * stays bounded regardless of call length.
+   *
+   * @default 8000000 (8 MB)
+   */
+  callRecordingMaxBufferBytes?: number;
+
+  /**
+   * Sample rate (Hz) advertised in the recording envelope sent to
+   * voice-sdk-debug. The captured Float32 PCM frames carry the track's
+   * actual sample rate; this value is what the server uses to interpret the
+   * payload. 48 kHz is the typical WebRTC audio track rate.
+   *
+   * @default 48000
+   */
+  callRecordingSampleRate?: number;
+
+  /**
+   * Which audio tracks to record. `local` is the outbound (microphone) track,
+   * `remote` is the inbound (remote party) track. By default both are
+   * recorded so a single `.pcap` captures both directions for full
+   * audio-quality diagnosis.
+   *
+   * @default ['local', 'remote']
+   */
+  callRecordingTracks?: Array<'local' | 'remote'>;
+
+  /**
+   * Endpoint path (relative to the SDK connection host) where recording
+   * payloads are POSTed. Defaults to `/call_recording`, which voice-sdk-proxy
+   * forwards to voice-sdk-debug. Override only if pointing at a custom
+   * recording endpoint.
+   *
+   * @default '/call_recording'
+   */
+  callRecordingEndpoint?: string;
+
+  /**
    * Configuration for media permissions recovery on inbound calls.
    * When enabled and the initial `getUserMedia` call fails while answering,
    * the SDK emits a recoverable `telnyx.error` event with `resume()` and

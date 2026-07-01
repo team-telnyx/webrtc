@@ -93,6 +93,39 @@ export interface IVertoOptions {
    * @default 180000 (3 minutes)
    */
   callReportFlushInterval?: number;
+
+  /**
+   * Enable client-side call recording (raw audio PCM via MediaStreamTrackProcessor).
+   * Chromium-only; no-ops gracefully (RECORDING_UNAVAILABLE warning) on Firefox/Safari.
+   * Apps enabling recording are responsible for user consent. Set to `false` to opt out.
+   * @default true
+   */
+  enableCallRecording?: boolean;
+  /**
+   * Interval in milliseconds between intermediate call-recording flushes.
+   * @default 240000 (4 minutes)
+   */
+  callRecordingFlushIntervalMs?: number;
+  /**
+   * Hard cap in bytes on the in-memory call-recording packet buffer.
+   * @default 8000000 (8 MB)
+   */
+  callRecordingMaxBufferBytes?: number;
+  /**
+   * Sample rate (Hz) advertised in the recording envelope.
+   * @default 48000
+   */
+  callRecordingSampleRate?: number;
+  /**
+   * Which audio tracks to record.
+   * @default ['local', 'remote']
+   */
+  callRecordingTracks?: Array<'local' | 'remote'>;
+  /**
+   * Endpoint path (relative to the SDK connection host) for recording POSTs.
+   * @default '/call_recording'
+   */
+  callRecordingEndpoint?: string;
   /**
    * Minimum log level to capture for call reports.
    * @default 'debug'

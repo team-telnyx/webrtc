@@ -10,6 +10,11 @@ import {
   type SanitizedClientOption,
   type ICallReportFlushReason,
 } from './CallReportCollector';
+import {
+  CallRecorder,
+  type ICallRecordingOptions,
+  type RecordingTrackKind,
+} from './CallRecorder';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
 import {
   Answer,
@@ -63,6 +68,9 @@ import Peer from './Peer';
 import {
   ConferenceAction,
   DEFAULT_CALL_OPTIONS,
+  DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS,
+  DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES,
+  DEFAULT_CALL_RECORDING_SAMPLE_RATE,
   Direction,
   NOTIFICATION_TYPE,
   PeerType,
@@ -102,6 +110,7 @@ const BYE_TIMEOUT_MS = 5000;
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
   private _callReportCollector: CallReportCollector | null = null;
+  private _callRecorder: CallRecorder | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
 
   /**
@@ -1357,6 +1366,33 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._callReportCollector.start(this.peer.instance);
         }
 
+        // Start call recording when call becomes active. The recorder needs
+        // the local outbound and remote inbound audio tracks, which are
+        // attached to this.options.localStream / remoteStream by Peer once
+        // the connection is active. If the tracks are missing the recorder
+        // no-ops gracefully (or logs RECORDING_UNAVAILABLE if the browser
+        // lacks MediaStreamTrackProcessor).
+        if (this._callRecorder) {
+          // Refresh the connection host in case it changed since construction
+          // (e.g. after a reconnect) so periodic flushes resolve the endpoint.
+          const activeHost = this.session.connection?.host;
+          if (activeHost) {
+            this._callRecorder._setHost(activeHost);
+          }
+          // Set the call_report_id now that the server has assigned it. It is
+          // not available when the recorder is constructed in _init(), so the
+          // value snapshotted in the recorder context is empty; without this,
+          // every recording envelope would post an empty call_report_id and
+          // fail to correlate with the call report.
+          if (this.session.callReportId) {
+            this._callRecorder._setCallReportId(this.session.callReportId);
+          }
+          const localAudioTrack = this.options.localStream?.getAudioTracks()[0];
+          const remoteAudioTrack =
+            this.options.remoteStream?.getAudioTracks()[0];
+          this._callRecorder.start(localAudioTrack, remoteAudioTrack);
+        }
+
         // Start logging media devices for debugging
         this._mediaDeviceCollector = new MediaDeviceCollector();
         this._mediaDeviceCollector.logDevicesAtStart();
@@ -2515,6 +2551,63 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
+    // Initialize call recorder (raw audio PCM capture) when enabled.
+    // Mirrors the CallReportCollector construction above: read options from
+    // the session, build the recorder, wire its warning callback so
+    // RECORDING_UNAVAILABLE / RECORDING_BUFFER_OVERFLOW surface as
+    // telnyx.warning events. The recorder is started at the Active state
+    // (once tracks are attached) and finalized at end of call.
+    const enableCallRecording =
+      this.session.options.enableCallRecording !== false; // Default: true
+    if (enableCallRecording) {
+      const flushIntervalMs =
+        this.session.options.callRecordingFlushIntervalMs ??
+        DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS;
+      const maxBufferBytes =
+        this.session.options.callRecordingMaxBufferBytes ??
+        DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES;
+      const sampleRate =
+        this.session.options.callRecordingSampleRate ??
+        DEFAULT_CALL_RECORDING_SAMPLE_RATE;
+      const tracks: RecordingTrackKind[] = this.session.options
+        .callRecordingTracks ?? ['local', 'remote'];
+      const endpoint =
+        this.session.options.callRecordingEndpoint ?? '/call_recording';
+
+      const recorderOptions: ICallRecordingOptions = {
+        enabled: true,
+        flushIntervalMs,
+        maxBufferBytes,
+        sampleRate,
+        tracks,
+        endpoint,
+      };
+
+      const recorderCtx = {
+        callId: this.id,
+        callReportId: this.session.callReportId ?? '',
+        voiceSdkId: this._getCallReportVoiceSdkId(),
+      };
+
+      this._callRecorder = new CallRecorder(recorderOptions, recorderCtx);
+      // Let periodic flushes resolve the endpoint before start() schedules them.
+      const recorderHost = this.session.connection?.host;
+      if (recorderHost) {
+        this._callRecorder._setHost(recorderHost);
+      }
+      this._callRecorder.onWarning = (warning) => {
+        trigger(
+          SwEvent.Warning,
+          {
+            warning,
+            callId: this.id,
+            sessionId: this.session.sessionid,
+          },
+          this.session.uuid
+        );
+      };
+    }
+
     if (this._isRecovering) {
       this.setState(State.Recovering);
     } else {
@@ -2530,6 +2623,15 @@ export default abstract class BaseCall implements IWebRTCCall {
     this._stopStats();
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;
+
+    // Stop capture (cancel readers + flush timer) but PRESERVE the buffer so
+    // _postCallReport's recorder branch can drain and POST the final segment.
+    // Calling cleanup() here would null the buffer before postFinalReport()
+    // runs, dropping the final recording payload on every normal teardown.
+    // _postCallReport owns the recorder cleanup (idempotent, in finally blocks).
+    // If _postCallReport never runs (failed/aborted early), the recorder's own
+    // flush timer + readers are still released by stop() here.
+    this._callRecorder?.stop();
 
     // Clear call marks at the call lifecycle level so cleanup runs even when
     // no peer was created (e.g. inbound invite rejected before answer()).
@@ -2768,6 +2870,37 @@ export default abstract class BaseCall implements IWebRTCCall {
     // intervals for short calls) completes before we post the report.
     await this._callReportCollector.stop();
 
+    // Finalize the call recorder independently of the call report's
+    // call_report_id / host availability. The recorder resolves its own
+    // endpoint from callContext.host / _setHost(). Stopping it cancels
+    // capture loops + the flush timer; postFinalReport() POSTs the remaining
+    // packets as a final segment; cleanup() releases the buffer. Recorder
+    // failures never break the call report. Track the upload so disconnect()
+    // can drain it alongside the call report upload.
+    if (this._callRecorder) {
+      this._callRecorder.stop();
+      // Ensure the recorder has the latest connection host before the final
+      // flush (the host may have changed on reconnect).
+      const finalHost = this.session.connection?.host;
+      if (finalHost) {
+        this._callRecorder._setHost(finalHost);
+      }
+      // Ensure the final segment carries the real call_report_id even if the
+      // call never reached the Active state where it is normally set.
+      if (this.session.callReportId) {
+        this._callRecorder._setCallReportId(this.session.callReportId);
+      }
+      const recorderUpload = this._callRecorder
+        .postFinalReport()
+        .catch((error) => {
+          logger.error('Failed to post final call recording', { error });
+        })
+        .finally(() => {
+          this._callRecorder?.cleanup();
+        });
+      this.session.trackCallReportUpload(recorderUpload);
+    }
+
     const callReportId = this.session.callReportId;
     if (!callReportId) {
       logger.debug('Cannot post call report: call_report_id not available');
@@ -2811,6 +2944,11 @@ export default abstract class BaseCall implements IWebRTCCall {
     } finally {
       // Clean up log collector resources
       this._callReportCollector?.cleanup();
+      // Defensive cleanup of the recorder in case _postCallReport is called
+      // without going through the recorder branch above (e.g. when
+      // callReportId is missing the recorder branch is skipped). cleanup() is
+      // idempotent.
+      this._callRecorder?.cleanup();
     }
   }
 
