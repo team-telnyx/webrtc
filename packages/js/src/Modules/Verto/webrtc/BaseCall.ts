@@ -9,6 +9,7 @@ import {
   type IClientSummary,
   type SanitizedClientOption,
   type ICallReportFlushReason,
+  type ICallReportPayload,
 } from './CallReportCollector';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
 import {
@@ -49,6 +50,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { enqueuePendingReport } from '../util/CallReportStorage';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -2705,18 +2707,27 @@ export default abstract class BaseCall implements IWebRTCCall {
   ) {
     if (!this._callReportCollector) return;
 
-    const callReportId = this.session.callReportId;
+    // Generate a synthetic call_report_id when the server hasn't assigned one
+    // yet (e.g. socket closed before REGED/login completed, or the SDK
+    // reconnected and lost the prior session's call_report_id). A synthetic
+    // ID prefixed with "gen-" lets voice-sdk-debug distinguish
+    // client-generated IDs from server-assigned ones.
+    let callReportId = this.session.callReportId;
     if (!callReportId) {
-      logger.debug(
-        'Cannot flush intermediate report: call_report_id not available'
+      callReportId = `gen-${uuidv4()}`;
+      this.session.callReportId = callReportId;
+      logger.info(
+        'Generated synthetic call_report_id for intermediate flush (socket never connected or ID lost)',
+        { callReportId, callId: this.id, flushReason: flushReason.type }
       );
-      return;
     }
 
-    const host = this.session.connection?.host;
+    // Prefer the live connection host, fall back to the configured host so
+    // we can still POST even when the socket is closed / never connected.
+    const host = this.session.connection?.host ?? this.session.options.host;
     if (!host) {
       logger.debug(
-        'Cannot flush intermediate report: connection host not available'
+        'Cannot flush intermediate report: no host available (connection or options)'
       );
       return;
     }
@@ -2754,6 +2765,23 @@ export default abstract class BaseCall implements IWebRTCCall {
         logger.error('Failed to post intermediate call report segment', {
           error,
         });
+        // Persist to browser storage so the report can be retried after the
+        // socket re-establishes or on the next session startup. The payload
+        // has already been drained from the collector's buffers, so if we
+        // don't persist it here it is permanently lost.
+        const persisted = enqueuePendingReport({
+          payload,
+          callReportId,
+          host,
+          voiceSdkId: callReportVoiceSdkId,
+          queuedAt: Date.now(),
+        });
+        if (persisted) {
+          logger.info(
+            'Persisted failed intermediate report to browser storage for retry',
+            { callId: this.id, callReportId, segment: payload.segment }
+          );
+        }
       });
     this.session.trackCallReportUpload(upload);
   }
@@ -2768,11 +2796,18 @@ export default abstract class BaseCall implements IWebRTCCall {
     // intervals for short calls) completes before we post the report.
     await this._callReportCollector.stop();
 
-    const callReportId = this.session.callReportId;
+    // Generate a synthetic call_report_id when the server hasn't assigned
+    // one (socket never connected, REGED never received, or ID lost on
+    // reconnect). This ensures reports are submitted even when the socket
+    // failed to connect entirely.
+    let callReportId = this.session.callReportId;
     if (!callReportId) {
-      logger.debug('Cannot post call report: call_report_id not available');
-      this._callReportCollector.cleanup();
-      return;
+      callReportId = `gen-${uuidv4()}`;
+      this.session.callReportId = callReportId;
+      logger.info(
+        'Generated synthetic call_report_id for final report (socket never connected or ID lost)',
+        { callReportId, callId: this.id }
+      );
     }
 
     const summary = {
@@ -2789,25 +2824,51 @@ export default abstract class BaseCall implements IWebRTCCall {
       clientSummary: this._getClientSummary(),
     };
 
-    // Post report asynchronously (don't wait for it)
-    const host = this.session.connection?.host;
+    // Build the payload via buildFinalPayload so we have a reference to
+    // persist if the POST fails. Fall back to the configured host so we
+    // can still POST even when the socket is closed / never connected.
+    const host = this.session.connection?.host ?? this.session.options.host;
     if (!host) {
-      logger.error('Cannot post call report: connection host not available');
+      logger.error('Cannot post call report: no host available (connection or options)');
+      this._callReportCollector.cleanup();
       return;
     }
 
     const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
+    const payload = this._callReportCollector.buildFinalPayload(summary);
+    if (!payload) {
+      // No stats or logs collected, or reports disabled — nothing to send.
+      this._callReportCollector.cleanup();
+      return;
+    }
+
     try {
-      await this._callReportCollector.postReport(
-        summary,
+      await this._callReportCollector.sendPayload(
+        payload,
         callReportId,
         host,
         callReportVoiceSdkId
       );
     } catch (error) {
       logger.error('Failed to post call report', { error });
-      throw error;
+      // Persist the final report to browser storage so it can be retried
+      // after the socket re-establishes or on the next session startup.
+      // The payload is already built and the collector is about to be
+      // cleaned up, so if we don't persist it here it is permanently lost.
+      const persisted = enqueuePendingReport({
+        payload,
+        callReportId,
+        host,
+        voiceSdkId: callReportVoiceSdkId,
+        queuedAt: Date.now(),
+      });
+      if (persisted) {
+        logger.info(
+          'Persisted failed final report to browser storage for retry',
+          { callId: this.id, callReportId }
+        );
+      }
     } finally {
       // Clean up log collector resources
       this._callReportCollector?.cleanup();
