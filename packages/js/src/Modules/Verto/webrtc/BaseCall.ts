@@ -2798,12 +2798,19 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
+    // Get event-loop congestion data from the session-level monitor.
+    // Included in the call report so server-side analysis can correlate
+    // call quality issues with main-thread blocking.
+    const eventLoopCongestion =
+      this.session.getEventLoopCongestionSummary?.() ?? null;
+
     try {
       await this._callReportCollector.postReport(
         summary,
         callReportId,
         host,
-        callReportVoiceSdkId
+        callReportVoiceSdkId,
+        eventLoopCongestion ?? undefined
       );
     } catch (error) {
       logger.error('Failed to post call report', { error });
