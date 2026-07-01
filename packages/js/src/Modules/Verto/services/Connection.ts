@@ -5,10 +5,12 @@ import {
   SwEvent,
   WS_CLOSE_CODES,
   WEBSOCKET_CONNECTION_FAILED,
+  WEBSOCKET_CONNECT_TIMEOUT,
   WEBSOCKET_ERROR,
 } from '../util/constants';
 import {
   createTelnyxError,
+  createTelnyxWarning,
   RequestTimeoutError,
   StaleRequestError,
 } from '../util/errors';
@@ -44,6 +46,14 @@ const WS_STATE = {
  */
 const CLOSE_SAFETY_TIMEOUT_MS = 5000;
 
+/**
+ * Connect timeout (ms) — the browser WebSocket API provides no built-in
+ * connect/open timeout, so the SDK enforces one. If the socket is still
+ * in CONNECTING state after this duration, it is force-closed to trigger
+ * the existing onclose → onNetworkClose → reconnect path.
+ */
+const CONNECT_TIMEOUT_MS = 5000;
+
 export default class Connection {
   public previousGatewayState = '';
   /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
@@ -61,6 +71,13 @@ export default class Connection {
   private _hasCanaryBeenUsed: boolean = false;
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Connect timeout timer. Set after `new WebSocket()` and cleared in
+   * `onopen`. If it fires while the socket is still CONNECTING, the socket
+   * is force-closed to trigger the reconnect path.
+   */
+  private _connectTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Set of request IDs with pending one-shot handlers registered via
@@ -213,6 +230,10 @@ export default class Connection {
       this.lastInboundAt = 0;
       this._cleanupPendingRequests();
       this._registerSocketEvents(this._wsClient);
+
+      // Start connect timeout — if the socket doesn't reach OPEN within
+      // CONNECT_TIMEOUT_MS, force-close it to trigger onclose → reconnect.
+      this._startConnectTimeout();
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
@@ -355,6 +376,7 @@ export default class Connection {
     const registeredGeneration = this.socketGeneration;
 
     ws.onopen = (event): boolean => {
+      this._clearConnectTimeout();
       logger.debug('WebSocket onopen', {
         socketGeneration: this.socketGeneration,
         sessionId: this.session.sessionid,
@@ -364,6 +386,7 @@ export default class Connection {
 
     ws.onclose = (event): boolean => {
       this._clearSafetyTimeout();
+      this._clearConnectTimeout();
       this._safetyCleanupSocket(ws, 'close');
       logger.debug('WebSocket onclose', {
         code: event?.code,
@@ -385,6 +408,7 @@ export default class Connection {
 
     ws.onerror = (event): boolean => {
       this._clearSafetyTimeout();
+      this._clearConnectTimeout();
       this._safetyCleanupSocket(ws, 'error');
       logger.debug('WebSocket onerror', {
         socketGeneration: this.socketGeneration,
@@ -531,6 +555,40 @@ export default class Connection {
       logger.debug('Clearing safety timeout');
       clearTimeout(this._safetyTimeoutId);
       this._safetyTimeoutId = null;
+    }
+  }
+
+  // ── Connect timeout ───────────────────────────────────────────────
+
+  private _startConnectTimeout(): void {
+    this._clearConnectTimeout();
+    const ws = this._wsClient;
+    this._connectTimeoutId = setTimeout(() => {
+      this._connectTimeoutId = null;
+      if (!ws || ws.readyState !== WS_STATE.CONNECTING) {
+        return;
+      }
+      logger.warn(
+        `WebSocket connect timeout after ${CONNECT_TIMEOUT_MS}ms — force-closing stuck CONNECTING socket`
+      );
+
+      const warning = createTelnyxWarning(WEBSOCKET_CONNECT_TIMEOUT);
+      trigger(
+        SwEvent.Warning,
+        { warning, sessionId: this.session.sessionid },
+        this.session.uuid
+      );
+
+      // Force-close the socket. This triggers onclose → onNetworkClose →
+      // the existing reconnect-with-backoff path.
+      ws.close();
+    }, CONNECT_TIMEOUT_MS);
+  }
+
+  private _clearConnectTimeout(): void {
+    if (this._connectTimeoutId) {
+      clearTimeout(this._connectTimeoutId);
+      this._connectTimeoutId = null;
     }
   }
 

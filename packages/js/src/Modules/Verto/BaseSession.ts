@@ -20,6 +20,7 @@ import {
   SwEvent,
   AUTHENTICATION_REQUIRED,
   LOGIN_FAILED,
+  LOGIN_RESPONSE_TIMEOUT,
   INVALID_CREDENTIALS,
   TOKEN_EXPIRING_SOON,
   RECONNECTION_EXHAUSTED,
@@ -58,6 +59,14 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+
+/**
+ * Login response timeout (ms). The WebSocket must be OPEN to send login,
+ * but the upstream signaling path (VSP → gateway) may be stalled. If no
+ * login response arrives within this duration, the socket is force-closed
+ * to trigger reconnect + re-login.
+ */
+const LOGIN_TIMEOUT_MS = 5000;
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -204,7 +213,7 @@ export default abstract class BaseSession {
    * @ignore
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  execute(msg: BaseMessage): Promise<any> {
+  execute(msg: BaseMessage, timeoutMsOverride?: number): Promise<any> {
     if (this._idle) {
       return new Promise((resolve) =>
         this._executeQueue.push({ resolve, msg })
@@ -220,15 +229,16 @@ export default abstract class BaseSession {
       });
     }
 
-    // Apply a request-level timeout only to signaling-critical requests
-    // so socket health is monitored even without an active call while
-    // fire-and-forget/non-critical requests cannot create unhandled
-    // timeout rejections.
-    const timeoutMs = SignalingHealthMonitor.isCriticalMethod(
-      msg.request?.method || ''
-    )
-      ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
-      : undefined;
+    // Use the caller-provided timeout, or apply the default timeout only
+    // to signaling-critical requests so socket health is monitored even
+    // without an active call while fire-and-forget/non-critical requests
+    // cannot create unhandled timeout rejections.
+    const timeoutMs =
+      timeoutMsOverride != null
+        ? timeoutMsOverride
+        : SignalingHealthMonitor.isCriticalMethod(msg.request?.method || '')
+          ? Connection.DEFAULT_REQUEST_TIMEOUT_MS
+          : undefined;
 
     const sendPromise =
       timeoutMs != null
@@ -757,10 +767,30 @@ export default abstract class BaseSession {
       });
     }
 
-    const response = await this.execute(msg).catch((error) => {
-      this._handleLoginError(error);
-      if (onError) onError(error);
-    });
+    const response = await this.execute(msg, LOGIN_TIMEOUT_MS).catch(
+      (error) => {
+        if (error?.name === 'RequestTimeoutError') {
+          // Login timed out — the signaling path (VSP → upstream) is stalled.
+          // Emit a warning so voice-sdk-debug can collect metrics, then
+          // force-close the socket to trigger onNetworkClose → reconnect,
+          // which will re-attempt login. Do NOT emit LOGIN_FAILED — the
+          // issue is network, not credentials.
+          logger.warn(
+            `Login response timed out after ${LOGIN_TIMEOUT_MS}ms — forcing socket reconnect`
+          );
+          const warning = createTelnyxWarning(LOGIN_RESPONSE_TIMEOUT);
+          trigger(
+            SwEvent.Warning,
+            { warning, sessionId: this.sessionid },
+            this.uuid
+          );
+          this.connection?.close();
+          return;
+        }
+        this._handleLoginError(error);
+        if (onError) onError(error);
+      }
+    );
 
     if (response) {
       this.sessionid = response.sessid;
