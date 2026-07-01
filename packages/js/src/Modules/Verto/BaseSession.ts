@@ -517,6 +517,17 @@ export default abstract class BaseSession {
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
+
+    // Schedule the socket-close watcher for the "never opened" case: if the
+    // socket doesn't open within SOCKET_CLOSE_REPORT_TIMEOUT_MS, the watcher
+    // fires and submits a session-level report. _onSocketOpen cancels it on
+    // success, and onNetworkClose reschedules with the close-event reason.
+    // Only schedule when there's no existing watcher — onNetworkClose may
+    // have already scheduled one during auto-reconnect, and we must not
+    // reset its 15s countdown.
+    if (!this._socketCloseReportWatcher) {
+      this._scheduleSocketCloseReportWatcher({ type: 'socket-never-opened' });
+    }
   }
 
   /**

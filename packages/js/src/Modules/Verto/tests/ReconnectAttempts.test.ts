@@ -806,4 +806,45 @@ describe('BaseSession - Socket-Close Report Watcher (15s fallback)', () => {
 
     expect((global as any).fetch).not.toHaveBeenCalled();
   });
+
+  it('should fire on connect() if the socket never opens within 15s', () => {
+    // Simulate connect() being called but socket never opening
+    // (connection.isAlive stays false, connected stays false)
+    session.connection.isAlive = false;
+    session.connect();
+
+    // Before the timer, no report submitted
+    expect((global as any).fetch).not.toHaveBeenCalled();
+
+    // Advance past 15s — socket never opened
+    jest.advanceTimersByTime(15_000);
+
+    // Watcher fired: generated callReportId and submitted a report
+    expect(session.callReportId).toMatch(/^gen-/);
+    expect((global as any).fetch).toHaveBeenCalledTimes(1);
+
+    const [endpoint, init] = (global as any).fetch.mock.calls[0];
+    expect(endpoint).toContain('/call_report');
+    expect(init.method).toBe('POST');
+
+    // Body has flushReason type 'socket-never-opened'
+    const body = JSON.parse(init.body);
+    expect(body.flushReason.type).toBe('socket-never-opened');
+  });
+
+  it('should cancel the never-opened watcher when socket opens before 15s', () => {
+    session.connection.isAlive = false;
+    session.connect();
+
+    // Socket opens after 5s
+    jest.advanceTimersByTime(5_000);
+    mockConnection.connected = true;
+    session._onSocketOpen();
+
+    // Advance well past 15s
+    jest.advanceTimersByTime(20_000);
+
+    // No report — watcher was cancelled on socket open
+    expect((global as any).fetch).not.toHaveBeenCalled();
+  });
 });
