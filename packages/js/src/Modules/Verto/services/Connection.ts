@@ -579,6 +579,11 @@ export default class Connection {
         this.session.uuid
       );
 
+      // Increment the consecutive timeout counter — after 2 consecutive
+      // timeouts (connect or login), the SDK rotates to a different
+      // b2bua-rtc instance via skipLastVoiceSdkId.
+      this.session.handleConsecutiveTimeout();
+
       // Force-close the socket. This triggers onclose → onNetworkClose →
       // the existing reconnect-with-backoff path.
       ws.close();

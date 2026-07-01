@@ -117,6 +117,16 @@ export default abstract class BaseSession {
    *  on normal app teardown or token refresh. */
   protected _intentionalClose: boolean = false;
 
+  /**
+   * Count of consecutive client-side WebSocket timeouts (connect timeout
+   * 36006 + login timeout 36007). After {@link TIMEOUT_ROTATION_THRESHOLD}
+   * consecutive timeouts, the SDK sets `skipLastVoiceSdkId = true` so VSP
+   * routes the next connection to a different b2bua-rtc instance.
+   * Reset on successful REGED.
+   */
+  private _consecutiveTimeoutCount: number = 0;
+  private static readonly TIMEOUT_ROTATION_THRESHOLD = 2;
+
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
@@ -525,6 +535,46 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Called when a client-side WebSocket timeout occurs (connect timeout
+   * 36006 or login timeout 36007). Increments the consecutive timeout
+   * counter and, after {@link TIMEOUT_ROTATION_THRESHOLD} consecutive
+   * timeouts, sets `skipLastVoiceSdkId = true` so VSP routes the next
+   * connection to a different b2bua-rtc instance.
+   */
+  public handleConsecutiveTimeout(): void {
+    this._consecutiveTimeoutCount += 1;
+    logger.debug(
+      `Consecutive WebSocket timeout count: ${this._consecutiveTimeoutCount} ` +
+        `(threshold: ${BaseSession.TIMEOUT_ROTATION_THRESHOLD})`
+    );
+
+    if (this._consecutiveTimeoutCount >= BaseSession.TIMEOUT_ROTATION_THRESHOLD) {
+      if (!this.options.skipLastVoiceSdkId) {
+        this.options.skipLastVoiceSdkId = true;
+        logger.info(
+          `${this._consecutiveTimeoutCount} consecutive WebSocket timeouts — ` +
+            `setting skipLastVoiceSdkId=true to route next connection to a different b2bua-rtc instance`
+        );
+      }
+    }
+  }
+
+  /**
+   * Reset the consecutive timeout counter and clear the b2bua-rtc
+   * rotation flag. Called on successful REGED (healthy registration)
+   * to indicate the current b2bua-rtc instance is healthy.
+   */
+  public resetConsecutiveTimeouts(): void {
+    if (this._consecutiveTimeoutCount > 0 || this.options.skipLastVoiceSdkId) {
+      logger.debug(
+        'Resetting consecutive timeout count and skipLastVoiceSdkId on successful registration'
+      );
+    }
+    this._consecutiveTimeoutCount = 0;
+    this.options.skipLastVoiceSdkId = false;
+  }
+
+  /**
    * Handle login error
    * @return void
    */
@@ -784,6 +834,7 @@ export default abstract class BaseSession {
             { warning, sessionId: this.sessionid },
             this.uuid
           );
+          this.handleConsecutiveTimeout();
           this.connection?.close();
           return;
         }

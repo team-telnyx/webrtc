@@ -630,3 +630,120 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
     });
   });
 });
+
+/**
+ * Tests for consecutive WebSocket timeout tracking and b2bua-rtc
+ * instance rotation. After 2 consecutive client-side timeouts (connect
+ * timeout 36006 or login timeout 36007), the SDK sets skipLastVoiceSdkId
+ * so VSP routes to a different b2bua-rtc instance. Both the counter and
+ * the flag are reset on successful REGED.
+ */
+describe('BaseSession - Consecutive Timeout Rotation', () => {
+  let session: any;
+  let mockConnection: any;
+
+  const createSession = (options: any = {}) => {
+    return new TestSession({
+      login: 'testuser',
+      password: 'testpass',
+      ...options,
+    });
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockTrigger.mockClear();
+
+    session = createSession();
+    mockConnection = {
+      close: jest.fn(),
+      connect: jest.fn(),
+      isAlive: false,
+      connected: false,
+      previousGatewayState: '',
+      socketGeneration: 0,
+    };
+    session.connection = mockConnection;
+    session._autoReconnect = true;
+    session._idle = false;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('should start with _consecutiveTimeoutCount at 0 and skipLastVoiceSdkId undefined', () => {
+    expect(session._consecutiveTimeoutCount).toBe(0);
+    expect(session.options.skipLastVoiceSdkId).toBeUndefined();
+  });
+
+  it('should increment counter on first timeout but NOT set skipLastVoiceSdkId', () => {
+    session.handleConsecutiveTimeout();
+
+    expect(session._consecutiveTimeoutCount).toBe(1);
+    expect(session.options.skipLastVoiceSdkId).toBeUndefined();
+  });
+
+  it('should set skipLastVoiceSdkId=true after 2 consecutive timeouts', () => {
+    session.handleConsecutiveTimeout();
+    session.handleConsecutiveTimeout();
+
+    expect(session._consecutiveTimeoutCount).toBe(2);
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+  });
+
+  it('should set skipLastVoiceSdkId=true after 2 mixed timeouts (connect + login)', () => {
+    // Simulate connect timeout → handleConsecutiveTimeout
+    session.handleConsecutiveTimeout();
+    // Simulate login timeout → handleConsecutiveTimeout
+    session.handleConsecutiveTimeout();
+
+    expect(session._consecutiveTimeoutCount).toBe(2);
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+  });
+
+  it('should NOT set skipLastVoiceSdkId again if already set (idempotent)', () => {
+    session.handleConsecutiveTimeout();
+    session.handleConsecutiveTimeout();
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+
+    // Third timeout — already set, no change
+    session.handleConsecutiveTimeout();
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+    expect(session._consecutiveTimeoutCount).toBe(3);
+  });
+
+  it('should reset counter and skipLastVoiceSdkId on resetConsecutiveTimeouts', () => {
+    session.handleConsecutiveTimeout();
+    session.handleConsecutiveTimeout();
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+
+    session.resetConsecutiveTimeouts();
+
+    expect(session._consecutiveTimeoutCount).toBe(0);
+    expect(session.options.skipLastVoiceSdkId).toBe(false);
+  });
+
+  it('should allow re-rotation after reset: 2 more timeouts set skipLastVoiceSdkId again', () => {
+    session.handleConsecutiveTimeout();
+    session.handleConsecutiveTimeout();
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+
+    session.resetConsecutiveTimeouts();
+    expect(session.options.skipLastVoiceSdkId).toBe(false);
+
+    session.handleConsecutiveTimeout();
+    session.handleConsecutiveTimeout();
+    expect(session.options.skipLastVoiceSdkId).toBe(true);
+  });
+
+  it('should reset on a single successful REGED after 1 timeout (no rotation)', () => {
+    session.handleConsecutiveTimeout();
+    expect(session._consecutiveTimeoutCount).toBe(1);
+
+    session.resetConsecutiveTimeouts();
+
+    expect(session._consecutiveTimeoutCount).toBe(0);
+    expect(session.options.skipLastVoiceSdkId).toBe(false);
+  });
+});
