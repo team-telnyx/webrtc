@@ -15,7 +15,9 @@ import {
 } from '../../webrtc/helpers';
 import {
   detachMediaStream,
+  attachMediaStream,
 } from '../../util/webrtc';
+import logger from '../../util/logger';
 
 describe('Helpers browser functions', () => {
   describe('findElementByType', () => {
@@ -809,6 +811,73 @@ describe('Helpers browser functions', () => {
       // srcObject is null !== stream, so the guard kicks in and no-ops
       detachMediaStream(mockElement, stream);
       expect(mockElement.srcObject).toBeNull();
+    });
+  });
+
+  describe('attachMediaStream', () => {
+    let mockElement: HTMLMediaElement;
+
+    beforeEach(() => {
+      mockElement = document.createElement('audio');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should attach the stream to a fresh element without warning', () => {
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should NOT warn when reattaching the same stream (idempotent)', () => {
+      const stream = new MediaStream();
+      mockElement.srcObject = stream;
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should warn (last-writer-wins) when overwriting a different stream', () => {
+      const existingStream = new MediaStream();
+      const newStream = new MediaStream();
+      mockElement.srcObject = existingStream;
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, newStream);
+      // Stream is overwritten (legacy last-writer-wins behavior preserved)
+      expect(mockElement.srcObject).toBe(newStream);
+      // But a diagnostic warning fires so the overwrite is visible
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toMatch(
+        /already has a different MediaStream attached/
+      );
+    });
+
+    it('should NOT warn when element srcObject is null (fresh attach)', () => {
+      mockElement.srcObject = null;
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should be a no-op (no throw, no warning) when element is null', () => {
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      expect(() => attachMediaStream(null, stream)).not.toThrow();
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should set autoplay and playsinline attributes when missing', () => {
+      const stream = new MediaStream();
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.getAttribute('autoplay')).toBe('autoplay');
+      expect(mockElement.getAttribute('playsinline')).toBe('playsinline');
     });
   });
 });

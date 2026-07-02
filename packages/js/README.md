@@ -79,6 +79,39 @@ The corresponding HTML:
 <!-- <video id="remoteMedia" autoplay="true" playsinline="true" /> -->
 ```
 
+#### Per-call `remoteElement` (concurrent calls)
+
+By default `client.remoteElement` is shared across all calls in a session — the
+last call to connect overwrites the element, and hanging up any call detaches
+the stream from it. This breaks multi-call scenarios (e.g. one active + one
+held call).
+
+For concurrent calls in a single client session, assign a **distinct**
+`remoteElement` per call. Pass it at call creation for outbound calls, or at
+`answer()` time for inbound calls:
+
+```js
+// Outbound: per-call remoteElement via newCall()
+const callA = client.newCall({
+  destinationNumber: '18004377950',
+  remoteElement: document.getElementById('remoteMediaA'),
+});
+
+// Inbound: per-call remoteElement via answer()
+client.on('telnyx.notification', (notification) => {
+  const { call } = notification;
+  if (call.state === 'ringing') {
+    call.answer({ remoteElement: document.getElementById('remoteMediaB') });
+  }
+});
+```
+
+Each call then manages its own remote stream attachment/detachment
+independently — connecting a second call never disrupts the first call's
+playout, and hanging up one call only detaches that call's stream. The
+session-level `client.remoteElement` remains the fallback default for any call
+that doesn't specify its own element.
+
 ### Events
 
 ```js

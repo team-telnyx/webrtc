@@ -803,6 +803,14 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Sets the remote html element that will receive the remote stream.
    *
+   * This is the session-level default: any call that does not specify its own
+   * `remoteElement` falls back to this element. Note that the session-level
+   * element is shared across calls (last-writer-wins), so for concurrent calls
+   * in one client session you should assign a distinct `remoteElement` per call
+   * via `client.newCall({ remoteElement })` (outbound) or
+   * `call.answer({ remoteElement })` (inbound). See the README "Per-call
+   * remoteElement" section.
+   *
    * @example
    *
    * ```js

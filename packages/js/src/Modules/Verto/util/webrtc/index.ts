@@ -46,6 +46,20 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   if (!element.getAttribute('playsinline')) {
     element.setAttribute('playsinline', 'playsinline');
   }
+  // Last-writer-wins diagnostic (VSUP-121).
+  // If the element already holds a *different* stream, attaching a new stream
+  // silently overwrites it — disrupting the other call's playout. This happens
+  // when two calls share one element (legacy single-element app). We warn so the
+  // issue is visible; fixing the app to use per-call remoteElement is the
+  // resolution. Silent on fresh elements (srcObject === null or === stream).
+  if (element.srcObject && element.srcObject !== stream) {
+    logger.warn(
+      'attachMediaStream: element already has a different MediaStream attached; ' +
+        'overwriting will disrupt the existing call. Use a per-call remoteElement ' +
+        '(client.newCall({ remoteElement }) or call.answer({ remoteElement })) ' +
+        'for concurrent calls.'
+    );
+  }
   element.srcObject = stream;
 };
 

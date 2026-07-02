@@ -551,6 +551,28 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
+    // Per-call remote/local element override (VSUP-121).
+    // When the caller passes remoteElement/localElement to answer(), merge them
+    // into this.options so the rest of the call lifecycle (attach/detach in
+    // _finalize(), media element management) uses the per-call element instead
+    // of the session-level client.remoteElement/localElement default. This
+    // enables concurrent calls in one client session to attach to independent
+    // <audio>/<video> elements without the last-writer-wins overwrite behavior.
+    // Only override when explicitly provided in params; otherwise fall back to
+    // the existing this.options value (which was set from the session default
+    // at call construction) for backward compatibility.
+    if (params.remoteElement !== undefined || params.localElement !== undefined) {
+      this.options = {
+        ...this.options,
+        ...(params.remoteElement !== undefined && {
+          remoteElement: params.remoteElement,
+        }),
+        ...(params.localElement !== undefined && {
+          localElement: params.localElement,
+        }),
+      };
+    }
+
     if (this.options.trickleIce) {
       this._resetTrickleIceCandidateState();
     }
