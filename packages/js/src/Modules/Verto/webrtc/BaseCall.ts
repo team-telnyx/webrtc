@@ -2330,15 +2330,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       return true;
     }
 
-    for (const existingCall of this._getSessionInboundAnswerCalls()) {
-      if (existingCall.id === this.id) {
-        continue;
-      }
-
-      if (!existingCall._isBlockingInboundAnswer()) {
-        continue;
-      }
-
+    // Scoped duplicate-answer guard (VSUP-122): block only a second answer
+    // attempt for the SAME callID. Distinct callIDs are allowed so the client
+    // can answer a second inbound call while the first is active/held
+    // (EnrollHere multi-call). The same-callID block preserves the VSUP-54 fix
+    // — a duplicate `telnyx_rtc.answer` for an existing leg no longer resets
+    // established media. We intentionally do NOT hangup or touch the peer
+    // connection on the blocked path.
+    const existingCall = this.session.calls?.[this.id] as BaseCall | undefined;
+    if (existingCall && existingCall !== this) {
       const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
       trigger(
         SwEvent.Warning,
@@ -2347,69 +2347,12 @@ export default abstract class BaseCall implements IWebRTCCall {
           callId: this.id,
           activeCallId: existingCall.id,
           sessionId: this.session.sessionid,
-          activeSessionId: existingCall.session.sessionid,
         },
         this.session.uuid
       );
       logger.warn(
-        `[${this.id}] answer() ignored: inbound call ${existingCall.id} is already answering or active`
+        `[${this.id}] answer() ignored: callID ${this.id} already has an active call (${existingCall.id})`
       );
-      return false;
-    }
-
-    return true;
-  }
-
-  private _getSessionInboundAnswerCalls(): BaseCall[] {
-    return (Object.values(this.session.calls) as Array<BaseCall | null>)
-      .filter((call): call is BaseCall => Boolean(call))
-      .filter(
-        (call) =>
-          !call.options.attach &&
-          !call._isRecovering &&
-          call.direction === Direction.Inbound
-      );
-  }
-
-  private _isBlockingInboundAnswer(): boolean {
-    if ([State.Hangup, State.Destroy, State.Purge].includes(this._state)) {
-      return false;
-    }
-
-    const isAnsweringOrActive = [
-      State.Answering,
-      State.Early,
-      State.Active,
-      State.Held,
-    ].includes(this._state);
-
-    if (!this._creatingPeer && !isAnsweringOrActive) {
-      return false;
-    }
-
-    if (this._creatingPeer && !this.peer?.instance) {
-      return true;
-    }
-
-    return this._hasUsablePeerConnection();
-  }
-
-  private _hasUsablePeerConnection(): boolean {
-    const peerConnection = this.peer?.instance;
-
-    if (!peerConnection) {
-      return false;
-    }
-
-    if (peerConnection.signalingState === 'closed') {
-      return false;
-    }
-
-    if (peerConnection.connectionState === 'closed') {
-      return false;
-    }
-
-    if (peerConnection.iceConnectionState === 'closed') {
       return false;
     }
 
