@@ -1022,8 +1022,9 @@ describe('Call', () => {
       expect(callA.options.remoteElement).toBe(remoteElementA);
       expect(callB.options.remoteElement).toBe(remoteElementB);
 
-      // Hang up call A — only call A's element should be detached (smart-detach
-      // from VSDK-199 ensures call B's element is untouched).
+      // Hang up call A — only call A's element should be detached. Because each
+      // call owns a distinct element, detaching call A's element does not touch
+      // call B's element or stream.
       callA['_finalize']();
       expect(remoteElementA.srcObject).toBeNull();
       // AC: call B's remote media continues uninterrupted

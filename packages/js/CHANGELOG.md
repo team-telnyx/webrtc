@@ -14,7 +14,7 @@
 ### Reconnect and recovery hardening
 
 - **fix(sdk): dedupe reconnect attempts and add exponential backoff** (#709)
-  Browsers commonly emit both `socket.onerror` and `socket.onclose` for one physical disconnect, previously consuming two logical reconnect attempts. `BaseSession.onNetworkClose` now tracks the socket generation that was already handled (`_reconnectCountedGeneration`) and skips same-generation duplicate events before destructive cleanup, so a stale event can no longer clear an already-scheduled reconnect timer or schedule a redundant one. `Connection._registerSocketEvents` captures `registeredGeneration` at registration time so stale events from an old socket carry their own generation, and `onNetworkClose` guards against `eventGeneration < currentGeneration` _before_ flushing call reports or clearing timers. Reconnect delay is now exponential backoff with jitter (base 1s, doubling per attempt, capped at 30s, 25% jitter), replacing the old fixed 1000ms / `randomInt(2,6)*1000ms`. Backoff resets only on a confirmed `REGED`. `BrowserSession` no longer overrides the delay — it inherits the backoff from `BaseSession`.
+  Browsers commonly emit both `socket.onerror` and `socket.onclose` for one physical disconnect, previously consuming two logical reconnect attempts. `BaseSession.onNetworkClose` now tracks the socket generation that was already handled (`_reconnectCountedGeneration`) and skips same-generation duplicate events before destructive cleanup, so a stale event can no longer clear an already-scheduled reconnect timer or schedule a redundant one. `Connection._registerSocketEvents` captures `registeredGeneration` at registration time so stale events from an old socket carry their own generation, and `onNetworkClose` guards against `eventGeneration < currentGeneration` *before* flushing call reports or clearing timers. Reconnect delay is now exponential backoff with jitter (base 1s, doubling per attempt, capped at 30s, 25% jitter), replacing the old fixed 1000ms / `randomInt(2,6)*1000ms`. Backoff resets only on a confirmed `REGED`. `BrowserSession` no longer overrides the delay — it inherits the backoff from `BaseSession`.
 
 - **feat: add reconnection lifecycle diagnostics for SDK WebSocket recovery visibility** (#678)
   Adds call-report-visible diagnostics for the SDK WebSocket close/reconnect lifecycle after `SignalingHealthService` requests recovery, without overloading reports with noisy logs. Consolidates the previous per-source warning codes into a single `SIGNALING_RECOVERY_REQUIRED` warning (with a `source` field), and adds a new `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT` (36005) warning gated on a new `_intentionalClose` flag so it only fires on unexpected socket close when auto-reconnect is disabled — not on normal `disconnect()`/cleanup. The flag resets at the end of `onNetworkClose`. Adds debug lifecycle logging in `Connection` (constructor, connect, close, `_handleCloseTimeout`), `BrowserSession.connect()`, and `SignalingHealthMonitor` (no pending recovery, connection not connected). `reconnectDelay` is now computed once before logging and `setTimeout`, so the logged value matches the scheduled delay.
@@ -54,7 +54,7 @@
 ### Call reports and observability
 
 - **fix: include selected ICE evidence in call reports** (#686)
-  Call reports now include the _selected_ candidate pair (resolved from `transportStats.selectedCandidatePairId`, with a fallback search when the stat isn't directly retrievable) plus the `localCandidateId`/`remoteCandidateId` references and the `selectedCandidatePairId` itself, so investigators can reconstruct the actually-nominated ICE path rather than only candidate-pair snapshots.
+  Call reports now include the *selected* candidate pair (resolved from `transportStats.selectedCandidatePairId`, with a fallback search when the stat isn't directly retrievable) plus the `localCandidateId`/`remoteCandidateId` references and the `selectedCandidatePairId` itself, so investigators can reconstruct the actually-nominated ICE path rather than only candidate-pair snapshots.
 
 - **Collect call report stats every second for full call duration** (#702)
   Replaces the previous two-phase cadence (1s for the first 10s, then 5s) with a constant 1-second collection interval for the full call duration, giving full-resolution stats for every call regardless of length. Removed the now-dead `intervalStartTime` parameter from `_collectionIntervalFor`.
@@ -66,7 +66,7 @@
   Extends outbound RTP stats with the additional fields needed for outbound loss/jitter/RTT visibility.
 
 - **feat(webrtc): collect remote RTCP stats for outbound loss/jitter/RTT visibility** (#703)
-  Parses `remote-inbound-rtp` (RTCP Receiver Report describing _our_ outbound stream) and `remote-outbound-rtp` (RTCP Sender Report from the remote peer) into a new `remoteRtcp` block on call reports: `inbound` carries `packetsLost`, `jitter` (ms), `roundTripTime`, `roundTripTimeMeasurements`, `nackCount`, `localId`; `outbound` carries `localId`, `remoteId`, `roundTripTime`. `roundTripTimeSource` is recorded on the audio stats so investigators know which RTCP report the RTT came from.
+  Parses `remote-inbound-rtp` (RTCP Receiver Report describing *our* outbound stream) and `remote-outbound-rtp` (RTCP Sender Report from the remote peer) into a new `remoteRtcp` block on call reports: `inbound` carries `packetsLost`, `jitter` (ms), `roundTripTime`, `roundTripTimeMeasurements`, `nackCount`, `localId`; `outbound` carries `localId`, `remoteId`, `roundTripTime`. `roundTripTimeSource` is recorded on the audio stats so investigators know which RTCP report the RTT came from.
 
 - **feat(webrtc): collect codec identity in call reports** (#704)
   Adds an extended `RTCCodecStats` snapshot (`mimeType`, `clockRate`, `channels`, `payloadType`, `codecId`) referenced by `outbound-rtp`/`inbound-rtp` via `codecId`, so call reports identify the negotiated codec for each RTP stream.
@@ -100,11 +100,9 @@
 ## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
 
 - No notable changes
-
 ## [2.27.2-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.1...webrtc/v2.27.2-beta.0) (2026-06-29)
 
 - docs: update ts docs
-
 ## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
 
 - fix: include sessid on reconnect login (#657)
