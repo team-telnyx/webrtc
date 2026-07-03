@@ -203,6 +203,10 @@ export interface IWebRTCCall {
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
   // RN
   setSpeakerPhone?: (flag: boolean) => void;
+  // AI Conversation
+  sendConversationMessage?: (message: string, attachments?: string[]) => void;
+  sendAIConversationMessage?: (item: import('./AIConversationTypes').FunctionCallOutputItem) => void;
+  recordSessionWarning?: (code: string, name: string, message: string, activeCallIds?: string[]) => void;
 }
 export interface IWebRTCInfo {
   browserInfo: any;

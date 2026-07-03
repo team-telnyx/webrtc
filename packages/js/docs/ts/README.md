@@ -36,6 +36,16 @@
 - [TargetParams](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TargetParams.md)
 - [TelnyxIDs](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TelnyxIDs.md)
 
+### Type Aliases
+
+- [AIConversationFunctionCallOutputParams](#aiconversationfunctioncalloutputparams)
+- [AIConversationFunctionCallParams](#aiconversationfunctioncallparams)
+- [AIConversationParams](#aiconversationparams)
+- [FunctionCallItem](#functioncallitem)
+- [FunctionCallOutputItem](#functioncalloutputitem)
+- [IAIConversationMessageEvent](#iaiconversationmessageevent)
+- [ISendAIConversationMessageOptions](#isendaiconversationmessageoptions)
+
 ### Functions
 
 - [callMarkName](#callmarkname)
@@ -43,7 +53,118 @@
 - [collectCallEstablishmentTimings](#collectcallestablishmenttimings)
 - [getConstraintsWithoutDeviceId](#getconstraintswithoutdeviceid)
 - [isDeviceNotFoundError](#isdevicenotfounderror)
+- [isFunctionCallOutputParams](#isfunctioncalloutputparams)
+- [isFunctionCallParams](#isfunctioncallparams)
 - [logCallEstablishmentTimings](#logcallestablishmenttimings)
+
+## Type Aliases
+
+### AIConversationFunctionCallOutputParams
+
+Ƭ **AIConversationFunctionCallOutputParams**: `Object`
+
+Params for an outbound `ai_conversation` message with `params.type = "conversation.item.create"`.
+Contains a function_call_output item to send back to the backend.
+
+#### Type declaration
+
+| Name   | Type                                                |
+| :----- | :-------------------------------------------------- |
+| `item` | [`FunctionCallOutputItem`](#functioncalloutputitem) |
+| `type` | `"conversation.item.create"`                        |
+
+---
+
+### AIConversationFunctionCallParams
+
+Ƭ **AIConversationFunctionCallParams**: `Object`
+
+Params for an inbound `ai_conversation` message with `params.type = "conversation.item.created"`.
+Contains a function_call item from the backend.
+
+#### Type declaration
+
+| Name   | Type                                    |
+| :----- | :-------------------------------------- |
+| `item` | [`FunctionCallItem`](#functioncallitem) |
+| `type` | `"conversation.item.created"`           |
+
+---
+
+### AIConversationParams
+
+Ƭ **AIConversationParams**: [`AIConversationFunctionCallParams`](#aiconversationfunctioncallparams) \| [`AIConversationFunctionCallOutputParams`](#aiconversationfunctioncalloutputparams) \| \{ `[key: string]`: `unknown`; `type`: `string` }
+
+Generic params for any `ai_conversation` message.
+Can be a function_call (inbound) or function_call_output (outbound),
+as well as other `ai_conversation` message types (transcript, etc.).
+
+---
+
+### FunctionCallItem
+
+Ƭ **FunctionCallItem**: `Object`
+
+An inbound function_call item from the backend (ACA).
+Represents a request to execute a client-side tool.
+
+#### Type declaration
+
+| Name        | Type              | Description                                                                            |
+| :---------- | :---------------- | :------------------------------------------------------------------------------------- |
+| `arguments` | `string`          | JSON-encoded string of the tool arguments.                                             |
+| `call_id`   | `string`          | Unique identifier for this function call. Used to correlate with function_call_output. |
+| `name`      | `string`          | Name of the client-side tool to execute.                                               |
+| `type`      | `"function_call"` | -                                                                                      |
+
+---
+
+### FunctionCallOutputItem
+
+Ƭ **FunctionCallOutputItem**: `Object`
+
+An outbound function_call_output item to send to the backend.
+Represents the result of executing a client-side tool.
+
+#### Type declaration
+
+| Name      | Type                     | Description                                                                |
+| :-------- | :----------------------- | :------------------------------------------------------------------------- |
+| `call_id` | `string`                 | Must match the call_id of the corresponding function_call.                 |
+| `output`  | `string`                 | The output/result of the tool execution (typically a JSON-encoded string). |
+| `type`    | `"function_call_output"` | -                                                                          |
+
+---
+
+### IAIConversationMessageEvent
+
+Ƭ **IAIConversationMessageEvent**: `Object`
+
+Event payload emitted on `SwEvent.AIConversationMessage`.
+Represents an inbound `ai_conversation` JSON-RPC message from the backend.
+
+#### Type declaration
+
+| Name            | Type                                            | Description                                                    |
+| :-------------- | :---------------------------------------------- | :------------------------------------------------------------- |
+| `method`        | `"ai_conversation"`                             | The method of the JSON-RPC message (always "ai_conversation"). |
+| `params`        | [`AIConversationParams`](#aiconversationparams) | The params of the ai_conversation message.                     |
+| `voice_sdk_id?` | `string`                                        | Voice SDK ID for correlation, if present.                      |
+
+---
+
+### ISendAIConversationMessageOptions
+
+Ƭ **ISendAIConversationMessageOptions**: `Object`
+
+Options for `sendAIConversationMessage()`.
+Used to send a `function_call_output` back to the backend.
+
+#### Type declaration
+
+| Name   | Type                                                | Description                       |
+| :----- | :-------------------------------------------------- | :-------------------------------- |
+| `item` | [`FunctionCallOutputItem`](#functioncalloutputitem) | The function call output to send. |
 
 ## Functions
 
@@ -144,6 +265,42 @@ Check if error is related to a specific device being unavailable
 #### Returns
 
 `boolean`
+
+---
+
+### isFunctionCallOutputParams
+
+▸ **isFunctionCallOutputParams**(`params`): params is AIConversationFunctionCallOutputParams
+
+Type guard: checks if an `ai_conversation` message contains a `function_call_output` item.
+
+#### Parameters
+
+| Name     | Type                                            |
+| :------- | :---------------------------------------------- |
+| `params` | [`AIConversationParams`](#aiconversationparams) |
+
+#### Returns
+
+params is AIConversationFunctionCallOutputParams
+
+---
+
+### isFunctionCallParams
+
+▸ **isFunctionCallParams**(`params`): params is AIConversationFunctionCallParams
+
+Type guard: checks if an `ai_conversation` message contains a `function_call` item.
+
+#### Parameters
+
+| Name     | Type                                            |
+| :------- | :---------------------------------------------- |
+| `params` | [`AIConversationParams`](#aiconversationparams) |
+
+#### Returns
+
+params is AIConversationFunctionCallParams
 
 ---
 

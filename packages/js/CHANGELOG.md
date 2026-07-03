@@ -1,3 +1,14 @@
+## [2.27.4-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.0) (2026-07-01)
+
+- docs: update ts docs
+- fix: add eslint-disable comments for test helper any/unused patterns
+- fix: send AI conversation messages as fire-and-forget notifications
+- feat: add AI conversation signaling API for client-side tools
+- chore: release webrtc@2.27.3 (#719)
+- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
+- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
+- chore: release webrtc@2.27.2 (#716)
+- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2...webrtc/v2.27.3) (2026-07-01)
 
 - fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)

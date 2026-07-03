@@ -92,4 +92,8 @@ export enum SwEvent {
   MediaError = 'telnyx.rtc.mediaError',
   PeerConnectionFailureError = 'telnyx.rtc.peerConnectionFailureError',
   PeerConnectionSignalingStateClosed = 'telnyx.rtc.peerConnectionSignalingStateClosed',
+
+  // AI Conversation Events
+  /** Emitted when an ai_conversation message is received from the backend */
+  AIConversationMessage = 'telnyx.ai.conversation',
 }
