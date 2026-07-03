@@ -430,6 +430,73 @@ describe('Verto', () => {
     });
   });
 
+  describe('beforeunload call-report flush', () => {
+    const buildWithUnloadHandler = (props: Partial<IVertoOptions>) => {
+      const spy = jest.spyOn(window, 'addEventListener');
+      spy.mockClear();
+      const instance = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...props,
+      } as IVertoOptions);
+      const handler = spy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      return { instance, handler, restore: () => spy.mockRestore() };
+    };
+
+    it('flushes a page-unload report for each active call on unload (hangupOnBeforeUnload=false)', () => {
+      const { instance, handler, restore } = buildWithUnloadHandler({
+        hangupOnBeforeUnload: false,
+      });
+      expect(handler).toBeDefined();
+
+      const flush = jest.fn();
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      handler(new Event('beforeunload'));
+
+      expect(flush).toHaveBeenCalledTimes(1);
+      expect(flush).toHaveBeenCalledWith({ type: 'page-unload' });
+      restore();
+    });
+
+    it('does not flush when hangupOnBeforeUnload is not false (call is hung up on unload instead)', () => {
+      const { instance, handler, restore } = buildWithUnloadHandler({});
+      const flush = jest.fn();
+      const hangup = jest.fn();
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          hangup,
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      handler(new Event('beforeunload'));
+
+      expect(flush).not.toHaveBeenCalled();
+      expect(hangup).toHaveBeenCalled();
+      restore();
+    });
+
+    it('does not throw when there are no active calls to flush', () => {
+      const { instance, handler, restore } = buildWithUnloadHandler({
+        hangupOnBeforeUnload: false,
+      });
+      instance.calls = {};
+
+      expect(() => handler(new Event('beforeunload'))).not.toThrow();
+      restore();
+    });
+  });
+
   describe('reconnect login', () => {
     it('should include the persisted sessid whenever a stored voice_sdk_id marks the login as a reconnect', async () => {
       setReconnectToken('voice-sdk-id');

@@ -59,6 +59,26 @@ export default class Verto extends BrowserSession {
         return;
       }
 
+      // hangupOnBeforeUnload === false: calls are kept alive across unload, so
+      // they never hang up and no final call report is ever posted for a call
+      // the user reloads/closes on — its report would otherwise be lost. Flush
+      // an intermediate call report for each active call and send it with
+      // keepalive (threaded via the `page-unload` flush reason) so the POST is
+      // allowed to outlive the document tear-down; a plain async POST would be
+      // cut off. Done here, before the recovery-marker logic below, so it still
+      // runs even when there is no sessionid to persist. Redundant flushes are
+      // cheap — CallReportCollector.flush() returns null when nothing new has
+      // buffered since the last flush.
+      if (this.calls) {
+        Object.keys(this.calls).forEach((callId) => {
+          const call = this.calls[callId];
+          if (call?.flushIntermediateCallReport) {
+            logger.debug(`beforeunload: flushing call report for ${callId}.`);
+            call.flushIntermediateCallReport({ type: 'page-unload' });
+          }
+        });
+      }
+
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
