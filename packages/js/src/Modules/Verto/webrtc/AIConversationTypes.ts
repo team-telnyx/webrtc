@@ -77,13 +77,12 @@ export type IAIConversationMessageEvent = {
 };
 
 /**
- * Options for `sendAIConversationMessage()`.
- * Used to send a `function_call_output` back to the backend.
+ * Argument accepted by `call.sendAIConversationMessage()`: the
+ * `function_call_output` item to send back to the backend. Alias of
+ * {@link FunctionCallOutputItem}, kept as a named export so callers can refer
+ * to the method's parameter type directly.
  */
-export type ISendAIConversationMessageOptions = {
-  /** The function call output to send. */
-  item: FunctionCallOutputItem;
-};
+export type ISendAIConversationMessageOptions = FunctionCallOutputItem;
 
 /**
  * Type guard: checks if an `ai_conversation` message contains a `function_call` item.
