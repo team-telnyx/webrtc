@@ -71,6 +71,7 @@ a remote caller in a <code>telnyx.notification</code> event handler.</p>
 <a href="Call.html#hold" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>hold</span></a>
 <a href="Call.html#muteAudio" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>mute<wbr/>Audio</span></a>
 <a href="Call.html#muteVideo" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>mute<wbr/>Video</span></a>
+<a href="Call.html#sendAIConversationMessage" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>sendAIConversation<wbr/>Message</span></a>
 <a href="Call.html#setAudioInDevice" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>In<wbr/>Device</span></a>
 <a href="Call.html#setAudioOutDevice" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Out<wbr/>Device</span></a>
 <a href="Call.html#setVideoDevice" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Video<wbr/>Device</span></a>
@@ -417,6 +418,41 @@ video from other call participants.</p>
 
 <h4>Deprecated</h4></div><aside class="tsd-sources">
 <p>Inherited from BaseCall.muteVideo</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member"><a id="sendAIConversationMessage" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>sendAIConversation<wbr/>Message</span><a href="#sendAIConversationMessage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="tsd-signature tsd-anchor-link" id="sendAIConversationMessage.sendAIConversationMessage-1"><span class="tsd-kind-call-signature">sendAIConversation<wbr/>Message</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">item</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#sendAIConversationMessage.sendAIConversationMessage-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Sends an AI conversation message (e.g. a <code>function_call_output</code>) over
+the active VSP WebSocket session.</p>
+<p>Use this to return the result of a client-side tool execution back to
+the AI backend after receiving a <code>function_call</code> via the
+<code>telnyx.ai.conversation</code> event.</p>
+<p>This is a fire-and-forget JSON-RPC notification (no <code>id</code>): the backend
+is not expected to ack each tool result, and the SDK does not wait for
+a response or register a one-shot handler.</p>
+<p><strong>Requires an active WebSocket connection.</strong> Throws if the session is
+disconnected — callers must handle the disconnect immediately rather
+than having the output silently queued for a future reconnect (which
+could deliver stale results after ACA has timed out the waiter).</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">item</span>: <a href="../types/FunctionCallOutputItem.html" class="tsd-signature-type tsd-kind-type-alias">FunctionCallOutputItem</a></h5>
+<div class="tsd-comment tsd-typography"><p>The function call output item to send.
+Must include <code>type: &quot;function_call_output&quot;</code>, the matching <code>call_id</code>,
+and the <code>output</code> string.</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography">
+<h4>Throws</h4><p>If the session is not connected.</p>
+
+<h4>Example</h4><pre><code class="language-js"><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">on</span><span class="hl-1">(</span><span class="hl-6">&#39;telnyx.ai.conversation&#39;</span><span class="hl-1">, (</span><span class="hl-3">event</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-7">if</span><span class="hl-1"> (</span><span class="hl-3">event</span><span class="hl-1">.</span><span class="hl-3">params</span><span class="hl-1">.</span><span class="hl-3">type</span><span class="hl-1"> === </span><span class="hl-6">&#39;conversation.item.created&#39;</span><span class="hl-1"> &amp;&amp;</span><br/><span class="hl-1">      </span><span class="hl-3">event</span><span class="hl-1">.</span><span class="hl-3">params</span><span class="hl-1">.</span><span class="hl-3">item</span><span class="hl-1">?.</span><span class="hl-3">type</span><span class="hl-1"> === </span><span class="hl-6">&#39;function_call&#39;</span><span class="hl-1">) {</span><br/><span class="hl-1">    </span><span class="hl-0">const</span><span class="hl-1"> { </span><span class="hl-2">call_id</span><span class="hl-1">, </span><span class="hl-2">name</span><span class="hl-1">, </span><span class="hl-3">arguments</span><span class="hl-1">: </span><span class="hl-2">argsJson</span><span class="hl-1"> } = </span><span class="hl-3">event</span><span class="hl-1">.</span><span class="hl-3">params</span><span class="hl-1">.</span><span class="hl-3">item</span><span class="hl-1">;</span><br/><span class="hl-1">    </span><span class="hl-5">// Execute the tool...</span><br/><span class="hl-1">    </span><span class="hl-3">call</span><span class="hl-1">.</span><span class="hl-4">sendAIConversationMessage</span><span class="hl-1">({</span><br/><span class="hl-1">      </span><span class="hl-3">type:</span><span class="hl-1"> </span><span class="hl-6">&#39;function_call_output&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-3">call_id</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-3">output:</span><span class="hl-1"> </span><span class="hl-2">JSON</span><span class="hl-1">.</span><span class="hl-4">stringify</span><span class="hl-1">({ </span><span class="hl-3">status:</span><span class="hl-1"> </span><span class="hl-6">&#39;found&#39;</span><span class="hl-1"> }),</span><br/><span class="hl-1">    });</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+</div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="setAudioInDevice" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>set<wbr/>Audio<wbr/>In<wbr/>Device</span><a href="#setAudioInDevice" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -659,6 +695,7 @@ video visible to other call participants.</p>
 <li><a href="#hold" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>hold</span></a></li>
 <li><a href="#muteAudio" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>mute<wbr/>Audio</span></a></li>
 <li><a href="#muteVideo" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>mute<wbr/>Video</span></a></li>
+<li><a href="#sendAIConversationMessage" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>sendAIConversation<wbr/>Message</span></a></li>
 <li><a href="#setAudioInDevice" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>In<wbr/>Device</span></a></li>
 <li><a href="#setAudioOutDevice" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Audio<wbr/>Out<wbr/>Device</span></a></li>
 <li><a href="#setVideoDevice" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>set<wbr/>Video<wbr/>Device</span></a></li>
@@ -691,10 +728,19 @@ video visible to other call participants.</p>
 <li><a href="../interfaces/Report.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-256"></use></svg><span>Report</span></a></li>
 <li><a href="../interfaces/TargetParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-256"></use></svg><span>Target<wbr/>Params</span></a></li>
 <li><a href="../interfaces/TelnyxIDs.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-256"></use></svg><span>TelnyxIDs</span></a></li>
+<li><a href="../types/AIConversationFunctionCallOutputParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-4194304"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-type-alias)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M11.31 16V8.224H8.91V7.24H14.79V8.224H12.39V16H11.31Z" fill="var(--color-text)"></path></g></svg><span>AIConversation<wbr/>Function<wbr/>Call<wbr/>Output<wbr/>Params</span></a></li>
+<li><a href="../types/AIConversationFunctionCallParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>AIConversation<wbr/>Function<wbr/>Call<wbr/>Params</span></a></li>
+<li><a href="../types/AIConversationParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>AIConversation<wbr/>Params</span></a></li>
+<li><a href="../types/FunctionCallItem.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Function<wbr/>Call<wbr/>Item</span></a></li>
+<li><a href="../types/FunctionCallOutputItem.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>Function<wbr/>Call<wbr/>Output<wbr/>Item</span></a></li>
+<li><a href="../types/IAIConversationMessageEvent.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>IAIConversation<wbr/>Message<wbr/>Event</span></a></li>
+<li><a href="../types/ISendAIConversationMessageOptions.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-4194304"></use></svg><span>ISendAIConversation<wbr/>Message<wbr/>Options</span></a></li>
 <li><a href="../functions/callMarkName.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-64"><rect fill="var(--color-icon-background)" stroke="var(--color-ts-function)" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="6"></rect><path d="M9.39 16V7.24H14.55V8.224H10.446V11.128H14.238V12.112H10.47V16H9.39Z" fill="var(--color-text)"></path></g></svg><span>call<wbr/>Mark<wbr/>Name</span></a></li>
 <li><a href="../functions/clearCallMarks.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>clear<wbr/>Call<wbr/>Marks</span></a></li>
 <li><a href="../functions/collectCallEstablishmentTimings.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>collect<wbr/>Call<wbr/>Establishment<wbr/>Timings</span></a></li>
 <li><a href="../functions/getConstraintsWithoutDeviceId.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>get<wbr/>Constraints<wbr/>Without<wbr/>Device<wbr/>Id</span></a></li>
 <li><a href="../functions/isDeviceNotFoundError.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Device<wbr/>Not<wbr/>Found<wbr/>Error</span></a></li>
+<li><a href="../functions/isFunctionCallOutputParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Function<wbr/>Call<wbr/>Output<wbr/>Params</span></a></li>
+<li><a href="../functions/isFunctionCallParams.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>is<wbr/>Function<wbr/>Call<wbr/>Params</span></a></li>
 <li><a href="../functions/logCallEstablishmentTimings.html"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-64"></use></svg><span>log<wbr/>Call<wbr/>Establishment<wbr/>Timings</span></a></li></ul></nav></div></div></div>
 <div class="overlay"></div></body></html>
