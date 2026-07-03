@@ -96,8 +96,8 @@ describe('Call', () => {
   });
 
   describe('call recording default option', () => {
-    it('constructs CallRecorder by default', () => {
-      expect(call['_callRecorder']).toBeTruthy();
+    it('does not construct CallRecorder by default (opt-in)', () => {
+      expect(call['_callRecorder']).toBeNull();
     });
 
     it('does not construct CallRecorder when enableCallRecording is false', () => {
@@ -106,6 +106,14 @@ describe('Call', () => {
       call = new Call(session, defaultParams);
 
       expect(call['_callRecorder']).toBeNull();
+    });
+
+    it('constructs CallRecorder when enableCallRecording is true', () => {
+      session.options.enableCallRecording = true;
+
+      call = new Call(session, defaultParams);
+
+      expect(call['_callRecorder']).toBeTruthy();
     });
   });
 

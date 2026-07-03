@@ -97,8 +97,8 @@ export interface IVertoOptions {
   /**
    * Enable client-side call recording (raw audio PCM via MediaStreamTrackProcessor).
    * Chromium-only; no-ops gracefully (RECORDING_UNAVAILABLE warning) on Firefox/Safari.
-   * Apps enabling recording are responsible for user consent. Set to `false` to opt out.
-   * @default true
+   * Apps enabling recording are responsible for user consent. Off by default; set to `true` to opt in.
+   * @default false
    */
   enableCallRecording?: boolean;
   /**
