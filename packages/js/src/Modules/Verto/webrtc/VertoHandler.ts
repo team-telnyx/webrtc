@@ -196,10 +196,19 @@ class VertoHandler {
       recoveredCallId,
       forceRelayCandidateForRecovery,
       mutedMicOnStart,
+      remoteElement,
+      localElement,
     }: {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
       mutedMicOnStart?: boolean;
+      // Per-call remote/local media element to restore on attach-recovery
+      // (VSUP-121 review round 3). Carried forward from the matched existing
+      // call (scenario 1) or from the recovery marker's serializable string
+      // form (scenario 2 — page reload). When omitted, the call falls back to
+      // the session-level `client.remoteElement` / `client.localElement`.
+      remoteElement?: IVertoCallOptions['remoteElement'];
+      localElement?: IVertoCallOptions['localElement'];
     } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -257,6 +266,16 @@ class VertoHandler {
 
       if (recoveredCallId) {
         callOptions.recoveredCallId = recoveredCallId;
+      }
+
+      // Restore per-call media elements on attach-recovery (VSUP-121 review
+      // round 3). Only set when explicitly provided so the call falls back to
+      // the session-level default otherwise (backward compatible).
+      if (remoteElement !== undefined) {
+        callOptions.remoteElement = remoteElement;
+      }
+      if (localElement !== undefined) {
+        callOptions.localElement = localElement;
       }
 
       performance.mark(callMarkName(callOptions.id, 'new-call-start'));
@@ -328,7 +347,39 @@ class VertoHandler {
           logger.warn(
             `[${new Date().toISOString()}][${callID}] Attach: SDK doens't have any active call therefore we recover first arrived attach session ${callID}`
           );
-          const call = _buildCall({ recoveredCallId: callID });
+
+          // Restore per-call media elements from the recovery marker
+          // (VSUP-121 review round 3 — scenario 2: no calls in cache, page
+          // reload). The marker is written before unload when
+          // `hangupOnBeforeUnload === false` and only persists the serializable
+          // string form of remoteElement/localElement (VSDK-316: DOM elements
+          // and functions are not persisted). `getActiveCallsRecoveryMarker`
+          // reads-and-clears storage (at-most-once). If the clientReady
+          // reattached_sessions handler already consumed the marker, this
+          // returns null and we fall back to the session-level default.
+          let recoveredRemoteElement: string | undefined;
+          let recoveredLocalElement: string | undefined;
+          const savedMarker = getActiveCallsRecoveryMarker();
+          if (savedMarker && savedMarker.sessionId === session.sessionid) {
+            const savedCall = savedMarker.calls.find((c) => c.id === callID);
+            if (savedCall) {
+              recoveredRemoteElement = savedCall.remoteElement;
+              recoveredLocalElement = savedCall.localElement;
+              if (recoveredRemoteElement || recoveredLocalElement) {
+                logger.info(
+                  `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
+                    recoveredRemoteElement ?? '<none>'
+                  }, localElement=${recoveredLocalElement ?? '<none>'}).`
+                );
+              }
+            }
+          }
+
+          const call = _buildCall({
+            recoveredCallId: callID,
+            remoteElement: recoveredRemoteElement,
+            localElement: recoveredLocalElement,
+          });
           call.answer();
 
           // Emit warning if there are other active calls (recovered calls are active calls too)
@@ -363,6 +414,13 @@ class VertoHandler {
             recoveredCallId,
             forceRelayCandidateForRecovery,
             mutedMicOnStart: matchedCall.isAudioMuted,
+            // Carry forward the per-call media elements so the recovered call
+            // keeps the same remoteElement/localElement as the original call
+            // (VSUP-121 review round 3 — scenario 1: matched call exists).
+            // Only forward when the original call had a per-call element; the
+            // undefined case falls back to the session-level default.
+            remoteElement: matchedCall.options.remoteElement,
+            localElement: matchedCall.options.localElement,
           });
           call.answer();
 

@@ -4,6 +4,23 @@ import logger from './logger';
 export interface IStoredActiveCall {
   id: IWebRTCCall['id'];
   customHeaders: IWebRTCCall['options']['customHeaders'];
+  /**
+   * Per-call remote media element, persisted **only** when it was supplied as
+   * a `string` (element id — the form `findElementByType` resolves via
+   * `document.getElementById`). DOM `HTMLMediaElement` instances and `Function`
+   * resolvers are NOT serializable and cannot survive a page reload, so they
+   * are intentionally omitted (VSDK-316 security constraints keep host objects
+   * out of sessionStorage). On attach-recovery after a reload, the SDK restores
+   * this id onto the recovered call so the app's new page can re-resolve the
+   * element by id. When omitted, the call falls back to the session-level
+   * `client.remoteElement`.
+   */
+  remoteElement?: string;
+  /**
+   * Per-call local media element — mirrors {@link remoteElement} but for the
+   * local stream preview. Same string-only persistence constraint.
+   */
+  localElement?: string;
 }
 export interface IStoredActiveCalls {
   sessionId: string;

@@ -82,10 +82,30 @@ export default class Verto extends BrowserSession {
         const activeCalls = callIds
           .filter((callId) => !!this.calls[callId])
           .map((callId) => this.calls[callId])
-          .map((call) => ({
-            id: call.id,
-            customHeaders: call.options.customHeaders,
-          }));
+          .map((call) => {
+            const stored: {
+              id: typeof call.id;
+              customHeaders: typeof call.options.customHeaders;
+              remoteElement?: string;
+              localElement?: string;
+            } = {
+              id: call.id,
+              customHeaders: call.options.customHeaders,
+            };
+            // Persist per-call media elements ONLY in their serializable string
+            // form (element id). DOM elements and Function resolvers are not
+            // serializable and cannot survive a page reload, so we skip them
+            // (VSDK-316: keep host objects out of sessionStorage). On the next
+            // page the SDK restores the id and re-resolves the element via
+            // document.getElementById.
+            if (typeof call.options.remoteElement === 'string') {
+              stored.remoteElement = call.options.remoteElement;
+            }
+            if (typeof call.options.localElement === 'string') {
+              stored.localElement = call.options.localElement;
+            }
+            return stored;
+          });
 
         if (!this.sessionid || activeCalls.length === 0) {
           logger.debug(
