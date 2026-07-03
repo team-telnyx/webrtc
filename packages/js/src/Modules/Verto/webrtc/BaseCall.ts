@@ -2746,9 +2746,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
-    // A page-hidden flush fires as the document is being torn down, so the
+    // A page-unload flush fires as the document is being torn down, so the
     // POST must be allowed to outlive the page — send it with keepalive.
-    const forceKeepalive = flushReason.type === 'page-hidden';
+    const forceKeepalive = flushReason.type === 'page-unload';
 
     // Fire-and-forget — don't block the stats collection interval,
     // but track the upload so disconnect() can drain in-flight reports.

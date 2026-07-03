@@ -1106,7 +1106,7 @@ describe('CallReportCollector call report uploads', () => {
     expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('keepalive');
   });
 
-  it('uses keepalive for an intermediate report when forceKeepalive is set (page-hidden flush)', async () => {
+  it('uses keepalive for an intermediate report when forceKeepalive is set (page-unload flush)', async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       status: 202,

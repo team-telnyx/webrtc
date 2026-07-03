@@ -59,6 +59,26 @@ export default class Verto extends BrowserSession {
         return;
       }
 
+      // hangupOnBeforeUnload === false: calls are kept alive across unload, so
+      // they never hang up and no final call report is ever posted for a call
+      // the user reloads/closes on — its report would otherwise be lost. Flush
+      // an intermediate call report for each active call and send it with
+      // keepalive (threaded via the `page-unload` flush reason) so the POST is
+      // allowed to outlive the document tear-down; a plain async POST would be
+      // cut off. Done here, before the recovery-marker logic below, so it still
+      // runs even when there is no sessionid to persist. Redundant flushes are
+      // cheap — CallReportCollector.flush() returns null when nothing new has
+      // buffered since the last flush.
+      if (this.calls) {
+        Object.keys(this.calls).forEach((callId) => {
+          const call = this.calls[callId];
+          if (call?.flushIntermediateCallReport) {
+            logger.debug(`beforeunload: flushing call report for ${callId}.`);
+            call.flushIntermediateCallReport({ type: 'page-unload' });
+          }
+        });
+      }
+
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
@@ -114,48 +134,36 @@ export default class Verto extends BrowserSession {
       }
     });
 
-    // Single `visibilitychange` → `hidden` handler for two recovery paths,
-    // both gated on hangupOnBeforeUnload === false (calls meant to survive
-    // unload) and an active call:
-    //   1. Re-stamp the reconnect session-id freshness. The sessid sent on the
-    //      next login is only accepted for reattach while the persisted
-    //      session-id is fresh (< RECONNECT_SESSION_ID_MAX_AGE_MS, 90s), and
-    //      that timestamp is otherwise only written at login/socket-close — so
-    //      a leg connected longer than 90s (e.g. a conference host waiting for
-    //      participants) would reload with a stale sessid. Synchronous
-    //      sessionStorage write.
-    //   2. Flush an intermediate call report with keepalive. A call kept alive
-    //      across unload never hangs up, so no final report is posted for a
-    //      call the user reloads/closes on — its report would otherwise be
-    //      lost. keepalive lets the POST outlive the page tear-down (a plain
-    //      async POST would be cut off).
-    // `visibilitychange` → `hidden` is the last event reliably observable on
-    // desktop and mobile (per MDN), where `beforeunload`/`pagehide` are not
-    // dependable. Complements the persist + retry-on-reconnect path that
-    // covers socket-1001 network losses.
+    // Re-stamp the reconnect session-id freshness at the last moment the page
+    // is reliably observable: the visibilitychange transition to `hidden`.
+    //
+    // The sessid the SDK sends on the next login is only accepted for reattach
+    // while the persisted session-id is fresh (< RECONNECT_SESSION_ID_MAX_AGE_MS,
+    // 90s), and that timestamp is otherwise only written at login/socket-close.
+    // A leg connected longer than 90s (e.g. a conference host waiting for
+    // participants) would therefore reload with a stale sessid and fail to
+    // reattach. Per MDN guidance, `visibilitychange` → `hidden` is the last
+    // event that fires reliably before a tab is backgrounded, discarded, or
+    // closed — including on mobile, where `beforeunload`/`pagehide` are not
+    // dependable — so it is the correct place to persist this state. The write
+    // is synchronous (sessionStorage), so it completes even as the page goes
+    // away, unlike async work such as a call-report POST.
+    //
+    // Only relevant when calls are meant to survive unload
+    // (hangupOnBeforeUnload === false) and there is an active call to reattach.
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState !== 'hidden') return;
-      if (options.hangupOnBeforeUnload !== false || !this.hasActiveCall()) {
+      if (
+        options.hangupOnBeforeUnload !== false ||
+        !this.sessionid ||
+        !this.hasActiveCall()
+      ) {
         return;
       }
-      // 1. Reconnect session-id freshness (needs a sessionid).
-      if (this.sessionid) {
-        logger.debug(
-          'visibilitychange → hidden: re-stamping reconnect session-id freshness.'
-        );
-        setReconnectSessionId(this.sessionid);
-      }
-      // 2. Flush call reports. Redundant flushes are cheap —
-      // CallReportCollector.flush() returns null when nothing new has buffered.
-      Object.keys(this.calls || {}).forEach((callId) => {
-        const call = this.calls[callId];
-        if (call?.flushIntermediateCallReport) {
-          logger.debug(
-            `visibilitychange → hidden: flushing call report for ${callId}.`
-          );
-          call.flushIntermediateCallReport({ type: 'page-hidden' });
-        }
-      });
+      logger.debug(
+        'visibilitychange → hidden: re-stamping reconnect session-id freshness.'
+      );
+      setReconnectSessionId(this.sessionid);
     });
   }
 

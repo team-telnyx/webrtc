@@ -353,7 +353,7 @@ describe('Call', () => {
         'call-report-id',
         'wss://rtc.telnyx.com',
         'owning-session-voice-sdk-id',
-        false // forceKeepalive — normal (non-page-hidden) intermediate flush
+        false // forceKeepalive — normal (non-page-unload) intermediate flush
       );
       expect(trackSpy).toHaveBeenCalledTimes(1);
       expect(trackSpy.mock.calls[0][0]).toHaveProperty(

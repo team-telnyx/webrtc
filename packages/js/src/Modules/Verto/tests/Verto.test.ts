@@ -430,16 +430,9 @@ describe('Verto', () => {
     });
   });
 
-  describe('visibilitychange call-report flush', () => {
-    const setVisibility = (state: 'visible' | 'hidden') => {
-      Object.defineProperty(document, 'visibilityState', {
-        value: state,
-        configurable: true,
-      });
-    };
-
-    const buildWithVisHandler = (props: Partial<IVertoOptions>) => {
-      const spy = jest.spyOn(document, 'addEventListener');
+  describe('beforeunload call-report flush', () => {
+    const buildWithUnloadHandler = (props: Partial<IVertoOptions>) => {
+      const spy = jest.spyOn(window, 'addEventListener');
       spy.mockClear();
       const instance = _buildInstance({
         host: 'example.telnyx.com',
@@ -448,24 +441,18 @@ describe('Verto', () => {
         ...props,
       } as IVertoOptions);
       const handler = spy.mock.calls.find(
-        ([eventName]) => eventName === 'visibilitychange'
+        ([eventName]) => eventName === 'beforeunload'
       )?.[1] as EventListener;
       return { instance, handler, restore: () => spy.mockRestore() };
     };
 
-    afterEach(() => {
-      delete (document as unknown as { visibilityState?: string })
-        .visibilityState;
-    });
-
-    it('flushes a page-hidden report for active calls when hidden (hangupOnBeforeUnload=false)', () => {
-      const { instance, handler, restore } = buildWithVisHandler({
+    it('flushes a page-unload report for each active call on unload (hangupOnBeforeUnload=false)', () => {
+      const { instance, handler, restore } = buildWithUnloadHandler({
         hangupOnBeforeUnload: false,
       });
       expect(handler).toBeDefined();
 
       const flush = jest.fn();
-      instance.hasActiveCall = jest.fn(() => true);
       instance.calls = {
         'call-1': {
           id: 'call-1',
@@ -473,69 +460,39 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      setVisibility('hidden');
-      handler(new Event('visibilitychange'));
+      handler(new Event('beforeunload'));
 
       expect(flush).toHaveBeenCalledTimes(1);
-      expect(flush).toHaveBeenCalledWith({ type: 'page-hidden' });
-      restore();
-    });
-
-    it('does not flush while the page is still visible', () => {
-      const { instance, handler, restore } = buildWithVisHandler({
-        hangupOnBeforeUnload: false,
-      });
-      const flush = jest.fn();
-      instance.hasActiveCall = jest.fn(() => true);
-      instance.calls = {
-        'call-1': {
-          id: 'call-1',
-          flushIntermediateCallReport: flush,
-        } as unknown as IWebRTCCall,
-      };
-
-      setVisibility('visible');
-      handler(new Event('visibilitychange'));
-
-      expect(flush).not.toHaveBeenCalled();
+      expect(flush).toHaveBeenCalledWith({ type: 'page-unload' });
       restore();
     });
 
     it('does not flush when hangupOnBeforeUnload is not false (call is hung up on unload instead)', () => {
-      const { instance, handler, restore } = buildWithVisHandler({});
+      const { instance, handler, restore } = buildWithUnloadHandler({});
       const flush = jest.fn();
-      instance.hasActiveCall = jest.fn(() => true);
+      const hangup = jest.fn();
       instance.calls = {
         'call-1': {
           id: 'call-1',
+          hangup,
           flushIntermediateCallReport: flush,
         } as unknown as IWebRTCCall,
       };
 
-      setVisibility('hidden');
-      handler(new Event('visibilitychange'));
+      handler(new Event('beforeunload'));
 
       expect(flush).not.toHaveBeenCalled();
+      expect(hangup).toHaveBeenCalled();
       restore();
     });
 
-    it('does not flush when there is no active call', () => {
-      const { instance, handler, restore } = buildWithVisHandler({
+    it('does not throw when there are no active calls to flush', () => {
+      const { instance, handler, restore } = buildWithUnloadHandler({
         hangupOnBeforeUnload: false,
       });
-      const flush = jest.fn();
-      instance.hasActiveCall = jest.fn(() => false);
-      instance.calls = {
-        'call-1': {
-          id: 'call-1',
-          flushIntermediateCallReport: flush,
-        } as unknown as IWebRTCCall,
-      };
+      instance.calls = {};
 
-      setVisibility('hidden');
-      handler(new Event('visibilitychange'));
-
-      expect(flush).not.toHaveBeenCalled();
+      expect(() => handler(new Event('beforeunload'))).not.toThrow();
       restore();
     });
   });

@@ -511,7 +511,7 @@ export interface ICallReportFlushReason {
     | 'manual'
     | 'socket-close'
     | 'socket-error'
-    | 'page-hidden';
+    | 'page-unload';
   socketClose?: {
     code?: number;
     codeName?: string;
@@ -863,7 +863,7 @@ export class CallReportCollector {
     host: string,
     voiceSdkId?: string,
     // Force `keepalive: true` even though this is not the final report. Used
-    // for page-hidden flushes, where the request must be allowed to outlive
+    // for page-unload flushes, where the request must be allowed to outlive
     // the document being torn down.
     forceKeepalive: boolean = false
   ): Promise<void> {
