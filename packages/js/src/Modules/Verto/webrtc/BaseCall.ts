@@ -2243,7 +2243,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.options.remoteStream = event.streams[0];
       const { remoteElement, remoteStream, screenShare } = this.options;
       if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream);
+        attachMediaStream(remoteElement, remoteStream, {
+          callId: this.id,
+          sessionId: this.session.sessionid,
+        });
       }
     });
   }

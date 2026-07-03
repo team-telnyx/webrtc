@@ -1,9 +1,3 @@
-## [Unreleased]
-
-### Added
-
-- Per-call `remoteElement` and `localElement` support in `AnswerParams` for independent attach/detach on concurrent calls (VSUP-121)
-
 ## [2.27.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2...webrtc/v2.27.3) (2026-07-01)
 
 - fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)

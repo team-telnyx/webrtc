@@ -23,7 +23,14 @@ const streamIsValid = (stream: MediaStream) =>
 
 const getSupportedConstraints = () => ({});
 
-const attachMediaStream = (htmlElementId: string, stream: MediaStream) => null;
+const attachMediaStream = (
+  htmlElementId: string,
+  stream: MediaStream,
+  // Optional diagnostic context — kept in the signature to stay parallel with
+  // the web implementation. Native is a no-op, so the context is unused.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context?: { callId?: string; sessionId?: string }
+) => null;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const detachMediaStream = (htmlElementId: string, _stream?: MediaStream) => null;
 

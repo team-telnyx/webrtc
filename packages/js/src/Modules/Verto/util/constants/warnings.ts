@@ -404,6 +404,23 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  33011: {
+    name: 'SHARED_REMOTE_ELEMENT_OVERWRITE',
+    message: 'Remote media element overwritten by another call',
+    description:
+      'A new MediaStream was attached to an HTML media element (audio/video) that already held a different MediaStream from another active call. The SDK overwrote the existing stream (last-writer-wins), which disrupts the other call remote media playout. This happens when two concurrent calls share a single remoteElement instead of each having its own. Use a per-call remoteElement (client.newCall({ remoteElement }) or call.answer({ remoteElement })) so each call owns a distinct element.',
+    causes: [
+      'Two concurrent calls share one remoteElement (legacy single-element app)',
+      'Application did not pass a per-call remoteElement to newCall() or answer()',
+      'A second inbound call rang into a session using one session-level remoteElement',
+    ],
+    solutions: [
+      'Pass a distinct remoteElement per call via client.newCall({ remoteElement })',
+      'For inbound calls, override at answer time via call.answer({ remoteElement })',
+      'Give each call its own <audio>/<video> element so attach/detach lifecycles are independent',
+    ],
+  },
+
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35002: {
     name: 'UNKNOWN_REATTACHED_SESSION',

@@ -1,5 +1,8 @@
 import { findElementByType } from '../helpers';
 import logger from '../logger';
+import { trigger } from '../../services/Handler';
+import { SwEvent, SHARED_REMOTE_ELEMENT_OVERWRITE } from '../constants';
+import { createTelnyxWarning } from '../constants/warnings';
 
 const RTCPeerConnection = (config: RTCPeerConnectionConfig) =>
   new window.RTCPeerConnection(config);
@@ -35,7 +38,27 @@ const audioIsMediaTrackConstraints = (audio: boolean | MediaTrackConstraints) =>
 const videoIsMediaTrackConstraints = (video: boolean | MediaTrackConstraints) =>
   typeof video === 'object';
 
-const attachMediaStream = (tag: any, stream: MediaStream) => {
+/**
+ * Optional context for `attachMediaStream` diagnostics.
+ *
+ * When provided, a `telnyx.warning` (SwEvent.Warning) event is emitted alongside
+ * the `logger.warn` call if the target element already holds a different
+ * MediaStream (last-writer-wins overwrite). The `callId`/`sessionId` are
+ * forwarded into the structured warning payload so consumers can correlate the
+ * warning with the call/session that triggered the overwrite.
+ */
+export interface IAttachMediaStreamContext {
+  /** Identifier of the call whose stream is being attached. */
+  callId?: string;
+  /** Identifier of the SDK session owning the call. */
+  sessionId?: string;
+}
+
+const attachMediaStream = (
+  tag: any,
+  stream: MediaStream,
+  context?: IAttachMediaStreamContext
+) => {
   const element = findElementByType(tag);
   if (element === null) {
     return;
@@ -48,17 +71,40 @@ const attachMediaStream = (tag: any, stream: MediaStream) => {
   }
   // Last-writer-wins diagnostic (VSUP-121).
   // If the element already holds a *different* stream, attaching a new stream
-  // silently overwrites it — disrupting the other call's playout. This happens
-  // when two calls share one element (legacy single-element app). We warn so the
-  // issue is visible; fixing the app to use per-call remoteElement is the
-  // resolution. Silent on fresh elements (srcObject === null or === stream).
+  // silently overwrites it. For a shared remoteElement this disrupts the other
+  // call's playout (legacy single-element app); the resolution is a per-call
+  // remoteElement. We always log so the overwrite is visible. When `context` is
+  // provided (remote-stream path) we also emit a structured `telnyx.warning`
+  // event so application code is notified. Intentional same-call local-stream
+  // replacements (e.g. camera switch) pass no context, so they only log.
+  // Silent on fresh elements (srcObject === null or === stream).
   if (element.srcObject && element.srcObject !== stream) {
-    logger.warn(
+    const message =
       'attachMediaStream: element already has a different MediaStream attached; ' +
-        'overwriting will disrupt the existing call. Use a per-call remoteElement ' +
-        '(client.newCall({ remoteElement }) or call.answer({ remoteElement })) ' +
-        'for concurrent calls.'
-    );
+      'overwriting will disrupt the existing call. Use a per-call remoteElement ' +
+      '(client.newCall({ remoteElement }) or call.answer({ remoteElement })) ' +
+      'for concurrent calls.';
+    logger.warn(message);
+    // Only emit the structured `telnyx.warning` event when call/session context
+    // is available — i.e. the remote-stream attach path where a shared element
+    // genuinely indicates a multi-call problem. Callers that intentionally
+    // replace a stream on the same element (e.g. camera switch) pass no context
+    // and only get the log line above.
+    if (context) {
+      const warning = createTelnyxWarning(
+        SHARED_REMOTE_ELEMENT_OVERWRITE,
+        message
+      );
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: context.callId,
+          sessionId: context.sessionId,
+        },
+        context.callId
+      );
+    }
   }
   element.srcObject = stream;
 };
