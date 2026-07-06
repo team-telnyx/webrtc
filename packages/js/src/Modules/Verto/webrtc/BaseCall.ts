@@ -561,7 +561,10 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Only override when explicitly provided in params; otherwise fall back to
     // the existing this.options value (which was set from the session default
     // at call construction) for backward compatibility.
-    if (params.remoteElement !== undefined || params.localElement !== undefined) {
+    if (
+      params.remoteElement !== undefined ||
+      params.localElement !== undefined
+    ) {
       this.options = {
         ...this.options,
         ...(params.remoteElement !== undefined && {
@@ -2245,7 +2248,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (screenShare === false) {
         attachMediaStream(remoteElement, remoteStream, {
           callId: this.id,
-          sessionId: this.session.sessionid,
+          sessionId: this.session.uuid,
         });
       }
     });

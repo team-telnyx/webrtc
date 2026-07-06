@@ -343,7 +343,7 @@ export default class Peer {
     if (screenShare === false) {
       attachMediaStream(remoteElement, this.options.remoteStream, {
         callId: this.options.id,
-        sessionId: this._session.sessionid,
+        sessionId: this._session.uuid,
       });
     }
   }

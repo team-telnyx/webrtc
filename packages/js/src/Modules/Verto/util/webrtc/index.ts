@@ -79,22 +79,19 @@ const attachMediaStream = (
   // replacements (e.g. camera switch) pass no context, so they only log.
   // Silent on fresh elements (srcObject === null or === stream).
   if (element.srcObject && element.srcObject !== stream) {
-    const message =
+    logger.warn(
       'attachMediaStream: element already has a different MediaStream attached; ' +
-      'overwriting will disrupt the existing call. Use a per-call remoteElement ' +
-      '(client.newCall({ remoteElement }) or call.answer({ remoteElement })) ' +
-      'for concurrent calls.';
-    logger.warn(message);
+        'overwriting will disrupt the existing call. Use a per-call remoteElement ' +
+        '(client.newCall({ remoteElement }) or call.answer({ remoteElement })) ' +
+        'for concurrent calls.'
+    );
     // Only emit the structured `telnyx.warning` event when call/session context
     // is available — i.e. the remote-stream attach path where a shared element
     // genuinely indicates a multi-call problem. Callers that intentionally
     // replace a stream on the same element (e.g. camera switch) pass no context
     // and only get the log line above.
     if (context) {
-      const warning = createTelnyxWarning(
-        SHARED_REMOTE_ELEMENT_OVERWRITE,
-        message
-      );
+      const warning = createTelnyxWarning(SHARED_REMOTE_ELEMENT_OVERWRITE);
       trigger(
         SwEvent.Warning,
         {
@@ -102,7 +99,7 @@ const attachMediaStream = (
           callId: context.callId,
           sessionId: context.sessionId,
         },
-        context.callId
+        context.sessionId
       );
     }
   }
