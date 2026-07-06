@@ -120,7 +120,7 @@ describe('active-calls recovery marker storage', () => {
     expect(result).not.toBeNull();
     expect(result!.calls.length).toBe(1);
 
-    // Re-set because the previous read cleared storage.
+    // Re-set to test the just-past-deadline path (a fresh marker for this leg).
     setActiveCallsRecoveryMarker(
       [asStoredCall({ id: 'old-call', state: 'active', options: {} })],
       'sess-old',
@@ -142,7 +142,8 @@ describe('active-calls recovery marker storage', () => {
       [asStoredCall({ id: 'c', state: 'active', options: {} })],
       's'
     );
-    // getActiveCallsRecoveryMarker clears on read, so just test clear directly.
+    // getActiveCallsRecoveryMarker is a peek (non-consuming) read, so test the
+    // explicit clear directly.
     clearActiveCallsRecoveryMarker();
 
     const result = getActiveCallsRecoveryMarker();
@@ -215,7 +216,7 @@ describe('active-calls recovery marker storage', () => {
     clearActiveCallsRecoveryMarker();
   });
 
-  it('clears storage immediately after a successful read (at-most-once)', () => {
+  it('keeps storage after a successful read (peek, non-consuming)', () => {
     const now = Date.now();
     setActiveCallsRecoveryMarker(
       [asStoredCall({ id: 'call-x', state: 'active', options: {} })],
@@ -223,15 +224,22 @@ describe('active-calls recovery marker storage', () => {
       now
     );
 
-    // First read returns the marker and clears storage.
+    // First read returns the marker WITHOUT clearing storage (peek semantics
+    // — multiple consumers in the same reconnect/page-load cycle can read it).
     const first = getActiveCallsRecoveryMarker(now);
     expect(first).not.toBeNull();
     expect(first!.calls.length).toBe(1);
     expect(first!.sessionId).toBe('sess-x');
 
-    // Second read sees nothing — storage was cleared by the first.
+    // Second read sees the same marker — storage was NOT cleared by the first.
     const second = getActiveCallsRecoveryMarker(now);
-    expect(second).toBeNull();
+    expect(second).not.toBeNull();
+    expect(second!.calls.length).toBe(1);
+    expect(second!.sessionId).toBe('sess-x');
+
+    // Explicit clear drains the marker.
+    clearActiveCallsRecoveryMarker();
+    expect(getActiveCallsRecoveryMarker(now)).toBeNull();
   });
 
   it('persists only the narrow projection and excludes sensitive host fields', () => {
@@ -303,8 +311,10 @@ describe('active-calls recovery marker storage', () => {
     expect(result!.calls[0].id).toBe('good-call');
     expect(result!.calls[1]).toBeNull();
     expect(result!.calls[2]).toBe('not-an-object');
-    // Storage is cleared after the read (at-most-once).
-    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    // Storage is NOT cleared after a successful peek read — callers that
+    // need at-most-once semantics must clear explicitly.
+    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).not.toBeNull();
+    clearActiveCallsRecoveryMarker();
   });
 
   it('returns the parsed payload (not null) when all records are malformed but the top-level shape is valid', () => {
@@ -328,7 +338,8 @@ describe('active-calls recovery marker storage', () => {
     expect(result!.sessionId).toBe('sess-all-bad');
     expect(result!.calls.length).toBe(3);
     expect(result!.calls[0]).toBeNull();
-    // Storage is still cleared after the read.
-    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    // Storage is NOT cleared after a successful peek read.
+    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).not.toBeNull();
+    clearActiveCallsRecoveryMarker();
   });
 });

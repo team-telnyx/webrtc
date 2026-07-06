@@ -28,7 +28,11 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { getActiveCallsRecoveryMarker } from '../util/reconnect';
+import {
+  getActiveCallsRecoveryMarker,
+  setActiveCallsRecoveryMarker,
+  clearActiveCallsRecoveryMarker,
+} from '../util/reconnect';
 
 /**
  * @ignore Hide in docs output
@@ -128,19 +132,33 @@ class VertoHandler {
     // does NOT hang up. The records represent calls from a prior page that
     // no longer have real Call instances here.
     //
-    // `getActiveCallsRecoveryMarker()` reads and immediately clears storage
-    // (at-most-once guarantee) — no separate clear is needed.
+    // `getActiveCallsRecoveryMarker()` is a **peek** (non-consuming) read —
+    // the marker stays in storage so the Attach handler (which may arrive
+    // after this `reattached_sessions` notification, or before it) can still
+    // read per-call media elements. To preserve at-most-once notification
+    // semantics, calls that have been notified as lost are removed from the
+    // persisted marker and the remaining (reattached) calls are re-saved so
+    // the Attach handler can restore their per-call elements. A duplicate
+    // `reattached_sessions` event will see the drained marker and emit
+    // nothing.
     if (Array.isArray(params?.reattached_sessions) && session.sessionid) {
       const saved = getActiveCallsRecoveryMarker();
 
       if (saved && saved.calls.length > 0) {
         if (saved.sessionId !== session.sessionid) {
-          // Different session context — drop silently, do not notify.
+          // Different session context — drop silently, do not notify. Clear
+          // the stale marker so it cannot be re-consumed by a later event.
           logger.debug(
             `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
           );
+          clearActiveCallsRecoveryMarker();
         } else {
           const reattachedIds = new Set(params.reattached_sessions as string[]);
+          // Calls that remain in the marker after this pass — reattached
+          // calls are kept (the Attach handler reads them to restore per-call
+          // media elements); notified (lost) calls are drained so a duplicate
+          // event cannot re-notify.
+          const remainingCalls: typeof saved.calls = [];
 
           for (const call of saved.calls) {
             // Defense-in-depth: `getActiveCallsRecoveryMarker` already filters
@@ -152,16 +170,19 @@ class VertoHandler {
               // `options.telnyxSessionId` / `options.telnyxCallControlId`), so
               // the correlation identifiers live nested under `call.options`.
               if (reattachedIds.has(call.id)) {
-                // Call was reattached — recovered, do not notify.
+                // Call was reattached — keep in marker so the Attach handler
+                // can restore per-call media elements. Do not notify.
                 logger.debug(
-                  `Recovery marker for call ${call.id} was reattached — no notification.`
+                  `Recovery marker for call ${call.id} was reattached — keeping for Attach element restore.`
                 );
+                remainingCalls.push(call);
                 continue;
               }
 
               // Call was not reattached for the same sessid — emit
               // SESSION_NOT_REATTACHED once. Do NOT hang up: there is no real
-              // call object on this page.
+              // call object on this page. The call is NOT kept in
+              // remainingCalls, so a duplicate event cannot re-notify.
               logger.info(
                 `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
               );
@@ -182,8 +203,16 @@ class VertoHandler {
                   err instanceof Error ? err.message : String(err)
                 }`
               );
+              // Keep the call in the marker on error so a later pass or the
+              // Attach handler can still attempt recovery — do not drop it.
+              remainingCalls.push(call);
             }
           }
+
+          // Re-save the drained marker: only reattached calls remain. If
+          // every call was notified (none reattached), the marker is cleared
+          // (setActiveCallsRecoveryMarker clears on an empty array).
+          setActiveCallsRecoveryMarker(remainingCalls, saved.sessionId, saved.storedAt);
         }
       }
     }
@@ -353,10 +382,16 @@ class VertoHandler {
           // reload). The marker is written before unload when
           // `hangupOnBeforeUnload === false` and only persists the serializable
           // string form of remoteElement/localElement (VSDK-316: DOM elements
-          // and functions are not persisted). `getActiveCallsRecoveryMarker`
-          // reads-and-clears storage (at-most-once). If the clientReady
-          // reattached_sessions handler already consumed the marker, this
-          // returns null and we fall back to the session-level default.
+          // and functions are not persisted).
+          // `getActiveCallsRecoveryMarker()` is a **peek** (non-consuming) read
+          // — the marker stays in storage so the `reattached_sessions`
+          // handler (which may arrive before or after this Attach) and this
+          // Attach handler can both read per-call media elements within the
+          // same reconnect/page-load cycle. The `reattached_sessions` handler
+          // drains only the calls it notifies as lost; reattached calls are
+          // re-saved so they survive until this Attach reads them. A sessid
+          // mismatch returns null here (the marker is for a different
+          // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
           const savedMarker = getActiveCallsRecoveryMarker();

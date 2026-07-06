@@ -1320,7 +1320,8 @@ describe('VertoHandler', () => {
           'telnyxCallControlId'
         );
 
-        // Marker must be cleared after consumption.
+        // Marker is cleared: every saved call was notified (none reattached), so
+        // the drained marker was re-saved as empty → cleared.
         expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
@@ -1338,7 +1339,7 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // Storage is cleared (getActiveCallsRecoveryMarker clears on read).
+        // Storage is cleared: sessid mismatch drops the stale marker.
         expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
@@ -1356,7 +1357,12 @@ describe('VertoHandler', () => {
         sendReattachForSession(['recovered-call']);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker()).toBeNull();
+        // Reattached calls are kept in the marker (peek, not consumed) so the
+        // Attach handler can restore per-call media elements after this
+        // notification. The marker is drained only of notified (lost) calls.
+        const marker = getActiveCallsRecoveryMarker();
+        expect(marker).not.toBeNull();
+        expect(marker?.calls.some((c) => c.id === 'recovered-call')).toBe(true);
       });
 
       it('does NOT emit an error and clears storage for stale markers (>15 min)', async () => {
@@ -1458,6 +1464,69 @@ describe('VertoHandler', () => {
           expect.objectContaining({ callId: 'lost-2' })
         );
         expect(getActiveCallsRecoveryMarker()).toBeNull();
+      });
+
+      it('keeps reattached calls in the marker so a later Attach can restore per-call media elements (peek, not consume)', async () => {
+        await instance.connect();
+        const callId = 'peek-attach-call-id';
+        const sessId = 'sess-peek';
+        setSession(sessId);
+
+        // Seed a marker with a per-call remoteElement + localElement.
+        clearActiveCallsRecoveryMarker();
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: callId,
+              customHeaders: undefined,
+              remoteElement: 'remote-peek-elem',
+              localElement: 'local-peek-elem',
+            } as unknown as IStoredActiveCall,
+          ],
+          sessId
+        );
+
+        // 1. clientReady with reattached_sessions containing the call ID —
+        //    this must NOT consume the marker. The call is reattached so no
+        //    error is emitted, and the marker retains the call for Attach.
+        sendReattachForSession([callId]);
+        expect(onError).not.toHaveBeenCalled();
+
+        // The marker must still be present (peek semantics).
+        const markerAfterReattach = getActiveCallsRecoveryMarker();
+        expect(markerAfterReattach).not.toBeNull();
+        expect(
+          markerAfterReattach?.calls.some((c) => c.id === callId)
+        ).toBe(true);
+
+        // 2. Attach arrives for the same call — the handler reads the marker
+        //    (still present) and restores per-call media elements.
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        const msg = JSON.parse(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 4600,
+            method: 'telnyx_rtc.attach',
+            params: {
+              callID: callId,
+              sdp: 'SDP',
+              caller_id_name: 'Test',
+              caller_id_number: '1004',
+              callee_id_name: 'Outbound',
+              callee_id_number: '1003',
+            },
+          })
+        );
+        handler.handleMessage(msg);
+
+        const newCall = instance.calls[callId];
+        expect(newCall).toBeDefined();
+        expect(newCall.options.remoteElement).toEqual('remote-peek-elem');
+        expect(newCall.options.localElement).toEqual('local-peek-elem');
+
+        Call.prototype.answer = originalAnswer;
+        clearActiveCallsRecoveryMarker();
       });
     });
   });

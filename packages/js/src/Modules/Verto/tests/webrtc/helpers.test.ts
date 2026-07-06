@@ -908,11 +908,12 @@ describe('Helpers browser functions', () => {
       const warnings: ISharedRemoteElementOverwriteWarningPayload[] = [];
       const handler = (payload: ISharedRemoteElementOverwriteWarningPayload) =>
         warnings.push(payload);
-      register(SwEvent.Warning, handler, 'session-1');
+      register(SwEvent.Warning, handler, 'session-uuid-1');
 
       attachMediaStream(mockElement, newStream, {
         callId: 'call-B',
-        sessionId: 'session-1',
+        sessionId: 'real-verto-sessid-1',
+        eventTarget: 'session-uuid-1',
       });
 
       expect(mockElement.srcObject).toBe(newStream);
@@ -922,9 +923,11 @@ describe('Helpers browser functions', () => {
       expect(warning.name).toBe('SHARED_REMOTE_ELEMENT_OVERWRITE');
       expect(warning.description).toMatch(/per-call remoteElement/);
       expect(callId).toBe('call-B');
-      expect(sessionId).toBe('session-1');
+      // The payload carries the real Verto sessionid, NOT the UUID used as
+      // the event-bus trigger target.
+      expect(sessionId).toBe('real-verto-sessid-1');
 
-      deRegister(SwEvent.Warning, handler, 'session-1');
+      deRegister(SwEvent.Warning, handler, 'session-uuid-1');
     });
 
     it('should NOT emit a telnyx.warning event when no context is provided (intentional local-stream replacement)', () => {

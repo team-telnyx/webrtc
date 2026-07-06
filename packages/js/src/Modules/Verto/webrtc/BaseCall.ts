@@ -2248,7 +2248,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       if (screenShare === false) {
         attachMediaStream(remoteElement, remoteStream, {
           callId: this.id,
-          sessionId: this.session.uuid,
+          sessionId: this.session.sessionid,
+          eventTarget: this.session.uuid,
         });
       }
     });

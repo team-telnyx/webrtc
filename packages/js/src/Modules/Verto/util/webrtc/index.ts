@@ -50,8 +50,19 @@ const videoIsMediaTrackConstraints = (video: boolean | MediaTrackConstraints) =>
 export interface IAttachMediaStreamContext {
   /** Identifier of the call whose stream is being attached. */
   callId?: string;
-  /** Identifier of the SDK session owning the call. */
+  /**
+   * The real Verto session id (`session.sessionid`) — included in the
+   * structured warning payload as `sessionId` so consumers can correlate the
+   * warning with the call/session that triggered the overwrite.
+   */
   sessionId?: string;
+  /**
+   * The SDK session UUID (`session.uuid`) — used as the event-bus trigger
+   * target so the warning is routed to the correct session's listeners via
+   * `client.on('telnyx.warning')`. This is NOT placed in the payload; only
+   * `sessionId` (the real Verto sessid) appears in the public payload.
+   */
+  eventTarget?: string;
 }
 
 const attachMediaStream = (
@@ -99,7 +110,7 @@ const attachMediaStream = (
           callId: context.callId,
           sessionId: context.sessionId,
         },
-        context.sessionId
+        context.eventTarget
       );
     }
   }
