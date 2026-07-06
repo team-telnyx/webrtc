@@ -51,6 +51,7 @@ import {
   isReconnectSessionIdFresh,
   setReconnectSessionId,
 } from './util/reconnect';
+import { drainPendingReports } from './util/CallReportStorage';
 import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
@@ -780,6 +781,100 @@ export default abstract class BaseSession {
     // Socket liveness is monitored for the session lifetime. Media/peer
     // recovery decisions remain scoped to active calls inside the monitor.
     this.startSignalingHealthMonitor();
+
+    // Drain any pending call reports that were persisted to browser storage
+    // because the previous socket closed (1001) or the HTTP POST failed while
+    // the network was down. Now that the socket is open the network is
+    // available, so we can retry the POSTs.
+    this._drainPendingReports();
+  }
+
+  /**
+   * Read pending call reports from browser storage and POST each one to the
+   * voice-sdk-proxy `/call_report` HTTP endpoint.
+   *
+   * Reports are drained atomically (read + clear) to guarantee at-most-once
+   * delivery — if the POST fails again, the report is lost rather than
+   * duplicated. This is acceptable because:
+   * 1. The report was already attempted multiple times with retry backoff
+   *    before it was persisted.
+   * 2. Re-enqueueing on failure would risk unbounded storage growth in a
+   *    prolonged outage.
+   *
+   * Fire-and-forget — does not block socket open or login.
+   */
+  private _drainPendingReports(): void {
+    const entries = drainPendingReports();
+    if (entries.length === 0) return;
+
+    logger.info(
+      `Draining ${entries.length} pending call report(s) from browser storage`,
+      { callReportIds: entries.map((e) => e.callReportId) }
+    );
+
+    const host = this.connection?.host ?? this.options.host;
+    if (!host) {
+      logger.warn(
+        'Cannot drain pending reports: no host available — reports will be lost'
+      );
+      return;
+    }
+
+    const wsUrl = new URL(host);
+    const endpoint = `${wsUrl.protocol.replace(/^ws/, 'http')}//${wsUrl.host}/call_report`;
+
+    for (const entry of entries) {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-call-report-id': entry.callReportId,
+        'x-call-id': entry.payload.summary.callId,
+      };
+      if (entry.voiceSdkId) {
+        headers['x-voice-sdk-id'] = entry.voiceSdkId;
+      }
+
+      const body = JSON.stringify(entry.payload);
+      const useKeepalive = body.length <= 60 * 1024;
+
+      // Fire-and-forget POST — at-most-once delivery, no re-enqueue on failure.
+      fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body,
+        ...(useKeepalive ? { keepalive: true } : {}),
+      })
+        .then((response) => {
+          if (response.ok) {
+            logger.info(
+              'Successfully drained pending call report from storage',
+              {
+                callReportId: entry.callReportId,
+                callId: entry.payload.summary.callId,
+                status: response.status,
+              }
+            );
+          } else {
+            logger.error(
+              'Failed to drain pending call report from storage (non-2xx)',
+              {
+                callReportId: entry.callReportId,
+                callId: entry.payload.summary.callId,
+                status: response.status,
+              }
+            );
+          }
+        })
+        .catch((error) => {
+          logger.error(
+            'Failed to drain pending call report from storage (network error)',
+            {
+              callReportId: entry.callReportId,
+              callId: entry.payload.summary.callId,
+              error,
+            }
+          );
+        });
+    }
   }
 
   private _flushIntermediateCallReports(

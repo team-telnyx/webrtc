@@ -12,6 +12,7 @@ import {
   RECONNECTION_EXHAUSTED,
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
 } from '../util/constants';
+import { drainPendingReports } from '../util/CallReportStorage';
 
 // Mock dependencies
 jest.mock('../services/Connection');
@@ -21,6 +22,13 @@ jest.mock('../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
   setReconnectToken: jest.fn(),
   clearReconnectToken: jest.fn(),
+  getReconnectSessionId: jest.fn(() => null),
+  setReconnectSessionId: jest.fn(),
+  isReconnectSessionIdFresh: jest.fn(() => false),
+}));
+
+jest.mock('../util/CallReportStorage', () => ({
+  drainPendingReports: jest.fn(() => []),
 }));
 
 const mockTrigger = trigger as jest.MockedFunction<typeof trigger>;
@@ -627,6 +635,72 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
 
       // After onNetworkClose processes the intentional close, flag is reset
       expect(session._intentionalClose).toBe(false);
+    });
+  });
+
+  describe('call report drain on socket open', () => {
+    const mockDrainPendingReports = drainPendingReports as jest.MockedFunction<
+      typeof drainPendingReports
+    >;
+
+    beforeEach(() => {
+      mockDrainPendingReports.mockClear();
+    });
+
+    it('should drain pending reports on _onSocketOpen', async () => {
+      mockDrainPendingReports.mockReturnValue([]);
+
+      await session._onSocketOpen();
+
+      expect(mockDrainPendingReports).toHaveBeenCalledTimes(1);
+    });
+
+    it('should POST drained reports to /call_report endpoint', async () => {
+      const fetchMock = (global.fetch as jest.Mock) || jest.fn();
+      global.fetch = fetchMock;
+      fetchMock.mockResolvedValue({ ok: true, status: 200 });
+
+      mockDrainPendingReports.mockReturnValue([
+        {
+          payload: {
+            summary: {
+              callId: 'call-abc',
+              destinationNumber: '+15551234567',
+              callerNumber: '+15557654321',
+              direction: 'outbound',
+              state: 'active',
+              sdkVersion: '2.27.2-beta.1',
+              startTimestamp: '2026-06-29T23:46:12.000Z',
+            },
+            stats: [],
+          },
+          callReportId: 'report-123',
+          host: 'wss://telnyx.example.com',
+          queuedAt: Date.now(),
+        },
+      ]);
+
+      session.connection = { ...mockConnection, host: 'wss://telnyx.example.com' };
+
+      await session._onSocketOpen();
+
+      // flush microtasks for fire-and-forget fetch
+      await Promise.resolve();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, opts] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://telnyx.example.com/call_report');
+      expect(opts.method).toBe('POST');
+      expect(opts.headers['x-call-report-id']).toBe('report-123');
+      expect(opts.headers['x-call-id']).toBe('call-abc');
+    });
+
+    it('should not crash when no pending reports', async () => {
+      mockDrainPendingReports.mockReturnValue([]);
+
+      await session._onSocketOpen();
+
+      expect(mockDrainPendingReports).toHaveBeenCalledTimes(1);
     });
   });
 });
