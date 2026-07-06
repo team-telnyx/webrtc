@@ -1,10 +1,10 @@
 import { trigger } from './Handler';
-import { SwEvent } from '../util/constants';
+import { SwEvent, NETWORK_OFFLINE } from '../util/constants';
 import {
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
 } from '../util/constants/errorCodes';
-import { createTelnyxWarning } from '../util/errors';
+import { createTelnyxError, createTelnyxWarning } from '../util/errors';
 import logger from '../util/logger';
 import { getReconnectToken } from '../util/reconnect';
 import type {
@@ -78,6 +78,15 @@ export default class SignalingHealthMonitor {
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
 
+  /** True when the browser has reported going offline (navigator offline event). */
+  private _browserWasOffline: boolean = false;
+
+  /** Handler for browser 'online' event, stored for cleanup. */
+  private _onlineHandler: (() => void) | null = null;
+
+  /** Handler for browser 'offline' event, stored for cleanup. */
+  private _offlineHandler: (() => void) | null = null;
+
   /**
    * Verto method names that are critical for call control and
    * signaling liveness. Timeouts on these methods indicate the
@@ -110,6 +119,7 @@ export default class SignalingHealthMonitor {
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
 
+    this._setupBrowserListeners();
     this._intervalId = setInterval(() => this._check(), CHECK_INTERVAL_MS);
   }
 
@@ -124,6 +134,7 @@ export default class SignalingHealthMonitor {
       this._lastProbeSentAt = 0;
     }
     this._pendingMediaRecovery = null;
+    this._cleanupBrowserListeners();
     logger.debug('Signaling health: monitor stopped');
   }
 
@@ -165,7 +176,9 @@ export default class SignalingHealthMonitor {
     logger.debug('Signaling health: probe resolved by matching Ping response');
 
     if (!this._pendingMediaRecovery) {
-      logger.debug('Signaling health: probe resolved but no pending media recovery');
+      logger.debug(
+        'Signaling health: probe resolved but no pending media recovery'
+      );
       return;
     }
 
@@ -176,7 +189,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
       );
-      this._triggerIceRestart(pending.callId, pending.reason, pending.source);
+      this._triggerIceRestart(pending.callId, pending.reason);
     }
   }
 
@@ -296,6 +309,108 @@ export default class SignalingHealthMonitor {
     );
   }
 
+  // ── Browser connectivity listener lifecycle ─────────────────────────
+
+  /**
+   * Register browser `online` / `offline` event listeners on `window`.
+   *
+   * The monitor is the single owner of browser connectivity event handling.
+   * These listeners are low-confidence secondary signals — they may trigger
+   * or accelerate a signaling health probe when the monitor is running and
+   * no probe is already in flight, but they must NOT directly trigger
+   * recovery (socketDisconnect, _autoReconnect, ICE restart).
+   *
+   * - browser `offline` emits the existing `NETWORK_OFFLINE` error event for
+   *   backward compatibility/telemetry, records `_browserWasOffline` state,
+   *   and may accelerate one signaling health probe when the monitor is
+   *   running and no probe is already in flight. Signaling health is
+   *   relevant even without an active call — a session needs a healthy
+   *   WebSocket to receive new calls and registrations.
+   *   from probe/request timeout or socket evidence, not from
+   *   `navigator.onLine` alone.
+   * - browser `online` clears the browser-reported offline state for
+   *   diagnostics but does NOT trigger any recovery action.
+   *
+   * Recovery starts only from SDK-owned health evidence (probe timeout via
+   * periodic liveness check, request timeout, peer failure, no-RTP).
+   *
+   * Idempotent: if listeners are already registered, this is a no-op.
+   */
+  private _setupBrowserListeners(): void {
+    if (typeof window === 'undefined' || this._onlineHandler) {
+      return;
+    }
+
+    this._onlineHandler = () => {
+      if (this._browserWasOffline) {
+        logger.debug(
+          `Signaling health: browser online — clearing browser offline state for session ${this._session.sessionid}`
+        );
+        this._browserWasOffline = false;
+      }
+      // No recovery action. Browser online is a low-confidence signal.
+      // If recovery is needed, it must be initiated by SDK-owned health signals.
+    };
+
+    this._offlineHandler = () => {
+      this._browserWasOffline = true;
+      logger.debug(
+        `Signaling health: browser offline signal received for session ${this._session.sessionid}`
+      );
+
+      // Emit the existing NETWORK_OFFLINE error event for backward compat/telemetry.
+      const telnyxError = createTelnyxError(NETWORK_OFFLINE);
+      trigger(
+        SwEvent.Error,
+        { error: telnyxError, sessionId: this._session.sessionid },
+        this._session.uuid
+      );
+
+      // Browser offline may accelerate one signaling health probe when the
+      // monitor is running and no probe is already in flight. This is a
+      // low-confidence secondary signal — the recovery decision still comes
+      // from probe/request timeout or socket evidence, not from
+      // navigator.onLine alone. If the probe succeeds, no recovery is
+      // triggered. If the probe times out, the periodic _check() will
+      // declare signaling unhealthy and trigger recovery from SDK-owned
+      // evidence (probe timeout), not from the browser event itself.
+      //
+      // Signaling health is relevant even without an active call — a
+      // session needs a healthy WebSocket to receive new calls and
+      // registrations — so the offline hint triggers a probe regardless
+      // of whether a call is currently active.
+      if (this.isRunning) {
+        this._probeIfNeeded('browser offline signal while monitor is active');
+      }
+    };
+
+    window.addEventListener('online', this._onlineHandler);
+    window.addEventListener('offline', this._offlineHandler);
+  }
+
+  /**
+   * Remove browser `online` / `offline` event listeners from `window`.
+   *
+   * Called during `stop()` to ensure deterministic cleanup.
+   * After cleanup, browser connectivity events will no longer reach the monitor.
+   *
+   * Idempotent: if listeners are not registered, this is a no-op.
+   */
+  private _cleanupBrowserListeners(): void {
+    if (
+      typeof window === 'undefined' ||
+      !this._onlineHandler ||
+      !this._offlineHandler
+    ) {
+      return;
+    }
+
+    window.removeEventListener('online', this._onlineHandler);
+    window.removeEventListener('offline', this._offlineHandler);
+    this._onlineHandler = null;
+    this._offlineHandler = null;
+    this._browserWasOffline = false;
+  }
   /**
    * Called by BaseCall (via BaseSession.reportIceRestartFailed) when an
    * ICE restart Modify request fails — it could not be sent or the server
@@ -417,7 +532,7 @@ export default class SignalingHealthMonitor {
       logger.info(
         `Signaling health: signaling is healthy, triggering ICE restart for call ${callId}`
       );
-      this._triggerIceRestart(callId, mediaReason, signalingSource);
+      this._triggerIceRestart(callId, mediaReason);
       return;
     }
 
@@ -501,11 +616,14 @@ export default class SignalingHealthMonitor {
       );
       this._session.socketDisconnect();
     } else {
-      logger.debug('Signaling health: recovery triggered but connection not connected', {
-        connected: this._session.connection?.connected,
-        hasConnection: !!this._session.connection,
-        socketGeneration: this._session.connection?.socketGeneration,
-      });
+      logger.debug(
+        'Signaling health: recovery triggered but connection not connected',
+        {
+          connected: this._session.connection?.connected,
+          hasConnection: !!this._session.connection,
+          socketGeneration: this._session.connection?.socketGeneration,
+        }
+      );
     }
   }
 
@@ -518,11 +636,7 @@ export default class SignalingHealthMonitor {
    * @param callId The call to restart ICE on.
    * @param reason Human-readable reason for diagnostics.
    */
-  private _triggerIceRestart(
-    callId: string,
-    reason: string,
-    signalingSource: 'peer_failure' | 'no_rtp'
-  ): void {
+  private _triggerIceRestart(callId: string, reason: string): void {
     logger.info(`Signaling health: triggering ICE restart for call ${callId}`);
     const result = this._session.triggerIceRestart(callId);
 
