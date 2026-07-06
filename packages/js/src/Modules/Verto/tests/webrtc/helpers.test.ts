@@ -13,10 +13,7 @@ import {
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
-import {
-  detachMediaStream,
-  attachMediaStream,
-} from '../../util/webrtc';
+import { detachMediaStream, attachMediaStream } from '../../util/webrtc';
 import logger from '../../util/logger';
 import { register, deRegister } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
@@ -27,7 +24,12 @@ import { SHARED_REMOTE_ELEMENT_OVERWRITE } from '../../util/constants/errorCodes
  * `attachMediaStream` when a shared remoteElement is overwritten (VSUP-121).
  */
 interface ISharedRemoteElementOverwriteWarningPayload {
-  warning: { code: number; name: string; message?: string; description?: string };
+  warning: {
+    code: number;
+    name: string;
+    message?: string;
+    description?: string;
+  };
   callId?: string;
   sessionId?: string;
 }
@@ -575,7 +577,11 @@ describe('Helpers browser functions', () => {
         supported: [
           { browserName: 'Chrome', supported: 'not supported' },
           { browserName: 'Firefox', supported: 'not supported' },
-          { browserName: 'Safari', features: ['video', 'audio'], supported: 'full' },
+          {
+            browserName: 'Safari',
+            features: ['video', 'audio'],
+            supported: 'full',
+          },
           { browserName: 'Edge', supported: 'not supported' },
         ],
       },
@@ -902,7 +908,7 @@ describe('Helpers browser functions', () => {
       const warnings: ISharedRemoteElementOverwriteWarningPayload[] = [];
       const handler = (payload: ISharedRemoteElementOverwriteWarningPayload) =>
         warnings.push(payload);
-      register(SwEvent.Warning, handler, 'call-B');
+      register(SwEvent.Warning, handler, 'session-1');
 
       attachMediaStream(mockElement, newStream, {
         callId: 'call-B',
@@ -918,7 +924,7 @@ describe('Helpers browser functions', () => {
       expect(callId).toBe('call-B');
       expect(sessionId).toBe('session-1');
 
-      deRegister(SwEvent.Warning, handler, 'call-B');
+      deRegister(SwEvent.Warning, handler, 'session-1');
     });
 
     it('should NOT emit a telnyx.warning event when no context is provided (intentional local-stream replacement)', () => {
