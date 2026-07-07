@@ -855,9 +855,7 @@ export default abstract class BaseSession {
    * {@link _flushIntermediateCallReports} (which uses the per-call
    * CallReportCollector). This method handles the no-call case.
    */
-  private _submitSocketDownReport(
-    flushReason: ICallReportFlushReason
-  ): void {
+  private _submitSocketDownReport(flushReason: ICallReportFlushReason): void {
     const host = this.connection?.host ?? this.options.host;
     if (!host) {
       logger.debug(
@@ -868,10 +866,9 @@ export default abstract class BaseSession {
 
     if (!this.callReportId) {
       this.callReportId = `gen-${uuidv4()}`;
-      logger.info(
-        'Generated synthetic call_report_id for socket-down report',
-        { callReportId: this.callReportId }
-      );
+      logger.info('Generated synthetic call_report_id for socket-down report', {
+        callReportId: this.callReportId,
+      });
     }
 
     const wsUrl = new URL(host);
@@ -1069,18 +1066,25 @@ export default abstract class BaseSession {
       return;
     }
 
-    this._flushIntermediateCallReports(
-      this._createSocketCloseFlushReason(event)
-    );
-
-    // Schedule a delayed fallback: if the socket is still closed after
-    // SOCKET_CLOSE_REPORT_TIMEOUT_MS, generate a synthetic call_report_id
-    // (when the server never assigned one) and submit a session-level
-    // report so voice-sdk-debug has visibility into the outage. The SDK
-    // requires an active socket — if it's still down after 15s, report it.
-    this._scheduleSocketCloseReportWatcher(
-      this._createSocketCloseFlushReason(event)
-    );
+    // Report the socket close.
+    //
+    // On an intentional close (logout/disconnect) the socket won't reopen, so
+    // finalize any in-progress call reports immediately rather than waiting for
+    // the fallback timer. No session-level socket-down report is submitted — an
+    // intentional close is not an outage (and the watcher, if one was already
+    // scheduled, is cancelled by disconnect()).
+    //
+    // On an unintentional close (the common case: a network drop lasting more
+    // than SOCKET_CLOSE_REPORT_TIMEOUT_MS) defer entirely to the watcher: it
+    // flushes and submits only if the socket is still down after the timeout,
+    // and reports nothing if the socket reconnects first — so a transient blip
+    // doesn't prematurely finalize call reports for calls that recover.
+    const flushReason = this._createSocketCloseFlushReason(event);
+    if (this._intentionalClose) {
+      this._flushIntermediateCallReports(flushReason);
+    } else {
+      this._scheduleSocketCloseReportWatcher(flushReason);
+    }
 
     // ── Debug: WebSocket close event ──
     // Note: reconnectDelay is NOT logged here because it is a random getter
