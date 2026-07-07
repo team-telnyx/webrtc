@@ -46,9 +46,11 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <h3 class="tsd-index-heading">Accessors</h3>
 <div class="tsd-index-list"><a href="TelnyxRTC.html#connected" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-262144"><rect fill="var(--color-icon-background)" stroke="#FF4D4D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M8.85 16L11.13 7.24H12.582L14.85 16H13.758L13.182 13.672H10.53L9.954 16H8.85ZM10.746 12.76H12.954L12.282 10.06C12.154 9.548 12.054 9.12 11.982 8.776C11.91 8.432 11.866 8.208 11.85 8.104C11.834 8.208 11.79 8.432 11.718 8.776C11.646 9.12 11.546 9.544 11.418 10.048L10.746 12.76Z" fill="var(--color-text)"></path></g></svg><span>connected</span></a>
 <a href="TelnyxRTC.html#localElement" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a>
+<a href="TelnyxRTC.html#localElementId" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element<wbr/>Id</span></a>
 <a href="TelnyxRTC.html#mediaConstraints" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a>
 <a href="TelnyxRTC.html#reconnectDelay" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>reconnect<wbr/>Delay</span></a>
 <a href="TelnyxRTC.html#remoteElement" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element</span></a>
+<a href="TelnyxRTC.html#remoteElementId" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element<wbr/>Id</span></a>
 <a href="TelnyxRTC.html#speaker" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>speaker</span></a>
 </div></section>
 <section class="tsd-index-section">
@@ -177,6 +179,20 @@ configuration (Inbound tab.)</p>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.localElement</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="localElementId" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>local<wbr/>Element<wbr/>Id</span><a href="#localElementId" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature" id="localElementId.localElementId-1"><span class="tsd-signature-symbol">get</span> localElementId<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>The original string id supplied via the session-level <code>localElement</code>
+setter (e.g. <code>client.localElement = &#39;localMediaId&#39;</code>), or <code>null</code> when the
+caller supplied a DOM element, a Function resolver, or nothing. Exposed
+so the active-calls recovery marker can persist the session-level
+element id for calls that rely on the session-level default (VSDK-408).</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.localElementId</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="mediaConstraints" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>media<wbr/>Constraints</span><a href="#mediaConstraints" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -230,6 +246,13 @@ not merely on socket open.</p>
 <li class="tsd-signature" id="remoteElement.remoteElement-2"><span class="tsd-signature-symbol">set</span> remoteElement<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">tag</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
 <li class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Sets the remote html element that will receive the remote stream.</p>
+<p>This is the session-level default: any call that does not specify its own
+<code>remoteElement</code> falls back to this element. Note that the session-level
+element is shared across calls (last-writer-wins), so for concurrent calls
+in one client session you should assign a distinct <code>remoteElement</code> per call
+via <code>client.newCall({ remoteElement })</code> (outbound) or
+<code>call.answer({ remoteElement })</code> (inbound). See the README &quot;Per-call
+remoteElement&quot; section.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -242,6 +265,21 @@ not merely on socket open.</p>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.remoteElement</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="remoteElementId" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>remote<wbr/>Element<wbr/>Id</span><a href="#remoteElementId" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature" id="remoteElementId.remoteElementId-1"><span class="tsd-signature-symbol">get</span> remoteElementId<span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>The original string id supplied via the session-level <code>remoteElement</code>
+setter (e.g. <code>client.remoteElement = &#39;remoteMediaId&#39;</code>), or <code>null</code> when
+the caller supplied a DOM element, a Function resolver, or nothing.
+Mirrors <a href="TelnyxRTC.html#localElementId" class="tsd-kind-accessor">localElementId</a>: exposed for the recovery marker so a
+call relying on the session-level default can be restored by id after a
+page reload (VSDK-408).</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.remoteElementId</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="speaker" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>speaker</span><a href="#speaker" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1098,9 +1136,11 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#callReportVoiceSdkId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>call<wbr/>Report<wbr/>Voice<wbr/>Sdk<wbr/>Id</span></a></li>
 <li><a href="#connected" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>connected</span></a></li>
 <li><a href="#localElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a></li>
+<li><a href="#localElementId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element<wbr/>Id</span></a></li>
 <li><a href="#mediaConstraints" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a></li>
 <li><a href="#reconnectDelay" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>reconnect<wbr/>Delay</span></a></li>
 <li><a href="#remoteElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element</span></a></li>
+<li><a href="#remoteElementId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>remote<wbr/>Element<wbr/>Id</span></a></li>
 <li><a href="#speaker" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>speaker</span></a></li>
 <li><a href="#_terminateActiveCallsLocally" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>_terminate<wbr/>Active<wbr/>Calls<wbr/>Locally</span></a></li>
 <li><a href="#checkPermissions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>check<wbr/>Permissions</span></a></li>
