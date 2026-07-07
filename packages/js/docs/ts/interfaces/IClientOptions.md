@@ -6,10 +6,16 @@ IClientOptions
 ### Properties
 
 - [anonymous_login](#anonymous_login)
+- [callRecordingEndpoint](#callrecordingendpoint)
+- [callRecordingFlushIntervalMs](#callrecordingflushintervalms)
+- [callRecordingMaxBufferBytes](#callrecordingmaxbufferbytes)
+- [callRecordingSampleRate](#callrecordingsamplerate)
+- [callRecordingTracks](#callrecordingtracks)
 - [callReportFlushInterval](#callreportflushinterval)
 - [callReportInterval](#callreportinterval)
 - [debug](#debug)
 - [debugOutput](#debugoutput)
+- [enableCallRecording](#enablecallrecording)
 - [enableCallReports](#enablecallreports)
 - [env](#env)
 - [forceRelayCandidate](#forcerelaycandidate)
@@ -49,6 +55,93 @@ anonymous_login login options
 | `target_params?`     | [`TargetParams`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/targetparams) | Optional parameters to pass to the target. These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE. Use `target_params.conversation_id` only to join an existing Telnyx AI conversation; omit it to start a new conversation. **`See`** [TargetParams](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/targetparams) |
 | `target_type`        | `string`                                                                                          | A string indicating the target type, for now only `ai_assistant` is supported.                                                                                                                                                                                                                                                                                        |
 | `target_version_id?` | `string`                                                                                          | The target version ID to use for the anonymous login. This is optional and can be used to specify a particular version of the AI assistant.                                                                                                                                                                                                                           |
+
+---
+
+### callRecordingEndpoint
+
+• `Optional` **callRecordingEndpoint**: `string`
+
+Endpoint path (relative to the SDK connection host) where recording
+payloads are POSTed. Defaults to `/call_recording`, which voice-sdk-proxy
+forwards to voice-sdk-debug. Override only if pointing at a custom
+recording endpoint.
+
+**`Default`**
+
+```ts
+'/call_recording';
+```
+
+---
+
+### callRecordingFlushIntervalMs
+
+• `Optional` **callRecordingFlushIntervalMs**: `number`
+
+Interval in milliseconds between intermediate call-recording flushes.
+Every interval the recorder POSTs its buffered RTP packets to the
+`/call_recording` endpoint and clears the buffer. A final flush at end of
+call submits the tail. Set to a value small enough that one interval of
+audio (at the configured sample rate) stays below
+`callRecordingMaxBufferBytes`.
+
+**`Default`**
+
+```ts
+240000 (4 minutes)
+```
+
+---
+
+### callRecordingMaxBufferBytes
+
+• `Optional` **callRecordingMaxBufferBytes**: `number`
+
+Hard cap in bytes on the in-memory call-recording packet buffer. On
+overflow the recorder drops the oldest packets and emits a
+`RECORDING_BUFFER_OVERFLOW` warning (once per flush window) so memory
+stays bounded regardless of call length.
+
+**`Default`**
+
+```ts
+8000000 (8 MB)
+```
+
+---
+
+### callRecordingSampleRate
+
+• `Optional` **callRecordingSampleRate**: `number`
+
+Sample rate (Hz) advertised in the recording envelope sent to
+voice-sdk-debug. The captured Float32 PCM frames carry the track's
+actual sample rate; this value is what the server uses to interpret the
+payload. 48 kHz is the typical WebRTC audio track rate.
+
+**`Default`**
+
+```ts
+48000;
+```
+
+---
+
+### callRecordingTracks
+
+• `Optional` **callRecordingTracks**: (`"local"` \| `"remote"`)[]
+
+Which audio tracks to record. `local` is the outbound (microphone) track,
+`remote` is the inbound (remote party) track. By default both are
+recorded so a single `.pcap` captures both directions for full
+audio-quality diagnosis.
+
+**`Default`**
+
+```ts
+['local', 'remote'];
+```
 
 ---
 
@@ -97,6 +190,40 @@ This will gather WebRTC debugging information.
 • `Optional` **debugOutput**: `"file"` \| `"socket"`
 
 Debug output option
+
+---
+
+### enableCallRecording
+
+• `Optional` **enableCallRecording**: `boolean`
+
+Enable client-side call recording of the raw audio payload (depacketized
+PCM) flowing through the active WebRTC audio tracks. When enabled, the SDK
+captures PCM via `MediaStreamTrackProcessor` (Chromium-only), synthesizes
+RTP packets, buffers them with a bounded in-memory ring buffer, and
+submits intermediate flushes every `callRecordingFlushIntervalMs` plus a
+final flush at end of call. Recordings are stored as `.pcap` files by
+voice-sdk-debug for Wireshark-based audio-quality diagnosis.
+
+**Browser support:** Requires `MediaStreamTrackProcessor` (Chrome 94+,
+Edge 94+). Firefox and Safari are NOT supported — on those browsers the
+recorder logs a single `RECORDING_UNAVAILABLE` warning and no-ops for the
+rest of the call; the call itself is never affected.
+
+**Privacy / consent:** Recording audio on the client requires user
+consent by law in most jurisdictions. The SDK does NOT request consent —
+applications that enable recording are responsible for the consent flow.
+
+**CPU cost:** Two `MediaStreamTrackProcessor` instances per call add
+measurable CPU on lower-end devices. Recording is off by default; set
+`enableCallRecording: true` to opt in for deployments that need
+diagnostic recordings.
+
+**`Default`**
+
+```ts
+false;
+```
 
 ---
 

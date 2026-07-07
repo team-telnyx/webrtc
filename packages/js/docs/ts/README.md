@@ -14,6 +14,7 @@
 
 ### Other Classes
 
+- [CallRecorder](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/CallRecorder.md)
 - [PreCallDiagnosis](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/PreCallDiagnosis.md)
 
 ### Notification Interfaces
@@ -24,10 +25,14 @@
 
 - [ICallEstablishmentTimings](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
 - [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
+- [ICallRecordingContext](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingContext.md)
+- [ICallRecordingEnvelope](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingEnvelope.md)
+- [ICallRecordingOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingOptions.md)
 - [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
 - [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
 - [ILocalAudioSourceStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioSourceStats.md)
 - [ILocalAudioTrackSnapshot](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioTrackSnapshot.md)
+- [IRecordingPacket](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IRecordingPacket.md)
 - [ITransportStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ITransportStats.md)
 - [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
 - [PreCallDiagnosisOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md)
@@ -45,6 +50,13 @@
 - [FunctionCallOutputItem](#functioncalloutputitem)
 - [IAIConversationMessageEvent](#iaiconversationmessageevent)
 - [ISendAIConversationMessageOptions](#isendaiconversationmessageoptions)
+- [RecordingTrackKind](#recordingtrackkind)
+
+### Variables
+
+- [DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS](#default_call_recording_flush_interval_ms)
+- [DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES](#default_call_recording_max_buffer_bytes)
+- [DEFAULT_CALL_RECORDING_SAMPLE_RATE](#default_call_recording_sample_rate)
 
 ### Functions
 
@@ -155,16 +167,70 @@ Represents an inbound `ai_conversation` JSON-RPC message from the backend.
 
 ### ISendAIConversationMessageOptions
 
-Ƭ **ISendAIConversationMessageOptions**: `Object`
+Ƭ **ISendAIConversationMessageOptions**: [`FunctionCallOutputItem`](#functioncalloutputitem)
 
-Options for `sendAIConversationMessage()`.
-Used to send a `function_call_output` back to the backend.
+Argument accepted by `call.sendAIConversationMessage()`: the
+`function_call_output` item to send back to the backend. Alias of
+[FunctionCallOutputItem](#functioncalloutputitem), kept as a named export so callers can refer
+to the method's parameter type directly.
 
-#### Type declaration
+---
 
-| Name   | Type                                                | Description                       |
-| :----- | :-------------------------------------------------- | :-------------------------------- |
-| `item` | [`FunctionCallOutputItem`](#functioncalloutputitem) | The function call output to send. |
+### RecordingTrackKind
+
+Ƭ **RecordingTrackKind**: `"local"` \| `"remote"`
+
+Which audio track a packet belongs to.
+
+## Variables
+
+### DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
+
+• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `240000`
+
+Default interval (ms) between intermediate call-recording flushes.
+The recorder POSTs buffered RTP packets to /call_recording on this cadence
+so long calls do not buffer unbounded packet data in memory. A final flush
+at end of call submits the tail.
+
+**`Default`**
+
+```ts
+240000 (4 minutes)
+```
+
+---
+
+### DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES
+
+• `Const` **DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES**: `8000000`
+
+Default hard cap (bytes) on the in-memory call-recording packet buffer.
+On overflow the recorder drops the oldest packets and emits a
+RECORDING_BUFFER_OVERFLOW warning (once per flush window).
+
+**`Default`**
+
+```ts
+8_000_000 (8 MB)
+```
+
+---
+
+### DEFAULT_CALL_RECORDING_SAMPLE_RATE
+
+• `Const` **DEFAULT_CALL_RECORDING_SAMPLE_RATE**: `48000`
+
+Default sample rate (Hz) advertised in the recording envelope. The
+captured Float32 PCM frames already carry the track's actual sample rate;
+this is the value reported to voice-sdk-debug so it can interpret the
+payload. 48 kHz is the typical WebRTC audio track rate.
+
+**`Default`**
+
+```ts
+48000;
+```
 
 ## Functions
 

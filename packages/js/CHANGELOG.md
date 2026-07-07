@@ -1,3 +1,35 @@
+## [2.27.4-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.2) (2026-07-07)
+
+- chore: release webrtc@2.27.4-beta.1 (#727)
+- feat(js): default enableCallRecording to false (opt-in)
+- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
+- fix(call-recorder): enable recording by default
+- fix(call-recorder): preserve buffer in _finalize so postFinalReport can drain (VSDK-279)
+- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
+- refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
+- feat(VSUP-122): scoped inbound answer blocking per callID (#724)
+- feat: add AI conversation signaling API for client-side tools (#682)
+- feat(js): flush call report on beforeunload (keepalive) (#718)
+- chore: release webrtc@2.27.3 (#719)
+- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
+- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
+- chore: release webrtc@2.27.2 (#716)
+- chore: release webrtc@2.27.2-beta.1 (#712)
+## [2.27.4-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.1) (2026-07-03)
+
+- docs: update ts docs
+- feat(js): default enableCallRecording to false (opt-in)
+- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
+- fix(call-recorder): enable recording by default
+- fix(call-recorder): preserve buffer in _finalize so postFinalReport can drain (VSDK-279)
+- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
+- feat: add AI conversation signaling API for client-side tools (#682)
+- feat(js): flush call report on beforeunload (keepalive) (#718)
+- chore: release webrtc@2.27.3 (#719)
+- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
+- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
+- chore: release webrtc@2.27.2 (#716)
+- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.4-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.0) (2026-07-01)
 
 - docs: update ts docs

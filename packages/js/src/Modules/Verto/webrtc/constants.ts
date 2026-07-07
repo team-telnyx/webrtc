@@ -49,6 +49,32 @@ export const ERROR_TYPE = {
   invalidCredentialsOptions: 'InvalidCredentialsOptions',
 };
 
+/**
+ * Default interval (ms) between intermediate call-recording flushes.
+ * The recorder POSTs buffered RTP packets to /call_recording on this cadence
+ * so long calls do not buffer unbounded packet data in memory. A final flush
+ * at end of call submits the tail.
+ * @default 240000 (4 minutes)
+ */
+export const DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS = 240_000;
+
+/**
+ * Default hard cap (bytes) on the in-memory call-recording packet buffer.
+ * On overflow the recorder drops the oldest packets and emits a
+ * RECORDING_BUFFER_OVERFLOW warning (once per flush window).
+ * @default 8_000_000 (8 MB)
+ */
+export const DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES = 8_000_000;
+
+/**
+ * Default sample rate (Hz) advertised in the recording envelope. The
+ * captured Float32 PCM frames already carry the track's actual sample rate;
+ * this is the value reported to voice-sdk-debug so it can interpret the
+ * payload. 48 kHz is the typical WebRTC audio track rate.
+ * @default 48000
+ */
+export const DEFAULT_CALL_RECORDING_SAMPLE_RATE = 48000;
+
 export const DEFAULT_CALL_OPTIONS: IVertoCallOptions = {
   destinationNumber: '',
   remoteCallerName: 'Outbound Call',
