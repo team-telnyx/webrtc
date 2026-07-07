@@ -146,15 +146,31 @@ export interface PreCallIceCandidateCounts {
 
 /**
  * Metadata about a single ICE candidate, extracted from RTCStatsReport.
+ *
+ * Each gathered local candidate is reported with full information so the
+ * diagnostic can explain the host's network topology (interface count,
+ * private/public addresses, VPN tunnel adapters, relay usage).
  */
 export interface PreCallIceCandidateInfo {
   /** Stats report ID for this candidate. */
   id?: string;
+  /**
+   * Candidate address as reported by the browser.
+   * Chromium exposes this as `address`, Firefox as `ip`; the module
+   * normalizes both into this field. May be omitted by the browser.
+   */
+  address?: string;
+  /** Candidate port. */
+  port?: number;
   /** Candidate type: host, srflx, prflx, relay, or a custom string. */
   candidateType?: 'host' | 'srflx' | 'prflx' | 'relay' | string;
   /** Transport protocol (e.g., 'udp', 'tcp'). */
   protocol?: string;
-  /** Network type as reported by the browser (e.g., 'wifi', 'cellular', 'ethernet'). */
+  /**
+   * Network type as reported by the browser (e.g., 'wifi', 'cellular',
+   * 'ethernet', 'vpn', 'unknown'). `vpn` is reported by Chromium when a VPN
+   * is active. May be absent in some browsers (notably Firefox).
+   */
   networkType?: string;
   /** Relay protocol when candidateType is 'relay' (e.g., 'turn', 'turns'). */
   relayProtocol?: string;
@@ -201,10 +217,35 @@ export interface PreCallIceReport {
   candidateCounts: PreCallIceCandidateCounts;
   /** Unique local candidate types, sorted alphabetically. */
   candidateTypes: string[];
+  /**
+   * Full information for every gathered local candidate, in the order
+   * reported by the browser. Empty array when no local candidates were
+   * gathered. Provided so callers can inspect the host's network topology
+   * (interface count, private/public addresses, VPN tunnel adapters).
+   */
+  candidates: PreCallIceCandidateInfo[];
   /** Whether at least one relay candidate was gathered. */
   hasRelayCandidate: boolean;
   /** Whether all gathered candidates are host-type only. */
   onlyHostCandidates: boolean;
+  /**
+   * Whether the host appears to have multiple enabled network interfaces.
+   * Detected by counting distinct host-candidate addresses (private IPs).
+   * True only when two or more distinct host candidate addresses are
+   * observed. Undefined when host candidate addresses are unavailable.
+   */
+  hasMultipleNetworkInterfaces?: boolean;
+  /**
+   * Whether a VPN appears to be active on the host.
+   * Primary signal: a local candidate with `networkType === 'vpn'`
+   * (Chromium reports this). Heuristic fallback (for browsers that do not
+   * report networkType, e.g. Firefox): host candidates spanning multiple
+   * distinct private subnets (e.g. a 192.168.x physical interface and a
+   * 10.x VPN tunnel adapter). A single private subnet with srflx/relay
+   * candidates is ordinary NAT traversal, not a VPN.
+   * Undefined when not enough information is available to decide.
+   */
+  vpnDetected?: boolean;
   /** Whether a selected ICE candidate pair was found. */
   hasSelectedPair: boolean;
   /** Details about the selected candidate pair, if found. */

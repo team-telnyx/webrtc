@@ -15,9 +15,7 @@
  */
 
 import { buildPreCallIceReport } from './ice';
-import type {
-  PreCallDiagnosticContext,
-} from '../context';
+import type { PreCallDiagnosticContext } from '../context';
 import type Call from '../../Modules/Verto/webrtc/Call';
 
 // --- Mock helpers ---
@@ -36,9 +34,19 @@ function makeStatsReport(
     }
   }
   return {
-    forEach: (callback: (report: RTCStats, id: string, collection: RTCStatsReport) => void) => {
+    forEach: (
+      callback: (
+        report: RTCStats,
+        id: string,
+        collection: RTCStatsReport
+      ) => void
+    ) => {
       map.forEach((value, key) => {
-        callback(value as unknown as RTCStats, key, map as unknown as RTCStatsReport);
+        callback(
+          value as unknown as RTCStats,
+          key,
+          map as unknown as RTCStatsReport
+        );
       });
     },
     get: (id: string) => map.get(id) as unknown as RTCStats | undefined,
@@ -62,11 +70,13 @@ function createMockPeerConnection(overrides: {
   const pc = {
     getStats: overrides.getStatsReject
       ? jest.fn().mockRejectedValue(overrides.getStatsReject)
-      : jest.fn().mockResolvedValue(
-          overrides.getStatsResult instanceof Function
-            ? overrides.getStatsResult()
-            : overrides.getStatsResult ?? makeStatsReport([])
-        ),
+      : jest
+          .fn()
+          .mockResolvedValue(
+            overrides.getStatsResult instanceof Function
+              ? overrides.getStatsResult()
+              : (overrides.getStatsResult ?? makeStatsReport([]))
+          ),
     iceGatheringState: overrides.iceGatheringState ?? 'complete',
     iceConnectionState: overrides.iceConnectionState ?? 'connected',
   } as unknown as RTCPeerConnection;
@@ -78,9 +88,7 @@ function createMockPeerConnection(overrides: {
  * Uses the real runtime shape: `peer.instance` instead of the
  * old `peerConnection` property.
  */
-function createMockCall(
-  peerConnection?: RTCPeerConnection
-): Call {
+function createMockCall(peerConnection?: RTCPeerConnection): Call {
   return {
     id: 'test-call-id',
     hangup: jest.fn().mockResolvedValue(undefined),
@@ -97,7 +105,9 @@ function createContext(overrides: {
 }): PreCallDiagnosticContext {
   return {
     options: {
-      client: { newCall: jest.fn() } as unknown as import('../../TelnyxRTC').TelnyxRTC,
+      client: {
+        newCall: jest.fn(),
+      } as unknown as import('../../TelnyxRTC').TelnyxRTC,
       destinationNumber: '1234',
     },
     statsSamples: [],
@@ -593,7 +603,10 @@ describe('buildPreCallIceReport', () => {
     });
 
     it('returns undefined when peer.instance.getStats is not a function', async () => {
-      const pc = { iceGatheringState: 'new', iceConnectionState: 'new' } as unknown as RTCPeerConnection;
+      const pc = {
+        iceGatheringState: 'new',
+        iceConnectionState: 'new',
+      } as unknown as RTCPeerConnection;
       const context = createContext({ call: createMockCall(pc) });
 
       const report = await buildPreCallIceReport(context);
@@ -751,6 +764,348 @@ describe('buildPreCallIceReport', () => {
       const report = await buildPreCallIceReport(context);
 
       expect(report).toBeUndefined();
+    });
+  });
+
+  describe('full candidate information', () => {
+    it('reports full information for every gathered local candidate', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+          port: 50000,
+          networkType: 'wifi',
+        },
+        {
+          id: 'lc-srflx-1',
+          type: 'local-candidate',
+          candidateType: 'srflx',
+          protocol: 'udp',
+          address: '203.0.113.5',
+          port: 50001,
+          url: 'stun:stun.example.com:3478',
+        },
+        {
+          id: 'lc-relay-1',
+          type: 'local-candidate',
+          candidateType: 'relay',
+          protocol: 'udp',
+          address: '198.51.100.7',
+          port: 50002,
+          relayProtocol: 'turn',
+          url: 'turn:turn.example.com:3478?transport=udp',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.candidates).toHaveLength(3);
+      // Host candidate with full info
+      expect(report!.candidates[0]).toEqual({
+        id: 'lc-host-1',
+        address: '192.168.1.10',
+        port: 50000,
+        candidateType: 'host',
+        protocol: 'udp',
+        networkType: 'wifi',
+        relayProtocol: undefined,
+        url: undefined,
+      });
+      // srflx candidate
+      expect(report!.candidates[1]).toEqual({
+        id: 'lc-srflx-1',
+        address: '203.0.113.5',
+        port: 50001,
+        candidateType: 'srflx',
+        protocol: 'udp',
+        networkType: undefined,
+        relayProtocol: undefined,
+        url: 'stun:stun.example.com:3478',
+      });
+      // relay candidate
+      expect(report!.candidates[2]).toEqual({
+        id: 'lc-relay-1',
+        address: '198.51.100.7',
+        port: 50002,
+        candidateType: 'relay',
+        protocol: 'udp',
+        networkType: undefined,
+        relayProtocol: 'turn',
+        url: 'turn:turn.example.com:3478?transport=udp',
+      });
+    });
+
+    it('normalizes Firefox `ip` field into `address`', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          // Firefox exposes `ip` instead of `address`
+          ip: '192.168.1.20',
+          port: 50100,
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.candidates).toHaveLength(1);
+      expect(report!.candidates[0].address).toBe('192.168.1.20');
+      expect(report!.candidates[0].port).toBe(50100);
+    });
+
+    it('returns empty candidates array when no local candidates gathered', async () => {
+      const stats = makeStatsReport([]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.candidates).toEqual([]);
+    });
+
+    it('does not include remote candidates in the candidates list', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'rc-host-1',
+          type: 'remote-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '10.0.0.5',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.candidates).toHaveLength(1);
+      expect(report!.candidates[0].id).toBe('lc-host-1');
+    });
+  });
+
+  describe('multiple network interfaces detection', () => {
+    it('detects multiple interfaces from distinct host candidate addresses', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-wifi',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'lc-host-eth',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.11',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.hasMultipleNetworkInterfaces).toBe(true);
+    });
+
+    it('reports single interface when only one host address', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'lc-host-1-dup',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'tcp',
+          address: '192.168.1.10', // same address, different protocol
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.hasMultipleNetworkInterfaces).toBe(false);
+    });
+
+    it('leaves hasMultipleNetworkInterfaces undefined when host addresses absent', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          // no address/ip
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.hasMultipleNetworkInterfaces).toBeUndefined();
+    });
+  });
+
+  describe('VPN detection', () => {
+    it('detects VPN from browser-reported networkType === vpn', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+          networkType: 'vpn',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBe(true);
+    });
+
+    it('detects VPN from multiple distinct private subnets (heuristic)', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-physical',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10', // 192.168.x subnet
+        },
+        {
+          id: 'lc-host-vpn',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '10.8.0.2', // 10.x subnet — VPN tunnel adapter
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBe(true);
+    });
+
+    it('does NOT flag VPN for ordinary NAT traversal (single private subnet + srflx)', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'lc-srflx-1',
+          type: 'local-candidate',
+          candidateType: 'srflx',
+          protocol: 'udp',
+          address: '203.0.113.5',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBe(false);
+    });
+
+    it('does NOT flag VPN for single private subnet + relay', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'lc-relay-1',
+          type: 'local-candidate',
+          candidateType: 'relay',
+          protocol: 'udp',
+          address: '198.51.100.7',
+          relayProtocol: 'turn',
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBe(false);
+    });
+
+    it('leaves vpnDetected undefined when host candidate addresses absent', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          // no address
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBeUndefined();
+    });
+
+    it('does not flag VPN when host candidates are on the same private subnet', async () => {
+      const stats = makeStatsReport([
+        {
+          id: 'lc-host-1',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'udp',
+          address: '192.168.1.10',
+        },
+        {
+          id: 'lc-host-2',
+          type: 'local-candidate',
+          candidateType: 'host',
+          protocol: 'tcp',
+          address: '192.168.1.11', // same /24 subnet
+        },
+      ]);
+      const pc = createMockPeerConnection({ getStatsResult: stats });
+      const context = createContext({ call: createMockCall(pc) });
+
+      const report = await buildPreCallIceReport(context);
+
+      expect(report!.vpnDetected).toBe(false);
     });
   });
 });
