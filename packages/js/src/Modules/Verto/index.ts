@@ -100,9 +100,28 @@ export default class Verto extends BrowserSession {
             // document.getElementById.
             if (typeof call.options.remoteElement === 'string') {
               stored.remoteElement = call.options.remoteElement;
+            } else if (
+              // VSDK-408: a call that relies on the session-level
+              // `client.remoteElement` default inherits the *resolved* DOM
+              // element (the session setter resolves string→HTML immediately),
+              // so `typeof === 'string'` is false and the session-level id was
+              // silently dropped. Fall back to the session-level string id
+              // when the call's element is the session default (same
+              // reference) and the session captured a string id. A call with
+              // a per-call DOM/Function element is NOT the session default, so
+              // it is intentionally skipped (no stable id to persist).
+              this.remoteElementId &&
+              call.options.remoteElement === this.remoteElement
+            ) {
+              stored.remoteElement = this.remoteElementId;
             }
             if (typeof call.options.localElement === 'string') {
               stored.localElement = call.options.localElement;
+            } else if (
+              this.localElementId &&
+              call.options.localElement === this.localElement
+            ) {
+              stored.localElement = this.localElementId;
             }
             return stored;
           });

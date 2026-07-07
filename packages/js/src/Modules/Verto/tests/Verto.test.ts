@@ -247,6 +247,134 @@ describe('Verto', () => {
       clearActiveCallsRecoveryMarker();
     });
 
+    it('should persist the session-level remoteElement/localElement string id in the recovery marker when a call relies on the session default (VSDK-408)', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      telnyxRTC.sessionid = 'session-vsdk-408';
+
+      // Set the session-level remoteElement to a STRING id (the EnrollHere
+      // pattern: `client.remoteElement = 'remoteMedia'`). The setter resolves
+      // it to a DOM element immediately, but VSDK-408 preserves the original
+      // string id so the recovery marker can persist it.
+      const remoteEl = document.createElement('audio');
+      remoteEl.id = 'session-remote-id';
+      document.getElementById = jest.fn().mockReturnValue(remoteEl);
+      telnyxRTC.remoteElement = 'session-remote-id';
+      // Sanity: the setter resolved the string to the DOM element.
+      expect(telnyxRTC.remoteElement).toBe(remoteEl);
+      // VSDK-408: the original string id is preserved alongside the resolved
+      // element.
+      expect(telnyxRTC.remoteElementId).toBe('session-remote-id');
+
+      // Same for localElement.
+      const localEl = document.createElement('video');
+      localEl.id = 'session-local-id';
+      // Override the mock to return the local element for the next
+      // getElementById call.
+      document.getElementById = jest.fn().mockReturnValue(localEl);
+      telnyxRTC.localElement = 'session-local-id';
+      expect(telnyxRTC.localElement).toBe(localEl);
+      expect(telnyxRTC.localElementId).toBe('session-local-id');
+
+      // A call that relies on the session-level default inherits the RESOLVED
+      // DOM element (not the string). Before VSDK-408 this meant the marker's
+      // `typeof === 'string'` check silently dropped the session-level id.
+      const sessionRemote = telnyxRTC.remoteElement;
+      const sessionLocal = telnyxRTC.localElement;
+      telnyxRTC.calls = {
+        'call-session-default': {
+          id: 'call-session-default',
+          hangup: jest.fn(),
+          state: 'active',
+          options: {
+            // The call's remoteElement/localElement are the resolved DOM
+            // elements copied from the session-level default (same reference).
+            remoteElement: sessionRemote,
+            localElement: sessionLocal,
+            customHeaders: undefined,
+          },
+        } as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      const result = getActiveCallsRecoveryMarker();
+      expect(result).not.toBeNull();
+      const m = result!.calls.find((c) => c.id === 'call-session-default');
+      expect(m).toBeDefined();
+      // VSDK-408: the session-level string id is persisted even though the
+      // call's remoteElement is the resolved DOM element.
+      expect(m!.remoteElement).toBe('session-remote-id');
+      expect(m!.localElement).toBe('session-local-id');
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should NOT fall back to the session-level id when the call has a distinct per-call DOM remoteElement (VSDK-408)', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      telnyxRTC.sessionid = 'session-vsdk-408-distinct';
+
+      // Session-level remoteElement is a string.
+      const remoteEl = document.createElement('audio');
+      remoteEl.id = 'session-remote-id-2';
+      document.getElementById = jest.fn().mockReturnValue(remoteEl);
+      telnyxRTC.remoteElement = 'session-remote-id-2';
+
+      // A per-call DOM element that is NOT the session default (different
+      // reference). The fallback must NOT apply — there is no stable string id
+      // for a per-call DOM element, and persisting the session-level id would
+      // restore the WRONG element after a reload.
+      const perCallDomElement = document.createElement('audio');
+      telnyxRTC.calls = {
+        'call-per-call-dom': {
+          id: 'call-per-call-dom',
+          hangup: jest.fn(),
+          state: 'active',
+          options: {
+            remoteElement: perCallDomElement,
+            customHeaders: undefined,
+          },
+        } as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      const result = getActiveCallsRecoveryMarker();
+      expect(result).not.toBeNull();
+      const m = result!.calls.find((c) => c.id === 'call-per-call-dom');
+      expect(m).toBeDefined();
+      // No string id persisted for a per-call DOM element — the fallback did
+      // NOT fire because the reference differs from the session default.
+      expect(m!.remoteElement).toBeUndefined();
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
     it('should clear any stale recovery marker when hangupOnBeforeUnload is false and there are no active calls', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
