@@ -1025,6 +1025,249 @@ describe('Call', () => {
     });
   });
 
+  describe('answer() per-call element override (VSUP-121)', () => {
+    let initSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      // Prevent real RTCPeerConnection setup so answer() completes in tests.
+      initSpy = jest
+        .spyOn(Peer.prototype, 'init')
+        .mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+      initSpy.mockRestore();
+      jest.restoreAllMocks();
+    });
+
+    it('should override remoteElement from answer() params', async () => {
+      // Purge the default call so only the inbound call exists (avoids the
+      // duplicate-answer guard from VSUP-122, which is out of scope here).
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      const remoteElementA = document.createElement('audio');
+      const inbound = new Call(session, {
+        ...defaultParams,
+        id: 'answer-override-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      inbound.direction = Direction.Inbound;
+      inbound.setState(State.Ringing);
+
+      await inbound.answer({ remoteElement: remoteElementA });
+
+      // The per-call remoteElement passed to answer() must land on this.options
+      expect(inbound.options.remoteElement).toBe(remoteElementA);
+
+      await inbound.hangup({}, false);
+    });
+
+    it('should override localElement from answer() params', async () => {
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      const localElementA = document.createElement('audio');
+      const inbound = new Call(session, {
+        ...defaultParams,
+        id: 'answer-override-local-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      inbound.direction = Direction.Inbound;
+      inbound.setState(State.Ringing);
+
+      await inbound.answer({ localElement: localElementA });
+
+      expect(inbound.options.localElement).toBe(localElementA);
+
+      await inbound.hangup({}, false);
+    });
+
+    it('should override both remoteElement and localElement from answer() params', async () => {
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      const remoteElementB = document.createElement('video');
+      const localElementB = document.createElement('video');
+      const inbound = new Call(session, {
+        ...defaultParams,
+        id: 'answer-override-both-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      inbound.direction = Direction.Inbound;
+      inbound.setState(State.Ringing);
+
+      await inbound.answer({
+        remoteElement: remoteElementB,
+        localElement: localElementB,
+      });
+
+      expect(inbound.options.remoteElement).toBe(remoteElementB);
+      expect(inbound.options.localElement).toBe(localElementB);
+
+      await inbound.hangup({}, false);
+    });
+
+    it('should fall back to existing options.remoteElement when answer() omits it (backward compat)', async () => {
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      // Pre-set a remoteElement on the call (simulating session-level default
+      // applied at construction via newCall).
+      const sessionDefaultElement = document.createElement('audio');
+      const inbound = new Call(session, {
+        ...defaultParams,
+        id: 'answer-no-override-call',
+        remoteElement: sessionDefaultElement,
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      inbound.direction = Direction.Inbound;
+      inbound.setState(State.Ringing);
+
+      // answer() with no element params — must keep the pre-existing element
+      await inbound.answer({});
+
+      expect(inbound.options.remoteElement).toBe(sessionDefaultElement);
+
+      await inbound.hangup({}, false);
+    });
+
+    it('should not mutate options when answer() params omit both elements', async () => {
+      call.setState(State.Purge);
+      delete session.calls[call.id];
+
+      const inbound = new Call(session, {
+        ...defaultParams,
+        id: 'answer-omits-elements-call',
+        remoteSdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n',
+      });
+      inbound.direction = Direction.Inbound;
+      inbound.setState(State.Ringing);
+
+      const optionsBefore = { ...inbound.options };
+
+      await inbound.answer({ customHeaders: [{ name: 'X-Test', value: '1' }] });
+
+      // Elements unchanged (undefined stays undefined — no spurious override)
+      expect(inbound.options.remoteElement).toBe(optionsBefore.remoteElement);
+      expect(inbound.options.localElement).toBe(optionsBefore.localElement);
+      // customHeaders still applied (proves the merge block before ours ran)
+      expect(inbound.options.customHeaders).toEqual([
+        { name: 'X-Test', value: '1' },
+      ]);
+
+      await inbound.hangup({}, false);
+    });
+  });
+
+  describe('newCall per-call element (VSUP-121)', () => {
+    it('should set remoteElement per-call from new Call() options', () => {
+      const remoteElement = document.createElement('audio');
+      const perCall = new Call(session, {
+        ...defaultParams,
+        id: 'newcall-remote-element',
+        remoteElement,
+      });
+      // BaseCall constructor spreads options at construction, so the per-call
+      // remoteElement is honored without any answer()-time override.
+      expect(perCall.options.remoteElement).toBe(remoteElement);
+    });
+
+    it('should set localElement per-call from new Call() options', () => {
+      const localElement = document.createElement('video');
+      const perCall = new Call(session, {
+        ...defaultParams,
+        id: 'newcall-local-element',
+        localElement,
+      });
+      expect(perCall.options.localElement).toBe(localElement);
+    });
+
+    it('should default to the session-level element (null when none set) when not provided per-call (backward compat)', () => {
+      const perCall = new Call(session, {
+        ...defaultParams,
+        id: 'newcall-no-element',
+      });
+      // BaseCall merges the session-level localElement/remoteElement (which
+      // default to null in BrowserSession when no element is set). The per-call
+      // default is the session default, not undefined.
+      expect(perCall.options.remoteElement).toBeNull();
+      expect(perCall.options.localElement).toBeNull();
+    });
+  });
+
+  describe('multi-call independent remoteElement (VSUP-121 AC)', () => {
+    it('two concurrent calls keep distinct remoteElements and hangup detaches only the hung-up call', () => {
+      // Construct two calls, each with its own remoteElement.
+      const remoteElementA = document.createElement('audio');
+      const remoteElementB = document.createElement('audio');
+      const streamA = new MediaStream();
+      const streamB = new MediaStream();
+
+      const callA = new Call(session, {
+        ...defaultParams,
+        id: 'multi-call-A',
+        remoteElement: remoteElementA,
+      });
+      const callB = new Call(session, {
+        ...defaultParams,
+        id: 'multi-call-B',
+        remoteElement: remoteElementB,
+      });
+
+      // Simulate both calls having attached their streams to their own elements.
+      callA.options.remoteStream = streamA;
+      callB.options.remoteStream = streamB;
+      remoteElementA.srcObject = streamA;
+      remoteElementB.srcObject = streamB;
+
+      // AC: each call has its own element with independent playout
+      expect(remoteElementA.srcObject).toBe(streamA);
+      expect(remoteElementB.srcObject).toBe(streamB);
+      expect(callA.options.remoteElement).toBe(remoteElementA);
+      expect(callB.options.remoteElement).toBe(remoteElementB);
+
+      // Hang up call A — only call A's element should be detached. Because each
+      // call owns a distinct element, detaching call A's element does not touch
+      // call B's element or stream.
+      callA['_finalize']();
+      expect(remoteElementA.srcObject).toBeNull();
+      // AC: call B's remote media continues uninterrupted
+      expect(remoteElementB.srcObject).toBe(streamB);
+
+      // Cleanup call B
+      callB['_finalize']();
+      expect(remoteElementB.srcObject).toBeNull();
+    });
+
+    it('connecting a second call does NOT overwrite the first call remoteElement', () => {
+      const remoteElementA = document.createElement('audio');
+      const remoteElementB = document.createElement('audio');
+      const streamA = new MediaStream();
+
+      const callA = new Call(session, {
+        ...defaultParams,
+        id: 'multi-call-no-overwrite-A',
+        remoteElement: remoteElementA,
+      });
+      callA.options.remoteStream = streamA;
+      remoteElementA.srcObject = streamA;
+
+      // A second call constructed with a *different* remoteElement must not
+      // touch call A's element or stream.
+      const callB = new Call(session, {
+        ...defaultParams,
+        id: 'multi-call-no-overwrite-B',
+        remoteElement: remoteElementB,
+      });
+
+      expect(callA.options.remoteElement).toBe(remoteElementA);
+      expect(callB.options.remoteElement).toBe(remoteElementB);
+      // call A's attachment is intact
+      expect(remoteElementA.srcObject).toBe(streamA);
+    });
+  });
+
   describe('_finalize() conditional detach', () => {
     it('should detach media elements when srcObject matches the call stream', () => {
       const remoteStream = new MediaStream();

@@ -133,6 +133,43 @@ export interface AnswerParams {
    * ### Setting Media Constraints
    */
   video?: boolean;
+
+  /**
+   * Remote media element to attach this call's remote stream to.
+   *
+   * Per-call override of the session-level `client.remoteElement`. When set,
+   * this call attaches its remote stream to the provided element instead of
+   * the shared session-level element. This is required for concurrent calls
+   * in a single client session (e.g. one active + one held) so each call can
+   * play out to its own `<audio>`/`<video>` element without the last-writer-wins
+   * overwrite behavior.
+   *
+   * If omitted, the call falls back to the session-level `client.remoteElement`
+   * (backward compatible with single-call usage).
+   *
+   * @example
+   *
+   * ```js
+   * call.answer({ remoteElement: remoteElementB });
+   * ```
+   *
+   * @type {(HTMLMediaElement | string | Function)}
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  remoteElement?: HTMLMediaElement | string | Function;
+
+  /**
+   * Local media element to attach this call's local stream to.
+   *
+   * Per-call override of the session-level `client.localElement`, mirroring
+   * `remoteElement`. Useful for concurrent calls that need independent local
+   * media previews. If omitted, the call falls back to the session-level
+   * `client.localElement`.
+   *
+   * @type {(HTMLMediaElement | string | Function)}
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+  localElement?: HTMLMediaElement | string | Function;
 }
 
 export interface IWebRTCCall {

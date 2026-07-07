@@ -4,6 +4,23 @@ import logger from './logger';
 export interface IStoredActiveCall {
   id: IWebRTCCall['id'];
   customHeaders: IWebRTCCall['options']['customHeaders'];
+  /**
+   * Per-call remote media element, persisted **only** when it was supplied as
+   * a `string` (element id — the form `findElementByType` resolves via
+   * `document.getElementById`). DOM `HTMLMediaElement` instances and `Function`
+   * resolvers are NOT serializable and cannot survive a page reload, so they
+   * are intentionally omitted (VSDK-316 security constraints keep host objects
+   * out of sessionStorage). On attach-recovery after a reload, the SDK restores
+   * this id onto the recovered call so the app's new page can re-resolve the
+   * element by id. When omitted, the call falls back to the session-level
+   * `client.remoteElement`.
+   */
+  remoteElement?: string;
+  /**
+   * Per-call local media element — mirrors {@link remoteElement} but for the
+   * local stream preview. Same string-only persistence constraint.
+   */
+  localElement?: string;
 }
 export interface IStoredActiveCalls {
   sessionId: string;
@@ -122,24 +139,24 @@ export function clearActiveCallsRecoveryMarker(): void {
  * storage is unavailable, the payload is malformed, or the marker is
  * older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
  *
- * Storage is cleaned up immediately after the read — once we have the
- * in-memory copy the persisted copy is no longer needed, and clearing it
- * here guarantees the record cannot be re-consumed by a duplicate recovery
- * event, a stale tab, or a future page load (at-most-once notification).
+ * This is a **peek** (non-consuming) read — the marker remains in storage so
+ * that multiple consumers within the same reconnect/page-load cycle can read
+ * it. In particular the page-reload recovery flow sends `reattached_sessions`
+ * (clientReady) and then `telnyx_rtc.attach` as separate messages; the Attach
+ * handler must still be able to read the marker to restore per-call media
+ * elements after the `reattached_sessions` handler has already inspected it.
+ * The marker is kept in sessionStorage until it is explicitly cleared by
+ * {@link clearActiveCallsRecoveryMarker}, overwritten by
+ * {@link setActiveCallsRecoveryMarker}, or invalidated by staleness here.
+ * Callers that need at-most-once semantics (e.g. the `reattached_sessions`
+ * notification handler) must clear explicitly after processing.
  */
 export function getActiveCallsRecoveryMarker(
   now = Date.now()
 ): IStoredActiveCalls | null {
   const raw = safeGetItem(ACTIVE_CALLS_STORAGE_KEY);
 
-  // Once we have the item from storage we won't need it again — clean up
-  // immediately so the record cannot be re-consumed.
-  clearActiveCallsRecoveryMarker();
-
   if (!raw) {
-    logger.debug(
-      'Active-calls recovery marker not found in storage — nothing to recover.'
-    );
     return null;
   }
 
@@ -150,6 +167,7 @@ export function getActiveCallsRecoveryMarker(
       logger.debug(
         'Active-calls recovery marker payload was malformed — discarded.'
       );
+      clearActiveCallsRecoveryMarker();
       return null;
     }
 
@@ -161,6 +179,7 @@ export function getActiveCallsRecoveryMarker(
       logger.debug(
         'Active-calls recovery marker was stale or had an invalid timestamp — discarded.'
       );
+      clearActiveCallsRecoveryMarker();
       return null;
     }
 
@@ -168,6 +187,7 @@ export function getActiveCallsRecoveryMarker(
       logger.debug(
         'Active-calls recovery marker had no call records — discarded.'
       );
+      clearActiveCallsRecoveryMarker();
       return null;
     }
 
@@ -178,6 +198,7 @@ export function getActiveCallsRecoveryMarker(
         err instanceof Error ? err.message : String(err)
       }`
     );
+    clearActiveCallsRecoveryMarker();
     return null;
   }
 }

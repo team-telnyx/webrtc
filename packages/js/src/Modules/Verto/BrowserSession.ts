@@ -181,7 +181,28 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _localElement: HTMLMediaElement = null;
 
+  /**
+   * Original string id supplied via the session-level `localElement` setter
+   * (e.g. `client.localElement = 'localMediaId'`), preserved so the
+   * active-calls recovery marker can persist it even though the setter
+   * resolves the string to an `HTMLMediaElement` immediately. `null` when the
+   * caller supplied a DOM element, a Function resolver, or nothing.
+   * (VSDK-408: previously the resolved HTML element replaced the string and
+   * the marker's `typeof === 'string'` check silently dropped session-level
+   * element ids, breaking page-reload recovery for calls that relied on the
+   * session-level default.)
+   */
+  private _localElementId: string | null = null;
+
   private _remoteElement: HTMLMediaElement = null;
+
+  /**
+   * Original string id supplied via the session-level `remoteElement` setter
+   * (e.g. `client.remoteElement = 'remoteMediaId'`). Mirrors
+   * {@link _localElementId}: preserved for the recovery marker while the
+   * resolved element is stored in {@link _remoteElement}.
+   */
+  private _remoteElementId: string | null = null;
 
   protected _jwtAuth: boolean = true;
 
@@ -771,6 +792,12 @@ export default abstract class BrowserSession extends BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   set localElement(tag: HTMLMediaElement | string | Function) {
+    // Preserve the original string id (VSDK-408) so the active-calls recovery
+    // marker can persist it — the setter resolves the string to a DOM element
+    // immediately, but the marker needs the id to re-resolve the element after
+    // a page reload. DOM elements and Function resolvers have no stable id and
+    // are not persisted (VSDK-316).
+    this._localElementId = typeof tag === 'string' ? tag : null;
     this._localElement = findElementByType(tag);
   }
 
@@ -791,7 +818,26 @@ export default abstract class BrowserSession extends BaseSession {
   }
 
   /**
+   * The original string id supplied via the session-level `localElement`
+   * setter (e.g. `client.localElement = 'localMediaId'`), or `null` when the
+   * caller supplied a DOM element, a Function resolver, or nothing. Exposed
+   * so the active-calls recovery marker can persist the session-level
+   * element id for calls that rely on the session-level default (VSDK-408).
+   */
+  get localElementId() {
+    return this._localElementId;
+  }
+
+  /**
    * Sets the remote html element that will receive the remote stream.
+   *
+   * This is the session-level default: any call that does not specify its own
+   * `remoteElement` falls back to this element. Note that the session-level
+   * element is shared across calls (last-writer-wins), so for concurrent calls
+   * in one client session you should assign a distinct `remoteElement` per call
+   * via `client.newCall({ remoteElement })` (outbound) or
+   * `call.answer({ remoteElement })` (inbound). See the README "Per-call
+   * remoteElement" section.
    *
    * @example
    *
@@ -804,6 +850,11 @@ export default abstract class BrowserSession extends BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   set remoteElement(tag: HTMLMediaElement | string | Function) {
+    // Preserve the original string id (VSDK-408). See `set localElement` for
+    // the rationale — the recovery marker persists the id, not the resolved
+    // DOM element, so a page-reload recovery can re-resolve the session-level
+    // element by id.
+    this._remoteElementId = typeof tag === 'string' ? tag : null;
     this._remoteElement = findElementByType(tag);
   }
 
@@ -821,6 +872,18 @@ export default abstract class BrowserSession extends BaseSession {
    */
   get remoteElement() {
     return this._remoteElement;
+  }
+
+  /**
+   * The original string id supplied via the session-level `remoteElement`
+   * setter (e.g. `client.remoteElement = 'remoteMediaId'`), or `null` when
+   * the caller supplied a DOM element, a Function resolver, or nothing.
+   * Mirrors {@link localElementId}: exposed for the recovery marker so a
+   * call relying on the session-level default can be restored by id after a
+   * page reload (VSDK-408).
+   */
+  get remoteElementId() {
+    return this._remoteElementId;
   }
 
   vertoBroadcast({

@@ -102,10 +102,49 @@ export default class Verto extends BrowserSession {
         const activeCalls = callIds
           .filter((callId) => !!this.calls[callId])
           .map((callId) => this.calls[callId])
-          .map((call) => ({
-            id: call.id,
-            customHeaders: call.options.customHeaders,
-          }));
+          .map((call) => {
+            const stored: {
+              id: typeof call.id;
+              customHeaders: typeof call.options.customHeaders;
+              remoteElement?: string;
+              localElement?: string;
+            } = {
+              id: call.id,
+              customHeaders: call.options.customHeaders,
+            };
+            // Persist per-call media elements ONLY in their serializable string
+            // form (element id). DOM elements and Function resolvers are not
+            // serializable and cannot survive a page reload, so we skip them
+            // (VSDK-316: keep host objects out of sessionStorage). On the next
+            // page the SDK restores the id and re-resolves the element via
+            // document.getElementById.
+            if (typeof call.options.remoteElement === 'string') {
+              stored.remoteElement = call.options.remoteElement;
+            } else if (
+              // VSDK-408: a call that relies on the session-level
+              // `client.remoteElement` default inherits the *resolved* DOM
+              // element (the session setter resolves string→HTML immediately),
+              // so `typeof === 'string'` is false and the session-level id was
+              // silently dropped. Fall back to the session-level string id
+              // when the call's element is the session default (same
+              // reference) and the session captured a string id. A call with
+              // a per-call DOM/Function element is NOT the session default, so
+              // it is intentionally skipped (no stable id to persist).
+              this.remoteElementId &&
+              call.options.remoteElement === this.remoteElement
+            ) {
+              stored.remoteElement = this.remoteElementId;
+            }
+            if (typeof call.options.localElement === 'string') {
+              stored.localElement = call.options.localElement;
+            } else if (
+              this.localElementId &&
+              call.options.localElement === this.localElement
+            ) {
+              stored.localElement = this.localElementId;
+            }
+            return stored;
+          });
 
         if (!this.sessionid || activeCalls.length === 0) {
           logger.debug(

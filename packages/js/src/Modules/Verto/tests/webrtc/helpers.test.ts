@@ -13,9 +13,26 @@ import {
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
 } from '../../webrtc/helpers';
-import {
-  detachMediaStream,
-} from '../../util/webrtc';
+import { detachMediaStream, attachMediaStream } from '../../util/webrtc';
+import logger from '../../util/logger';
+import { register, deRegister } from '../../services/Handler';
+import { SwEvent } from '../../util/constants';
+import { SHARED_REMOTE_ELEMENT_OVERWRITE } from '../../util/constants/errorCodes';
+
+/**
+ * Shape of the structured `telnyx.warning` payload emitted by
+ * `attachMediaStream` when a shared remoteElement is overwritten (VSUP-121).
+ */
+interface ISharedRemoteElementOverwriteWarningPayload {
+  warning: {
+    code: number;
+    name: string;
+    message?: string;
+    description?: string;
+  };
+  callId?: string;
+  sessionId?: string;
+}
 
 describe('Helpers browser functions', () => {
   describe('findElementByType', () => {
@@ -560,7 +577,11 @@ describe('Helpers browser functions', () => {
         supported: [
           { browserName: 'Chrome', supported: 'not supported' },
           { browserName: 'Firefox', supported: 'not supported' },
-          { browserName: 'Safari', features: ['video', 'audio'], supported: 'full' },
+          {
+            browserName: 'Safari',
+            features: ['video', 'audio'],
+            supported: 'full',
+          },
           { browserName: 'Edge', supported: 'not supported' },
         ],
       },
@@ -809,6 +830,144 @@ describe('Helpers browser functions', () => {
       // srcObject is null !== stream, so the guard kicks in and no-ops
       detachMediaStream(mockElement, stream);
       expect(mockElement.srcObject).toBeNull();
+    });
+  });
+
+  describe('attachMediaStream', () => {
+    let mockElement: HTMLMediaElement;
+
+    beforeEach(() => {
+      mockElement = document.createElement('audio');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should attach the stream to a fresh element without warning', () => {
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should NOT warn when reattaching the same stream (idempotent)', () => {
+      const stream = new MediaStream();
+      mockElement.srcObject = stream;
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should warn (last-writer-wins) when overwriting a different stream', () => {
+      const existingStream = new MediaStream();
+      const newStream = new MediaStream();
+      mockElement.srcObject = existingStream;
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, newStream);
+      // Stream is overwritten (legacy last-writer-wins behavior preserved)
+      expect(mockElement.srcObject).toBe(newStream);
+      // But a diagnostic warning fires so the overwrite is visible
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toMatch(
+        /already has a different MediaStream attached/
+      );
+    });
+
+    it('should NOT warn when element srcObject is null (fresh attach)', () => {
+      mockElement.srcObject = null;
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.srcObject).toBe(stream);
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should be a no-op (no throw, no warning) when element is null', () => {
+      const stream = new MediaStream();
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      expect(() => attachMediaStream(null, stream)).not.toThrow();
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should set autoplay and playsinline attributes when missing', () => {
+      const stream = new MediaStream();
+      attachMediaStream(mockElement, stream);
+      expect(mockElement.getAttribute('autoplay')).toBe('autoplay');
+      expect(mockElement.getAttribute('playsinline')).toBe('playsinline');
+    });
+
+    it('should emit a telnyx.warning (SHARED_REMOTE_ELEMENT_OVERWRITE) when overwriting a different stream WITH context', () => {
+      const existingStream = new MediaStream();
+      const newStream = new MediaStream();
+      mockElement.srcObject = existingStream;
+      jest.spyOn(logger, 'warn').mockImplementation(() => {});
+
+      const warnings: ISharedRemoteElementOverwriteWarningPayload[] = [];
+      const handler = (payload: ISharedRemoteElementOverwriteWarningPayload) =>
+        warnings.push(payload);
+      register(SwEvent.Warning, handler, 'session-uuid-1');
+
+      attachMediaStream(mockElement, newStream, {
+        callId: 'call-B',
+        sessionId: 'real-verto-sessid-1',
+        eventTarget: 'session-uuid-1',
+      });
+
+      expect(mockElement.srcObject).toBe(newStream);
+      expect(warnings).toHaveLength(1);
+      const { warning, callId, sessionId } = warnings[0];
+      expect(warning.code).toBe(SHARED_REMOTE_ELEMENT_OVERWRITE);
+      expect(warning.name).toBe('SHARED_REMOTE_ELEMENT_OVERWRITE');
+      expect(warning.description).toMatch(/per-call remoteElement/);
+      expect(callId).toBe('call-B');
+      // The payload carries the real Verto sessionid, NOT the UUID used as
+      // the event-bus trigger target.
+      expect(sessionId).toBe('real-verto-sessid-1');
+
+      deRegister(SwEvent.Warning, handler, 'session-uuid-1');
+    });
+
+    it('should NOT emit a telnyx.warning event when no context is provided (intentional local-stream replacement)', () => {
+      const existingStream = new MediaStream();
+      const newStream = new MediaStream();
+      mockElement.srcObject = existingStream;
+      jest.spyOn(logger, 'warn').mockImplementation(() => {});
+
+      const warnings: ISharedRemoteElementOverwriteWarningPayload[] = [];
+      const handler = (payload: ISharedRemoteElementOverwriteWarningPayload) =>
+        warnings.push(payload);
+      register(SwEvent.Warning, handler);
+
+      // No context — e.g. a camera-switch localElement replacement.
+      attachMediaStream(mockElement, newStream);
+
+      expect(mockElement.srcObject).toBe(newStream);
+      // logger.warn still fires (low-level diagnostic) ...
+      // ... but no structured telnyx.warning event is emitted.
+      expect(warnings).toHaveLength(0);
+
+      deRegister(SwEvent.Warning, handler);
+    });
+
+    it('should NOT emit a telnyx.warning when attaching to a fresh element even with context', () => {
+      const stream = new MediaStream();
+      jest.spyOn(logger, 'warn').mockImplementation(() => {});
+
+      const warnings: ISharedRemoteElementOverwriteWarningPayload[] = [];
+      const handler = (payload: ISharedRemoteElementOverwriteWarningPayload) =>
+        warnings.push(payload);
+      register(SwEvent.Warning, handler, 'call-C');
+
+      attachMediaStream(mockElement, stream, {
+        callId: 'call-C',
+        sessionId: 'session-2',
+      });
+
+      expect(warnings).toHaveLength(0);
+      deRegister(SwEvent.Warning, handler, 'call-C');
     });
   });
 });

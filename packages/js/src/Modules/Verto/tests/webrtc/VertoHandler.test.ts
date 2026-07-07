@@ -323,6 +323,205 @@ describe('VertoHandler', () => {
 
       Call.prototype.answer = originalAnswer;
     });
+
+    // ── VSUP-121 review round 3: reattach path for per-call remoteElement ──
+
+    it('should carry forward per-call remoteElement when recovering from a matched existing call (scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario1-call-id';
+      _setupCall({ id: callId, remoteElement: 'remote-audio-b' });
+      call.setState(State.Active);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4501,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      // The recovered call keeps the original call's per-call remoteElement.
+      expect(newCall.options.remoteElement).toEqual('remote-audio-b');
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('should carry forward per-call localElement when recovering from a matched existing call (scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario1-local-call-id';
+      _setupCall({ id: callId, localElement: 'local-video-b' });
+      call.setState(State.Active);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4502,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.localElement).toEqual('local-video-b');
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('should fall back to session-level default when matched call had no per-call remoteElement (scenario 1 backward compat)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario1-noelem-call-id';
+      // No remoteElement on the original call → recovered call must not set a
+      // per-call element; it falls back to the session-level default (null in
+      // the test BrowserSession).
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4503,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // No per-call element restored — falls back to session-level default.
+      expect(newCall.options.remoteElement).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('should restore per-call remoteElement from the recovery marker on page-reload attach (scenario 2)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario2-call-id';
+      const sessId = (instance as any).sessionid;
+
+      // Simulate a marker written before the previous page unloaded, carrying
+      // the serializable string form of the per-call remoteElement.
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            remoteElement: 'remote-audio-recovered',
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4504,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      expect(newCall.options.remoteElement).toEqual('remote-audio-recovered');
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should restore both remoteElement and localElement from the recovery marker (scenario 2)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario2-both-call-id';
+      const sessId = (instance as any).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            remoteElement: 'remote-elem-2',
+            localElement: 'local-elem-2',
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4505,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.remoteElement).toEqual('remote-elem-2');
+      expect(newCall.options.localElement).toEqual('local-elem-2');
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should NOT restore remoteElement when the marker was saved for a different sessid (scenario 2 mismatch)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario2-mismatch-call-id';
+
+      clearActiveCallsRecoveryMarker();
+      // Marker saved under a different sessid — must be ignored.
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            remoteElement: 'remote-elem-mismatch',
+          } as unknown as IStoredActiveCall,
+        ],
+        'a-different-sessid'
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4506,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Different sessid → element not restored, falls back to session default.
+      expect(newCall.options.remoteElement).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should fall back to session-level default when no recovery marker exists on page-reload attach (scenario 2 no marker)', async () => {
+      await instance.connect();
+      const callId = 'reattach-scenario2-nomarker-call-id';
+
+      clearActiveCallsRecoveryMarker();
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4507,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      // No marker → no per-call element restored.
+      expect(newCall.options.remoteElement).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+    });
   });
 
   describe('telnyx_rtc.info', () => {
@@ -1121,7 +1320,8 @@ describe('VertoHandler', () => {
           'telnyxCallControlId'
         );
 
-        // Marker must be cleared after consumption.
+        // Marker is cleared: every saved call was notified (none reattached), so
+        // the drained marker was re-saved as empty → cleared.
         expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
@@ -1139,7 +1339,7 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // Storage is cleared (getActiveCallsRecoveryMarker clears on read).
+        // Storage is cleared: sessid mismatch drops the stale marker.
         expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
@@ -1157,7 +1357,12 @@ describe('VertoHandler', () => {
         sendReattachForSession(['recovered-call']);
 
         expect(onError).not.toHaveBeenCalled();
-        expect(getActiveCallsRecoveryMarker()).toBeNull();
+        // Reattached calls are kept in the marker (peek, not consumed) so the
+        // Attach handler can restore per-call media elements after this
+        // notification. The marker is drained only of notified (lost) calls.
+        const marker = getActiveCallsRecoveryMarker();
+        expect(marker).not.toBeNull();
+        expect(marker?.calls.some((c) => c.id === 'recovered-call')).toBe(true);
       });
 
       it('does NOT emit an error and clears storage for stale markers (>15 min)', async () => {
@@ -1259,6 +1464,69 @@ describe('VertoHandler', () => {
           expect.objectContaining({ callId: 'lost-2' })
         );
         expect(getActiveCallsRecoveryMarker()).toBeNull();
+      });
+
+      it('keeps reattached calls in the marker so a later Attach can restore per-call media elements (peek, not consume)', async () => {
+        await instance.connect();
+        const callId = 'peek-attach-call-id';
+        const sessId = 'sess-peek';
+        setSession(sessId);
+
+        // Seed a marker with a per-call remoteElement + localElement.
+        clearActiveCallsRecoveryMarker();
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: callId,
+              customHeaders: undefined,
+              remoteElement: 'remote-peek-elem',
+              localElement: 'local-peek-elem',
+            } as unknown as IStoredActiveCall,
+          ],
+          sessId
+        );
+
+        // 1. clientReady with reattached_sessions containing the call ID —
+        //    this must NOT consume the marker. The call is reattached so no
+        //    error is emitted, and the marker retains the call for Attach.
+        sendReattachForSession([callId]);
+        expect(onError).not.toHaveBeenCalled();
+
+        // The marker must still be present (peek semantics).
+        const markerAfterReattach = getActiveCallsRecoveryMarker();
+        expect(markerAfterReattach).not.toBeNull();
+        expect(
+          markerAfterReattach?.calls.some((c) => c.id === callId)
+        ).toBe(true);
+
+        // 2. Attach arrives for the same call — the handler reads the marker
+        //    (still present) and restores per-call media elements.
+        const originalAnswer = Call.prototype.answer;
+        Call.prototype.answer = jest.fn();
+        const msg = JSON.parse(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 4600,
+            method: 'telnyx_rtc.attach',
+            params: {
+              callID: callId,
+              sdp: 'SDP',
+              caller_id_name: 'Test',
+              caller_id_number: '1004',
+              callee_id_name: 'Outbound',
+              callee_id_number: '1003',
+            },
+          })
+        );
+        handler.handleMessage(msg);
+
+        const newCall = instance.calls[callId];
+        expect(newCall).toBeDefined();
+        expect(newCall.options.remoteElement).toEqual('remote-peek-elem');
+        expect(newCall.options.localElement).toEqual('local-peek-elem');
+
+        Call.prototype.answer = originalAnswer;
+        clearActiveCallsRecoveryMarker();
       });
     });
   });
