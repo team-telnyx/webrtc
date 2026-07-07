@@ -79,7 +79,7 @@ The SDK uses STUN for NAT traversal (discovering the client's public-facing IP) 
 | STUN (UDP) | ANY | ANY | `stun.telnyx.com` | **3478** |
 | STUN (UDP) | ANY | ANY | `stun.l.google.com` | **19302** |
 | TURN (UDP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
-| TURN (TCP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
+| TURNS (TLS) | ANY | ANY | `turn2.telnyx.com` / TURN server IPs | **443** |
 | TURN relay (UDP) | ANY | ANY | TURN server IPs | **49152–65535** |
 
 ### SDK ICE server URLs
@@ -91,7 +91,7 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 | STUN | `stun:stun.telnyx.com:3478` |
 | STUN fallback | `stun:stun.l.google.com:19302` |
 | TURN over UDP | `turn:turn.telnyx.com:3478?transport=udp` |
-| TURN over TCP | `turn:turn.telnyx.com:3478?transport=tcp` |
+| TURNS over TLS | `turns:turn2.telnyx.com:443` |
 
 ### TURN server IP addresses
 
@@ -161,6 +161,7 @@ In a typical organization network, a firewall protects internal hosts from the I
 3. **Allow outgoing UDP and TCP** to SDK TURN server URLs:
    - `turn:turn.telnyx.com:3478?transport=udp`
    - `turn:turn.telnyx.com:3478?transport=tcp`
+   - `turns:turn.telnyx.com:443?transport=tcp`
 4. **Allow outgoing UDP** to media server subnets on ports `16384–32768`
 5. **Allow return traffic** for all of the above (stateful firewall)
 
@@ -179,10 +180,9 @@ If your network blocks all UDP traffic:
    })
    ```
 2. Ensure TCP port **3478** is open to the TURN server URL `turn:turn.telnyx.com:3478?transport=tcp` and the TURN server IPs listed above.
+3. If TCP port 3478 is also blocked, the SDK automatically falls back to TURNS (TURN over TLS) on port **443** via `turns:turn.telnyx.com:443?transport=tcp`. Ensure TCP port 443 is open to the TURN server IPs.
 
 > **Warning:** Forcing relay candidates adds latency since all media is relayed through the TURN server. Use this only when direct UDP is not possible.
->
-> **Note:** TURNS (TURN over TLS on port 443) is not currently supported.
 
 ## Recommendations and best practices
 
