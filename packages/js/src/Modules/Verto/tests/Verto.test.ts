@@ -274,13 +274,15 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('should include TURNS port 443 entry in DEFAULT_PROD_ICE_SERVERS', () => {
-    const turns443Entry = DEFAULT_PROD_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turn.telnyx.com:443?transport=tcp'
-    );
-    expect(turns443Entry).toBeDefined();
-    expect(turns443Entry!.username).toBe('testuser');
-    expect(turns443Entry!.credential).toBe('testpassword');
+  it('uses only the turn2 TURNS/443 entry in DEFAULT_PROD_ICE_SERVERS', () => {
+    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
+    // turn.telnyx.com:443 is dropped; turn2 is the sole TURNS endpoint.
+    expect(urls).not.toContain('turns:turn.telnyx.com:443?transport=tcp');
+    expect(
+      urls.filter(
+        (u): u is string => typeof u === 'string' && u.startsWith('turns:')
+      )
+    ).toEqual(['turns:turn2.telnyx.com:443']);
   });
 
   it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
@@ -310,16 +312,26 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('should list TURNS 443 after TURN 3478 entries in production defaults', () => {
+  it('drops TURN TCP/3478 in favor of TURNS/443 in production defaults', () => {
     const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    const turnTcp3478Index = urls.indexOf(
-      'turn:turn.telnyx.com:3478?transport=tcp'
+    // TCP fallback is handled by TURNS/443, not TURN TCP/3478.
+    expect(urls).not.toContain('turn:turn.telnyx.com:3478?transport=tcp');
+    // UDP is still offered, with TURNS/443 after it as the fallback.
+    const turnUdp3478Index = urls.indexOf(
+      'turn:turn.telnyx.com:3478?transport=udp'
     );
-    const turns443Index = urls.indexOf(
-      'turns:turn.telnyx.com:443?transport=tcp'
+    const turns443Index = urls.indexOf('turns:turn2.telnyx.com:443');
+    expect(turnUdp3478Index).toBeGreaterThan(-1);
+    expect(turns443Index).toBeGreaterThan(turnUdp3478Index);
+  });
+
+  it('should include the transport-less TURNS turn2:443 entry in production defaults', () => {
+    const turns2Entry = DEFAULT_PROD_ICE_SERVERS.find(
+      (server) => server.urls === 'turns:turn2.telnyx.com:443'
     );
-    expect(turnTcp3478Index).toBeGreaterThan(-1);
-    expect(turns443Index).toBeGreaterThan(turnTcp3478Index);
+    expect(turns2Entry).toBeDefined();
+    expect(turns2Entry!.username).toBe('testuser');
+    expect(turns2Entry!.credential).toBe('testpassword');
   });
 
   it('should return iceServers with provided value when iceServers is provided', () => {
