@@ -783,17 +783,27 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('drops TURN TCP/3478 in favor of TURNS/443 in production defaults', () => {
+  it('offers TURN UDP/3478, TCP/3478, then TURNS/443 in production defaults', () => {
     const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    // TCP fallback is handled by TURNS/443, not TURN TCP/3478.
-    expect(urls).not.toContain('turn:turn.telnyx.com:3478?transport=tcp');
-    // UDP is still offered, with TURNS/443 after it as the fallback.
+    // Both 3478 transports are offered, with TURNS/443 last as the fallback for
+    // networks that block both.
     const turnUdp3478Index = urls.indexOf(
       'turn:turn.telnyx.com:3478?transport=udp'
     );
+    const turnTcp3478Index = urls.indexOf(
+      'turn:turn.telnyx.com:3478?transport=tcp'
+    );
     const turns443Index = urls.indexOf('turns:turn2.telnyx.com:443');
     expect(turnUdp3478Index).toBeGreaterThan(-1);
-    expect(turns443Index).toBeGreaterThan(turnUdp3478Index);
+    expect(turnTcp3478Index).toBeGreaterThan(-1);
+    expect(turns443Index).toBeGreaterThan(turnTcp3478Index);
+  });
+
+  it('offers TURN TCP/3478 in both prod and dev defaults (no mismatch)', () => {
+    const prodUrls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
+    const devUrls = DEFAULT_DEV_ICE_SERVERS.map((s) => s.urls);
+    expect(prodUrls).toContain('turn:turn.telnyx.com:3478?transport=tcp');
+    expect(devUrls).toContain('turn:turndev.telnyx.com:3478?transport=tcp');
   });
 
   it('should include the transport-less TURNS turn2:443 entry in production defaults', () => {
@@ -861,13 +871,11 @@ describe('Verto', () => {
       ]);
     });
 
-    it('exposes TELNYX_TURN_TCP_3478 even though it is NOT in the prod default', () => {
-      // #674 dropped TURN TCP/3478 from DEFAULT_PROD_ICE_SERVERS in favor of
-      // TURNS/443, but it remains available as an opt-in building block.
+    it('exposes TELNYX_TURN_TCP_3478, which is also in the prod default', () => {
+      // TURN TCP/3478 is part of DEFAULT_PROD_ICE_SERVERS (kept in sync with
+      // dev) and is also available as a standalone building block.
       const prodUrls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-      expect(prodUrls).not.toContain(
-        'turn:turn.telnyx.com:3478?transport=tcp'
-      );
+      expect(prodUrls).toContain('turn:turn.telnyx.com:3478?transport=tcp');
       expect(TELNYX_ICE_SERVERS.TELNYX_TURN_TCP_3478.urls).toBe(
         'turn:turn.telnyx.com:3478?transport=tcp'
       );

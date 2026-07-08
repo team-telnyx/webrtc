@@ -79,6 +79,7 @@ The SDK uses STUN for NAT traversal (discovering the client's public-facing IP) 
 | STUN (UDP) | ANY | ANY | `stun.telnyx.com` | **3478** |
 | STUN (UDP) | ANY | ANY | `stun.l.google.com` | **19302** |
 | TURN (UDP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
+| TURN (TCP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
 | TURNS (TLS) | ANY | ANY | `turn2.telnyx.com` / TURN server IPs | **443** |
 | TURN relay (UDP) | ANY | ANY | TURN server IPs | **49152–65535** |
 
@@ -91,6 +92,7 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 | STUN | `stun:stun.telnyx.com:3478` |
 | STUN fallback | `stun:stun.l.google.com:19302` |
 | TURN over UDP | `turn:turn.telnyx.com:3478?transport=udp` |
+| TURN over TCP | `turn:turn.telnyx.com:3478?transport=tcp` |
 | TURNS over TLS | `turns:turn2.telnyx.com:443` |
 
 ### TURN server IP addresses
@@ -161,7 +163,7 @@ In a typical organization network, a firewall protects internal hosts from the I
 3. **Allow outgoing UDP and TCP** to SDK TURN server URLs:
    - `turn:turn.telnyx.com:3478?transport=udp`
    - `turn:turn.telnyx.com:3478?transport=tcp`
-   - `turns:turn.telnyx.com:443?transport=tcp`
+   - `turns:turn2.telnyx.com:443`
 4. **Allow outgoing UDP** to media server subnets on ports `16384–32768`
 5. **Allow return traffic** for all of the above (stateful firewall)
 
