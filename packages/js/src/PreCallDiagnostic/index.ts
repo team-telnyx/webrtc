@@ -29,6 +29,7 @@ export type {
   NetworkPacketCounters,
   NetworkByteCounters,
   NetworkBitrate,
+  MicrophonePermissionState,
 } from './types';
 export type { Call } from './types';
 export type {
