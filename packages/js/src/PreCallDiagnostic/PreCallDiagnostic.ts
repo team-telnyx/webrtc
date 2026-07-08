@@ -26,12 +26,8 @@ import type {
   CallLike,
   CallLikeOptions,
 } from './types';
-import {
-  createDiagnosticContext,
-} from './context';
-import type {
-  PreCallDiagnosticContext,
-} from './context';
+import { createDiagnosticContext } from './context';
+import type { PreCallDiagnosticContext } from './context';
 import { buildPreCallIceReport } from './modules/ice';
 import { buildPreCallNetworkReport } from './modules/network';
 import { buildPreCallMediaReport } from './modules/media';
@@ -83,17 +79,29 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const context = createDiagnosticContext(this.options);
     let call: CallLike | undefined;
 
-    try {
-      // Establish temporary diagnostic call
-      call = this.createDiagnosticCall();
-      context.call = call;
-      context.timings.callCreatedAt = Date.now();
+    // Only the 'full' mode (default) establishes a real diagnostic call via
+    // client.newCall(). 'network-only' and 'microphone-only' modes skip
+    // dialing entirely — they probe ICE/microphone directly without
+    // consuming signaling/call resources. This lets the narrow public
+    // methods (runNetworkCheck / runMicrophoneCheck) run without a
+    // destinationNumber and without placing a call.
+    const mode = this.options.mode ?? 'full';
+    const shouldDial = mode === 'full';
 
-      // Wait for call setup (placeholder — real implementation in future tickets)
-      // For T1, we just record the timing
-      context.timings.callActiveAt = Date.now();
+    try {
+      if (shouldDial) {
+        // Establish temporary diagnostic call
+        call = this.createDiagnosticCall();
+        context.call = call;
+        context.timings.callCreatedAt = Date.now();
+
+        // Wait for call setup (placeholder — real implementation in future tickets)
+        // For T1, we just record the timing
+        context.timings.callActiveAt = Date.now();
+      }
 
       // Collect stats samples (placeholder — real sampling in future tickets)
+      // For non-dial modes, this is a short wait so the report has timings.
       await this.collectSamples();
 
       // Mark completion before building the report so timings include it
@@ -118,7 +126,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         timings,
         raw: {
           stats: undefined,
-          samples: context.statsSamples.length > 0 ? context.statsSamples : undefined,
+          samples:
+            context.statsSamples.length > 0 ? context.statsSamples : undefined,
         },
       };
 
@@ -215,7 +224,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     // how many samples are collected.
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
     // Wait for the configured duration so the diagnostic call stays active
-    await new Promise((resolve) => setTimeout(resolve, Math.min(durationMs, DEFAULT_DURATION_MS)));
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(durationMs, DEFAULT_DURATION_MS))
+    );
   }
 
   /**

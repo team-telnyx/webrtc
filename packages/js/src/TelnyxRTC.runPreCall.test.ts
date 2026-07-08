@@ -19,8 +19,9 @@ let capturedDiagnosticOptions: PreCallDiagnosticOptions | null = null;
 
 jest.mock('./PreCallDiagnostic', () => {
   return {
-    PreCallDiagnostic: jest.fn().mockImplementation(
-      (options: PreCallDiagnosticOptions) => {
+    PreCallDiagnostic: jest
+      .fn()
+      .mockImplementation((options: PreCallDiagnosticOptions) => {
         capturedDiagnosticOptions = options;
         return {
           run: jest.fn().mockResolvedValue({
@@ -32,8 +33,7 @@ jest.mock('./PreCallDiagnostic', () => {
             },
           }),
         };
-      }
-    ),
+      }),
   };
 });
 
@@ -47,9 +47,7 @@ interface MockVertoOptions {
 jest.mock('./Modules/Verto', () => {
   return class MockVerto {
     options: MockVertoOptions;
-    iceServers: RTCIceServer[] = [
-      { urls: 'stun:stun.l.google.com:19302' },
-    ];
+    iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
     calls: Record<string, unknown> = {};
     constructor(options: MockVertoOptions) {
       this.options = options;
@@ -89,6 +87,50 @@ describe('TelnyxRTC.runPreCall', () => {
     jest.clearAllMocks();
   });
 
+  describe('optional destinationNumber (changes-requested Gap 1)', () => {
+    it('accepts zero-arg call (no options)', async () => {
+      const client = createClient();
+      const report = await client.runPreCall();
+
+      expect(report).toBeDefined();
+      expect(report.version).toBe(1);
+    });
+
+    it('defaults destinationNumber to the sensible default when omitted', async () => {
+      const client = createClient();
+      await client.runPreCall();
+
+      expect(capturedDiagnosticOptions).toBeDefined();
+      expect(capturedDiagnosticOptions!.destinationNumber).toBe(
+        '+1-872-231-5806'
+      );
+    });
+
+    it('uses caller-provided destinationNumber when provided', async () => {
+      const client = createClient();
+      await client.runPreCall({ destinationNumber: '+15551234567' });
+
+      expect(capturedDiagnosticOptions!.destinationNumber).toBe('+15551234567');
+    });
+
+    it('does not expose timeoutMs on RunPreCallOptions', async () => {
+      // timeoutMs was removed per Gap 2 — the public API must not accept it.
+      // This is a compile-time guarantee; the runtime test verifies the
+      // captured options do not carry a forwarded timeoutMs.
+      const client = createClient();
+      await client.runPreCall({ destinationNumber: '1234' });
+
+      expect(capturedDiagnosticOptions!.timeoutMs).toBeUndefined();
+    });
+
+    it('passes mode: "full" to PreCallDiagnosticOptions', async () => {
+      const client = createClient();
+      await client.runPreCall({ destinationNumber: '1234' });
+
+      expect(capturedDiagnosticOptions!.mode).toBe('full');
+    });
+  });
+
   describe('option mapping', () => {
     it('maps required destinationNumber into PreCallDiagnosticOptions', async () => {
       const client = createClient();
@@ -118,13 +160,11 @@ describe('TelnyxRTC.runPreCall', () => {
       const client = createClient();
       await client.runPreCall({
         destinationNumber: '1234',
-        timeoutMs: 15000,
         callSetupTimeoutMs: 8000,
         statsSampleIntervalMs: 500,
         durationMs: 3000,
       });
 
-      expect(capturedDiagnosticOptions!.timeoutMs).toBe(15000);
       expect(capturedDiagnosticOptions!.callSetupTimeoutMs).toBe(8000);
       expect(capturedDiagnosticOptions!.statsSampleIntervalMs).toBe(500);
       expect(capturedDiagnosticOptions!.durationMs).toBe(3000);
@@ -244,7 +284,13 @@ describe('TelnyxRTC.runPreCall', () => {
       const report = await client.runPreCall({ destinationNumber: '1234' });
 
       // Type check: verdict should be one of the allowed values
-      expect(['ready', 'degraded', 'blocked', 'permission_denied', 'inconclusive']).toContain(report.verdict);
+      expect([
+        'ready',
+        'degraded',
+        'blocked',
+        'permission_denied',
+        'inconclusive',
+      ]).toContain(report.verdict);
     });
   });
 
@@ -298,7 +344,12 @@ describe('Backwards compatibility with existing APIs', () => {
 
 describe('RunPreCallOptions type export', () => {
   it('is exported from the package entry point', () => {
-    // If this compiles and runs, the type export is working
+    // destinationNumber is now optional — an empty object is valid.
+    const options: RunPreCallOptions = {};
+    expect(options).toBeDefined();
+  });
+
+  it('accepts destinationNumber when provided', () => {
     const options: RunPreCallOptions = {
       destinationNumber: '1234',
     };

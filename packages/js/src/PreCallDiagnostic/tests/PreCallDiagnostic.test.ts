@@ -12,11 +12,7 @@
  */
 
 import { PreCallDiagnostic } from '../PreCallDiagnostic';
-import type {
-  ClientLike,
-  CallLike,
-  PreCallDiagnosticOptions,
-} from '../types';
+import type { ClientLike, CallLike, PreCallDiagnosticOptions } from '../types';
 import { PreCallDiagnosis } from '../../PreCallDiagnosis';
 
 // --- Mock helpers ---
@@ -383,11 +379,126 @@ describe('PreCallDiagnostic', () => {
     });
   });
 
+  describe('mode gating (changes-requested Gap 1)', () => {
+    it('calls client.newCall in full mode (default)', async () => {
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({ client: mockClient })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT call client.newCall in network-only mode', async () => {
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          mode: 'network-only',
+          // destinationNumber intentionally omitted — not required in this mode
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).not.toHaveBeenCalled();
+    });
+
+    it('does NOT call client.newCall in microphone-only mode', async () => {
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          mode: 'microphone-only',
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockClient.newCall).not.toHaveBeenCalled();
+    });
+
+    it('accepts omitted destinationNumber in network-only mode', async () => {
+      const mockClient = createMockClient();
+      const options: PreCallDiagnosticOptions = {
+        client: mockClient,
+        mode: 'network-only',
+        durationMs: 10,
+      };
+      const diagnostic = new PreCallDiagnostic(options);
+
+      // Should not throw even though destinationNumber is undefined
+      const report = await diagnostic.run();
+      expect(report.version).toBe(1);
+    });
+
+    it('accepts omitted destinationNumber in microphone-only mode', async () => {
+      const mockClient = createMockClient();
+      const options: PreCallDiagnosticOptions = {
+        client: mockClient,
+        mode: 'microphone-only',
+        durationMs: 10,
+      };
+      const diagnostic = new PreCallDiagnostic(options);
+
+      const report = await diagnostic.run();
+      expect(report.version).toBe(1);
+    });
+
+    it('does not hangup in network-only mode (no call to clean up)', async () => {
+      const mockCall = createMockCall();
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          mode: 'network-only',
+        })
+      );
+
+      await diagnostic.run();
+
+      // No call was created, so hangup must not be called
+      expect(mockCall.hangup).not.toHaveBeenCalled();
+    });
+
+    it('does not hangup in microphone-only mode (no call to clean up)', async () => {
+      const mockCall = createMockCall();
+      const mockClient = createMockClient({
+        newCall: jest.fn().mockReturnValue(mockCall),
+      });
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({
+          client: mockClient,
+          mode: 'microphone-only',
+        })
+      );
+
+      await diagnostic.run();
+
+      expect(mockCall.hangup).not.toHaveBeenCalled();
+    });
+
+    it('still returns a report with timings in network-only mode', async () => {
+      const mockClient = createMockClient();
+      const diagnostic = new PreCallDiagnostic(
+        createOptions({ client: mockClient, mode: 'network-only' })
+      );
+
+      const report = await diagnostic.run();
+
+      expect(report.timings).toBeDefined();
+      expect(report.timings?.startedAt).toBeDefined();
+      expect(report.timings?.completedAt).toBeDefined();
+    });
+  });
+
   describe('module extension points', () => {
     it('does not include ice section when ice is disabled', async () => {
-      const diagnostic = new PreCallDiagnostic(
-        createOptions({ ice: false })
-      );
+      const diagnostic = new PreCallDiagnostic(createOptions({ ice: false }));
       const report = await diagnostic.run();
 
       expect(report.ice).toBeUndefined();
@@ -403,9 +514,7 @@ describe('PreCallDiagnostic', () => {
     });
 
     it('does not include media section when media is disabled', async () => {
-      const diagnostic = new PreCallDiagnostic(
-        createOptions({ media: false })
-      );
+      const diagnostic = new PreCallDiagnostic(createOptions({ media: false }));
       const report = await diagnostic.run();
 
       expect(report.media).toBeUndefined();

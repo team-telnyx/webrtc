@@ -27,8 +27,9 @@ let capturedDiagnosticOptions: PreCallDiagnosticOptions | null = null;
 
 jest.mock('./PreCallDiagnostic', () => {
   return {
-    PreCallDiagnostic: jest.fn().mockImplementation(
-      (options: PreCallDiagnosticOptions) => {
+    PreCallDiagnostic: jest
+      .fn()
+      .mockImplementation((options: PreCallDiagnosticOptions) => {
         capturedDiagnosticOptions = options;
         return {
           run: jest.fn().mockResolvedValue({
@@ -40,8 +41,7 @@ jest.mock('./PreCallDiagnostic', () => {
             },
           }),
         };
-      }
-    ),
+      }),
   };
 });
 
@@ -55,9 +55,7 @@ interface MockVertoOptions {
 jest.mock('./Modules/Verto', () => {
   return class MockVerto {
     options: MockVertoOptions;
-    iceServers: RTCIceServer[] = [
-      { urls: 'stun:stun.l.google.com:19302' },
-    ];
+    iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
     calls: Record<string, unknown> = {};
     constructor(options: MockVertoOptions) {
       this.options = options;
@@ -166,13 +164,11 @@ describe('TelnyxRTC.runNetworkCheck', () => {
       const client = createClient();
       await client.runNetworkCheck({
         destinationNumber: '1234',
-        timeoutMs: 12000,
         callSetupTimeoutMs: 7000,
         statsSampleIntervalMs: 250,
         durationMs: 2000,
       });
 
-      expect(capturedDiagnosticOptions!.timeoutMs).toBe(12000);
       expect(capturedDiagnosticOptions!.callSetupTimeoutMs).toBe(7000);
       expect(capturedDiagnosticOptions!.statsSampleIntervalMs).toBe(250);
       expect(capturedDiagnosticOptions!.durationMs).toBe(2000);
@@ -296,11 +292,9 @@ describe('TelnyxRTC.runMicrophoneCheck', () => {
       const client = createClient();
       await client.runMicrophoneCheck({
         destinationNumber: '1234',
-        timeoutMs: 8000,
         durationMs: 1000,
       });
 
-      expect(capturedDiagnosticOptions!.timeoutMs).toBe(8000);
       expect(capturedDiagnosticOptions!.durationMs).toBe(1000);
     });
   });
@@ -460,18 +454,83 @@ describe('iceServers handling (folded VSDK-308)', () => {
   });
 });
 
-describe('Type exports', () => {
-  it('RunNetworkCheckOptions is exported as a type', () => {
-    const options: RunNetworkCheckOptions = {
-      destinationNumber: '1234',
-    };
-    expect(options.destinationNumber).toBe('1234');
+describe('mode wiring (changes-requested Gap 1)', () => {
+  beforeEach(() => {
+    capturedDiagnosticOptions = null;
+    jest.clearAllMocks();
   });
 
-  it('RunMicrophoneCheckOptions is exported as a type', () => {
-    const options: RunMicrophoneCheckOptions = {
-      destinationNumber: '1234',
-    };
-    expect(options.destinationNumber).toBe('1234');
+  describe('runNetworkCheck', () => {
+    it('accepts zero-arg call (no options)', async () => {
+      const client = createClient();
+      const report = await client.runNetworkCheck();
+
+      expect(report).toBeDefined();
+      expect(report.version).toBe(1);
+    });
+
+    it('passes mode: "network-only" to PreCallDiagnosticOptions', async () => {
+      const client = createClient();
+      await client.runNetworkCheck();
+
+      expect(capturedDiagnosticOptions!.mode).toBe('network-only');
+    });
+
+    it('does not require destinationNumber (omitted is valid)', async () => {
+      const client = createClient();
+      await client.runNetworkCheck();
+
+      expect(capturedDiagnosticOptions!.destinationNumber).toBeUndefined();
+    });
+
+    it('still accepts destinationNumber when provided', async () => {
+      const client = createClient();
+      await client.runNetworkCheck({ destinationNumber: '9999' });
+
+      expect(capturedDiagnosticOptions!.destinationNumber).toBe('9999');
+    });
+  });
+
+  describe('runMicrophoneCheck', () => {
+    it('accepts zero-arg call (no options)', async () => {
+      const client = createClient();
+      const report = await client.runMicrophoneCheck();
+
+      expect(report).toBeDefined();
+      expect(report.version).toBe(1);
+    });
+
+    it('passes mode: "microphone-only" to PreCallDiagnosticOptions', async () => {
+      const client = createClient();
+      await client.runMicrophoneCheck();
+
+      expect(capturedDiagnosticOptions!.mode).toBe('microphone-only');
+    });
+
+    it('does not require destinationNumber (omitted is valid)', async () => {
+      const client = createClient();
+      await client.runMicrophoneCheck();
+
+      expect(capturedDiagnosticOptions!.destinationNumber).toBeUndefined();
+    });
+
+    it('still accepts destinationNumber when provided', async () => {
+      const client = createClient();
+      await client.runMicrophoneCheck({ destinationNumber: '7777' });
+
+      expect(capturedDiagnosticOptions!.destinationNumber).toBe('7777');
+    });
+  });
+});
+
+describe('Type exports', () => {
+  it('RunNetworkCheckOptions is exported as a type (destinationNumber optional)', () => {
+    const options: RunNetworkCheckOptions = {};
+    expect(options).toBeDefined();
+  });
+
+  it('RunMicrophoneCheckOptions is exported as a type (destinationNumber optional)', () => {
+    const options: RunMicrophoneCheckOptions = {};
+    expect(options).toBeDefined();
   });
 });

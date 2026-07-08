@@ -28,8 +28,14 @@ export interface ClientLike {
  * Options for creating a diagnostic call via ClientLike.
  */
 export interface CallLikeOptions {
-  /** The destination number to dial for the diagnostic call. */
-  destinationNumber: string;
+  /**
+   * The destination number to dial for the diagnostic call.
+   *
+   * Required when `PreCallDiagnosticOptions.mode` is `'full'` (the
+   * diagnostic dials a real call). Not required for `'network-only'` or
+   * `'microphone-only'` modes, which do not dial.
+   */
+  destinationNumber?: string;
   /** Caller name to identify the diagnostic call source. */
   callerName?: string;
   /** Caller number for the diagnostic call. */
@@ -109,14 +115,39 @@ export interface PreCallMicrophoneOptions {
 }
 
 /**
+ * The diagnostic run mode.
+ *
+ * - `'full'` (default) — establishes a real diagnostic call via
+ *   `client.newCall()` and runs all enabled modules against it.
+ * - `'network-only'` — skips dialing (`client.newCall()` is not called).
+ *   The ICE/network modules gather candidates from a raw
+ *   `RTCPeerConnection` built with the client's ICE servers.
+ * - `'microphone-only'` — skips dialing. The microphone module runs
+ *   `getUserMedia({ audio: true })` + Web Audio level analysis directly,
+ *   without placing a call.
+ *
+ * The narrow public methods `TelnyxRTC.runNetworkCheck()` and
+ * `TelnyxRTC.runMicrophoneCheck()` set this so they do not require a
+ * `destinationNumber` and do not consume signaling/call resources.
+ */
+export type PreCallDiagnosticMode = 'full' | 'network-only' | 'microphone-only';
+
+/**
  * Options for the PreCallDiagnostic constructor.
  */
 export interface PreCallDiagnosticOptions {
   /** Required runtime dependency for creating diagnostic calls. */
   client: ClientLike;
 
-  /** The destination number to dial for the diagnostic call. */
-  destinationNumber: string;
+  /**
+   * The destination number to dial for the diagnostic call.
+   *
+   * Required when `mode` is `'full'` (or omitted, which defaults to
+   * `'full'`). Not required for `'network-only'` or `'microphone-only'`
+   * modes, which do not dial. The public `TelnyxRTC.runPreCall()` method
+   * defaults this to `'+1-872-231-5806'` when omitted.
+   */
+  destinationNumber?: string;
 
   /** Caller name for the diagnostic call. */
   callerName?: string;
@@ -153,6 +184,15 @@ export interface PreCallDiagnosticOptions {
 
   /** Whether to run the microphone diagnostic module. Default: true (if true, uses defaults). */
   microphone?: boolean | PreCallMicrophoneOptions;
+
+  /**
+   * The diagnostic run mode. Default: `'full'`.
+   *
+   * When `'network-only'` or `'microphone-only'`, `PreCallDiagnostic.run()`
+   * skips `client.newCall()` (no dial) and `destinationNumber` is not
+   * required. See {@link PreCallDiagnosticMode} for details.
+   */
+  mode?: PreCallDiagnosticMode;
 
   /** Optional RTC configuration override for the diagnostic call. */
   rtcConfig?: RTCConfiguration;

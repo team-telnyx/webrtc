@@ -11,6 +11,7 @@ export type {
   CallLike,
   CallLikeOptions,
   PreCallDiagnosticOptions,
+  PreCallDiagnosticMode,
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
   PreCallDiagnosticReason,
@@ -24,7 +25,4 @@ export type {
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
 } from './types';
-export type {
-  PreCallDiagnosticContext,
-  DiagnosticTimings,
-} from './context';
+export type { PreCallDiagnosticContext, DiagnosticTimings } from './context';
