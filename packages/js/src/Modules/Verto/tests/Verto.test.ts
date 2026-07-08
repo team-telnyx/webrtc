@@ -767,7 +767,7 @@ describe('Verto', () => {
 
   it('should include TURNS port 443 dev entry in DEFAULT_DEV_ICE_SERVERS', () => {
     const turns443DevEntry = DEFAULT_DEV_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turndev.telnyx.com:443?transport=tcp'
+      (server) => server.urls === 'turns:turndev.telnyx.com:443'
     );
     expect(turns443DevEntry).toBeDefined();
     expect(turns443DevEntry!.username).toBe('testuser');

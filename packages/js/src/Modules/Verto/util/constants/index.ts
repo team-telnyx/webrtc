@@ -65,8 +65,8 @@ export const TURN_TLS_443_SERVER = {
 // NOTE: the dev TURNS/443 endpoint may not gather any relay candidates in some
 // dev environments — it is kept for parity with the prod list (harmless when it
 // yields no candidates), but don't rely on TURNS/443 working in dev.
-export const TURN_TLS_TCP_443_DEV_SERVER = {
-  urls: 'turns:turndev.telnyx.com:443?transport=tcp',
+export const TURN_TLS_443_DEV_SERVER = {
+  urls: 'turns:turndev.telnyx.com:443',
   username: 'testuser',
   credential: 'testpassword',
 };
@@ -82,7 +82,7 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   STUN_DEV_SERVER,
   GOOGLE_STUN_SERVER,
   ...TURN_DEV_SERVER,
-  TURN_TLS_TCP_443_DEV_SERVER,
+  TURN_TLS_443_DEV_SERVER,
 ];
 
 /**
