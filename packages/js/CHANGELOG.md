@@ -1,17 +1,13 @@
-## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4) (2026-07-07)
+## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-07)
 
-- docs: update ts docs
 - feat: add TURNS (TURN over TLS/TCP) port 443 ICE servers (#674)
+- feat: Per-call remoteElement for independent attach/detach on concurrent calls (VSUP-121) (#725)
 - feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279) (#708)
 - refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
 - feat(VSUP-122): scoped inbound answer blocking per callID (#724)
 - feat: add AI conversation signaling API for client-side tools (#682)
 - feat(js): flush call report on beforeunload (keepalive) (#718)
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
+- docs: update ts docs
 ## [2.27.4-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.2) (2026-07-07)
 
 - chore: release webrtc@2.27.4-beta.1 (#727)
