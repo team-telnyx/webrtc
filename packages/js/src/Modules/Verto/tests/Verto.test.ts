@@ -6,6 +6,7 @@ import { IWebRTCCall } from '../webrtc/interfaces';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
+  TELNYX_ICE_SERVERS,
 } from '../util/constants';
 import {
   clearReconnectToken,
@@ -814,6 +815,63 @@ describe('Verto', () => {
       password: 'password',
     });
     expect(telnyxRTC.iceServers).toEqual(customIceServers);
+  });
+
+  describe('TELNYX_ICE_SERVERS public catalog', () => {
+    it('exposes the expected building-block keys with correct URLs', () => {
+      expect(TELNYX_ICE_SERVERS.GOOGLE_STUN).toEqual({
+        urls: 'stun:stun.l.google.com:19302',
+      });
+      expect(TELNYX_ICE_SERVERS.TELNYX_STUN).toEqual({
+        urls: 'stun:stun.telnyx.com:3478',
+      });
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478).toEqual({
+        urls: 'turn:turn.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      });
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURN_TCP_3478).toEqual({
+        urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      });
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443).toEqual({
+        urls: 'turns:turn2.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      });
+    });
+
+    it('lets a customer compose a custom iceServers array from the catalog', () => {
+      const composed: RTCIceServer[] = [
+        TELNYX_ICE_SERVERS.TELNYX_STUN,
+        TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
+        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
+      ];
+      const telnyxRTC = _buildInstance({
+        iceServers: composed,
+        login: 'login',
+        password: 'password',
+      });
+      expect(telnyxRTC.iceServers).toEqual(composed);
+      expect(telnyxRTC.iceServers.map((s) => s.urls)).toEqual([
+        'stun:stun.telnyx.com:3478',
+        'turn:turn.telnyx.com:3478?transport=udp',
+        'turns:turn2.telnyx.com:443',
+      ]);
+    });
+
+    it('exposes TELNYX_TURN_TCP_3478 even though it is NOT in the prod default', () => {
+      // #674 dropped TURN TCP/3478 from DEFAULT_PROD_ICE_SERVERS in favor of
+      // TURNS/443, but it remains available as an opt-in building block.
+      const prodUrls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
+      expect(prodUrls).not.toContain(
+        'turn:turn.telnyx.com:3478?transport=tcp'
+      );
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURN_TCP_3478.urls).toBe(
+        'turn:turn.telnyx.com:3478?transport=tcp'
+      );
+    });
   });
 
   describe('.validateOptions()', () => {
