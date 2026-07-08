@@ -22,7 +22,6 @@ import type {
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
-  PreCallTimingsReport,
 } from './types';
 import Call from '../Modules/Verto/webrtc/Call';
 import {
@@ -35,6 +34,8 @@ import { buildPreCallIceReport } from './modules/ice';
 import { buildPreCallNetworkReport } from './modules/network';
 import { buildPreCallMediaReport } from './modules/media';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
+import { createTimingsCollector } from './modules/timings';
+import type { TimingsCollector } from './modules/timings';
 import { buildVerdict } from './modules/verdict';
 
 /** Default timeout for the overall diagnostic run in milliseconds. */
@@ -79,23 +80,21 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    */
   async run(): Promise<PreCallDiagnosticReport> {
     const context = createDiagnosticContext(this.options);
+    const timings = createTimingsCollector();
     let call: Call | undefined;
 
     try {
       // Establish temporary diagnostic call
       call = this.createDiagnosticCall();
       context.call = call;
-      context.timings.callCreatedAt = Date.now();
 
       // Wait for call setup (placeholder — real implementation in future tickets)
-      // For now, we just record the timing when the call becomes active
-      context.timings.callActiveAt = Date.now();
-
-      // Collect stats samples from the diagnostic call
+      // Collect stats samples from the diagnostic call (PR #691 shared stats pipeline).
+      // The timings collector (PR #699) records phase boundaries around it.
+      timings.markStatsSamplingStarted();
       await this.collectSamples(call, context);
-
-      // Mark completion before building the report so timings include it
-      context.timings.completedAt = Date.now();
+      timings.markFirstStats();
+      timings.markStatsSamplingCompleted();
 
       // Build module reports
       const ice = await this.getIceReport(context);
@@ -103,8 +102,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       const media = await this.getMediaReport(context);
       const microphone = await this.getMicrophoneReport(context);
 
-      // Build timings report
-      const timings = this.buildTimingsReport(context);
+      // Build timings report BEFORE cleanup. Establishment timings are read
+      // from the call's performance marks, which are cleared by `_finalize()`
+      // during `call.hangup()` in the finally block below.
+      timings.markCompleted();
+      const timingsReport = timings.build({ call, callId: call?.id });
 
       // Build partial report
       const partialReport: Partial<PreCallDiagnosticReport> = {
@@ -113,7 +115,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         network,
         media,
         microphone,
-        timings,
+        timings: timingsReport,
         raw: {
           stats: undefined,
           samples: context.statsSamples.length > 0 ? context.statsSamples : undefined,
@@ -127,7 +129,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         version: 1,
         verdict,
         reasons: reasons.length > 0 ? reasons : undefined,
-        timings,
+        timings: timingsReport,
         ice,
         network,
         media,
@@ -138,25 +140,28 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       return report;
     } catch (error) {
       context.error = error instanceof Error ? error : new Error(String(error));
-      context.timings.completedAt = Date.now();
 
       // Return an error report with whatever we collected
-      const timings = this.buildTimingsReport(context);
+      timings.markCompleted();
+      const timingsReport = timings.build({ call, callId: call?.id });
       const { verdict, reasons } = buildVerdict({}, context);
 
       return {
         version: 1,
         verdict: verdict ?? 'inconclusive',
         reasons: reasons.length > 0 ? reasons : undefined,
-        timings,
+        timings: timingsReport,
       };
     } finally {
       // Cleanup temporary resources — must await because cleanupCall is async
-      // and hangup() returns a Promise (real SDK Call).
+      // and hangup() returns a Promise (real SDK Call). The timings collector
+      // has already read establishment marks above, so clearing them during
+      // hangup → _finalize() is safe.
+      timings.markCleanupStarted();
       if (call && this.options.autoHangup !== false) {
         await this.cleanupCall(call);
       }
-      context.timings.completedAt = Date.now();
+      timings.markCleanupCompleted();
     }
   }
 
@@ -492,29 +497,6 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       return undefined;
     }
     return buildPreCallMicrophoneReport(context);
-  }
-
-  /**
-   * Build the timings report from the diagnostic context.
-   */
-  private buildTimingsReport(
-    context: PreCallDiagnosticContext
-  ): PreCallTimingsReport | undefined {
-    const { timings } = context;
-    return {
-      callCreateMs: timings.callCreatedAt
-        ? timings.callCreatedAt - timings.startedAt
-        : undefined,
-      callSetupMs:
-        timings.callCreatedAt && timings.callActiveAt
-          ? timings.callActiveAt - timings.callCreatedAt
-          : undefined,
-      totalMs: timings.completedAt
-        ? timings.completedAt - timings.startedAt
-        : undefined,
-      startedAt: timings.startedAt,
-      completedAt: timings.completedAt,
-    };
   }
 
   /**

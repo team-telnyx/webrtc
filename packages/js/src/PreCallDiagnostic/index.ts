@@ -34,7 +34,6 @@ export type {
 export type { Call } from './types';
 export type {
   PreCallDiagnosticContext,
-  DiagnosticTimings,
 } from './context';
 export {
   IceReasonCode,
@@ -48,3 +47,5 @@ export type {
   MediaReasonCodeValue,
   MicrophoneReasonCodeValue,
 } from './modules/verdict';
+export { createTimingsCollector, TimingsCollector } from './modules/timings';
+export type { TimingsCallLike, TimingsBuildOptions } from './modules/timings';

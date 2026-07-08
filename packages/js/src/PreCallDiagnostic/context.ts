@@ -7,27 +7,16 @@
  * Module builders receive this context so they can access the call's
  * PeerConnection, stats samples, and configuration without depending
  * on PreCallDiagnostic internals.
+ *
+ * Timing collection is owned by the dedicated `TimingsCollector` (see
+ * `modules/timings.ts`); the context no longer carries timing marks. The
+ * collector is passed explicitly to the methods that need it.
  */
 
 import type {
   PreCallDiagnosticOptions,
 } from './types';
 import type Call from '../Modules/Verto/webrtc/Call';
-
-/**
- * Internal timing marks for the diagnostic run.
- * Used to compute the PreCallTimingsReport.
- */
-export interface DiagnosticTimings {
-  /** Timestamp (epoch ms) when PreCallDiagnostic.run() was called. */
-  startedAt: number;
-  /** Timestamp (epoch ms) when the diagnostic call was created. */
-  callCreatedAt?: number;
-  /** Timestamp (epoch ms) when the diagnostic call became active. */
-  callActiveAt?: number;
-  /** Timestamp (epoch ms) when the diagnostic run completed. */
-  completedAt?: number;
-}
 
 /**
  * The context object passed to each module builder during a diagnostic run.
@@ -43,8 +32,6 @@ export interface PreCallDiagnosticContext {
   call?: Call;
   /** Collected stats samples from the diagnostic call. */
   statsSamples: unknown[];
-  /** Internal timing marks for computing the timings report. */
-  timings: DiagnosticTimings;
   /** Any error that occurred during the diagnostic run. */
   error?: Error;
 }
@@ -58,8 +45,5 @@ export function createDiagnosticContext(
   return {
     options,
     statsSamples: [],
-    timings: {
-      startedAt: Date.now(),
-    },
   };
 }
