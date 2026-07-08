@@ -1,3 +1,15 @@
+## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-08)
+
+- docs: update ts docs
+- fix(ice): keep TURN TCP/3478 in prod defaults; sync prod/dev ICE lists (#731)
+- feat: export TELNYX_ICE_SERVERS public ICE server catalog (#730)
+- feat: add TURNS (TURN over TLS/TCP) port 443 ICE servers (#674)
+- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279) (#708)
+- refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
+- feat: scoped inbound answer blocking per callID (#724)
+- feat: add AI conversation signaling API for client-side tools (#682)
+- feat: flush call report on beforeunload (keepalive) (#718)
+
 ## [2.27.4-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.2) (2026-07-07)
 
 - chore: release webrtc@2.27.4-beta.1 (#727)
