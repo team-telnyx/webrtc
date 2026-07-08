@@ -26,16 +26,23 @@ export const WS_CLOSE_CODES = {
 export const GOOGLE_STUN_SERVER = { urls: 'stun:stun.l.google.com:19302' };
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const STUN_DEV_SERVER = { urls: 'stun:stundev.telnyx.com:3478' };
-// UDP only on 3478. TCP fallback is intentionally handled by TURNS on 443
-// (below) instead of TURN TCP/3478, so a UDP-blocked client falls back to
-// TURN over TLS/443 (which also traverses restrictive firewalls/proxies).
-export const TURN_SERVER = [
-  {
-    urls: 'turn:turn.telnyx.com:3478?transport=udp',
-    username: 'testuser',
-    credential: 'testpassword',
-  },
-];
+// Individual Telnyx TURN servers. The SDK's production default (see
+// DEFAULT_PROD_ICE_SERVERS below) includes only TURN UDP/3478; the TCP/3478
+// fallback is intentionally handled by TURNS on 443 (TURN_TLS_443_SERVER) so a
+// UDP-blocked client falls back to TURN over TLS/443, which also traverses
+// restrictive firewalls/proxies. TURN TCP/3478 is still exposed here as an
+// opt-in building block via TELNYX_ICE_SERVERS for customers who want it.
+export const TURN_UDP_3478_SERVER = {
+  urls: 'turn:turn.telnyx.com:3478?transport=udp',
+  username: 'testuser',
+  credential: 'testpassword',
+};
+export const TURN_TCP_3478_SERVER = {
+  urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+  username: 'testuser',
+  credential: 'testpassword',
+};
+export const TURN_SERVER = [TURN_UDP_3478_SERVER];
 export const TURN_DEV_SERVER = [
   {
     urls: 'turn:turndev.telnyx.com:3478?transport=udp',
@@ -75,6 +82,38 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   ...TURN_DEV_SERVER,
   TURN_TLS_TCP_443_DEV_SERVER,
 ];
+
+/**
+ * Public catalog of Telnyx-provided ICE servers. Each entry is a ready-to-use
+ * `RTCIceServer`. Import this and compose any combination into the `iceServers`
+ * option of `TelnyxRTC` (client level) or `client.newCall()` (per call).
+ *
+ * These are building blocks only — picking a subset does NOT change the SDK's
+ * built-in default (`DEFAULT_PROD_ICE_SERVERS`, used when `iceServers` is
+ * omitted), which includes STUN + TURN UDP/3478 + TURNS/443. Treat the entries
+ * as read-only; spread them into a new array rather than mutating in place.
+ *
+ * @example
+ * ```js
+ * import { TelnyxRTC, TELNYX_ICE_SERVERS } from '@telnyx/webrtc';
+ *
+ * const client = new TelnyxRTC({
+ *   login_token: '<JWT>',
+ *   iceServers: [
+ *     TELNYX_ICE_SERVERS.TELNYX_STUN,
+ *     TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
+ *     TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
+ *   ],
+ * });
+ * ```
+ */
+export const TELNYX_ICE_SERVERS = {
+  GOOGLE_STUN: GOOGLE_STUN_SERVER,
+  TELNYX_STUN: STUN_SERVER,
+  TELNYX_TURN_UDP_3478: TURN_UDP_3478_SERVER,
+  TELNYX_TURN_TCP_3478: TURN_TCP_3478_SERVER,
+  TELNYX_TURNS_TCP_443: TURN_TLS_443_SERVER,
+} as const;
 
 export enum SwEvent {
   // Socket Events

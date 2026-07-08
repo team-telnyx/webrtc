@@ -5,7 +5,7 @@ import {
   ICredentials,
   INotification,
 } from './utils/interfaces';
-import { SwEvent } from './Modules/Verto/util/constants';
+import { SwEvent, TELNYX_ICE_SERVERS } from './Modules/Verto/util/constants';
 import {
   NOTIFICATION_TYPE,
   ERROR_TYPE,
@@ -20,6 +20,7 @@ export {
   ICredentials,
   INotification,
   SwEvent,
+  TELNYX_ICE_SERVERS,
   NOTIFICATION_TYPE,
   ERROR_TYPE,
 };
