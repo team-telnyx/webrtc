@@ -26,12 +26,11 @@ export const WS_CLOSE_CODES = {
 export const GOOGLE_STUN_SERVER = { urls: 'stun:stun.l.google.com:19302' };
 export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const STUN_DEV_SERVER = { urls: 'stun:stundev.telnyx.com:3478' };
-// Individual Telnyx TURN servers. The SDK's production default (see
-// DEFAULT_PROD_ICE_SERVERS below) includes only TURN UDP/3478; the TCP/3478
-// fallback is intentionally handled by TURNS on 443 (TURN_TLS_443_SERVER) so a
-// UDP-blocked client falls back to TURN over TLS/443, which also traverses
-// restrictive firewalls/proxies. TURN TCP/3478 is still exposed here as an
-// opt-in building block via TELNYX_ICE_SERVERS for customers who want it.
+// Individual Telnyx TURN servers. Both the prod and dev defaults (see
+// DEFAULT_PROD_ICE_SERVERS / DEFAULT_DEV_ICE_SERVERS below) include TURN over
+// UDP/3478 and TCP/3478, plus TURNS on 443 (TURN_TLS_443_SERVER) as a
+// last-resort fallback for networks that block both 3478 transports. The two
+// environments are kept in sync.
 export const TURN_UDP_3478_SERVER = {
   urls: 'turn:turn.telnyx.com:3478?transport=udp',
   username: 'testuser',
@@ -42,7 +41,7 @@ export const TURN_TCP_3478_SERVER = {
   username: 'testuser',
   credential: 'testpassword',
 };
-export const TURN_SERVER = [TURN_UDP_3478_SERVER];
+export const TURN_SERVER = [TURN_UDP_3478_SERVER, TURN_TCP_3478_SERVER];
 export const TURN_DEV_SERVER = [
   {
     urls: 'turn:turndev.telnyx.com:3478?transport=udp',
@@ -55,16 +54,19 @@ export const TURN_DEV_SERVER = [
     credential: 'testpassword',
   },
 ];
-// TURN over TLS on port 443 — the sole TCP/TLS fallback for restrictive
-// firewalls that block UDP (and TCP/3478). No transport param, so the client
-// negotiates transport.
+// TURN over TLS on port 443 — the last-resort fallback for restrictive
+// firewalls that block both UDP/3478 and TCP/3478. No transport param, so the
+// client negotiates transport.
 export const TURN_TLS_443_SERVER = {
   urls: 'turns:turn2.telnyx.com:443',
   username: 'testuser',
   credential: 'testpassword',
 };
-export const TURN_TLS_TCP_443_DEV_SERVER = {
-  urls: 'turns:turndev.telnyx.com:443?transport=tcp',
+// NOTE: the dev TURNS/443 endpoint may not gather any relay candidates in some
+// dev environments — it is kept for parity with the prod list (harmless when it
+// yields no candidates), but don't rely on TURNS/443 working in dev.
+export const TURN_TLS_443_DEV_SERVER = {
+  urls: 'turns:turndev.telnyx.com:443',
   username: 'testuser',
   credential: 'testpassword',
 };
@@ -80,7 +82,7 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   STUN_DEV_SERVER,
   GOOGLE_STUN_SERVER,
   ...TURN_DEV_SERVER,
-  TURN_TLS_TCP_443_DEV_SERVER,
+  TURN_TLS_443_DEV_SERVER,
 ];
 
 /**
@@ -90,7 +92,8 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
  *
  * These are building blocks only — picking a subset does NOT change the SDK's
  * built-in default (`DEFAULT_PROD_ICE_SERVERS`, used when `iceServers` is
- * omitted), which includes STUN + TURN UDP/3478 + TURNS/443. Treat the entries
+ * omitted), which includes STUN + TURN UDP/3478 + TURN TCP/3478 + TURNS/443.
+ * Treat the entries
  * as read-only; spread them into a new array rather than mutating in place.
  *
  * @example
