@@ -52,9 +52,11 @@ client.off('telnyx.notification');
 
 - [connected](#connected)
 - [localElement](#localelement)
+- [localElementId](#localelementid)
 - [mediaConstraints](#mediaconstraints)
 - [reconnectDelay](#reconnectdelay)
 - [remoteElement](#remoteelement)
+- [remoteElementId](#remoteelementid)
 - [speaker](#speaker)
 
 ### Methods
@@ -247,6 +249,26 @@ TelnyxRTCClient.localElement
 
 ---
 
+### localElementId
+
+• `get` **localElementId**(): `string`
+
+The original string id supplied via the session-level `localElement`
+setter (e.g. `client.localElement = 'localMediaId'`), or `null` when the
+caller supplied a DOM element, a Function resolver, or nothing. Exposed
+so the active-calls recovery marker can persist the session-level
+element id for calls that rely on the session-level default (VSDK-408).
+
+#### Returns
+
+`string`
+
+#### Inherited from
+
+TelnyxRTCClient.localElementId
+
+---
+
 ### mediaConstraints
 
 • `get` **mediaConstraints**(): `Object`
@@ -330,6 +352,14 @@ TelnyxRTCClient.remoteElement
 
 Sets the remote html element that will receive the remote stream.
 
+This is the session-level default: any call that does not specify its own
+`remoteElement` falls back to this element. Note that the session-level
+element is shared across calls (last-writer-wins), so for concurrent calls
+in one client session you should assign a distinct `remoteElement` per call
+via `client.newCall({ remoteElement })` (outbound) or
+`call.answer({ remoteElement })` (inbound). See the README "Per-call
+remoteElement" section.
+
 #### Parameters
 
 | Name  | Type                                         |
@@ -350,6 +380,27 @@ client.remoteElement = 'remoteElementMediaId';
 #### Inherited from
 
 TelnyxRTCClient.remoteElement
+
+---
+
+### remoteElementId
+
+• `get` **remoteElementId**(): `string`
+
+The original string id supplied via the session-level `remoteElement`
+setter (e.g. `client.remoteElement = 'remoteMediaId'`), or `null` when
+the caller supplied a DOM element, a Function resolver, or nothing.
+Mirrors [localElementId](#localelementid): exposed for the recovery marker so a
+call relying on the session-level default can be restored by id after a
+page reload (VSDK-408).
+
+#### Returns
+
+`string`
+
+#### Inherited from
+
+TelnyxRTCClient.remoteElementId
 
 ---
 
