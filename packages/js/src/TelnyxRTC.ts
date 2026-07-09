@@ -13,8 +13,6 @@ import { PreCallDiagnostic } from './PreCallDiagnostic';
 import type {
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
-  PreCallIceOptions,
-  PreCallMicrophoneOptions,
 } from './PreCallDiagnostic/types';
 
 import * as pkg from '../package.json';
@@ -90,11 +88,11 @@ export interface RunPreCallOptions {
  * This is a narrow version of `RunPreCallOptions` that only exposes
  * the ICE/network-relevant fields. When `runNetworkCheck` is called,
  * the other modules (network quality, media, microphone) are disabled.
+ *
+ * The ICE module always runs inside `runNetworkCheck()` — callers cannot
+ * opt out of it from the public API (VSDK-412 Gap 3).
  */
-export interface RunNetworkCheckOptions extends RunPreCallOptions {
-  /** Whether to run the ICE diagnostic module. Default: true. */
-  ice?: boolean | PreCallIceOptions;
-}
+export type RunNetworkCheckOptions = RunPreCallOptions;
 
 /**
  * Options for the `TelnyxRTC.runMicrophoneCheck()` public method.
@@ -102,11 +100,11 @@ export interface RunNetworkCheckOptions extends RunPreCallOptions {
  * This is a narrow version of `RunPreCallOptions` that only exposes
  * the microphone-relevant fields. When `runMicrophoneCheck` is called,
  * the other modules (ICE, network, media) are disabled.
+ *
+ * The microphone module always runs inside `runMicrophoneCheck()` —
+ * callers cannot opt out of it from the public API (VSDK-412 Gap 3).
  */
-export interface RunMicrophoneCheckOptions extends RunPreCallOptions {
-  /** Whether to run the microphone diagnostic module. Default: true. */
-  microphone?: boolean | PreCallMicrophoneOptions;
-}
+export type RunMicrophoneCheckOptions = RunPreCallOptions;
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -463,8 +461,10 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      // Module gating: only ICE enabled, others disabled
-      ice: options.ice ?? true,
+      // Module gating: only ICE enabled, others disabled.
+      // ICE always runs in runNetworkCheck() — callers cannot opt out
+      // from the public API (VSDK-412 Gap 3).
+      ice: true,
       network: false,
       media: false,
       microphone: false,
@@ -521,11 +521,13 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      // Module gating: only microphone enabled, others disabled
+      // Module gating: only microphone enabled, others disabled.
+      // Microphone always runs in runMicrophoneCheck() — callers cannot
+      // opt out from the public API (VSDK-412 Gap 3).
       ice: false,
       network: false,
       media: false,
-      microphone: options.microphone ?? true,
+      microphone: true,
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.
       mode: 'microphone-only',

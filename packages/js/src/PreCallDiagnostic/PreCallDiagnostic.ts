@@ -508,7 +508,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
 
     const startTime = Date.now();
-    const deadline = startTime + Math.min(durationMs, DEFAULT_DURATION_MS);
+    const deadline = startTime + durationMs;
 
     // Collect at least one sample immediately
     await this.collectOneSample(call, context);

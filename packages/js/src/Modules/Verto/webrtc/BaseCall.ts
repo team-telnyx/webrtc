@@ -2612,6 +2612,10 @@ export default abstract class BaseCall implements IWebRTCCall {
    * This is the ONLY place outside `CallEstablishmentTimings.ts` itself that
    * imports from that module — diagnostic callers consume the structured
    * result through this seam.
+   *
+   * @internal — diagnostic-only seam; not part of the public SDK type
+   * surface. Exposed for the PreCallDiagnostic framework (VSDK-412) and
+   * subject to change without a semver bump.
    */
   public getEstablishmentTimings(): ICallEstablishmentTimings | undefined {
     const mode: 'trickle' | 'non-trickle' =

@@ -388,6 +388,7 @@ const VERDICT_PRIORITY: PreCallDiagnosticReport['verdict'][] = [
   'degraded',
   'blocked',
   'permission_denied',
+  'inconclusive',
 ];
 
 /**
