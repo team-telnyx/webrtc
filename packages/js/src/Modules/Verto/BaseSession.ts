@@ -55,6 +55,7 @@ import { Ping } from './messages/verto/Ping';
 import { Login } from './messages/Verto';
 import { AnonymousLogin } from './messages/verto/AnonymousLogin';
 import { ERROR_TYPE } from './webrtc/constants';
+import { ClientErrorMessage } from './messages/WebRTCStats';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
@@ -290,6 +291,33 @@ export default abstract class BaseSession {
       return;
     }
     this.connection.sendRawText(text);
+  }
+
+  /**
+   * Send a client_error JSON-RPC message to the server (voice-sdk-proxy).
+   * This gives the server-side visibility into SDK errors that would
+   * otherwise only exist as client-side console logs.
+   * Fire-and-forget — errors are silently swallowed so error reporting
+   * never crashes the SDK.
+   * @param errorType  Machine-readable error type (e.g. 'call_report_id_not_captured')
+   * @param errorMessage Human-readable error message
+   * @param context     Additional context key-value pairs
+   * @ignore
+   */
+  sendClientError(
+    errorType: string,
+    errorMessage: string,
+    context?: Record<string, unknown>
+  ): void {
+    try {
+      this.execute(
+        new ClientErrorMessage(errorType, errorMessage, context)
+      ).catch(() => {
+        // Silently fail — error reporting must not crash the SDK
+      });
+    } catch {
+      // Silently fail — error reporting must not crash the SDK
+    }
   }
 
   trackCallReportUpload(upload: Promise<void>): void {

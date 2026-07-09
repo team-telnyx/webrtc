@@ -2886,6 +2886,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     const callReportId = this.session.callReportId;
     if (!callReportId) {
       logger.debug('Cannot post call report: call_report_id not available');
+      this.session.sendClientError(
+        'call_report_id_missing',
+        'Cannot post call report: call_report_id not available',
+        {
+          call_id: this.id,
+          state: this.state,
+        }
+      );
       this._callReportCollector.cleanup();
       return;
     }
@@ -2908,6 +2916,14 @@ export default abstract class BaseCall implements IWebRTCCall {
     const host = this.session.connection?.host;
     if (!host) {
       logger.error('Cannot post call report: connection host not available');
+      this.session.sendClientError(
+        'call_report_host_unavailable',
+        'Cannot post call report: connection host not available',
+        {
+          call_id: this.id,
+          call_report_id: callReportId,
+        }
+      );
       return;
     }
 
@@ -2922,6 +2938,15 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
     } catch (error) {
       logger.error('Failed to post call report', { error });
+      this.session.sendClientError(
+        'call_report_post_failed',
+        'Failed to post call report',
+        {
+          call_id: this.id,
+          call_report_id: callReportId,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
       throw error;
     } finally {
       // Clean up log collector resources

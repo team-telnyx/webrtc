@@ -564,6 +564,19 @@ class VertoHandler {
                     'Captured call_report_id from REGED:',
                     callReportId
                   );
+                } else {
+                  logger.warn(
+                    'call_report_id not found in REGED response'
+                  );
+                  session.sendClientError(
+                    'call_report_id_not_captured',
+                    'call_report_id not found in REGED response',
+                    {
+                      previous_gateway_state:
+                        session.connection.previousGatewayState,
+                      has_reged_params: !!msg?.result?.params,
+                    }
+                  );
                 }
 
                 const dc = msg?.result?.params?.dc;

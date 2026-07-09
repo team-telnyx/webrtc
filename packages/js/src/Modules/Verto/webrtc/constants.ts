@@ -31,6 +31,7 @@ export enum VertoMethod {
   GatewayState = 'telnyx_rtc.gatewayState',
   Ping = 'telnyx_rtc.ping',
   Pong = 'telnyx_rtc.pong',
+  ClientError = 'telnyx_rtc.client_error',
 }
 
 export const NOTIFICATION_TYPE = {
