@@ -207,6 +207,16 @@ function parseIceReport(
     }
   }
 
+  // isTurnRequired (VSDK-412 Gap 4): true when the selected pair's local or
+  // remote candidate is a relay (TURN). Undefined when there is no selected
+  // pair — the report cannot make a claim about TURN usage without one.
+  let isTurnRequired: boolean | undefined;
+  if (selectedPairResult) {
+    const localType = selectedPairResult.local?.candidateType;
+    const remoteType = selectedPairResult.remote?.candidateType;
+    isTurnRequired = localType === 'relay' || remoteType === 'relay';
+  }
+
   // Detect host network topology from gathered candidates:
   // - multiple network interfaces (distinct host candidate addresses)
   // - VPN active (browser-reported networkType or heuristic)
@@ -221,6 +231,7 @@ function parseIceReport(
     candidates,
     hasRelayCandidate,
     onlyHostCandidates,
+    isTurnRequired,
     hasMultipleNetworkInterfaces,
     vpnDetected,
     hasSelectedPair: !!selectedPairResult,

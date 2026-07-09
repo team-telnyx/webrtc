@@ -14,8 +14,6 @@ import type {
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
   PreCallIceOptions,
-  PreCallNetworkOptions,
-  PreCallMediaOptions,
   PreCallMicrophoneOptions,
 } from './PreCallDiagnostic/types';
 
@@ -32,10 +30,16 @@ const DEFAULT_PRECALL_DESTINATION = '+1-872-231-5806';
 /**
  * Options for the `TelnyxRTC.runPreCall()` public method.
  *
- * Callers provide call-setup fields and optional diagnostic probe
- * configuration; `runPreCall` maps these into `PreCallDiagnosticOptions`
+ * Per the VSDK-412 spec, the public surface is intentionally narrow: only
+ * the four call-setup fields that a caller legitimately needs to tune are
+ * exposed. All four diagnostic modules (ICE, network, media, microphone)
+ * always run inside `runPreCall()` — callers cannot opt out of individual
+ * modules from the public API. Module-specific configuration lives on the
+ * dedicated `runNetworkCheck()` / `runMicrophoneCheck()` methods instead.
+ *
+ * `runPreCall` maps these into the internal `PreCallDiagnosticOptions`
  * internally, reusing the client's existing configuration where
- * appropriate (e.g. ICE servers).
+ * appropriate (e.g. caller name/number, audio constraints, ICE servers).
  *
  * `destinationNumber` is optional — when omitted, the diagnostic call
  * dials a sensible default (`'+1-872-231-5806'`). This mirrors the
@@ -46,8 +50,7 @@ const DEFAULT_PRECALL_DESTINATION = '+1-872-231-5806';
  * ICE + DTLS + media ready. `durationMs` is the post-establishment
  * sampling window — its timer starts **only** after establishment
  * completes, so call setup time does not eat into the diagnostic
- * sampling budget. `timeoutMs` is intentionally not exposed (it would
- * conflate establishment with the diagnostic phase).
+ * sampling budget.
  */
 export interface RunPreCallOptions {
   /**
@@ -55,12 +58,6 @@ export interface RunPreCallOptions {
    * Optional; defaults to `'+1-872-231-5806'` when omitted.
    */
   destinationNumber?: string;
-  /** Caller name for the diagnostic call. */
-  callerName?: string;
-  /** Caller number for the diagnostic call. */
-  callerNumber?: string;
-  /** Audio constraints for the diagnostic call. */
-  audio?: boolean | MediaStreamConstraints['audio'];
   /**
    * Hard upper bound in ms for the call to reach ICE + DTLS + media ready.
    * On expiry: hangup, return report with `verdict: 'inconclusive'` +
@@ -68,27 +65,12 @@ export interface RunPreCallOptions {
    * Default: ~30000.
    */
   callSetupTimeoutMs?: number;
-  /** Interval in ms between stats samples. Default: 1000. */
-  statsSampleIntervalMs?: number;
   /**
    * Post-establishment sampling window in ms. The timer starts **only**
    * after the call reaches the established state. If establishment
    * never completes, this timer is never started. Default: ~5000.
    */
   durationMs?: number;
-  /** Whether to automatically hang up the diagnostic call on completion. Default: true. */
-  autoHangup?: boolean;
-  /** Whether to run the ICE diagnostic module. Default: true. */
-  ice?: boolean | PreCallIceOptions;
-  /** Whether to run the network diagnostic module. Default: true. */
-  network?: boolean | PreCallNetworkOptions;
-  /** Whether to run the media diagnostic module. Default: true. */
-  media?: boolean | PreCallMediaOptions;
-  /** Whether to run the microphone diagnostic module. Default: true. */
-  microphone?: boolean | PreCallMicrophoneOptions;
-  /** Optional RTC configuration override for the diagnostic call. */
-  rtcConfig?: RTCConfiguration;
-
   /**
    * Custom ICE servers for the diagnostic call only (folded VSDK-308).
    *
@@ -109,10 +91,7 @@ export interface RunPreCallOptions {
  * the ICE/network-relevant fields. When `runNetworkCheck` is called,
  * the other modules (network quality, media, microphone) are disabled.
  */
-export interface RunNetworkCheckOptions extends Omit<
-  RunPreCallOptions,
-  'network' | 'media' | 'microphone'
-> {
+export interface RunNetworkCheckOptions extends RunPreCallOptions {
   /** Whether to run the ICE diagnostic module. Default: true. */
   ice?: boolean | PreCallIceOptions;
 }
@@ -124,10 +103,7 @@ export interface RunNetworkCheckOptions extends Omit<
  * the microphone-relevant fields. When `runMicrophoneCheck` is called,
  * the other modules (ICE, network, media) are disabled.
  */
-export interface RunMicrophoneCheckOptions extends Omit<
-  RunPreCallOptions,
-  'ice' | 'network' | 'media'
-> {
+export interface RunMicrophoneCheckOptions extends RunPreCallOptions {
   /** Whether to run the microphone diagnostic module. Default: true. */
   microphone?: boolean | PreCallMicrophoneOptions;
 }
@@ -405,21 +381,20 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    *
-   * Disable specific probes:
-   *
-   * ```js
-   * const report = await client.runPreCall({
-   *   ice: false,
-   *   microphone: false,
-   * });
-   * ```
-   *
    * Override duration and setup timeout:
    *
    * ```js
    * const report = await client.runPreCall({
    *   durationMs: 3000,
    *   callSetupTimeoutMs: 20000,
+   * });
+   * ```
+   *
+   * Custom ICE servers (diagnostic-only, does not mutate client config):
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
    * });
    * ```
    */
@@ -430,21 +405,18 @@ export class TelnyxRTC extends TelnyxRTCClient {
       client: this,
       destinationNumber:
         options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
-      callerName: options.callerName,
-      callerNumber: options.callerNumber,
-      audio: options.audio,
       callSetupTimeoutMs: options.callSetupTimeoutMs,
-      statsSampleIntervalMs: options.statsSampleIntervalMs,
       durationMs: options.durationMs,
-      autoHangup: options.autoHangup,
-      ice: options.ice,
-      network: options.network,
-      media: options.media,
-      microphone: options.microphone,
+      // All four modules always run inside runPreCall() (VSDK-412 spec).
+      // Module toggles are not part of the public surface for runPreCall.
+      ice: true,
+      network: true,
+      media: true,
+      microphone: true,
       mode: 'full',
-      // Reuse client's ICE servers unless overridden via rtcConfig or iceServers.
+      // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.
-      rtcConfig: options.rtcConfig ?? {
+      rtcConfig: {
         iceServers: options.iceServers ?? this.iceServers,
       },
     };
@@ -491,14 +463,6 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      destinationNumber: options.destinationNumber,
-      callerName: options.callerName,
-      callerNumber: options.callerNumber,
-      audio: options.audio,
-      callSetupTimeoutMs: options.callSetupTimeoutMs,
-      statsSampleIntervalMs: options.statsSampleIntervalMs,
-      durationMs: options.durationMs,
-      autoHangup: options.autoHangup,
       // Module gating: only ICE enabled, others disabled
       ice: options.ice ?? true,
       network: false,
@@ -507,9 +471,10 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // network-only mode: skip client.newCall() — gather ICE candidates
       // from a raw RTCPeerConnection without dialing.
       mode: 'network-only',
-      // Reuse client's ICE servers unless overridden via rtcConfig or iceServers.
+      durationMs: options.durationMs,
+      // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.
-      rtcConfig: options.rtcConfig ?? {
+      rtcConfig: {
         iceServers: options.iceServers ?? this.iceServers,
       },
     };
@@ -556,14 +521,6 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      destinationNumber: options.destinationNumber,
-      callerName: options.callerName,
-      callerNumber: options.callerNumber,
-      audio: options.audio,
-      callSetupTimeoutMs: options.callSetupTimeoutMs,
-      statsSampleIntervalMs: options.statsSampleIntervalMs,
-      durationMs: options.durationMs,
-      autoHangup: options.autoHangup,
       // Module gating: only microphone enabled, others disabled
       ice: false,
       network: false,
@@ -572,9 +529,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.
       mode: 'microphone-only',
-      // Reuse client's ICE servers unless overridden via rtcConfig or iceServers.
-      // options.iceServers is diagnostic-only and must not mutate client config.
-      rtcConfig: options.rtcConfig ?? {
+      // ICE servers are irrelevant for microphone-only (no peer connection),
+      // but kept for option-shape compatibility. Not mutated on the client.
+      rtcConfig: {
         iceServers: options.iceServers ?? this.iceServers,
       },
     };

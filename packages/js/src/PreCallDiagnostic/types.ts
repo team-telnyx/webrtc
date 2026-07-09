@@ -67,21 +67,34 @@ export interface PreCallMicrophoneOptions {
 
 /**
  * Options for the PreCallDiagnostic constructor.
+ *
+ * Internal-only fields (`mode`, `ice`/`network`/`media`/`microphone` module
+ * toggles, `callerName`/`callerNumber`/`audio`, `statsSampleIntervalMs`,
+ * `autoHangup`, `rtcConfig`) are NOT part of the public API surface — see
+ * `RunPreCallOptions` in `TelnyxRTC.ts` for the trimmed 4-field public
+ * surface (`destinationNumber`, `callSetupTimeoutMs`, `durationMs`,
+ * `iceServers`).
  */
 export interface PreCallDiagnosticOptions {
   /** Required runtime dependency for creating diagnostic calls. */
   client: TelnyxRTC;
 
-  /** The destination number to dial for the diagnostic call. */
-  destinationNumber: string;
+  /**
+   * The destination number to dial for the diagnostic call.
+   *
+   * Optional: only required for `'full'` mode (a real diagnostic call).
+   * `'network-only'` and `'microphone-only'` modes do not place a call, so
+   * `destinationNumber` is irrelevant for them and may be omitted.
+   */
+  destinationNumber?: string;
 
-  /** Caller name for the diagnostic call. */
+  /** Caller name for the diagnostic call (internal — not public surface). */
   callerName?: string;
 
-  /** Caller number for the diagnostic call. */
+  /** Caller number for the diagnostic call (internal — not public surface). */
   callerNumber?: string;
 
-  /** Audio constraints for the diagnostic call. */
+  /** Audio constraints for the diagnostic call (internal — not public surface). */
   audio?: boolean | MediaStreamConstraints['audio'];
 
   /** Overall timeout in ms for the diagnostic run. Default: 30000. */
@@ -124,6 +137,15 @@ export interface PreCallDiagnosticOptions {
    * complete pipeline.
    */
   mode?: 'full' | 'network-only' | 'microphone-only';
+
+  /**
+   * Whether to enable SDK debug logging for the diagnostic call.
+   * Default: false. When true, the diagnostic call is created with
+   * `debug: true` (enables the SDK's full debug-log path). Callers must
+   * opt in explicitly — diagnostic calls should not silently opt the
+   * caller into verbose logging.
+   */
+  debug?: boolean;
 
   /** Optional RTC configuration override for the diagnostic call. */
   rtcConfig?: RTCConfiguration;
@@ -283,9 +305,18 @@ export interface PreCallIceSelectedPairReport {
  * connectivity diagnostics (T3) into a single report section.
  */
 export interface PreCallIceReport {
-  /** Whether ICE candidate gathering has completed. */
+  /**
+   * Whether ICE candidate gathering has completed.
+   *
+   * This is the canonical field per the VSDK-412 spec (Section "ICE Module").
+   * `gatheringComplete` is kept as a documented alias for callers that
+   * prefer that name; both are populated with the same boolean.
+   */
   candidateGatheringCompleted?: boolean;
-  /** Whether ICE gathering completed successfully (alias for candidateGatheringCompleted). */
+  /**
+   * Alias for `candidateGatheringCompleted`. Both fields are always
+   * populated with the same boolean. Kept for naming compatibility.
+   */
   gatheringComplete?: boolean;
   /** Counts of local ICE candidates by type. */
   candidateCounts: PreCallIceCandidateCounts;
@@ -302,6 +333,15 @@ export interface PreCallIceReport {
   hasRelayCandidate: boolean;
   /** Whether all gathered candidates are host-type only. */
   onlyHostCandidates: boolean;
+  /**
+   * Whether the selected candidate pair required a TURN relay.
+   *
+   * Derived from the selected pair: true when either the local or remote
+   * candidate of the selected pair has `candidateType === 'relay'`.
+   * False when the selected pair is known and neither side is a relay.
+   * Undefined when there is no selected pair.
+   */
+  isTurnRequired?: boolean;
   /**
    * Whether the host appears to have multiple enabled network interfaces.
    * Detected by counting distinct host-candidate addresses (private IPs).
@@ -550,6 +590,25 @@ export interface PreCallMicrophoneReport {
 }
 
 /**
+ * A non-fatal warning entry in the diagnostic report.
+ *
+ * Warnings describe degraded-but-functional signals (e.g. high jitter while
+ * the call still works, only-host ICE candidates while connectivity
+ * succeeded) that should be surfaced to the caller WITHOUT flipping the
+ * overall verdict. They are separate from `reasons[]` (which drive the
+ * verdict) and never cause the verdict to degrade to `'poor'` or
+ * `'failed'` on their own.
+ */
+export interface PreCallDiagnosticWarning {
+  /** Machine-readable warning code (e.g., 'ice_only_host_candidates', 'network_high_jitter'). */
+  code: string;
+  /** Human-readable description of the warning. */
+  message: string;
+  /** Which module produced this warning (e.g., 'ice', 'network', 'media', 'microphone'). */
+  source: string;
+}
+
+/**
  * The complete diagnostic report returned by PreCallDiagnostic.run().
  */
 export interface PreCallDiagnosticReport {
@@ -564,6 +623,14 @@ export interface PreCallDiagnosticReport {
     | 'inconclusive';
   /** List of reasons contributing to the verdict. */
   reasons?: PreCallDiagnosticReason[];
+  /**
+   * Non-fatal warnings — degraded-but-functional signals that do NOT
+   * flip the verdict. Separate from `reasons[]` (which drive the verdict).
+   * Surfaced so callers can present advisory information without the
+   * verdict degrading to `'blocked'`/`'degraded'` for conditions that
+   * still allow a call to succeed.
+   */
+  warnings?: PreCallDiagnosticWarning[];
   /** Timing measurements. */
   timings?: PreCallTimingsReport;
   /** ICE diagnostic results. */
@@ -574,6 +641,13 @@ export interface PreCallDiagnosticReport {
   media?: PreCallMediaReport;
   /** Microphone diagnostic results. */
   microphone?: PreCallMicrophoneReport;
+  /**
+   * The diagnostic call's internal ID, when a call was placed (`'full'`
+   * mode). Omitted for `'network-only'` and `'microphone-only'` modes
+   * (no call is made). Useful for correlating the diagnostic with
+   * downstream call reports.
+   */
+  callId?: string;
   /** Raw data for advanced analysis. */
   raw?: {
     /** Raw RTC stats report, if available. */

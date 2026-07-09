@@ -24,12 +24,8 @@ import type {
   PreCallDiagnosticRunner,
 } from './types';
 import Call from '../Modules/Verto/webrtc/Call';
-import {
-  createDiagnosticContext,
-} from './context';
-import type {
-  PreCallDiagnosticContext,
-} from './context';
+import { createDiagnosticContext } from './context';
+import type { PreCallDiagnosticContext } from './context';
 import { buildPreCallIceReport } from './modules/ice';
 import { buildPreCallNetworkReport } from './modules/network';
 import { buildPreCallMediaReport } from './modules/media';
@@ -38,12 +34,14 @@ import { createTimingsCollector } from './modules/timings';
 import type { TimingsCollector } from './modules/timings';
 import { buildVerdict } from './modules/verdict';
 
-/** Default timeout for the overall diagnostic run in milliseconds. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const DEFAULT_TIMEOUT_MS = 30000;
-
-/** Default timeout for the call setup phase in milliseconds. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+/**
+ * Default timeout for the call setup phase in milliseconds.
+ *
+ * Applied when `options.callSetupTimeoutMs` is omitted. This is the hard
+ * upper bound for the diagnostic call to reach the `active` (established)
+ * state; on expiry the report returns `verdict: 'inconclusive'` with a
+ * `call_setup_timeout` reason and omits ICE/network/media/microphone data.
+ */
 const DEFAULT_CALL_SETUP_TIMEOUT_MS = 15000;
 
 /** Default interval between stats samples in milliseconds. */
@@ -51,6 +49,9 @@ const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 
 /** Default duration to keep the diagnostic call active in milliseconds. */
 const DEFAULT_DURATION_MS = 5000;
+
+/** Reason code emitted when the diagnostic call fails to establish in time. */
+const CALL_SETUP_TIMEOUT_REASON = 'call_setup_timeout';
 
 /**
  * PreCallDiagnostic executes a temporary diagnostic call and collects
@@ -69,18 +70,45 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   /**
    * Execute the diagnostic and return the report.
    *
-   * Flow:
-   * 1. Create a diagnostic context from options.
-   * 2. Establish a temporary diagnostic call via options.client.
-   * 3. Collect stats/samples during the call.
-   * 4. Call each module report builder with the context.
-   * 5. Build the verdict from module results.
-   * 6. Clean up the temporary call (unless autoHangup is false).
-   * 7. Return the complete PreCallDiagnosticReport.
+   * Dispatches on `options.mode`:
+   * - `'full'` (default): establish a real diagnostic call via
+   *   `client.newCall()`, wait for it to reach the `active` state (enforced
+   *   by `callSetupTimeoutMs`), then sample stats for `durationMs` and run
+   *   all four modules.
+   * - `'network-only'`: build a raw `RTCPeerConnection` from the client's
+   *   ICE servers, gather candidates for `durationMs`, then close. No call
+   *   is placed. Only the ICE module runs.
+   * - `'microphone-only'`: run `getUserMedia` + Web Audio level analysis for
+   *   `durationMs`, then stop tracks. No call is placed. Only the
+   *   microphone module runs.
    */
   async run(): Promise<PreCallDiagnosticReport> {
     const context = createDiagnosticContext(this.options);
     const timings = createTimingsCollector();
+
+    switch (this.options.mode) {
+      case 'network-only':
+        return this.runNetworkOnly(context, timings);
+      case 'microphone-only':
+        return this.runMicrophoneOnly(context, timings);
+      case 'full':
+      default:
+        return this.runFull(context, timings);
+    }
+  }
+
+  /**
+   * Full diagnostic run — establishes a real call and runs all modules.
+   *
+   * B2/B3: the sampling timer (`durationMs`) starts ONLY after the call
+   * reaches the `active` state. If the call does not establish within
+   * `callSetupTimeoutMs`, the report returns `verdict: 'inconclusive'`
+   * with a `call_setup_timeout` reason and no module data.
+   */
+  private async runFull(
+    context: PreCallDiagnosticContext,
+    timings: TimingsCollector
+  ): Promise<PreCallDiagnosticReport> {
     let call: Call | undefined;
 
     try {
@@ -88,9 +116,32 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       call = this.createDiagnosticCall();
       context.call = call;
 
-      // Wait for call setup (placeholder — real implementation in future tickets)
-      // Collect stats samples from the diagnostic call (PR #691 shared stats pipeline).
-      // The timings collector (PR #699) records phase boundaries around it.
+      // B2/B3: wait for the call to reach the established ('active') state,
+      // enforcing callSetupTimeoutMs. On timeout we return an inconclusive
+      // report with a call_setup_timeout reason and NO module data.
+      const established = await this.waitForCallEstablishment(call);
+      if (!established) {
+        timings.markCompleted();
+        const timingsReport = timings.build({ call, callId: call?.id });
+        return {
+          version: 1,
+          verdict: 'inconclusive',
+          reasons: [
+            {
+              code: CALL_SETUP_TIMEOUT_REASON,
+              message:
+                'The diagnostic call did not reach the established state ' +
+                `within ${this.effectiveCallSetupTimeoutMs()}ms.`,
+              source: 'diagnostic',
+            },
+          ],
+          callId: call?.id,
+          timings: timingsReport,
+        };
+      }
+
+      // Sampling starts only AFTER establishment (B2). The timings collector
+      // records phase boundaries around it.
       timings.markStatsSamplingStarted();
       await this.collectSamples(call, context);
       timings.markFirstStats();
@@ -116,24 +167,31 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         media,
         microphone,
         timings: timingsReport,
+        callId: call?.id,
         raw: {
           stats: undefined,
-          samples: context.statsSamples.length > 0 ? context.statsSamples : undefined,
+          samples:
+            context.statsSamples.length > 0 ? context.statsSamples : undefined,
         },
       };
 
-      // Build verdict
-      const { verdict, reasons } = buildVerdict(partialReport, context);
+      // Build verdict + warnings
+      const { verdict, reasons, warnings } = buildVerdict(
+        partialReport,
+        context
+      );
 
       const report: PreCallDiagnosticReport = {
         version: 1,
         verdict,
         reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
         timings: timingsReport,
         ice,
         network,
         media,
         microphone,
+        callId: call?.id,
         raw: partialReport.raw,
       };
 
@@ -144,12 +202,14 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       // Return an error report with whatever we collected
       timings.markCompleted();
       const timingsReport = timings.build({ call, callId: call?.id });
-      const { verdict, reasons } = buildVerdict({}, context);
+      const { verdict, reasons, warnings } = buildVerdict({}, context);
 
       return {
         version: 1,
         verdict: verdict ?? 'inconclusive',
         reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        callId: call?.id,
         timings: timingsReport,
       };
     } finally {
@@ -166,18 +226,268 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
+   * Network-only diagnostic run — gathers ICE candidates from a raw
+   * RTCPeerConnection without placing a call (B1).
+   *
+   * Builds a throwaway `RTCPeerConnection` with the client's ICE servers
+   * (or an explicit `rtcConfig` override), creates a no-op data channel to
+   * trigger candidate gathering, waits for `durationMs`, then reads the ICE
+   * report and closes the peer. No `client.newCall()` is invoked and no SIP
+   * signaling is involved.
+   */
+  private async runNetworkOnly(
+    context: PreCallDiagnosticContext,
+    timings: TimingsCollector
+  ): Promise<PreCallDiagnosticReport> {
+    // Build a raw peer connection for candidate gathering. A data channel is
+    // needed to make the peer connection actually gather candidates (without
+    // an SDP offer/answer exchange, the ICE agent stays idle in many
+    // browsers). We never send data; the channel only exists to drive
+    // gathering. createDataChannel + createOffer + setLocalDescription is the
+    // established pattern for triggering ICE gathering without a remote peer.
+    let pc: RTCPeerConnection | undefined;
+    try {
+      const rtcConfig = this.options.rtcConfig ?? {
+        iceServers: this.getClientIceServers(),
+      };
+      pc = new RTCPeerConnection(rtcConfig);
+
+      // Drive gathering: a data channel + a local description causes the ICE
+      // agent to enumerate candidates. We discard the offer/answer.
+      pc.createDataChannel('precall-diagnostic');
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // Wait for the gathering window (durationMs). The ICE module below
+      // reads the final gathering state + candidates from getStats().
+      const durationMs = this.effectiveDurationMs();
+      timings.markStatsSamplingStarted();
+      await this.waitForIceGathering(pc, durationMs);
+      timings.markStatsSamplingCompleted();
+
+      // Attach the peer connection to the context via a minimal Call-like
+      // shim so the ICE module (which reads context.call.peer.instance) can
+      // run unchanged. We only need peer.instance + nothing else for the
+      // network-only path.
+      context.call = this.makeCallShim(pc) as unknown as Call;
+
+      const ice = await this.getIceReport(context);
+
+      timings.markCompleted();
+      const timingsReport = timings.build({});
+
+      const partialReport: Partial<PreCallDiagnosticReport> = {
+        version: 1,
+        ice,
+        timings: timingsReport,
+      };
+      const { verdict, reasons, warnings } = buildVerdict(
+        partialReport,
+        context
+      );
+
+      return {
+        version: 1,
+        verdict,
+        reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        timings: timingsReport,
+        ice,
+        raw: undefined,
+      };
+    } catch (error) {
+      context.error = error instanceof Error ? error : new Error(String(error));
+      timings.markCompleted();
+      const timingsReport = timings.build({});
+      const { verdict, reasons, warnings } = buildVerdict({}, context);
+      return {
+        version: 1,
+        verdict: verdict ?? 'inconclusive',
+        reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        timings: timingsReport,
+      };
+    } finally {
+      timings.markCleanupStarted();
+      try {
+        pc?.close();
+      } catch {
+        // ignore close errors
+      }
+      timings.markCleanupCompleted();
+    }
+  }
+
+  /**
+   * Microphone-only diagnostic run — checks mic permission/device and
+   * optionally captures audio level without placing a call (B1).
+   *
+   * Delegates to the microphone module (which already encapsulates
+   * getUserMedia + Web Audio). No `client.newCall()` is invoked. The other
+   * modules (ice/network/media) are disabled via the options set by
+   * `TelnyxRTC.runMicrophoneCheck()`.
+   */
+  private async runMicrophoneOnly(
+    context: PreCallDiagnosticContext,
+    timings: TimingsCollector
+  ): Promise<PreCallDiagnosticReport> {
+    try {
+      const microphone = await this.getMicrophoneReport(context);
+
+      timings.markCompleted();
+      const timingsReport = timings.build({});
+
+      const partialReport: Partial<PreCallDiagnosticReport> = {
+        version: 1,
+        microphone,
+        timings: timingsReport,
+      };
+      const { verdict, reasons, warnings } = buildVerdict(
+        partialReport,
+        context
+      );
+
+      return {
+        version: 1,
+        verdict,
+        reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        timings: timingsReport,
+        microphone,
+      };
+    } catch (error) {
+      context.error = error instanceof Error ? error : new Error(String(error));
+      timings.markCompleted();
+      const timingsReport = timings.build({});
+      const { verdict, reasons, warnings } = buildVerdict({}, context);
+      return {
+        version: 1,
+        verdict: verdict ?? 'inconclusive',
+        reasons: reasons.length > 0 ? reasons : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        timings: timingsReport,
+      };
+    } finally {
+      // Microphone module owns its own track cleanup; nothing to do here.
+      timings.markCleanupStarted();
+      timings.markCleanupCompleted();
+    }
+  }
+
+  /**
+   * Resolve the effective call-setup timeout in ms.
+   */
+  private effectiveCallSetupTimeoutMs(): number {
+    return this.options.callSetupTimeoutMs ?? DEFAULT_CALL_SETUP_TIMEOUT_MS;
+  }
+
+  /**
+   * Resolve the effective sampling duration in ms.
+   */
+  private effectiveDurationMs(): number {
+    return this.options.durationMs ?? DEFAULT_DURATION_MS;
+  }
+
+  /**
+   * Wait for the diagnostic call to reach the established (`active`) state,
+   * enforcing `callSetupTimeoutMs` (B2/B3).
+   *
+   * Returns true when the call is established, false on timeout. The call's
+   * public `state` string is set to `'active'` by the SDK when the underlying
+   * `State.Active` enum is entered (BaseCall.setState → _dispatchNotification).
+   * We poll `call.state` at a short interval rather than subscribing to
+   * notifications, so the wait is robust to notification ordering and works
+   * with any Call-like object that exposes a `state` string.
+   */
+  private async waitForCallEstablishment(call: Call): Promise<boolean> {
+    // Fast path: already established.
+    if (call.state === 'active') return true;
+
+    const timeoutMs = this.effectiveCallSetupTimeoutMs();
+    const deadline = Date.now() + timeoutMs;
+    const pollIntervalMs = 100;
+
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      const state = (call as { state?: string }).state;
+      // 'active' is the established state. 'done'/'hangup'/'destroy' means
+      // the call ended before establishing — treat as not-established.
+      if (state === 'active') return true;
+      if (state === 'done' || state === 'hangup' || state === 'destroy') {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Wait for ICE gathering to complete, or until `maxWaitMs` elapses.
+   *
+   * Polls `pc.iceGatheringState` for `'complete'`. Returns early when
+   * gathering is complete (so a 5s default does not force a full wait when
+   * candidates arrive in 200ms).
+   */
+  private async waitForIceGathering(
+    pc: RTCPeerConnection,
+    maxWaitMs: number
+  ): Promise<void> {
+    // Read into a string-typed local to avoid TS control-flow narrowing of
+    // RTCIceGatheringState across the await gap (the state changes between
+    // polls, but TS assumes it stays constant within the function).
+    if ((pc.iceGatheringState as string) === 'complete') return;
+    const deadline = Date.now() + maxWaitMs;
+    const pollIntervalMs = 100;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+      const state: string = pc.iceGatheringState as string;
+      if (state === 'complete') return;
+    }
+  }
+
+  /**
+   * Create a minimal Call-like shim exposing `peer.instance` so the ICE
+   * module can read stats from a raw RTCPeerConnection in network-only mode.
+   *
+   * The ICE module only accesses `context.call?.peer?.instance`; this shim
+   * provides exactly that and nothing else, so no real SDK Call is needed.
+   */
+  private makeCallShim(pc: RTCPeerConnection): {
+    peer: { instance: RTCPeerConnection };
+  } {
+    return { peer: { instance: pc } };
+  }
+
+  /**
+   * Get the client's configured ICE servers, when available.
+   */
+  private getClientIceServers(): RTCIceServer[] | undefined {
+    return (this.options.client as unknown as { iceServers?: RTCIceServer[] })
+      .iceServers;
+  }
+
+  /**
    * Create a temporary diagnostic call using the client dependency.
+   *
+   * `debug` defaults to false — diagnostic calls must not silently opt the
+   * caller into the SDK's full debug-log path. Callers opt in via
+   * `options.debug: true` (m2).
    */
   private createDiagnosticCall(): Call {
-    const { client, destinationNumber, callerName, callerNumber, audio } =
-      this.options;
+    const {
+      client,
+      destinationNumber,
+      callerName,
+      callerNumber,
+      audio,
+      debug,
+    } = this.options;
 
     return client.newCall({
       destinationNumber,
       callerName,
       callerNumber,
       audio,
-      debug: true,
+      debug: debug === true,
     });
   }
 
@@ -194,7 +504,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     context: PreCallDiagnosticContext
   ): Promise<void> {
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
-    const intervalMs = this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
+    const intervalMs =
+      this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
 
     const startTime = Date.now();
     const deadline = startTime + Math.min(durationMs, DEFAULT_DURATION_MS);
@@ -205,7 +516,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     // Continue collecting at the configured interval until the duration expires
     while (Date.now() < deadline) {
       const nextSampleTime = Math.min(
-        startTime + Math.round((context.statsSamples.length) * intervalMs),
+        startTime + Math.round(context.statsSamples.length * intervalMs),
         deadline
       );
       const waitMs = nextSampleTime - Date.now();
@@ -259,7 +570,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         // Promise-returning, zero-arg getStats (test-friendly override).
         // Cast to a zero-arg function type: we verified length === 0 above,
         // so this is NOT the SDK's callback-based getStats(callback, constraints).
-        const getStatsZeroArg = call.getStats as unknown as () => Promise<RTCStatsReport | unknown>;
+        const getStatsZeroArg = call.getStats as unknown as () => Promise<
+          RTCStatsReport | unknown
+        >;
         rawStats = await getStatsZeroArg();
       }
 
@@ -294,11 +607,16 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * 2. Pre-normalized frame objects (e.g. from test mocks or the SDK's
    *    CallReportCollector IStatsInterval shape) — passed through directly.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private normalizeStatsFrame(rawStats: RTCStatsReport | unknown): Record<string, any> | undefined {
+  private normalizeStatsFrame(
+    rawStats: RTCStatsReport | unknown
+  ): Record<string, unknown> | undefined {
     // If rawStats is already a structured object (not a Map/RTCStatsReport),
     // pass it through — this supports test mocks and IStatsInterval shapes.
-    if (rawStats && typeof rawStats === 'object' && !(rawStats instanceof Map)) {
+    if (
+      rawStats &&
+      typeof rawStats === 'object' &&
+      !(rawStats instanceof Map)
+    ) {
       // Check if it behaves like a real RTCStatsReport (has forEach and is
       // Map-like with a size property) vs. a plain pre-normalized frame object.
       const obj = rawStats as Record<string, unknown>;
@@ -313,7 +631,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     }
 
     // Map-like RTCStatsReport
-    if (rawStats instanceof Map || (rawStats && typeof (rawStats as Map<unknown, unknown>).forEach === 'function')) {
+    if (
+      rawStats instanceof Map ||
+      (rawStats &&
+        typeof (rawStats as Map<unknown, unknown>).forEach === 'function')
+    ) {
       return this.parseRTCStatsReport(rawStats as RTCStatsReport);
     }
 
@@ -337,7 +659,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     // browser's sample timing. Fall back to Date.now() only if no stats
     // timestamp is present (e.g. synthetic report with no entries).
     let timestamp: number | undefined =
-      typeof (report as unknown as { timestamp?: unknown }).timestamp === 'number'
+      typeof (report as unknown as { timestamp?: unknown }).timestamp ===
+      'number'
         ? (report as unknown as { timestamp: number }).timestamp
         : undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -383,7 +706,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       }
 
       // Transport-level stats (candidate-pair RTT, bytes, packets)
-      if (entry.type === 'candidate-pair' && (entry as Record<string, unknown>).selected === true) {
+      if (
+        entry.type === 'candidate-pair' &&
+        (entry as Record<string, unknown>).selected === true
+      ) {
         connection.currentRoundTripTime = entry.currentRoundTripTime;
         connection.bytesSent = entry.bytesSent;
         connection.bytesReceived = entry.bytesReceived;
@@ -391,8 +717,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         connection.packetsReceived = entry.packetsReceived;
       }
       if (entry.type === 'transport') {
-        if (entry.bytesSent !== undefined) connection.bytesSent = entry.bytesSent;
-        if (entry.bytesReceived !== undefined) connection.bytesReceived = entry.bytesReceived;
+        if (entry.bytesSent !== undefined)
+          connection.bytesSent = entry.bytesSent;
+        if (entry.bytesReceived !== undefined)
+          connection.bytesReceived = entry.bytesReceived;
       }
     });
 

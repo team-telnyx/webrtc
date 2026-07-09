@@ -22,10 +22,9 @@
 import type {
   PreCallDiagnosticReport,
   PreCallDiagnosticReason,
+  PreCallDiagnosticWarning,
 } from '../types';
-import type {
-  PreCallDiagnosticContext,
-} from '../context';
+import type { PreCallDiagnosticContext } from '../context';
 
 // ---------------------------------------------------------------------------
 // Reason codes — typed constants per module domain
@@ -106,46 +105,64 @@ export type MicrophoneReasonCodeValue =
 // ---------------------------------------------------------------------------
 
 /**
- * Assess the ICE module report and return verdict + reasons.
+ * Assess the ICE module report and return verdict + reasons + warnings.
  *
- * Blocking conditions:
+ * Blocking conditions (→ reasons, block the verdict):
  * - No candidates gathered
  * - No selected pair (connectivity failure)
  *
- * Degraded conditions:
- * - Only host candidates (no NAT traversal)
- * - Only relay candidates (no direct path)
+ * Degraded conditions (→ reasons, degrade the verdict):
+ * - Only relay candidates (no direct path) — still functional but suboptimal
  * - Gathering timeout (partial data)
+ *
+ * Warning conditions (→ warnings, do NOT flip the verdict) — only emitted
+ * when connectivity succeeded (hasSelectedPair === true):
+ * - Only host candidates (NAT traversal may not be possible, but the call
+ *   connected, so this is advisory rather than blocking)
  */
-function assessIce(
-  ice: PreCallDiagnosticReport['ice']
-): {
+function assessIce(ice: PreCallDiagnosticReport['ice']): {
   verdict: PreCallDiagnosticReport['verdict'];
   reasons: PreCallDiagnosticReason[];
+  warnings: PreCallDiagnosticWarning[];
 } {
   if (!ice) {
-    return { verdict: undefined, reasons: [] };
+    return { verdict: undefined, reasons: [], warnings: [] };
   }
 
   const reasons: PreCallDiagnosticReason[] = [];
+  const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
-  // No candidates at all — blocked
+  // No candidates at all — inconclusive. Zero candidates means the
+  // diagnostic could not gather any ICE data (e.g. an empty/synthetic
+  // environment, or gathering never started), so we cannot make a
+  // definitive "blocked" (connectivity failure) claim. A blocked verdict
+  // requires that candidates were gathered but no pair connected.
   if (ice.candidateTypes && ice.candidateTypes.length === 0) {
     reasons.push({
       code: IceReasonCode.NoCandidates,
       message: 'No ICE candidates were gathered.',
       source: 'ice',
     });
-    worstVerdict = 'blocked';
+    worstVerdict = 'inconclusive';
   }
 
-  // Only host candidates — degraded (no NAT traversal)
-  if (
+  // Only host candidates — when connectivity succeeded, this is a WARNING
+  // (the call works without NAT traversal, e.g. on a flat network); when it
+  // did NOT succeed, it remains a degraded reason.
+  const onlyHost =
     ice.candidateTypes &&
     ice.candidateTypes.length > 0 &&
-    ice.candidateTypes.every((t) => t === 'host')
-  ) {
+    ice.candidateTypes.every((t) => t === 'host');
+
+  if (onlyHost && ice.hasSelectedPair === true) {
+    warnings.push({
+      code: IceReasonCode.OnlyHostCandidates,
+      message:
+        'Only host ICE candidates found. NAT traversal may not be possible, but connectivity succeeded.',
+      source: 'ice',
+    });
+  } else if (onlyHost) {
     reasons.push({
       code: IceReasonCode.OnlyHostCandidates,
       message:
@@ -174,8 +191,12 @@ function assessIce(
     }
   }
 
-  // No selected pair — blocked (connectivity failure)
-  if (ice.hasSelectedPair === false) {
+  // No selected pair — blocked (connectivity failure), but ONLY when
+  // candidates were actually gathered. With zero candidates the verdict is
+  // already inconclusive (above); a missing selected pair there is a
+  // consequence of having no data, not a connectivity failure.
+  const hasCandidates = ice.candidateTypes && ice.candidateTypes.length > 0;
+  if (hasCandidates && ice.hasSelectedPair === false) {
     reasons.push({
       code: IceReasonCode.NoSelectedPair,
       message: 'No ICE candidate pair was selected. Connectivity failure.',
@@ -201,29 +222,29 @@ function assessIce(
     worstVerdict = 'ready';
   }
 
-  return { verdict: worstVerdict, reasons };
+  return { verdict: worstVerdict, reasons, warnings };
 }
 
 /**
- * Assess the network module report and return verdict + reasons.
+ * Assess the network module report and return verdict + reasons + warnings.
  *
- * Blocking conditions:
+ * Blocking conditions (→ reasons, block the verdict):
  * - Poor network quality
  *
- * Degraded conditions:
- * - Fair network quality
+ * Warning conditions (→ warnings, do NOT flip the verdict):
+ * - Fair network quality (degraded but functional)
  */
-function assessNetwork(
-  network: PreCallDiagnosticReport['network']
-): {
+function assessNetwork(network: PreCallDiagnosticReport['network']): {
   verdict: PreCallDiagnosticReport['verdict'];
   reasons: PreCallDiagnosticReason[];
+  warnings: PreCallDiagnosticWarning[];
 } {
   if (!network) {
-    return { verdict: undefined, reasons: [] };
+    return { verdict: undefined, reasons: [], warnings: [] };
   }
 
   const reasons: PreCallDiagnosticReason[] = [];
+  const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
   switch (network.quality) {
@@ -236,12 +257,12 @@ function assessNetwork(
       worstVerdict = 'blocked';
       break;
     case 'fair':
-      reasons.push({
+      // Fair quality is degraded-but-functional → warning, not a reason.
+      warnings.push({
         code: NetworkReasonCode.FairQuality,
         message: 'Network quality is fair (degraded).',
         source: 'network',
       });
-      worstVerdict = 'degraded';
       break;
     case 'good':
       worstVerdict = 'ready';
@@ -252,29 +273,26 @@ function assessNetwork(
       break;
   }
 
-  return { verdict: worstVerdict, reasons };
+  return { verdict: worstVerdict, reasons, warnings };
 }
 
 /**
- * Assess the media module report and return verdict + reasons.
+ * Assess the media module report and return verdict + reasons + warnings.
  *
- * Blocking conditions:
+ * Blocking conditions (→ reasons, block the verdict):
  * - No audio flowing
- *
- * Degraded conditions:
- * - One-way audio
  */
-function assessMedia(
-  media: PreCallDiagnosticReport['media']
-): {
+function assessMedia(media: PreCallDiagnosticReport['media']): {
   verdict: PreCallDiagnosticReport['verdict'];
   reasons: PreCallDiagnosticReason[];
+  warnings: PreCallDiagnosticWarning[];
 } {
   if (!media) {
-    return { verdict: undefined, reasons: [] };
+    return { verdict: undefined, reasons: [], warnings: [] };
   }
 
   const reasons: PreCallDiagnosticReason[] = [];
+  const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
   if (media.audioFlowing === false) {
@@ -292,30 +310,27 @@ function assessMedia(
   // PreCallMediaReport. For now, we check audioFlowing as a boolean.
   // Future tickets can extend PreCallMediaReport with direction info.
 
-  return { verdict: worstVerdict, reasons };
+  return { verdict: worstVerdict, reasons, warnings };
 }
 
 /**
- * Assess the microphone module report and return verdict + reasons.
+ * Assess the microphone module report and return verdict + reasons + warnings.
  *
- * Blocking conditions:
+ * Blocking conditions (→ reasons, block the verdict):
  * - Permission denied
  * - No device available
- *
- * Degraded conditions:
- * - (none currently — silence detection would be T7 scope)
  */
-function assessMicrophone(
-  microphone: PreCallDiagnosticReport['microphone']
-): {
+function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
   verdict: PreCallDiagnosticReport['verdict'];
   reasons: PreCallDiagnosticReason[];
+  warnings: PreCallDiagnosticWarning[];
 } {
   if (!microphone) {
-    return { verdict: undefined, reasons: [] };
+    return { verdict: undefined, reasons: [], warnings: [] };
   }
 
   const reasons: PreCallDiagnosticReason[] = [];
+  const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
   if (microphone.permissionGranted === false) {
@@ -350,7 +365,7 @@ function assessMicrophone(
     }
   }
 
-  return { verdict: worstVerdict, reasons };
+  return { verdict: worstVerdict, reasons, warnings };
 }
 
 // ---------------------------------------------------------------------------
@@ -395,15 +410,19 @@ function worseVerdict(
 // ---------------------------------------------------------------------------
 
 /**
- * Build the verdict and reasons for the diagnostic report.
+ * Build the verdict, reasons, and warnings for the diagnostic report.
  *
  * Evaluates each available module report and combines their verdicts
  * using a worst-wins policy. If no module data is available, returns
  * `inconclusive` (no false confidence).
  *
+ * Warnings (degraded-but-functional signals) are collected separately from
+ * reasons and do NOT influence the verdict. Callers can surface warnings as
+ * advisory information without the verdict degrading.
+ *
  * @param report - The partial diagnostic report with module results
  * @param context - The diagnostic context (reserved for future use)
- * @returns The overall verdict and list of reasons
+ * @returns The overall verdict, list of reasons, and list of warnings
  */
 export function buildVerdict(
   report: Partial<PreCallDiagnosticReport>,
@@ -411,25 +430,31 @@ export function buildVerdict(
 ): {
   verdict: PreCallDiagnosticReport['verdict'];
   reasons: PreCallDiagnosticReason[];
+  warnings: PreCallDiagnosticWarning[];
 } {
   const allReasons: PreCallDiagnosticReason[] = [];
+  const allWarnings: PreCallDiagnosticWarning[] = [];
   let combinedVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
   // Assess each module that has data
   const iceResult = assessIce(report.ice);
   allReasons.push(...iceResult.reasons);
+  allWarnings.push(...iceResult.warnings);
   combinedVerdict = worseVerdict(combinedVerdict, iceResult.verdict);
 
   const networkResult = assessNetwork(report.network);
   allReasons.push(...networkResult.reasons);
+  allWarnings.push(...networkResult.warnings);
   combinedVerdict = worseVerdict(combinedVerdict, networkResult.verdict);
 
   const mediaResult = assessMedia(report.media);
   allReasons.push(...mediaResult.reasons);
+  allWarnings.push(...mediaResult.warnings);
   combinedVerdict = worseVerdict(combinedVerdict, mediaResult.verdict);
 
   const micResult = assessMicrophone(report.microphone);
   allReasons.push(...micResult.reasons);
+  allWarnings.push(...micResult.warnings);
   combinedVerdict = worseVerdict(combinedVerdict, micResult.verdict);
 
   // If an error occurred during the diagnostic run, that's a blocking condition
@@ -448,11 +473,13 @@ export function buildVerdict(
     return {
       verdict: 'inconclusive',
       reasons: allReasons,
+      warnings: allWarnings,
     };
   }
 
   return {
     verdict: combinedVerdict,
     reasons: allReasons,
+    warnings: allWarnings,
   };
 }
