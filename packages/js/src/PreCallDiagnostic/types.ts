@@ -111,6 +111,20 @@ export interface PreCallDiagnosticOptions {
   /** Whether to run the microphone diagnostic module. Default: true (if true, uses defaults). */
   microphone?: boolean | PreCallMicrophoneOptions;
 
+  /**
+   * Diagnostic run mode — controls which path `PreCallDiagnostic.run()`
+   * takes. Set internally by the public API methods:
+   * - `runPreCall()` → `'full'` (establishes a diagnostic call, runs all modules)
+   * - `runNetworkCheck()` → `'network-only'` (raw RTCPeerConnection, ICE only)
+   * - `runMicrophoneCheck()` → `'microphone-only'` (getUserMedia + Web Audio)
+   *
+   * Not part of the public surface; module toggles (`ice`/`network`/`media`/
+   * `microphone`) are NOT exposed to callers. Defaults to `'full'` when
+   * omitted so a bare `new PreCallDiagnostic(options).run()` runs the
+   * complete pipeline.
+   */
+  mode?: 'full' | 'network-only' | 'microphone-only';
+
   /** Optional RTC configuration override for the diagnostic call. */
   rtcConfig?: RTCConfiguration;
 }
@@ -222,6 +236,20 @@ export interface PreCallIceCandidateInfo {
   relayProtocol?: string;
   /** TURN server URL associated with this relay candidate. */
   url?: string;
+  /**
+   * Raw ICE candidate string (the SDP `a=candidate:` line, minus the
+   * `a=` prefix) for this candidate.
+   *
+   * When the browser exposes the raw candidate string directly on the
+   * candidate stats entry (a non-standard `candidate` field on
+   * `RTCIceCandidateStats`), that value is reported verbatim. Otherwise
+   * the module reconstructs an SDP candidate line from the available
+   * stats fields (foundation/component/priority are omitted when the
+   * browser does not report them, producing a minimal but faithful
+   * `candidate:<component> <protocol> <priority> <address> <port> typ <type>`
+   * line). Undefined when no candidate fields are available.
+   */
+  candidate?: string;
 }
 
 /**
@@ -504,7 +532,11 @@ export interface PreCallMicrophoneReport {
    * - 'not_supported': getUserMedia is not available in this environment.
    * - 'unknown': An unexpected error occurred during capture.
    */
-  captureError?: 'permission_denied' | 'no_device' | 'not_supported' | 'unknown';
+  captureError?:
+    | 'permission_denied'
+    | 'no_device'
+    | 'not_supported'
+    | 'unknown';
   /**
    * Human-readable description of the capture error, if any.
    */

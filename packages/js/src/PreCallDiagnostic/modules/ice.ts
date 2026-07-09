@@ -73,6 +73,25 @@ interface CandidateStats extends RTCStats {
   ip?: string;
   /** Candidate port. */
   port?: number;
+  /**
+   * Raw ICE candidate string (the SDP `a=candidate:` line value).
+   * Non-standard: some browsers expose this on local-candidate stats.
+   * When absent, the module reconstructs an equivalent line from the
+   * other fields (see `buildCandidateString`).
+   */
+  candidate?: string;
+  /** SDP foundation (component id, e.g. 1 for RTP, 2 for RTCP). */
+  foundation?: string;
+  /** SDP priority (unsigned 32-bit). Used to reconstruct the candidate line. */
+  priority?: number;
+  /** SDP component id (1 = RTP, 2 = RTCP). */
+  componentId?: number;
+  /** Related address for srflx/relay candidates (the base address). */
+  relatedAddress?: string;
+  /** Related port for srflx/relay candidates (the base port). */
+  relatedPort?: number;
+  /** TCP type for tcp candidates ('active' | 'passive' | 'so'). */
+  tcpType?: string;
 }
 
 /**
@@ -298,11 +317,21 @@ function resolveSelectedPair(
  *
  * Normalizes the browser-specific address field: Chromium exposes
  * `address`, Firefox exposes `ip`. Both are read and reported as `address`.
+ *
+ * The raw ICE candidate string is surfaced on the `candidate` field:
+ * - When the browser exposes a non-standard `candidate` string on the
+ *   candidate stats entry, that value is reported verbatim.
+ * - Otherwise the module reconstructs an SDP candidate line from the
+ *   available fields (see `buildCandidateString`).
  */
 function extractCandidateInfo(stats: CandidateStats): PreCallIceCandidateInfo {
   // Chromium reports `address`, Firefox reports `ip` for the same field.
   // Prefer `address` when present, fall back to `ip`, then to undefined.
   const address = stats.address ?? stats.ip;
+
+  // Raw candidate string: prefer the browser-provided value, fall back to a
+  // reconstructed line so the report always carries a usable candidate line.
+  const candidate = stats.candidate ?? buildCandidateString(stats);
 
   return {
     id: stats.id,
@@ -319,7 +348,68 @@ function extractCandidateInfo(stats: CandidateStats): PreCallIceCandidateInfo {
     networkType: stats.networkType,
     relayProtocol: stats.relayProtocol,
     url: stats.url,
+    candidate,
   };
+}
+
+/**
+ * Reconstruct an SDP ICE candidate line from candidate stats fields.
+ *
+ * The W3C `RTCIceCandidateStats` does not carry the raw SDP `a=candidate:`
+ * line, but the fields it exposes (`candidateType`, `protocol`, `address`,
+ * `port`, `relatedAddress`, `relatedPort`) are sufficient to rebuild a
+ * faithful candidate line for diagnostic inspection. Foundation,
+ * component id, and priority are omitted when the browser does not report
+ * them, producing a minimal but well-formed line:
+ *
+ *   candidate:<foundation> <component> <protocol> <priority> <addr> <port> typ <type>[ raddr <raddr> rport <rport>][ tcptype <tcptype>]
+ *
+ * Returns undefined when the candidate has no address/type (nothing
+ * meaningful to reconstruct).
+ */
+function buildCandidateString(stats: CandidateStats): string | undefined {
+  const type = stats.candidateType;
+  const address = stats.address ?? stats.ip;
+  const port = typeof stats.port === 'number' ? stats.port : undefined;
+
+  // Without an address+port and a type there is no usable candidate line.
+  if (!address || port === undefined || !type) {
+    return undefined;
+  }
+
+  const parts: string[] = ['candidate:'];
+  // Foundation: use the stats foundation when present, otherwise a placeholder.
+  parts.push(stats.foundation ?? '-');
+  // Component id: 1 for RTP, 2 for RTCP. Use the reported value when present.
+  parts.push(stats.componentId !== undefined ? String(stats.componentId) : '1');
+  // Protocol (udp/tcp).
+  parts.push(stats.protocol ?? 'udp');
+  // Priority: 32-bit unsigned. Use the reported value when present.
+  parts.push(stats.priority !== undefined ? String(stats.priority) : '0');
+  // Address + port.
+  parts.push(address);
+  parts.push(String(port));
+  // Candidate type.
+  parts.push('typ');
+  parts.push(type);
+
+  // Related address/port for srflx/relay candidates (the base address).
+  if (stats.relatedAddress) {
+    parts.push('raddr');
+    parts.push(stats.relatedAddress);
+    parts.push('rport');
+    parts.push(
+      stats.relatedPort !== undefined ? String(stats.relatedPort) : '0'
+    );
+  }
+
+  // TCP type for tcp candidates.
+  if (stats.protocol === 'tcp' && stats.tcpType) {
+    parts.push('tcptype');
+    parts.push(stats.tcpType);
+  }
+
+  return parts.join(' ');
 }
 
 // --- Host network topology detection ---
