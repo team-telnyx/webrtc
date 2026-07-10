@@ -104,18 +104,35 @@ export type RunNetworkCheckOptions = RunPreCallOptions;
  * The microphone module always runs inside `runMicrophoneCheck()` —
  * callers cannot opt out of it from the public API (VSDK-412 Gap 3).
  *
- * `onRecordingConsent` is an optional callback invoked before recording
- * starts (when recording is enabled, which it is by default). The caller
- * can display a pre-recording warning/consent dialog and only resolve the
- * promise once the user has acknowledged it (VSDK-412 review P43WG).
+ * Recording and playback are opt-in: both default to `false` so the
+ * zero-argument path does not silently record the user without consent
+ * (VSDK-412 review: "the zero-argument path still records before any
+ * warning/consent"). Callers who want the "record and listen" flow must
+ * explicitly set `record: true` and should pass `onRecordingConsent`
+ * so a pre-recording warning is displayed before capture begins.
  */
 export interface RunMicrophoneCheckOptions extends RunPreCallOptions {
   /**
-   * Optional consent callback invoked BEFORE recording starts. The
-   * module awaits this callback before calling `MediaRecorder.start()`.
-   * Rejecting the promise aborts recording (but not the rest of the
-   * microphone check). See `MICROPHONE_RECORDING_NOTICE` for the
-   * recommended notice string.
+   * Whether to record the microphone audio during the check so the
+   * user can listen to it afterwards. Defaults to `false` — the
+   * zero-argument path must not silently record without consent.
+   * When set to `true`, pass `onRecordingConsent` so a warning is
+   * displayed before `MediaRecorder.start()`.
+   */
+  record?: boolean;
+
+  /**
+   * Whether to play back the recorded audio after capture. Only
+   * applies when `record: true`. Defaults to `false`.
+   */
+  playback?: boolean;
+
+  /**
+   * Optional consent callback invoked BEFORE recording starts (when
+   * `record: true`). The module awaits this callback before calling
+   * `MediaRecorder.start()`. Rejecting the promise aborts recording
+   * (but not the rest of the microphone check). See
+   * `MICROPHONE_RECORDING_NOTICE` for the recommended notice string.
    */
   onRecordingConsent?: () => Promise<void>;
 }
@@ -424,7 +441,18 @@ export class TelnyxRTC extends TelnyxRTCClient {
       ice: true,
       network: true,
       media: true,
-      microphone: true,
+      // Enable active microphone capture in full mode so the report
+      // includes audio-level data (audioLevel, audioLevelStats, audioDetected)
+      // — not just passive permission/device checks. Recording and playback
+      // are NOT enabled by default in full mode (no consent flow); callers
+      // who want recording should use runMicrophoneCheck() with an explicit
+      // opt-in.
+      // (VSDK-412 review: "full runPreCall() still does not collect the
+      // requested microphone audio-level data" — passing `true` resolved
+      // to `activeCapture: false` in resolveMicrophoneOptions().)
+      microphone: {
+        activeCapture: true,
+      },
       mode: 'full',
       // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.
@@ -539,6 +567,12 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * ```js
    * const report = await client.runMicrophoneCheck({
    *   durationMs: 5000,
+   *   record: true,
+   *   playback: true,
+   *   onRecordingConsent: async () => {
+   *     // Display MICROPHONE_RECORDING_NOTICE and wait for user ack
+   *     await showConsentDialog();
+   *   },
    * });
    * ```
    */
@@ -557,15 +591,17 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // measures audio level and verifies capture works (not just passive
       // permission/device checks). The user gets a real result.
       //
-      // Recording + playback enabled by default (VSDK-412 Review 18, point 2):
-      // the reviewer asked for a "record and listen" flow — record the user's
-      // voice for ~5s with a prompt ("To check microphone say anything in 1,
-      // 2, 3..."), then play it back so they hear their own voice. This
-      // mirrors Twilio's pre-call microphone check.
+      // Recording + playback are NOT enabled by default. The zero-argument
+      // path must not silently record the user without consent/warning
+      // (VSDK-412 review: "the zero-argument path still records before any
+      // warning/consent"). Callers who want the "record and listen" flow
+      // must explicitly opt in via the new `record`/`playback` options on
+      // `RunMicrophoneCheckOptions`, AND should pass `onRecordingConsent`
+      // so a pre-recording warning is displayed before capture begins.
       microphone: {
         activeCapture: true,
-        record: true,
-        playback: true,
+        record: options.record ?? false,
+        playback: options.playback ?? false,
         // Pass through the pre-recording consent callback so the caller
         // can display a warning/consent dialog BEFORE MediaRecorder.start()
         // (VSDK-412 review P43WG).

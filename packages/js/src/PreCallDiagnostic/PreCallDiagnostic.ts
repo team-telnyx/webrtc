@@ -251,12 +251,19 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const effectiveServers = rtcConfig.iceServers ?? iceServers ?? [];
     const durationMs = this.effectiveDurationMs();
 
-    // Per-server results: test each ICE server independently.
+    // Per-server results: test each ICE server URL independently.
     // Sequential per-server testing — total wall-clock ≈ N × durationMs
     // (intentional: the reviewer asked for per-server timing). Each server
     // gets its own RTCPeerConnection so candidates are isolated.
+    //
+    // Flatten multi-URL RTCIceServer entries (e.g. one credential object
+    // containing STUN + TURN UDP/TCP URLs) into single-URL servers so every
+    // configured endpoint gets its own peer/result/timing (VSDK-412 review:
+    // "per-server isolation is still per RTCIceServer object, not per
+    // configured URL" — a working TCP URL was obscuring a failed UDP URL).
+    const flattenedServers = flattenIceServersByURL(effectiveServers);
     const perServerResults: PreCallIceServerResult[] = [];
-    for (const server of effectiveServers) {
+    for (const server of flattenedServers) {
       const result = await testSingleIceServer(server, durationMs);
       perServerResults.push(result);
     }
@@ -987,4 +994,46 @@ function aggregatePerServerResults(
     hasSelectedPair: false,
     perServerResults: results,
   };
+}
+
+/**
+ * Flatten multi-URL `RTCIceServer` entries into single-URL servers.
+ *
+ * A single `RTCIceServer` object may carry multiple URLs in its `urls` array
+ * (commonly one credential object containing STUN + TURN UDP/TCP URLs).
+ * When per-server isolation tests that whole object with one
+ * `RTCPeerConnection`, a working TCP URL can obscure a failed UDP URL
+ * because candidates from both URLs are gathered together.
+ *
+ * This helper splits each `RTCIceServer` into one server per URL entry,
+ * preserving `username`, `credential`, and `credentialType`. The resulting
+ * array has one entry per configured URL so every endpoint gets its own
+ * peer, result, and timing in `perServerResults`.
+ *
+ * (VSDK-412 review: "per-server isolation is still per RTCIceServer object,
+ * not per configured URL".)
+ */
+function flattenIceServersByURL(servers: RTCIceServer[]): RTCIceServer[] {
+  const flattened: RTCIceServer[] = [];
+  for (const server of servers) {
+    const urls = Array.isArray(server.urls)
+      ? server.urls
+      : server.urls
+        ? [server.urls]
+        : [];
+    for (const url of urls) {
+      const single: RTCIceServer = { urls: url };
+      if (server.username !== undefined) {
+        single.username = server.username;
+      }
+      if (server.credential !== undefined) {
+        single.credential = server.credential;
+      }
+      if (server.credentialType !== undefined) {
+        single.credentialType = server.credentialType;
+      }
+      flattened.push(single);
+    }
+  }
+  return flattened;
 }

@@ -105,6 +105,75 @@ describe('PreCallDiagnostic — mode dispatch (VSDK-412 B1)', () => {
     expect(report.verdict).toBe('inconclusive');
   });
 
+  it('network-only flattens multi-URL ICE servers into per-URL results (VSDK-412 review)', async () => {
+    const client = makeBaseClient();
+    // Stub RTCPeerConnection with a fake that supports the gather dance.
+    class FakePC {
+      iceGatheringState = 'complete';
+      iceConnectionState = 'connected';
+      createDataChannel(): object {
+        return {};
+      }
+      createOffer(): Promise<object> {
+        return Promise.resolve({ type: 'offer', sdp: 'v=0' } as object);
+      }
+      setLocalDescription(): Promise<void> {
+        return Promise.resolve();
+      }
+      getStats(): Promise<Map<string, object>> {
+        return Promise.resolve(new Map());
+      }
+      close(): void {}
+    }
+    (globalThis as Record<string, unknown>).RTCPeerConnection =
+      FakePC as unknown as typeof RTCPeerConnection;
+
+    // One RTCIceServer with multiple URLs (STUN + TURN UDP + TURN TCP).
+    // Before the fix, this produced ONE perServerResults entry for all
+    // three URLs. After the fix (flattenIceServersByURL), each URL gets
+    // its own entry.
+    const multiUrlServer = {
+      urls: [
+        'stun:stun.example.test:19302',
+        'turn:turn.example.test:3478?transport=udp',
+        'turn:turn.example.test:3478?transport=tcp',
+      ],
+      username: 'user',
+      credential: 'pass',
+    };
+    const options: PreCallDiagnosticOptions = {
+      client: client as never,
+      mode: 'network-only',
+      ice: true,
+      network: false,
+      media: false,
+      microphone: false,
+      durationMs: 10,
+      rtcConfig: { iceServers: [multiUrlServer] },
+    };
+    const diag = new PreCallDiagnostic(options);
+    const report = await diag.run();
+
+    // Each URL in the multi-URL server should produce its own
+    // perServerResults entry (3 URLs → 3 entries).
+    const perServerResults = report.ice?.perServerResults ?? [];
+    expect(perServerResults.length).toBe(3);
+
+    // Each flattened server should have a single-URL `urls` field.
+    for (const result of perServerResults) {
+      const urls = Array.isArray(result.server.urls)
+        ? result.server.urls
+        : [result.server.urls];
+      expect(urls.length).toBe(1);
+    }
+
+    // Username/credential should be preserved on each flattened server.
+    for (const result of perServerResults) {
+      expect(result.server.username).toBe('user');
+      expect(result.server.credential).toBe('pass');
+    }
+  });
+
   it('mode: microphone-only does NOT call client.newCall()', async () => {
     const client = makeBaseClient();
     const options: PreCallDiagnosticOptions = {
