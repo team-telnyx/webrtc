@@ -44,8 +44,12 @@ import { buildVerdict } from './modules/verdict';
  * upper bound for the diagnostic call to reach the `active` (established)
  * state; on expiry the report returns `verdict: 'inconclusive'` with a
  * `call_setup_timeout` reason and omits ICE/network/media/microphone data.
+ *
+ * Aligned with the public `RunPreCallOptions.callSetupTimeoutMs` documented
+ * default of ~30000ms (VSDK-412). Calls that establish between 15s and 30s
+ * must not fail despite the old 15s internal default.
  */
-const DEFAULT_CALL_SETUP_TIMEOUT_MS = 15000;
+const DEFAULT_CALL_SETUP_TIMEOUT_MS = 30000;
 
 /** Default interval between stats samples in milliseconds. */
 const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;

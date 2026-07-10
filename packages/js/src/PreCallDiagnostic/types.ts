@@ -128,10 +128,7 @@ export interface PreCallDiagnosticOptions {
   /** Audio constraints for the diagnostic call (internal — not public surface). */
   audio?: boolean | MediaStreamConstraints['audio'];
 
-  /** Overall timeout in ms for the diagnostic run. Default: 30000. */
-  timeoutMs?: number;
-
-  /** Timeout in ms for the call setup phase. Default: 15000. */
+  /** Timeout in ms for the call setup phase. Default: 30000. */
   callSetupTimeoutMs?: number;
 
   /** Interval in ms between stats samples. Default: 1000. */

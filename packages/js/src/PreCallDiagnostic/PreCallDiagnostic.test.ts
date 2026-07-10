@@ -328,14 +328,19 @@ describe('PreCallDiagnostic — verdict priority includes inconclusive (VSDK-412
     packetsReceived: 100,
   };
 
-  it('worseVerdict(inconclusive, ready) === inconclusive (B4 regression guard)', () => {
+  it('worseVerdict(ready, inconclusive) === ready (B4 — inconclusive is lowest priority)', () => {
     // ICE returns inconclusive (no candidates), network returns ready.
-    // Combined verdict must be inconclusive — NOT ready (false confidence).
+    // `inconclusive` is the LOWEST-priority verdict (least informative) —
+    // a concrete `ready` from the network module must win over the
+    // indeterminate `inconclusive` from ICE. This was the round-8 fix:
+    // previously `inconclusive` was ranked worst and overrode concrete
+    // results, which is wrong (missing evidence should not override
+    // available evidence).
     const result = buildVerdict(
       { ice: iceInconclusive, network: networkGood },
       makeContext()
     );
-    expect(result.verdict).toBe('inconclusive');
+    expect(result.verdict).toBe('ready');
   });
 
   it('ice ready + network undefined → ready (undefined is ignored)', () => {
@@ -362,19 +367,20 @@ describe('PreCallDiagnostic — verdict priority includes inconclusive (VSDK-412
     expect(result.verdict).toBe('inconclusive');
   });
 
-  it('inconclusive dominates permission_denied (conservative worst-wins)', () => {
+  it('permission_denied dominates inconclusive (concrete beats indeterminate)', () => {
     // ICE inconclusive (no candidates), microphone permission denied.
-    // With VERDICT_PRIORITY = [ready, degraded, blocked, permission_denied, inconclusive],
-    // inconclusive has the highest index, so worseVerdict returns it.
-    // Per the reviewer's explicit instruction (B4): "Add 'inconclusive' as the
-    // last entry so it is treated as the worst case" — if any module has no
-    // data (inconclusive), the whole verdict is inconclusive, never claiming a
-    // positive verdict when data is missing.
+    // `inconclusive` is the LOWEST-priority verdict (least informative) —
+    // a concrete `permission_denied` from the microphone module must win
+    // over the indeterminate `inconclusive` from ICE. This was the round-8
+    // fix: previously `inconclusive` was ranked worst and overrode the
+    // concrete permission_denied, yielding `inconclusive` instead of
+    // `permission_denied` — which hid an actionable blocking condition.
+    // Policy: permission_denied > blocked > degraded > ready > inconclusive
     const result = buildVerdict(
       { ice: iceInconclusive, microphone: { permissionGranted: false } },
       makeContext()
     );
-    expect(result.verdict).toBe('inconclusive');
+    expect(result.verdict).toBe('permission_denied');
   });
 });
 

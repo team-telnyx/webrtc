@@ -471,16 +471,24 @@ function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
  * This ensures conservative behavior: any blocking condition blocks the
  * overall verdict, any degradation degrades it, etc.
  *
+ * `inconclusive` is the *lowest* priority (least informative): missing or
+ * indeterminate evidence must never override a concrete blocking result.
+ * For example, an inconclusive network assessment combined with a denied
+ * microphone yields `permission_denied`, not `inconclusive`.
+ *
  * Special case: `permission_denied` is worse than `blocked` because it
  * indicates user action is required (grant permission) rather than a
  * technical failure that might be transient.
+ *
+ * Policy order (worst → best):
+ * permission_denied > blocked > degraded > ready > inconclusive
  */
 const VERDICT_PRIORITY: PreCallDiagnosticReport['verdict'][] = [
+  'inconclusive',
   'ready',
   'degraded',
   'blocked',
   'permission_denied',
-  'inconclusive',
 ];
 
 /**

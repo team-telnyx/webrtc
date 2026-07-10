@@ -362,4 +362,99 @@ describe('buildVerdict — reason vs warning split (VSDK-412)', () => {
       ])
     );
   });
+
+  // --- Mixed-module verdict priority (VSDK-412 round-8 review) ---
+  // `inconclusive` must be the lowest-priority verdict: indeterminate
+  // evidence from one module must never override a concrete result from
+  // another. See verdict.ts VERDICT_PRIORITY ordering.
+
+  it('inconclusive + permission_denied yields permission_denied (not inconclusive)', () => {
+    // ICE inconclusive (no candidates) + microphone permission denied.
+    // The concrete permission_denied must win over the indeterminate
+    // inconclusive — this was the bug in round-7 (inconclusive was
+    // ranked as the worst verdict).
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: [],
+        candidateCounts: {
+          total: 0,
+          host: 0,
+          srflx: 0,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: false,
+      },
+      microphone: {
+        permissionGranted: false,
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.verdict).toBe('permission_denied');
+  });
+
+  it('inconclusive + ready yields ready (not inconclusive)', () => {
+    // Network inconclusive (no data) + ICE ready.
+    // The concrete ready must win over the indeterminate inconclusive.
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: ['host', 'srflx'],
+        candidateCounts: {
+          total: 2,
+          host: 1,
+          srflx: 1,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: true,
+        gatheringComplete: true,
+      },
+      // network is omitted → inconclusive from the network module
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.verdict).toBe('ready');
+  });
+
+  it('inconclusive + blocked yields blocked', () => {
+    // ICE inconclusive (no candidates) + network blocked (poor quality).
+    // The concrete blocked must win over the indeterminate inconclusive.
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: [],
+        candidateCounts: {
+          total: 0,
+          host: 0,
+          srflx: 0,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: false,
+      },
+      network: {
+        quality: 'poor',
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.verdict).toBe('blocked');
+  });
+
+  it('inconclusive alone (all modules omitted) yields inconclusive', () => {
+    // When no module contributes any data, the verdict stays inconclusive.
+    // This confirms inconclusive is still reachable when nothing concrete
+    // exists — it just must not override anything else.
+    const result = buildVerdict({}, makeContext());
+    expect(result.verdict).toBe('inconclusive');
+  });
 });
