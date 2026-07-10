@@ -103,8 +103,22 @@ export type RunNetworkCheckOptions = RunPreCallOptions;
  *
  * The microphone module always runs inside `runMicrophoneCheck()` —
  * callers cannot opt out of it from the public API (VSDK-412 Gap 3).
+ *
+ * `onRecordingConsent` is an optional callback invoked before recording
+ * starts (when recording is enabled, which it is by default). The caller
+ * can display a pre-recording warning/consent dialog and only resolve the
+ * promise once the user has acknowledged it (VSDK-412 review P43WG).
  */
-export type RunMicrophoneCheckOptions = RunPreCallOptions;
+export interface RunMicrophoneCheckOptions extends RunPreCallOptions {
+  /**
+   * Optional consent callback invoked BEFORE recording starts. The
+   * module awaits this callback before calling `MediaRecorder.start()`.
+   * Rejecting the promise aborts recording (but not the rest of the
+   * microphone check). See `MICROPHONE_RECORDING_NOTICE` for the
+   * recommended notice string.
+   */
+  onRecordingConsent?: () => Promise<void>;
+}
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -437,6 +451,14 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * candidates, then closes the peers. No SIP signaling or
    * `destinationNumber` is required.
    *
+   * **Wall-clock cost:** each ICE server is tested sequentially (one
+   * `RTCPeerConnection` per server, each gathering for `durationMs`).
+   * With N ICE servers, the worst-case wall-clock is approximately
+   * N × `durationMs` (e.g. 3 servers × 5s default = ~15s). This is
+   * intentional — the reviewer asked for per-server timing isolation —
+   * but callers should budget accordingly and consider lowering
+   * `durationMs` when testing many servers.
+   *
    * @param options Options for the network check. All fields are optional.
    * @returns A promise that resolves with the `PreCallDiagnosticReport`.
    *
@@ -544,6 +566,10 @@ export class TelnyxRTC extends TelnyxRTCClient {
         activeCapture: true,
         record: true,
         playback: true,
+        // Pass through the pre-recording consent callback so the caller
+        // can display a warning/consent dialog BEFORE MediaRecorder.start()
+        // (VSDK-412 review P43WG).
+        onRecordingConsent: options.onRecordingConsent,
       },
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.

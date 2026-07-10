@@ -232,3 +232,100 @@ describe('compareIceServers — URL normalization (VSDK-412 review #17)', () => 
     expect(result!.hasServerWithNoCandidates).toBe(false);
   });
 });
+
+describe('compareIceServers — transport-aware matching (VSDK-412 review P43S1)', () => {
+  function makeCandidateWithTransport(
+    url: string,
+    protocol: string,
+    candidateType = 'relay'
+  ): PreCallIceCandidateInfo {
+    return {
+      url,
+      candidateType,
+      address: '192.0.2.1',
+      port: 5000,
+      protocol,
+    };
+  }
+
+  it('does NOT collapse UDP and TCP transport variants into the same server', () => {
+    // Config has explicit transport=udp — must NOT match a TCP candidate
+    const iceServers: RTCIceServer[] = [
+      { urls: 'turn:turn.telnyx.com:3478?transport=udp' },
+    ];
+    const candidates = [
+      makeCandidateWithTransport(
+        'turn:turn.telnyx.com:3478?transport=tcp',
+        'tcp'
+      ),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(false);
+    expect(result!.hasServerWithNoCandidates).toBe(true);
+  });
+
+  it('matches UDP candidate to UDP-configured server', () => {
+    const iceServers: RTCIceServer[] = [
+      { urls: 'turn:turn.telnyx.com:3478?transport=udp' },
+    ];
+    const candidates = [
+      makeCandidateWithTransport(
+        'turn:turn.telnyx.com:3478?transport=udp',
+        'udp'
+      ),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(true);
+  });
+
+  it('matches TCP candidate to TCP-configured server', () => {
+    const iceServers: RTCIceServer[] = [
+      { urls: 'turn:turn.telnyx.com:3478?transport=tcp' },
+    ];
+    const candidates = [
+      makeCandidateWithTransport(
+        'turn:turn.telnyx.com:3478?transport=tcp',
+        'tcp'
+      ),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(true);
+  });
+
+  it('treats configured URL without transport suffix as wildcard (matches any transport)', () => {
+    const iceServers: RTCIceServer[] = [{ urls: 'turns:turn2.telnyx.com:443' }];
+    const candidates = [
+      makeCandidateWithTransport(
+        'turns:turn2.telnyx.com:443?transport=tcp',
+        'tcp'
+      ),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(true);
+  });
+
+  it('separates UDP and TCP servers when both are configured with explicit transports', () => {
+    const iceServers: RTCIceServer[] = [
+      { urls: 'turn:turn.telnyx.com:3478?transport=udp' },
+      { urls: 'turn:turn.telnyx.com:3478?transport=tcp' },
+    ];
+    const candidates = [
+      makeCandidateWithTransport(
+        'turn:turn.telnyx.com:3478?transport=tcp',
+        'tcp'
+      ),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers).toHaveLength(2);
+    // UDP server should NOT match the TCP candidate
+    expect(result!.servers[0].hasCandidates).toBe(false);
+    // TCP server SHOULD match the TCP candidate
+    expect(result!.servers[1].hasCandidates).toBe(true);
+    expect(result!.hasServerWithNoCandidates).toBe(true);
+  });
+});

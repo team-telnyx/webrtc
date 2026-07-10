@@ -553,6 +553,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       callerNumber,
       audio,
       debug,
+      rtcConfig,
     } = this.options;
 
     return client.newCall({
@@ -561,6 +562,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       callerNumber,
       audio,
       debug: debug === true,
+      // Pass the effective ICE servers override (from rtcConfig.iceServers or
+      // the client's configured servers) into the diagnostic call. Without this,
+      // the call gathers candidates with the client's default servers while
+      // buildPreCallIceReport() compares against context.options.rtcConfig.iceServers
+      // — a custom override would then falsely report "no candidates" for the
+      // requested servers (VSDK-412 review P43Pw).
+      iceServers: rtcConfig?.iceServers ?? this.getClientIceServers(),
     });
   }
 

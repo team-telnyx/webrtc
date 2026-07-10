@@ -78,6 +78,22 @@ export interface PreCallMicrophoneOptions {
    * Default: false.
    */
   playback?: boolean;
+  /**
+   * Optional consent callback invoked BEFORE recording starts, when
+   * `record: true`. The module awaits this callback before calling
+   * `MediaRecorder.start()` — the caller can display a pre-recording
+   * warning / consent dialog and only resolve the promise once the user
+   * has acknowledged it. Rejecting the promise aborts recording (but
+   * not the rest of the microphone check).
+   *
+   * When omitted, the module proceeds with recording immediately. The
+   * report still carries `recordingNotice` (the human-readable notice
+   * string) so callers who do not use the callback can surface it
+   * post-hoc, but the recommended pattern is to pass this callback so
+   * the user is warned BEFORE capture (VSDK-412 review P43WG: "this
+   * does not warn the user before recording").
+   */
+  onRecordingConsent?: () => Promise<void>;
 }
 
 /**

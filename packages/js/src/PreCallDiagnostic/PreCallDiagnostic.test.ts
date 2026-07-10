@@ -308,3 +308,88 @@ describe('PreCallDiagnostic — verdict priority includes inconclusive (VSDK-412
     expect(result.verdict).toBe('inconclusive');
   });
 });
+
+// ---------------------------------------------------------------------------
+// P43Pw — the public iceServers override (rtcConfig.iceServers) MUST be
+// passed into client.newCall(). Without this, the diagnostic call gathers
+// candidates with the client's default servers while buildPreCallIceReport()
+// compares against the override — a custom override would then falsely
+// report "no candidates" for the requested servers.
+// ---------------------------------------------------------------------------
+
+describe('PreCallDiagnostic — iceServers override passed to newCall (VSDK-412 P43Pw)', () => {
+  it('passes rtcConfig.iceServers into client.newCall() when provided', async () => {
+    const customIceServers: RTCIceServer[] = [
+      { urls: 'stun:stun.custom.test:19302' },
+      { urls: 'turn:turn.custom.test:3478?transport=udp' },
+    ];
+    let newCallOptions: Record<string, unknown> | undefined;
+    const client = makeBaseClient();
+    const fakeCall = makeFakeCall({ state: 'new' });
+    newCallCallCount = 0;
+    (client as { newCall: (opts: object) => object }).newCall = (opts) => {
+      newCallCallCount++;
+      newCallOptions = opts as Record<string, unknown>;
+      // Simulate establishment after 50ms.
+      setTimeout(() => {
+        (fakeCall as { state: string }).state = 'active';
+      }, 50);
+      return fakeCall;
+    };
+
+    const options: PreCallDiagnosticOptions = {
+      client: client as never,
+      mode: 'full',
+      destinationNumber: '1234',
+      callSetupTimeoutMs: 2000,
+      durationMs: 10,
+      ice: true,
+      network: false,
+      media: false,
+      microphone: false,
+      rtcConfig: { iceServers: customIceServers },
+    };
+    const diag = new PreCallDiagnostic(options);
+    await diag.run();
+
+    expect(newCallCallCount).toBe(1);
+    expect(newCallOptions).toBeDefined();
+    expect(newCallOptions!.iceServers).toEqual(customIceServers);
+  });
+
+  it('falls back to client.iceServers when rtcConfig.iceServers is omitted', async () => {
+    const client = makeBaseClient();
+    const clientIceServers = (client as { iceServers: RTCIceServer[] })
+      .iceServers;
+    let newCallOptions: Record<string, unknown> | undefined;
+    const fakeCall = makeFakeCall({ state: 'new' });
+    newCallCallCount = 0;
+    (client as { newCall: (opts: object) => object }).newCall = (opts) => {
+      newCallCallCount++;
+      newCallOptions = opts as Record<string, unknown>;
+      setTimeout(() => {
+        (fakeCall as { state: string }).state = 'active';
+      }, 50);
+      return fakeCall;
+    };
+
+    const options: PreCallDiagnosticOptions = {
+      client: client as never,
+      mode: 'full',
+      destinationNumber: '1234',
+      callSetupTimeoutMs: 2000,
+      durationMs: 10,
+      ice: true,
+      network: false,
+      media: false,
+      microphone: false,
+      // No rtcConfig — should fall back to client's iceServers
+    };
+    const diag = new PreCallDiagnostic(options);
+    await diag.run();
+
+    expect(newCallCallCount).toBe(1);
+    expect(newCallOptions).toBeDefined();
+    expect(newCallOptions!.iceServers).toEqual(clientIceServers);
+  });
+});

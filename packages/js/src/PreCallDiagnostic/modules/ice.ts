@@ -631,17 +631,64 @@ function normalizeIceServerUrl(url: string): string {
 }
 
 /**
+ * Extract the explicit `transport=` value from an ICE URL, if present.
+ *
+ * Returns `'udp'`, `'tcp'`, or `undefined` when the URL does not specify
+ * a transport (wildcard — matches any candidate transport).
+ */
+function extractTransport(url: string): string | undefined {
+  const idx = url.indexOf('?transport=');
+  if (idx === -1) return undefined;
+  const value = url.substring(idx + '?transport='.length).toLowerCase();
+  // Take only the transport token (ignore any trailing query params)
+  const semiIdx = value.indexOf('&');
+  return semiIdx === -1 ? value : value.substring(0, semiIdx);
+}
+
+/**
  * Check whether a candidate `url` matches a configured ICE server URL.
  *
  * Uses normalized comparison: credentials are stripped from both sides and
  * the `?transport=` suffix is handled so that `turns:host:443` (config)
- * matches `turns:host:443?transport=tcp` (candidate). This fixes the
- * strict-string-equality bug reported in VSDK-412 review (comment #17).
+ * matches `turns:host:443?transport=tcp` (candidate).
+ *
+ * **Transport-aware matching (VSDK-412 review P43S1):** when the configured
+ * server URL explicitly includes `?transport=udp` or `?transport=tcp`, the
+ * candidate's transport MUST match — otherwise `turn:host:3478?transport=udp`
+ * and `turn:host:3478?transport=tcp` would both match every candidate from
+ * that host, collapsing distinct transport variants into the same server
+ * entry. When the configured URL has NO transport suffix (e.g.
+ * `turns:host:443`), it is treated as a wildcard matching any candidate
+ * transport (so `turns:host:443` matches `turns:host:443?transport=tcp`).
+ *
+ * The candidate's transport is taken from its `url` `?transport=` suffix,
+ * or — when the candidate URL has no suffix — from the optional
+ * `candidateProtocol` parameter (the candidate stats `protocol` field).
  */
-function iceUrlMatches(candidateUrl: string, serverUrl: string): boolean {
+function iceUrlMatches(
+  candidateUrl: string,
+  serverUrl: string,
+  candidateProtocol?: string
+): boolean {
   const normalizedCandidate = normalizeIceServerUrl(candidateUrl);
   const normalizedServer = normalizeIceServerUrl(serverUrl);
-  return normalizedCandidate === normalizedServer;
+  if (normalizedCandidate !== normalizedServer) return false;
+
+  // Base URLs match — now check transport specificity.
+  const configuredTransport = extractTransport(serverUrl);
+  // No explicit transport on the configured URL → wildcard, any candidate matches.
+  if (configuredTransport === undefined) return true;
+
+  // Configured URL specifies a transport — the candidate must match it.
+  const candidateTransport =
+    extractTransport(candidateUrl) ?? candidateProtocol?.toLowerCase();
+  if (candidateTransport === undefined) {
+    // We cannot determine the candidate's transport. Match conservatively
+    // (better to over-match than to falsely report "no candidates" for a
+    // working server whose browser-reported url omits the transport suffix).
+    return true;
+  }
+  return candidateTransport === configuredTransport;
 }
 
 /**
@@ -677,7 +724,7 @@ export function compareIceServers(
     const serverCandidates = candidates.filter(
       (c) =>
         c.url !== undefined &&
-        urls.some((serverUrl) => iceUrlMatches(c.url!, serverUrl))
+        urls.some((serverUrl) => iceUrlMatches(c.url!, serverUrl, c.protocol))
     );
 
     const candidateTypes = [
@@ -779,7 +826,7 @@ function parseSingleServerCandidates(
       if (serverUrls && serverUrls.length > 0) {
         if (!info.url) return; // host candidates have no url
         const matchesServer = serverUrls.some(
-          (su) => info.url && iceUrlMatches(info.url, su)
+          (su) => info.url && iceUrlMatches(info.url, su, info.protocol)
         );
         if (!matchesServer) return;
       }

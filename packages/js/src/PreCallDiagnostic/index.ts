@@ -32,9 +32,7 @@ export type {
   MicrophonePermissionState,
 } from './types';
 export type { Call } from './types';
-export type {
-  PreCallDiagnosticContext,
-} from './context';
+export type { PreCallDiagnosticContext } from './context';
 export {
   IceReasonCode,
   NetworkReasonCode,
@@ -49,3 +47,4 @@ export type {
 } from './modules/verdict';
 export { createTimingsCollector, TimingsCollector } from './modules/timings';
 export type { TimingsCallLike, TimingsBuildOptions } from './modules/timings';
+export { MICROPHONE_RECORDING_NOTICE } from './modules/microphone';

@@ -41,6 +41,17 @@ const DEFAULT_SILENCE_THRESHOLD = 0.01;
 /** Default interval between audio level samples in milliseconds. */
 const DEFAULT_SAMPLE_INTERVAL_MS = 100;
 
+/**
+ * Human-readable pre-recording notice shown to the user before microphone
+ * recording starts (VSDK-412 review P43WG). Exported so callers can display
+ * it proactively — either via the `onRecordingConsent` callback (recommended)
+ * or by reading it directly before calling `runMicrophoneCheck()`.
+ */
+export const MICROPHONE_RECORDING_NOTICE =
+  'To check your microphone, say anything — "1, 2, 3..." ' +
+  'Your voice will be recorded for a few seconds and played back ' +
+  'to you so you can hear how it sounds.';
+
 // --- Browser environment abstraction ---
 
 /**
@@ -603,6 +614,7 @@ function resolveMicrophoneOptions(
   silenceThreshold: number;
   record: boolean;
   playback: boolean;
+  onRecordingConsent?: () => Promise<void>;
 } {
   if (options === false) {
     // Should not happen — caller should have already skipped
@@ -614,6 +626,7 @@ function resolveMicrophoneOptions(
       silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
       record: false,
       playback: false,
+      onRecordingConsent: undefined,
     };
   }
 
@@ -626,6 +639,7 @@ function resolveMicrophoneOptions(
       silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
       record: false,
       playback: false,
+      onRecordingConsent: undefined,
     };
   }
 
@@ -637,6 +651,7 @@ function resolveMicrophoneOptions(
     silenceThreshold: options.silenceThreshold ?? DEFAULT_SILENCE_THRESHOLD,
     record: options.record === true,
     playback: options.playback === true,
+    onRecordingConsent: options.onRecordingConsent,
   };
 }
 
@@ -720,24 +735,40 @@ export async function buildPreCallMicrophoneReport(
         report.activeCapturePerformed = true;
 
         // Recording notice: warn the user that their voice will be recorded
-        // (VSDK-412 Review 18, point 2: "there is no warning that we will
-        // record them"). The caller should surface this string in the UI.
-        if (micOptions.record) {
-          report.recordingNotice =
-            'To check your microphone, say anything — "1, 2, 3..." ' +
-            'Your voice will be recorded for a few seconds and played back ' +
-            'to you so you can hear how it sounds.';
+        // (VSDK-412 review P43WG: "this does not warn the user before
+        // recording"). The notice is always populated on the report when
+        // recording is enabled, but the recommended pattern is to pass
+        // `onRecordingConsent` — the module awaits it BEFORE calling
+        // `MediaRecorder.start()` so the caller can display the warning
+        // and get user consent before capture begins.
+        let recordingEnabled = micOptions.record;
+        if (recordingEnabled) {
+          report.recordingNotice = MICROPHONE_RECORDING_NOTICE;
+
+          // Await the consent callback before starting recording. If the
+          // caller rejects (user declined), recording is skipped — but the
+          // rest of the microphone check (audio level measurement) still runs.
+          if (micOptions.onRecordingConsent) {
+            try {
+              await micOptions.onRecordingConsent();
+            } catch {
+              // Consent declined — skip recording but continue with the
+              // rest of the microphone check.
+              recordingEnabled = false;
+              report.recordingPerformed = false;
+            }
+          }
         }
 
         // Start recording in parallel with audio level measurement
-        // when `record: true` is set.
+        // when recording is enabled (and consent was granted).
         let recordingPromise: Promise<{
           recordingDataUrl?: string;
           recordingMimeType?: string;
           recordingDurationMs?: number;
         }> = Promise.resolve({});
 
-        if (micOptions.record) {
+        if (recordingEnabled) {
           recordingPromise = recordAudio(stream, micOptions.sampleDurationMs);
         }
 
@@ -755,7 +786,7 @@ export async function buildPreCallMicrophoneReport(
         report.audioDetected = audioDetected;
 
         // Wait for recording to complete and populate recording fields
-        if (micOptions.record) {
+        if (recordingEnabled) {
           const recordingResult = await recordingPromise;
           if (recordingResult.recordingDataUrl) {
             report.recordingPerformed = true;
