@@ -132,7 +132,8 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
       frame?.remote?.audio?.inbound;
     if (Array.isArray(remoteInbound)) {
       for (const entry of remoteInbound) {
-        // roundTripTime: latest RTT measured (seconds → ms)
+        // roundTripTime: latest RTT measured (seconds → ms).
+        // This is the instantaneous RTT of the most recent STUN response.
         const rttSec = safeNumber(entry?.roundTripTime);
         if (rttSec !== undefined) {
           const rttMs = rttSec * 1000;
@@ -141,21 +142,25 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
             frameProducedRtt = true;
           }
         }
-        // totalRoundTripTime / roundTripTimeMeasurements: cumulative
-        // If roundTripTime is missing but we have these, compute average
-        if (!frameProducedRtt) {
-          const totalRtt = safeNumber(entry?.totalRoundTripTime);
-          const measurements = safeNumber(entry?.roundTripTimeMeasurements);
-          if (
-            totalRtt !== undefined &&
-            measurements !== undefined &&
-            measurements > 0
-          ) {
-            const avgRttMs = (totalRtt / measurements) * 1000;
-            if (avgRttMs >= 0) {
-              samples.push(avgRttMs);
-              frameProducedRtt = true;
-            }
+
+        // totalRoundTripTime / roundTripTimeMeasurements: cumulative average.
+        // Always collect this when available — even when roundTripTime was
+        // present — because the cumulative average varies across frames as
+        // more STUN responses accumulate, giving min/max/average real spread.
+        // Without this, a short call where roundTripTime stays constant across
+        // frames (no new STUN response) produces {min==max==average} — the
+        // bug reported in VSDK-412 review (Review 18, point 3).
+        const totalRtt = safeNumber(entry?.totalRoundTripTime);
+        const measurements = safeNumber(entry?.roundTripTimeMeasurements);
+        if (
+          totalRtt !== undefined &&
+          measurements !== undefined &&
+          measurements > 0
+        ) {
+          const avgRttMs = (totalRtt / measurements) * 1000;
+          if (avgRttMs >= 0) {
+            samples.push(avgRttMs);
+            frameProducedRtt = true;
           }
         }
       }

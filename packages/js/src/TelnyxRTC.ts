@@ -534,8 +534,16 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // Active capture enabled by default so the microphone check actually
       // measures audio level and verifies capture works (not just passive
       // permission/device checks). The user gets a real result.
+      //
+      // Recording + playback enabled by default (VSDK-412 Review 18, point 2):
+      // the reviewer asked for a "record and listen" flow — record the user's
+      // voice for ~5s with a prompt ("To check microphone say anything in 1,
+      // 2, 3..."), then play it back so they hear their own voice. This
+      // mirrors Twilio's pre-call microphone check.
       microphone: {
         activeCapture: true,
+        record: true,
+        playback: true,
       },
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.

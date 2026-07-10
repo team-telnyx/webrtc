@@ -719,6 +719,16 @@ export async function buildPreCallMicrophoneReport(
         report.deviceAvailable = true;
         report.activeCapturePerformed = true;
 
+        // Recording notice: warn the user that their voice will be recorded
+        // (VSDK-412 Review 18, point 2: "there is no warning that we will
+        // record them"). The caller should surface this string in the UI.
+        if (micOptions.record) {
+          report.recordingNotice =
+            'To check your microphone, say anything — "1, 2, 3..." ' +
+            'Your voice will be recorded for a few seconds and played back ' +
+            'to you so you can hear how it sounds.';
+        }
+
         // Start recording in parallel with audio level measurement
         // when `record: true` is set.
         let recordingPromise: Promise<{
@@ -753,9 +763,11 @@ export async function buildPreCallMicrophoneReport(
             report.recordingMimeType = recordingResult.recordingMimeType;
             report.recordingDurationMs = recordingResult.recordingDurationMs;
 
-            // Play back the recording if `playback: true`
+            // Play back the recording if `playback: true` so the user
+            // hears their own voice (VSDK-412 Review 18, point 2).
             if (micOptions.playback) {
               await playAudioDataUrl(recordingResult.recordingDataUrl);
+              report.playbackPerformed = true;
             }
           } else {
             report.recordingPerformed = false;

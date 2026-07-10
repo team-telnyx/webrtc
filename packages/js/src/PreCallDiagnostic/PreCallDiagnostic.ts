@@ -251,8 +251,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const effectiveServers = rtcConfig.iceServers ?? iceServers ?? [];
     const durationMs = this.effectiveDurationMs();
 
-    // Per-server results: test each ICE server independently
-    const perServerResults = [];
+    // Per-server results: test each ICE server independently.
+    // Sequential per-server testing — total wall-clock ≈ N × durationMs
+    // (intentional: the reviewer asked for per-server timing). Each server
+    // gets its own RTCPeerConnection so candidates are isolated.
+    const perServerResults: PreCallIceServerResult[] = [];
     for (const server of effectiveServers) {
       const result = await testSingleIceServer(server, durationMs);
       perServerResults.push(result);
@@ -282,6 +285,15 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       timings.markCompleted();
       const timingsReport = timings.build({});
 
+      // Populate ICE gathering timing fields from the per-server results.
+      // In network-only mode there is no SDK call, so establishment timings
+      // (which come from getEstablishmentTimings()) are empty. We derive the
+      // ICE gathering timing fields from the per-server results instead,
+      // so the timings report is not empty (VSDK-412 comment #19: "Timings
+      // in verdicts didn't change at all" — the establishment fields were
+      // missing because no SDK call was made).
+      this.populateNetworkOnlyTimings(timingsReport, perServerResults);
+
       const partialReport: Partial<PreCallDiagnosticReport> = {
         version: 1,
         ice,
@@ -305,6 +317,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       context.error = error instanceof Error ? error : new Error(String(error));
       timings.markCompleted();
       const timingsReport = timings.build({});
+      this.populateNetworkOnlyTimings(timingsReport, perServerResults);
       const { verdict, reasons, warnings } = buildVerdict({}, context);
       return {
         version: 1,
@@ -325,6 +338,56 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         // ignore close errors
       }
       timings.markCleanupCompleted();
+    }
+  }
+
+  /**
+   * Populate ICE gathering timing fields on the timings report from the
+   * per-server results, for network-only mode where there is no SDK call.
+   *
+   * Computes:
+   * - `firstCandidateMs`: earliest first-candidate time across all servers
+   * - `iceGatheringCompletedMs`: latest gathering-complete time
+   * - `iceGatheringMs`: total gathering duration (latest complete - 0)
+   *
+   * These mirror the fields that `getEstablishmentTimings()` would populate
+   * in full mode, giving the caller consistent timing data regardless of
+   * which diagnostic mode was used (VSDK-412 comment #19).
+   */
+  private populateNetworkOnlyTimings(
+    timingsReport: import('./types').PreCallTimingsReport,
+    perServerResults: PreCallIceServerResult[]
+  ): void {
+    if (perServerResults.length === 0) return;
+
+    let earliestFirstCandidate: number | undefined;
+    let latestGatheringMs: number | undefined;
+
+    for (const r of perServerResults) {
+      if (r.firstCandidateMs !== undefined) {
+        if (
+          earliestFirstCandidate === undefined ||
+          r.firstCandidateMs < earliestFirstCandidate
+        ) {
+          earliestFirstCandidate = r.firstCandidateMs;
+        }
+      }
+      if (r.gatheringMs !== undefined) {
+        if (
+          latestGatheringMs === undefined ||
+          r.gatheringMs > latestGatheringMs
+        ) {
+          latestGatheringMs = r.gatheringMs;
+        }
+      }
+    }
+
+    if (earliestFirstCandidate !== undefined) {
+      timingsReport.firstCandidateMs = earliestFirstCandidate;
+    }
+    if (latestGatheringMs !== undefined) {
+      timingsReport.iceGatheringMs = latestGatheringMs;
+      timingsReport.iceGatheringCompletedMs = latestGatheringMs;
     }
   }
 

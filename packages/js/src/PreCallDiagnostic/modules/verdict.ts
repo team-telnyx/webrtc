@@ -259,6 +259,36 @@ function assessIce(ice: PreCallDiagnosticReport['ice']): {
     });
   }
 
+  // --- Per-server verbose reasons (network-only mode) ---
+  // When runNetworkCheck() tests each ICE server independently, emit a
+  // verbose reason for each server that failed to produce candidates or
+  // errored, so the verdict explains exactly which servers are broken
+  // (VSDK-412 Review 18, point 1: "verdict should be verbose for network
+  // specifically").
+  if (ice.perServerResults && ice.perServerResults.length > 0) {
+    for (const psr of ice.perServerResults) {
+      if (!psr.gatheredAny || psr.error) {
+        const serverUrls = Array.isArray(psr.server.urls)
+          ? psr.server.urls.join(', ')
+          : typeof psr.server.urls === 'string'
+            ? psr.server.urls
+            : 'unknown';
+        reasons.push({
+          code: 'ice_server_failed',
+          message: psr.error
+            ? `ICE server [${serverUrls}] failed: ${psr.error}`
+            : `ICE server [${serverUrls}] produced no candidates. The server may be unreachable, blocked, or misconfigured.`,
+          source: 'ice',
+        });
+        // A failed server degrades the verdict (not blocking — other
+        // servers may work). Only degrade if not already at blocked.
+        if (worstVerdict !== 'blocked') {
+          worstVerdict = 'degraded';
+        }
+      }
+    }
+  }
+
   // Multiple network interfaces — warning (not a problem, but advisory)
   if (ice.hasMultipleNetworkInterfaces === true) {
     warnings.push({

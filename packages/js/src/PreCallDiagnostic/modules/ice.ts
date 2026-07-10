@@ -592,12 +592,66 @@ function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
 // --- ICE server comparison ---
 
 /**
+ * Normalize an ICE server URL for matching against candidate `url` fields.
+ *
+ * Browsers report candidate `url` fields that may differ from the configured
+ * server URL in two ways (VSDK-412 review comment #17):
+ *
+ * 1. **Credential stripping**: a configured `turn:user:pass@host:port` is
+ *    reported by the browser as `turn:host:port` (credentials removed).
+ *    This strips the `user:pass@` segment so both forms match.
+ *
+ * 2. **Transport suffix**: a configured `turns:host:443` may produce
+ *    candidates whose `url` is `turns:host:443?transport=tcp`. This
+ *    normalizes by splitting off the `?transport=` query parameter so
+ *    the base URLs can be compared, then re-checks transport separately
+ *    when needed.
+ *
+ * @param url - The ICE server URL or candidate url to normalize
+ * @returns The base URL without credentials and without a `?transport=` suffix
+ */
+function normalizeIceServerUrl(url: string): string {
+  let normalized = url;
+  // Strip credentials: scheme://user:pass@host → scheme://host
+  // ICE URLs use the form `scheme:host:port` (no `//` after the scheme),
+  // e.g. `turn:user:pass@turn.telnyx.com:3478`. The regex captures the
+  // optional `//` as group 2; when absent (the common ICE URL case) we
+  // do NOT inject `//` — we just concatenate scheme + host directly,
+  // so `turn:user:pass@host` normalizes to `turn:host` (not `turn://host`).
+  const credMatch = normalized.match(/^([a-z]+:)(\/\/)?([^@]*@)(.+)$/i);
+  if (credMatch) {
+    normalized = credMatch[1] + (credMatch[2] ?? '') + credMatch[4];
+  }
+  // Strip ?transport= query suffix (keep the base URL for comparison)
+  const transportIdx = normalized.indexOf('?transport=');
+  if (transportIdx !== -1) {
+    normalized = normalized.substring(0, transportIdx);
+  }
+  return normalized;
+}
+
+/**
+ * Check whether a candidate `url` matches a configured ICE server URL.
+ *
+ * Uses normalized comparison: credentials are stripped from both sides and
+ * the `?transport=` suffix is handled so that `turns:host:443` (config)
+ * matches `turns:host:443?transport=tcp` (candidate). This fixes the
+ * strict-string-equality bug reported in VSDK-412 review (comment #17).
+ */
+function iceUrlMatches(candidateUrl: string, serverUrl: string): boolean {
+  const normalizedCandidate = normalizeIceServerUrl(candidateUrl);
+  const normalizedServer = normalizeIceServerUrl(serverUrl);
+  return normalizedCandidate === normalizedServer;
+}
+
+/**
  * Compare configured ICE servers against the gathered candidates.
  *
  * For each configured ICE server URL, determine which candidates it
- * produced (by matching the server's URL to the candidate's `url` field).
- * Flag servers that returned no candidates, and detect strict networks
- * (configured STUN/TURN UDP but only TURN TCP candidates gathered).
+ * produced (by matching the server's URL to the candidate's `url` field
+ * with credential/transport-suffix normalization). Flag servers that
+ * returned no candidates, and detect strict networks (configured
+ * STUN/TURN UDP but only TURN TCP candidates gathered).
  *
  * @param iceServers - The configured ICE servers from rtcConfig
  * @param candidates - The gathered local candidates
@@ -621,7 +675,9 @@ export function compareIceServers(
         ? [server.urls]
         : [];
     const serverCandidates = candidates.filter(
-      (c) => c.url !== undefined && urls.includes(c.url)
+      (c) =>
+        c.url !== undefined &&
+        urls.some((serverUrl) => iceUrlMatches(c.url!, serverUrl))
     );
 
     const candidateTypes = [
@@ -682,10 +738,18 @@ export function compareIceServers(
  * Reuses the existing `extractCandidateInfo` and count logic but does NOT
  * resolve selected pairs (there is no remote side in a single-server
  * gathering test).
+ *
+ * When `serverUrls` is provided, only candidates whose `url` matches one of
+ * the server URLs (via normalized comparison) are included in the result —
+ * host candidates (which have no `url` and come from the local interface,
+ * not from the ICE server) are excluded. This ensures each per-server result
+ * contains ONLY the candidates produced by that specific server, as
+ * requested in VSDK-412 review (Review 18, point 1).
  */
 function parseSingleServerCandidates(
   stats: RTCStatsReport,
-  peerConnection: RTCPeerConnection
+  peerConnection: RTCPeerConnection,
+  serverUrls?: string[]
 ): {
   candidates: PreCallIceCandidateInfo[];
   candidateCounts: PreCallIceCandidateCounts;
@@ -706,6 +770,20 @@ function parseSingleServerCandidates(
   stats.forEach((report) => {
     if (report.type === 'local-candidate') {
       const candidate = report as CandidateStats;
+      const info = extractCandidateInfo(candidate);
+
+      // When testing a specific server, include only candidates whose `url`
+      // matches that server. Host candidates (no `url`) come from the local
+      // interface, not from the ICE server being tested, so they are excluded
+      // from per-server results (VSDK-412 Review 18, point 1).
+      if (serverUrls && serverUrls.length > 0) {
+        if (!info.url) return; // host candidates have no url
+        const matchesServer = serverUrls.some(
+          (su) => info.url && iceUrlMatches(info.url, su)
+        );
+        if (!matchesServer) return;
+      }
+
       const type = candidate.candidateType || 'unknown';
       candidateCounts.total++;
       switch (type) {
@@ -726,7 +804,7 @@ function parseSingleServerCandidates(
           break;
       }
       candidateTypeSet.add(type);
-      candidates.push(extractCandidateInfo(candidate));
+      candidates.push(info);
     }
   });
 
@@ -746,6 +824,17 @@ function parseSingleServerCandidates(
  * the caller see exactly which candidates each ICE server produces, how
  * long gathering takes, and whether the server is working at all.
  *
+ * For TURN servers (`turn:` / `turns:` URLs), `iceTransportPolicy` is set to
+ * `'relay'` to force relay candidates — this proves the TURN server can
+ * allocate a relay and produce usable candidates (VSDK-412 Review 18,
+ * point 1: "when we test each TURN server we need to force relay
+ * candidates"). STUN servers use the default `'all'` policy.
+ *
+ * Only candidates whose `url` matches the tested server are included in
+ * the result (host candidates, which have no `url` and come from the local
+ * interface, are excluded) — so each per-server entry contains ONLY that
+ * server's candidates (VSDK-412 Review 18, point 1).
+ *
  * @param server - The ICE server to test
  * @param durationMs - Maximum gathering wait time
  * @returns Per-server result with candidates, counts, timing
@@ -757,8 +846,29 @@ export async function testSingleIceServer(
   let pc: RTCPeerConnection | undefined;
   const startTime = Date.now();
 
+  // Normalize the server's URLs into a string array for candidate filtering.
+  const serverUrls = Array.isArray(server.urls)
+    ? server.urls
+    : server.urls
+      ? [server.urls]
+      : [];
+
+  // Detect TURN servers to force relay candidates. A TURN server proves it
+  // can allocate a relay only when a relay candidate is actually gathered —
+  // with the default 'all' policy, host/srflx candidates may be gathered
+  // even if TURN allocation fails, masking a broken TURN server.
+  const isTurnServer = serverUrls.some(
+    (u) => u.startsWith('turn:') || u.startsWith('turns:')
+  );
+  const iceTransportPolicy: RTCIceTransportPolicy = isTurnServer
+    ? 'relay'
+    : 'all';
+
   try {
-    pc = new RTCPeerConnection({ iceServers: [server] });
+    pc = new RTCPeerConnection({
+      iceServers: [server],
+      iceTransportPolicy,
+    });
     pc.createDataChannel('precall-diagnostic');
 
     // Track first candidate time
@@ -806,7 +916,7 @@ export async function testSingleIceServer(
       };
     }
 
-    const parsed = parseSingleServerCandidates(stats, pc);
+    const parsed = parseSingleServerCandidates(stats, pc, serverUrls);
 
     return {
       server,

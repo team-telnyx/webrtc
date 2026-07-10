@@ -764,6 +764,21 @@ export interface PreCallMicrophoneReport {
    */
   recordingDurationMs?: number;
   /**
+   * A human-readable notice that audio is being recorded, for display to
+   * the user BEFORE/DURING capture. Populated when `record: true` is set
+   * so the caller can warn the user that their voice will be recorded
+   * (VSDK-412 Review 18, point 2: "there is no warning that we will record
+   * them"). The caller should surface this string in the UI before
+   * calling `runMicrophoneCheck()`.
+   */
+  recordingNotice?: string;
+  /**
+   * Whether the recording was played back to the user through the
+   * speakers after capture. Only set when `playback: true` and
+   * `record: true` and playback succeeded.
+   */
+  playbackPerformed?: boolean;
+  /**
    * Reason codes for any issues found, suitable for verdict/reason module input.
    * E.g. 'microphone_permission_denied', 'microphone_no_device',
    * 'microphone_capture_permission_denied', 'microphone_silent'.

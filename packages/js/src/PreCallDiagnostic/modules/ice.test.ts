@@ -6,9 +6,10 @@
  * (TURN). These tests use a synthetic RTCStatsReport-like object so they
  * run without a real browser PeerConnection.
  */
-import { buildPreCallIceReport } from './ice';
+import { buildPreCallIceReport, compareIceServers } from './ice';
 import type { PreCallDiagnosticContext } from '../context';
 import { createDiagnosticContext } from '../context';
+import type { PreCallIceCandidateInfo } from '../types';
 
 /**
  * A minimal RTCStatsReport-like object backed by a Map, matching the
@@ -162,5 +163,72 @@ describe('buildPreCallIceReport — isTurnRequired (VSDK-412 Gap 4)', () => {
     const ctx = makeContext(pc);
     const ice = await buildPreCallIceReport(ctx);
     expect(ice).toBeUndefined();
+  });
+});
+
+describe('compareIceServers — URL normalization (VSDK-412 review #17)', () => {
+  function makeCandidate(
+    url: string,
+    candidateType = 'srflx'
+  ): PreCallIceCandidateInfo {
+    return {
+      url,
+      candidateType,
+      address: '192.0.2.1',
+      port: 5000,
+      protocol: 'udp',
+    };
+  }
+
+  it('matches a bare TURN URL to a candidate with ?transport= suffix', () => {
+    const iceServers: RTCIceServer[] = [{ urls: 'turns:turn2.telnyx.com:443' }];
+    const candidates = [
+      makeCandidate('turns:turn2.telnyx.com:443?transport=tcp', 'relay'),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers).toHaveLength(1);
+    expect(result!.servers[0].hasCandidates).toBe(true);
+    expect(result!.hasServerWithNoCandidates).toBe(false);
+  });
+
+  it('matches a configured URL with credentials to a bare candidate URL', () => {
+    const iceServers: RTCIceServer[] = [
+      { urls: 'turn:user:pass@turn.telnyx.com:3478?transport=udp' },
+    ];
+    const candidates = [
+      makeCandidate('turn:turn.telnyx.com:3478?transport=udp', 'relay'),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(true);
+  });
+
+  it('does NOT match servers whose base URL differs', () => {
+    const iceServers: RTCIceServer[] = [{ urls: 'turn:turn1.telnyx.com:3478' }];
+    const candidates = [
+      makeCandidate('turn:turn2.telnyx.com:3478?transport=tcp', 'relay'),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers[0].hasCandidates).toBe(false);
+    expect(result!.hasServerWithNoCandidates).toBe(true);
+  });
+
+  it('handles multiple servers, each matching its own candidates', () => {
+    const iceServers: RTCIceServer[] = [
+      { urls: 'stun:stun1.telnyx.com:3478' },
+      { urls: 'turn:turn1.telnyx.com:3478' },
+    ];
+    const candidates = [
+      makeCandidate('stun:stun1.telnyx.com:3478', 'srflx'),
+      makeCandidate('turn:turn1.telnyx.com:3478?transport=udp', 'relay'),
+    ];
+    const result = compareIceServers(iceServers, candidates);
+    expect(result).toBeDefined();
+    expect(result!.servers).toHaveLength(2);
+    expect(result!.servers[0].hasCandidates).toBe(true);
+    expect(result!.servers[1].hasCandidates).toBe(true);
+    expect(result!.hasServerWithNoCandidates).toBe(false);
   });
 });
