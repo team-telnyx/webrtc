@@ -918,10 +918,32 @@ export async function testSingleIceServer(
     });
     pc.createDataChannel('precall-diagnostic');
 
-    // Track first candidate time
+    // Track first server-derived candidate time.
+    //
+    // The first `icecandidate` event is normally a local host candidate
+    // (gathered from the local interface, not from the tested ICE server).
+    // Recording timing on it reports local gathering latency rather than
+    // the tested endpoint's response time (VSDK-412 round-7 review:
+    // "per-server timing starts on an unrelated host candidate").
+    //
+    // Apply the same exclusion the stats parser uses: only record timing
+    // for server-derived candidate types (srflx, prflx, relay). Host
+    // candidates are skipped. For TURN servers this is moot —
+    // `iceTransportPolicy: 'relay'` already suppresses host candidates —
+    // but for STUN servers (`iceTransportPolicy: 'all'`) the host
+    // candidate arrives first and would otherwise pollute the timing.
     let firstCandidateTime: number | undefined;
     pc.addEventListener('icecandidate', (event) => {
-      if (firstCandidateTime === undefined && event.candidate) {
+      if (firstCandidateTime !== undefined || !event.candidate) {
+        return;
+      }
+      const candidateStr = event.candidate.candidate || '';
+      const typeMatch = candidateStr.match(/\btyp\s+(\S+)/);
+      const candidateType = typeMatch ? typeMatch[1] : '';
+      // Skip host candidates — they come from the local interface, not
+      // from the ICE server being tested. srflx/prflx/relay are the
+      // server-derived candidate types.
+      if (candidateType && candidateType !== 'host') {
         firstCandidateTime = Date.now();
       }
     });

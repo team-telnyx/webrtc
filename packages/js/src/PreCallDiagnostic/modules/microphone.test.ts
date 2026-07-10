@@ -90,7 +90,10 @@ function makeMockFileReader(result: string): typeof FileReader {
 
 function makeMockAudio(onended: boolean, onerror: boolean): typeof Audio {
   const AudioCtor = jest.fn().mockImplementation(() => {
-    const el: Record<string, unknown> = {};
+    const el: Record<string, unknown> = {
+      paused: false,
+      pause: jest.fn(),
+    };
     el.play = jest.fn().mockImplementation(() => {
       return new Promise<void>((resolve, reject) => {
         if (onerror) {
@@ -259,4 +262,65 @@ describe('PreCallMicrophone — playbackPerformed reflects actual outcome (VSDK-
     expect(report.recordingPerformed).toBe(true);
     expect(report.playbackPerformed).toBe(false);
   });
+});
+
+/**
+ * Tests for the playback terminal bound (VSDK-412 round-7 review:
+ * "playback has no terminal bound"). When `audio.play()` resolves but
+ * the element stalls without firing `ended` or `error`, the promise
+ * must still settle (via the timeout) so the caller's `finally` block
+ * that stops microphone tracks can run.
+ */
+describe('PreCallMicrophone — playback settles on timeout when stalled (VSDK-412 round-7)', () => {
+  const origMediaRecorder = globalThis.MediaRecorder;
+  const origFileReader = globalThis.FileReader;
+  const origAudio = globalThis.Audio;
+  const origBlob = globalThis.Blob;
+
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).MediaRecorder = origMediaRecorder;
+    (globalThis as Record<string, unknown>).FileReader = origFileReader;
+    (globalThis as Record<string, unknown>).Audio = origAudio;
+    (globalThis as Record<string, unknown>).Blob = origBlob;
+  });
+
+  it('settles playback on timeout when play() resolves but no ended/error fires', async () => {
+    const mockAC = makeMockAudioContext();
+    const env = makeBrowserEnv(mockAC.constructor);
+
+    const MR = makeMockMediaRecorder();
+    (globalThis as Record<string, unknown>).MediaRecorder = MR;
+
+    (globalThis as Record<string, unknown>).Blob = jest
+      .fn()
+      .mockImplementation(() => ({ size: 100 }));
+
+    const FR = makeMockFileReader('data:audio/webm;base64,AAA');
+    (globalThis as Record<string, unknown>).FileReader = FR;
+
+    // Stalled audio: play() resolves, but onended/onerror never fire.
+    const AudioCtor = jest.fn().mockImplementation(() => {
+      const el: Record<string, unknown> = {
+        paused: false,
+        pause: jest.fn(),
+        play: jest.fn().mockImplementation(() => Promise.resolve()),
+      };
+      return el;
+    });
+    (globalThis as Record<string, unknown>).Audio = AudioCtor;
+
+    const context = makeContext({
+      activeCapture: true,
+      sampleDurationMs: 1,
+      record: true,
+      playback: true,
+    });
+
+    // The playback timeout = recordingDurationMs(~0) + 5000ms margin = ~5001ms.
+    // Wait for it with real timers (increase the Jest per-test timeout).
+    const report = (await buildPreCallMicrophoneReport(context, env)) as {
+      playbackPerformed?: boolean;
+    };
+    expect(report.playbackPerformed).toBe(false);
+  }, 15000); // 15s Jest timeout (playback timeout is ~5s)
 });

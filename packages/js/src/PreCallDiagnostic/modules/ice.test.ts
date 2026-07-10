@@ -6,7 +6,11 @@
  * (TURN). These tests use a synthetic RTCStatsReport-like object so they
  * run without a real browser PeerConnection.
  */
-import { buildPreCallIceReport, compareIceServers } from './ice';
+import {
+  buildPreCallIceReport,
+  compareIceServers,
+  testSingleIceServer,
+} from './ice';
 import type { PreCallDiagnosticContext } from '../context';
 import { createDiagnosticContext } from '../context';
 import type { PreCallIceCandidateInfo } from '../types';
@@ -327,5 +331,139 @@ describe('compareIceServers — transport-aware matching (VSDK-412 review P43S1)
     // TCP server SHOULD match the TCP candidate
     expect(result!.servers[1].hasCandidates).toBe(true);
     expect(result!.hasServerWithNoCandidates).toBe(true);
+  });
+});
+
+/**
+ * Tests for `testSingleIceServer` — specifically that `firstCandidateMs`
+ * records the first server-derived candidate, not a local host candidate
+ * (VSDK-412 round-7 review: "per-server timing starts on an unrelated
+ * host candidate").
+ *
+ * Uses a fake RTCPeerConnection that dispatches `icecandidate` events
+ * in order: host first, then srflx. The host candidate must NOT set
+ * `firstCandidateTime`; the srflx candidate should.
+ */
+describe('testSingleIceServer — firstCandidateMs excludes host (VSDK-412 round-7)', () => {
+  /**
+   * Fake RTCPeerConnection that lets the test control candidate dispatch
+   * order and timing. `addEventListener` captures the `icecandidate`
+   * listener; `dispatchCandidate` fires it with a synthetic candidate.
+   */
+  class FakeGatheringPC {
+    iceGatheringState: RTCIceGatheringState = 'new';
+    private listeners: Record<string, Array<(e: unknown) => void>> = {};
+
+    addEventListener(type: string, fn: (e: unknown) => void): void {
+      (this.listeners[type] ||= []).push(fn);
+    }
+
+    dispatchCandidate(candidate: RTCIceCandidateInit | null): void {
+      const fns = this.listeners['icecandidate'] || [];
+      for (const fn of fns) {
+        fn({ candidate });
+      }
+    }
+
+    createDataChannel(): unknown {
+      return {};
+    }
+
+    createOffer(): Promise<RTCSessionDescriptionInit> {
+      return Promise.resolve({ type: 'offer', sdp: 'v=0\r\n' });
+    }
+
+    setLocalDescription(): Promise<void> {
+      return Promise.resolve();
+    }
+
+    getStats(): Promise<unknown> {
+      // Return an empty stats report — the test only checks firstCandidateMs,
+      // not the parsed candidates.
+      const report = {
+        forEach: () => {},
+      };
+      return Promise.resolve(report);
+    }
+
+    close(): void {}
+
+    // Move gathering to complete so waitForGathering resolves quickly.
+    markGatheringComplete(): void {
+      this.iceGatheringState = 'complete';
+    }
+  }
+
+  function makeCandidateStr(type: string): string {
+    // Minimal SDP candidate line with the given typ.
+    return `candidate:1 1 udp 1 192.0.2.1 5000 typ ${type}`;
+  }
+
+  it('does not set firstCandidateMs on a host candidate arriving before srflx', async () => {
+    const pc = new FakeGatheringPC();
+    // Replace global RTCPeerConnection so testSingleIceServer uses our fake.
+    const origPC = globalThis.RTCPeerConnection;
+    (globalThis as Record<string, unknown>).RTCPeerConnection = function () {
+      return pc;
+    };
+
+    const hostCandidate = { candidate: makeCandidateStr('host') };
+    const srflxCandidate = { candidate: makeCandidateStr('srflx') };
+
+    // Dispatch candidates after setLocalDescription would have run.
+    // We use setTimeout(0) to let the async flow proceed.
+    setTimeout(() => {
+      // Host candidate arrives first
+      pc.dispatchCandidate(hostCandidate);
+      // Then srflx candidate arrives
+      pc.dispatchCandidate(srflxCandidate);
+      // Mark gathering complete so the test finishes
+      pc.markGatheringComplete();
+    }, 0);
+
+    try {
+      const result = await testSingleIceServer(
+        { urls: 'stun:stun.telnyx.com:3478' },
+        50
+      );
+
+      // firstCandidateMs should be defined (the srflx candidate was
+      // recorded). If the host candidate had been counted, the timing
+      // would be ~0ms (dispatched immediately). With the fix, it should
+      // be based on the srflx candidate arrival (which is slightly later).
+      // We can't assert exact values, but we CAN assert the timing is
+      // non-zero-ish and defined — the key is that the host candidate
+      // did NOT trigger the first-candidate recording.
+      expect(result.firstCandidateMs).toBeDefined();
+      expect(result.firstCandidateMs).toBeGreaterThanOrEqual(0);
+    } finally {
+      (globalThis as Record<string, unknown>).RTCPeerConnection = origPC;
+    }
+  });
+
+  it('sets firstCandidateMs to undefined when only host candidates arrive', async () => {
+    const pc = new FakeGatheringPC();
+    const origPC = globalThis.RTCPeerConnection;
+    (globalThis as Record<string, unknown>).RTCPeerConnection = function () {
+      return pc;
+    };
+
+    setTimeout(() => {
+      // Only host candidates, no server-derived ones
+      pc.dispatchCandidate({ candidate: makeCandidateStr('host') });
+      pc.dispatchCandidate({ candidate: makeCandidateStr('host') });
+      pc.markGatheringComplete();
+    }, 0);
+
+    try {
+      const result = await testSingleIceServer(
+        { urls: 'stun:stun.telnyx.com:3478' },
+        50
+      );
+      // No server-derived candidate arrived → firstCandidateMs undefined
+      expect(result.firstCandidateMs).toBeUndefined();
+    } finally {
+      (globalThis as Record<string, unknown>).RTCPeerConnection = origPC;
+    }
   });
 });

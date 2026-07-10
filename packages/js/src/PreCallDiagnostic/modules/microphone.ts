@@ -506,18 +506,55 @@ async function recordAudio(
  * constructor error). The caller must set `playbackPerformed` from the
  * actual return value — never assume success (VSDK-412 round-6 review:
  * "playback failures are reported as success").
+ *
+ * **Terminal bound (VSDK-412 round-7 review):** `audio.play()` can resolve
+ * while the element stalls without ever firing `ended` or `error` (e.g.
+ * the browser loads the media but doesn't advance the playback clock).
+ * Without a terminal bound the promise never settles and the caller's
+ * `finally` block that stops the microphone tracks never runs. The
+ * `maxDurationMs` parameter provides an upper bound: if playback does not
+ * complete within that window the audio element is paused/released and
+ * the promise resolves `false`. When omitted a conservative default
+ * (recording duration + 5 s margin, or 15 s absolute) is used.
  */
-function playAudioDataUrl(dataUrl: string): Promise<boolean> {
+function playAudioDataUrl(
+  dataUrl: string,
+  maxDurationMs?: number
+): Promise<boolean> {
   return new Promise((resolve) => {
     let resolved = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let audio: HTMLAudioElement | undefined;
+
     const settle = (ok: boolean) => {
       if (!resolved) {
         resolved = true;
+        if (timeoutId !== undefined) {
+          clearTimeout(timeoutId);
+          timeoutId = undefined;
+        }
+        // Pause and release the element so it doesn't keep holding
+        // audio resources after the promise settles.
+        if (audio) {
+          audio.onended = null;
+          audio.onerror = null;
+          if (!audio.paused) {
+            audio.pause();
+          }
+          audio.src = '';
+          audio = undefined;
+        }
         resolve(ok);
       }
     };
+
+    // Terminal bound: if no `ended`/`error` event fires within this window,
+    // treat playback as stalled and settle(false).
+    const timeoutMs = maxDurationMs ?? 15000;
+    timeoutId = setTimeout(() => settle(false), timeoutMs);
+
     try {
-      const audio = new Audio(dataUrl);
+      audio = new Audio(dataUrl);
       audio.onended = () => settle(true);
       audio.onerror = () => settle(false);
       audio.play().catch(() => settle(false));
@@ -808,8 +845,14 @@ export async function buildPreCallMicrophoneReport(
             // Play back the recording if `playback: true` so the user
             // hears their own voice (VSDK-412 Review 18, point 2).
             if (micOptions.playback) {
+              // Pass recording duration + 5s margin as the terminal bound
+              // so a stalled playback element cannot hang the check
+              // indefinitely (VSDK-412 round-7 review).
+              const playbackTimeoutMs =
+                (recordingResult.recordingDurationMs ?? 10000) + 5000;
               const playbackOk = await playAudioDataUrl(
-                recordingResult.recordingDataUrl
+                recordingResult.recordingDataUrl,
+                playbackTimeoutMs
               );
               report.playbackPerformed = playbackOk;
             }
