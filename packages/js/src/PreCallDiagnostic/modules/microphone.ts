@@ -501,17 +501,28 @@ async function recordAudio(
  * Play back an audio data URL through the speakers.
  *
  * Creates a temporary <audio> element, sets the src, and plays it.
- * Returns when playback ends or on error.
+ * Returns `true` if playback completed successfully (via `onended`),
+ * `false` on any error/rejection (e.g. autoplay policy, load failure,
+ * constructor error). The caller must set `playbackPerformed` from the
+ * actual return value — never assume success (VSDK-412 round-6 review:
+ * "playback failures are reported as success").
  */
-function playAudioDataUrl(dataUrl: string): Promise<void> {
+function playAudioDataUrl(dataUrl: string): Promise<boolean> {
   return new Promise((resolve) => {
+    let resolved = false;
+    const settle = (ok: boolean) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(ok);
+      }
+    };
     try {
       const audio = new Audio(dataUrl);
-      audio.onended = () => resolve();
-      audio.onerror = () => resolve();
-      audio.play().catch(() => resolve());
+      audio.onended = () => settle(true);
+      audio.onerror = () => settle(false);
+      audio.play().catch(() => settle(false));
     } catch {
-      resolve();
+      settle(false);
     }
   });
 }
@@ -797,8 +808,10 @@ export async function buildPreCallMicrophoneReport(
             // Play back the recording if `playback: true` so the user
             // hears their own voice (VSDK-412 Review 18, point 2).
             if (micOptions.playback) {
-              await playAudioDataUrl(recordingResult.recordingDataUrl);
-              report.playbackPerformed = true;
+              const playbackOk = await playAudioDataUrl(
+                recordingResult.recordingDataUrl
+              );
+              report.playbackPerformed = playbackOk;
             }
           } else {
             report.recordingPerformed = false;

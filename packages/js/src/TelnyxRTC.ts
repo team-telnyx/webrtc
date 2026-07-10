@@ -598,8 +598,15 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // must explicitly opt in via the new `record`/`playback` options on
       // `RunMicrophoneCheckOptions`, AND should pass `onRecordingConsent`
       // so a pre-recording warning is displayed before capture begins.
+      // Map the public `durationMs` (inherited from RunPreCallOptions) to
+      // the microphone module's `sampleDurationMs` so the user's chosen
+      // sampling window is honored in microphone-only mode. Without this
+      // the module always falls back to its hardcoded default (2000ms)
+      // regardless of what the caller passes (VSDK-412 round-6 review:
+      // "durationMs is ignored in microphone-only mode").
       microphone: {
         activeCapture: true,
+        sampleDurationMs: options.durationMs,
         record: options.record ?? false,
         playback: options.playback ?? false,
         // Pass through the pre-recording consent callback so the caller
