@@ -17,6 +17,9 @@ import type {
   PreCallIceCandidateCounts,
   PreCallIceCandidateInfo,
   PreCallIceSelectedPairReport,
+  PreCallIceServerComparison,
+  PreCallIceServerComparisonEntry,
+  PreCallIceServerResult,
 } from '../types';
 import type { PreCallDiagnosticContext } from '../context';
 
@@ -27,6 +30,9 @@ import type { PreCallDiagnosticContext } from '../context';
  * - no call was established
  * - the call has no peer connection
  * - peerConnection.getStats() rejects or is unavailable
+ *
+ * Also computes the ICE server comparison (configured ICE servers vs.
+ * gathered candidates) when ICE servers are available in the context.
  */
 export async function buildPreCallIceReport(
   context: PreCallDiagnosticContext
@@ -49,7 +55,19 @@ export async function buildPreCallIceReport(
     return undefined;
   }
 
-  return parseIceReport(stats, peerConnection);
+  const report = parseIceReport(stats, peerConnection);
+
+  // ICE server comparison: compare configured ICE servers against
+  // gathered candidates. Available when rtcConfig.iceServers is set.
+  const iceServers = context.options.rtcConfig?.iceServers;
+  if (report.candidates.length > 0 && iceServers) {
+    report.serverCandidateComparison = compareIceServers(
+      iceServers,
+      report.candidates
+    );
+  }
+
+  return report;
 }
 
 // --- Internal helpers ---
@@ -569,4 +587,289 @@ function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
   }
 
   return { hasMultipleNetworkInterfaces, vpnDetected };
+}
+
+// --- ICE server comparison ---
+
+/**
+ * Compare configured ICE servers against the gathered candidates.
+ *
+ * For each configured ICE server URL, determine which candidates it
+ * produced (by matching the server's URL to the candidate's `url` field).
+ * Flag servers that returned no candidates, and detect strict networks
+ * (configured STUN/TURN UDP but only TURN TCP candidates gathered).
+ *
+ * @param iceServers - The configured ICE servers from rtcConfig
+ * @param candidates - The gathered local candidates
+ * @returns Comparison result with per-server entries and warning flags
+ */
+export function compareIceServers(
+  iceServers: RTCIceServer[] | undefined,
+  candidates: PreCallIceCandidateInfo[]
+): PreCallIceServerComparison | undefined {
+  if (!iceServers || iceServers.length === 0) {
+    return undefined;
+  }
+
+  const entries: PreCallIceServerComparisonEntry[] = [];
+  let hasServerWithNoCandidates = false;
+
+  for (const server of iceServers) {
+    const urls = Array.isArray(server.urls)
+      ? server.urls
+      : server.urls
+        ? [server.urls]
+        : [];
+    const serverCandidates = candidates.filter(
+      (c) => c.url !== undefined && urls.includes(c.url)
+    );
+
+    const candidateTypes = [
+      ...new Set(
+        serverCandidates
+          .map((c) => c.candidateType)
+          .filter((t): t is string => t !== undefined)
+      ),
+    ].sort();
+    const protocols = [
+      ...new Set(
+        serverCandidates
+          .map((c) => c.protocol)
+          .filter((p): p is string => p !== undefined)
+      ),
+    ].sort();
+
+    const hasCandidates = serverCandidates.length > 0;
+    if (!hasCandidates) {
+      hasServerWithNoCandidates = true;
+    }
+
+    entries.push({
+      urls: server.urls,
+      hasCandidates,
+      candidateTypes,
+      protocols,
+      candidateCount: serverCandidates.length,
+    });
+  }
+
+  // Detect strict network: configured STUN/TURN UDP servers but only
+  // TCP candidates gathered (UDP blocked by firewall).
+  const configuredUdp = iceServers.some((s) => {
+    const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+    return urls.some(
+      (u) =>
+        u.includes('stun:') ||
+        (u.includes('turn:') && !u.includes('transport=tcp'))
+    );
+  });
+  const onlyTcpCandidates =
+    candidates.length > 0 && candidates.every((c) => c.protocol === 'tcp');
+  const appearsStrictNetwork = configuredUdp && onlyTcpCandidates;
+
+  return {
+    servers: entries,
+    hasServerWithNoCandidates,
+    appearsStrictNetwork,
+  };
+}
+
+// --- Per-server ICE testing ---
+
+/**
+ * Parse an RTCStatsReport into candidate info + counts for a single server.
+ *
+ * Reuses the existing `extractCandidateInfo` and count logic but does NOT
+ * resolve selected pairs (there is no remote side in a single-server
+ * gathering test).
+ */
+function parseSingleServerCandidates(
+  stats: RTCStatsReport,
+  peerConnection: RTCPeerConnection
+): {
+  candidates: PreCallIceCandidateInfo[];
+  candidateCounts: PreCallIceCandidateCounts;
+  candidateTypes: string[];
+  gatheringComplete: boolean;
+} {
+  const candidateCounts: PreCallIceCandidateCounts = {
+    total: 0,
+    host: 0,
+    srflx: 0,
+    prflx: 0,
+    relay: 0,
+    unknown: 0,
+  };
+  const candidateTypeSet = new Set<string>();
+  const candidates: PreCallIceCandidateInfo[] = [];
+
+  stats.forEach((report) => {
+    if (report.type === 'local-candidate') {
+      const candidate = report as CandidateStats;
+      const type = candidate.candidateType || 'unknown';
+      candidateCounts.total++;
+      switch (type) {
+        case 'host':
+          candidateCounts.host++;
+          break;
+        case 'srflx':
+          candidateCounts.srflx++;
+          break;
+        case 'prflx':
+          candidateCounts.prflx++;
+          break;
+        case 'relay':
+          candidateCounts.relay++;
+          break;
+        default:
+          candidateCounts.unknown++;
+          break;
+      }
+      candidateTypeSet.add(type);
+      candidates.push(extractCandidateInfo(candidate));
+    }
+  });
+
+  return {
+    candidates,
+    candidateCounts,
+    candidateTypes: Array.from(candidateTypeSet).sort(),
+    gatheringComplete: peerConnection.iceGatheringState === 'complete',
+  };
+}
+
+/**
+ * Test a single ICE server by creating a throwaway RTCPeerConnection with
+ * only that server, gathering candidates, and returning the results.
+ *
+ * This is the core of `runNetworkCheck()`'s per-server testing: it lets
+ * the caller see exactly which candidates each ICE server produces, how
+ * long gathering takes, and whether the server is working at all.
+ *
+ * @param server - The ICE server to test
+ * @param durationMs - Maximum gathering wait time
+ * @returns Per-server result with candidates, counts, timing
+ */
+export async function testSingleIceServer(
+  server: RTCIceServer,
+  durationMs: number
+): Promise<PreCallIceServerResult> {
+  let pc: RTCPeerConnection | undefined;
+  const startTime = Date.now();
+
+  try {
+    pc = new RTCPeerConnection({ iceServers: [server] });
+    pc.createDataChannel('precall-diagnostic');
+
+    // Track first candidate time
+    let firstCandidateTime: number | undefined;
+    pc.addEventListener('icecandidate', (event) => {
+      if (firstCandidateTime === undefined && event.candidate) {
+        firstCandidateTime = Date.now();
+      }
+    });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Wait for gathering to complete or timeout
+    await waitForGathering(pc, durationMs);
+
+    const gatheringMs = Date.now() - startTime;
+    const firstCandidateMs =
+      firstCandidateTime !== undefined
+        ? firstCandidateTime - startTime
+        : undefined;
+
+    let stats: RTCStatsReport;
+    try {
+      stats = await pc.getStats();
+    } catch {
+      return {
+        server,
+        gatheredAny: false,
+        candidates: [],
+        candidateCounts: {
+          total: 0,
+          host: 0,
+          srflx: 0,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidateTypes: [],
+        gatheringComplete: pc.iceGatheringState === 'complete',
+        gatheringMs,
+        firstCandidateMs,
+        hasRelayCandidate: false,
+        error: 'getStats() failed after gathering',
+      };
+    }
+
+    const parsed = parseSingleServerCandidates(stats, pc);
+
+    return {
+      server,
+      gatheredAny: parsed.candidates.length > 0,
+      candidates: parsed.candidates,
+      candidateCounts: parsed.candidateCounts,
+      candidateTypes: parsed.candidateTypes,
+      gatheringComplete: parsed.gatheringComplete,
+      gatheringMs,
+      firstCandidateMs,
+      hasRelayCandidate: parsed.candidateCounts.relay > 0,
+    };
+  } catch (error) {
+    return {
+      server,
+      gatheredAny: false,
+      candidates: [],
+      candidateCounts: {
+        total: 0,
+        host: 0,
+        srflx: 0,
+        prflx: 0,
+        relay: 0,
+        unknown: 0,
+      },
+      candidateTypes: [],
+      gatheringComplete: false,
+      hasRelayCandidate: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  } finally {
+    try {
+      pc?.close();
+    } catch {
+      // ignore close errors
+    }
+  }
+}
+
+/**
+ * Wait for ICE gathering to complete or until maxWaitMs elapses.
+ * Polls pc.iceGatheringState for 'complete'. Returns early when
+ * gathering is complete.
+ */
+function waitForGathering(
+  pc: RTCPeerConnection,
+  maxWaitMs: number
+): Promise<void> {
+  if ((pc.iceGatheringState as string) === 'complete') return Promise.resolve();
+  const deadline = Date.now() + maxWaitMs;
+  const pollIntervalMs = 50;
+
+  return new Promise<void>((resolve) => {
+    const check = () => {
+      if (
+        (pc.iceGatheringState as string) === 'complete' ||
+        Date.now() >= deadline
+      ) {
+        resolve();
+        return;
+      }
+      setTimeout(check, pollIntervalMs);
+    };
+    check();
+  });
 }

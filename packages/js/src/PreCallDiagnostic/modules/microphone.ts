@@ -25,10 +25,10 @@ import type {
   PreCallMicrophoneOptions,
   PreCallDiagnosticReason,
   MicrophonePermissionState,
+  PreCallAudioDevice,
+  PreCallMicrophoneAudioLevelStats,
 } from '../types';
-import type {
-  PreCallDiagnosticContext,
-} from '../context';
+import type { PreCallDiagnosticContext } from '../context';
 
 // --- Constants ---
 
@@ -100,13 +100,15 @@ function getBrowserEnv(): BrowserEnv {
   }
 
   // Resolve AudioContext constructor (standard + webkit prefix)
-  const webkitAudioContext = (globalThis as Record<string, unknown>)['webkitAudioContext'];
+  const webkitAudioContext = (globalThis as Record<string, unknown>)[
+    'webkitAudioContext'
+  ];
   const AudioContextClass: (new () => AudioContextLike) | undefined =
     typeof AudioContext !== 'undefined'
       ? (AudioContext as unknown as new () => AudioContextLike)
       : typeof webkitAudioContext !== 'undefined'
-      ? (webkitAudioContext as unknown as new () => AudioContextLike)
-      : undefined;
+        ? (webkitAudioContext as unknown as new () => AudioContextLike)
+        : undefined;
 
   return {
     permissions: navigator.permissions ?? undefined,
@@ -138,10 +140,7 @@ function getBrowserEnv(): BrowserEnv {
 async function checkMicrophonePermission(
   env: BrowserEnv
 ): Promise<MicrophonePermissionState> {
-  if (
-    !env.permissions ||
-    typeof env.permissions.query !== 'function'
-  ) {
+  if (!env.permissions || typeof env.permissions.query !== 'function') {
     return 'unknown';
   }
 
@@ -174,15 +173,20 @@ async function checkMicrophonePermission(
  * Returns information about the number of audio input devices and
  * whether their labels are accessible (which implies permission was granted).
  *
+ * Also returns the full device list (label, deviceId) so callers can
+ * show the user all available microphones — not just a count.
+ *
  * Returns undefined if enumerateDevices is not available.
  */
-async function checkDeviceAvailability(
-  env: BrowserEnv
-): Promise<{
-  deviceCount: number;
-  deviceAvailable: boolean;
-  labelsAccessible: boolean;
-} | undefined> {
+async function checkDeviceAvailability(env: BrowserEnv): Promise<
+  | {
+      deviceCount: number;
+      deviceAvailable: boolean;
+      labelsAccessible: boolean;
+      devices: PreCallAudioDevice[];
+    }
+  | undefined
+> {
   if (
     !env.mediaDevices ||
     typeof env.mediaDevices.enumerateDevices !== 'function'
@@ -202,10 +206,18 @@ async function checkDeviceAvailability(
       (device) => device.label && device.label.length > 0
     );
 
+    // Build the full device list for the report.
+    const deviceList: PreCallAudioDevice[] = audioInputs.map((d) => ({
+      label: d.label || '',
+      deviceId: d.deviceId || '',
+      kind: 'audioinput' as const,
+    }));
+
     return {
       deviceCount: audioInputs.length,
       deviceAvailable: audioInputs.length > 0,
       labelsAccessible,
+      devices: deviceList,
     };
   } catch {
     // enumerateDevices can fail in some environments
@@ -222,7 +234,10 @@ function classifyCaptureError(error: unknown): {
   captureError: 'permission_denied' | 'no_device' | 'not_supported' | 'unknown';
   captureErrorMessage: string;
 } {
-  if (error instanceof DOMException || (error && typeof error === 'object' && 'name' in error)) {
+  if (
+    error instanceof DOMException ||
+    (error && typeof error === 'object' && 'name' in error)
+  ) {
     const name = (error as DOMException).name;
     const message = (error as DOMException).message || String(error);
 
@@ -244,7 +259,10 @@ function classifyCaptureError(error: unknown): {
         captureErrorMessage: `Microphone not readable: ${message}`,
       };
     }
-    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+    if (
+      name === 'OverconstrainedError' ||
+      name === 'ConstraintNotSatisfiedError'
+    ) {
       return {
         captureError: 'no_device',
         captureErrorMessage: `Microphone constraint not satisfied: ${message}`,
@@ -271,31 +289,43 @@ function classifyCaptureError(error: unknown): {
 }
 
 /**
- * Measure peak RMS audio level from an active MediaStream using the Web Audio API.
+ * Measure peak RMS and average RMS audio level from an active MediaStream
+ * using the Web Audio API.
  *
  * Creates an AudioContext + AnalyserNode, reads time-domain data
- * at regular intervals over `sampleDurationMs`, and returns the peak RMS level.
+ * at regular intervals over `sampleDurationMs`, and returns the peak RMS
+ * level, average RMS level, and number of samples.
  *
  * If the AudioContext is not available (via env.AudioContext), returns
- * { audioLevel: 0, audioDetected: false } to indicate measurement was not possible.
+ * { audioLevel: 0, audioDetected: false, audioLevelStats: { peak: 0, average: 0, samples: 0 } }
+ * to indicate measurement was not possible.
  *
  * @param stream - The active MediaStream with audio tracks
  * @param sampleDurationMs - How long to sample in ms
  * @param silenceThreshold - RMS threshold for silence detection
  * @param env - Browser environment with AudioContext constructor
- * @returns Peak RMS audio level (0–1) and whether it exceeded the silence threshold
+ * @returns Peak RMS audio level (0–1), whether it exceeded the silence
+ *   threshold, and structured stats (peak, average, samples)
  */
 async function measureAudioLevel(
   stream: MediaStream,
   sampleDurationMs: number,
   silenceThreshold: number,
   env: BrowserEnv
-): Promise<{ audioLevel: number; audioDetected: boolean }> {
+): Promise<{
+  audioLevel: number;
+  audioDetected: boolean;
+  audioLevelStats: PreCallMicrophoneAudioLevelStats;
+}> {
   const AudioContextClass = env.AudioContext;
 
   if (!AudioContextClass) {
     // Cannot measure audio level without AudioContext
-    return { audioLevel: 0, audioDetected: false };
+    return {
+      audioLevel: 0,
+      audioDetected: false,
+      audioLevelStats: { peak: 0, average: 0, samples: 0 },
+    };
   }
 
   const audioContext = new AudioContextClass();
@@ -308,6 +338,8 @@ async function measureAudioLevel(
   const dataArray = new Float32Array(bufferLength);
 
   let peakRms = 0;
+  let totalRms = 0;
+  let sampleCount = 0;
   const startTime = Date.now();
 
   // Sample the audio level over the specified duration
@@ -325,9 +357,13 @@ async function measureAudioLevel(
     if (rms > peakRms) {
       peakRms = rms;
     }
+    totalRms += rms;
+    sampleCount++;
 
     // Wait before next sample
-    await new Promise((resolve) => setTimeout(resolve, DEFAULT_SAMPLE_INTERVAL_MS));
+    await new Promise((resolve) =>
+      setTimeout(resolve, DEFAULT_SAMPLE_INTERVAL_MS)
+    );
   }
 
   // Cleanup AudioContext resources
@@ -339,9 +375,16 @@ async function measureAudioLevel(
     // Swallow cleanup errors
   }
 
+  const averageRms = sampleCount > 0 ? totalRms / sampleCount : 0;
+
   return {
     audioLevel: peakRms,
     audioDetected: peakRms >= silenceThreshold,
+    audioLevelStats: {
+      peak: peakRms,
+      average: averageRms,
+      samples: sampleCount,
+    },
   };
 }
 
@@ -362,6 +405,106 @@ function stopAllTracks(stream: MediaStream | undefined): void {
   }
 }
 
+/**
+ * Record audio from a MediaStream for a given duration using MediaRecorder.
+ *
+ * Returns a data URL (base64-encoded) of the recording, the MIME type,
+ * and the duration in ms. Returns undefined values when MediaRecorder is
+ * not available or recording fails.
+ */
+async function recordAudio(
+  stream: MediaStream,
+  durationMs: number
+): Promise<{
+  recordingDataUrl?: string;
+  recordingMimeType?: string;
+  recordingDurationMs?: number;
+}> {
+  // Check if MediaRecorder is available
+  if (typeof MediaRecorder === 'undefined') {
+    return {};
+  }
+
+  let recorder: MediaRecorder | undefined;
+  try {
+    // Pick a supported MIME type
+    let mimeType = 'audio/webm;codecs=opus';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = '';
+      }
+    }
+
+    recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    const startTime = Date.now();
+
+    return new Promise((resolve) => {
+      recorder!.onstop = () => {
+        const duration = Date.now() - startTime;
+        const blob = new Blob(chunks, {
+          type: recorder!.mimeType || mimeType || 'audio/webm',
+        });
+
+        // Convert to data URL
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          resolve({
+            recordingDataUrl: reader.result as string,
+            recordingMimeType: recorder!.mimeType || mimeType || 'audio/webm',
+            recordingDurationMs: duration,
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            recordingDurationMs: duration,
+            recordingMimeType: recorder!.mimeType || mimeType || 'audio/webm',
+          });
+        };
+        reader.readAsDataURL(blob);
+      };
+
+      recorder!.start();
+      setTimeout(() => {
+        if (recorder!.state !== 'inactive') {
+          recorder!.stop();
+        }
+      }, durationMs);
+    });
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Play back an audio data URL through the speakers.
+ *
+ * Creates a temporary <audio> element, sets the src, and plays it.
+ * Returns when playback ends or on error.
+ */
+function playAudioDataUrl(dataUrl: string): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const audio = new Audio(dataUrl);
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
 // --- Reason building ---
 
 /**
@@ -374,7 +517,11 @@ function stopAllTracks(stream: MediaStream | undefined): void {
 function buildReasons(
   permissionState: MicrophonePermissionState | undefined,
   deviceAvailable: boolean | undefined,
-  captureError?: 'permission_denied' | 'no_device' | 'not_supported' | 'unknown',
+  captureError?:
+    | 'permission_denied'
+    | 'no_device'
+    | 'not_supported'
+    | 'unknown',
   audioDetected?: boolean
 ): PreCallDiagnosticReason[] {
   const reasons: PreCallDiagnosticReason[] = [];
@@ -427,7 +574,8 @@ function buildReasons(
   if (captureError === undefined && audioDetected === false) {
     reasons.push({
       code: 'microphone_silent',
-      message: 'No audio was detected above the silence threshold during active capture.',
+      message:
+        'No audio was detected above the silence threshold during active capture.',
       source: 'microphone',
     });
   }
@@ -453,6 +601,8 @@ function resolveMicrophoneOptions(
   activeCapture: boolean;
   sampleDurationMs: number;
   silenceThreshold: number;
+  record: boolean;
+  playback: boolean;
 } {
   if (options === false) {
     // Should not happen — caller should have already skipped
@@ -462,6 +612,8 @@ function resolveMicrophoneOptions(
       activeCapture: false,
       sampleDurationMs: DEFAULT_SAMPLE_DURATION_MS,
       silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
+      record: false,
+      playback: false,
     };
   }
 
@@ -472,6 +624,8 @@ function resolveMicrophoneOptions(
       activeCapture: false,
       sampleDurationMs: DEFAULT_SAMPLE_DURATION_MS,
       silenceThreshold: DEFAULT_SILENCE_THRESHOLD,
+      record: false,
+      playback: false,
     };
   }
 
@@ -481,6 +635,8 @@ function resolveMicrophoneOptions(
     activeCapture: options.activeCapture === true,
     sampleDurationMs: options.sampleDurationMs ?? DEFAULT_SAMPLE_DURATION_MS,
     silenceThreshold: options.silenceThreshold ?? DEFAULT_SILENCE_THRESHOLD,
+    record: options.record === true,
+    playback: options.playback === true,
   };
 }
 
@@ -534,6 +690,7 @@ export async function buildPreCallMicrophoneReport(
       report.deviceAvailable = deviceInfo.deviceAvailable;
       report.deviceCount = deviceInfo.deviceCount;
       report.labelsAccessible = deviceInfo.labelsAccessible;
+      report.devices = deviceInfo.devices;
     }
   }
 
@@ -562,16 +719,60 @@ export async function buildPreCallMicrophoneReport(
         report.deviceAvailable = true;
         report.activeCapturePerformed = true;
 
+        // Start recording in parallel with audio level measurement
+        // when `record: true` is set.
+        let recordingPromise: Promise<{
+          recordingDataUrl?: string;
+          recordingMimeType?: string;
+          recordingDurationMs?: number;
+        }> = Promise.resolve({});
+
+        if (micOptions.record) {
+          recordingPromise = recordAudio(stream, micOptions.sampleDurationMs);
+        }
+
         // Measure audio level
-        const { audioLevel, audioDetected } = await measureAudioLevel(
-          stream,
-          micOptions.sampleDurationMs,
-          micOptions.silenceThreshold,
-          browserEnv
-        );
+        const { audioLevel, audioDetected, audioLevelStats } =
+          await measureAudioLevel(
+            stream,
+            micOptions.sampleDurationMs,
+            micOptions.silenceThreshold,
+            browserEnv
+          );
 
         report.audioLevel = audioLevel;
+        report.audioLevelStats = audioLevelStats;
         report.audioDetected = audioDetected;
+
+        // Wait for recording to complete and populate recording fields
+        if (micOptions.record) {
+          const recordingResult = await recordingPromise;
+          if (recordingResult.recordingDataUrl) {
+            report.recordingPerformed = true;
+            report.recordingDataUrl = recordingResult.recordingDataUrl;
+            report.recordingMimeType = recordingResult.recordingMimeType;
+            report.recordingDurationMs = recordingResult.recordingDurationMs;
+
+            // Play back the recording if `playback: true`
+            if (micOptions.playback) {
+              await playAudioDataUrl(recordingResult.recordingDataUrl);
+            }
+          } else {
+            report.recordingPerformed = false;
+          }
+        }
+
+        // Re-enumerate devices after permission grant to get labels
+        // (labels are empty before permission is granted)
+        if (micOptions.checkDeviceAvailability) {
+          const deviceInfoAfter = await checkDeviceAvailability(browserEnv);
+          if (deviceInfoAfter !== undefined) {
+            report.deviceCount = deviceInfoAfter.deviceCount;
+            report.deviceAvailable = deviceInfoAfter.deviceAvailable;
+            report.labelsAccessible = deviceInfoAfter.labelsAccessible;
+            report.devices = deviceInfoAfter.devices;
+          }
+        }
       } catch (error) {
         // Classify the error
         const { captureError, captureErrorMessage } =

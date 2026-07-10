@@ -221,4 +221,145 @@ describe('buildVerdict — reason vs warning split (VSDK-412)', () => {
       ])
     );
   });
+
+  // --- ICE server comparison + VPN/interface warnings (review point 1) ---
+
+  it('emits a warning when a configured ICE server returned no candidates', () => {
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: ['host', 'srflx'],
+        candidateCounts: {
+          total: 2,
+          host: 1,
+          srflx: 1,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: true,
+        gatheringComplete: true,
+        serverCandidateComparison: {
+          servers: [
+            {
+              urls: 'stun:stun.example.com:19302',
+              hasCandidates: true,
+              candidateTypes: ['srflx'],
+              protocols: ['udp'],
+              candidateCount: 1,
+            },
+            {
+              urls: 'turn:turn.example.com:3478',
+              hasCandidates: false,
+              candidateTypes: [],
+              protocols: [],
+              candidateCount: 0,
+            },
+          ],
+          hasServerWithNoCandidates: true,
+          appearsStrictNetwork: false,
+        },
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    // Verdict stays ready — this is a warning, not a blocking reason.
+    expect(result.verdict).toBe('ready');
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'ice_server_no_candidates' }),
+      ])
+    );
+  });
+
+  it('emits a strict-network warning when only TURN TCP candidates gathered despite UDP servers', () => {
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: ['relay'],
+        candidateCounts: {
+          total: 1,
+          host: 0,
+          srflx: 0,
+          prflx: 0,
+          relay: 1,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: true,
+        onlyHostCandidates: false,
+        hasSelectedPair: true,
+        gatheringComplete: true,
+        serverCandidateComparison: {
+          servers: [],
+          hasServerWithNoCandidates: false,
+          appearsStrictNetwork: true,
+        },
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'ice_strict_network' }),
+      ])
+    );
+  });
+
+  it('emits a multiple-interfaces warning when hasMultipleNetworkInterfaces is true', () => {
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: ['host', 'srflx'],
+        candidateCounts: {
+          total: 3,
+          host: 2,
+          srflx: 1,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: true,
+        gatheringComplete: true,
+        hasMultipleNetworkInterfaces: true,
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.verdict).toBe('ready');
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'ice_multiple_interfaces' }),
+      ])
+    );
+  });
+
+  it('emits a VPN-detected warning when vpnDetected is true', () => {
+    const report: Partial<PreCallDiagnosticReport> = {
+      ice: {
+        candidateTypes: ['host', 'srflx'],
+        candidateCounts: {
+          total: 2,
+          host: 1,
+          srflx: 1,
+          prflx: 0,
+          relay: 0,
+          unknown: 0,
+        },
+        candidates: [],
+        hasRelayCandidate: false,
+        onlyHostCandidates: false,
+        hasSelectedPair: true,
+        gatheringComplete: true,
+        vpnDetected: true,
+      },
+    };
+    const result = buildVerdict(report, makeContext());
+    expect(result.verdict).toBe('ready');
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'ice_vpn_detected' }),
+      ])
+    );
+  });
 });

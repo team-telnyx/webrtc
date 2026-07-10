@@ -50,7 +50,7 @@ export interface PreCallMicrophoneOptions {
    * When true, getUserMedia({ audio: true }) is called and the audio level
    * is measured during a short sample window. All tracks are stopped after
    * the sample completes.
-   * Default: false (active capture is opt-in).
+   * Default: true (enabled for `runMicrophoneCheck()`).
    */
   activeCapture?: boolean;
   /**
@@ -63,6 +63,21 @@ export interface PreCallMicrophoneOptions {
    * Value between 0 and 1. Default: 0.01.
    */
   silenceThreshold?: number;
+  /**
+   * Whether to record the microphone audio during the sample window
+   * so the user can listen to it afterwards. When true, the captured
+   * audio is recorded using a MediaRecorder and the resulting Blob is
+   * available in the report as a data URL (`recordingDataUrl`).
+   * Default: false.
+   */
+  record?: boolean;
+  /**
+   * Whether to play back the recorded audio after capture. Only applies
+   * when `record` is true. When true, an `<audio>` element is created
+   * and the recording is played through the speakers.
+   * Default: false.
+   */
+  playback?: boolean;
 }
 
 /**
@@ -200,6 +215,16 @@ export interface PreCallTimingsReport {
   ringingMs?: number;
   /** Time from start to first media stats (first-remote-media-track mark). */
   firstMediaStatsMs?: number;
+  /** Time from call start to ICE candidate gathering started. */
+  iceGatheringStartedMs?: number;
+  /** Time from call start to the first ICE candidate gathered. */
+  firstCandidateMs?: number;
+  /** Time from call start to the first non-host (srflx/relay) candidate. */
+  firstNonHostCandidateMs?: number;
+  /** Time from call start to all ICE candidates gathered (gathering complete). */
+  iceGatheringCompletedMs?: number;
+  /** Duration of ICE candidate gathering (complete - started). */
+  iceGatheringMs?: number;
   /** Time from start to first stats sample received inside collectSamples. */
   firstStatsMs?: number;
   /** Duration of the stats sampling phase. */
@@ -370,6 +395,99 @@ export interface PreCallIceReport {
   iceGatheringState?: RTCIceGatheringState | string;
   /** ICE connection state from the RTCPeerConnection. */
   iceConnectionState?: RTCIceConnectionState | string;
+  /**
+   * Per-ICE-server gathering results, when `runNetworkCheck()` tests each
+   * ICE server independently. Each entry shows which server it was, the
+   * candidates it produced, how long gathering took, and whether it
+   * gathered anything at all.
+   *
+   * Only populated in `'network-only'` mode (per-server testing). Omitted
+   * for `'full'` mode (the call uses all servers at once).
+   */
+  perServerResults?: PreCallIceServerResult[];
+  /**
+   * Comparison of configured ICE servers against the gathered candidates.
+   *
+   * Identifies which configured ICE servers produced candidates and which
+   * did not return any, along with warnings for strict networks (e.g.
+   * configured STUN+TURN UDP+TCP but only TURN TCP candidates gathered).
+   */
+  serverCandidateComparison?: PreCallIceServerComparison;
+}
+
+/**
+ * Result of testing a single ICE server independently.
+ *
+ * When `runNetworkCheck()` tests each ICE server one at a time (one
+ * RTCPeerConnection per server), each result captures the full picture
+ * for that server: which candidates it produced, gathering duration,
+ * and whether any candidates were gathered at all.
+ */
+export interface PreCallIceServerResult {
+  /** The ICE server configuration that was tested. */
+  server: RTCIceServer;
+  /** Whether this server produced at least one candidate. */
+  gatheredAny: boolean;
+  /** Candidates gathered from this server. */
+  candidates: PreCallIceCandidateInfo[];
+  /** Candidate counts from this server. */
+  candidateCounts: PreCallIceCandidateCounts;
+  /** Unique candidate types from this server, sorted. */
+  candidateTypes: string[];
+  /** Whether gathering completed (iceGatheringState === 'complete'). */
+  gatheringComplete: boolean;
+  /** Time in ms from gathering start to gathering complete. */
+  gatheringMs?: number;
+  /** Time in ms from gathering start to the first candidate. */
+  firstCandidateMs?: number;
+  /** Whether at least one relay candidate was gathered. */
+  hasRelayCandidate: boolean;
+  /** Error message if gathering from this server failed. */
+  error?: string;
+}
+
+/**
+ * Comparison of configured ICE servers against gathered candidates.
+ *
+ * Maps each configured ICE server URL to the candidates it produced (when
+ * testable) and flags servers that returned no candidates, as well as
+ * network-type warnings (e.g. strict network where only TURN TCP works).
+ */
+export interface PreCallIceServerComparison {
+  /**
+   * Per-server entries. Each maps a configured ICE server URL to its
+   * outcome: candidates produced (and their types/protocols), or none.
+   */
+  servers: PreCallIceServerComparisonEntry[];
+  /**
+   * Whether any configured ICE server returned zero candidates.
+   * A server returning no candidates is a warning (the server may be
+   * unreachable, blocked, or misconfigured).
+   */
+  hasServerWithNoCandidates: boolean;
+  /**
+   * Whether the network appears to restrict UDP (strict network).
+   * True when the ICE servers include STUN/TURN UDP servers but only
+   * TURN TCP candidates were gathered — indicating UDP is blocked and
+   * only TCP relay works.
+   */
+  appearsStrictNetwork: boolean;
+}
+
+/**
+ * A single entry in the ICE server comparison.
+ */
+export interface PreCallIceServerComparisonEntry {
+  /** The ICE server URL(s) from the configuration. */
+  urls: string | string[];
+  /** Whether this server produced at least one candidate. */
+  hasCandidates: boolean;
+  /** Candidate types gathered from this server (e.g. ['host', 'srflx', 'relay']). */
+  candidateTypes: string[];
+  /** Transport protocols observed in gathered candidates from this server. */
+  protocols: string[];
+  /** Number of candidates gathered from this server. */
+  candidateCount: number;
 }
 
 /**
@@ -519,6 +637,36 @@ export type MicrophonePermissionState =
   | 'unknown';
 
 /**
+ * Information about a single audio input device, from enumerateDevices.
+ *
+ * Includes the device label, deviceId, and kind so callers can display
+ * the full list of microphones to the user.
+ */
+export interface PreCallAudioDevice {
+  /** Device label (human-readable name). May be empty when permission not granted. */
+  label: string;
+  /** Device ID from the browser. May be empty when permission not granted. */
+  deviceId: string;
+  /** Device kind (always 'audioinput' for this module). */
+  kind: 'audioinput';
+}
+
+/**
+ * Audio-level statistics from the microphone capture sample window.
+ *
+ * Provides peak, average, and samples-count so callers can show the
+ * user whether their microphone is producing sufficient audio level.
+ */
+export interface PreCallMicrophoneAudioLevelStats {
+  /** Peak RMS audio level observed during the sample window (0–1). */
+  peak: number;
+  /** Average RMS audio level across all samples in the window (0–1). */
+  average: number;
+  /** Number of audio-level samples taken during the window. */
+  samples: number;
+}
+
+/**
  * Report from the microphone diagnostic module.
  *
  * Populated by T6 (VSDK-303) for passive permission/device checks and
@@ -545,6 +693,15 @@ export interface PreCallMicrophoneReport {
    */
   deviceCount?: number;
   /**
+   * Full list of all available audio input devices, with label, deviceId,
+   * and kind. Populated from enumerateDevices when permission is granted
+   * (labels accessible). Undefined when device enumeration is not available.
+   *
+   * This gives callers the complete device list so they can show the
+   * user all microphones and let them choose — not just a count.
+   */
+  devices?: PreCallAudioDevice[];
+  /**
    * Whether device labels are accessible (implies permission was granted).
    * When false, device labels may be empty strings.
    * Undefined when device enumeration is not available.
@@ -560,6 +717,13 @@ export interface PreCallMicrophoneReport {
    * Undefined when activeCapture is disabled or capture failed.
    */
   audioLevel?: number;
+  /**
+   * Structured audio-level statistics from the sample window: peak,
+   * average, and sample count. More detailed than `audioLevel` (which
+   * is the peak only). Undefined when activeCapture is disabled or
+   * capture failed.
+   */
+  audioLevelStats?: PreCallMicrophoneAudioLevelStats;
   /**
    * Whether audio energy above the silence threshold was detected.
    * Undefined when activeCapture is disabled or capture failed.
@@ -577,10 +741,28 @@ export interface PreCallMicrophoneReport {
     | 'no_device'
     | 'not_supported'
     | 'unknown';
-  /**
-   * Human-readable description of the capture error, if any.
-   */
+  /** Human-readable description of the capture error, if any. */
   captureErrorMessage?: string;
+  /**
+   * Whether audio was recorded during the capture window.
+   * Only set when `record: true` and capture succeeded.
+   */
+  recordingPerformed?: boolean;
+  /**
+   * Recording as a data URL (base64-encoded audio/webm). Only populated
+   * when `record: true`, capture succeeded, and a MediaRecorder was
+   * available. Callers can set this as an `<audio>` `src` to play it
+   * back to the user.
+   */
+  recordingDataUrl?: string;
+  /**
+   * MIME type of the recording (e.g. 'audio/webm;codecs=opus').
+   */
+  recordingMimeType?: string;
+  /**
+   * Duration of the recording in milliseconds.
+   */
+  recordingDurationMs?: number;
   /**
    * Reason codes for any issues found, suitable for verdict/reason module input.
    * E.g. 'microphone_permission_denied', 'microphone_no_device',

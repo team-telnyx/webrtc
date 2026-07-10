@@ -28,16 +28,21 @@ import type { PreCallTimingsReport } from '../types';
  * from the start of the call, which matches the documented semantics of the
  * `PreCallTimingsReport` lifecycle fields.
  */
-const ESTABLISHMENT_LABEL_TO_FIELD: Record<string, keyof PreCallTimingsReport> = {
-  'Call Start': 'callCreateMs',
-  'SDP negotiation started': 'callSetupMs',
-  'Call is active': 'callSetupMs',
-  'Remote side ringing': 'ringingMs',
-  'Call answered by remote side': 'callAnsweredMs',
-  'ICE connection established': 'iceConnectedMs',
-  'Secure media channel established (DTLS)': 'dtlsConnectedMs',
-  'First remote audio/video track received': 'firstMediaStatsMs',
-};
+const ESTABLISHMENT_LABEL_TO_FIELD: Record<string, keyof PreCallTimingsReport> =
+  {
+    'Call Start': 'callCreateMs',
+    'SDP negotiation started': 'callSetupMs',
+    'Call is active': 'callSetupMs',
+    'Remote side ringing': 'ringingMs',
+    'Call answered by remote side': 'callAnsweredMs',
+    'ICE connection established': 'iceConnectedMs',
+    'Secure media channel established (DTLS)': 'dtlsConnectedMs',
+    'First remote audio/video track received': 'firstMediaStatsMs',
+    'ICE candidate gathering started': 'iceGatheringStartedMs',
+    'First ICE candidate found': 'firstCandidateMs',
+    'First server-reflexive/relay candidate found': 'firstNonHostCandidateMs',
+    'All ICE candidates gathered': 'iceGatheringCompletedMs',
+  };
 
 /**
  * Narrow shape of a Call as consumed by the timings builder.
@@ -79,7 +84,11 @@ function safeDurationMs(value: unknown): number | undefined {
 /**
  * Read a value from the `stats` object only if it passes the duration guard.
  */
-function withGuard(stats: PreCallTimingsReport, field: keyof PreCallTimingsReport, value: unknown): void {
+function withGuard(
+  stats: PreCallTimingsReport,
+  field: keyof PreCallTimingsReport,
+  value: unknown
+): void {
   const guarded = safeDurationMs(value);
   if (guarded !== undefined) {
     (stats[field] as number | undefined) = guarded;
@@ -188,24 +197,37 @@ export class TimingsCollector {
     };
 
     // 1. Diagnostic-only phase durations (measured from this collector's start).
-    withGuard(report, 'firstStatsMs', this.firstStatsMonoMs !== undefined
-      ? this.firstStatsMonoMs - this.startedAtMonoMs
-      : undefined);
-    withGuard(report, 'statsSamplingMs',
-      this.statsSamplingStartedMonoMs !== undefined && this.statsSamplingCompletedMonoMs !== undefined
+    withGuard(
+      report,
+      'firstStatsMs',
+      this.firstStatsMonoMs !== undefined
+        ? this.firstStatsMonoMs - this.startedAtMonoMs
+        : undefined
+    );
+    withGuard(
+      report,
+      'statsSamplingMs',
+      this.statsSamplingStartedMonoMs !== undefined &&
+        this.statsSamplingCompletedMonoMs !== undefined
         ? this.statsSamplingCompletedMonoMs - this.statsSamplingStartedMonoMs
-        : undefined);
-    withGuard(report, 'cleanupMs',
-      this.cleanupStartedMonoMs !== undefined && this.cleanupCompletedMonoMs !== undefined
+        : undefined
+    );
+    withGuard(
+      report,
+      'cleanupMs',
+      this.cleanupStartedMonoMs !== undefined &&
+        this.cleanupCompletedMonoMs !== undefined
         ? this.cleanupCompletedMonoMs - this.cleanupStartedMonoMs
-        : undefined);
+        : undefined
+    );
 
     // totalMs: from start to completion (mono). Falls back to cleanupCompleted
     // when markCompleted() was never called (e.g. an early-return path).
     const endMonoMs = nowMonoMs();
-    const endMark = this.completedAtEpochMs !== undefined
-      ? endMonoMs // completion was reached; use current mono time as the endpoint
-      : this.cleanupCompletedMonoMs;
+    const endMark =
+      this.completedAtEpochMs !== undefined
+        ? endMonoMs // completion was reached; use current mono time as the endpoint
+        : this.cleanupCompletedMonoMs;
     if (this.completedAtEpochMs !== undefined) {
       // Prefer the monotonic delta recorded at markCompleted() time if we can
       // reconstruct it; since we only store the epoch, use the current mono
@@ -234,6 +256,17 @@ export class TimingsCollector {
           withGuard(report, field, step.fromStart);
         }
       }
+
+      // Compute iceGatheringMs = iceGatheringCompletedMs - iceGatheringStartedMs
+      // (the duration of ICE candidate gathering).
+      if (
+        report.iceGatheringStartedMs !== undefined &&
+        report.iceGatheringCompletedMs !== undefined
+      ) {
+        const gatheringMs =
+          report.iceGatheringCompletedMs - report.iceGatheringStartedMs;
+        withGuard(report, 'iceGatheringMs', gatheringMs);
+      }
     }
 
     // clientReadyMs is not observable in the current SDK timing path; omit.
@@ -248,7 +281,10 @@ export class TimingsCollector {
  */
 function nowMonoMs(): number {
   try {
-    if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+    if (
+      typeof performance !== 'undefined' &&
+      typeof performance.now === 'function'
+    ) {
       return performance.now();
     }
   } catch {

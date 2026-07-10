@@ -22,11 +22,14 @@ import type {
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
+  PreCallIceReport,
+  PreCallIceCandidateCounts,
+  PreCallIceServerResult,
 } from './types';
 import Call from '../Modules/Verto/webrtc/Call';
 import { createDiagnosticContext } from './context';
 import type { PreCallDiagnosticContext } from './context';
-import { buildPreCallIceReport } from './modules/ice';
+import { buildPreCallIceReport, testSingleIceServer } from './modules/ice';
 import { buildPreCallNetworkReport } from './modules/network';
 import { buildPreCallMediaReport } from './modules/media';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
@@ -226,52 +229,55 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   /**
-   * Network-only diagnostic run — gathers ICE candidates from a raw
-   * RTCPeerConnection without placing a call (B1).
+   * Network-only diagnostic run — gathers ICE candidates from each ICE
+   * server independently (B1, per reviewer request).
    *
-   * Builds a throwaway `RTCPeerConnection` with the client's ICE servers
-   * (or an explicit `rtcConfig` override), creates a no-op data channel to
-   * trigger candidate gathering, waits for `durationMs`, then reads the ICE
-   * report and closes the peer. No `client.newCall()` is invoked and no SIP
-   * signaling is involved.
+   * Tests each configured ICE server one at a time (one RTCPeerConnection
+   * per server), so the caller can see exactly which servers produce
+   * candidates, how long gathering takes for each, and which servers
+   * are not working. Also runs a combined gathering pass for the
+   * aggregate ICE report (selected pair, server comparison).
+   *
+   * No `client.newCall()` is invoked and no SIP signaling is involved.
    */
   private async runNetworkOnly(
     context: PreCallDiagnosticContext,
     timings: TimingsCollector
   ): Promise<PreCallDiagnosticReport> {
-    // Build a raw peer connection for candidate gathering. A data channel is
-    // needed to make the peer connection actually gather candidates (without
-    // an SDP offer/answer exchange, the ICE agent stays idle in many
-    // browsers). We never send data; the channel only exists to drive
-    // gathering. createDataChannel + createOffer + setLocalDescription is the
-    // established pattern for triggering ICE gathering without a remote peer.
+    const iceServers = this.getClientIceServers();
+    const rtcConfig = this.options.rtcConfig ?? {
+      iceServers,
+    };
+    const effectiveServers = rtcConfig.iceServers ?? iceServers ?? [];
+    const durationMs = this.effectiveDurationMs();
+
+    // Per-server results: test each ICE server independently
+    const perServerResults = [];
+    for (const server of effectiveServers) {
+      const result = await testSingleIceServer(server, durationMs);
+      perServerResults.push(result);
+    }
+
+    // Combined gathering pass for the aggregate ICE report
     let pc: RTCPeerConnection | undefined;
     try {
-      const rtcConfig = this.options.rtcConfig ?? {
-        iceServers: this.getClientIceServers(),
-      };
       pc = new RTCPeerConnection(rtcConfig);
-
-      // Drive gathering: a data channel + a local description causes the ICE
-      // agent to enumerate candidates. We discard the offer/answer.
       pc.createDataChannel('precall-diagnostic');
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // Wait for the gathering window (durationMs). The ICE module below
-      // reads the final gathering state + candidates from getStats().
-      const durationMs = this.effectiveDurationMs();
       timings.markStatsSamplingStarted();
       await this.waitForIceGathering(pc, durationMs);
       timings.markStatsSamplingCompleted();
 
-      // Attach the peer connection to the context via a minimal Call-like
-      // shim so the ICE module (which reads context.call.peer.instance) can
-      // run unchanged. We only need peer.instance + nothing else for the
-      // network-only path.
       context.call = this.makeCallShim(pc) as unknown as Call;
 
       const ice = await this.getIceReport(context);
+
+      // Attach per-server results to the ICE report
+      if (ice) {
+        ice.perServerResults = perServerResults;
+      }
 
       timings.markCompleted();
       const timingsReport = timings.build({});
@@ -306,6 +312,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         reasons: reasons.length > 0 ? reasons : undefined,
         warnings: warnings.length > 0 ? warnings : undefined,
         timings: timingsReport,
+        ice:
+          perServerResults.length > 0
+            ? aggregatePerServerResults(perServerResults)
+            : undefined,
       };
     } finally {
       timings.markCleanupStarted();
@@ -697,6 +707,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
           case 'remote-inbound-rtp':
             remoteAudioInbound.push({
               roundTripTime: entry.roundTripTime,
+              totalRoundTripTime: entry.totalRoundTripTime,
+              roundTripTimeMeasurements: entry.roundTripTimeMeasurements,
               jitter: entry.jitter,
               packetsReceived: entry.packetsReceived,
               packetsLost: entry.packetsLost,
@@ -843,4 +855,65 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       }
     }
   }
+}
+
+/**
+ * Aggregate per-server ICE results into a minimal `PreCallIceReport`.
+ *
+ * Used in the `runNetworkOnly` error path: when the combined gathering pass
+ * fails, we still have the per-server results (which ran before the error).
+ * This builds a valid `PreCallIceReport` so the caller can see which servers
+ * produced candidates even if the overall check errored.
+ */
+function aggregatePerServerResults(
+  results: PreCallIceServerResult[]
+): PreCallIceReport {
+  const candidateCounts: PreCallIceCandidateCounts = {
+    total: 0,
+    host: 0,
+    srflx: 0,
+    prflx: 0,
+    relay: 0,
+    unknown: 0,
+  };
+  const candidateTypes = new Set<string>();
+  const candidates: PreCallIceReport['candidates'] = [];
+  let hasRelayCandidate = false;
+  let gatheringComplete = true;
+
+  for (const r of results) {
+    candidateCounts.total += r.candidateCounts.total;
+    candidateCounts.host += r.candidateCounts.host;
+    candidateCounts.srflx += r.candidateCounts.srflx;
+    candidateCounts.prflx += r.candidateCounts.prflx;
+    candidateCounts.relay += r.candidateCounts.relay;
+    candidateCounts.unknown += r.candidateCounts.unknown;
+
+    for (const t of r.candidateTypes) {
+      candidateTypes.add(t);
+    }
+    for (const c of r.candidates) {
+      candidates.push(c);
+    }
+    if (r.hasRelayCandidate) {
+      hasRelayCandidate = true;
+    }
+    if (!r.gatheringComplete) {
+      gatheringComplete = false;
+    }
+  }
+
+  return {
+    candidateGatheringCompleted: gatheringComplete,
+    gatheringComplete,
+    candidateCounts,
+    candidateTypes: Array.from(candidateTypes).sort(),
+    candidates,
+    hasRelayCandidate,
+    onlyHostCandidates:
+      candidateCounts.total > 0 &&
+      candidateCounts.host === candidateCounts.total,
+    hasSelectedPair: false,
+    perServerResults: results,
+  };
 }

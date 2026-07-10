@@ -21,9 +21,7 @@ import type {
   NetworkByteCounters,
   NetworkBitrate,
 } from '../types';
-import type {
-  PreCallDiagnosticContext,
-} from '../context';
+import type { PreCallDiagnosticContext } from '../context';
 
 // --- Quality classification thresholds (in ms and fraction) ---
 
@@ -90,8 +88,12 @@ function safeNumber(value: unknown): number | undefined {
  * Compute min/max/average from an array of numeric samples.
  * Returns `undefined` if there are no valid samples.
  */
-function computeMinMaxAverage(samples: number[]): NetworkMinMaxAverage | undefined {
-  const valid = samples.filter((v) => v !== undefined && !Number.isNaN(v) && Number.isFinite(v));
+function computeMinMaxAverage(
+  samples: number[]
+): NetworkMinMaxAverage | undefined {
+  const valid = samples.filter(
+    (v) => v !== undefined && !Number.isNaN(v) && Number.isFinite(v)
+  );
   if (valid.length === 0) return undefined;
 
   let min = Infinity;
@@ -114,6 +116,12 @@ function computeMinMaxAverage(samples: number[]): NetworkMinMaxAverage | undefin
  * Extract inbound RTT samples from stats frames.
  * RTT comes from `remote.audio.inbound[].roundTripTime` (in seconds from
  * standard WebRTC stats) — we convert to milliseconds.
+ *
+ * Also reads `connection.currentRoundTripTime` from the selected candidate
+ * pair as a fallback. Note: `currentRoundTripTime` is the latest STUN
+ * response RTT for the selected pair; it can vary between samples if the
+ * call is long enough. With very short calls (1-2 samples), min/max/avg
+ * may appear identical because there is only one data point.
  */
 function extractRttSamples(frames: StatsFrame[]): number[] {
   const samples: number[] = [];
@@ -124,13 +132,30 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
       frame?.remote?.audio?.inbound;
     if (Array.isArray(remoteInbound)) {
       for (const entry of remoteInbound) {
+        // roundTripTime: latest RTT measured (seconds → ms)
         const rttSec = safeNumber(entry?.roundTripTime);
         if (rttSec !== undefined) {
-          // roundTripTime is in seconds in standard stats; convert to ms
           const rttMs = rttSec * 1000;
           if (rttMs >= 0) {
             samples.push(rttMs);
             frameProducedRtt = true;
+          }
+        }
+        // totalRoundTripTime / roundTripTimeMeasurements: cumulative
+        // If roundTripTime is missing but we have these, compute average
+        if (!frameProducedRtt) {
+          const totalRtt = safeNumber(entry?.totalRoundTripTime);
+          const measurements = safeNumber(entry?.roundTripTimeMeasurements);
+          if (
+            totalRtt !== undefined &&
+            measurements !== undefined &&
+            measurements > 0
+          ) {
+            const avgRttMs = (totalRtt / measurements) * 1000;
+            if (avgRttMs >= 0) {
+              samples.push(avgRttMs);
+              frameProducedRtt = true;
+            }
           }
         }
       }
@@ -201,7 +226,11 @@ function extractJitterSamples(frames: StatsFrame[]): number[] {
     // jitter degradation is not missed when wired to that collector.
     if (!frameProducedJitter) {
       const inboundObj = frame?.audio?.inbound;
-      if (inboundObj && typeof inboundObj === 'object' && !Array.isArray(inboundObj)) {
+      if (
+        inboundObj &&
+        typeof inboundObj === 'object' &&
+        !Array.isArray(inboundObj)
+      ) {
         const jitterAvgMs = safeNumber(inboundObj.jitterAvg);
         if (jitterAvgMs !== undefined && jitterAvgMs >= 0) {
           samples.push(jitterAvgMs);
@@ -216,7 +245,9 @@ function extractJitterSamples(frames: StatsFrame[]): number[] {
  * Extract packet counters from the last stats frame.
  * Uses the last frame for cumulative counters (packets sent/received/lost).
  */
-function extractPacketCounters(frames: StatsFrame[]): NetworkPacketCounters | undefined {
+function extractPacketCounters(
+  frames: StatsFrame[]
+): NetworkPacketCounters | undefined {
   if (frames.length === 0) return undefined;
 
   const lastFrame = frames[frames.length - 1];
@@ -225,15 +256,13 @@ function extractPacketCounters(frames: StatsFrame[]): NetworkPacketCounters | un
   let packetsLost: number | undefined;
 
   // Outbound audio
-  const outbound: OutboundAudioEntry[] | undefined =
-    lastFrame?.audio?.outbound;
+  const outbound: OutboundAudioEntry[] | undefined = lastFrame?.audio?.outbound;
   if (Array.isArray(outbound) && outbound.length > 0) {
     packetsSent = safeNumber(outbound[0]?.packetsSent);
   }
 
   // Inbound audio
-  const inbound: InboundAudioEntry[] | undefined =
-    lastFrame?.audio?.inbound;
+  const inbound: InboundAudioEntry[] | undefined = lastFrame?.audio?.inbound;
   if (Array.isArray(inbound) && inbound.length > 0) {
     packetsReceived = safeNumber(inbound[0]?.packetsReceived);
     packetsLost = safeNumber(inbound[0]?.packetsLost);
@@ -242,7 +271,11 @@ function extractPacketCounters(frames: StatsFrame[]): NetworkPacketCounters | un
   // Fallback: remote inbound
   const remoteInbound: InboundAudioEntry[] | undefined =
     lastFrame?.remote?.audio?.inbound;
-  if (packetsReceived === undefined && Array.isArray(remoteInbound) && remoteInbound.length > 0) {
+  if (
+    packetsReceived === undefined &&
+    Array.isArray(remoteInbound) &&
+    remoteInbound.length > 0
+  ) {
     packetsReceived = safeNumber(remoteInbound[0]?.packetsReceived);
     packetsLost = safeNumber(remoteInbound[0]?.packetsLost);
   }
@@ -282,7 +315,9 @@ function extractPacketCounters(frames: StatsFrame[]): NetworkPacketCounters | un
 /**
  * Extract byte counters from the last stats frame.
  */
-function extractByteCounters(frames: StatsFrame[]): NetworkByteCounters | undefined {
+function extractByteCounters(
+  frames: StatsFrame[]
+): NetworkByteCounters | undefined {
   if (frames.length === 0) return undefined;
 
   const lastFrame = frames[frames.length - 1];
@@ -290,15 +325,13 @@ function extractByteCounters(frames: StatsFrame[]): NetworkByteCounters | undefi
   let bytesReceived: number | undefined;
 
   // Outbound audio bytes
-  const outbound: OutboundAudioEntry[] | undefined =
-    lastFrame?.audio?.outbound;
+  const outbound: OutboundAudioEntry[] | undefined = lastFrame?.audio?.outbound;
   if (Array.isArray(outbound) && outbound.length > 0) {
     bytesSent = safeNumber(outbound[0]?.bytesSent);
   }
 
   // Inbound audio bytes
-  const inbound: InboundAudioEntry[] | undefined =
-    lastFrame?.audio?.inbound;
+  const inbound: InboundAudioEntry[] | undefined = lastFrame?.audio?.inbound;
   if (Array.isArray(inbound) && inbound.length > 0) {
     bytesReceived = safeNumber(inbound[0]?.bytesReceived);
   }
@@ -332,15 +365,18 @@ function extractBitrate(frames: StatsFrame[]): NetworkBitrate | undefined {
 
   const firstTimestamp = safeNumber(first?.timestamp);
   const lastTimestamp = safeNumber(last?.timestamp);
-  if (firstTimestamp === undefined || lastTimestamp === undefined) return undefined;
+  if (firstTimestamp === undefined || lastTimestamp === undefined)
+    return undefined;
   const dtSec = (lastTimestamp - firstTimestamp) / 1000;
   if (dtSec <= 0) return undefined;
 
   // Outbound bitrate
   let outbound: number | undefined;
-  const firstOutBytes = safeNumber(first?.audio?.outbound?.[0]?.bytesSent) ??
+  const firstOutBytes =
+    safeNumber(first?.audio?.outbound?.[0]?.bytesSent) ??
     safeNumber(first?.connection?.bytesSent);
-  const lastOutBytes = safeNumber(last?.audio?.outbound?.[0]?.bytesSent) ??
+  const lastOutBytes =
+    safeNumber(last?.audio?.outbound?.[0]?.bytesSent) ??
     safeNumber(last?.connection?.bytesSent);
   if (firstOutBytes !== undefined && lastOutBytes !== undefined) {
     const delta = lastOutBytes - firstOutBytes;
@@ -351,9 +387,11 @@ function extractBitrate(frames: StatsFrame[]): NetworkBitrate | undefined {
 
   // Inbound bitrate
   let inbound: number | undefined;
-  const firstInBytes = safeNumber(first?.audio?.inbound?.[0]?.bytesReceived) ??
+  const firstInBytes =
+    safeNumber(first?.audio?.inbound?.[0]?.bytesReceived) ??
     safeNumber(first?.connection?.bytesReceived);
-  const lastInBytes = safeNumber(last?.audio?.inbound?.[0]?.bytesReceived) ??
+  const lastInBytes =
+    safeNumber(last?.audio?.inbound?.[0]?.bytesReceived) ??
     safeNumber(last?.connection?.bytesReceived);
   if (firstInBytes !== undefined && lastInBytes !== undefined) {
     const delta = lastInBytes - firstInBytes;
@@ -380,7 +418,7 @@ function extractBitrate(frames: StatsFrame[]): NetworkBitrate | undefined {
 function classifyQuality(
   rtt: NetworkMinMaxAverage | undefined,
   jitter: NetworkMinMaxAverage | undefined,
-  packets: NetworkPacketCounters | undefined,
+  packets: NetworkPacketCounters | undefined
 ): 'good' | 'fair' | 'poor' | 'unknown' {
   let hasData = false;
   let worstLevel: 'good' | 'fair' | 'poor' = 'good';
@@ -430,7 +468,7 @@ function buildReasons(
   rtt: NetworkMinMaxAverage | undefined,
   jitter: NetworkMinMaxAverage | undefined,
   packets: NetworkPacketCounters | undefined,
-  bitrate: NetworkBitrate | undefined,
+  bitrate: NetworkBitrate | undefined
 ): PreCallDiagnosticReason[] {
   const reasons: PreCallDiagnosticReason[] = [];
 
@@ -526,7 +564,9 @@ export function buildPreCallNetworkReport(
   const networkOpt = context.options.network;
   const networkDisabled =
     networkOpt === false ||
-    (typeof networkOpt === 'object' && networkOpt !== null && networkOpt.enabled === false);
+    (typeof networkOpt === 'object' &&
+      networkOpt !== null &&
+      networkOpt.enabled === false);
   if (networkDisabled) {
     return undefined;
   }

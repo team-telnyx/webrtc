@@ -46,6 +46,26 @@ export const IceReasonCode = {
   NoSelectedPair: 'ice_no_selected_pair',
   /** Only relay candidates available (no direct path). */
   OnlyRelayCandidates: 'ice_only_relay_candidates',
+  /**
+   * A configured ICE server returned no candidates (warning).
+   * The server may be unreachable, blocked, or misconfigured.
+   */
+  ServerNoCandidates: 'ice_server_no_candidates',
+  /**
+   * The network appears to restrict UDP — configured STUN/TURN UDP
+   * servers but only TURN TCP candidates gathered (warning).
+   */
+  StrictNetwork: 'ice_strict_network',
+  /**
+   * Multiple network interfaces detected on the host (warning).
+   * Not a problem by itself but may indicate VPN or complex NAT.
+   */
+  MultipleInterfaces: 'ice_multiple_interfaces',
+  /**
+   * A VPN appears to be active on the host (warning).
+   * May affect media routing but is not a blocking condition.
+   */
+  VpnDetected: 'ice_vpn_detected',
 } as const;
 
 export type IceReasonCodeValue =
@@ -215,6 +235,48 @@ function assessIce(ice: PreCallDiagnosticReport['ice']): {
     if (worstVerdict !== 'blocked') {
       worstVerdict = 'degraded';
     }
+  }
+
+  // --- ICE server comparison warnings (non-fatal, advisory) ---
+
+  // Configured ICE server returned no candidates — warning
+  if (ice.serverCandidateComparison?.hasServerWithNoCandidates) {
+    warnings.push({
+      code: IceReasonCode.ServerNoCandidates,
+      message:
+        'One or more configured ICE servers returned no candidates. The server(s) may be unreachable, blocked, or misconfigured.',
+      source: 'ice',
+    });
+  }
+
+  // Strict network — configured STUN/TURN UDP but only TURN TCP candidates
+  if (ice.serverCandidateComparison?.appearsStrictNetwork) {
+    warnings.push({
+      code: IceReasonCode.StrictNetwork,
+      message:
+        'Network appears to restrict UDP — only TURN TCP candidates gathered despite STUN/TURN UDP servers configured. UDP may be blocked by a firewall.',
+      source: 'ice',
+    });
+  }
+
+  // Multiple network interfaces — warning (not a problem, but advisory)
+  if (ice.hasMultipleNetworkInterfaces === true) {
+    warnings.push({
+      code: IceReasonCode.MultipleInterfaces,
+      message:
+        'Multiple network interfaces detected on the host. This is not a problem by itself but may indicate a complex network setup.',
+      source: 'ice',
+    });
+  }
+
+  // VPN detected — warning (not a problem, but advisory)
+  if (ice.vpnDetected === true) {
+    warnings.push({
+      code: IceReasonCode.VpnDetected,
+      message:
+        'A VPN appears to be active on the host. This may affect media routing but is not a blocking condition.',
+      source: 'ice',
+    });
   }
 
   // All conditions look good

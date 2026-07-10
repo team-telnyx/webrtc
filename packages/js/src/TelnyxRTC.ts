@@ -426,14 +426,15 @@ export class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Runs a network/ICE check using the `PreCallDiagnostic` framework.
    *
-   * This is a convenience method that runs only the ICE candidate gathering
-   * path, disabling network quality, media, and microphone modules. Use this
-   * when you only need to verify ICE connectivity without placing a full
-   * diagnostic call.
+   * This method tests each configured ICE server independently (one
+   * RTCPeerConnection per server) so the caller can see exactly which
+   * servers produce candidates, how long gathering takes, and which
+   * servers are not working. It also runs a combined gathering pass for
+   * the aggregate ICE report.
    *
-   * This method does **not** dial (`client.newCall()` is not called) — it
-   * builds a raw `RTCPeerConnection` with the client's ICE servers, gathers
-   * candidates, then closes the peer. No SIP signaling or
+   * This method does **not** dial (`client.newCall()` is not called) —
+   * it builds raw `RTCPeerConnection`s with the ICE servers, gathers
+   * candidates, then closes the peers. No SIP signaling or
    * `destinationNumber` is required.
    *
    * @param options Options for the network check. All fields are optional.
@@ -445,14 +446,14 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *
    * ```js
    * const report = await client.runNetworkCheck();
-   * console.log(report.ice?.gatheringComplete);
+   * console.log(report.ice?.perServerResults);
    * ```
    *
-   * With custom ICE options:
+   * With custom ICE servers:
    *
    * ```js
    * const report = await client.runNetworkCheck({
-   *   ice: { gatherCandidates: true, gatherTimeoutMs: 3000 },
+   *   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
    * });
    * ```
    */
@@ -486,33 +487,36 @@ export class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Runs a microphone check using the `PreCallDiagnostic` framework.
    *
-   * This is a convenience method that runs only the microphone permission
-   * and device availability checks, disabling ICE, network quality, and
-   * media modules. Use this when you only need to verify microphone access
-   * without placing a full diagnostic call.
+   * This method performs an active microphone check: it calls
+   * `getUserMedia({ audio: true })` to verify capture works, measures
+   * the audio level using Web Audio APIs, enumerates all available
+   * audio input devices, and optionally records the audio so the user
+   * can listen to it afterwards.
    *
-   * This method does **not** dial (`client.newCall()` is not called) — it
-   * calls `getUserMedia({ audio: true })` for permission + device check,
-   * then optionally runs a Web Audio `AnalyserNode` for level. No SIP
-   * signaling or `destinationNumber` is required.
+   * This method does **not** dial (`client.newCall()` is not called) —
+   * it calls `getUserMedia({ audio: true })` for permission + device
+   * check, then runs a Web Audio `AnalyserNode` for level measurement.
+   * No SIP signaling or `destinationNumber` is required.
    *
    * @param options Options for the microphone check. All fields are optional.
    * @returns A promise that resolves with the `PreCallDiagnosticReport`.
    *
    * @examples
    *
-   * Zero-arg form — run with defaults:
+   * Zero-arg form — run with defaults (active capture enabled):
    *
    * ```js
    * const report = await client.runMicrophoneCheck();
    * console.log(report.microphone?.permissionGranted);
+   * console.log(report.microphone?.devices);
+   * console.log(report.microphone?.audioLevelStats);
    * ```
    *
-   * With custom microphone options:
+   * With recording enabled (user can listen to it afterwards):
    *
    * ```js
    * const report = await client.runMicrophoneCheck({
-   *   microphone: { checkPermission: true, checkDeviceAvailability: false },
+   *   durationMs: 5000,
    * });
    * ```
    */
@@ -527,7 +531,12 @@ export class TelnyxRTC extends TelnyxRTCClient {
       ice: false,
       network: false,
       media: false,
-      microphone: true,
+      // Active capture enabled by default so the microphone check actually
+      // measures audio level and verifies capture works (not just passive
+      // permission/device checks). The user gets a real result.
+      microphone: {
+        activeCapture: true,
+      },
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.
       mode: 'microphone-only',
