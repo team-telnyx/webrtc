@@ -255,10 +255,10 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const effectiveServers = rtcConfig.iceServers ?? iceServers ?? [];
     const durationMs = this.effectiveDurationMs();
 
-    // Per-server results: test each ICE server URL independently.
-    // Sequential per-server testing — total wall-clock ≈ N × durationMs
-    // (intentional: the reviewer asked for per-server timing). Each server
-    // gets its own RTCPeerConnection so candidates are isolated.
+    // Per-server results: test each ICE server URL independently and
+    // simultaneously. Each server gets its own RTCPeerConnection so
+    // candidates are isolated, and they all run in parallel for speed
+    // (total wall-clock ≈ durationMs instead of N × durationMs).
     //
     // Flatten multi-URL RTCIceServer entries (e.g. one credential object
     // containing STUN + TURN UDP/TCP URLs) into single-URL servers so every
@@ -266,11 +266,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     // "per-server isolation is still per RTCIceServer object, not per
     // configured URL" — a working TCP URL was obscuring a failed UDP URL).
     const flattenedServers = flattenIceServersByURL(effectiveServers);
-    const perServerResults: PreCallIceServerResult[] = [];
-    for (const server of flattenedServers) {
-      const result = await testSingleIceServer(server, durationMs);
-      perServerResults.push(result);
-    }
+    const perServerResults = await Promise.all(
+      flattenedServers.map((server) => testSingleIceServer(server, durationMs))
+    );
 
     // Combined gathering pass for the aggregate ICE report
     let pc: RTCPeerConnection | undefined;

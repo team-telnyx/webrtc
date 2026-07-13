@@ -1,17 +1,3 @@
-/**
- * ICE candidate gathering and connectivity report module.
- *
- * Implements T2/T3 (VSDK-299) — ICE candidate gathering diagnostics
- * and selected-pair/connectivity diagnostics combined.
- *
- * This module inspects the ICE candidates gathered during the diagnostic
- * call and the selected candidate pair state, producing a PreCallIceReport.
- *
- * Safety: missing/partial RTCStatsReport entries, missing peer connection,
- * and getStats() rejections are all handled without throwing. The module
- * returns undefined when no stats are available.
- */
-
 import type {
   PreCallIceReport,
   PreCallIceCandidateCounts,
@@ -91,25 +77,6 @@ interface CandidateStats extends RTCStats {
   ip?: string;
   /** Candidate port. */
   port?: number;
-  /**
-   * Raw ICE candidate string (the SDP `a=candidate:` line value).
-   * Non-standard: some browsers expose this on local-candidate stats.
-   * When absent, the module reconstructs an equivalent line from the
-   * other fields (see `buildCandidateString`).
-   */
-  candidate?: string;
-  /** SDP foundation (component id, e.g. 1 for RTP, 2 for RTCP). */
-  foundation?: string;
-  /** SDP priority (unsigned 32-bit). Used to reconstruct the candidate line. */
-  priority?: number;
-  /** SDP component id (1 = RTP, 2 = RTCP). */
-  componentId?: number;
-  /** Related address for srflx/relay candidates (the base address). */
-  relatedAddress?: string;
-  /** Related port for srflx/relay candidates (the base port). */
-  relatedPort?: number;
-  /** TCP type for tcp candidates ('active' | 'passive' | 'so'). */
-  tcpType?: string;
 }
 
 /**
@@ -141,49 +108,29 @@ function parseIceReport(
   stats: RTCStatsReport,
   peerConnection: RTCPeerConnection
 ): PreCallIceReport {
-  // Phase 1: Count local candidates by type and collect their full info
-  const candidateCounts: PreCallIceCandidateCounts = {
-    total: 0,
-    host: 0,
-    srflx: 0,
-    prflx: 0,
-    relay: 0,
-    unknown: 0,
-  };
-  const candidateTypeSet = new Set<string>();
-  // Full information for every gathered local candidate (review feedback:
-  // report each candidate, not only aggregate counts).
-  const candidates: PreCallIceCandidateInfo[] = [];
+  // Phase 1: Collect local candidates (counts, types, full info)
+  const { candidates, candidateCounts, candidateTypes } =
+    collectLocalCandidates(stats);
 
-  // Phase 2: Collect candidate pairs and transport stats for selected-pair resolution
+  // Phase 2: Collect candidate pairs, transport stats, and remote candidates
   const candidatePairs: CandidatePairStats[] = [];
   let transportStats: TransportStats | null = null;
+  const remoteCandidates = new Map<string, PreCallIceCandidateInfo>();
+  const localCandidates = new Map<string, PreCallIceCandidateInfo>();
+  for (const c of candidates) {
+    if (c.id) {
+      localCandidates.set(c.id, c);
+    }
+  }
 
   stats.forEach((report) => {
     switch (report.type) {
-      case 'local-candidate': {
+      case 'remote-candidate': {
         const candidate = report as CandidateStats;
-        const type = candidate.candidateType || 'unknown';
-        candidateCounts.total++;
-        switch (type) {
-          case 'host':
-            candidateCounts.host++;
-            break;
-          case 'srflx':
-            candidateCounts.srflx++;
-            break;
-          case 'prflx':
-            candidateCounts.prflx++;
-            break;
-          case 'relay':
-            candidateCounts.relay++;
-            break;
-          default:
-            candidateCounts.unknown++;
-            break;
+        const info = extractCandidateInfo(candidate);
+        if (info.id) {
+          remoteCandidates.set(info.id, info);
         }
-        candidateTypeSet.add(type);
-        candidates.push(extractCandidateInfo(candidate));
         break;
       }
       case 'candidate-pair': {
@@ -200,15 +147,21 @@ function parseIceReport(
 
   // Phase 3: Resolve the selected candidate pair
   const selectedPairResult = resolveSelectedPair(
-    stats,
     candidatePairs,
-    transportStats
+    transportStats,
+    localCandidates,
+    remoteCandidates
   );
 
   // Phase 4: Build flags
   const hasRelayCandidate = candidateCounts.relay > 0;
+  // Only-host candidates: no server-derived candidates at all. Host candidates
+  // can become prflx (peer reflexive) without server interaction, so we check
+  // srflx and relay counts instead of host === total (VSDK-412 review).
   const onlyHostCandidates =
-    candidateCounts.total > 0 && candidateCounts.host === candidateCounts.total;
+    candidateCounts.total > 0 &&
+    candidateCounts.srflx === 0 &&
+    candidateCounts.relay === 0;
 
   const iceGatheringState = peerConnection.iceGatheringState;
   const candidateGatheringCompleted = iceGatheringState === 'complete';
@@ -237,7 +190,7 @@ function parseIceReport(
 
   // Detect host network topology from gathered candidates:
   // - multiple network interfaces (distinct host candidate addresses)
-  // - VPN active (browser-reported networkType or heuristic)
+  // - VPN active (browser-reported networkType)
   const { hasMultipleNetworkInterfaces, vpnDetected } =
     detectHostNetworkTopology(candidates);
 
@@ -245,7 +198,7 @@ function parseIceReport(
     candidateGatheringCompleted,
     gatheringComplete: candidateGatheringCompleted,
     candidateCounts,
-    candidateTypes: Array.from(candidateTypeSet).sort(),
+    candidateTypes,
     candidates,
     hasRelayCandidate,
     onlyHostCandidates,
@@ -261,33 +214,28 @@ function parseIceReport(
 }
 
 /**
- * Resolve the selected candidate pair from RTCStatsReport data.
+ * Resolve the selected candidate pair from already-parsed stats data.
  *
  * Resolution order:
- * 1. transport.selectedCandidatePairId → stats.get(id)
+ * 1. transport.selectedCandidatePairId → lookup in candidatePairs
  * 2. candidate-pair with selected === true
  * 3. nominated or succeeded candidate-pair as fallback
+ *
+ * Local/remote candidate metadata is resolved from the pre-parsed
+ * candidate maps (no stats.get() re-query needed).
  */
 function resolveSelectedPair(
-  stats: RTCStatsReport,
   candidatePairs: CandidatePairStats[],
-  transportStats: TransportStats | null
+  transportStats: TransportStats | null,
+  localCandidates: Map<string, PreCallIceCandidateInfo>,
+  remoteCandidates: Map<string, PreCallIceCandidateInfo>
 ): PreCallIceSelectedPairReport | null {
   let selectedPair: CandidatePairStats | null = null;
 
   // Try transport.selectedCandidatePairId first
   if (transportStats?.selectedCandidatePairId) {
     const pairId = transportStats.selectedCandidatePairId;
-    const lookup = (
-      stats as unknown as { get?: (id: string) => RTCStats | undefined }
-    ).get?.(pairId) as CandidatePairStats | undefined;
-
-    if (lookup?.type === 'candidate-pair') {
-      selectedPair = lookup;
-    } else {
-      // Fallback: find by ID in our collected pairs
-      selectedPair = candidatePairs.find((p) => p.id === pairId) ?? null;
-    }
+    selectedPair = candidatePairs.find((p) => p.id === pairId) ?? null;
   }
 
   // Try selected === true
@@ -318,24 +266,14 @@ function resolveSelectedPair(
     remoteCandidateId: selectedPair.remoteCandidateId,
   };
 
-  // Resolve local candidate metadata
+  // Resolve local candidate metadata from the pre-parsed map
   if (selectedPair.localCandidateId) {
-    const localStats = (
-      stats as unknown as { get?: (id: string) => RTCStats | undefined }
-    ).get?.(selectedPair.localCandidateId) as CandidateStats | undefined;
-    if (localStats?.type === 'local-candidate') {
-      result.local = extractCandidateInfo(localStats);
-    }
+    result.local = localCandidates.get(selectedPair.localCandidateId);
   }
 
-  // Resolve remote candidate metadata
+  // Resolve remote candidate metadata from the pre-parsed map
   if (selectedPair.remoteCandidateId) {
-    const remoteStats = (
-      stats as unknown as { get?: (id: string) => RTCStats | undefined }
-    ).get?.(selectedPair.remoteCandidateId) as CandidateStats | undefined;
-    if (remoteStats?.type === 'remote-candidate') {
-      result.remote = extractCandidateInfo(remoteStats);
-    }
+    result.remote = remoteCandidates.get(selectedPair.remoteCandidateId);
   }
 
   return result;
@@ -346,21 +284,11 @@ function resolveSelectedPair(
  *
  * Normalizes the browser-specific address field: Chromium exposes
  * `address`, Firefox exposes `ip`. Both are read and reported as `address`.
- *
- * The raw ICE candidate string is surfaced on the `candidate` field:
- * - When the browser exposes a non-standard `candidate` string on the
- *   candidate stats entry, that value is reported verbatim.
- * - Otherwise the module reconstructs an SDP candidate line from the
- *   available fields (see `buildCandidateString`).
  */
 function extractCandidateInfo(stats: CandidateStats): PreCallIceCandidateInfo {
   // Chromium reports `address`, Firefox reports `ip` for the same field.
   // Prefer `address` when present, fall back to `ip`, then to undefined.
   const address = stats.address ?? stats.ip;
-
-  // Raw candidate string: prefer the browser-provided value, fall back to a
-  // reconstructed line so the report always carries a usable candidate line.
-  const candidate = stats.candidate ?? buildCandidateString(stats);
 
   return {
     id: stats.id,
@@ -377,156 +305,17 @@ function extractCandidateInfo(stats: CandidateStats): PreCallIceCandidateInfo {
     networkType: stats.networkType,
     relayProtocol: stats.relayProtocol,
     url: stats.url,
-    candidate,
   };
-}
-
-/**
- * Reconstruct an SDP ICE candidate line from candidate stats fields.
- *
- * The W3C `RTCIceCandidateStats` does not carry the raw SDP `a=candidate:`
- * line, but the fields it exposes (`candidateType`, `protocol`, `address`,
- * `port`, `relatedAddress`, `relatedPort`) are sufficient to rebuild a
- * faithful candidate line for diagnostic inspection. Foundation,
- * component id, and priority are omitted when the browser does not report
- * them, producing a minimal but well-formed line:
- *
- *   candidate:<foundation> <component> <protocol> <priority> <addr> <port> typ <type>[ raddr <raddr> rport <rport>][ tcptype <tcptype>]
- *
- * Returns undefined when the candidate has no address/type (nothing
- * meaningful to reconstruct).
- */
-function buildCandidateString(stats: CandidateStats): string | undefined {
-  const type = stats.candidateType;
-  const address = stats.address ?? stats.ip;
-  const port = typeof stats.port === 'number' ? stats.port : undefined;
-
-  // Without an address+port and a type there is no usable candidate line.
-  if (!address || port === undefined || !type) {
-    return undefined;
-  }
-
-  const parts: string[] = ['candidate:'];
-  // Foundation: use the stats foundation when present, otherwise a placeholder.
-  parts.push(stats.foundation ?? '-');
-  // Component id: 1 for RTP, 2 for RTCP. Use the reported value when present.
-  parts.push(stats.componentId !== undefined ? String(stats.componentId) : '1');
-  // Protocol (udp/tcp).
-  parts.push(stats.protocol ?? 'udp');
-  // Priority: 32-bit unsigned. Use the reported value when present.
-  parts.push(stats.priority !== undefined ? String(stats.priority) : '0');
-  // Address + port.
-  parts.push(address);
-  parts.push(String(port));
-  // Candidate type.
-  parts.push('typ');
-  parts.push(type);
-
-  // Related address/port for srflx/relay candidates (the base address).
-  if (stats.relatedAddress) {
-    parts.push('raddr');
-    parts.push(stats.relatedAddress);
-    parts.push('rport');
-    parts.push(
-      stats.relatedPort !== undefined ? String(stats.relatedPort) : '0'
-    );
-  }
-
-  // TCP type for tcp candidates.
-  if (stats.protocol === 'tcp' && stats.tcpType) {
-    parts.push('tcptype');
-    parts.push(stats.tcpType);
-  }
-
-  return parts.join(' ');
 }
 
 // --- Host network topology detection ---
 
 /**
- * RFC 1918 and related private/link-local address ranges used for
- * multi-interface and VPN heuristics. We only classify an address as
- * "private" if it parses as IPv4/IPv6 and matches one of these prefixes.
- */
-const PRIVATE_IP_PREFIXES = [
-  '10.', // RFC 1918
-  '172.16.',
-  '172.17.',
-  '172.18.',
-  '172.19.',
-  '172.20.',
-  '172.21.',
-  '172.22.',
-  '172.23.',
-  '172.24.',
-  '172.25.',
-  '172.26.',
-  '172.27.',
-  '172.28.',
-  '172.29.',
-  '172.30.',
-  '172.31.',
-  '192.168.', // RFC 1918
-  '169.254.', // link-local
-  'fc',
-  'fd', // IPv6 unique local addresses (fc00::/7)
-  'fe80', // IPv6 link-local
-];
-
-/**
- * Best-effort check whether an IP address is in a private range.
- * Returns false for undefined/empty/non-IP strings so callers can treat
- * absence of address information safely.
- */
-function isPrivateIp(address: string | undefined): boolean {
-  if (!address) {
-    return false;
-  }
-  const normalized = address.toLowerCase();
-  return PRIVATE_IP_PREFIXES.some((prefix) => normalized.startsWith(prefix));
-}
-
-/**
- * Extract the /24 (IPv4) or first hextet (IPv6) subnet prefix of an address,
- * used to tell whether two host candidates live on the same subnet.
- * Returns undefined when the address is not a recognizable IP.
- */
-function subnetPrefix(address: string | undefined): string | undefined {
-  if (!address) {
-    return undefined;
-  }
-  // IPv4: keep the first three octets.
-  if (address.includes('.')) {
-    const parts = address.split('.');
-    if (parts.length >= 3) {
-      return `${parts[0]}.${parts[1]}.${parts[2]}`;
-    }
-    return address;
-  }
-  // IPv6: keep the first hextet (e.g. "fd00" from "fd00:...").
-  if (address.includes(':')) {
-    return address.split(':')[0];
-  }
-  return address;
-}
-
-/**
- * Detect host network topology signals from the gathered local candidates.
+ * Detect host network topology signals from the gathered candidates.
  *
  * - `hasMultipleNetworkInterfaces`: two or more distinct host-candidate
- *   addresses are observed. This is the browser-visible evidence that more
- *   than one local interface produced an ICE candidate (e.g. Wi-Fi + Ethernet,
- *   or a physical interface + a VPN tunnel adapter). Undefined when host
- *   candidate addresses are not exposed by the browser.
- *
- * - `vpnDetected`: a VPN appears to be active. Primary signal is the
- *   browser-reported `networkType === 'vpn'` (Chromium). As a heuristic
- *   fallback (Firefox does not report networkType), we flag VPN when host
- *   candidates span multiple distinct private subnets (e.g. a 192.168.x
- *   physical interface and a 10.x VPN tunnel adapter) — a single private
- *   subnet with srflx/relay candidates is ordinary NAT traversal, not a
- *   VPN. The heuristic is intentionally conservative to avoid false
- *   positives. Undefined when there is not enough information to decide.
+ *   addresses are observed.
+ * - `vpnDetected`: browser-reported `networkType === 'vpn'` (Chromium).
  */
 function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
   hasMultipleNetworkInterfaces: boolean | undefined;
@@ -539,52 +328,19 @@ function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
     };
   }
 
-  const hostCandidates = candidates.filter((c) => c.candidateType === 'host');
-
   // Multiple network interfaces: count distinct host-candidate addresses.
-  // Only compute when at least one host candidate exposes an address.
-  const hostAddresses = hostCandidates
+  const hostAddresses = candidates
+    .filter((c) => c.candidateType === 'host')
     .map((c) => c.address)
     .filter((a): a is string => typeof a === 'string' && a.length > 0);
   const distinctHostAddresses = new Set(hostAddresses);
 
-  let hasMultipleNetworkInterfaces: boolean | undefined;
-  if (distinctHostAddresses.size > 0) {
-    hasMultipleNetworkInterfaces = distinctHostAddresses.size >= 2;
-  } else {
-    // Browser did not expose host addresses — cannot determine reliably.
-    hasMultipleNetworkInterfaces = undefined;
-  }
+  const hasMultipleNetworkInterfaces =
+    distinctHostAddresses.size > 0
+      ? distinctHostAddresses.size >= 2
+      : undefined;
 
-  // VPN detection.
-  let vpnDetected: boolean | undefined;
-
-  // Primary signal: browser-reported networkType === 'vpn' (Chromium).
-  const browserReportsVpn = candidates.some((c) => c.networkType === 'vpn');
-  if (browserReportsVpn) {
-    vpnDetected = true;
-  } else {
-    // Heuristic fallback (e.g. Firefox does not report networkType).
-    // VPN tunnel adapters typically present as an additional private subnet
-    // alongside the physical interface's private subnet. A single private
-    // subnet with srflx/relay candidates is ordinary NAT traversal, not VPN.
-    const hasPrivateHostCandidate = hostCandidates.some((c) =>
-      isPrivateIp(c.address)
-    );
-    if (hasPrivateHostCandidate && hostAddresses.length > 0) {
-      const privateSubnets = new Set(
-        hostCandidates
-          .filter((c) => isPrivateIp(c.address))
-          .map((c) => subnetPrefix(c.address))
-          .filter((p): p is string => typeof p === 'string')
-      );
-      vpnDetected = privateSubnets.size >= 2;
-    } else {
-      // No private host candidate info to apply the heuristic — leave
-      // vpnDetected undefined rather than guessing.
-      vpnDetected = undefined;
-    }
-  }
+  const vpnDetected = candidates.some((c) => c.networkType === 'vpn');
 
   return { hasMultipleNetworkInterfaces, vpnDetected };
 }
@@ -780,28 +536,15 @@ export function compareIceServers(
 // --- Per-server ICE testing ---
 
 /**
- * Parse an RTCStatsReport into candidate info + counts for a single server.
+ * Count candidates by type and collect their full info from an RTCStatsReport.
  *
- * Reuses the existing `extractCandidateInfo` and count logic but does NOT
- * resolve selected pairs (there is no remote side in a single-server
- * gathering test).
- *
- * When `serverUrls` is provided, only candidates whose `url` matches one of
- * the server URLs (via normalized comparison) are included in the result —
- * host candidates (which have no `url` and come from the local interface,
- * not from the ICE server) are excluded. This ensures each per-server result
- * contains ONLY the candidates produced by that specific server, as
- * requested in VSDK-412 review (Review 18, point 1).
+ * Shared by `parseIceReport` (full call) and `parseSingleServerCandidates`
+ * (per-server test) to avoid duplicating the count/extract logic.
  */
-function parseSingleServerCandidates(
-  stats: RTCStatsReport,
-  peerConnection: RTCPeerConnection,
-  serverUrls?: string[]
-): {
+function collectLocalCandidates(stats: RTCStatsReport): {
   candidates: PreCallIceCandidateInfo[];
   candidateCounts: PreCallIceCandidateCounts;
   candidateTypes: string[];
-  gatheringComplete: boolean;
 } {
   const candidateCounts: PreCallIceCandidateCounts = {
     total: 0,
@@ -815,24 +558,80 @@ function parseSingleServerCandidates(
   const candidates: PreCallIceCandidateInfo[] = [];
 
   stats.forEach((report) => {
-    if (report.type === 'local-candidate') {
-      const candidate = report as CandidateStats;
-      const info = extractCandidateInfo(candidate);
+    if (report.type !== 'local-candidate') return;
+    const candidate = report as CandidateStats;
+    const info = extractCandidateInfo(candidate);
+    const type = candidate.candidateType || 'unknown';
+    candidateCounts.total++;
+    switch (type) {
+      case 'host':
+        candidateCounts.host++;
+        break;
+      case 'srflx':
+        candidateCounts.srflx++;
+        break;
+      case 'prflx':
+        candidateCounts.prflx++;
+        break;
+      case 'relay':
+        candidateCounts.relay++;
+        break;
+      default:
+        candidateCounts.unknown++;
+        break;
+    }
+    candidateTypeSet.add(type);
+    candidates.push(info);
+  });
 
-      // When testing a specific server, include only candidates whose `url`
-      // matches that server. Host candidates (no `url`) come from the local
-      // interface, not from the ICE server being tested, so they are excluded
-      // from per-server results (VSDK-412 Review 18, point 1).
-      if (serverUrls && serverUrls.length > 0) {
-        if (!info.url) return; // host candidates have no url
-        const matchesServer = serverUrls.some(
-          (su) => info.url && iceUrlMatches(info.url, su, info.protocol)
-        );
-        if (!matchesServer) return;
-      }
+  return {
+    candidates,
+    candidateCounts,
+    candidateTypes: Array.from(candidateTypeSet).sort(),
+  };
+}
 
-      const type = candidate.candidateType || 'unknown';
-      candidateCounts.total++;
+/**
+ * Parse an RTCStatsReport into candidate info + counts for a single server.
+ *
+ * Parses all local candidates, then filters by the server's URLs so only
+ * candidates produced by this specific ICE server are included. Host
+ * candidates (no `url`) are excluded from per-server results.
+ */
+function parseSingleServerCandidates(
+  stats: RTCStatsReport,
+  peerConnection: RTCPeerConnection,
+  serverUrls?: string[]
+): {
+  candidates: PreCallIceCandidateInfo[];
+  candidateCounts: PreCallIceCandidateCounts;
+  candidateTypes: string[];
+  gatheringComplete: boolean;
+} {
+  const parsed = collectLocalCandidates(stats);
+
+  // When testing a specific server, include only candidates whose `url`
+  // matches that server. Host candidates (no `url`) come from the local
+  // interface, not from the ICE server being tested, so they are excluded
+  // from per-server results.
+  if (serverUrls && serverUrls.length > 0) {
+    const filtered = parsed.candidates.filter(
+      (c) =>
+        c.url !== undefined &&
+        serverUrls.some((su) => iceUrlMatches(c.url!, su, c.protocol))
+    );
+    // Recompute counts for the filtered set.
+    const candidateCounts: PreCallIceCandidateCounts = {
+      total: filtered.length,
+      host: 0,
+      srflx: 0,
+      prflx: 0,
+      relay: 0,
+      unknown: 0,
+    };
+    const candidateTypeSet = new Set<string>();
+    for (const c of filtered) {
+      const type = c.candidateType || 'unknown';
       switch (type) {
         case 'host':
           candidateCounts.host++;
@@ -851,14 +650,17 @@ function parseSingleServerCandidates(
           break;
       }
       candidateTypeSet.add(type);
-      candidates.push(info);
     }
-  });
+    return {
+      candidates: filtered,
+      candidateCounts,
+      candidateTypes: Array.from(candidateTypeSet).sort(),
+      gatheringComplete: peerConnection.iceGatheringState === 'complete',
+    };
+  }
 
   return {
-    candidates,
-    candidateCounts,
-    candidateTypes: Array.from(candidateTypeSet).sort(),
+    ...parsed,
     gatheringComplete: peerConnection.iceGatheringState === 'complete',
   };
 }

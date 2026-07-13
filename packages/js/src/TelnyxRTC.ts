@@ -469,23 +469,19 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * Runs a network/ICE check using the `PreCallDiagnostic` framework.
    *
    * This method tests each configured ICE server independently (one
-   * RTCPeerConnection per server) so the caller can see exactly which
-   * servers produce candidates, how long gathering takes, and which
-   * servers are not working. It also runs a combined gathering pass for
-   * the aggregate ICE report.
+   * RTCPeerConnection per server, all run simultaneously) so the caller
+   * can see exactly which servers produce candidates, how long gathering
+   * takes, and which servers are not working. It also runs a combined
+   * gathering pass for the aggregate ICE report.
    *
    * This method does **not** dial (`client.newCall()` is not called) —
    * it builds raw `RTCPeerConnection`s with the ICE servers, gathers
    * candidates, then closes the peers. No SIP signaling or
    * `destinationNumber` is required.
    *
-   * **Wall-clock cost:** each ICE server is tested sequentially (one
-   * `RTCPeerConnection` per server, each gathering for `durationMs`).
-   * With N ICE servers, the worst-case wall-clock is approximately
-   * N × `durationMs` (e.g. 3 servers × 5s default = ~15s). This is
-   * intentional — the reviewer asked for per-server timing isolation —
-   * but callers should budget accordingly and consider lowering
-   * `durationMs` when testing many servers.
+   * **Wall-clock cost:** all ICE servers are tested simultaneously, so
+   * the total wall-clock is approximately `durationMs` regardless of how
+   * many ICE servers are configured.
    *
    * @param options Options for the network check. All fields are optional.
    * @returns A promise that resolves with the `PreCallDiagnosticReport`.
@@ -591,13 +587,16 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // measures audio level and verifies capture works (not just passive
       // permission/device checks). The user gets a real result.
       //
-      // Recording + playback are NOT enabled by default. The zero-argument
+      // Recording is NOT enabled by default. The zero-argument
       // path must not silently record the user without consent/warning
       // (VSDK-412 review: "the zero-argument path still records before any
       // warning/consent"). Callers who want the "record and listen" flow
-      // must explicitly opt in via the new `record`/`playback` options on
+      // must explicitly opt in via the `record` option on
       // `RunMicrophoneCheckOptions`, AND should pass `onRecordingConsent`
       // so a pre-recording warning is displayed before capture begins.
+      // Playback defaults to true so the user can hear their recording
+      // when recording is enabled (VSDK-412 review: "Should be true by
+      // default!").
       // Map the public `durationMs` (inherited from RunPreCallOptions) to
       // the microphone module's `sampleDurationMs` so the user's chosen
       // sampling window is honored in microphone-only mode. Without this
@@ -608,7 +607,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
         activeCapture: true,
         sampleDurationMs: options.durationMs,
         record: options.record ?? false,
-        playback: options.playback ?? false,
+        playback: options.playback ?? true,
         // Pass through the pre-recording consent callback so the caller
         // can display a warning/consent dialog BEFORE MediaRecorder.start()
         // (VSDK-412 review P43WG).

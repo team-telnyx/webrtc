@@ -75,7 +75,7 @@ export interface PreCallMicrophoneOptions {
    * Whether to play back the recorded audio after capture. Only applies
    * when `record` is true. When true, an `<audio>` element is created
    * and the recording is played through the speakers.
-   * Default: false.
+   * Default: true.
    */
   playback?: boolean;
   /**
@@ -296,20 +296,6 @@ export interface PreCallIceCandidateInfo {
   relayProtocol?: string;
   /** TURN server URL associated with this relay candidate. */
   url?: string;
-  /**
-   * Raw ICE candidate string (the SDP `a=candidate:` line, minus the
-   * `a=` prefix) for this candidate.
-   *
-   * When the browser exposes the raw candidate string directly on the
-   * candidate stats entry (a non-standard `candidate` field on
-   * `RTCIceCandidateStats`), that value is reported verbatim. Otherwise
-   * the module reconstructs an SDP candidate line from the available
-   * stats fields (foundation/component/priority are omitted when the
-   * browser does not report them, producing a minimal but faithful
-   * `candidate:<component> <protocol> <priority> <address> <port> typ <type>`
-   * line). Undefined when no candidate fields are available.
-   */
-  candidate?: string;
 }
 
 /**
@@ -369,7 +355,7 @@ export interface PreCallIceReport {
   candidates: PreCallIceCandidateInfo[];
   /** Whether at least one relay candidate was gathered. */
   hasRelayCandidate: boolean;
-  /** Whether all gathered candidates are host-type only. */
+  /** Whether no server-derived (srflx/relay) candidates were gathered. */
   onlyHostCandidates: boolean;
   /**
    * Whether the selected candidate pair required a TURN relay.
@@ -389,13 +375,9 @@ export interface PreCallIceReport {
   hasMultipleNetworkInterfaces?: boolean;
   /**
    * Whether a VPN appears to be active on the host.
-   * Primary signal: a local candidate with `networkType === 'vpn'`
-   * (Chromium reports this). Heuristic fallback (for browsers that do not
-   * report networkType, e.g. Firefox): host candidates spanning multiple
-   * distinct private subnets (e.g. a 192.168.x physical interface and a
-   * 10.x VPN tunnel adapter). A single private subnet with srflx/relay
-   * candidates is ordinary NAT traversal, not a VPN.
-   * Undefined when not enough information is available to decide.
+   * Detected via browser-reported `networkType === 'vpn'` (Chromium).
+   * False when no candidate reports vpn networkType. Undefined when no
+   * candidates were gathered.
    */
   vpnDetected?: boolean;
   /** Whether a selected ICE candidate pair was found. */
