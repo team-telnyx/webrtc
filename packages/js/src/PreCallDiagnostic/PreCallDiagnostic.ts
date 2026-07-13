@@ -641,11 +641,22 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       timings?.markFirstStats();
     }
 
-    // Continue collecting at the configured interval until the duration expires
+    // Continue collecting at the configured interval until the duration expires.
+    //
+    // Schedule by an independent attempt count, NOT by context.statsSamples
+    // length. When getStats() repeatedly fails, collectOneSample() returns
+    // false and no frame is appended, so statsSamples.length does not advance.
+    // Basing the next-sample time on that length would leave nextSampleTime
+    // at or before Date.now(), producing a tight retry loop that hammers
+    // getStats() for the entire diagnostic window (VSDK-412 round-12 review:
+    // "failed stats reads can create a tight retry loop"). An independent
+    // counter guarantees the interval advances by intervalMs on every
+    // attempt regardless of whether a frame was appended.
     let firstStatsMarked = firstAppended;
+    let attemptCount = 1; // first attempt was the immediate collectOneSample above
     while (Date.now() < deadline) {
       const nextSampleTime = Math.min(
-        startTime + Math.round(context.statsSamples.length * intervalMs),
+        startTime + Math.round(attemptCount * intervalMs),
         deadline
       );
       const waitMs = nextSampleTime - Date.now();
@@ -653,6 +664,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
       if (Date.now() >= deadline) break;
+      attemptCount++;
       const appended = await this.collectOneSample(call, context);
       // Mark firstStats on the first successful sample (may be a later
       // iteration if the initial getStats() calls all failed).

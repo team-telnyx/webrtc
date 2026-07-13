@@ -371,7 +371,13 @@ function assessNetwork(network: PreCallDiagnosticReport['network']): {
   // contributes at least `degraded` — the module only emits reasons when a
   // threshold was crossed, so a reason always indicates a problem.
   // `quality: 'poor'` (below) escalates to `blocked`.
-  if (network.reasons) {
+  //
+  // Gate on `length > 0` (not just truthiness): an empty `[]` is truthy but
+  // carries no crossed threshold. `buildPreCallNetworkReport()` returns
+  // `{ quality: 'unknown', reasons: [] }` when there are no stats frames,
+  // and that no-data case must NOT be classified as `degraded` — it should
+  // remain inconclusive/neutral (VSDK-412 round-12 review).
+  if (network.reasons && network.reasons.length > 0) {
     for (const r of network.reasons) {
       reasons.push(r);
     }
