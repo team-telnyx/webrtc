@@ -737,12 +737,19 @@ export default abstract class BaseSession {
       : '';
 
     if (type === 'login') {
+      const userVariables = {
+        ...this.options.userVariables,
+        push_when_active:
+          this.options.pushWhenActive ??
+          this.options.userVariables?.push_when_active ??
+          false,
+      };
       msg = new Login(
         this.options.login,
         this.options.password || this.options.passwd,
         this.options.login_token,
         reconnectSessionId,
-        this.options.userVariables,
+        userVariables,
         isReconnection
       );
     } else {

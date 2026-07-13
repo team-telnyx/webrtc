@@ -626,6 +626,156 @@ describe('Verto', () => {
     });
   });
 
+  describe('pushWhenActive login option', () => {
+    const loginRequestFor = async (options: Partial<IVertoOptions> = {}) => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...options,
+      } as IVertoOptions);
+
+      await client.login();
+
+      return Connection.mockSend.mock.calls[0][0].request;
+    };
+
+    it('sends push_when_active=false by default on credential login', async () => {
+      const request = await loginRequestFor();
+
+      expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+      expect(request.params.push_when_active).toBeUndefined();
+      expect(request.params.loginParams.push_when_active).toBeUndefined();
+    });
+
+    it('sends push_when_active=true when explicitly enabled', async () => {
+      const request = await loginRequestFor({ pushWhenActive: true });
+
+      expect(request.params.userVariables.push_when_active).toBe(true);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+    });
+
+    it('sends push_when_active on token login', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login_token: 'token',
+        pushWhenActive: true,
+      } as IVertoOptions);
+
+      await client.login();
+
+      const request = Connection.mockSend.mock.calls[0][0].request;
+      expect(request.method).toBe('login');
+      expect(request.params.userVariables.push_when_active).toBe(true);
+    });
+
+    it('sends push_when_active=false when explicitly disabled', async () => {
+      const request = await loginRequestFor({ pushWhenActive: false });
+
+      expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+    });
+
+    it('preserves caller-provided userVariables', async () => {
+      const request = await loginRequestFor({
+        pushWhenActive: true,
+        userVariables: {
+          push_device_token: 'device-token',
+          custom_key: 'custom-value',
+        },
+      });
+
+      expect(request.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        custom_key: 'custom-value',
+        push_when_active: true,
+      });
+    });
+
+    it('preserves a low-level push_when_active value when the typed option is omitted', async () => {
+      const request = await loginRequestFor({
+        userVariables: {
+          push_device_token: 'device-token',
+          push_when_active: true,
+        },
+      });
+
+      expect(request.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        push_when_active: true,
+      });
+    });
+
+    it.each([
+      { pushWhenActive: true, lowLevelValue: false },
+      { pushWhenActive: false, lowLevelValue: true },
+    ])(
+      'gives explicit pushWhenActive=$pushWhenActive precedence over userVariables',
+      async ({ pushWhenActive, lowLevelValue }) => {
+        const request = await loginRequestFor({
+          pushWhenActive,
+          userVariables: { push_when_active: lowLevelValue },
+        });
+
+        expect(request.params.userVariables.push_when_active).toBe(
+          pushWhenActive
+        );
+      }
+    );
+
+    it('preserves push_when_active on reconnect login payloads', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        pushWhenActive: true,
+        userVariables: { push_device_token: 'device-token' },
+      } as IVertoOptions);
+
+      await client.login();
+      setReconnectToken('voice-sdk-id');
+      await client.login();
+
+      const initialRequest = Connection.mockSend.mock.calls[0][0].request;
+      const reconnectRequest = Connection.mockSend.mock.calls[1][0].request;
+      expect(initialRequest.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        push_when_active: true,
+      });
+      expect(reconnectRequest.params.reconnection).toBe(true);
+      expect(reconnectRequest.params.userVariables).toEqual(
+        initialRequest.params.userVariables
+      );
+    });
+
+    it('does not add push_when_active to anonymous login', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        anonymous_login: {
+          target_type: 'ai_assistant',
+          target_id: 'assistant-id',
+        },
+        pushWhenActive: true,
+        userVariables: { custom_key: 'custom-value' },
+      } as IVertoOptions);
+
+      await client.login();
+
+      const request = Connection.mockSend.mock.calls[0][0].request;
+      expect(request.method).toBe('anonymous_login');
+      expect(request.params.userVariables).toEqual({
+        custom_key: 'custom-value',
+      });
+    });
+  });
+
   describe('reconnect login', () => {
     it('should include the persisted sessid whenever a stored voice_sdk_id marks the login as a reconnect', async () => {
       setReconnectToken('voice-sdk-id');

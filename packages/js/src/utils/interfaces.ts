@@ -83,6 +83,14 @@ export interface IClientOptions {
    */
   password?: string;
   /**
+   * When `true`, the backend sends mobile push notifications for incoming
+   * calls even while this browser has an active registration for the same
+   * credential, allowing browser and mobile clients to ring simultaneously.
+   *
+   * @default false
+   */
+  pushWhenActive?: boolean;
+  /**
    * A URL to a wav/mp3 ringtone file.
    */
   ringtoneFile?: string;

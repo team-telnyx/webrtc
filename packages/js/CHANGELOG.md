@@ -1,3 +1,7 @@
+## Unreleased
+
+- feat(js): add opt-in simultaneous browser/mobile ringing with `pushWhenActive` (VSUP-130)
+
 ## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-08)
 
 - docs: update ts docs
