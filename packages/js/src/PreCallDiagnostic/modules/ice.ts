@@ -316,6 +316,10 @@ function extractCandidateInfo(stats: CandidateStats): PreCallIceCandidateInfo {
  * - `hasMultipleNetworkInterfaces`: two or more distinct host-candidate
  *   addresses are observed.
  * - `vpnDetected`: browser-reported `networkType === 'vpn'` (Chromium).
+ *
+ * Simplified per VSDK-412 review (ArtemPapazian): leave only the two
+ * boolean checks; the prior `> 0 ? : undefined` wrapper added no value
+ * since the empty-candidates case is already handled by the caller.
  */
 function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
   hasMultipleNetworkInterfaces: boolean | undefined;
@@ -329,16 +333,13 @@ function detectHostNetworkTopology(candidates: PreCallIceCandidateInfo[]): {
   }
 
   // Multiple network interfaces: count distinct host-candidate addresses.
-  const hostAddresses = candidates
-    .filter((c) => c.candidateType === 'host')
-    .map((c) => c.address)
-    .filter((a): a is string => typeof a === 'string' && a.length > 0);
-  const distinctHostAddresses = new Set(hostAddresses);
-
-  const hasMultipleNetworkInterfaces =
-    distinctHostAddresses.size > 0
-      ? distinctHostAddresses.size >= 2
-      : undefined;
+  const distinctHostAddresses = new Set(
+    candidates
+      .filter((c) => c.candidateType === 'host')
+      .map((c) => c.address)
+      .filter((a): a is string => typeof a === 'string' && a.length > 0)
+  );
+  const hasMultipleNetworkInterfaces = distinctHostAddresses.size >= 2;
 
   const vpnDetected = candidates.some((c) => c.networkType === 'vpn');
 

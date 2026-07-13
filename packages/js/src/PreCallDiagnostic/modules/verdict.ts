@@ -334,8 +334,22 @@ function assessIce(ice: PreCallDiagnosticReport['ice']): {
  * Blocking conditions (→ reasons, block the verdict):
  * - Poor network quality
  *
+ * Degraded conditions (→ reasons, degrade the verdict):
+ * - Any `network.reasons[]` entry (the module already classified each metric
+ *   into a specific reason code with a threshold message). This includes
+ *   `network_low_bitrate`, which `classifyQuality()` does NOT consider —
+ *   without carrying the reasons through, a call with sub-8 kbps media and
+ *   otherwise good RTT/jitter/loss returned `ready` with no network reason
+ *   (VSDK-412 review: "detailed network findings, including low bitrate,
+ *   never affect the returned verdict").
+ *
  * Warning conditions (→ warnings, do NOT flip the verdict):
  * - Fair network quality (degraded but functional)
+ *
+ * The detailed `network.reasons[]` array is carried through into the
+ * top-level result so callers see the specific degradation (which metric,
+ * which threshold). Verdict contribution: `quality: 'poor'` → blocked;
+ * any reason entry (including low bitrate) → at least degraded.
  */
 function assessNetwork(network: PreCallDiagnosticReport['network']): {
   verdict: PreCallDiagnosticReport['verdict'];
@@ -350,6 +364,27 @@ function assessNetwork(network: PreCallDiagnosticReport['network']): {
   const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
+  // Carry the module's own detailed reasons through into the top-level result.
+  // buildPreCallNetworkReport() already classified each metric into a reason
+  // with the exact threshold message; we surface them here so the verdict
+  // explains which metric failed and by how much. Every reason entry
+  // contributes at least `degraded` — the module only emits reasons when a
+  // threshold was crossed, so a reason always indicates a problem.
+  // `quality: 'poor'` (below) escalates to `blocked`.
+  if (network.reasons) {
+    for (const r of network.reasons) {
+      reasons.push(r);
+    }
+    // Any reason entry indicates at least one crossed threshold → degraded.
+    // The `quality` switch below escalates to `blocked` when quality is poor.
+    worstVerdict = worseVerdict(worstVerdict, 'degraded');
+  }
+
+  // Honor the coarse `quality` classification for the overall verdict level.
+  // `classifyQuality()` considers RTT, jitter, and packet loss. When quality
+  // is `'poor'`, the overall verdict is `blocked`. When `'fair'`, it's a
+  // warning (degraded-but-functional). The detailed reasons above already
+  // cover the specific metrics; this handles the aggregate signal.
   switch (network.quality) {
     case 'poor':
       reasons.push({
@@ -357,7 +392,7 @@ function assessNetwork(network: PreCallDiagnosticReport['network']): {
         message: 'Network quality is poor.',
         source: 'network',
       });
-      worstVerdict = 'blocked';
+      worstVerdict = worseVerdict(worstVerdict, 'blocked');
       break;
     case 'fair':
       // Fair quality is degraded-but-functional → warning, not a reason.
@@ -368,7 +403,7 @@ function assessNetwork(network: PreCallDiagnosticReport['network']): {
       });
       break;
     case 'good':
-      worstVerdict = 'ready';
+      worstVerdict = worseVerdict(worstVerdict, 'ready');
       break;
     case 'unknown':
     default:

@@ -630,15 +630,19 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const startTime = Date.now();
     const deadline = startTime + durationMs;
 
-    // Collect at least one sample immediately
-    await this.collectOneSample(call, context);
-    // Record the first-sample timestamp right after the first sample is
-    // collected — NOT after the whole sampling window. Calling markFirstStats()
-    // only after collectSamples() returned recorded ~durationMs late
-    // (VSDK-412 round-10 review).
-    timings?.markFirstStats();
+    // Collect at least one sample immediately. Only record the first-sample
+    // timestamp when a frame was actually appended — getStats() failures are
+    // swallowed by collectOneSample(), so an unconditional mark would record
+    // a plausible firstStatsMs even when context.statsSamples is empty
+    // (VSDK-412 review: "firstStatsMs is still recorded when no stats sample
+    // was received").
+    const firstAppended = await this.collectOneSample(call, context);
+    if (firstAppended) {
+      timings?.markFirstStats();
+    }
 
     // Continue collecting at the configured interval until the duration expires
+    let firstStatsMarked = firstAppended;
     while (Date.now() < deadline) {
       const nextSampleTime = Math.min(
         startTime + Math.round(context.statsSamples.length * intervalMs),
@@ -649,7 +653,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         await new Promise((resolve) => setTimeout(resolve, waitMs));
       }
       if (Date.now() >= deadline) break;
-      await this.collectOneSample(call, context);
+      const appended = await this.collectOneSample(call, context);
+      // Mark firstStats on the first successful sample (may be a later
+      // iteration if the initial getStats() calls all failed).
+      if (appended && !firstStatsMarked) {
+        timings?.markFirstStats();
+        firstStatsMarked = true;
+      }
     }
   }
 
@@ -672,11 +682,18 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    * Tries call.getStats() first (test-friendly override), then falls back
    * to the peer connection's getStats(). Normalizes the raw RTCStatsReport
    * into a structured frame that buildPreCallNetworkReport() can consume.
+   *
+   * @returns `true` when a frame was appended to `context.statsSamples`,
+   *          `false` when no sample was collected (getStats() rejected,
+   *          returned undefined, or produced no parseable frame). Callers
+   *          use this to avoid recording `firstStatsMs` on a run where
+   *          every stats read failed (VSDK-412 review: "firstStatsMs is
+   *          still recorded when no stats sample was received").
    */
   private async collectOneSample(
     call: Call,
     context: PreCallDiagnosticContext
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       let rawStats: RTCStatsReport | unknown | undefined;
 
@@ -710,16 +727,19 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         rawStats = await pc.getStats();
       }
 
-      if (!rawStats) return;
+      if (!rawStats) return false;
 
       const frame = this.normalizeStatsFrame(rawStats);
       if (frame) {
         context.statsSamples.push(frame);
+        return true;
       }
+      return false;
     } catch {
       // Stats collection failures should not abort the diagnostic.
       // Individual sample failures are non-fatal — the report is built
       // from whatever samples were successfully collected.
+      return false;
     }
   }
 
