@@ -175,6 +175,46 @@ export class TimingsCollector {
   }
 
   /**
+   * Merge cleanup-duration and a recomputed totalMs into an already-built
+   * `PreCallTimingsReport`.
+   *
+   * `build()` is called BEFORE the cleanup `finally` block runs
+   * `call.hangup()`, because establishment timings are read from the call's
+   * performance marks, which are cleared during `_finalize()`. At that point
+   * `cleanupMs` is absent and `totalMs` excludes hangup/resource release.
+   *
+   * This method is called AFTER the finally block records cleanup
+   * start/end marks. It patches the already-built report in place so:
+   *  - `cleanupMs` = cleanupCompleted - cleanupStarted (the hangup duration)
+   *  - `totalMs`  = cleanupCompleted - startedAtMono (full run, including cleanup)
+   *
+   * Establishment-timing fields set by `build()` are preserved — only the
+   * cleanup-related fields and totalMs are overwritten (VSDK-412 round-10).
+   *
+   * Safe to call when cleanup marks are missing (no-op for those fields).
+   */
+  finalizeTimings(report: PreCallTimingsReport): void {
+    if (
+      this.cleanupStartedMonoMs !== undefined &&
+      this.cleanupCompletedMonoMs !== undefined
+    ) {
+      withGuard(
+        report,
+        'cleanupMs',
+        this.cleanupCompletedMonoMs - this.cleanupStartedMonoMs
+      );
+      // totalMs = full run from collector start to cleanup completion.
+      // This overrides the pre-cleanup totalMs from build(), which only
+      // spanned start → markCompleted (excluding hangup/release).
+      withGuard(
+        report,
+        'totalMs',
+        this.cleanupCompletedMonoMs - this.startedAtMonoMs
+      );
+    }
+  }
+
+  /**
    * Build the final `PreCallTimingsReport`.
    *
    * Merges:

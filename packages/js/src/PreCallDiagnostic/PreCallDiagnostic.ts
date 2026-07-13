@@ -117,6 +117,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     timings: TimingsCollector
   ): Promise<PreCallDiagnosticReport> {
     let call: Call | undefined;
+    // Built inside try/catch, finalized in the finally block after cleanup so
+    // the timings report includes cleanupMs and an accurate totalMs.
+    let fullResult: PreCallDiagnosticReport | undefined;
 
     try {
       // Establish temporary diagnostic call
@@ -148,10 +151,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       }
 
       // Sampling starts only AFTER establishment (B2). The timings collector
-      // records phase boundaries around it.
+      // records phase boundaries around it. markFirstStats() is called inside
+      // collectSamples() right after the first sample — NOT after the whole
+      // window (VSDK-412 round-10 review).
       timings.markStatsSamplingStarted();
-      await this.collectSamples(call, context);
-      timings.markFirstStats();
+      await this.collectSamples(call, context, timings);
       timings.markStatsSamplingCompleted();
 
       // Build module reports
@@ -160,9 +164,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       const media = await this.getMediaReport(context);
       const microphone = await this.getMicrophoneReport(context);
 
-      // Build timings report BEFORE cleanup. Establishment timings are read
-      // from the call's performance marks, which are cleared by `_finalize()`
-      // during `call.hangup()` in the finally block below.
+      // Build a PRELIMINARY timings report BEFORE cleanup. Establishment
+      // timings are read from the call's performance marks, which are cleared
+      // by `_finalize()` during `call.hangup()` in the finally block below, so
+      // they must be captured now. The cleanup-duration and final totalMs
+      // fields are merged in AFTER the finally block runs (VSDK-412 round-10
+      // review: previously the report was built entirely before cleanup, so
+      // cleanupMs was permanently absent and totalMs excluded hangup/release).
       timings.markCompleted();
       const timingsReport = timings.build({ call, callId: call?.id });
 
@@ -188,7 +196,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         context
       );
 
-      const report: PreCallDiagnosticReport = {
+      // Stash the report parts; we finalize timings AFTER the finally block
+      // runs cleanup so cleanupMs and totalMs include hangup/resource release.
+      // The establishment-timing fields were already captured into
+      // timingsReport above (before marks were cleared).
+      fullResult = {
         version: 1,
         verdict,
         reasons: reasons.length > 0 ? reasons : undefined,
@@ -201,8 +213,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         callId: call?.id,
         raw: partialReport.raw,
       };
-
-      return report;
+      return fullResult;
     } catch (error) {
       context.error = error instanceof Error ? error : new Error(String(error));
 
@@ -211,7 +222,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       const timingsReport = timings.build({ call, callId: call?.id });
       const { verdict, reasons, warnings } = buildVerdict({}, context);
 
-      return {
+      fullResult = {
         version: 1,
         verdict: verdict ?? 'inconclusive',
         reasons: reasons.length > 0 ? reasons : undefined,
@@ -219,6 +230,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         callId: call?.id,
         timings: timingsReport,
       };
+      return fullResult;
     } finally {
       // Cleanup temporary resources — must await because cleanupCall is async
       // and hangup() returns a Promise (real SDK Call). The timings collector
@@ -229,6 +241,14 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         await this.cleanupCall(call);
       }
       timings.markCleanupCompleted();
+
+      // Merge cleanup duration + final totalMs into the already-built report.
+      // The establishment fields were captured before hangup cleared the
+      // marks; now that cleanup has finished we can record how long it took
+      // and recompute totalMs to span the whole run (VSDK-412 round-10).
+      if (fullResult) {
+        timings.finalizeTimings(fullResult.timings);
+      }
     }
   }
 
@@ -248,6 +268,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     context: PreCallDiagnosticContext,
     timings: TimingsCollector
   ): Promise<PreCallDiagnosticReport> {
+    let networkResult: PreCallDiagnosticReport | undefined;
     const iceServers = this.getClientIceServers();
     const rtcConfig = this.options.rtcConfig ?? {
       iceServers,
@@ -313,7 +334,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         context
       );
 
-      return {
+      networkResult = {
         version: 1,
         verdict,
         reasons: reasons.length > 0 ? reasons : undefined,
@@ -322,13 +343,14 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         ice,
         raw: undefined,
       };
+      return networkResult;
     } catch (error) {
       context.error = error instanceof Error ? error : new Error(String(error));
       timings.markCompleted();
       const timingsReport = timings.build({});
       this.populateNetworkOnlyTimings(timingsReport, perServerResults);
       const { verdict, reasons, warnings } = buildVerdict({}, context);
-      return {
+      networkResult = {
         version: 1,
         verdict: verdict ?? 'inconclusive',
         reasons: reasons.length > 0 ? reasons : undefined,
@@ -339,6 +361,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
             ? aggregatePerServerResults(perServerResults)
             : undefined,
       };
+      return networkResult;
     } finally {
       timings.markCleanupStarted();
       try {
@@ -347,6 +370,12 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         // ignore close errors
       }
       timings.markCleanupCompleted();
+
+      // Merge cleanupMs + final totalMs into the already-built report
+      // (VSDK-412 round-10: previously built before cleanup).
+      if (networkResult) {
+        timings.finalizeTimings(networkResult.timings);
+      }
     }
   }
 
@@ -591,7 +620,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
    */
   private async collectSamples(
     call: Call,
-    context: PreCallDiagnosticContext
+    context: PreCallDiagnosticContext,
+    timings?: TimingsCollector
   ): Promise<void> {
     const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
     const intervalMs =
@@ -602,6 +632,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
     // Collect at least one sample immediately
     await this.collectOneSample(call, context);
+    // Record the first-sample timestamp right after the first sample is
+    // collected — NOT after the whole sampling window. Calling markFirstStats()
+    // only after collectSamples() returned recorded ~durationMs late
+    // (VSDK-412 round-10 review).
+    timings?.markFirstStats();
 
     // Continue collecting at the configured interval until the duration expires
     while (Date.now() < deadline) {

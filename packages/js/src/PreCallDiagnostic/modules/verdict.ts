@@ -212,11 +212,22 @@ function assessIce(ice: PreCallDiagnosticReport['ice']): {
   }
 
   // No selected pair — blocked (connectivity failure), but ONLY when
-  // candidates were actually gathered. With zero candidates the verdict is
-  // already inconclusive (above); a missing selected pair there is a
-  // consequence of having no data, not a connectivity failure.
+  // candidates were actually gathered AND a connection was actually attempted.
+  //
+  // In network-only mode the combined gathering peer only receives a local
+  // offer — it never gets a remote description or remote peer, so it can
+  // gather local candidates but can never select a candidate pair. Its
+  // iceConnectionState stays 'new'. Treating that as a connectivity failure
+  // produces a false 'blocked' verdict; the per-server results (which DO
+  // create real peer pairs for TURN relay) are the real connectivity test
+  // (VSDK-412 round-10 review).
+  //
+  // With zero candidates the verdict is already inconclusive (above); a
+  // missing selected pair there is a consequence of having no data, not a
+  // connectivity failure.
   const hasCandidates = ice.candidateTypes && ice.candidateTypes.length > 0;
-  if (hasCandidates && ice.hasSelectedPair === false) {
+  const connectionAttempted = ice.iceConnectionState !== 'new';
+  if (hasCandidates && ice.hasSelectedPair === false && connectionAttempted) {
     reasons.push({
       code: IceReasonCode.NoSelectedPair,
       message: 'No ICE candidate pair was selected. Connectivity failure.',
@@ -409,8 +420,21 @@ function assessMedia(media: PreCallDiagnosticReport['media']): {
  * Assess the microphone module report and return verdict + reasons + warnings.
  *
  * Blocking conditions (→ reasons, block the verdict):
- * - Permission denied
+ * - Permission denied (passive or during active capture)
  * - No device available
+ * - Active capture failed (captureError set after getUserMedia rejected)
+ *
+ * Degraded conditions (→ reasons, degrade the verdict):
+ * - Active capture succeeded but no audio was detected (silence)
+ *
+ * The 'ready' verdict is only assigned when either:
+ *  - only the passive permission/device check ran and both passed, OR
+ *  - active capture was performed and succeeded with audio detected.
+ *
+ * Folding in captureError/activeCapturePerformed/audioDetected prevents the
+ * false-confidence case where a passive check passes, then getUserMedia fails
+ * with NotReadableError, yet the verdict stays 'ready' (VSDK-412 round-10
+ * review).
  */
 function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
   verdict: PreCallDiagnosticReport['verdict'];
@@ -425,6 +449,7 @@ function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
   const warnings: PreCallDiagnosticWarning[] = [];
   let worstVerdict: PreCallDiagnosticReport['verdict'] = undefined;
 
+  // Passive check: permission denied (Permissions API reported 'denied').
   if (microphone.permissionGranted === false) {
     reasons.push({
       code: MicrophoneReasonCode.PermissionDenied,
@@ -435,6 +460,7 @@ function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
     worstVerdict = 'permission_denied';
   }
 
+  // Passive check: no device available.
   if (microphone.deviceAvailable === false) {
     reasons.push({
       code: MicrophoneReasonCode.NoDevice,
@@ -447,14 +473,65 @@ function assessMicrophone(microphone: PreCallDiagnosticReport['microphone']): {
     }
   }
 
-  // If permission granted and device available, that's ready
-  if (
-    microphone.permissionGranted === true &&
-    microphone.deviceAvailable !== false
-  ) {
-    if (!worstVerdict) {
-      worstVerdict = 'ready';
+  // Active capture: getUserMedia was attempted (activeCapturePerformed === true).
+  // A captureError here means the passive check passed but the real capture
+  // failed (e.g. NotReadableError → 'unknown'). This must block the 'ready'
+  // verdict — the microphone is not actually usable.
+  if (microphone.captureError) {
+    reasons.push({
+      code:
+        microphone.captureError === 'permission_denied'
+          ? MicrophoneReasonCode.PermissionDenied
+          : microphone.captureError === 'no_device'
+            ? MicrophoneReasonCode.NoDevice
+            : MicrophoneReasonCode.CaptureFailed,
+      message:
+        microphone.captureErrorMessage ??
+        `Active microphone capture failed: ${microphone.captureError}.`,
+      source: 'microphone',
+    });
+    if (microphone.captureError === 'permission_denied') {
+      worstVerdict = 'permission_denied';
+    } else if (worstVerdict !== 'permission_denied') {
+      worstVerdict = 'blocked';
     }
+  }
+
+  // Active capture succeeded but no audio was detected (silence). This is
+  // degraded, not blocked — the microphone works but the user may be muted
+  // or the mic may be faulty. Only flag when capture was actually performed
+  // and audioDetected is explicitly false (not undefined = not measured).
+  if (
+    microphone.activeCapturePerformed === true &&
+    !microphone.captureError &&
+    microphone.audioDetected === false
+  ) {
+    reasons.push({
+      code: MicrophoneReasonCode.SilenceDetected,
+      message:
+        'No audio was detected above the silence threshold during active capture.',
+      source: 'microphone',
+    });
+    if (worstVerdict !== 'blocked' && worstVerdict !== 'permission_denied') {
+      worstVerdict = 'degraded';
+    }
+  }
+
+  // Assign 'ready' only when the microphone is genuinely confirmed usable:
+  //  - active capture performed, no capture error, and audio was detected, OR
+  //  - only the passive check ran (no active capture) and it passed.
+  // A passive-only pass with no active capture is still 'ready' — the passive
+  // check confirmed permission + device, which is all it can verify.
+  const activeCaptureSucceeded =
+    microphone.activeCapturePerformed === true &&
+    !microphone.captureError &&
+    microphone.audioDetected !== false;
+  const passiveOnlyPass =
+    microphone.activeCapturePerformed !== true &&
+    microphone.permissionGranted === true &&
+    microphone.deviceAvailable !== false;
+  if ((activeCaptureSucceeded || passiveOnlyPass) && !worstVerdict) {
+    worstVerdict = 'ready';
   }
 
   return { verdict: worstVerdict, reasons, warnings };
