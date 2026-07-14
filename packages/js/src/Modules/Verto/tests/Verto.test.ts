@@ -745,15 +745,31 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('uses only the turn2 TURNS/443 entry in DEFAULT_PROD_ICE_SERVERS', () => {
-    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    // turn.telnyx.com:443 is dropped; turn2 is the sole TURNS endpoint.
-    expect(urls).not.toContain('turns:turn.telnyx.com:443?transport=tcp');
-    expect(
-      urls.filter(
-        (u): u is string => typeof u === 'string' && u.startsWith('turns:')
-      )
-    ).toEqual(['turns:turn2.telnyx.com:443']);
+  it('uses the confirmed production ICE server order and credentials', () => {
+    expect(DEFAULT_PROD_ICE_SERVERS).toEqual([
+      { urls: 'stun:stun.telnyx.com:3478' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:turn.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:turn.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword!',
+      },
+      {
+        urls: 'turns:turn2.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+    ]);
   });
 
   it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
@@ -765,13 +781,26 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_DEV_ICE_SERVERS);
   });
 
-  it('should include TURNS port 443 dev entry in DEFAULT_DEV_ICE_SERVERS', () => {
-    const turns443DevEntry = DEFAULT_DEV_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turndev.telnyx.com:443'
-    );
-    expect(turns443DevEntry).toBeDefined();
-    expect(turns443DevEntry!.username).toBe('testuser');
-    expect(turns443DevEntry!.credential).toBe('testpassword');
+  it('uses the confirmed development ICE server order and credentials', () => {
+    expect(DEFAULT_DEV_ICE_SERVERS).toEqual([
+      { urls: 'stun:stundev.telnyx.com:3478' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:turndev.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turn:turndev.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:turndev.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword!',
+      },
+    ]);
   });
 
   it('should return iceServers with DEFAULT_PROD_ICE_SERVERS when env is production', () => {
@@ -783,36 +812,11 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('offers TURN UDP/3478, TCP/3478, then TURNS/443 in production defaults', () => {
-    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    // Both 3478 transports are offered, with TURNS/443 last as the fallback for
-    // networks that block both.
-    const turnUdp3478Index = urls.indexOf(
-      'turn:turn.telnyx.com:3478?transport=udp'
-    );
-    const turnTcp3478Index = urls.indexOf(
-      'turn:turn.telnyx.com:3478?transport=tcp'
-    );
-    const turns443Index = urls.indexOf('turns:turn2.telnyx.com:443');
-    expect(turnUdp3478Index).toBeGreaterThan(-1);
-    expect(turnTcp3478Index).toBeGreaterThan(-1);
-    expect(turns443Index).toBeGreaterThan(turnTcp3478Index);
-  });
-
   it('offers TURN TCP/3478 in both prod and dev defaults (no mismatch)', () => {
     const prodUrls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
     const devUrls = DEFAULT_DEV_ICE_SERVERS.map((s) => s.urls);
     expect(prodUrls).toContain('turn:turn.telnyx.com:3478?transport=tcp');
     expect(devUrls).toContain('turn:turndev.telnyx.com:3478?transport=tcp');
-  });
-
-  it('should include the transport-less TURNS turn2:443 entry in production defaults', () => {
-    const turns2Entry = DEFAULT_PROD_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turn2.telnyx.com:443'
-    );
-    expect(turns2Entry).toBeDefined();
-    expect(turns2Entry!.username).toBe('testuser');
-    expect(turns2Entry!.credential).toBe('testpassword');
   });
 
   it('should return iceServers with provided value when iceServers is provided', () => {
@@ -829,6 +833,14 @@ describe('Verto', () => {
 
   describe('TELNYX_ICE_SERVERS public catalog', () => {
     it('exposes the expected building-block keys with correct URLs', () => {
+      expect(Object.keys(TELNYX_ICE_SERVERS)).toEqual([
+        'GOOGLE_STUN',
+        'TELNYX_STUN',
+        'TELNYX_TURN_UDP_3478',
+        'TELNYX_TURN_TCP_3478',
+        'TELNYX_TURNS_TCP_443',
+        'TELNYX_TURNS_TCP_443_PRIMARY',
+      ]);
       expect(TELNYX_ICE_SERVERS.GOOGLE_STUN).toEqual({
         urls: 'stun:stun.l.google.com:19302',
       });
@@ -850,13 +862,18 @@ describe('Verto', () => {
         username: 'testuser',
         credential: 'testpassword',
       });
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY).toEqual({
+        urls: 'turns:turn.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword!',
+      });
     });
 
     it('lets a customer compose a custom iceServers array from the catalog', () => {
       const composed: RTCIceServer[] = [
         TELNYX_ICE_SERVERS.TELNYX_STUN,
         TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
-        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
+        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY,
       ];
       const telnyxRTC = _buildInstance({
         iceServers: composed,
@@ -867,7 +884,7 @@ describe('Verto', () => {
       expect(telnyxRTC.iceServers.map((s) => s.urls)).toEqual([
         'stun:stun.telnyx.com:3478',
         'turn:turn.telnyx.com:3478?transport=udp',
-        'turns:turn2.telnyx.com:443',
+        'turns:turn.telnyx.com:443',
       ]);
     });
 

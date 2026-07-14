@@ -28,9 +28,9 @@ export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const STUN_DEV_SERVER = { urls: 'stun:stundev.telnyx.com:3478' };
 // Individual Telnyx TURN servers. Both the prod and dev defaults (see
 // DEFAULT_PROD_ICE_SERVERS / DEFAULT_DEV_ICE_SERVERS below) include TURN over
-// UDP/3478 and TCP/3478, plus TURNS on 443 (TURN_TLS_443_SERVER) as a
-// last-resort fallback for networks that block both 3478 transports. The two
-// environments are kept in sync.
+// UDP/3478 and TCP/3478, plus TURNS on 443. The production TURNS endpoints are
+// kept in the confirmed configuration order: turn.telnyx.com, then turn2. This
+// array order does not guarantee browser ICE candidate-pair priority.
 export const TURN_UDP_3478_SERVER = {
   urls: 'turn:turn.telnyx.com:3478?transport=udp',
   username: 'testuser',
@@ -54,9 +54,15 @@ export const TURN_DEV_SERVER = [
     credential: 'testpassword',
   },
 ];
-// TURN over TLS on port 443 — the last-resort fallback for restrictive
-// firewalls that block both UDP/3478 and TCP/3478. No transport param, so the
-// client negotiates transport.
+// TURN over TLS on port 443 for restrictive firewalls. TURNS URLs intentionally
+// omit the transport parameter.
+export const TURN_TLS_443_PRIMARY_SERVER = {
+  urls: 'turns:turn.telnyx.com:443',
+  username: 'testuser',
+  credential: 'testpassword!',
+};
+// Keep the existing turn2 endpoint while infrastructure migrates to the
+// primary turn.telnyx.com DNS name.
 export const TURN_TLS_443_SERVER = {
   urls: 'turns:turn2.telnyx.com:443',
   username: 'testuser',
@@ -68,13 +74,14 @@ export const TURN_TLS_443_SERVER = {
 export const TURN_TLS_443_DEV_SERVER = {
   urls: 'turns:turndev.telnyx.com:443',
   username: 'testuser',
-  credential: 'testpassword',
+  credential: 'testpassword!',
 };
 
 export const DEFAULT_PROD_ICE_SERVERS: RTCIceServer[] = [
   STUN_SERVER,
   GOOGLE_STUN_SERVER,
   ...TURN_SERVER,
+  TURN_TLS_443_PRIMARY_SERVER,
   TURN_TLS_443_SERVER,
 ];
 
@@ -92,8 +99,8 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
  *
  * These are building blocks only — picking a subset does NOT change the SDK's
  * built-in default (`DEFAULT_PROD_ICE_SERVERS`, used when `iceServers` is
- * omitted), which includes STUN + TURN UDP/3478 + TURN TCP/3478 + TURNS/443.
- * Treat the entries
+ * omitted), which includes STUN + TURN UDP/3478 + TURN TCP/3478 + TURNS/443
+ * endpoints. Treat the entries
  * as read-only; spread them into a new array rather than mutating in place.
  *
  * @example
@@ -105,7 +112,7 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
  *   iceServers: [
  *     TELNYX_ICE_SERVERS.TELNYX_STUN,
  *     TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
- *     TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
+ *     TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY,
  *   ],
  * });
  * ```
@@ -116,6 +123,7 @@ export const TELNYX_ICE_SERVERS = {
   TELNYX_TURN_UDP_3478: TURN_UDP_3478_SERVER,
   TELNYX_TURN_TCP_3478: TURN_TCP_3478_SERVER,
   TELNYX_TURNS_TCP_443: TURN_TLS_443_SERVER,
+  TELNYX_TURNS_TCP_443_PRIMARY: TURN_TLS_443_PRIMARY_SERVER,
 } as const;
 
 export enum SwEvent {
