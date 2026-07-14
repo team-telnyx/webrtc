@@ -2,10 +2,9 @@
  * Diagnostic timing module for the PreCallDiagnostic framework (VSDK-307).
  *
  * Owns ALL timing logic for the diagnostic run: mark collection, mapping of
- * SDK call-establishment steps into named `PreCallTimingsReport` fields, and
- * duration computation for the diagnostic-only phases (stats sampling,
- * cleanup, total). `PreCallDiagnostic.ts` calls only one-line mark methods
- * here — no parsing, duration math, or `performance.now()` calls live there.
+ * SDK call-establishment timeline into `PreCallTimingsReport`, maps its key
+ * milestones into the legacy summary fields, and computes durations for the
+ * diagnostic-only phases (stats sampling, cleanup, total).
  *
  * Decoupling: this module does NOT import `CallEstablishmentTimings` (or any
  * other Verto module) directly. It consumes the structured establishment
@@ -14,8 +13,10 @@
  * Verto-layer timing module.
  */
 
-import type { ICallEstablishmentTimings } from '../../Modules/Verto/webrtc/CallEstablishmentTimings';
-import type { PreCallTimingsReport } from '../types';
+import type {
+  PreCallEstablishmentTimings,
+  PreCallTimingsReport,
+} from '../types';
 
 /**
  * Map of SDK call-establishment step labels (the human-readable strings
@@ -54,7 +55,7 @@ const ESTABLISHMENT_LABEL_TO_FIELD: Record<string, keyof PreCallTimingsReport> =
  */
 export interface TimingsCallLike {
   id: string;
-  getEstablishmentTimings?(): ICallEstablishmentTimings | undefined;
+  getEstablishmentTimings?(): PreCallEstablishmentTimings | undefined;
 }
 
 /** Optional arguments for `TimingsCollector.build()`. */
@@ -281,13 +282,22 @@ export class TimingsCollector {
     // 2. SDK call-establishment timings (read from the call's performance marks).
     // Wrapped in try/catch so a throwing getEstablishmentTimings() (e.g. a
     // buggy override or a cleared-marks race) never aborts report generation.
-    let establishment: ICallEstablishmentTimings | undefined;
+    let establishment: PreCallEstablishmentTimings | undefined;
     try {
       establishment = options.call?.getEstablishmentTimings?.();
     } catch {
       establishment = undefined;
     }
     if (establishment && establishment.steps.length > 0) {
+      // Preserve the complete regular-call timeline. This is the source of
+      // truth for callers that need a clear step-by-step picture; the flat
+      // fields below remain as backward-compatible milestone summaries.
+      report.callEstablishment = {
+        mode: establishment.mode,
+        direction: establishment.direction,
+        steps: establishment.steps.map((step) => ({ ...step })),
+      };
+
       for (const step of establishment.steps) {
         const field = ESTABLISHMENT_LABEL_TO_FIELD[step.label];
         if (field !== undefined) {

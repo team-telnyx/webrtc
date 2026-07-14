@@ -20,6 +20,7 @@ import type {
   NetworkPacketCounters,
   NetworkByteCounters,
   NetworkBitrate,
+  NetworkAudioDirection,
 } from '../types';
 import type { PreCallDiagnosticContext } from '../context';
 
@@ -51,25 +52,11 @@ const LOW_BITRATE_BPS = 8000;
 
 // --- Internal stat-entry types ---
 
-/**
- * Shape of a single inbound audio stats entry as produced by the SDK
- * stats collector. Uses `any` because the exact shape depends on the
- * browser and SDK version — we read only known fields defensively.
+/** Browser WebRTC stats are intentionally extensible and differ slightly
+ * between implementations. Keep reads defensive while consuming the native
+ * RTCStatsReport shape stored by the diagnostic context.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type InboundAudioEntry = any;
-
-/**
- * Shape of a single outbound audio stats entry.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type OutboundAudioEntry = any;
-
-/**
- * Shape of a single stats sample frame from the diagnostic context.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StatsFrame = any;
+type StatsEntry = RTCStats & Record<string, unknown>;
 
 // --- Helpers ---
 
@@ -91,9 +78,7 @@ function safeNumber(value: unknown): number | undefined {
 function computeMinMaxAverage(
   samples: number[]
 ): NetworkMinMaxAverage | undefined {
-  const valid = samples.filter(
-    (v) => v !== undefined && !Number.isNaN(v) && Number.isFinite(v)
-  );
+  const valid = samples.filter((v) => safeNumber(v) !== undefined);
   if (valid.length === 0) return undefined;
 
   let min = Infinity;
@@ -113,70 +98,204 @@ function computeMinMaxAverage(
 }
 
 /**
- * Extract inbound RTT samples from stats frames.
- * RTT comes from `remote.audio.inbound[].roundTripTime` (in seconds from
- * standard WebRTC stats) — we convert to milliseconds.
+ * Extract inbound RTT samples from raw RTC stats reports.
+ * RTT comes from audio `remote-inbound-rtp` entries (in seconds from standard
+ * WebRTC stats) — we convert to milliseconds.
  *
- * Also reads `connection.currentRoundTripTime` from the selected candidate
- * pair as a fallback. Note: `currentRoundTripTime` is the latest STUN
+ * Also reads `currentRoundTripTime` from the selected candidate pair as a
+ * fallback. Note: `currentRoundTripTime` is the latest STUN
  * response RTT for the selected pair; it can vary between samples if the
  * call is long enough. With very short calls (1-2 samples), min/max/avg
  * may appear identical because there is only one data point.
  */
-function extractRttSamples(frames: StatsFrame[]): number[] {
-  const samples: number[] = [];
-  for (const frame of frames) {
-    // Try remote inbound audio first (standard WebRTC stats path)
-    let frameProducedRtt = false;
-    const remoteInbound: InboundAudioEntry[] | undefined =
-      frame?.remote?.audio?.inbound;
-    if (Array.isArray(remoteInbound)) {
-      for (const entry of remoteInbound) {
-        // roundTripTime: latest RTT measured (seconds → ms).
-        // This is the instantaneous RTT of the most recent STUN response.
-        const rttSec = safeNumber(entry?.roundTripTime);
-        if (rttSec !== undefined) {
-          const rttMs = rttSec * 1000;
-          if (rttMs >= 0) {
-            samples.push(rttMs);
-            frameProducedRtt = true;
-          }
-        }
+function isAudioRtpStat(entry: StatsEntry): boolean {
+  const mediaKind = entry.kind ?? entry.mediaType;
+  return mediaKind === undefined || mediaKind === 'audio';
+}
 
-        // totalRoundTripTime / roundTripTimeMeasurements: cumulative average.
-        // Always collect this when available — even when roundTripTime was
-        // present — because the cumulative average varies across frames as
-        // more STUN responses accumulate, giving min/max/average real spread.
-        // Without this, a short call where roundTripTime stays constant across
-        // frames (no new STUN response) produces {min==max==average} — the
-        // bug reported in VSDK-412 review (Review 18, point 3).
-        const totalRtt = safeNumber(entry?.totalRoundTripTime);
-        const measurements = safeNumber(entry?.roundTripTimeMeasurements);
-        if (
-          totalRtt !== undefined &&
-          measurements !== undefined &&
-          measurements > 0
-        ) {
-          const avgRttMs = (totalRtt / measurements) * 1000;
-          if (avgRttMs >= 0) {
-            samples.push(avgRttMs);
-            frameProducedRtt = true;
-          }
+/** Return the candidate pair selected by a transport, or the best legacy
+ * selected/nominated fallback when transport linkage is unavailable.
+ */
+function getSelectedCandidatePair(
+  report: RTCStatsReport
+): StatsEntry | undefined {
+  const entries: StatsEntry[] = [];
+  const selectedPairIds = new Set<string>();
+
+  report.forEach((rawEntry) => {
+    const entry = rawEntry as StatsEntry;
+    entries.push(entry);
+    if (
+      entry.type === 'transport' &&
+      typeof entry.selectedCandidatePairId === 'string'
+    ) {
+      selectedPairIds.add(entry.selectedCandidatePairId);
+    }
+  });
+
+  const candidatePairs = entries.filter(
+    (entry) => entry.type === 'candidate-pair'
+  );
+
+  return (
+    candidatePairs.find((entry) => selectedPairIds.has(entry.id)) ??
+    candidatePairs.find(
+      (entry) =>
+        entry.selected === true ||
+        (entry.nominated === true && entry.state === 'succeeded')
+    ) ??
+    candidatePairs.find((entry) => entry.state === 'succeeded')
+  );
+}
+
+/** Add all finite numeric values for a field, preserving `undefined` when no
+ * entry exposes that counter.
+ */
+function sumField(entries: StatsEntry[], field: string): number | undefined {
+  let total = 0;
+  let found = false;
+
+  for (const entry of entries) {
+    const value = safeNumber(entry[field]);
+    if (value !== undefined) {
+      total += value;
+      found = true;
+    }
+  }
+
+  return found ? total : undefined;
+}
+
+function getEntries(
+  report: RTCStatsReport,
+  type: string,
+  audioOnly = false
+): StatsEntry[] {
+  const entries: StatsEntry[] = [];
+  report.forEach((rawEntry) => {
+    const entry = rawEntry as StatsEntry;
+    if (entry.type === type && (!audioOnly || isAudioRtpStat(entry))) {
+      entries.push(entry);
+    }
+  });
+  return entries;
+}
+
+type AudioDirection = 'inbound' | 'outbound';
+
+interface AudioCounters {
+  packets?: number;
+  bytes?: number;
+}
+
+function extractAudioCounters(
+  report: RTCStatsReport,
+  direction: AudioDirection
+): AudioCounters {
+  const entries = getEntries(report, `${direction}-rtp`, true);
+  return direction === 'outbound'
+    ? {
+        packets: sumField(entries, 'packetsSent'),
+        bytes: sumField(entries, 'bytesSent'),
+      }
+    : {
+        packets: sumField(entries, 'packetsReceived'),
+        bytes: sumField(entries, 'bytesReceived'),
+      };
+}
+
+function didIncrease(first: AudioCounters, last: AudioCounters): boolean {
+  const packetsIncreased =
+    first.packets === undefined
+      ? last.packets !== undefined
+      : last.packets !== undefined && last.packets > first.packets;
+  const bytesIncreased =
+    first.bytes === undefined
+      ? last.bytes !== undefined
+      : last.bytes !== undefined && last.bytes > first.bytes;
+
+  return packetsIncreased || bytesIncreased;
+}
+
+function computeDelta(
+  first: number | undefined,
+  last: number | undefined
+): number | undefined {
+  if (first === undefined || last === undefined) return undefined;
+  return safeNumber(last - first);
+}
+
+/** Build a per-direction audio RTP summary for the network report. */
+function extractAudioDirection(
+  reports: RTCStatsReport[],
+  direction: AudioDirection
+): NetworkAudioDirection | undefined {
+  const hasAudio = reports.some(
+    (report) => getEntries(report, `${direction}-rtp`, true).length > 0
+  );
+  if (!hasAudio) return undefined;
+
+  const first = extractAudioCounters(reports[0], direction);
+  const last = extractAudioCounters(reports[reports.length - 1], direction);
+  const packetsDelta = computeDelta(first.packets, last.packets);
+  const bytesDelta = computeDelta(first.bytes, last.bytes);
+
+  return {
+    flowing: reports.length > 1 && didIncrease(first, last),
+    ...(last.packets !== undefined ? { packets: last.packets } : {}),
+    ...(last.bytes !== undefined ? { bytes: last.bytes } : {}),
+    ...(packetsDelta !== undefined ? { packetsDelta } : {}),
+    ...(bytesDelta !== undefined ? { bytesDelta } : {}),
+  };
+}
+
+function extractRttSamples(reports: RTCStatsReport[]): number[] {
+  const samples: number[] = [];
+  for (const report of reports) {
+    let reportProducedRtt = false;
+    const remoteInbound = getEntries(report, 'remote-inbound-rtp', true);
+    for (const entry of remoteInbound) {
+      // roundTripTime: latest RTT measured (seconds → ms).
+      // This is the instantaneous RTT of the most recent STUN response.
+      const rttSec = safeNumber(entry.roundTripTime);
+      if (rttSec !== undefined) {
+        const rttMs = rttSec * 1000;
+        if (rttMs >= 0) {
+          samples.push(rttMs);
+          reportProducedRtt = true;
+        }
+      }
+
+      // totalRoundTripTime / roundTripTimeMeasurements: cumulative average.
+      // Always collect this when available — even when roundTripTime was
+      // present — because the cumulative average varies across frames as
+      // more STUN responses accumulate, giving min/max/average real spread.
+      // Without this, a short call where roundTripTime stays constant across
+      // frames (no new STUN response) produces {min==max==average} — the
+      // bug reported in VSDK-412 review (Review 18, point 3).
+      const totalRtt = safeNumber(entry.totalRoundTripTime);
+      const measurements = safeNumber(entry.roundTripTimeMeasurements);
+      if (
+        totalRtt !== undefined &&
+        measurements !== undefined &&
+        measurements > 0
+      ) {
+        const avgRttMs = (totalRtt / measurements) * 1000;
+        if (avgRttMs >= 0) {
+          samples.push(avgRttMs);
+          reportProducedRtt = true;
         }
       }
     }
 
-    // Fallback: try connection-level RTT (older SDK stats format).
-    // Decision is per-frame so that mixed/partial stats streams are handled
-    // correctly — if this frame had no remote inbound RTT, we still want to
-    // include connection.currentRoundTripTime in min/max/average.
-    if (!frameProducedRtt) {
-      const currentRtt = safeNumber(frame?.connection?.currentRoundTripTime);
+    // Fall back to the selected candidate pair for this report.
+    if (!reportProducedRtt) {
+      const currentRtt = safeNumber(
+        getSelectedCandidatePair(report)?.currentRoundTripTime
+      );
       if (currentRtt !== undefined) {
         const rttMs = currentRtt * 1000;
-        if (rttMs >= 0) {
-          samples.push(rttMs);
-        }
+        if (rttMs >= 0) samples.push(rttMs);
       }
     }
   }
@@ -184,61 +303,37 @@ function extractRttSamples(frames: StatsFrame[]): number[] {
 }
 
 /**
- * Extract jitter samples from stats frames.
- * Jitter comes from inbound audio `jitter` (in seconds from standard
+ * Extract jitter samples from raw RTC stats reports.
+ * Jitter comes from inbound audio RTP entries (in seconds from standard
  * WebRTC stats) — we convert to milliseconds.
  */
-function extractJitterSamples(frames: StatsFrame[]): number[] {
+function extractJitterSamples(reports: RTCStatsReport[]): number[] {
   const samples: number[] = [];
-  for (const frame of frames) {
-    let frameProducedJitter = false;
-    const remoteInbound: InboundAudioEntry[] | undefined =
-      frame?.remote?.audio?.inbound;
-    if (Array.isArray(remoteInbound)) {
-      for (const entry of remoteInbound) {
-        const jitterSec = safeNumber(entry?.jitter);
-        if (jitterSec !== undefined) {
-          const jitterMs = jitterSec * 1000;
-          if (jitterMs >= 0) {
-            samples.push(jitterMs);
-            frameProducedJitter = true;
-          }
+  for (const report of reports) {
+    let reportProducedJitter = false;
+    const remoteInbound = getEntries(report, 'remote-inbound-rtp', true);
+    for (const entry of remoteInbound) {
+      const jitterSec = safeNumber(entry.jitter);
+      if (jitterSec !== undefined) {
+        const jitterMs = jitterSec * 1000;
+        if (jitterMs >= 0) {
+          samples.push(jitterMs);
+          reportProducedJitter = true;
         }
       }
     }
 
     // Fallback: local inbound audio jitter
-    if (!frameProducedJitter) {
-      const localInbound: InboundAudioEntry[] | undefined =
-        frame?.audio?.inbound;
-      if (Array.isArray(localInbound)) {
-        for (const entry of localInbound) {
-          const jitterSec = safeNumber(entry?.jitter);
-          if (jitterSec !== undefined) {
-            const jitterMs = jitterSec * 1000;
-            if (jitterMs >= 0) {
-              samples.push(jitterMs);
-              frameProducedJitter = true;
-            }
+    if (!reportProducedJitter) {
+      const localInbound = getEntries(report, 'inbound-rtp', true);
+      for (const entry of localInbound) {
+        const jitterSec = safeNumber(entry.jitter);
+        if (jitterSec !== undefined) {
+          const jitterMs = jitterSec * 1000;
+          if (jitterMs >= 0) {
+            samples.push(jitterMs);
+            reportProducedJitter = true;
           }
-        }
-      }
-    }
-
-    // Fallback: IStatsInterval shape — audio.inbound is an object (not array)
-    // with jitterAvg already in milliseconds (no *1000 conversion needed).
-    // This supports the existing CallReportCollector stats shape so that
-    // jitter degradation is not missed when wired to that collector.
-    if (!frameProducedJitter) {
-      const inboundObj = frame?.audio?.inbound;
-      if (
-        inboundObj &&
-        typeof inboundObj === 'object' &&
-        !Array.isArray(inboundObj)
-      ) {
-        const jitterAvgMs = safeNumber(inboundObj.jitterAvg);
-        if (jitterAvgMs !== undefined && jitterAvgMs >= 0) {
-          samples.push(jitterAvgMs);
         }
       }
     }
@@ -247,50 +342,37 @@ function extractJitterSamples(frames: StatsFrame[]): number[] {
 }
 
 /**
- * Extract packet counters from the last stats frame.
- * Uses the last frame for cumulative counters (packets sent/received/lost).
+ * Extract packet counters from the last stats report.
+ * Uses the last report for cumulative counters (packets sent/received/lost).
  */
 function extractPacketCounters(
-  frames: StatsFrame[]
+  reports: RTCStatsReport[],
+  inbound: NetworkAudioDirection | undefined,
+  outbound: NetworkAudioDirection | undefined
 ): NetworkPacketCounters | undefined {
-  if (frames.length === 0) return undefined;
+  if (reports.length === 0) return undefined;
 
-  const lastFrame = frames[frames.length - 1];
-  let packetsSent: number | undefined;
-  let packetsReceived: number | undefined;
-  let packetsLost: number | undefined;
+  const lastReport = reports[reports.length - 1];
+  const remoteInbound = getEntries(lastReport, 'remote-inbound-rtp', true);
 
-  // Outbound audio
-  const outbound: OutboundAudioEntry[] | undefined = lastFrame?.audio?.outbound;
-  if (Array.isArray(outbound) && outbound.length > 0) {
-    packetsSent = safeNumber(outbound[0]?.packetsSent);
+  let packetsSent = outbound?.packets;
+  let packetsReceived = inbound?.packets;
+  let packetsLost = sumField(
+    getEntries(lastReport, 'inbound-rtp', true),
+    'packetsLost'
+  );
+
+  if (packetsReceived === undefined) {
+    packetsReceived = sumField(remoteInbound, 'packetsReceived');
+    packetsLost = sumField(remoteInbound, 'packetsLost');
   }
 
-  // Inbound audio
-  const inbound: InboundAudioEntry[] | undefined = lastFrame?.audio?.inbound;
-  if (Array.isArray(inbound) && inbound.length > 0) {
-    packetsReceived = safeNumber(inbound[0]?.packetsReceived);
-    packetsLost = safeNumber(inbound[0]?.packetsLost);
-  }
-
-  // Fallback: remote inbound
-  const remoteInbound: InboundAudioEntry[] | undefined =
-    lastFrame?.remote?.audio?.inbound;
-  if (
-    packetsReceived === undefined &&
-    Array.isArray(remoteInbound) &&
-    remoteInbound.length > 0
-  ) {
-    packetsReceived = safeNumber(remoteInbound[0]?.packetsReceived);
-    packetsLost = safeNumber(remoteInbound[0]?.packetsLost);
-  }
-
-  // Fallback: connection-level packet counters
+  const candidatePair = getSelectedCandidatePair(lastReport);
   if (packetsSent === undefined) {
-    packetsSent = safeNumber(lastFrame?.connection?.packetsSent);
+    packetsSent = safeNumber(candidatePair?.packetsSent);
   }
   if (packetsReceived === undefined) {
-    packetsReceived = safeNumber(lastFrame?.connection?.packetsReceived);
+    packetsReceived = safeNumber(candidatePair?.packetsReceived);
   }
 
   // Compute packet loss fraction
@@ -318,35 +400,25 @@ function extractPacketCounters(
 }
 
 /**
- * Extract byte counters from the last stats frame.
+ * Extract byte counters from the last stats report.
  */
 function extractByteCounters(
-  frames: StatsFrame[]
+  reports: RTCStatsReport[],
+  inbound: NetworkAudioDirection | undefined,
+  outbound: NetworkAudioDirection | undefined
 ): NetworkByteCounters | undefined {
-  if (frames.length === 0) return undefined;
+  if (reports.length === 0) return undefined;
 
-  const lastFrame = frames[frames.length - 1];
-  let bytesSent: number | undefined;
-  let bytesReceived: number | undefined;
+  const lastReport = reports[reports.length - 1];
+  let bytesSent = outbound?.bytes;
+  let bytesReceived = inbound?.bytes;
 
-  // Outbound audio bytes
-  const outbound: OutboundAudioEntry[] | undefined = lastFrame?.audio?.outbound;
-  if (Array.isArray(outbound) && outbound.length > 0) {
-    bytesSent = safeNumber(outbound[0]?.bytesSent);
-  }
-
-  // Inbound audio bytes
-  const inbound: InboundAudioEntry[] | undefined = lastFrame?.audio?.inbound;
-  if (Array.isArray(inbound) && inbound.length > 0) {
-    bytesReceived = safeNumber(inbound[0]?.bytesReceived);
-  }
-
-  // Fallback: connection-level byte counters
+  const candidatePair = getSelectedCandidatePair(lastReport);
   if (bytesSent === undefined) {
-    bytesSent = safeNumber(lastFrame?.connection?.bytesSent);
+    bytesSent = safeNumber(candidatePair?.bytesSent);
   }
   if (bytesReceived === undefined) {
-    bytesReceived = safeNumber(lastFrame?.connection?.bytesReceived);
+    bytesReceived = safeNumber(candidatePair?.bytesReceived);
   }
 
   if (bytesSent === undefined && bytesReceived === undefined) {
@@ -361,53 +433,47 @@ function extractByteCounters(
  * Bitrate = delta(bytes) / delta(time) * 8 (bytes to bits).
  * Returns values in bps.
  */
-function extractBitrate(frames: StatsFrame[]): NetworkBitrate | undefined {
-  if (frames.length < 2) return undefined;
+function getReportTimestamp(report: RTCStatsReport): number | undefined {
+  let timestamp: number | undefined;
+  report.forEach((rawEntry) => {
+    if (timestamp === undefined) {
+      timestamp = safeNumber((rawEntry as StatsEntry).timestamp);
+    }
+  });
+  return timestamp;
+}
 
-  // Use the first and last frames for bitrate estimation
-  const first = frames[0];
-  const last = frames[frames.length - 1];
+function extractBitrate(
+  reports: RTCStatsReport[],
+  inbound: NetworkAudioDirection | undefined,
+  outbound: NetworkAudioDirection | undefined
+): NetworkBitrate | undefined {
+  if (reports.length < 2) return undefined;
 
-  const firstTimestamp = safeNumber(first?.timestamp);
-  const lastTimestamp = safeNumber(last?.timestamp);
+  const first = reports[0];
+  const last = reports[reports.length - 1];
+
+  const firstTimestamp = getReportTimestamp(first);
+  const lastTimestamp = getReportTimestamp(last);
   if (firstTimestamp === undefined || lastTimestamp === undefined)
     return undefined;
   const dtSec = (lastTimestamp - firstTimestamp) / 1000;
   if (dtSec <= 0) return undefined;
 
-  // Outbound bitrate
-  let outbound: number | undefined;
-  const firstOutBytes =
-    safeNumber(first?.audio?.outbound?.[0]?.bytesSent) ??
-    safeNumber(first?.connection?.bytesSent);
-  const lastOutBytes =
-    safeNumber(last?.audio?.outbound?.[0]?.bytesSent) ??
-    safeNumber(last?.connection?.bytesSent);
-  if (firstOutBytes !== undefined && lastOutBytes !== undefined) {
-    const delta = lastOutBytes - firstOutBytes;
-    if (delta >= 0) {
-      outbound = (delta * 8) / dtSec;
-    }
+  const outboundBitrate =
+    outbound?.bytesDelta !== undefined && outbound.bytesDelta >= 0
+      ? (outbound.bytesDelta * 8) / dtSec
+      : undefined;
+  const inboundBitrate =
+    inbound?.bytesDelta !== undefined && inbound.bytesDelta >= 0
+      ? (inbound.bytesDelta * 8) / dtSec
+      : undefined;
+
+  if (outboundBitrate === undefined && inboundBitrate === undefined) {
+    return undefined;
   }
 
-  // Inbound bitrate
-  let inbound: number | undefined;
-  const firstInBytes =
-    safeNumber(first?.audio?.inbound?.[0]?.bytesReceived) ??
-    safeNumber(first?.connection?.bytesReceived);
-  const lastInBytes =
-    safeNumber(last?.audio?.inbound?.[0]?.bytesReceived) ??
-    safeNumber(last?.connection?.bytesReceived);
-  if (firstInBytes !== undefined && lastInBytes !== undefined) {
-    const delta = lastInBytes - firstInBytes;
-    if (delta >= 0) {
-      inbound = (delta * 8) / dtSec;
-    }
-  }
-
-  if (outbound === undefined && inbound === undefined) return undefined;
-
-  return { outbound, inbound };
+  return { outbound: outboundBitrate, inbound: inboundBitrate };
 }
 
 /**
@@ -556,49 +622,28 @@ function buildReasons(
  * Reads stats samples from the context, normalizes RTT/jitter/packet-loss/bytes/bitrate,
  * classifies quality, and provides reason inputs for the verdict module.
  *
- * Returns `undefined` if no stats samples are available (module disabled or
- * stats collection not yet implemented).
+ * Returns an unknown-quality report if no stats samples are available.
  */
 export function buildPreCallNetworkReport(
   context: PreCallDiagnosticContext
 ): PreCallNetworkReport | undefined {
-  // If the network module is explicitly disabled, return undefined.
-  // Honors both `network: false` and `network: { enabled: false }`.
-  // (The runner also normalizes this, but the module defends independently
-  // so it can be unit-tested directly with a disabled-options context.)
-  const networkOpt = context.options.network;
-  const networkDisabled =
-    networkOpt === false ||
-    (typeof networkOpt === 'object' &&
-      networkOpt !== null &&
-      networkOpt.enabled === false);
-  if (networkDisabled) {
-    return undefined;
-  }
-
-  // Read stats samples from context
-  const frames: StatsFrame[] = context.statsSamples;
-  if (!Array.isArray(frames) || frames.length === 0) {
-    // No stats available — return a report with quality: 'unknown'
+  if (context.statsSamples.length === 0) {
     return {
       quality: 'unknown',
       reasons: [],
     };
   }
 
-  // Extract normalized metrics
-  const rttSamples = extractRttSamples(frames);
-  const jitterSamples = extractJitterSamples(frames);
-  const rtt = computeMinMaxAverage(rttSamples);
-  const jitter = computeMinMaxAverage(jitterSamples);
-  const packets = extractPacketCounters(frames);
-  const bytes = extractByteCounters(frames);
-  const bitrate = extractBitrate(frames);
-
-  // Classify quality
+  const reports = context.statsSamples;
+  const inbound = extractAudioDirection(reports, 'inbound');
+  const outbound = extractAudioDirection(reports, 'outbound');
+  const rtt = computeMinMaxAverage(extractRttSamples(reports));
+  const jitter = computeMinMaxAverage(extractJitterSamples(reports));
+  const packets = extractPacketCounters(reports, inbound, outbound);
+  const bytes = extractByteCounters(reports, inbound, outbound);
+  const bitrate = extractBitrate(reports, inbound, outbound);
   const quality = classifyQuality(rtt, jitter, packets);
 
-  // Build reason inputs
   const reasons = buildReasons(rtt, jitter, packets, bitrate);
 
   return {
@@ -608,6 +653,8 @@ export function buildPreCallNetworkReport(
     packets,
     bytes,
     bitrate,
+    inbound,
+    outbound,
     reasons: reasons.length > 0 ? reasons : undefined,
   };
 }

@@ -13,9 +13,7 @@
  * collector is passed explicitly to the methods that need it.
  */
 
-import type {
-  PreCallDiagnosticOptions,
-} from './types';
+import type { PreCallDiagnosticOptions } from './types';
 import type Call from '../Modules/Verto/webrtc/Call';
 
 /**
@@ -31,7 +29,7 @@ export interface PreCallDiagnosticContext {
   /** The temporary diagnostic call, if one was established. */
   call?: Call;
   /** Collected stats samples from the diagnostic call. */
-  statsSamples: unknown[];
+  statsSamples: RTCStatsReport[];
   /** Any error that occurred during the diagnostic run. */
   error?: Error;
 }

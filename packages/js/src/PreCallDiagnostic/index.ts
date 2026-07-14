@@ -12,6 +12,8 @@ export type {
   PreCallDiagnosticRunner,
   PreCallDiagnosticReason,
   PreCallTimingsReport,
+  PreCallEstablishmentTimings,
+  PreCallEstablishmentStep,
   PreCallIceReport,
   PreCallIceCandidateCounts,
   PreCallIceCandidateInfo,
@@ -19,10 +21,7 @@ export type {
   PreCallIceOptions,
   PreCallNetworkReport,
   PreCallNetworkOptions,
-  PreCallMediaReport,
-  PreCallMediaOptions,
-  MediaAudioDirection,
-  MediaRtpDetails,
+  NetworkAudioDirection,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
   NetworkMinMaxAverage,
@@ -36,13 +35,11 @@ export type { PreCallDiagnosticContext } from './context';
 export {
   IceReasonCode,
   NetworkReasonCode,
-  MediaReasonCode,
   MicrophoneReasonCode,
 } from './modules/verdict';
 export type {
   IceReasonCodeValue,
   NetworkReasonCodeValue,
-  MediaReasonCodeValue,
   MicrophoneReasonCodeValue,
 } from './modules/verdict';
 export { createTimingsCollector, TimingsCollector } from './modules/timings';

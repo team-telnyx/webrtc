@@ -2599,25 +2599,25 @@ export default abstract class BaseCall implements IWebRTCCall {
   /**
    * Return structured call-establishment timings for this call.
    *
-   * Reads the W3C `performance.mark()` lifecycle recorded by the SDK call
-   * path (BaseCall, VertoHandler, Verto instance) and the
-   * `CallEstablishmentTimings` collector. Returns undefined if the
-   * `new-call-start` mark is missing — e.g. the call was not created via
-   * `client.newCall()` or the marks were already cleared by `_finalize()`.
+   * Prefers the timeline retained by `Peer.tryCollectTimings()`, which is the
+   * same result logged by the regular call flow before it clears its marks.
+   * While a call is still being established, falls back to collecting the
+   * currently available W3C `performance.mark()` lifecycle.
    *
    * Mode is derived from the active ICE mode: trickle unless an ICE restart
    * forced the non-trickle path. Direction comes from the existing `Direction`
    * enum (string values already match the literal type).
-   *
-   * This is the ONLY place outside `CallEstablishmentTimings.ts` itself that
-   * imports from that module — diagnostic callers consume the structured
-   * result through this seam.
    *
    * @internal — diagnostic-only seam; not part of the public SDK type
    * surface. Exposed for the PreCallDiagnostic framework (VSDK-412) and
    * subject to change without a semver bump.
    */
   public getEstablishmentTimings(): ICallEstablishmentTimings | undefined {
+    const collectedTimings = this.peer?.callEstablishmentTimings;
+    if (collectedTimings) {
+      return collectedTimings;
+    }
+
     const mode: 'trickle' | 'non-trickle' =
       this.options?.trickleIce && !this.peer?.isIceRestarting
         ? 'trickle'
