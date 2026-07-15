@@ -55,6 +55,7 @@
 <a href="IClientOptions.html#mutedMicOnStart" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>muted<wbr/>Mic<wbr/>On<wbr/>Start?</span></a>
 <a href="IClientOptions.html#password" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>password?</span></a>
 <a href="IClientOptions.html#prefetchIceCandidates" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>prefetch<wbr/>Ice<wbr/>Candidates?</span></a>
+<a href="IClientOptions.html#pushWhenActive" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>push<wbr/>When<wbr/>Active?</span></a>
 <a href="IClientOptions.html#region" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>region?</span></a>
 <a href="IClientOptions.html#ringbackFile" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ringback<wbr/>File?</span></a>
 <a href="IClientOptions.html#ringtoneFile" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ringtone<wbr/>File?</span></a>
@@ -384,6 +385,17 @@ terminal (<code>event.error.fatal === true</code>, no top-level <code>recoverabl
 <div class="tsd-comment tsd-typography"><p>Enable or disable prefetching ICE candidates. Defaults to true.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
+<section class="tsd-panel tsd-member"><a id="pushWhenActive" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>push<wbr/>When<wbr/>Active</span><a href="#pushWhenActive" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">push<wbr/>When<wbr/>Active</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
+<div class="tsd-comment tsd-typography"><p>When <code>true</code>, the backend sends mobile push notifications for incoming
+calls even while this browser has an active registration for the same
+credential, allowing browser and mobile clients to ring simultaneously.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-0">false</span>
+</code><button>Copy</button></pre>
+</div></section>
 <section class="tsd-panel tsd-member"><a id="region" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>region</span><a href="#region" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">region</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
@@ -498,6 +510,7 @@ lookup used for trailing target selection.</p>
 <li><a href="#mutedMicOnStart" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>muted<wbr/>Mic<wbr/>On<wbr/>Start</span></a></li>
 <li><a href="#password" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>password</span></a></li>
 <li><a href="#prefetchIceCandidates" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>prefetch<wbr/>Ice<wbr/>Candidates</span></a></li>
+<li><a href="#pushWhenActive" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>push<wbr/>When<wbr/>Active</span></a></li>
 <li><a href="#region" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>region</span></a></li>
 <li><a href="#ringbackFile" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ringback<wbr/>File</span></a></li>
 <li><a href="#ringtoneFile" class=""><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>ringtone<wbr/>File</span></a></li>
