@@ -1,3 +1,9 @@
+## [2.27.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.4...webrtc/v2.27.5) (2026-07-15)
+
+- docs: split CN1 (Chennai) into its own South Asia region (VSDK-82) (#739)
+- feat(js): support push when active (#735)
+- feat(ice): add primary TURNS 443 endpoint (#738)
+
 ## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-08)
 
 - docs: update ts docs

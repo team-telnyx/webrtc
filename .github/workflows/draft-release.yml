@@ -108,14 +108,19 @@ jobs:
           VERSION="${{ steps.version.outputs.next }}"
           PACKAGE="${{ github.event.inputs.package }}"
           DATE=$(date +%Y-%m-%d)
-          LAST_TAG=$(git describe --tags --abbrev=0 --match "${PACKAGE}/v*" 2>/dev/null || echo "")
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          LAST_TAG="${PACKAGE}/v${CURRENT_VERSION}"
+          if ! git rev-parse --verify --quiet "refs/tags/${LAST_TAG}^{commit}" >/dev/null; then
+            echo "::warning::Expected previous release tag ${LAST_TAG} was not found"
+            LAST_TAG=""
+          fi
           echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
 
           if [ -n "$LAST_TAG" ]; then
-            NOTES=$(git log ${LAST_TAG}..HEAD --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' || true)
+            NOTES=$(git log "${LAST_TAG}..HEAD" --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' | grep -vi -E '^- chore: release ' || true)
             COMPARE="[${VERSION}](https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${PACKAGE}/v${VERSION})"
           else
-            NOTES=$(git log --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' || true)
+            NOTES=$(git log --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' | grep -vi -E '^- chore: release ' || true)
             COMPARE="${VERSION}"
           fi
 
