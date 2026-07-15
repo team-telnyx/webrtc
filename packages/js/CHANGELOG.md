@@ -1,3 +1,22 @@
+## [2.27.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.5) (2026-07-15)
+
+- docs: split CN1 (Chennai) into its own South Asia region (VSDK-82) (#739)
+- feat(js): support push when active (#735)
+- feat(ice): add primary TURNS 443 endpoint (#738)
+- chore: release webrtc@2.27.4 (#732)
+- fix(ice): keep TURN TCP/3478 in prod defaults; sync prod/dev ICE lists (#731)
+- feat: export TELNYX_ICE_SERVERS public ICE server catalog (#730)
+- feat: add TURNS (TURN over TLS/TCP) port 443 ICE servers (#674)
+- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279) (#708)
+- refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
+- feat(VSUP-122): scoped inbound answer blocking per callID (#724)
+- feat: add AI conversation signaling API for client-side tools (#682)
+- feat(js): flush call report on beforeunload (keepalive) (#718)
+- chore: release webrtc@2.27.3 (#719)
+- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
+- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
+- chore: release webrtc@2.27.2 (#716)
+- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-08)
 
 - docs: update ts docs
