@@ -9,6 +9,7 @@ import type {
   PreCallNetworkReport,
   PreCallServerTestReport,
 } from '../types';
+import { isTurnIceServer } from './ice';
 
 /** ICE-related reason codes. */
 export const IceReasonCode = {
@@ -79,6 +80,15 @@ interface Assessment {
   warnings: PreCallDiagnosticWarning[];
 }
 
+interface VerdictOptions {
+  /**
+   * Network-only runs use fixed one-second calls to verify each ICE URL.
+   * Their media counters are retained in the report, but are too short-lived
+   * to make audio-flow and minimum-bitrate verdicts reliable.
+   */
+  networkOnly?: boolean;
+}
+
 const emptyAssessment = (): Assessment => ({ reasons: [], warnings: [] });
 
 /** Higher values take precedence when module assessments are combined. */
@@ -112,7 +122,10 @@ function warning(
   return { code, message, source };
 }
 
-function assessIce(ice: PreCallIceReport | undefined): Assessment {
+function assessIce(
+  ice: PreCallIceReport | undefined,
+  turnRelayExpected = false
+): Assessment {
   if (!ice) return emptyAssessment();
 
   const assessment = emptyAssessment();
@@ -155,7 +168,7 @@ function assessIce(ice: PreCallIceReport | undefined): Assessment {
 
   // isTurnRequired describes the selected pair, not the complete candidate
   // set.
-  if (ice.isTurnRequired) {
+  if (ice.isTurnRequired && !turnRelayExpected) {
     reasons.push(
       reason(
         IceReasonCode.TurnRequired,
@@ -249,7 +262,10 @@ function assessServerTestStatus(test: PreCallServerTestReport): Assessment {
   };
 }
 
-function assessNetwork(network: PreCallNetworkReport | undefined): Assessment {
+function assessNetwork(
+  network: PreCallNetworkReport | undefined,
+  assessMediaFlow = true
+): Assessment {
   if (!network) return emptyAssessment();
 
   const assessment = emptyAssessment();
@@ -257,8 +273,13 @@ function assessNetwork(network: PreCallNetworkReport | undefined): Assessment {
 
   // Metric classification and messages belong to the network module. Carry
   // them through instead of reproducing its thresholds here.
-  if (network.reasons?.length) {
-    reasons.push(...network.reasons);
+  const networkReasons = assessMediaFlow
+    ? network.reasons
+    : network.reasons?.filter(
+        ({ code }) => code !== NetworkReasonCode.LowBitrate
+      );
+  if (networkReasons?.length) {
+    reasons.push(...networkReasons);
     assessment.verdict = 'degraded';
   }
 
@@ -295,7 +316,7 @@ function assessNetwork(network: PreCallNetworkReport | undefined): Assessment {
 
   // No direction objects means there was no RTP evidence to assess. It is not
   // equivalent to two explicitly non-flowing directions.
-  if (availableDirections.length > 0) {
+  if (assessMediaFlow && availableDirections.length > 0) {
     const flowingDirections = availableDirections.filter(
       ({ flowing }) => flowing
     ).length;
@@ -376,7 +397,8 @@ function assessMicrophone(
  */
 export function buildVerdict(
   report: VerdictInput,
-  error?: Error
+  error?: Error,
+  options: VerdictOptions = {}
 ): {
   verdict: Verdict;
   reasons: PreCallDiagnosticReason[];
@@ -387,8 +409,8 @@ export function buildVerdict(
     assessNetwork(report.network),
     assessMicrophone(report.microphone),
     ...(report.serverTests ?? []).flatMap((test) => [
-      assessIce(test.ice),
-      assessNetwork(test.network),
+      assessIce(test.ice, options.networkOnly && isTurnIceServer(test.server)),
+      assessNetwork(test.network, !options.networkOnly),
       assessServerTestStatus(test),
     ]),
   ];

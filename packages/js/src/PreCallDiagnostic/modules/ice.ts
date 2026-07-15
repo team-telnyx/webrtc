@@ -21,7 +21,7 @@ export function buildPreCallIceReport(
   context: PreCallDiagnosticContext
 ): PreCallIceReport | undefined {
   const peerConnection = context.call?.peer?.instance;
-  const stats = context.statsSamples[0];
+  const stats = context.statsSamples[context.statsSamples.length - 1];
   if (!peerConnection || !stats) {
     return undefined;
   }
@@ -42,14 +42,15 @@ export function buildPreCallIceReport(
 export function flattenIceServersByUrl(
   servers: RTCIceServer[]
 ): RTCIceServer[] {
-  return servers.flatMap((server) => {
-    const urls = Array.isArray(server.urls)
-      ? server.urls
-      : server.urls
-        ? [server.urls]
-        : [];
-    return urls.map((url) => ({ ...server, urls: url }));
-  });
+  const serversByUrl: RTCIceServer[] = [];
+
+  for (const server of servers) {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    urls.forEach((url) => {
+      serversByUrl.push({ ...server, urls: url });
+    });
+  }
+  return serversByUrl;
 }
 
 /** Whether an isolated ICE server call must force relay policy. */
@@ -172,8 +173,12 @@ function resolveSelectedPair(
   }
 
   const nominatedPair = nominatedPairArr[0];
-  const nominatedLocalCandidate = localCandidates.get(nominatedPair.id);
-  const nominatedRemoteCandidate = remoteCandidates.get(nominatedPair.id);
+  const nominatedLocalCandidate = localCandidates.get(
+    nominatedPair.localCandidateId
+  );
+  const nominatedRemoteCandidate = remoteCandidates.get(
+    nominatedPair.remoteCandidateId
+  );
 
   return {
     ...nominatedPair,
@@ -209,19 +214,17 @@ function detectHostNetworkTopology(
   }
 
   // Multiple network interfaces: count distinct host-candidate addresses.
-  const distinctHostAddresses = new Set();
-  let vpnDetected = false;
-  candidates.forEach((c) => {
-    if (c.networkType === 'host') {
-      distinctHostAddresses.add(c.address);
-    }
+  const candidatesArr = Array.from(candidates.values());
+  const distinctHostAddresses = new Set(
+    candidatesArr
+      .filter((c) => c.candidateType === 'host')
+      .map((c) => c.address)
+  );
 
-    vpnDetected = c.networkType === 'vpn';
-  });
-
-  const hasMultipleNetworkInterfaces = distinctHostAddresses.size >= 2;
-
-  return { hasMultipleNetworkInterfaces, vpnDetected };
+  return {
+    hasMultipleNetworkInterfaces: distinctHostAddresses.size >= 2,
+    vpnDetected: candidatesArr.some((c) => c.networkType === 'vpn'),
+  };
 }
 
 // --- ICE server comparison ---

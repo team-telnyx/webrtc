@@ -644,7 +644,13 @@ export function buildPreCallNetworkReport(
   const bitrate = extractBitrate(reports, inbound, outbound);
   const quality = classifyQuality(rtt, jitter, packets);
 
-  const reasons = buildReasons(rtt, jitter, packets, bitrate);
+  // Network-only uses fixed one-second calls to verify each ICE URL. Keep the
+  // measured bitrate in the per-server report, but do not classify it against
+  // the normal-call bitrate floor: startup and teardown commonly occupy most
+  // of this short sampling window.
+  const assessedBitrate =
+    context.options.mode === 'network-only' ? undefined : bitrate;
+  const reasons = buildReasons(rtt, jitter, packets, assessedBitrate);
 
   return {
     quality,

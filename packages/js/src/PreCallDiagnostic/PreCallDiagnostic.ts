@@ -159,11 +159,17 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       timings.markStatsSamplingCompleted();
 
       timings.markCompleted();
-      result = createReport({ serverTests, timings: timings.build({}) });
+      result = createReport(
+        { serverTests, timings: timings.build({}) },
+        undefined,
+        { networkOnly: true }
+      );
       return result;
     } catch (error) {
       timings.markCompleted();
-      result = createReport({ timings: timings.build({}) }, toError(error));
+      result = createReport({ timings: timings.build({}) }, toError(error), {
+        networkOnly: true,
+      });
       return result;
     } finally {
       timings.markCleanupStarted();
@@ -352,9 +358,14 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
 function createReport(
   report: Partial<PreCallDiagnosticReport>,
-  error?: Error
+  error?: Error,
+  verdictOptions?: Parameters<typeof buildVerdict>[2]
 ): PreCallDiagnosticReport {
-  const { verdict, reasons, warnings } = buildVerdict(report, error);
+  const { verdict, reasons, warnings } = buildVerdict(
+    report,
+    error,
+    verdictOptions
+  );
   return {
     ...report,
     version: 1,
