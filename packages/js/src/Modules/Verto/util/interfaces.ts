@@ -11,6 +11,7 @@ export interface IVertoOptions {
   password?: string;
   login_token?: string;
   userVariables?: Record<string, any>;
+  pushWhenActive?: boolean;
   ringtoneFile?: string;
   ringbackFile?: string;
   env?: Environment;

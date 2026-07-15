@@ -29,6 +29,7 @@ IClientOptions
 - [mutedMicOnStart](#mutedmiconstart)
 - [password](#password)
 - [prefetchIceCandidates](#prefetchicecandidates)
+- [pushWhenActive](#pushwhenactive)
 - [region](#region)
 - [ringbackFile](#ringbackfile)
 - [ringtoneFile](#ringtonefile)
@@ -415,6 +416,22 @@ The `password` to authenticate with your SIP Connection.
 • `Optional` **prefetchIceCandidates**: `boolean`
 
 Enable or disable prefetching ICE candidates. Defaults to true.
+
+---
+
+### pushWhenActive
+
+• `Optional` **pushWhenActive**: `boolean`
+
+When `true`, the backend sends mobile push notifications for incoming
+calls even while this browser has an active registration for the same
+credential, allowing browser and mobile clients to ring simultaneously.
+
+**`Default`**
+
+```ts
+false;
+```
 
 ---
 
