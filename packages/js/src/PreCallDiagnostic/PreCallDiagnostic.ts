@@ -8,10 +8,7 @@ import {
 } from './modules/ice';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
 import { buildPreCallNetworkReport } from './modules/network';
-import {
-  createTimingsCollector,
-  type TimingsCollector,
-} from './modules/timings';
+import { createTimingsCollector } from './modules/timings';
 import { buildVerdict } from './modules/verdict';
 import type {
   PreCallDiagnosticOptions,
@@ -27,7 +24,7 @@ import type {
 const DEFAULT_CALL_SETUP_TIMEOUT_MS = 30000;
 const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 const DEFAULT_DURATION_MS = 5000;
-const NETWORK_ONLY_CALL_DURATION_MS = 1000;
+const NETWORK_ONLY_CALL_DURATION_MS = 3000;
 const NETWORK_ONLY_STATS_SAMPLE_INTERVAL_MS = 500;
 
 interface RunTestOptions {
@@ -62,10 +59,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       case 'network-only':
         return this.runNetworkOnly();
       case 'microphone-only':
-        return this.runMicrophoneOnly(
-          createDiagnosticContext(this.options),
-          createTimingsCollector()
-        );
+        return this.runMicrophoneOnly(createDiagnosticContext(this.options));
       default:
         return this.runFull();
     }
@@ -118,44 +112,46 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const configuredIceServers =
       this.options.rtcConfig?.iceServers ?? iceServers ?? [];
     const servers = flattenIceServersByUrl(configuredIceServers);
-    const serverTests: PreCallServerTestReport[] = [];
+    let serverTests: PreCallServerTestReport[] = [];
     const timings = createTimingsCollector();
     let result: PreCallDiagnosticReport | undefined;
 
     try {
       timings.markStatsSamplingStarted();
-      for (const server of servers) {
-        const test = await this.runTest({
-          diagnosticOptions: {
-            ...this.options,
-            durationMs: NETWORK_ONLY_CALL_DURATION_MS,
-            statsSampleIntervalMs: NETWORK_ONLY_STATS_SAMPLE_INTERVAL_MS,
-            rtcConfig: {
-              ...this.options.rtcConfig,
-              iceServers: [server],
+      serverTests = await Promise.all(
+        servers.map(async (server): Promise<PreCallServerTestReport> => {
+          const test = await this.runTest({
+            diagnosticOptions: {
+              ...this.options,
+              durationMs: NETWORK_ONLY_CALL_DURATION_MS,
+              statsSampleIntervalMs: NETWORK_ONLY_STATS_SAMPLE_INTERVAL_MS,
+              rtcConfig: {
+                ...this.options.rtcConfig,
+                iceServers: [server],
+              },
             },
-          },
-          iceServers: [server],
-          forceRelayCandidate: isTurnIceServer(server),
-          modules: {
-            ice: true,
-            network: !!this.options.network,
-            microphone: false,
-          },
-          autoHangup: true,
-        });
-        serverTests.push({
-          server,
-          established: test.established,
-          callId: test.callId,
-          ice: test.ice,
-          network: test.network,
-          timings: test.timings,
-          error: test.setupFailed
-            ? 'The diagnostic call did not reach the established state'
-            : test.error?.message,
-        });
-      }
+            iceServers: [server],
+            forceRelayCandidate: isTurnIceServer(server),
+            modules: {
+              ice: true,
+              network: !!this.options.network,
+              microphone: false,
+            },
+            autoHangup: true,
+          });
+          const error = getServerTestError(test);
+
+          return {
+            server,
+            established: error === undefined,
+            callId: test.callId,
+            ice: test.ice,
+            network: test.network,
+            timings: test.timings,
+            error,
+          };
+        })
+      );
       timings.markStatsSamplingCompleted();
 
       timings.markCompleted();
@@ -262,30 +258,16 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   }
 
   private async runMicrophoneOnly(
-    context: PreCallDiagnosticContext,
-    timings: TimingsCollector
+    context: PreCallDiagnosticContext
   ): Promise<PreCallDiagnosticReport> {
-    let result: PreCallDiagnosticReport | undefined;
-
     try {
       const microphone = this.options.microphone
         ? await buildPreCallMicrophoneReport(context)
         : undefined;
-      timings.markCompleted();
-      result = createReport(
-        { microphone, timings: timings.build({}) },
-        context.error
-      );
-      return result;
+      return createReport({ microphone }, context.error);
     } catch (error) {
       context.error = toError(error);
-      timings.markCompleted();
-      result = createReport({ timings: timings.build({}) }, context.error);
-      return result;
-    } finally {
-      timings.markCleanupStarted();
-      timings.markCleanupCompleted();
-      timings.finalizeTimings(result?.timings);
+      return createReport({}, context.error);
     }
   }
 
@@ -377,6 +359,21 @@ function createReport(
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
+}
+
+function getServerTestError(test: RunTestResult): string | undefined {
+  if (test.setupFailed) {
+    return 'The diagnostic call did not reach the established state';
+  }
+  if (test.error) return test.error.message;
+  if (!test.ice) return 'No ICE report was produced';
+  if (test.ice.candidates.length === 0) {
+    return 'No ICE candidates were gathered';
+  }
+  if (!test.ice.hasSelectedPair) {
+    return 'No ICE candidate pair was selected';
+  }
+  return undefined;
 }
 
 function delay(durationMs: number): Promise<void> {

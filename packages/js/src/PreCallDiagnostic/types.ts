@@ -240,6 +240,7 @@ export interface PreCallMicrophoneReport {
 
 export interface PreCallServerTestReport {
   server: RTCIceServer;
+  /** Whether this isolated server test produced candidates and selected a pair. */
   established: boolean;
   callId?: string;
   ice?: PreCallIceReport;

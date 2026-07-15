@@ -473,8 +473,8 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * Runs a network/ICE check using the `PreCallDiagnostic` framework.
    *
    * This method tests each configured ICE server URL independently using a
-   * real, short diagnostic call. Each call stays active for one second and
-   * the calls run sequentially so their ICE and media results remain isolated.
+   * real, short diagnostic call. Each call stays active for three seconds and
+   * all calls run concurrently to keep the total check duration bounded.
    * TURN URLs force relay policy to verify that the relay is actually usable.
    *
    * Results from every call are combined under `serverTests` so a
@@ -512,7 +512,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
       ice: true,
       network: true,
       microphone: false,
-      // network-only mode places one fixed one-second call per ICE URL.
+      // Network-only mode places one fixed three-second call per ICE URL.
       mode: 'network-only',
       // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.

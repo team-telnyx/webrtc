@@ -82,7 +82,7 @@ interface Assessment {
 
 interface VerdictOptions {
   /**
-   * Network-only runs use fixed one-second calls to verify each ICE URL.
+   * Network-only runs use fixed three-second calls to verify each ICE URL.
    * Their media counters are retained in the report, but are too short-lived
    * to make audio-flow and minimum-bitrate verdicts reliable.
    */
@@ -420,6 +420,21 @@ export function buildVerdict(
     (combined, assessment) => worseVerdict(combined, assessment.verdict),
     undefined
   );
+
+  // An isolated server failure is blocking for that server, but not for the
+  // complete network check when another configured server succeeds. The
+  // aggregate network-only verdict describes whether there is at least one
+  // usable ICE path while the per-server findings retain the failure details.
+  if (options.networkOnly && report.serverTests?.length) {
+    const successfulTests = report.serverTests.filter(
+      (test) => test.established && !test.error
+    ).length;
+    if (successfulTests === 0) {
+      verdict = 'blocked';
+    } else if (successfulTests < report.serverTests.length) {
+      verdict = 'degraded';
+    }
+  }
 
   if (error) {
     reasons.push(

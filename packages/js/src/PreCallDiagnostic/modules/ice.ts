@@ -168,7 +168,7 @@ function resolveSelectedPair(
     (p) => p.nominated || p.state === 'succeeded'
   );
 
-  if (nominatedPairArr.length > 1) {
+  if (nominatedPairArr.length !== 1) {
     return null;
   }
 

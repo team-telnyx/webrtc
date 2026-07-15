@@ -235,13 +235,23 @@ function extractAudioDirection(
   );
   if (!hasAudio) return undefined;
 
-  const first = extractAudioCounters(reports[0], direction);
-  const last = extractAudioCounters(reports[reports.length - 1], direction);
+  const counterSamples = reports
+    .map((report) => extractAudioCounters(report, direction))
+    .filter(
+      ({ packets, bytes }) => packets !== undefined || bytes !== undefined
+    );
+
+  // RTP stats may not exist in the first snapshots immediately after a call
+  // becomes active. Use the earliest and latest snapshots that actually carry
+  // counters for this direction so late-created inbound/outbound entries still
+  // produce meaningful deltas.
+  const first = counterSamples[0] ?? {};
+  const last = counterSamples[counterSamples.length - 1] ?? {};
   const packetsDelta = computeDelta(first.packets, last.packets);
   const bytesDelta = computeDelta(first.bytes, last.bytes);
 
   return {
-    flowing: reports.length > 1 && didIncrease(first, last),
+    flowing: counterSamples.length > 1 && didIncrease(first, last),
     ...(last.packets !== undefined ? { packets: last.packets } : {}),
     ...(last.bytes !== undefined ? { bytes: last.bytes } : {}),
     ...(packetsDelta !== undefined ? { packetsDelta } : {}),
@@ -644,7 +654,7 @@ export function buildPreCallNetworkReport(
   const bitrate = extractBitrate(reports, inbound, outbound);
   const quality = classifyQuality(rtt, jitter, packets);
 
-  // Network-only uses fixed one-second calls to verify each ICE URL. Keep the
+  // Network-only uses fixed three-second calls to verify each ICE URL. Keep the
   // measured bitrate in the per-server report, but do not classify it against
   // the normal-call bitrate floor: startup and teardown commonly occupy most
   // of this short sampling window.
