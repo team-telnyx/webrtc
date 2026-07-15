@@ -59,7 +59,7 @@ export const TURN_DEV_SERVER = [
 export const TURN_TLS_443_PRIMARY_SERVER = {
   urls: 'turns:turn.telnyx.com:443',
   username: 'testuser',
-  credential: 'testpassword!',
+  credential: 'testpassword',
 };
 // Keep the existing turn2 endpoint while infrastructure migrates to the
 // primary turn.telnyx.com DNS name.
@@ -74,7 +74,7 @@ export const TURN_TLS_443_SERVER = {
 export const TURN_TLS_443_DEV_SERVER = {
   urls: 'turns:turndev.telnyx.com:443',
   username: 'testuser',
-  credential: 'testpassword!',
+  credential: 'testpassword',
 };
 
 export const DEFAULT_PROD_ICE_SERVERS: RTCIceServer[] = [
