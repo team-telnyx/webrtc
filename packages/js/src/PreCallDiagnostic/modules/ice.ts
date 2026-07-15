@@ -17,9 +17,9 @@ import { RTCIceCandidateStats } from 'src/PreCallDiagnosis';
  * Also computes the ICE server comparison (configured ICE servers vs.
  * gathered candidates) when ICE servers are available in the context.
  */
-export async function buildPreCallIceReport(
+export function buildPreCallIceReport(
   context: PreCallDiagnosticContext
-): Promise<PreCallIceReport | undefined> {
+): PreCallIceReport | undefined {
   const peerConnection = context.call?.peer?.instance;
   const stats = context.statsSamples[0];
   if (!peerConnection || !stats) {
@@ -28,8 +28,7 @@ export async function buildPreCallIceReport(
 
   const report = parseIceReport(stats, peerConnection);
   const configuredIceServers = peerConnection.getConfiguration().iceServers;
-  console.log(peerConnection.getConfiguration());
-  if (configuredIceServers && report.candidates.length > 0) {
+  if (configuredIceServers) {
     report.serverCandidateComparison = compareIceServers(
       configuredIceServers,
       report.candidates
@@ -37,6 +36,26 @@ export async function buildPreCallIceReport(
   }
 
   return report;
+}
+
+/** Split multi-URL ICE entries so every endpoint gets an isolated call. */
+export function flattenIceServersByUrl(
+  servers: RTCIceServer[]
+): RTCIceServer[] {
+  return servers.flatMap((server) => {
+    const urls = Array.isArray(server.urls)
+      ? server.urls
+      : server.urls
+        ? [server.urls]
+        : [];
+    return urls.map((url) => ({ ...server, urls: url }));
+  });
+}
+
+/** Whether an isolated ICE server call must force relay policy. */
+export function isTurnIceServer(server: RTCIceServer): boolean {
+  const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+  return urls.some((url) => /^turns?:/i.test(url));
 }
 
 // --- Internal helpers ---
@@ -62,7 +81,6 @@ function parseIceReport(
   };
 
   stats.forEach((report) => {
-    console.log(report);
     switch (report.type) {
       case 'local-candidate': {
         const candidate = report as RTCIceCandidateStats;
@@ -343,9 +361,7 @@ export function compareIceServers(
         urls.some((serverUrl) => iceUrlMatches(c.url!, serverUrl, c.protocol))
     );
 
-    if (serverCandidates.length === 0) continue;
-
-    const candidateType = serverCandidates[0].candidateType;
+    const candidateType = serverCandidates[0]?.candidateType ?? null;
     const hasCandidates = serverCandidates.length > 0;
     entries.push({
       urls: server.urls,

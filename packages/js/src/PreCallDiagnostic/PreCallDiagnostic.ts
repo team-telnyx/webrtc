@@ -1,7 +1,11 @@
 import Call from '../Modules/Verto/webrtc/Call';
 import { createDiagnosticContext } from './context';
 import type { PreCallDiagnosticContext } from './context';
-import { buildPreCallIceReport } from './modules/ice';
+import {
+  buildPreCallIceReport,
+  flattenIceServersByUrl,
+  isTurnIceServer,
+} from './modules/ice';
 import { buildPreCallMicrophoneReport } from './modules/microphone';
 import { buildPreCallNetworkReport } from './modules/network';
 import {
@@ -13,53 +17,185 @@ import type {
   PreCallDiagnosticOptions,
   PreCallDiagnosticReport,
   PreCallDiagnosticRunner,
+  PreCallIceReport,
+  PreCallMicrophoneReport,
+  PreCallNetworkReport,
+  PreCallServerTestReport,
+  PreCallTimingsReport,
 } from './types';
 
 const DEFAULT_CALL_SETUP_TIMEOUT_MS = 30000;
 const DEFAULT_STATS_SAMPLE_INTERVAL_MS = 1000;
 const DEFAULT_DURATION_MS = 5000;
+const NETWORK_ONLY_CALL_DURATION_MS = 1000;
+const NETWORK_ONLY_STATS_SAMPLE_INTERVAL_MS = 500;
+
+interface RunTestOptions {
+  diagnosticOptions: PreCallDiagnosticOptions;
+  iceServers?: RTCIceServer[];
+  forceRelayCandidate?: boolean;
+  modules: {
+    ice: boolean;
+    network: boolean;
+    microphone: boolean;
+  };
+  autoHangup: boolean;
+}
+
+interface RunTestResult {
+  established: boolean;
+  setupFailed: boolean;
+  callId?: string;
+  ice?: PreCallIceReport;
+  network?: PreCallNetworkReport;
+  microphone?: PreCallMicrophoneReport;
+  timings: PreCallTimingsReport;
+  raw?: PreCallDiagnosticReport['raw'];
+  error?: Error;
+}
 
 export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   constructor(private readonly options: PreCallDiagnosticOptions) {}
 
   async run(): Promise<PreCallDiagnosticReport> {
-    const context = createDiagnosticContext(this.options);
-    const timings = createTimingsCollector();
-
     switch (this.options.mode) {
       case 'network-only':
-        return this.runNetworkOnly(context, timings);
+        return this.runNetworkOnly();
       case 'microphone-only':
-        return this.runMicrophoneOnly(context, timings);
+        return this.runMicrophoneOnly(
+          createDiagnosticContext(this.options),
+          createTimingsCollector()
+        );
       default:
-        return this.runFull(context, timings);
+        return this.runFull();
     }
   }
 
-  private async runFull(
-    context: PreCallDiagnosticContext,
-    timings: TimingsCollector
-  ): Promise<PreCallDiagnosticReport> {
-    let call: Call | undefined;
+  private async runFull(): Promise<PreCallDiagnosticReport> {
+    const test = await this.runTest({
+      diagnosticOptions: this.options,
+      modules: {
+        ice: !!this.options.ice,
+        network: !!this.options.network,
+        microphone: !!this.options.microphone,
+      },
+      autoHangup: this.options.autoHangup !== false,
+    });
+
+    if (test.setupFailed) {
+      return {
+        version: 1,
+        verdict: 'inconclusive',
+        reasons: [
+          {
+            code: 'call_setup_timeout',
+            message: 'The diagnostic call did not reach the established state',
+            source: 'diagnostic',
+          },
+        ],
+        callId: test.callId,
+        timings: test.timings,
+      };
+    }
+
+    return createReport(
+      {
+        ice: test.ice,
+        network: test.network,
+        microphone: test.microphone,
+        timings: test.timings,
+        callId: test.callId,
+        raw: test.raw,
+      },
+      test.error
+    );
+  }
+
+  private async runNetworkOnly(): Promise<PreCallDiagnosticReport> {
+    const iceServers = (
+      this.options.client as unknown as { iceServers?: RTCIceServer[] }
+    ).iceServers;
+    const configuredIceServers =
+      this.options.rtcConfig?.iceServers ?? iceServers ?? [];
+    const servers = flattenIceServersByUrl(configuredIceServers);
+    const serverTests: PreCallServerTestReport[] = [];
+    const timings = createTimingsCollector();
     let result: PreCallDiagnosticReport | undefined;
 
     try {
-      call = this.createDiagnosticCall();
+      timings.markStatsSamplingStarted();
+      for (const server of servers) {
+        const test = await this.runTest({
+          diagnosticOptions: {
+            ...this.options,
+            durationMs: NETWORK_ONLY_CALL_DURATION_MS,
+            statsSampleIntervalMs: NETWORK_ONLY_STATS_SAMPLE_INTERVAL_MS,
+            rtcConfig: {
+              ...this.options.rtcConfig,
+              iceServers: [server],
+            },
+          },
+          iceServers: [server],
+          forceRelayCandidate: isTurnIceServer(server),
+          modules: {
+            ice: true,
+            network: !!this.options.network,
+            microphone: false,
+          },
+          autoHangup: true,
+        });
+        serverTests.push({
+          server,
+          established: test.established,
+          callId: test.callId,
+          ice: test.ice,
+          network: test.network,
+          timings: test.timings,
+          error: test.setupFailed
+            ? 'The diagnostic call did not reach the established state'
+            : test.error?.message,
+        });
+      }
+      timings.markStatsSamplingCompleted();
+
+      timings.markCompleted();
+      result = createReport({ serverTests, timings: timings.build({}) });
+      return result;
+    } catch (error) {
+      timings.markCompleted();
+      result = createReport({ timings: timings.build({}) }, toError(error));
+      return result;
+    } finally {
+      timings.markCleanupStarted();
+      timings.markCleanupCompleted();
+      timings.finalizeTimings(result?.timings);
+    }
+  }
+
+  private async runTest(options: RunTestOptions): Promise<RunTestResult> {
+    const context = createDiagnosticContext(options.diagnosticOptions);
+    const timings = createTimingsCollector();
+    let call: Call | undefined;
+    let established = false;
+    let result: RunTestResult | undefined;
+
+    try {
+      call = this.createDiagnosticCall(
+        options.diagnosticOptions,
+        options.iceServers,
+        options.forceRelayCandidate
+      );
       context.call = call;
 
-      if (!(await this.waitForCallEstablishment(call))) {
+      established = await this.waitForCallEstablishment(
+        call,
+        options.diagnosticOptions.callSetupTimeoutMs
+      );
+      if (!established) {
         timings.markCompleted();
         result = {
-          version: 1,
-          verdict: 'inconclusive',
-          reasons: [
-            {
-              code: 'call_setup_timeout',
-              message:
-                'The diagnostic call did not reach the established state',
-              source: 'diagnostic',
-            },
-          ],
+          established: false,
+          setupFailed: true,
           callId: call.id,
           timings: timings.build({ call, callId: call.id }),
         };
@@ -70,100 +206,52 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       await this.collectSamples(call, context);
       timings.markStatsSamplingCompleted();
 
-      const [ice, microphone] = await Promise.all([
-        this.options.ice ? buildPreCallIceReport(context) : undefined,
-        this.options.microphone
-          ? buildPreCallMicrophoneReport(context)
-          : undefined,
-      ]);
-      const network = this.options.network
+      const ice = options.modules.ice
+        ? buildPreCallIceReport(context)
+        : undefined;
+      const network = options.modules.network
         ? buildPreCallNetworkReport(context)
+        : undefined;
+      const microphone = options.modules.microphone
+        ? await buildPreCallMicrophoneReport(context)
         : undefined;
 
       timings.markCompleted();
-      const report: Partial<PreCallDiagnosticReport> = {
+      result = {
+        established: true,
+        setupFailed: false,
+        callId: call.id,
         ice,
         network,
         microphone,
         timings: timings.build({ call, callId: call.id }),
-        callId: call.id,
         raw: {
           samples: context.statsSamples.length
             ? context.statsSamples
             : undefined,
         },
       };
-      result = createReport(report, context.error);
       return result;
     } catch (error) {
       context.error = toError(error);
       timings.markCompleted();
-      result = createReport(
-        {
-          callId: call?.id,
-          timings: timings.build({ call, callId: call?.id }),
-        },
-        context.error
-      );
+      result = {
+        established,
+        setupFailed: false,
+        callId: call?.id,
+        timings: timings.build({ call, callId: call?.id }),
+        error: context.error,
+      };
       return result;
     } finally {
       timings.markCleanupStarted();
-      if (call && this.options.autoHangup !== false) {
+      if (call && options.autoHangup) {
         await this.cleanupCall(call);
       }
       timings.markCleanupCompleted();
-      timings.finalizeTimings(result?.timings);
-    }
-  }
-
-  private async runNetworkOnly(
-    context: PreCallDiagnosticContext,
-    timings: TimingsCollector
-  ): Promise<PreCallDiagnosticReport> {
-    const iceServers = (
-      this.options.client as unknown as { iceServers?: RTCIceServer[] }
-    ).iceServers;
-    const rtcConfig = this.options.rtcConfig ?? { iceServers };
-    const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
-    let peerConnection: RTCPeerConnection | undefined;
-    let result: PreCallDiagnosticReport | undefined;
-
-    try {
-      peerConnection = new RTCPeerConnection(rtcConfig);
-      peerConnection.createDataChannel('precall-diagnostic');
-      const offer = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(offer);
-
-      timings.markStatsSamplingStarted();
-      await this.waitForIceGathering(peerConnection, durationMs);
-      const stats = await peerConnection.getStats();
-      context.statsSamples.push(stats);
-      timings.markStatsSamplingCompleted();
-
-      context.call = {
-        peer: { instance: peerConnection },
-      } as unknown as Call;
-      const ice = this.options.ice
-        ? await buildPreCallIceReport(context)
-        : undefined;
-
-      timings.markCompleted();
-      result = createReport({ ice, timings: timings.build({}) }, context.error);
-      return result;
-    } catch (error) {
-      context.error = toError(error);
-      timings.markCompleted();
-      result = createReport({ timings: timings.build({}) }, context.error);
-      return result;
-    } finally {
-      timings.markCleanupStarted();
-      try {
-        peerConnection?.close();
-      } catch {
-        // The report should survive cleanup failures.
+      if (result?.timings) {
+        timings.finalizeTimings(result.timings);
       }
-      timings.markCleanupCompleted();
-      timings.finalizeTimings(result?.timings);
     }
   }
 
@@ -195,10 +283,12 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     }
   }
 
-  private async waitForCallEstablishment(call: Call): Promise<boolean> {
+  private async waitForCallEstablishment(
+    call: Call,
+    callSetupTimeoutMs?: number
+  ): Promise<boolean> {
     const deadline =
-      Date.now() +
-      (this.options.callSetupTimeoutMs ?? DEFAULT_CALL_SETUP_TIMEOUT_MS);
+      Date.now() + (callSetupTimeoutMs ?? DEFAULT_CALL_SETUP_TIMEOUT_MS);
 
     while (Date.now() < deadline) {
       if (call.state === 'active') return true;
@@ -209,20 +299,11 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     return call.state === 'active';
   }
 
-  private async waitForIceGathering(
-    peerConnection: RTCPeerConnection,
-    maxWaitMs: number
-  ): Promise<void> {
-    const deadline = Date.now() + maxWaitMs;
-    while (
-      peerConnection.iceGatheringState !== 'complete' &&
-      Date.now() < deadline
-    ) {
-      await delay(100);
-    }
-  }
-
-  private createDiagnosticCall(): Call {
+  private createDiagnosticCall(
+    diagnosticOptions: PreCallDiagnosticOptions,
+    iceServersOverride?: RTCIceServer[],
+    forceRelayCandidate = false
+  ): Call {
     const {
       client,
       destinationNumber,
@@ -231,7 +312,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       audio,
       debug,
       rtcConfig,
-    } = this.options;
+    } = diagnosticOptions;
 
     return client.newCall({
       destinationNumber,
@@ -239,7 +320,8 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       callerNumber,
       audio,
       debug: debug === true,
-      iceServers: rtcConfig?.iceServers,
+      iceServers: iceServersOverride ?? rtcConfig?.iceServers,
+      forceRelayCandidate,
     });
   }
 
@@ -247,9 +329,9 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     call: Call,
     context: PreCallDiagnosticContext
   ): Promise<void> {
-    const durationMs = this.options.durationMs ?? DEFAULT_DURATION_MS;
+    const durationMs = context.options.durationMs ?? DEFAULT_DURATION_MS;
     const intervalMs =
-      this.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
+      context.options.statsSampleIntervalMs ?? DEFAULT_STATS_SAMPLE_INTERVAL_MS;
     const deadline = Date.now() + durationMs;
 
     while (Date.now() < deadline) {

@@ -134,21 +134,7 @@ export interface PreCallIceReport {
   selectedPair?: NominatedPair;
   iceGatheringState?: RTCIceGatheringState | string;
   iceConnectionState?: RTCIceConnectionState | string;
-  perServerResults?: PreCallIceServerResult[];
   serverCandidateComparison?: PreCallIceServerComparisonEntry[];
-}
-
-export interface PreCallIceServerResult {
-  server: RTCIceServer;
-  gatheredAny: boolean;
-  candidates: PreCallIceCandidateInfo[];
-  candidateCounts: PreCallIceCandidateCounts;
-  candidateTypes: string[];
-  gatheringComplete: boolean;
-  gatheringMs?: number;
-  firstCandidateMs?: number;
-  hasRelayCandidate: boolean;
-  error?: string;
 }
 
 export interface PreCallIceServerComparison {
@@ -252,6 +238,16 @@ export interface PreCallMicrophoneReport {
   reasons?: PreCallDiagnosticReason[];
 }
 
+export interface PreCallServerTestReport {
+  server: RTCIceServer;
+  established: boolean;
+  callId?: string;
+  ice?: PreCallIceReport;
+  network?: PreCallNetworkReport;
+  timings?: PreCallTimingsReport;
+  error?: string;
+}
+
 export interface PreCallDiagnosticReport {
   version: 1;
   verdict?:
@@ -266,6 +262,7 @@ export interface PreCallDiagnosticReport {
   ice?: PreCallIceReport;
   network?: PreCallNetworkReport;
   microphone?: PreCallMicrophoneReport;
+  serverTests?: PreCallServerTestReport[];
   callId?: string;
   raw?: {
     stats?: RTCStatsReport | unknown;

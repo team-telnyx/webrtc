@@ -24,6 +24,7 @@ export type {
   NetworkAudioDirection,
   PreCallMicrophoneReport,
   PreCallMicrophoneOptions,
+  PreCallServerTestReport,
   NetworkMinMaxAverage,
   NetworkPacketCounters,
   NetworkByteCounters,

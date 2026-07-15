@@ -7,6 +7,7 @@ import type {
   PreCallIceReport,
   PreCallMicrophoneReport,
   PreCallNetworkReport,
+  PreCallServerTestReport,
 } from '../types';
 
 /** ICE-related reason codes. */
@@ -69,7 +70,7 @@ type Verdict = NonNullable<PreCallDiagnosticReport['verdict']>;
  */
 type VerdictInput = Pick<
   PreCallDiagnosticReport,
-  'ice' | 'network' | 'microphone'
+  'ice' | 'network' | 'microphone' | 'serverTests'
 >;
 
 interface Assessment {
@@ -189,24 +190,6 @@ function assessIce(ice: PreCallIceReport | undefined): Assessment {
     assessment.verdict = worseVerdict(assessment.verdict, 'degraded');
   }
 
-  for (const result of ice.perServerResults ?? []) {
-    if (result.gatheredAny && !result.error) continue;
-
-    const urls = Array.isArray(result.server.urls)
-      ? result.server.urls.join(', ')
-      : result.server.urls;
-    reasons.push(
-      reason(
-        'ice_server_failed',
-        result.error
-          ? `ICE server [${urls}] failed: ${result.error}`
-          : `ICE server [${urls}] produced no candidates.`,
-        'ice'
-      )
-    );
-    assessment.verdict = worseVerdict(assessment.verdict, 'degraded');
-  }
-
   // serverCandidateComparison is now the entries array itself.
   const unavailableServers = (ice.serverCandidateComparison ?? []).filter(
     ({ hasCandidates }) => !hasCandidates
@@ -243,6 +226,27 @@ function assessIce(ice: PreCallIceReport | undefined): Assessment {
 
   if (!assessment.verdict && hasCandidates) assessment.verdict = 'ready';
   return assessment;
+}
+
+function assessServerTestStatus(test: PreCallServerTestReport): Assessment {
+  if (test.established && !test.error) return emptyAssessment();
+
+  const urls = Array.isArray(test.server.urls)
+    ? test.server.urls.join(', ')
+    : test.server.urls;
+  return {
+    verdict: 'degraded',
+    reasons: [
+      reason(
+        'ice_server_failed',
+        test.error
+          ? `ICE server [${urls}] failed: ${test.error}`
+          : `ICE server [${urls}] did not establish a diagnostic call.`,
+        'ice'
+      ),
+    ],
+    warnings: [],
+  };
 }
 
 function assessNetwork(network: PreCallNetworkReport | undefined): Assessment {
@@ -382,6 +386,11 @@ export function buildVerdict(
     assessIce(report.ice),
     assessNetwork(report.network),
     assessMicrophone(report.microphone),
+    ...(report.serverTests ?? []).flatMap((test) => [
+      assessIce(test.ice),
+      assessNetwork(test.network),
+      assessServerTestStatus(test),
+    ]),
   ];
   const reasons = assessments.flatMap((assessment) => assessment.reasons);
   const warnings = assessments.flatMap((assessment) => assessment.warnings);

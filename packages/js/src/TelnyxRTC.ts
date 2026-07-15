@@ -86,13 +86,16 @@ export interface RunPreCallOptions {
  * Options for the `TelnyxRTC.runNetworkCheck()` public method.
  *
  * This is a narrow version of `RunPreCallOptions` that only exposes
- * the ICE/network-relevant fields. When `runNetworkCheck` is called,
- * the other modules (network quality and microphone) are disabled.
+ * the ICE/network-relevant fields. Per-call network quality is included in
+ * each ICE server result; the microphone module is disabled.
  *
  * The ICE module always runs inside `runNetworkCheck()` — callers cannot
  * opt out of it from the public API (VSDK-412 Gap 3).
  */
-export type RunNetworkCheckOptions = RunPreCallOptions;
+export type RunNetworkCheckOptions = Pick<
+  RunPreCallOptions,
+  'destinationNumber' | 'callSetupTimeoutMs' | 'iceServers'
+>;
 
 /**
  * Options for the `TelnyxRTC.runMicrophoneCheck()` public method.
@@ -469,20 +472,13 @@ export class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Runs a network/ICE check using the `PreCallDiagnostic` framework.
    *
-   * This method tests each configured ICE server independently (one
-   * RTCPeerConnection per server, all run simultaneously) so the caller
-   * can see exactly which servers produce candidates, how long gathering
-   * takes, and which servers are not working. It also runs a combined
-   * gathering pass for the aggregate ICE report.
+   * This method tests each configured ICE server URL independently using a
+   * real, short diagnostic call. Each call stays active for one second and
+   * the calls run sequentially so their ICE and media results remain isolated.
+   * TURN URLs force relay policy to verify that the relay is actually usable.
    *
-   * This method does **not** dial (`client.newCall()` is not called) —
-   * it builds raw `RTCPeerConnection`s with the ICE servers, gathers
-   * candidates, then closes the peers. No SIP signaling or
-   * `destinationNumber` is required.
-   *
-   * **Wall-clock cost:** all ICE servers are tested simultaneously, so
-   * the total wall-clock is approximately `durationMs` regardless of how
-   * many ICE servers are configured.
+   * Results from every call are combined under `serverTests` so a
+   * failed server does not hide successful servers (and vice versa).
    *
    * @param options Options for the network check. All fields are optional.
    * @returns A promise that resolves with the `PreCallDiagnosticReport`.
@@ -493,7 +489,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *
    * ```js
    * const report = await client.runNetworkCheck();
-   * console.log(report.ice?.perServerResults);
+   * console.log(report.serverTests);
    * ```
    *
    * With custom ICE servers:
@@ -509,16 +505,15 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      // Module gating: only ICE enabled, others disabled.
-      // ICE always runs in runNetworkCheck() — callers cannot opt out
-      // from the public API (VSDK-412 Gap 3).
+      destinationNumber:
+        options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
+      // ICE and per-server network measurements run for every short call.
+      // Callers cannot opt out from the public API.
       ice: true,
-      network: false,
+      network: true,
       microphone: false,
-      // network-only mode: skip client.newCall() — gather ICE candidates
-      // from a raw RTCPeerConnection without dialing.
+      // network-only mode places one fixed one-second call per ICE URL.
       mode: 'network-only',
-      durationMs: options.durationMs,
       // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.
       rtcConfig: {
