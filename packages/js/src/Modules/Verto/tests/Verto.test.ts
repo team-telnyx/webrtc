@@ -762,7 +762,7 @@ describe('Verto', () => {
       {
         urls: 'turns:turn.telnyx.com:443',
         username: 'testuser',
-        credential: 'testpassword!',
+        credential: 'testpassword',
       },
       {
         urls: 'turns:turn2.telnyx.com:443',
@@ -798,7 +798,7 @@ describe('Verto', () => {
       {
         urls: 'turns:turndev.telnyx.com:443',
         username: 'testuser',
-        credential: 'testpassword!',
+        credential: 'testpassword',
       },
     ]);
   });
@@ -865,7 +865,7 @@ describe('Verto', () => {
       expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY).toEqual({
         urls: 'turns:turn.telnyx.com:443',
         username: 'testuser',
-        credential: 'testpassword!',
+        credential: 'testpassword',
       });
     });
 
