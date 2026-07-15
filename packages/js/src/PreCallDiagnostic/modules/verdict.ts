@@ -9,6 +9,11 @@ import type {
   PreCallNetworkReport,
   PreCallServerTestReport,
 } from '../types';
+import {
+  MEDIA_DEVICE_NOT_FOUND,
+  MEDIA_GET_USER_MEDIA_FAILED,
+  MEDIA_MICROPHONE_PERMISSION_DENIED,
+} from '../../Modules/Verto/util/constants';
 import { isTurnIceServer } from './ice';
 
 /** ICE-related reason codes. */
@@ -437,14 +442,48 @@ export function buildVerdict(
   }
 
   if (error) {
-    reasons.push(
-      reason(
-        'diagnostic_run_error',
-        `Diagnostic run encountered an error: ${error.message}`,
-        'diagnostic'
-      )
-    );
-    verdict = worseVerdict(verdict, 'blocked');
+    const errorCode = (error as Error & { code?: number }).code;
+    switch (errorCode) {
+      case MEDIA_MICROPHONE_PERMISSION_DENIED:
+        reasons.push(
+          reason(
+            MicrophoneReasonCode.CapturePermissionDenied,
+            'Microphone access was denied while establishing the diagnostic call.',
+            'microphone'
+          )
+        );
+        verdict = worseVerdict(verdict, 'permission_denied');
+        break;
+      case MEDIA_DEVICE_NOT_FOUND:
+        reasons.push(
+          reason(
+            MicrophoneReasonCode.CaptureNoDevice,
+            'No microphone device was available while establishing the diagnostic call.',
+            'microphone'
+          )
+        );
+        verdict = worseVerdict(verdict, 'blocked');
+        break;
+      case MEDIA_GET_USER_MEDIA_FAILED:
+        reasons.push(
+          reason(
+            MicrophoneReasonCode.CaptureFailed,
+            'Microphone capture failed while establishing the diagnostic call.',
+            'microphone'
+          )
+        );
+        verdict = worseVerdict(verdict, 'blocked');
+        break;
+      default:
+        reasons.push(
+          reason(
+            'diagnostic_run_error',
+            `Diagnostic run encountered an error: ${error.message}`,
+            'diagnostic'
+          )
+        );
+        verdict = worseVerdict(verdict, 'blocked');
+    }
   }
 
   return { verdict: verdict ?? 'inconclusive', reasons, warnings };

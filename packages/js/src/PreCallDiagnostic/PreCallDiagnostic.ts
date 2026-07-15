@@ -1,4 +1,5 @@
 import Call from '../Modules/Verto/webrtc/Call';
+import type { ITelnyxErrorEvent } from '../Modules/Verto/util/errors';
 import { createDiagnosticContext } from './context';
 import type { PreCallDiagnosticContext } from './context';
 import {
@@ -77,6 +78,12 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     });
 
     if (test.setupFailed) {
+      if (test.error) {
+        return createReport(
+          { callId: test.callId, timings: test.timings },
+          test.error
+        );
+      }
       return {
         version: 1,
         verdict: 'inconclusive',
@@ -178,8 +185,16 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const context = createDiagnosticContext(options.diagnosticOptions);
     const timings = createTimingsCollector();
     let call: Call | undefined;
+    let callError: Error | undefined;
     let established = false;
     let result: RunTestResult | undefined;
+    const onCallError = (event: ITelnyxErrorEvent) => {
+      if (event.callId === call?.id) {
+        callError = toError(event.error);
+      }
+    };
+
+    options.diagnosticOptions.client.on('telnyx.error', onCallError);
 
     try {
       call = this.createDiagnosticCall(
@@ -200,6 +215,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
           setupFailed: true,
           callId: call.id,
           timings: timings.build({ call, callId: call.id }),
+          error: callError,
         };
         return result;
       }
@@ -246,6 +262,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       };
       return result;
     } finally {
+      options.diagnosticOptions.client.off('telnyx.error', onCallError);
       timings.markCleanupStarted();
       if (call && options.autoHangup) {
         await this.cleanupCall(call);
@@ -362,10 +379,10 @@ function toError(error: unknown): Error {
 }
 
 function getServerTestError(test: RunTestResult): string | undefined {
+  if (test.error) return test.error.message;
   if (test.setupFailed) {
     return 'The diagnostic call did not reach the established state';
   }
-  if (test.error) return test.error.message;
   if (!test.ice) return 'No ICE report was produced';
   if (test.ice.candidates.length === 0) {
     return 'No ICE candidates were gathered';
