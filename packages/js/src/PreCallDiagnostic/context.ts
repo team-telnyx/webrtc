@@ -2,15 +2,14 @@
  * PreCallDiagnostic context — passed to module builders during a diagnostic run.
  *
  * Contains the runtime state needed by module report builders: options,
- * the temporary diagnostic call, stats/raw samples, and lifecycle timing data.
+ * the temporary diagnostic call and stats/raw samples.
  *
  * Module builders receive this context so they can access the call's
  * PeerConnection, stats samples, and configuration without depending
  * on PreCallDiagnostic internals.
  *
  * Timing collection is owned by the dedicated `TimingsCollector` (see
- * `modules/timings.ts`); the context no longer carries timing marks. The
- * collector is passed explicitly to the methods that need it.
+ * `modules/timings.ts`); the context does not carry timing state.
  */
 
 import type { PreCallDiagnosticOptions } from './types';

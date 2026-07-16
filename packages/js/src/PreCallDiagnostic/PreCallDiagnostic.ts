@@ -124,7 +124,6 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     let result: PreCallDiagnosticReport | undefined;
 
     try {
-      timings.markStatsSamplingStarted();
       serverTests = await Promise.all(
         servers.map(async (server): Promise<PreCallServerTestReport> => {
           const test = await this.runTest({
@@ -159,25 +158,21 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
           };
         })
       );
-      timings.markStatsSamplingCompleted();
-
-      timings.markCompleted();
       result = createReport(
-        { serverTests, timings: timings.build({}) },
+        { serverTests, timings: timings.build() },
         undefined,
         { networkOnly: true }
       );
       return result;
     } catch (error) {
-      timings.markCompleted();
-      result = createReport({ timings: timings.build({}) }, toError(error), {
+      result = createReport({ timings: timings.build() }, toError(error), {
         networkOnly: true,
       });
       return result;
     } finally {
-      timings.markCleanupStarted();
-      timings.markCleanupCompleted();
-      timings.finalizeTimings(result?.timings);
+      if (result?.timings) {
+        timings.complete(result.timings);
+      }
     }
   }
 
@@ -209,20 +204,17 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         options.diagnosticOptions.callSetupTimeoutMs
       );
       if (!established) {
-        timings.markCompleted();
         result = {
           established: false,
           setupFailed: true,
           callId: call.id,
-          timings: timings.build({ call, callId: call.id }),
+          timings: timings.build({ call }),
           error: callError,
         };
         return result;
       }
 
-      timings.markStatsSamplingStarted();
       await this.collectSamples(call, context);
-      timings.markStatsSamplingCompleted();
 
       const ice = options.modules.ice
         ? buildPreCallIceReport(context)
@@ -234,7 +226,6 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         ? await buildPreCallMicrophoneReport(context)
         : undefined;
 
-      timings.markCompleted();
       result = {
         established: true,
         setupFailed: false,
@@ -242,7 +233,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
         ice,
         network,
         microphone,
-        timings: timings.build({ call, callId: call.id }),
+        timings: timings.build({ call }),
         raw: {
           samples: context.statsSamples.length
             ? context.statsSamples
@@ -252,24 +243,25 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       return result;
     } catch (error) {
       context.error = toError(error);
-      timings.markCompleted();
       result = {
         established,
         setupFailed: false,
         callId: call?.id,
-        timings: timings.build({ call, callId: call?.id }),
+        timings: timings.build({ call }),
         error: context.error,
       };
       return result;
     } finally {
       options.diagnosticOptions.client.off('telnyx.error', onCallError);
-      timings.markCleanupStarted();
       if (call && options.autoHangup) {
-        await this.cleanupCall(call);
+        try {
+          await call.hangup();
+        } catch {
+          // The report should survive cleanup failures.
+        }
       }
-      timings.markCleanupCompleted();
       if (result?.timings) {
-        timings.finalizeTimings(result.timings);
+        timings.complete(result.timings);
       }
     }
   }
@@ -277,14 +269,26 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   private async runMicrophoneOnly(
     context: PreCallDiagnosticContext
   ): Promise<PreCallDiagnosticReport> {
+    const timings = createTimingsCollector();
+    let result: PreCallDiagnosticReport | undefined;
+
     try {
       const microphone = this.options.microphone
         ? await buildPreCallMicrophoneReport(context)
         : undefined;
-      return createReport({ microphone }, context.error);
+      result = createReport(
+        { microphone, timings: timings.build() },
+        context.error
+      );
+      return result;
     } catch (error) {
       context.error = toError(error);
-      return createReport({}, context.error);
+      result = createReport({ timings: timings.build() }, context.error);
+      return result;
+    } finally {
+      if (result?.timings) {
+        timings.complete(result.timings);
+      }
     }
   }
 
@@ -343,14 +347,6 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       const stats = await call.peer.instance?.getStats();
       if (stats) context.statsSamples.push(stats);
       await delay(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
-    }
-  }
-
-  private async cleanupCall(call: Call): Promise<void> {
-    try {
-      await call.hangup();
-    } catch {
-      // The report should survive cleanup failures.
     }
   }
 }

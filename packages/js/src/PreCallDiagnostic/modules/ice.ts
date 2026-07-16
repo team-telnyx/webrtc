@@ -172,18 +172,12 @@ function resolveSelectedPair(
     return null;
   }
 
-  const nominatedPair = nominatedPairArr[0];
-  const nominatedLocalCandidate = localCandidates.get(
-    nominatedPair.localCandidateId
-  );
-  const nominatedRemoteCandidate = remoteCandidates.get(
-    nominatedPair.remoteCandidateId
-  );
-
   return {
-    ...nominatedPair,
-    localCandidate: nominatedLocalCandidate,
-    remoteCandidate: nominatedRemoteCandidate,
+    ...nominatedPairArr[0],
+    localCandidate: localCandidates.get(nominatedPairArr[0].localCandidateId),
+    remoteCandidate: remoteCandidates.get(
+      nominatedPairArr[0].remoteCandidateId
+    ),
   };
 }
 
@@ -308,6 +302,8 @@ function iceUrlMatches(
   serverUrl: string,
   candidateProtocol?: RTCIceCandidateStats['protocol']
 ): boolean {
+  if (!candidateUrl || !serverUrl) return false;
+
   const normalizedCandidate = normalizeIceServerUrl(candidateUrl);
   const normalizedServer = normalizeIceServerUrl(serverUrl);
   if (normalizedCandidate !== normalizedServer) return false;
@@ -352,16 +348,10 @@ export function compareIceServers(
 
   const entries: PreCallIceServerComparisonEntry[] = [];
   for (const server of iceServers) {
-    const urls = Array.isArray(server.urls)
-      ? server.urls
-      : server.urls
-        ? [server.urls]
-        : [];
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
 
-    const serverCandidates = candidates.filter(
-      (c) =>
-        c.url !== undefined &&
-        urls.some((serverUrl) => iceUrlMatches(c.url!, serverUrl, c.protocol))
+    const serverCandidates = candidates.filter((c) =>
+      urls.some((serverUrl) => iceUrlMatches(c.url, serverUrl, c.protocol))
     );
 
     const candidateType = serverCandidates[0]?.candidateType ?? null;

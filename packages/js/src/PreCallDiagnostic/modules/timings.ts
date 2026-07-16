@@ -1,334 +1,121 @@
 /**
- * Diagnostic timing module for the PreCallDiagnostic framework (VSDK-307).
+ * Timing support for a pre-call diagnostic run.
  *
- * Owns ALL timing logic for the diagnostic run: mark collection, mapping of
- * SDK call-establishment timeline into `PreCallTimingsReport`, maps its key
- * milestones into the legacy summary fields, and computes durations for the
- * diagnostic-only phases (stats sampling, cleanup, total).
- *
- * Decoupling: this module does NOT import `CallEstablishmentTimings` (or any
- * other Verto module) directly. It consumes the structured establishment
- * timings through the `call.getEstablishmentTimings?.()` seam implemented on
- * `BaseCall`. Only `BaseCall.getEstablishmentTimings()` reaches into the
- * Verto-layer timing module.
+ * The SDK call is the single source of truth for call-establishment timings.
+ * This collector only copies that structured timeline into the diagnostic
+ * report and measures the total duration of the diagnostic itself.
  */
 
 import type {
   PreCallEstablishmentTimings,
+  PreCallEstablishmentStep,
   PreCallTimingsReport,
 } from '../types';
 
-/**
- * Map of SDK call-establishment step labels (the human-readable strings
- * produced by `CallEstablishmentTimings.collectCallEstablishmentTimings()`)
- * to the `PreCallTimingsReport` field they populate.
- *
- * A step is matched by its `label` string (the `MARK_LABELS` value from
- * `CallEstablishmentTimings`). The `fromStart` value (ms from the call start
- * mark) is placed directly on the report field — these are durations measured
- * from the start of the call, which matches the documented semantics of the
- * `PreCallTimingsReport` lifecycle fields.
- */
-const ESTABLISHMENT_LABEL_TO_FIELD: Record<string, keyof PreCallTimingsReport> =
-  {
-    'Call Start': 'callCreateMs',
-    'SDP negotiation started': 'callSetupMs',
-    'Call is active': 'callSetupMs',
-    'Remote side ringing': 'ringingMs',
-    'Call answered by remote side': 'callAnsweredMs',
-    'ICE connection established': 'iceConnectedMs',
-    'Secure media channel established (DTLS)': 'dtlsConnectedMs',
-    'First remote audio/video track received': 'firstMediaStatsMs',
-    'ICE candidate gathering started': 'iceGatheringStartedMs',
-    'First ICE candidate found': 'firstCandidateMs',
-    'First server-reflexive/relay candidate found': 'firstNonHostCandidateMs',
-    'All ICE candidates gathered': 'iceGatheringCompletedMs',
-  };
+const ICE_GATHERING_STARTED_LABEL = 'ICE candidate gathering started';
+const ICE_GATHERING_COMPLETED_LABEL = 'All ICE candidates gathered';
+const FIRST_SERVER_CANDIDATE_LABEL =
+  'First server-reflexive/relay candidate found';
 
-/**
- * Narrow shape of a Call as consumed by the timings builder.
- *
- * Only `getEstablishmentTimings()` and `id` are accessed. Kept local so the
- * module is decoupled from Verto-layer imports and easy to mock in tests.
- * The `Call` type already provides this method (implemented on `BaseCall`),
- * so this interface exists only for clarity and test ergonomics.
- */
+/** Return a valid non-negative timing value, otherwise omit it. */
+function safeDurationMs(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+}
+
+/** Find a call-establishment step by its SDK-owned label. */
+function findStep(
+  steps: PreCallEstablishmentStep[],
+  label: string
+): PreCallEstablishmentStep | undefined {
+  return steps.find((step) => step.label === label);
+}
+
+/** Narrow shape of a call used to read the SDK-owned establishment timeline. */
 export interface TimingsCallLike {
-  id: string;
   getEstablishmentTimings?(): PreCallEstablishmentTimings | undefined;
 }
 
 /** Optional arguments for `TimingsCollector.build()`. */
 export interface TimingsBuildOptions {
-  /** The diagnostic call, if one was established. */
+  /** The diagnostic call, if the test created one. */
   call?: TimingsCallLike;
-  /** The call id, used as a fallback when `call` is unavailable. */
-  callId?: string;
 }
 
 /**
- * Guard a candidate duration value. Returns the value if it is a finite,
- * non-negative number; otherwise `undefined` (omit-over-fake).
- *
- * `fromStart`/`delta` from `CallEstablishmentTimings` are ms offsets from the
- * `new-call-start` mark computed via `performance.now()` — they should be
- * finite and non-negative, but defensive guards keep the report robust
- * against mark-clock drift and any future source of NaN/Infinity.
- */
-function safeDurationMs(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    return undefined;
-  }
-  return value;
-}
-
-/**
- * Read a value from the `stats` object only if it passes the duration guard.
- */
-function withGuard(
-  stats: PreCallTimingsReport,
-  field: keyof PreCallTimingsReport,
-  value: unknown
-): void {
-  const guarded = safeDurationMs(value);
-  if (guarded !== undefined) {
-    (stats[field] as number | undefined) = guarded;
-  }
-}
-
-/**
- * Collector of monotonic timestamps for the diagnostic-only lifecycle phases
- * that the SDK call path does not already mark (stats sampling, cleanup).
- *
- * Internal mark state is held in private fields; the collector itself is
- * opaque to callers. `PreCallDiagnostic.run()` records marks via the
- * one-line methods, then `build()` merges them with the SDK establishment
- * timings to produce the final `PreCallTimingsReport`.
+ * Collects the SDK call-establishment timeline, its requested ICE summaries,
+ * and the total diagnostic duration.
  */
 export class TimingsCollector {
-  /** Epoch timestamp (Date.now()) when the collector was created. */
-  private readonly startedAtEpochMs: number;
-  /** Monotonic timestamp (performance.now()) when the collector was created. */
-  private readonly startedAtMonoMs: number;
-
-  /** Monotonic mark: stats sampling started. */
-  private statsSamplingStartedMonoMs?: number;
-  /** Monotonic mark: first stats sample received. */
-  private firstStatsMonoMs?: number;
-  /** Monotonic mark: stats sampling completed. */
-  private statsSamplingCompletedMonoMs?: number;
-  /** Monotonic mark: cleanup started. */
-  private cleanupStartedMonoMs?: number;
-  /** Monotonic mark: cleanup completed. */
-  private cleanupCompletedMonoMs?: number;
-
-  /** Epoch timestamp (Date.now()) when the diagnostic completed. */
-  private completedAtEpochMs?: number;
-
-  constructor() {
-    this.startedAtEpochMs = Date.now();
-    this.startedAtMonoMs = nowMonoMs();
-  }
-
-  /** Record the start of the stats sampling phase. Idempotent. */
-  markStatsSamplingStarted(): void {
-    if (this.statsSamplingStartedMonoMs === undefined) {
-      this.statsSamplingStartedMonoMs = nowMonoMs();
-    }
-  }
-
-  /** Record the moment the first stats sample was received. Idempotent. */
-  markFirstStats(): void {
-    if (this.firstStatsMonoMs === undefined) {
-      this.firstStatsMonoMs = nowMonoMs();
-    }
-  }
-
-  /** Record the end of the stats sampling phase. Idempotent. */
-  markStatsSamplingCompleted(): void {
-    if (this.statsSamplingCompletedMonoMs === undefined) {
-      this.statsSamplingCompletedMonoMs = nowMonoMs();
-    }
-  }
-
-  /** Record the start of the cleanup phase. Idempotent. */
-  markCleanupStarted(): void {
-    if (this.cleanupStartedMonoMs === undefined) {
-      this.cleanupStartedMonoMs = nowMonoMs();
-    }
-  }
-
-  /** Record the end of the cleanup phase. Idempotent. */
-  markCleanupCompleted(): void {
-    if (this.cleanupCompletedMonoMs === undefined) {
-      this.cleanupCompletedMonoMs = nowMonoMs();
-    }
-  }
+  private readonly startedAtMonoMs = nowMonoMs();
 
   /**
-   * Record diagnostic completion. Also records the epoch completion timestamp.
-   * Idempotent.
-   */
-  markCompleted(): void {
-    if (this.completedAtEpochMs === undefined) {
-      this.completedAtEpochMs = Date.now();
-    }
-  }
-
-  /**
-   * Merge cleanup-duration and a recomputed totalMs into an already-built
-   * `PreCallTimingsReport`.
+   * Build a report and snapshot the SDK establishment timeline.
    *
-   * `build()` is called BEFORE the cleanup `finally` block runs
-   * `call.hangup()`, because establishment timings are read from the call's
-   * performance marks, which are cleared during `_finalize()`. At that point
-   * `cleanupMs` is absent and `totalMs` excludes hangup/resource release.
-   *
-   * This method is called AFTER the finally block records cleanup
-   * start/end marks. It patches the already-built report in place so:
-   *  - `cleanupMs` = cleanupCompleted - cleanupStarted (the hangup duration)
-   *  - `totalMs`  = cleanupCompleted - startedAtMono (full run, including cleanup)
-   *
-   * Establishment-timing fields set by `build()` are preserved — only the
-   * cleanup-related fields and totalMs are overwritten (VSDK-412 round-10).
-   *
-   * Safe to call when cleanup marks are missing (no-op for those fields).
-   */
-  finalizeTimings(report: PreCallTimingsReport): void {
-    if (
-      this.cleanupStartedMonoMs !== undefined &&
-      this.cleanupCompletedMonoMs !== undefined
-    ) {
-      withGuard(
-        report,
-        'cleanupMs',
-        this.cleanupCompletedMonoMs - this.cleanupStartedMonoMs
-      );
-      // totalMs = full run from collector start to cleanup completion.
-      // This overrides the pre-cleanup totalMs from build(), which only
-      // spanned start → markCompleted (excluding hangup/release).
-      withGuard(
-        report,
-        'totalMs',
-        this.cleanupCompletedMonoMs - this.startedAtMonoMs
-      );
-    }
-  }
-
-  /**
-   * Build the final `PreCallTimingsReport`.
-   *
-   * Merges:
-   *  1. Diagnostic-only phase durations from this collector's internal marks
-   *     (firstStatsMs, statsSamplingMs, cleanupMs, totalMs).
-   *  2. SDK call-establishment timings from `call.getEstablishmentTimings?.()`,
-   *     mapped into named report fields via `ESTABLISHMENT_LABEL_TO_FIELD`.
-   *
-   * Call this BEFORE the cleanup `finally` block runs `call.hangup()` and
-   * `clearCallMarks()` — establishment timings are read from the call's
-   * performance marks, which are cleared during `_finalize()`.
-   *
-   * Never throws: every read is guarded. Missing sources result in omitted
-   * fields, not zero placeholders.
+   * For call-based tests this must run before hangup, because call cleanup may
+   * release the peer and its retained timing data. Missing or throwing SDK
+   * timing data is omitted rather than failing the diagnostic.
    */
   build(options: TimingsBuildOptions = {}): PreCallTimingsReport {
-    const report: PreCallTimingsReport = {
-      startedAt: this.startedAtEpochMs,
-      completedAt: this.completedAtEpochMs,
-    };
+    const report: PreCallTimingsReport = {};
 
-    // 1. Diagnostic-only phase durations (measured from this collector's start).
-    withGuard(
-      report,
-      'firstStatsMs',
-      this.firstStatsMonoMs !== undefined
-        ? this.firstStatsMonoMs - this.startedAtMonoMs
-        : undefined
-    );
-    withGuard(
-      report,
-      'statsSamplingMs',
-      this.statsSamplingStartedMonoMs !== undefined &&
-        this.statsSamplingCompletedMonoMs !== undefined
-        ? this.statsSamplingCompletedMonoMs - this.statsSamplingStartedMonoMs
-        : undefined
-    );
-    withGuard(
-      report,
-      'cleanupMs',
-      this.cleanupStartedMonoMs !== undefined &&
-        this.cleanupCompletedMonoMs !== undefined
-        ? this.cleanupCompletedMonoMs - this.cleanupStartedMonoMs
-        : undefined
-    );
-
-    // totalMs: from start to completion (mono). Falls back to cleanupCompleted
-    // when markCompleted() was never called (e.g. an early-return path).
-    const endMonoMs = nowMonoMs();
-    const endMark =
-      this.completedAtEpochMs !== undefined
-        ? endMonoMs // completion was reached; use current mono time as the endpoint
-        : this.cleanupCompletedMonoMs;
-    if (this.completedAtEpochMs !== undefined) {
-      // Prefer the monotonic delta recorded at markCompleted() time if we can
-      // reconstruct it; since we only store the epoch, use the current mono
-      // reading — this is the elapsed monotonic time, which is correct as long
-      // as build() is called immediately after markCompleted().
-      withGuard(report, 'totalMs', endMonoMs - this.startedAtMonoMs);
-    } else if (endMark !== undefined) {
-      withGuard(report, 'totalMs', endMark - this.startedAtMonoMs);
-    }
-
-    // 2. SDK call-establishment timings (read from the call's performance marks).
-    // Wrapped in try/catch so a throwing getEstablishmentTimings() (e.g. a
-    // buggy override or a cleared-marks race) never aborts report generation.
-    let establishment: PreCallEstablishmentTimings | undefined;
     try {
-      establishment = options.call?.getEstablishmentTimings?.();
-    } catch {
-      establishment = undefined;
-    }
-    if (establishment && establishment.steps.length > 0) {
-      // Preserve the complete regular-call timeline. This is the source of
-      // truth for callers that need a clear step-by-step picture; the flat
-      // fields below remain as backward-compatible milestone summaries.
-      report.callEstablishment = {
-        mode: establishment.mode,
-        direction: establishment.direction,
-        steps: establishment.steps.map((step) => ({ ...step })),
-      };
+      const establishment = options.call?.getEstablishmentTimings?.();
+      if (establishment) {
+        report.callEstablishment = {
+          mode: establishment.mode,
+          direction: establishment.direction,
+          steps: establishment.steps.map((step) => ({ ...step })),
+        };
 
-      for (const step of establishment.steps) {
-        const field = ESTABLISHMENT_LABEL_TO_FIELD[step.label];
-        if (field !== undefined) {
-          // Lifecycle fields are durations from the call start (fromStart),
-          // matching the documented semantics of PreCallTimingsReport.
-          withGuard(report, field, step.fromStart);
+        const gatheringStarted = findStep(
+          establishment.steps,
+          ICE_GATHERING_STARTED_LABEL
+        );
+        const gatheringCompleted = findStep(
+          establishment.steps,
+          ICE_GATHERING_COMPLETED_LABEL
+        );
+        const iceGatheringMs = safeDurationMs(
+          gatheringStarted && gatheringCompleted
+            ? gatheringCompleted.fromStart - gatheringStarted.fromStart
+            : undefined
+        );
+        if (iceGatheringMs !== undefined) {
+          report.iceGatheringMs = iceGatheringMs;
+        }
+
+        const firstServerCandidate = findStep(
+          establishment.steps,
+          FIRST_SERVER_CANDIDATE_LABEL
+        );
+        const firstNonHostCandidateMs = safeDurationMs(
+          gatheringStarted && firstServerCandidate
+            ? firstServerCandidate.fromStart - gatheringStarted.fromStart
+            : undefined
+        );
+        if (firstNonHostCandidateMs !== undefined) {
+          report.firstNonHostCandidateMs = firstNonHostCandidateMs;
         }
       }
-
-      // Compute iceGatheringMs = iceGatheringCompletedMs - iceGatheringStartedMs
-      // (the duration of ICE candidate gathering).
-      if (
-        report.iceGatheringStartedMs !== undefined &&
-        report.iceGatheringCompletedMs !== undefined
-      ) {
-        const gatheringMs =
-          report.iceGatheringCompletedMs - report.iceGatheringStartedMs;
-        withGuard(report, 'iceGatheringMs', gatheringMs);
-      }
+    } catch {
+      // SDK timing data is optional and must never fail the diagnostic.
     }
 
-    // clientReadyMs is not observable in the current SDK timing path; omit.
     return report;
+  }
+
+  /** Set totalMs after all test work, including cleanup, has finished. */
+  complete(report: PreCallTimingsReport): void {
+    const totalMs = nowMonoMs() - this.startedAtMonoMs;
+    if (Number.isFinite(totalMs) && totalMs >= 0) {
+      report.totalMs = totalMs;
+    }
   }
 }
 
-/**
- * Return a monotonic timestamp in milliseconds. Uses `performance.now()` when
- * available; falls back to `Date.now()` (which is wall-clock, not monotonic,
- * but acceptable when performance is undefined — e.g. some test environments).
- */
+/** Return a monotonic timestamp, with a wall-clock fallback. */
 function nowMonoMs(): number {
   try {
     if (
@@ -338,16 +125,12 @@ function nowMonoMs(): number {
       return performance.now();
     }
   } catch {
-    // fall through
+    // Fall through to Date.now().
   }
   return Date.now();
 }
 
-/**
- * Factory: create a `TimingsCollector` and immediately record the start
- * timestamps (epoch + monotonic). Pass the returned collector to the methods
- * that record marks; call `build()` once at the end of the diagnostic run.
- */
+/** Create a timing collector and start measuring total diagnostic duration. */
 export function createTimingsCollector(): TimingsCollector {
   return new TimingsCollector();
 }

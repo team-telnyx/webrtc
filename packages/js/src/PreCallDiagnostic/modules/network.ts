@@ -58,6 +58,13 @@ const LOW_BITRATE_BPS = 8000;
  */
 type StatsEntry = RTCStats & Record<string, unknown>;
 
+type AudioDirection = 'inbound' | 'outbound';
+
+interface AudioCounters {
+  packets?: number;
+  bytes?: number;
+}
+
 // --- Helpers ---
 
 /**
@@ -179,13 +186,6 @@ function getEntries(
     }
   });
   return entries;
-}
-
-type AudioDirection = 'inbound' | 'outbound';
-
-interface AudioCounters {
-  packets?: number;
-  bytes?: number;
 }
 
 function extractAudioCounters(

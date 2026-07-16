@@ -107,39 +107,31 @@ export type RunNetworkCheckOptions = Pick<
  * The microphone module always runs inside `runMicrophoneCheck()` —
  * callers cannot opt out of it from the public API (VSDK-412 Gap 3).
  *
- * Recording is opt-in and defaults to `false` so the zero-argument path
- * does not silently record the user without consent. Playback defaults to
- * `true`, but only runs when recording was explicitly enabled and succeeded
- * (VSDK-412 review: "the zero-argument path still records before any
- * warning/consent"). Callers who want the "record and listen" flow must
- * explicitly set `record: true` and should pass `onRecordingConsent`
- * so a pre-recording warning is displayed before capture begins.
+ * Recording is opt-in and defaults to `false` so the zero-argument path does
+ * not silently record the user. Successful recordings are played back
+ * automatically. Callers can pass `warnOnRecording` to display a warning
+ * immediately before recording starts.
  */
-export interface RunMicrophoneCheckOptions extends RunPreCallOptions {
+export interface RunMicrophoneCheckOptions
+  extends Pick<RunPreCallOptions, 'durationMs'> {
+  /**
+   * Audio level at or above which the microphone is considered non-silent.
+   * Clamped to the range 0–1. Default: `0.01`.
+   */
+  silenceThreshold?: number;
+
   /**
    * Whether to record the microphone audio during the check so the
-   * user can listen to it afterwards. Defaults to `false` — the
-   * zero-argument path must not silently record without consent.
-   * When set to `true`, pass `onRecordingConsent` so a warning is
-   * displayed before `MediaRecorder.start()`.
+   * user can listen to it afterwards. Defaults to `false`.
    */
   record?: boolean;
 
   /**
-   * Whether to play back the recorded audio after capture. Only
-   * applies when `record: true`. Defaults to `true`.
+   * Optional callback invoked immediately before recording starts. It
+   * receives `MICROPHONE_RECORDING_NOTICE`, allowing the application to
+   * display a warning to the user.
    */
-  playback?: boolean;
-
-  /**
-   * Optional consent callback invoked BEFORE recording starts (when
-   * `record: true`). The module awaits this callback before calling
-   * `MediaRecorder.start()`. It receives the recommended notice text.
-   * Rejecting the promise aborts recording
-   * (but not the rest of the microphone check). See
-   * `MICROPHONE_RECORDING_NOTICE` for the recommended notice string.
-   */
-  onRecordingConsent?: (notice: string) => void | Promise<void>;
+  warnOnRecording?: (notice: string) => void;
 }
 
 /**
@@ -445,18 +437,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // Module toggles are not part of the public surface for runPreCall.
       ice: true,
       network: true,
-      // Enable active microphone capture in full mode so the report
-      // includes audio-level data (audioLevel, audioLevelStats, audioDetected)
-      // — not just passive permission/device checks. Recording and playback
-      // are NOT enabled by default in full mode (no consent flow); callers
-      // who want recording should use runMicrophoneCheck() with an explicit
-      // opt-in.
-      // (VSDK-412 review: "full runPreCall() still does not collect the
-      // requested microphone audio-level data" — passing `true` resolved
-      // to `activeCapture: false` in resolveMicrophoneOptions().)
-      microphone: {
-        activeCapture: true,
-      },
+      // Microphone capture and audio-level measurement now run whenever the
+      // module is enabled. Recording remains disabled by default.
+      microphone: true,
       mode: 'full',
       // Reuse client's ICE servers unless overridden via iceServers.
       // options.iceServers is diagnostic-only and must not mutate client config.
@@ -507,6 +490,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
       client: this,
       destinationNumber:
         options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
+      callSetupTimeoutMs: options.callSetupTimeoutMs,
       // ICE and per-server network measurements run for every short call.
       // Callers cannot opt out from the public API.
       ice: true,
@@ -548,7 +532,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *
    * ```js
    * const report = await client.runMicrophoneCheck();
-   * console.log(report.microphone?.permissionGranted);
+   * console.log(report.microphone?.isPermissionGrantedCurrently);
    * console.log(report.microphone?.devices);
    * console.log(report.microphone?.audioLevelStats);
    * ```
@@ -559,9 +543,8 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * const report = await client.runMicrophoneCheck({
    *   durationMs: 5000,
    *   record: true,
-   *   playback: true,
-   *   onRecordingConsent: async (notice) => {
-   *     await showConsentDialog(notice);
+   *   warnOnRecording: (notice) => {
+   *     showRecordingWarning(notice);
    *   },
    * });
    * ```
@@ -576,20 +559,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // opt out from the public API (VSDK-412 Gap 3).
       ice: false,
       network: false,
-      // Active capture enabled by default so the microphone check actually
-      // measures audio level and verifies capture works (not just passive
-      // permission/device checks). The user gets a real result.
-      //
-      // Recording is NOT enabled by default. The zero-argument
-      // path must not silently record the user without consent/warning
-      // (VSDK-412 review: "the zero-argument path still records before any
-      // warning/consent"). Callers who want the "record and listen" flow
-      // must explicitly opt in via the `record` option on
-      // `RunMicrophoneCheckOptions`, AND should pass `onRecordingConsent`
-      // so a pre-recording warning is displayed before capture begins.
-      // Playback defaults to true so the user can hear their recording
-      // when recording is enabled (VSDK-412 review: "Should be true by
-      // default!").
+      // Active capture and audio-level measurement run whenever the module is
+      // enabled. Recording remains an explicit opt-in and successful
+      // recordings are played back automatically.
       // Map the public `durationMs` (inherited from RunPreCallOptions) to
       // the microphone module's `sampleDurationMs` so the user's chosen
       // sampling window is honored in microphone-only mode. Without this
@@ -597,23 +569,14 @@ export class TelnyxRTC extends TelnyxRTCClient {
       // regardless of what the caller passes (VSDK-412 round-6 review:
       // "durationMs is ignored in microphone-only mode").
       microphone: {
-        activeCapture: true,
         sampleDurationMs: options.durationMs,
+        silenceThreshold: options.silenceThreshold,
         record: options.record ?? false,
-        playback: options.playback ?? true,
-        // Pass through the pre-recording consent callback so the caller
-        // can display a warning/consent dialog BEFORE MediaRecorder.start()
-        // (VSDK-412 review P43WG).
-        onRecordingConsent: options.onRecordingConsent,
+        warnOnRecording: options.warnOnRecording,
       },
       // microphone-only mode: skip client.newCall() — run getUserMedia +
       // Web Audio level analysis directly without dialing.
       mode: 'microphone-only',
-      // ICE servers are irrelevant for microphone-only (no peer connection),
-      // but kept for option-shape compatibility. Not mutated on the client.
-      rtcConfig: {
-        iceServers: options.iceServers ?? this.iceServers,
-      },
     };
 
     const diagnostic = new PreCallDiagnostic(diagnosticOptions);

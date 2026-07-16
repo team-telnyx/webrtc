@@ -365,8 +365,8 @@ function assessMicrophone(
   }
 
   const permissionDenied =
-    microphone.permissionState === 'denied' ||
-    microphone.permissionGranted === false ||
+    microphone.currentPermissionState === 'denied' ||
+    microphone.isPermissionGrantedCurrently === false ||
     microphone.captureError === 'permission_denied';
   const blocked =
     microphone.deviceAvailable === false ||
@@ -385,7 +385,7 @@ function assessMicrophone(
     (microphone.activeCapturePerformed === true &&
       microphone.audioDetected === true) ||
     (microphone.activeCapturePerformed !== true &&
-      microphone.permissionGranted === true &&
+      microphone.isPermissionGrantedCurrently === true &&
       microphone.deviceAvailable !== false)
   ) {
     assessment.verdict = 'ready';

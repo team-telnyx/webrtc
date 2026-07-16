@@ -12,14 +12,10 @@ export interface PreCallNetworkOptions {
 }
 
 export interface PreCallMicrophoneOptions {
-  checkPermission?: boolean;
-  checkDeviceAvailability?: boolean;
-  activeCapture?: boolean;
   sampleDurationMs?: number;
   silenceThreshold?: number;
   record?: boolean;
-  playback?: boolean;
-  onRecordingConsent?: (notice: string) => void | Promise<void>;
+  warnOnRecording?: (notice: string) => void;
 }
 
 export interface PreCallDiagnosticOptions {
@@ -61,25 +57,13 @@ export interface PreCallEstablishmentTimings {
 }
 
 export interface PreCallTimingsReport {
-  startedAt?: number;
-  completedAt?: number;
+  /** Total diagnostic duration, including cleanup. */
   totalMs?: number;
-  clientReadyMs?: number;
-  callCreateMs?: number;
-  callSetupMs?: number;
-  callAnsweredMs?: number;
-  iceConnectedMs?: number;
-  dtlsConnectedMs?: number;
-  ringingMs?: number;
-  firstMediaStatsMs?: number;
-  iceGatheringStartedMs?: number;
-  firstCandidateMs?: number;
-  firstNonHostCandidateMs?: number;
-  iceGatheringCompletedMs?: number;
+  /** Total ICE candidate gathering duration, from gathering start to completion. */
   iceGatheringMs?: number;
-  firstStatsMs?: number;
-  statsSamplingMs?: number;
-  cleanupMs?: number;
+  /** Time from ICE gathering start until the first server-derived candidate. */
+  firstNonHostCandidateMs?: number;
+  /** Unmodified call-establishment timeline collected by the SDK. */
   callEstablishment?: PreCallEstablishmentTimings;
 }
 
@@ -213,11 +197,12 @@ export interface PreCallMicrophoneAudioLevelStats {
 }
 
 export interface PreCallMicrophoneReport {
-  permissionState?: MicrophonePermissionState;
-  permissionGranted?: boolean;
-  deviceAvailable?: boolean;
-  deviceCount?: number;
-  devices?: PreCallAudioDevice[];
+  currentPermissionState: MicrophonePermissionState;
+  isPermissionGrantedCurrently: boolean;
+  isGetUserMediaFailed: boolean;
+  deviceAvailable: boolean;
+  deviceCount: number;
+  devices: PreCallAudioDevice[];
   labelsAccessible?: boolean;
   activeCapturePerformed?: boolean;
   audioLevel?: number;
@@ -233,7 +218,6 @@ export interface PreCallMicrophoneReport {
   recordingDataUrl?: string;
   recordingMimeType?: string;
   recordingDurationMs?: number;
-  recordingNotice?: string;
   playbackPerformed?: boolean;
   reasons?: PreCallDiagnosticReason[];
 }
