@@ -199,10 +199,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       );
       context.call = call;
 
-      established = await this.waitForCallEstablishment(
-        call,
-        options.diagnosticOptions.callSetupTimeoutMs
-      );
+      established = await this.waitForCallEstablishment(call);
       if (!established) {
         result = {
           established: false,
@@ -292,20 +289,18 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     }
   }
 
-  private async waitForCallEstablishment(
-    call: Call,
-    callSetupTimeoutMs?: number
-  ): Promise<boolean> {
-    const deadline =
-      Date.now() + (callSetupTimeoutMs ?? DEFAULT_CALL_SETUP_TIMEOUT_MS);
+  private async waitForCallEstablishment(call: Call): Promise<boolean> {
+    const deadline = Date.now() + DEFAULT_CALL_SETUP_TIMEOUT_MS;
+    const isCallConnected =
+      call.state === 'active' &&
+      call.peer?.instance?.connectionState === 'connected';
 
     while (Date.now() < deadline) {
-      if (call.state === 'active') return true;
-      if (['done', 'hangup', 'destroy'].includes(call.state)) return false;
+      if (isCallConnected) return true;
       await delay(500);
     }
 
-    return call.state === 'active';
+    return isCallConnected;
   }
 
   private createDiagnosticCall(

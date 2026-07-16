@@ -28,13 +28,6 @@ const DEFAULT_PRECALL_DESTINATION = '+1-872-231-5806';
 /**
  * Options for the `TelnyxRTC.runPreCall()` public method.
  *
- * Per the VSDK-412 spec, the public surface is intentionally narrow: only
- * the four call-setup fields that a caller legitimately needs to tune are
- * exposed. All three diagnostic modules (ICE, network, microphone)
- * always run inside `runPreCall()` — callers cannot opt out of individual
- * modules from the public API. Module-specific configuration lives on the
- * dedicated `runNetworkCheck()` / `runMicrophoneCheck()` methods instead.
- *
  * `runPreCall` maps these into the internal `PreCallDiagnosticOptions`
  * internally, reusing the client's existing configuration where
  * appropriate (e.g. caller name/number, audio constraints, ICE servers).
@@ -42,13 +35,6 @@ const DEFAULT_PRECALL_DESTINATION = '+1-872-231-5806';
  * `destinationNumber` is optional — when omitted, the diagnostic call
  * dials a sensible default (`'+1-872-231-5806'`). This mirrors the
  * zero-arg shape of Twilio's `Device.runPreflight(token, options?)`.
- *
- * Timer semantics: the total budget is `callSetupTimeoutMs + durationMs`.
- * `callSetupTimeoutMs` is the hard upper bound for the call to reach
- * ICE + DTLS + media ready. `durationMs` is the post-establishment
- * sampling window — its timer starts **only** after establishment
- * completes, so call setup time does not eat into the diagnostic
- * sampling budget.
  */
 export interface RunPreCallOptions {
   /**
@@ -56,13 +42,6 @@ export interface RunPreCallOptions {
    * Optional; defaults to `'+1-872-231-5806'` when omitted.
    */
   destinationNumber?: string;
-  /**
-   * Hard upper bound in ms for the call to reach ICE + DTLS + media ready.
-   * On expiry: hangup, return report with `verdict: 'inconclusive'` +
-   * `reasons: [{code: 'call_setup_timeout'}]`, omit module sections.
-   * Default: ~30000.
-   */
-  callSetupTimeoutMs?: number;
   /**
    * Post-establishment sampling window in ms. The timer starts **only**
    * after the call reaches the established state. If establishment
@@ -92,10 +71,7 @@ export interface RunPreCallOptions {
  * The ICE module always runs inside `runNetworkCheck()` — callers cannot
  * opt out of it from the public API (VSDK-412 Gap 3).
  */
-export type RunNetworkCheckOptions = Pick<
-  RunPreCallOptions,
-  'destinationNumber' | 'callSetupTimeoutMs' | 'iceServers'
->;
+export type RunNetworkCheckOptions = Pick<RunPreCallOptions, 'iceServers'>;
 
 /**
  * Options for the `TelnyxRTC.runMicrophoneCheck()` public method.
@@ -112,8 +88,10 @@ export type RunNetworkCheckOptions = Pick<
  * automatically. Callers can pass `warnOnRecording` to display a warning
  * immediately before recording starts.
  */
-export interface RunMicrophoneCheckOptions
-  extends Pick<RunPreCallOptions, 'durationMs'> {
+export interface RunMicrophoneCheckOptions extends Pick<
+  RunPreCallOptions,
+  'durationMs'
+> {
   /**
    * Audio level at or above which the microphone is considered non-silent.
    * Clamped to the range 0–1. Default: `0.01`.
@@ -431,7 +409,6 @@ export class TelnyxRTC extends TelnyxRTCClient {
       client: this,
       destinationNumber:
         options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
-      callSetupTimeoutMs: options.callSetupTimeoutMs,
       durationMs: options.durationMs,
       // All diagnostic modules always run inside runPreCall() (VSDK-412 spec).
       // Module toggles are not part of the public surface for runPreCall.
@@ -488,9 +465,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
   ): Promise<PreCallDiagnosticReport> {
     const diagnosticOptions: PreCallDiagnosticOptions = {
       client: this,
-      destinationNumber:
-        options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
-      callSetupTimeoutMs: options.callSetupTimeoutMs,
+      destinationNumber: DEFAULT_PRECALL_DESTINATION,
       // ICE and per-server network measurements run for every short call.
       // Callers cannot opt out from the public API.
       ice: true,

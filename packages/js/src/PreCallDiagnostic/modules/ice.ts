@@ -1,10 +1,10 @@
 import type {
   PreCallIceReport,
+  RTCIceCandidateStats,
   PreCallIceServerComparisonEntry,
   NominatedPair,
 } from '../types';
 import type { PreCallDiagnosticContext } from '../context';
-import { RTCIceCandidateStats } from 'src/PreCallDiagnosis';
 
 /**
  * Build the ICE report section from the diagnostic context.

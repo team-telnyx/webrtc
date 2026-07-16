@@ -1,6 +1,57 @@
 import type Call from '../Modules/Verto/webrtc/Call';
-import type { RTCIceCandidateStats } from '../PreCallDiagnosis';
 import type { TelnyxRTC } from '../TelnyxRTC';
+
+/**
+ * Interface representing the statistics of an RTC ICE candidate.
+ * @inline
+ */
+export interface RTCIceCandidateStats {
+  /**
+   * The address of the ICE candidate.
+   */
+  address: RTCIceCandidate['address'];
+  /**
+   * The type of the ICE candidate.
+   */
+  candidateType: RTCIceCandidate['type'];
+  /**
+   * Indicates whether the ICE candidate has been deleted.
+   */
+  deleted: boolean;
+  /**
+   * The unique identifier for the ICE candidate.
+   */
+  id: string;
+  /**
+   * The port number of the ICE candidate.
+   */
+  port: RTCIceCandidate['port'];
+  /**
+   * The priority of the ICE candidate.
+   */
+  priority: RTCIceCandidate['priority'];
+  /**
+   * The protocol used by the ICE candidate.
+   */
+  protocol: RTCIceCandidate['protocol'] | 'tls';
+  /**
+   * The timestamp when the ICE candidate was generated.
+   */
+  timestamp: DOMHighResTimeStamp;
+  /**
+   * The transport identifier for the ICE candidate.
+   */
+  transportId: string;
+  /**
+   * The type of the ICE candidate, either local or remote.
+   */
+  type: string;
+  /**
+   * The URL of the ICE candidate.
+   */
+  url: string;
+  networkType: string;
+}
 
 export interface PreCallIceOptions {
   gatherCandidates?: boolean;
@@ -24,7 +75,6 @@ export interface PreCallDiagnosticOptions {
   callerName?: string;
   callerNumber?: string;
   audio?: boolean | MediaStreamConstraints['audio'];
-  callSetupTimeoutMs?: number;
   statsSampleIntervalMs?: number;
   durationMs?: number;
   autoHangup?: boolean;
