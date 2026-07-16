@@ -265,34 +265,16 @@ function extractRttSamples(reports: RTCStatsReport[]): number[] {
     let reportProducedRtt = false;
     const remoteInbound = getEntries(report, 'remote-inbound-rtp', true);
     for (const entry of remoteInbound) {
-      // roundTripTime: latest RTT measured (seconds → ms).
-      // This is the instantaneous RTT of the most recent STUN response.
+      // `roundTripTime` is the latest RTT observation for this remote inbound
+      // RTP stream. Keep it as the only media RTT sample for this frame. The
+      // cumulative `totalRoundTripTime / roundTripTimeMeasurements` value is a
+      // historical average, not another independent observation; mixing both
+      // values would double-count earlier measurements and bias the summary.
       const rttSec = safeNumber(entry.roundTripTime);
       if (rttSec !== undefined) {
         const rttMs = rttSec * 1000;
         if (rttMs >= 0) {
           samples.push(rttMs);
-          reportProducedRtt = true;
-        }
-      }
-
-      // totalRoundTripTime / roundTripTimeMeasurements: cumulative average.
-      // Always collect this when available — even when roundTripTime was
-      // present — because the cumulative average varies across frames as
-      // more STUN responses accumulate, giving min/max/average real spread.
-      // Without this, a short call where roundTripTime stays constant across
-      // frames (no new STUN response) produces {min==max==average} — the
-      // bug reported in VSDK-412 review (Review 18, point 3).
-      const totalRtt = safeNumber(entry.totalRoundTripTime);
-      const measurements = safeNumber(entry.roundTripTimeMeasurements);
-      if (
-        totalRtt !== undefined &&
-        measurements !== undefined &&
-        measurements > 0
-      ) {
-        const avgRttMs = (totalRtt / measurements) * 1000;
-        if (avgRttMs >= 0) {
-          samples.push(avgRttMs);
           reportProducedRtt = true;
         }
       }
@@ -317,38 +299,66 @@ function extractRttSamples(reports: RTCStatsReport[]): number[] {
  * Jitter comes from inbound audio RTP entries (in seconds from standard
  * WebRTC stats) — we convert to milliseconds.
  */
-function extractJitterSamples(reports: RTCStatsReport[]): number[] {
+function extractJitterSamples(
+  reports: RTCStatsReport[],
+  type: 'inbound-rtp' | 'remote-inbound-rtp'
+): number[] {
   const samples: number[] = [];
   for (const report of reports) {
-    let reportProducedJitter = false;
-    const remoteInbound = getEntries(report, 'remote-inbound-rtp', true);
-    for (const entry of remoteInbound) {
+    for (const entry of getEntries(report, type, true)) {
       const jitterSec = safeNumber(entry.jitter);
       if (jitterSec !== undefined) {
         const jitterMs = jitterSec * 1000;
         if (jitterMs >= 0) {
           samples.push(jitterMs);
-          reportProducedJitter = true;
-        }
-      }
-    }
-
-    // Fallback: local inbound audio jitter
-    if (!reportProducedJitter) {
-      const localInbound = getEntries(report, 'inbound-rtp', true);
-      for (const entry of localInbound) {
-        const jitterSec = safeNumber(entry.jitter);
-        if (jitterSec !== undefined) {
-          const jitterMs = jitterSec * 1000;
-          if (jitterMs >= 0) {
-            samples.push(jitterMs);
-            reportProducedJitter = true;
-          }
         }
       }
     }
   }
   return samples;
+}
+
+/** Select one directional metric for the compact report without averaging a
+ * healthy direction together with a degraded one. The higher average is the
+ * direction that must drive quality classification and reason generation.
+ */
+function selectWorseMetric(
+  first: NetworkMinMaxAverage | undefined,
+  second: NetworkMinMaxAverage | undefined
+): NetworkMinMaxAverage | undefined {
+  if (first?.average === undefined) return second;
+  if (second?.average === undefined) return first;
+  return second.average > first.average ? second : first;
+}
+
+interface PacketLossSummary {
+  packetsReceived?: number;
+  packetsLost?: number;
+  packetLossFraction?: number;
+}
+
+function extractPacketLossSummary(entries: StatsEntry[]): PacketLossSummary {
+  const packetsReceived = sumField(entries, 'packetsReceived');
+  const packetsLost = sumField(entries, 'packetsLost');
+  const totalPackets = (packetsReceived ?? 0) + (packetsLost ?? 0);
+  const packetLossFraction =
+    packetsLost !== undefined && totalPackets > 0
+      ? packetsLost / totalPackets
+      : undefined;
+
+  return { packetsReceived, packetsLost, packetLossFraction };
+}
+
+/** Pick the direction with the highest measurable packet-loss fraction. */
+function selectWorsePacketLoss(
+  inbound: PacketLossSummary,
+  outbound: PacketLossSummary
+): PacketLossSummary {
+  if (inbound.packetLossFraction === undefined) return outbound;
+  if (outbound.packetLossFraction === undefined) return inbound;
+  return outbound.packetLossFraction > inbound.packetLossFraction
+    ? outbound
+    : inbound;
 }
 
 /**
@@ -363,19 +373,17 @@ function extractPacketCounters(
   if (reports.length === 0) return undefined;
 
   const lastReport = reports[reports.length - 1];
+  const localInbound = getEntries(lastReport, 'inbound-rtp', true);
   const remoteInbound = getEntries(lastReport, 'remote-inbound-rtp', true);
-
-  let packetsSent = outbound?.packets;
-  let packetsReceived = inbound?.packets;
-  let packetsLost = sumField(
-    getEntries(lastReport, 'inbound-rtp', true),
-    'packetsLost'
+  const selectedLoss = selectWorsePacketLoss(
+    extractPacketLossSummary(localInbound),
+    extractPacketLossSummary(remoteInbound)
   );
 
-  if (packetsReceived === undefined) {
-    packetsReceived = sumField(remoteInbound, 'packetsReceived');
-    packetsLost = sumField(remoteInbound, 'packetsLost');
-  }
+  let packetsSent = outbound?.packets;
+  let packetsReceived = selectedLoss.packetsReceived ?? inbound?.packets;
+  const packetsLost = selectedLoss.packetsLost;
+  const packetLossFraction = selectedLoss.packetLossFraction;
 
   const candidatePair = getSelectedCandidatePair(lastReport);
   if (packetsSent === undefined) {
@@ -383,13 +391,6 @@ function extractPacketCounters(
   }
   if (packetsReceived === undefined) {
     packetsReceived = safeNumber(candidatePair?.packetsReceived);
-  }
-
-  // Compute packet loss fraction
-  const totalPackets = (packetsReceived ?? 0) + (packetsLost ?? 0);
-  let packetLossFraction: number | undefined;
-  if (packetsLost !== undefined && totalPackets > 0) {
-    packetLossFraction = packetsLost / totalPackets;
   }
 
   // Only return if we have at least one value
@@ -648,7 +649,10 @@ export function buildPreCallNetworkReport(
   const inbound = extractAudioDirection(reports, 'inbound');
   const outbound = extractAudioDirection(reports, 'outbound');
   const rtt = computeMinMaxAverage(extractRttSamples(reports));
-  const jitter = computeMinMaxAverage(extractJitterSamples(reports));
+  const jitter = selectWorseMetric(
+    computeMinMaxAverage(extractJitterSamples(reports, 'inbound-rtp')),
+    computeMinMaxAverage(extractJitterSamples(reports, 'remote-inbound-rtp'))
+  );
   const packets = extractPacketCounters(reports, inbound, outbound);
   const bytes = extractByteCounters(reports, inbound, outbound);
   const bitrate = extractBitrate(reports, inbound, outbound);

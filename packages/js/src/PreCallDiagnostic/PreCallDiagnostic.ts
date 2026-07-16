@@ -291,16 +291,17 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
 
   private async waitForCallEstablishment(call: Call): Promise<boolean> {
     const deadline = Date.now() + DEFAULT_CALL_SETUP_TIMEOUT_MS;
-    const isCallConnected =
+    const isCallConnected = () =>
       call.state === 'active' &&
       call.peer?.instance?.connectionState === 'connected';
 
     while (Date.now() < deadline) {
-      if (isCallConnected) return true;
+      if (isCallConnected()) return true;
+      if (['done', 'hangup', 'destroy'].includes(call.state)) return false;
       await delay(500);
     }
 
-    return isCallConnected;
+    return isCallConnected();
   }
 
   private createDiagnosticCall(

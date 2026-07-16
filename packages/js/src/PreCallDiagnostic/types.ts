@@ -133,7 +133,6 @@ export interface PreCallIceCandidateInfo {
   candidateType?: RTCIceCandidateType | string;
   protocol?: string;
   networkType?: string;
-  relayProtocol?: string;
   url?: string;
 }
 
