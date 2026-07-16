@@ -340,13 +340,33 @@ interface PacketLossSummary {
 function extractPacketLossSummary(entries: StatsEntry[]): PacketLossSummary {
   const packetsReceived = sumField(entries, 'packetsReceived');
   const packetsLost = sumField(entries, 'packetsLost');
-  const totalPackets = (packetsReceived ?? 0) + (packetsLost ?? 0);
-  const packetLossFraction =
-    packetsLost !== undefined && totalPackets > 0
+
+  // remote-inbound-rtp commonly omits the experimental packetsReceived field.
+  // In that case, use the RTCP-reported fractionLost value instead of treating
+  // the missing received counter as zero, which would turn any loss into 100%.
+  const reportedFractions = entries
+    .map((entry) => safeNumber(entry.fractionLost))
+    .filter(
+      (fraction): fraction is number =>
+        fraction !== undefined && fraction >= 0 && fraction <= 1
+    );
+  const reportedFraction =
+    reportedFractions.length > 0 ? Math.max(...reportedFractions) : undefined;
+
+  const totalPackets =
+    packetsReceived !== undefined && packetsLost !== undefined
+      ? packetsReceived + packetsLost
+      : undefined;
+  const computedFraction =
+    packetsLost !== undefined && totalPackets !== undefined && totalPackets > 0
       ? packetsLost / totalPackets
       : undefined;
 
-  return { packetsReceived, packetsLost, packetLossFraction };
+  return {
+    packetsReceived,
+    packetsLost,
+    packetLossFraction: reportedFraction ?? computedFraction,
+  };
 }
 
 /** Pick the direction with the highest measurable packet-loss fraction. */
