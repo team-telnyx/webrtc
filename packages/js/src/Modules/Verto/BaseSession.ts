@@ -737,12 +737,14 @@ export default abstract class BaseSession {
       : '';
 
     if (type === 'login') {
+      const pushWhenActive =
+        this.options.pushWhenActive ??
+        this.options.userVariables?.push_when_active ??
+        false;
       const userVariables = {
         ...this.options.userVariables,
-        push_when_active:
-          this.options.pushWhenActive ??
-          this.options.userVariables?.push_when_active ??
-          false,
+        push_when_active: pushWhenActive,
+        pn_late_fanout: pushWhenActive,
       };
       msg = new Login(
         this.options.login,
