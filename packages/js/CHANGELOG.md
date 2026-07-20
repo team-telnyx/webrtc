@@ -1,3 +1,6 @@
+## [2.27.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.5...webrtc/v2.27.6) (2026-07-20)
+
+- feat(js): add internal PN late fanout login flag (#741)
 ## [2.27.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.4...webrtc/v2.27.5) (2026-07-15)
 
 - docs: split CN1 (Chennai) into its own South Asia region (VSDK-82) (#739)
