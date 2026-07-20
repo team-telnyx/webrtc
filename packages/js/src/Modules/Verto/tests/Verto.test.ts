@@ -644,17 +644,21 @@ describe('Verto', () => {
       const request = await loginRequestFor();
 
       expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(request.params.userVariables.pn_late_fanout).toBe(false);
       expect(typeof request.params.userVariables.push_when_active).toBe(
         'boolean'
       );
       expect(request.params.push_when_active).toBeUndefined();
       expect(request.params.loginParams.push_when_active).toBeUndefined();
+      expect(request.params.pn_late_fanout).toBeUndefined();
+      expect(request.params.loginParams.pn_late_fanout).toBeUndefined();
     });
 
     it('sends push_when_active=true when explicitly enabled', async () => {
       const request = await loginRequestFor({ pushWhenActive: true });
 
       expect(request.params.userVariables.push_when_active).toBe(true);
+      expect(request.params.userVariables.pn_late_fanout).toBe(true);
       expect(typeof request.params.userVariables.push_when_active).toBe(
         'boolean'
       );
@@ -672,12 +676,14 @@ describe('Verto', () => {
       const request = Connection.mockSend.mock.calls[0][0].request;
       expect(request.method).toBe('login');
       expect(request.params.userVariables.push_when_active).toBe(true);
+      expect(request.params.userVariables.pn_late_fanout).toBe(true);
     });
 
     it('sends push_when_active=false when explicitly disabled', async () => {
       const request = await loginRequestFor({ pushWhenActive: false });
 
       expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(request.params.userVariables.pn_late_fanout).toBe(false);
       expect(typeof request.params.userVariables.push_when_active).toBe(
         'boolean'
       );
@@ -696,6 +702,7 @@ describe('Verto', () => {
         push_device_token: 'device-token',
         custom_key: 'custom-value',
         push_when_active: true,
+        pn_late_fanout: true,
       });
     });
 
@@ -710,6 +717,7 @@ describe('Verto', () => {
       expect(request.params.userVariables).toEqual({
         push_device_token: 'device-token',
         push_when_active: true,
+        pn_late_fanout: true,
       });
     });
 
@@ -725,6 +733,23 @@ describe('Verto', () => {
         });
 
         expect(request.params.userVariables.push_when_active).toBe(
+          pushWhenActive
+        );
+        expect(request.params.userVariables.pn_late_fanout).toBe(
+          pushWhenActive
+        );
+      }
+    );
+
+    it.each([true, false])(
+      'derives pn_late_fanout from push_when_active=%s instead of caller input',
+      async (pushWhenActive) => {
+        const request = await loginRequestFor({
+          pushWhenActive,
+          userVariables: { pn_late_fanout: !pushWhenActive },
+        });
+
+        expect(request.params.userVariables.pn_late_fanout).toBe(
           pushWhenActive
         );
       }
@@ -748,6 +773,7 @@ describe('Verto', () => {
       expect(initialRequest.params.userVariables).toEqual({
         push_device_token: 'device-token',
         push_when_active: true,
+        pn_late_fanout: true,
       });
       expect(reconnectRequest.params.reconnection).toBe(true);
       expect(reconnectRequest.params.userVariables).toEqual(
@@ -773,6 +799,7 @@ describe('Verto', () => {
       expect(request.params.userVariables).toEqual({
         custom_key: 'custom-value',
       });
+      expect(request.params.userVariables.pn_late_fanout).toBeUndefined();
     });
   });
 
