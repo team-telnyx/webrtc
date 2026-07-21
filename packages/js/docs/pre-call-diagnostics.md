@@ -216,7 +216,20 @@ switch (report.verdict) {
     showError('Cannot place a call right now.', report.reasons);
     break;
   case 'permission_denied':
-    showMicPermissionPrompt();
+    // 'permission_denied' covers both an explicit denial AND capture
+    // failures (no_device / not_supported / unknown). Inspect
+    // captureError to distinguish them before prompting.
+    if (
+      report.microphone?.captureError &&
+      report.microphone.captureError !== 'permission_denied'
+    ) {
+      showError(
+        `Microphone unavailable: ${report.microphone.captureError}`,
+        report.reasons
+      );
+    } else {
+      showMicPermissionPrompt();
+    }
     break;
   case 'inconclusive':
   default:
@@ -472,11 +485,23 @@ placeholders. Always check for a section's presence before reading it
 The `verdict` field is the single overall result of the diagnostic.
 Values and their precedence (highest to lowest):
 
-1. `permission_denied` — microphone permission was explicitly denied.
-2. `blocked` — a module reports a blocking condition (no ICE candidates
-   that connected, no selected pair, no usable ICE server, no
-   microphone device, capture failure, poor network quality, no audio
-   flow).
+1. `permission_denied` — microphone permission was denied **or** no
+   microphone stream could be obtained. The microphone module sets
+   `isPermissionGrantedCurrently = false` whenever `getUserMedia()` does
+   not yield a stream, so an explicit denial, a missing device
+   (`no_device`), an unsupported environment (`not_supported`), and a
+   generic capture failure (`unknown`) **all** produce `permission_denied`
+   — they are **not** reported as `blocked`. Inspect
+   `report.microphone.captureError` and `report.microphone.reasons` to
+   distinguish the underlying cause. (The `permission_denied` vs `blocked`
+   ordering reflects the current implementation; if a future change
+   reclassifies capture failures as `blocked`, this guide must be updated
+   to match.)
+2. `blocked` — a module reports a blocking condition with a usable
+   microphone (no ICE candidates that connected, no selected pair, no
+   usable ICE server, poor network quality, no audio flow). Note: a
+   missing device or capture failure is **not** in this category — see
+   `permission_denied` above.
 3. `degraded` — a module reports degraded but functional conditions
    (e.g. only-relay candidates, high jitter, a partially-failing set of
    ICE servers, silent microphone).
@@ -785,9 +810,17 @@ JSON — do not present it as a stable or routinely persisted payload.
 ```js
 const report = await client.runPreCall();
 
-// Permission denied — the user blocked the microphone.
+// Permission denied — the user blocked the microphone, OR a capture
+// failure (no device / not supported / unknown) occurred. Distinguish
+// them: a capture failure should not be treated as a re-promptable
+// permission denial.
 if (report.verdict === 'permission_denied') {
-  showMicPermissionPrompt();
+  const captureError = report.microphone?.captureError;
+  if (captureError && captureError !== 'permission_denied') {
+    showError(`Microphone unavailable: ${captureError}`, report.reasons);
+  } else {
+    showMicPermissionPrompt();
+  }
   return;
 }
 
@@ -863,16 +896,16 @@ if (failing.length > 0) {
 Diagnostic reports can contain **sensitive** data. Before exporting,
 logging, or sharing a report, redact or omit the following:
 
-| Field                                                                        | Sensitivity | What it contains                                                                                                                                                                           |
-| ---------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `serverTests[].server.username`/`credential` (or any `iceServers` entry)     | **High**    | TURN `username` and `credential` values from configured ICE servers.                                                                                                                       |
-| `ice.serverCandidateComparison[].urls` / `serverTests[].server.urls`         | Medium      | TURN server URLs (may include host + port).                                                                                                                                                |
-| `ice.candidates[].address` / `selectedPair.local.address` / `remote.address` | Medium      | Local/remote IP addresses and ports.                                                                                                                                                       |
-| `ice.candidates[].url`                                                       | Medium      | TURN server URLs.                                                                                                                                                                          |
-| `microphone.recordingDataUrl`                                                | **High**    | Base64-encoded recorded audio (only when `record: true`).                                                                                                                                  |
-| `microphone.devices[].label` / `deviceId`                                    | Medium      | Device labels and IDs (labels imply granted permission).                                                                                                                                   |
-| `callId` / `serverTests[].callId`                                            | Medium      | Internal call identifiers — useful for correlation but should not be exposed to end users.                                                                                                 |
-| `raw.samples`                                                                | Medium      | Raw browser WebRTC stats (full mode only), including candidate addresses and detailed counters. Browser-dependent; may not serialize cleanly. `raw.stats` is declared but never populated. |
+| Field                                                                                                                            | Sensitivity | What it contains                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `serverTests[].server.username`/`credential` (or any `iceServers` entry)                                                         | **High**    | TURN `username` and `credential` values from configured ICE servers.                                                                                                                       |
+| `ice.serverCandidateComparison[].urls` / `serverTests[].server.urls`                                                             | Medium      | TURN server URLs (may include host + port).                                                                                                                                                |
+| `ice.candidates[].address` / `selectedPair.localCandidate.address` / `selectedPair.remoteCandidate.address` (and their `.port`s) | Medium      | Local/remote IP addresses and ports of the selected ICE candidate pair.                                                                                                                    |
+| `ice.candidates[].url`                                                                                                           | Medium      | TURN server URLs.                                                                                                                                                                          |
+| `microphone.recordingDataUrl`                                                                                                    | **High**    | Base64-encoded recorded audio (only when `record: true`).                                                                                                                                  |
+| `microphone.devices[].label` / `deviceId`                                                                                        | Medium      | Device labels and IDs (labels imply granted permission).                                                                                                                                   |
+| `callId` / `serverTests[].callId`                                                                                                | Medium      | Internal call identifiers — useful for correlation but should not be exposed to end users.                                                                                                 |
+| `raw.samples`                                                                                                                    | Medium      | Raw browser WebRTC stats (full mode only), including candidate addresses and detailed counters. Browser-dependent; may not serialize cleanly. `raw.stats` is declared but never populated. |
 
 Guidance:
 
@@ -1017,9 +1050,13 @@ structural typing / inline types or `import type` from the deep path
   `RTCIceCandidatePairStats`)
 - `PreCallDiagnosticWarning`, `PreCallIceServerComparisonEntry`,
   `PreCallAudioDevice`, `PreCallMicrophoneAudioLevelStats`,
-  `PreCallIceServerComparison`, `PreCallIceOptions`, `PreCallNetworkOptions`
+  `PreCallIceServerComparison`
   (field types on `PreCallDiagnosticReport` sub-reports — present in the
-  generated declarations but not re-exported from the package root)
+  generated declarations but not re-exported from the package root. The
+  package root does re-export `PreCallIceOptions`, `PreCallNetworkOptions`,
+  `PreCallMicrophoneOptions`, and several other nested types, so the lists
+  above and below are not exhaustive — always check the generated
+  declarations for the authoritative export set.)
 
 > `RunNetworkCheckOptions` is `Pick<RunPreCallOptions, 'iceServers'>`
 > (only `iceServers`).
