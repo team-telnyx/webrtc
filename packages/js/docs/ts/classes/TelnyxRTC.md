@@ -86,6 +86,9 @@ client.off('telnyx.notification');
 - [reportNoRtp](#reportnortp)
 - [reportPeerFailure](#reportpeerfailure)
 - [resetReconnectAttempts](#resetreconnectattempts)
+- [runMicrophoneCheck](#runmicrophonecheck)
+- [runNetworkCheck](#runnetworkcheck)
+- [runPreCall](#runprecall)
 - [serverDisconnect](#serverdisconnect)
 - [setAudioSettings](#setaudiosettings)
 - [startSignalingHealthMonitor](#startsignalinghealthmonitor)
@@ -1444,6 +1447,187 @@ or when the user manually initiates a reconnect after exhaustion.
 #### Inherited from
 
 TelnyxRTCClient.resetReconnectAttempts
+
+---
+
+### runMicrophoneCheck
+
+▸ **runMicrophoneCheck**(`options?`): `Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+Runs a microphone check using the `PreCallDiagnostic` framework.
+
+This method performs an active microphone check: it calls
+`getUserMedia({ audio: true })` to verify capture works, measures
+the audio level using Web Audio APIs, enumerates all available
+audio input devices, and optionally records the audio so the user
+can listen to it afterwards.
+
+This method does **not** dial (`client.newCall()` is not called) —
+it calls `getUserMedia({ audio: true })` for permission + device
+check, then runs a Web Audio `AnalyserNode` for level measurement.
+No SIP signaling or `destinationNumber` is required.
+
+#### Parameters
+
+| Name      | Type                                                                                                                        | Description                                                |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
+| `options` | [`RunMicrophoneCheckOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/runmicrophonecheckoptions) | Options for the microphone check. All fields are optional. |
+
+#### Returns
+
+`Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with defaults (active capture enabled):
+
+```js
+const report = await client.runMicrophoneCheck();
+console.log(report.microphone?.permissionGranted);
+console.log(report.microphone?.devices);
+console.log(report.microphone?.audioLevelStats);
+```
+
+With recording enabled (user can listen to it afterwards):
+
+```js
+const report = await client.runMicrophoneCheck({
+  durationMs: 5000,
+  record: true,
+  playback: true,
+  onRecordingConsent: async () => {
+    // Display MICROPHONE_RECORDING_NOTICE and wait for user ack
+    await showConsentDialog();
+  },
+});
+```
+
+---
+
+### runNetworkCheck
+
+▸ **runNetworkCheck**(`options?`): `Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+Runs a network/ICE check using the `PreCallDiagnostic` framework.
+
+This method tests each configured ICE server independently (one
+RTCPeerConnection per server, all run simultaneously) so the caller
+can see exactly which servers produce candidates, how long gathering
+takes, and which servers are not working. It also runs a combined
+gathering pass for the aggregate ICE report.
+
+This method does **not** dial (`client.newCall()` is not called) —
+it builds raw `RTCPeerConnection`s with the ICE servers, gathers
+candidates, then closes the peers. No SIP signaling or
+`destinationNumber` is required.
+
+**Wall-clock cost:** all ICE servers are tested simultaneously, so
+the total wall-clock is approximately `durationMs` regardless of how
+many ICE servers are configured.
+
+#### Parameters
+
+| Name      | Type                                                                                                        | Description                                             |
+| :-------- | :---------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
+| `options` | [`RunPreCallOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/runprecalloptions) | Options for the network check. All fields are optional. |
+
+#### Returns
+
+`Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with the client's default ICE servers:
+
+```js
+const report = await client.runNetworkCheck();
+console.log(report.ice?.perServerResults);
+```
+
+With custom ICE servers:
+
+```js
+const report = await client.runNetworkCheck({
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+});
+```
+
+---
+
+### runPreCall
+
+▸ **runPreCall**(`options?`): `Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+Runs a pre-call diagnostic using the new `PreCallDiagnostic` framework.
+
+This method creates a temporary diagnostic call to probe network, ICE,
+media, and microphone conditions before placing a real call. The
+diagnostic call is automatically hung up on completion (the public
+`RunPreCallOptions` surface does not expose a toggle for this).
+
+The client's existing ICE servers and audio constraints are reused
+unless explicitly overridden via `options`.
+
+`destinationNumber` is optional — when omitted, the diagnostic call
+dials a sensible default (`'+1-872-231-5806'`).
+
+Timer semantics: the total budget is `callSetupTimeoutMs + durationMs`.
+`callSetupTimeoutMs` bounds call establishment; `durationMs` is the
+post-establishment sampling window (starts only after establishment).
+
+See the Pre-Call Diagnostics guide (`docs/pre-call-diagnostics.md`) for
+full option defaults, side effects, report interpretation, and
+privacy/safe-sharing guidance.
+
+#### Parameters
+
+| Name      | Type                                                                                                        | Description                                                                                                        |
+| :-------- | :---------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `options` | [`RunPreCallOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/runprecalloptions) | Options for the pre-call diagnostic. All fields are optional; `destinationNumber` defaults to `'+1-872-231-5806'`. |
+
+#### Returns
+
+`Promise`\<[`PreCallDiagnosticReport`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/precalldiagnosticreport)\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with all defaults:
+
+```js
+const report = await client.runPreCall();
+console.log(report.verdict); // => 'ready' | 'degraded' | 'blocked' | 'inconclusive'
+```
+
+With an explicit destination:
+
+```js
+const report = await client.runPreCall({
+  destinationNumber: '+155****4567',
+});
+```
+
+Override duration and setup timeout:
+
+```js
+const report = await client.runPreCall({
+  durationMs: 3000,
+  callSetupTimeoutMs: 20000,
+});
+```
+
+Custom ICE servers (diagnostic-only, does not mutate client config):
+
+```js
+const report = await client.runPreCall({
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+});
+```
 
 ---
 

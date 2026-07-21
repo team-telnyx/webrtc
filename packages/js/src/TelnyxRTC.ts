@@ -376,8 +376,8 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *
    * This method creates a temporary diagnostic call to probe network, ICE,
    * media, and microphone conditions before placing a real call. The
-   * diagnostic call is automatically cleaned up (hung up) on completion
-   * unless `autoHangup` is set to `false`.
+   * diagnostic call is automatically hung up on completion (the public
+   * `RunPreCallOptions` surface does not expose a toggle for this).
    *
    * The client's existing ICE servers and audio constraints are reused
    * unless explicitly overridden via `options`.
@@ -388,6 +388,10 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * Timer semantics: the total budget is `callSetupTimeoutMs + durationMs`.
    * `callSetupTimeoutMs` bounds call establishment; `durationMs` is the
    * post-establishment sampling window (starts only after establishment).
+   *
+   * See the Pre-Call Diagnostics guide (`docs/pre-call-diagnostics.md`) for
+   * full option defaults, side effects, report interpretation, and
+   * privacy/safe-sharing guidance.
    *
    * @param options Options for the pre-call diagnostic. All fields are
    *   optional; `destinationNumber` defaults to `'+1-872-231-5806'`.

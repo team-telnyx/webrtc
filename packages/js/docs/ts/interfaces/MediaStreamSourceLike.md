@@ -1,0 +1,1 @@
+Narrow interface for MediaStreamAudioSourceNode dependencies.

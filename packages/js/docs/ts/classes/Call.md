@@ -73,6 +73,7 @@ call.muteAudio();
 - [deaf](#deaf)
 - [dtmf](#dtmf)
 - [flushIntermediateCallReport](#flushintermediatecallreport)
+- [getEstablishmentTimings](#getestablishmenttimings)
 - [getStats](#getstats)
 - [hold](#hold)
 - [muteAudio](#muteaudio)
@@ -433,6 +434,40 @@ falsely finalizing the call.
 #### Inherited from
 
 BaseCall.flushIntermediateCallReport
+
+---
+
+### getEstablishmentTimings
+
+▸ **getEstablishmentTimings**(): [`ICallEstablishmentTimings`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icallestablishmenttimings)
+
+Return structured call-establishment timings for this call.
+
+Reads the W3C `performance.mark()` lifecycle recorded by the SDK call
+path (BaseCall, VertoHandler, Verto instance) and the
+`CallEstablishmentTimings` collector. Returns undefined if the
+`new-call-start` mark is missing — e.g. the call was not created via
+`client.newCall()` or the marks were already cleared by `_finalize()`.
+
+Mode is derived from the active ICE mode: trickle unless an ICE restart
+forced the non-trickle path. Direction comes from the existing `Direction`
+enum (string values already match the literal type).
+
+This is the ONLY place outside `CallEstablishmentTimings.ts` itself that
+imports from that module — diagnostic callers consume the structured
+result through this seam.
+
+— diagnostic-only seam; not part of the public SDK type
+surface. Exposed for the PreCallDiagnostic framework (VSDK-412) and
+subject to change without a semver bump.
+
+#### Returns
+
+[`ICallEstablishmentTimings`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icallestablishmenttimings)
+
+#### Inherited from
+
+BaseCall.getEstablishmentTimings
 
 ---
 
