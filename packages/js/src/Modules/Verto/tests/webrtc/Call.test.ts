@@ -18,6 +18,7 @@ import {
   DUPLICATE_INBOUND_ANSWER,
   SwEvent,
 } from '../../util/constants';
+import { LOW_BYTES_RECEIVED } from '../../util/constants/errorCodes';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
@@ -250,45 +251,194 @@ describe('Call', () => {
   // Integration test for the _onRemoteSdp guard: a held call that receives a
   // fresh remote SDP as the answer to an ICE restart / updateMedia (recovery)
   // must NOT flip to Active. Only an explicit unhold/toggle may activate it.
+  // These tests exercise the REAL _onRemoteSdp path (the same pattern used by
+  // Call.trickle-ice.test.ts): they create the peer via invite(), mock
+  // peer.instance.setRemoteDescription to resolve, then invoke the private
+  // _onRemoteSdp handler directly. They would fail if the production guard at
+  // BaseCall._onRemoteSdp were removed or moved incorrectly.
   describe('held re-answer preserves State.Held (VSUP-145)', () => {
-    it('does not flip a held call to Active on gotAnswer with new remote SDP', () => {
-      call = new Call(session, { ...defaultParams, onNotification: noop });
+    const remoteSdp = 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n';
+
+    // Helper: create a Call whose peer is initialized via invite() and whose
+    // peer.instance.setRemoteDescription is mocked to resolve immediately.
+    // Returns the call plus a spy on setRemoteDescription so callers can
+    // assert the production SDP path was actually exercised.
+    async function makeCallWithReadyPeer(): Promise<{
+      call: Call;
+      setRemoteDescriptionSpy: jest.SpyInstance;
+    }> {
+      const c = new Call(session, { ...defaultParams, onNotification: noop });
+      // invite() constructs peer.instance (a mocked RTCPeerConnection in the
+      // test environment). It may attempt media; swallow any rejection.
+      await c.invite().catch(() => {});
+      if (!c.peer || !c.peer.instance) {
+        throw new Error('peer.instance not initialized after invite()');
+      }
+      const setRemoteDescriptionSpy = jest
+        .spyOn(c.peer.instance, 'setRemoteDescription')
+        .mockResolvedValue(undefined as unknown as void);
+      return { call: c, setRemoteDescriptionSpy };
+    }
+
+    it('does not flip a held call to Active when _onRemoteSdp applies a new answer', async () => {
+      const { call: c, setRemoteDescriptionSpy } =
+        await makeCallWithReadyPeer();
+
       // Drive the call into Active, then Held (the customer scenario).
-      call.setState(State.Active);
-      call.setState(State.Held);
-      expect(call.state).toEqual('held');
+      c.setState(State.Active);
+      c.setState(State.Held);
+      expect(c.state).toEqual('held');
 
-      // Simulate the re-answer path: set gotAnswer (the private flag the
-      // _onRemoteSdp guard checks) and invoke the peer's remote-SDP handler
-      // the same way BaseCall._onRemoteSdp does.
-      (call as unknown as { gotAnswer: boolean }).gotAnswer = true;
+      // gotAnswer is the private flag the _onRemoteSdp guard checks. Setting
+      // it mirrors the real re-answer flow (a Modify response carrying a new
+      // SDP answer arrives after an ICE restart / updateMedia).
+      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
 
-      // The guard is `if (this.gotAnswer && this._state !== State.Held)`.
-      // We exercise it by calling setState(Active) directly only when NOT
-      // held — but the real code path lives in _onRemoteSdp. To test the
-      // guard logic deterministically without a live PeerConnection, we
-      // replicate the guard condition and assert it skips the activation.
-      const shouldActivate =
-        (call as unknown as { gotAnswer: boolean }).gotAnswer &&
-        (call as unknown as { _state: number })._state !== State.Held;
-      expect(shouldActivate).toBe(false);
+      // Invoke the REAL production path, not a re-implementation of the guard.
+      await (
+        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
+      )._onRemoteSdp(remoteSdp);
 
-      // Public state must remain held.
-      expect(call.state).toEqual('held');
+      // The production setRemoteDescription must have been called — proving we
+      // exercised the real code path, not a test-local copy of the guard.
+      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
+
+      // Public state must remain held despite a genuine gotAnswer re-answer.
+      expect(c.state).toEqual('held');
     });
 
-    it('flips a non-held call to Active on gotAnswer with new remote SDP', () => {
-      call = new Call(session, { ...defaultParams, onNotification: noop });
-      call.setState(State.Active);
-      expect(call.state).toEqual('active');
+    it('flips a non-held (Active) call to Active when _onRemoteSdp applies a new answer', async () => {
+      const { call: c, setRemoteDescriptionSpy } =
+        await makeCallWithReadyPeer();
 
-      (call as unknown as { gotAnswer: boolean }).gotAnswer = true;
+      c.setState(State.Active);
+      expect(c.state).toEqual('active');
 
-      // Non-held call → guard allows activation.
-      const shouldActivate =
-        (call as unknown as { gotAnswer: boolean }).gotAnswer &&
-        (call as unknown as { _state: number })._state !== State.Held;
-      expect(shouldActivate).toBe(true);
+      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
+
+      await (
+        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
+      )._onRemoteSdp(remoteSdp);
+
+      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
+      // Non-held call → the guard allows the Active (re-)activation.
+      expect(c.state).toEqual('active');
+    });
+
+    it('does not change state when _onRemoteSdp runs without gotAnswer (early media only)', async () => {
+      const { call: c, setRemoteDescriptionSpy } =
+        await makeCallWithReadyPeer();
+
+      c.setState(State.Active);
+      c.setState(State.Held);
+      expect(c.state).toEqual('held');
+
+      // No gotAnswer — the guard's first clause is false, so setState(Active)
+      // is never reached regardless of held/active. State must be preserved.
+      await (
+        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
+      )._onRemoteSdp(remoteSdp);
+
+      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
+      expect(c.state).toEqual('held');
+    });
+  });
+
+  // ── VSUP-145: mixed-call isolation ──
+  // Stage acceptance: "With one held and one active call, health decisions
+  // are isolated by affected call: the held call's silence is ignored while a
+  // genuine no-RTP condition on the active call remains actionable."
+  // This test creates two calls in the SAME session, drives one to Held and
+  // one to Active, and asserts that a LOW_BYTES_RECEIVED warning on each call
+  // reaches session.reportNoRtp ONLY for the active call — proving the
+  // hold-suppression and the no-RTP defense-in-depth guard are call-scoped
+  // and do not leak across calls sharing a session.
+  describe('mixed held + active call isolation (VSUP-145)', () => {
+    it('suppresses reportNoRtp for the held call but not the active call', async () => {
+      // Build two calls on the same session with ready peers.
+      const heldCall = new Call(session, {
+        ...defaultParams,
+        id: 'held-call-id',
+        onNotification: noop,
+      });
+      const activeCall = new Call(session, {
+        ...defaultParams,
+        id: 'active-call-id',
+        onNotification: noop,
+      });
+      await heldCall.invite().catch(() => {});
+      await activeCall.invite().catch(() => {});
+
+      // Mock setRemoteDescription on both peers so _onRemoteSdp / recovery
+      // paths never hit a real browser API.
+      if (heldCall.peer?.instance) {
+        jest
+          .spyOn(heldCall.peer.instance, 'setRemoteDescription')
+          .mockResolvedValue(undefined as unknown as void);
+      }
+      if (activeCall.peer?.instance) {
+        jest
+          .spyOn(activeCall.peer.instance, 'setRemoteDescription')
+          .mockResolvedValue(undefined as unknown as void);
+      }
+
+      // Drive each call to its target state.
+      heldCall.setState(State.Active);
+      heldCall.setState(State.Held);
+      activeCall.setState(State.Active);
+      expect(heldCall.state).toEqual('held');
+      expect(activeCall.state).toEqual('active');
+
+      // Spy on session.reportNoRtp — this is the no-RTP → ICE-restart
+      // recovery handoff. We assert it is called per-call-id.
+      const reportNoRtpSpy = jest
+        .spyOn(session, 'reportNoRtp')
+        .mockImplementation(() => {});
+
+      // Reach into each call's CallReportCollector and drive a
+      // LOW_BYTES_RECEIVED warning through the REAL onWarning callback that
+      // BaseCall wires (the same callback that calls session.reportNoRtp).
+      // This proves the BaseCall → collector → reportNoRtp wiring is
+      // call-scoped and respects the State.Held guard.
+      const fireLowBytesReceived = (c: Call) => {
+        const collector = (
+          c as unknown as {
+            _callReportCollector: {
+              onWarning: ((w: { code: number; name: string }) => void) | null;
+            };
+          }
+        )._callReportCollector;
+        expect(collector).toBeTruthy();
+        expect(typeof collector.onWarning).toBe('function');
+        // The warning shape matches ITelnyxWarning as used by the collector.
+        collector.onWarning!({
+          code: LOW_BYTES_RECEIVED,
+          name: 'LOW_BYTES_RECEIVED',
+        });
+      };
+
+      // Held call: LOW_BYTES_RECEIVED must NOT reach reportNoRtp.
+      fireLowBytesReceived(heldCall);
+      expect(reportNoRtpSpy).not.toHaveBeenCalled();
+
+      // Active call: LOW_BYTES_RECEIVED MUST reach reportNoRtp for that call.
+      fireLowBytesReceived(activeCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(1);
+      expect(reportNoRtpSpy).toHaveBeenCalledWith(activeCall.id, 'inbound');
+
+      // Defense-in-depth: a second fire on the held call still does not leak.
+      fireLowBytesReceived(heldCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(1);
+
+      // And a second fire on the active call reports again for that call only.
+      fireLowBytesReceived(activeCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(2);
+      expect(reportNoRtpSpy).toHaveBeenLastCalledWith(activeCall.id, 'inbound');
+      // Never once reported for the held call's id.
+      expect(reportNoRtpSpy).not.toHaveBeenCalledWith(
+        heldCall.id,
+        expect.anything()
+      );
     });
   });
 
