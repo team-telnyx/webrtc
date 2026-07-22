@@ -350,7 +350,9 @@ describe('Call', () => {
       // Simulate the attach-recovery replacement call: it starts in Recovering
       // (the _init() default when recoveredCallId is set) and carries the
       // wasHeldBeforeRecovery intent captured from the original held call.
-      (c as unknown as { _wasHeldBeforeRecovery: boolean })._wasHeldBeforeRecovery = true;
+      (
+        c as unknown as { _wasHeldBeforeRecovery: boolean }
+      )._wasHeldBeforeRecovery = true;
       (c as unknown as { _isRecovering: boolean })._isRecovering = true;
       c.setState(State.Recovering);
       expect(c.state).toEqual('recovering');
@@ -386,7 +388,9 @@ describe('Call', () => {
       const { call: c } = await makeCallWithReadyPeer();
 
       // Start as a recovering held call, then restore Held via _onRemoteSdp.
-      (c as unknown as { _wasHeldBeforeRecovery: boolean })._wasHeldBeforeRecovery = true;
+      (
+        c as unknown as { _wasHeldBeforeRecovery: boolean }
+      )._wasHeldBeforeRecovery = true;
       (c as unknown as { _isRecovering: boolean })._isRecovering = true;
       c.setState(State.Recovering);
       (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
@@ -401,10 +405,180 @@ describe('Call', () => {
       c.setState(State.Active);
       expect(c.state).toEqual('active');
       expect(
-        (c as unknown as { _wasHeldBeforeRecovery: boolean })._wasHeldBeforeRecovery
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
       ).toBe(false);
     });
+  });
 
+  // ── VSUP-145 P1: attach-recovery answer-success preserves Held ──
+  // The attach-recovery path does NOT use _onRemoteSdp: the attach SDP is
+  // applied as a remote offer in Peer.createPeerConnection and the local
+  // answer is sent via _onIceSdp (non-trickle) / _onTrickleIceSdp (trickle).
+  // Both answer-success callbacks must honor _wasHeldBeforeRecovery so a
+  // held call undergoing reattachment transitions Recovering -> Held (not
+  // Recovering -> Active, which would clear the held intent and expose the
+  // customer-visible bug). These tests invoke the REAL _onIceSdp /
+  // _onTrickleIceSdp handlers (the same pattern used by Call.trickle-ice
+  // .test.ts): a call is constructed with attach + recoveredCallId +
+  // wasHeldBeforeRecovery, invite() initializes the peer, session.execute
+  // is mocked to resolve, then the private SDP callback is invoked with a
+  // candidate-bearing answer SDP. They fail if the production guards at
+  // BaseCall._onIceSdp / _onTrickleIceSdp are removed or moved incorrectly.
+  describe('attach-recovery answer-success preserves Held (VSUP-145 P1)', () => {
+    // SDP carrying at least one candidate so _onIceSdp does not retry.
+    const answerSdp =
+      'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n' +
+      'a=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx\r\n';
+
+    // Helper: construct an attach-recovery replacement call (the kind
+    // VertoHandler._buildCall creates) carrying held-before-recovery intent.
+    // invite() initializes peer.instance so the real SDP path can run.
+    async function makeAttachRecoveryCall(trickle: boolean): Promise<Call> {
+      const c = new Call(session, {
+        ...defaultParams,
+        id: 'attach-recovery-call-id',
+        onNotification: noop,
+        // Attach-recovery: recoveredCallId drives _isRecovering=true in
+        // _init(); wasHeldBeforeRecovery drives _wasHeldBeforeRecovery=true.
+        attach: true,
+        recoveredCallId: 'previous-held-call-id',
+        wasHeldBeforeRecovery: true,
+        trickleIce: trickle,
+      });
+      // invite() constructs peer.instance (a mocked RTCPeerConnection in the
+      // test environment). It may attempt media; swallow any rejection.
+      await c.invite().catch(() => {});
+      if (!c.peer || !c.peer.instance) {
+        throw new Error('peer.instance not initialized after invite()');
+      }
+      // invite() may kick off an async offer-send whose .then() calls
+      // setState(State.Trying/Requesting). Flush pending microtasks and clear
+      // mocks so that promise settles BEFORE we drive the answer callback,
+      // otherwise its .then() could overwrite the answer's Held transition.
+      await new Promise((r) => setImmediate(r));
+      jest.clearAllMocks();
+      // Re-assert the recovery state after flushing invite()'s offer path.
+      // If invite()'s offer settled and set state to trying/requesting, the
+      // _isRecovering guard kept it from reaching Answering, but the state
+      // may no longer be 'recovering' — that is fine, we only need the
+      // recovery + held flags to be in place for the answer callback.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(true);
+      return c;
+    }
+
+    it('non-trickle: _onIceSdp answer-success transitions Recovering -> Held (not Active)', async () => {
+      const c = await makeAttachRecoveryCall(false);
+
+      // Mock session.execute so _execute(Attach) resolves — this is the
+      // path the real _onIceSdp takes for PeerType.Answer with attach=true.
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      // Invoke the REAL _onIceSdp handler with a candidate-bearing answer.
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      // Flush the microtask queue so the .then() callback (which calls
+      // setState) runs before we assert.
+      await new Promise((r) => setImmediate(r));
+
+      // The Attach message was sent (proving we exercised the real answer
+      // path for an attach-recovery call, not a test-local copy).
+      expect(executeSpy).toHaveBeenCalled();
+
+      // The recovering held-before-recovery call must transition to Held,
+      // NOT Active. This is the customer-visible requirement: a held call
+      // undergoing reattachment stays held until explicit unhold.
+      expect(c.state).toEqual('held');
+      // Recovery intent is consumed by the Held transition; _isRecovering
+      // is NOT cleared by Held (only Active clears it), so a subsequent
+      // genuine recovery is still possible.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+
+      executeSpy.mockRestore();
+    });
+
+    it('trickle: _onTrickleIceSdp answer-success transitions Recovering -> Held (not Active)', async () => {
+      const c = await makeAttachRecoveryCall(true);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      // Invoke the REAL _onTrickleIceSdp handler with a candidate-bearing answer.
+      (
+        c as unknown as {
+          _onTrickleIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onTrickleIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(executeSpy).toHaveBeenCalled();
+      expect(c.state).toEqual('held');
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+
+      executeSpy.mockRestore();
+    });
+
+    it('non-trickle: a recovering call WITHOUT held intent still goes Active (backward compat)', async () => {
+      // An active call that recovers must NOT be forced to held. This is the
+      // backward-compat case: wasHeldBeforeRecovery is absent/false.
+      const c = new Call(session, {
+        ...defaultParams,
+        id: 'attach-recovery-active-call-id',
+        onNotification: noop,
+        attach: true,
+        recoveredCallId: 'previous-active-call-id',
+        // wasHeldBeforeRecovery intentionally omitted — active call recovery.
+      });
+      await c.invite().catch(() => {});
+      // Flush invite()'s pending offer-send so it doesn't overwrite the
+      // answer callback's state transition.
+      await new Promise((r) => setImmediate(r));
+      jest.clearAllMocks();
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(false);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(executeSpy).toHaveBeenCalled();
+      // Active call recovery reaches Active (the default), NOT Held.
+      expect(c.state).toEqual('active');
+      // _isRecovering is cleared by the Active transition.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        false
+      );
+
+      executeSpy.mockRestore();
+    });
   });
 
   // ── VSUP-145: mixed-call isolation ──

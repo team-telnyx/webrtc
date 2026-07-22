@@ -2049,7 +2049,22 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // VSUP-145: attach-recovery reaches this answer-success
+          // callback via _onIceSdp/_onTrickleIceSdp (the attach SDP is
+          // applied as a remote offer in Peer.createPeerConnection; the
+          // local answer is sent here, NOT through _onRemoteSdp). Without
+          // this guard the unconditional setState(State.Active) clears
+          // _isRecovering and _wasHeldBeforeRecovery (via the State.Active
+          // case), so a held call undergoing reattachment flips to Active
+          // — the customer-visible bug. When the recovering call was held
+          // before recovery, transition Recovering -> Held (mirroring the
+          // _onRemoteSdp branch), preserving the public held state through
+          // the reattach. Only an explicit unhold/toggle may activate it.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
@@ -2144,7 +2159,22 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // VSUP-145: attach-recovery reaches this answer-success
+          // callback via _onIceSdp/_onTrickleIceSdp (the attach SDP is
+          // applied as a remote offer in Peer.createPeerConnection; the
+          // local answer is sent here, NOT through _onRemoteSdp). Without
+          // this guard the unconditional setState(State.Active) clears
+          // _isRecovering and _wasHeldBeforeRecovery (via the State.Active
+          // case), so a held call undergoing reattachment flips to Active
+          // — the customer-visible bug. When the recovering call was held
+          // before recovery, transition Recovering -> Held (mirroring the
+          // _onRemoteSdp branch), preserving the public held state through
+          // the reattach. Only an explicit unhold/toggle may activate it.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
