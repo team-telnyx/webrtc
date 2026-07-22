@@ -1371,6 +1371,14 @@ export default abstract class BaseCall implements IWebRTCCall {
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
 
+        // The call is (no longer) held. Clear the hold flag on the
+        // call-report collector so silence-based warnings and the no-RTP
+        // recovery path are re-enabled. setHeld(false) also resets the
+        // 31006/32001 breach counters so stale hold-silence cannot fire
+        // immediately after unhold. Safe on the initial Active transition
+        // (collector defaults to not-held). (VSUP-145)
+        this._callReportCollector?.setHeld(false);
+
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
 
@@ -1421,6 +1429,17 @@ export default abstract class BaseCall implements IWebRTCCall {
         // Start logging media devices for debugging
         this._mediaDeviceCollector = new MediaDeviceCollector();
         this._mediaDeviceCollector.logDevicesAtStart();
+        break;
+      }
+      case State.Held: {
+        // The call is intentionally held. Expected inbound silence during
+        // hold is NOT degraded media — inform the call-report collector so
+        // LOW_INBOUND_AUDIO (31006) and LOW_BYTES_RECEIVED (32001) are
+        // suppressed and cannot feed the no-RTP ICE-restart recovery path.
+        // This centralizes hold-awareness for ALL transitions to Held,
+        // including hold() / toggleHold() and recovery that restores the
+        // held state. (VSUP-145)
+        this._callReportCollector?.setHeld(true);
         break;
       }
       case State.Destroy:
@@ -1836,7 +1855,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        if (this.gotAnswer) {
+        // Apply the Active state only for a genuine new answer on a call
+        // that is NOT currently held. A held call may receive a fresh
+        // remote SDP as the answer to an ICE restart / updateMedia
+        // (recovery) flow; applying Active there would silently flip the
+        // public state from `held` to `active`, which is the customer-
+        // visible bug in VSUP-145. Preserve the held state across such a
+        // re-answer — only an explicit unhold/toggle or terminal
+        // transition may make the call active again.
+        if (this.gotAnswer && this._state !== State.Held) {
           this.setState(State.Active);
         }
       })
@@ -2512,10 +2539,18 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        if (warning.code === LOW_BYTES_RECEIVED) {
+        //
+        // Defense-in-depth: skip the no-RTP report while the call
+        // is held. The CallReportCollector already suppresses
+        // LOW_BYTES_RECEIVED during hold (so this branch is not
+        // reached via the collector), but a future caller or an
+        // out-of-band warning could otherwise feed recovery from
+        // expected hold silence. (VSUP-145)
+        if (warning.code === LOW_BYTES_RECEIVED && this._state !== State.Held) {
           this.session.reportNoRtp?.(this.id, 'inbound');
         } else if (
           warning.code === LOW_BYTES_SENT &&
+          this._state !== State.Held &&
           this._hasActiveUnmutedLocalAudioTrack()
         ) {
           this.session.reportNoRtp?.(this.id, 'outbound');

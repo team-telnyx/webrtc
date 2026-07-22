@@ -43,6 +43,7 @@ type TestableCallReportCollector = {
     flushReason?: ICallReportPayload['flushReason']
   ) => ICallReportPayload | null;
   onWarning: ((warning: ITelnyxWarning) => void) | null;
+  setHeld: (isHeld: boolean) => void;
   _withoutUndefined: <T extends Record<string, unknown>>(obj: T) => T;
   _checkQualityWarnings: (
     statsEntry: IStatsInterval,
@@ -679,6 +680,166 @@ describe('CallReportCollector LOW_INBOUND_AUDIO warning', () => {
         name: 'LOW_INBOUND_AUDIO',
       })
     );
+  });
+});
+
+/**
+ * VSUP-145: while the owning call is held, the expected inbound silence
+ * must NOT be treated as degraded media. LOW_INBOUND_AUDIO (31006) and
+ * LOW_BYTES_RECEIVED (32001) are suppressed so they neither emit warnings
+ * nor feed the no-RTP ICE-restart recovery path. On unhold, the breach
+ * counters are reset so stale hold-silence does not fire immediately.
+ */
+describe('CallReportCollector hold suppression (VSUP-145)', () => {
+  beforeEach(() => {
+    _inboundBytesCounter = 1000;
+  });
+
+  it('does not emit LOW_INBOUND_AUDIO while the call is held', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+    collector.setHeld(true);
+
+    // Far more than the 3 consecutive breaches normally required.
+    for (let i = 0; i < 10; i += 1) {
+      collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    }
+
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it('does not emit LOW_BYTES_RECEIVED while the call is held', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+    collector.setHeld(true);
+
+    // Repeatedly push the same bytesReceived (delta = 0) which would
+    // normally breach LOW_BYTES_RECEIVED after 3 consecutive intervals.
+    const stalledEntry = createInboundStatsEntry(0.5);
+    for (let i = 0; i < 10; i += 1) {
+      // Force bytesReceived to stay constant across intervals.
+      (
+        stalledEntry.audio as { inbound: { bytesReceived: number } }
+      ).inbound.bytesReceived = 1000;
+      (
+        collector as unknown as { statsBuffer: IStatsInterval[] }
+      ).statsBuffer.push(stalledEntry);
+      collector._checkQualityWarnings(stalledEntry, null);
+    }
+
+    expect(onWarning).not.toHaveBeenCalled();
+  });
+
+  it('resumes LOW_INBOUND_AUDIO detection after unhold with a fresh counter', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    // Accumulate 2 breaches while held (would fire on the 3rd if not held,
+    // but suppression means they don't count).
+    collector.setHeld(true);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+
+    // Unhold — counters must reset so the 2 held breaches don't carry over.
+    collector.setHeld(false);
+
+    // 2 more breaches after unhold must NOT fire (counter was reset).
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    expect(onWarning).not.toHaveBeenCalled();
+
+    // 3rd breach after unhold DOES fire — detection is fully restored.
+    collector._checkQualityWarnings(createInboundStatsEntry(0), null);
+    expect(onWarning).toHaveBeenCalledTimes(1);
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.objectContaining({ code: LOW_INBOUND_AUDIO })
+    );
+  });
+
+  it('resumes LOW_BYTES_RECEIVED detection after unhold with a fresh counter', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+
+    // While held, push stalled bytes (delta = 0) multiple times.
+    collector.setHeld(true);
+    const stalledEntry = createInboundStatsEntry(0.5);
+    for (let i = 0; i < 5; i += 1) {
+      (
+        stalledEntry.audio as { inbound: { bytesReceived: number } }
+      ).inbound.bytesReceived = 1000;
+      (
+        collector as unknown as { statsBuffer: IStatsInterval[] }
+      ).statsBuffer.push(stalledEntry);
+      collector._checkQualityWarnings(stalledEntry, null);
+    }
+    expect(onWarning).not.toHaveBeenCalled();
+
+    // Unhold — counters reset.
+    collector.setHeld(false);
+
+    // After unhold, push the SAME bytesReceived value repeatedly so the
+    // delta is 0 each interval. Need 3 consecutive zero-delta breaches.
+    // The first interval establishes the previous-value baseline (delta
+    // is nonzero), so we need 4 intervals total: 1 baseline + 3 breaches.
+    const stalledAfter = createInboundStatsEntry(0.5);
+    for (let i = 0; i < 4; i += 1) {
+      (
+        stalledAfter.audio as { inbound: { bytesReceived: number } }
+      ).inbound.bytesReceived = 2000; // constant → delta 0 after first interval
+      (
+        collector as unknown as { statsBuffer: IStatsInterval[] }
+      ).statsBuffer.push(stalledAfter);
+      collector._checkQualityWarnings(stalledAfter, null);
+    }
+    expect(onWarning).toHaveBeenCalledTimes(1);
+    expect(onWarning).toHaveBeenCalledWith(
+      expect.objectContaining({ code: LOW_BYTES_RECEIVED })
+    );
+  });
+
+  it('keeps non-silence warnings (RTT, jitter, packet loss, MOS) active while held', () => {
+    const collector = createCollector();
+    const onWarning = jest.fn();
+    collector.onWarning = onWarning;
+    collector.setHeld(true);
+
+    // Push a stats entry with very high RTT. HIGH_RTT is not hold-suppressed.
+    const highRttEntry: IStatsInterval = {
+      intervalStartUtc: '2026-07-22T00:00:00.000Z',
+      intervalEndUtc: '2026-07-22T00:00:05.000Z',
+      connection: { roundTripTimeAvg: 2.0 }, // 2000ms — well above threshold
+      audio: {
+        inbound: { bytesReceived: 5000, audioLevelAvg: 0 },
+        outbound: { bytesSent: 1000, audioLevelAvg: 0.5 },
+      },
+    };
+    for (let i = 0; i < 3; i += 1) {
+      (
+        collector as unknown as { statsBuffer: IStatsInterval[] }
+      ).statsBuffer.push(highRttEntry);
+      collector._checkQualityWarnings(highRttEntry, null);
+    }
+
+    // HIGH_RTT should fire even while held — hold only suppresses
+    // silence-driven warnings (31006, 32001), not all quality warnings.
+    const highRttCall = onWarning.mock.calls.find(
+      (c) => c[0].code === 31001 // HIGH_RTT
+    );
+    expect(highRttCall).toBeDefined();
+
+    // LOW_INBOUND_AUDIO / LOW_BYTES_RECEIVED must NOT fire.
+    const lowInboundCall = onWarning.mock.calls.find(
+      (c) => c[0].code === LOW_INBOUND_AUDIO
+    );
+    const lowBytesCall = onWarning.mock.calls.find(
+      (c) => c[0].code === LOW_BYTES_RECEIVED
+    );
+    expect(lowInboundCall).toBeUndefined();
+    expect(lowBytesCall).toBeUndefined();
   });
 });
 
