@@ -113,7 +113,7 @@ export default class Verto extends BrowserSession {
               id: call.id,
               customHeaders: call.options.customHeaders,
             };
-            // VSUP-145: persist held state for page-reload attach-recovery.
+            // Persist held state for page-reload attach-recovery.
             if (call.state === 'held') {
               stored.wasHeld = true;
             }

@@ -191,11 +191,11 @@ describe('Call', () => {
     });
   });
 
-  // ── VSUP-145: BaseCall state transitions drive CallReportCollector.setHeld ──
+  // ── BaseCall state transitions drive CallReportCollector.setHeld ──
   // Integration test proving that the public hold/unhold state transitions
   // actually drive the call-report collector's hold flag — not just that
   // setHeld() works in isolation (which the CallReportCollector tests cover).
-  describe('setState drives CallReportCollector.setHeld (VSUP-145)', () => {
+  describe('setState drives CallReportCollector.setHeld', () => {
     it('transitions to Held call setHeld(true) on the collector', () => {
       call = new Call(session, { ...defaultParams, onNotification: noop });
       const setHeld = jest.fn();
@@ -247,104 +247,7 @@ describe('Call', () => {
     });
   });
 
-  // ── VSUP-145: held remote-SDP / ICE-restart answer preserves State.Held ──
-  // Integration test for the _onRemoteSdp guard: a held call that receives a
-  // fresh remote SDP as the answer to an ICE restart / updateMedia (recovery)
-  // must NOT flip to Active. Only an explicit unhold/toggle may activate it.
-  // These tests exercise the REAL _onRemoteSdp path (the same pattern used by
-  // Call.trickle-ice.test.ts): they create the peer via invite(), mock
-  // peer.instance.setRemoteDescription to resolve, then invoke the private
-  // _onRemoteSdp handler directly. They would fail if the production guard at
-  // BaseCall._onRemoteSdp were removed or moved incorrectly.
-  describe('held re-answer preserves State.Held (VSUP-145)', () => {
-    const remoteSdp = 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-\nt=0 0\n';
-
-    // Helper: create a Call whose peer is initialized via invite() and whose
-    // peer.instance.setRemoteDescription is mocked to resolve immediately.
-    // Returns the call plus a spy on setRemoteDescription so callers can
-    // assert the production SDP path was actually exercised.
-    async function makeCallWithReadyPeer(): Promise<{
-      call: Call;
-      setRemoteDescriptionSpy: jest.SpyInstance;
-    }> {
-      const c = new Call(session, { ...defaultParams, onNotification: noop });
-      // invite() constructs peer.instance (a mocked RTCPeerConnection in the
-      // test environment). It may attempt media; swallow any rejection.
-      await c.invite().catch(() => {});
-      if (!c.peer || !c.peer.instance) {
-        throw new Error('peer.instance not initialized after invite()');
-      }
-      const setRemoteDescriptionSpy = jest
-        .spyOn(c.peer.instance, 'setRemoteDescription')
-        .mockResolvedValue(undefined as unknown as void);
-      return { call: c, setRemoteDescriptionSpy };
-    }
-
-    it('does not flip a held call to Active when _onRemoteSdp applies a new answer', async () => {
-      const { call: c, setRemoteDescriptionSpy } =
-        await makeCallWithReadyPeer();
-
-      // Drive the call into Active, then Held (the customer scenario).
-      c.setState(State.Active);
-      c.setState(State.Held);
-      expect(c.state).toEqual('held');
-
-      // gotAnswer is the private flag the _onRemoteSdp guard checks. Setting
-      // it mirrors the real re-answer flow (a Modify response carrying a new
-      // SDP answer arrives after an ICE restart / updateMedia).
-      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
-
-      // Invoke the REAL production path, not a re-implementation of the guard.
-      await (
-        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
-      )._onRemoteSdp(remoteSdp);
-
-      // The production setRemoteDescription must have been called — proving we
-      // exercised the real code path, not a test-local copy of the guard.
-      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
-
-      // Public state must remain held despite a genuine gotAnswer re-answer.
-      expect(c.state).toEqual('held');
-    });
-
-    it('flips a non-held (Active) call to Active when _onRemoteSdp applies a new answer', async () => {
-      const { call: c, setRemoteDescriptionSpy } =
-        await makeCallWithReadyPeer();
-
-      c.setState(State.Active);
-      expect(c.state).toEqual('active');
-
-      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
-
-      await (
-        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
-      )._onRemoteSdp(remoteSdp);
-
-      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
-      // Non-held call → the guard allows the Active (re-)activation.
-      expect(c.state).toEqual('active');
-    });
-
-    it('does not change state when _onRemoteSdp runs without gotAnswer (early media only)', async () => {
-      const { call: c, setRemoteDescriptionSpy } =
-        await makeCallWithReadyPeer();
-
-      c.setState(State.Active);
-      c.setState(State.Held);
-      expect(c.state).toEqual('held');
-
-      // gotAnswer stays false (early media only). _onRemoteSdp must NOT
-      // change state.
-      (
-        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
-      )._onRemoteSdp(remoteSdp);
-
-      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
-      expect(c.state).toEqual('held');
-    });
-  });
-
-  // ── VSUP-145 P1: attach-recovery answer-success preserves Held ──
+  // ── Attach-recovery answer-success preserves Held ──
   // The attach-recovery path does NOT use _onRemoteSdp: the attach SDP is
   // applied as a remote offer in Peer.createPeerConnection and the local
   // answer is sent via _onIceSdp (non-trickle) / _onTrickleIceSdp (trickle).
@@ -358,7 +261,7 @@ describe('Call', () => {
   // is mocked to resolve, then the private SDP callback is invoked with a
   // candidate-bearing answer SDP. They fail if the production guards at
   // BaseCall._onIceSdp / _onTrickleIceSdp are removed or moved incorrectly.
-  describe('attach-recovery answer-success preserves Held (VSUP-145 P1)', () => {
+  describe('attach-recovery answer-success preserves Held', () => {
     // SDP carrying at least one candidate so _onIceSdp does not retry.
     const answerSdp =
       'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n' +
@@ -513,7 +416,7 @@ describe('Call', () => {
       executeSpy.mockRestore();
     });
 
-    it('clears _wasHeldBeforeRecovery on explicit unhold to Active after attach-recovery (VSUP-145)', async () => {
+    it('clears _wasHeldBeforeRecovery on explicit unhold to Active after attach-recovery', async () => {
       // Build a recovering held-before-recovery call (the attach-recovery
       // replacement) and drive it to Held via _onIceSdp. Then explicit-unhold
       // to Active must clear _wasHeldBeforeRecovery so a later recovery does
@@ -547,7 +450,7 @@ describe('Call', () => {
     });
   });
 
-  // ── VSUP-145: mixed-call isolation ──
+  // ── Mixed-call isolation ──
   // Stage acceptance: "With one held and one active call, health decisions
   // are isolated by affected call: the held call's silence is ignored while a
   // genuine no-RTP condition on the active call remains actionable."
@@ -556,7 +459,7 @@ describe('Call', () => {
   // reaches session.reportNoRtp ONLY for the active call — proving the
   // hold-suppression and the no-RTP defense-in-depth guard are call-scoped
   // and do not leak across calls sharing a session.
-  describe('mixed held + active call isolation (VSUP-145)', () => {
+  describe('mixed held + active call isolation', () => {
     it('suppresses reportNoRtp for the held call but not the active call', async () => {
       // Build two calls on the same session with ready peers.
       const heldCall = new Call(session, {

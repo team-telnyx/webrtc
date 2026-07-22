@@ -629,7 +629,7 @@ export class CallReportCollector {
   // statsBuffer while the active call and health monitoring continue.
   private _previousStatsEntryForWarnings: IStatsInterval | null = null;
 
-  // VSUP-145: true while the owning call is held; suppresses 31006/32001 silence warnings.
+  // True while the owning call is held; suppresses 31006/32001 silence warnings.
   private _isHeld: boolean = false;
 
   // Last logged local audio track snapshot, used to avoid repetitive logs.
@@ -1086,7 +1086,7 @@ export class CallReportCollector {
     }
   }
 
-  /** VSUP-145: mark whether the owning call is held. Resets 31006/32001 breach counters on every transition. */
+  /** Mark whether the owning call is held. Resets 31006/32001 breach counters on every transition. */
   public setHeld(isHeld: boolean): void {
     if (this._isHeld === isHeld) return;
     this._isHeld = isHeld;
@@ -1540,7 +1540,7 @@ export class CallReportCollector {
     // comfort-noise (e.g. one-way audio from a media bridge issue). Requires
     // CONSECUTIVE_BREACHES_REQUIRED intervals below threshold to avoid
     // firing on natural conversation pauses.
-    // VSUP-145: suppress while held (expected silence is not degraded media).
+    // Suppress while held (expected silence is not degraded media).
     if (this._isHeld) {
       this._trackBreach(LOW_INBOUND_AUDIO, false);
     } else {
@@ -1565,7 +1565,7 @@ export class CallReportCollector {
     }
 
     // Low bytes received (32001) — check bytesReceived delta is 0.
-    // VSUP-145: suppress while held (an intentionally held call expects no inbound bytes).
+    // Suppress while held (an intentionally held call expects no inbound bytes).
     if (statsEntry.audio?.inbound?.bytesReceived !== undefined) {
       const prevBytes =
         this._previousStatsEntryForWarnings?.audio?.inbound?.bytesReceived;

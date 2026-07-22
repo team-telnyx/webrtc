@@ -104,7 +104,7 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
-  /** VSUP-145: true when the call was held before attach-recovery replaced it. @internal */
+  /** True when the call was held before attach-recovery replaced it. @internal */
   wasHeldBeforeRecovery?: boolean;
 }
 

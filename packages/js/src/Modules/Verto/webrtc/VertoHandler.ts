@@ -243,7 +243,7 @@ class VertoHandler {
       // the session-level `client.remoteElement` / `client.localElement`.
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
-      /** VSUP-145: true when the original call was held at the moment of attach-recovery. */
+      /** True when the original call was held at the moment of attach-recovery. */
       wasHeldBeforeRecovery?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
@@ -304,7 +304,7 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
-      // VSUP-145: carry held intent onto the replacement call.
+      // Carry held intent onto the replacement call.
       if (wasHeldBeforeRecovery) {
         callOptions.wasHeldBeforeRecovery = wasHeldBeforeRecovery;
       }
@@ -406,7 +406,7 @@ class VertoHandler {
           // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
-          // VSUP-145: held intent from the page-reload recovery marker.
+          // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
@@ -429,7 +429,7 @@ class VertoHandler {
             recoveredCallId: callID,
             remoteElement: recoveredRemoteElement,
             localElement: recoveredLocalElement,
-            // VSUP-145: carry held intent onto the replacement call.
+            // Carry held intent onto the replacement call.
             wasHeldBeforeRecovery: wasHeldBeforeUnload,
           });
           call.answer();
@@ -447,7 +447,7 @@ class VertoHandler {
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
-          // VSUP-145: capture held state BEFORE hangup() destroys it.
+          // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           if (forceRelayCandidateForRecovery) {
@@ -476,7 +476,7 @@ class VertoHandler {
             // undefined case falls back to the session-level default.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
-            // VSUP-145: carry held intent captured BEFORE hangup().
+            // Carry held intent captured BEFORE hangup().
             wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
           call.answer();

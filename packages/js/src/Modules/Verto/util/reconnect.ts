@@ -21,7 +21,7 @@ export interface IStoredActiveCall {
    * local stream preview. Same string-only persistence constraint.
    */
   localElement?: string;
-  /** VSUP-145: true when the call was held when the marker was written (page-reload recovery). */
+  /** True when the call was held when the marker was written (page-reload recovery). */
   wasHeld?: boolean;
 }
 export interface IStoredActiveCalls {

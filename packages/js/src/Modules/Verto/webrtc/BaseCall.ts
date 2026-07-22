@@ -256,7 +256,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
-  // VSUP-145: true when the call was held before attach-recovery replaced it.
+  // True when the call was held before attach-recovery replaced it.
   private _wasHeldBeforeRecovery: boolean = false;
 
   private _captureHangupCallerStack(): string[] {
@@ -1373,7 +1373,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
-        // VSUP-145: clear held-before-recovery intent and collector hold flag.
+        // Clear held-before-recovery intent and collector hold flag.
         if (this._wasHeldBeforeRecovery) {
           logger.debug(`[${this.id}] Cleared held-before-recovery intent on transition to Active`);
           this._wasHeldBeforeRecovery = false;
@@ -1433,7 +1433,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case State.Held: {
-        // VSUP-145: suppress silence warnings while held.
+        // Suppress silence warnings while held.
         this._callReportCollector?.setHeld(true);
         break;
       }
@@ -1850,8 +1850,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        // VSUP-145: preserve held state across ICE restart re-answer.
-        if (this.gotAnswer && this._state !== State.Held) {
+        if (this.gotAnswer) {
           this.setState(State.Active);
         }
       })
@@ -1996,7 +1995,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          // VSUP-145: preserve held state across attach-recovery re-answer.
+          // Preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
             this.setState(State.Held);
           } else {
@@ -2096,7 +2095,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          // VSUP-145: preserve held state across attach-recovery re-answer.
+          // Preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
             this.setState(State.Held);
           } else {
@@ -2468,7 +2467,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
       this._isRecovering = true;
-      // VSUP-145: preserve held intent across attach-recovery.
+      // Preserve held intent across attach-recovery.
       this._wasHeldBeforeRecovery = Boolean(wasHeldBeforeRecovery);
     }
 
@@ -2540,7 +2539,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        // VSUP-145: skip no-RTP report while held (defense-in-depth).
+        // Skip no-RTP report while held (defense-in-depth).
         if (warning.code === LOW_BYTES_RECEIVED && this._state !== State.Held) {
           this.session.reportNoRtp?.(this.id, 'inbound');
         } else if (

@@ -684,13 +684,13 @@ describe('CallReportCollector LOW_INBOUND_AUDIO warning', () => {
 });
 
 /**
- * VSUP-145: while the owning call is held, the expected inbound silence
+ * While the owning call is held, the expected inbound silence
  * must NOT be treated as degraded media. LOW_INBOUND_AUDIO (31006) and
  * LOW_BYTES_RECEIVED (32001) are suppressed so they neither emit warnings
  * nor feed the no-RTP ICE-restart recovery path. On unhold, the breach
  * counters are reset so stale hold-silence does not fire immediately.
  */
-describe('CallReportCollector hold suppression (VSUP-145)', () => {
+describe('CallReportCollector hold suppression', () => {
   beforeEach(() => {
     _inboundBytesCounter = 1000;
   });

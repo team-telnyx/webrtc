@@ -523,7 +523,7 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
     });
 
-    // ── VSUP-145: reattach preserves held state ──
+    // ── Reattach preserves held state ──
 
     it('should restore held state on the recovered call when the matched call was held (scenario 1)', async () => {
       await instance.connect();
@@ -550,7 +550,7 @@ describe('VertoHandler', () => {
       // recoveredCallId is set). The held state is restored by _onRemoteSdp
       // when the re-answer completes (the production path), NOT by a late
       // setState(State.Held) after answer() — the reviewer flagged the
-      // late-setState approach as broken (VSUP-145). Here answer() is mocked,
+      // late-setState approach as broken. Here answer() is mocked,
       // so we assert the call carries the held-before-recovery intent that
       // the production re-answer path will honor.
       expect(newCall.state).toEqual('recovering');
@@ -621,7 +621,7 @@ describe('VertoHandler', () => {
       // recoveredCallId is set). The held state is restored by _onRemoteSdp
       // when the re-answer completes (the production path), NOT by a late
       // setState(State.Held) after answer() — the reviewer flagged the
-      // late-setState approach as broken (VSUP-145). Here answer() is mocked,
+      // late-setState approach as broken. Here answer() is mocked,
       // so we assert the call carries the held-before-recovery intent from
       // the page-reload marker that the production re-answer path will honor.
       expect(newCall.state).toEqual('recovering');
