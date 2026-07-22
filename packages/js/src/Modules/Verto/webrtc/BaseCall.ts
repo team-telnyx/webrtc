@@ -1375,7 +1375,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
         // Clear held-before-recovery intent and collector hold flag.
         if (this._wasHeldBeforeRecovery) {
-          logger.debug(`[${this.id}] Cleared held-before-recovery intent on transition to Active`);
+          logger.debug(
+            `[${this.id}] Cleared held-before-recovery intent on transition to Active`
+          );
           this._wasHeldBeforeRecovery = false;
         }
         this._callReportCollector?.setHeld(false);
@@ -1850,7 +1852,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        if (this.gotAnswer) {
+        // Preserve held state across ICE restart re-answer.
+        if (this.gotAnswer && this._state !== State.Held) {
           this.setState(State.Active);
         }
       })
