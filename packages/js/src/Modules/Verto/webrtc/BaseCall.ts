@@ -256,20 +256,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
-  /**
-   * Whether the call was held (`State.Held`) before attach-recovery replaced
-   * it. When true and the call is recovering (`_isRecovering`), the `_onRemoteSdp`
-   * re-answer path transitions `Recovering → Held` instead of the default
-   * `Recovering → Active`, preserving the customer-visible held state across a
-   * reattachment/reconnect that affects a held call (VSUP-145).
-   *
-   * This mirrors the `_isRecovering` pattern: the flag is set at construction
-   * time (via `IVertoCallOptions.wasHeldBeforeRecovery`) and drives the
-   * post-recovery state transition inside the production re-answer path —
-   * rather than relying on a late `setState(State.Held)` after the answer flow
-   * has already reached Active (which the reviewer flagged as broken because
-   * the state cycles through Recovering → Active → Held).
-   */
+  // VSUP-145: true when the call was held before attach-recovery replaced it.
   private _wasHeldBeforeRecovery: boolean = false;
 
   private _captureHangupCallerStack(): string[] {
@@ -1386,21 +1373,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
-        // An explicit unhold/toggle to Active clears the held-before-recovery
-        // intent so a later recovery no longer restores Held. This prevents a
-        // stale flag from carrying held intent past a genuine unhold
-        // (VSUP-145). Safe on the initial Active transition (flag defaults
-        // to false and is only set when recovering from a held call).
+        // VSUP-145: clear held-before-recovery intent and collector hold flag.
         if (this._wasHeldBeforeRecovery) {
+          logger.debug(`[${this.id}] Cleared held-before-recovery intent on transition to Active`);
           this._wasHeldBeforeRecovery = false;
         }
-
-        // The call is (no longer) held. Clear the hold flag on the
-        // call-report collector so silence-based warnings and the no-RTP
-        // recovery path are re-enabled. setHeld(false) also resets the
-        // 31006/32001 breach counters so stale hold-silence cannot fire
-        // immediately after unhold. Safe on the initial Active transition
-        // (collector defaults to not-held). (VSUP-145)
         this._callReportCollector?.setHeld(false);
 
         // Start signaling health monitor for active calls
@@ -1456,13 +1433,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case State.Held: {
-        // The call is intentionally held. Expected inbound silence during
-        // hold is NOT degraded media — inform the call-report collector so
-        // LOW_INBOUND_AUDIO (31006) and LOW_BYTES_RECEIVED (32001) are
-        // suppressed and cannot feed the no-RTP ICE-restart recovery path.
-        // This centralizes hold-awareness for ALL transitions to Held,
-        // including hold() / toggleHold() and recovery that restores the
-        // held state. (VSUP-145)
+        // VSUP-145: suppress silence warnings while held.
         this._callReportCollector?.setHeld(true);
         break;
       }
@@ -1879,33 +1850,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        // Apply the Active state only for a genuine new answer on a call that
-        // is NOT currently held AND was not held immediately before an
-        // attach-recovery that replaced it. A held call may receive a fresh
-        // remote SDP as the answer to an ICE restart / updateMedia (recovery)
-        // flow; applying Active there would silently flip the public state
-        // from `held` to `active`, which is the customer-visible bug in
-        // VSUP-145. Two cases are covered:
-        //   1. Same-instance re-answer: `this._state === State.Held` (the
-        //      hold()/toggleHold() ICE restart path on a live call).
-        //   2. Attach-recovery replacement: `_wasHeldBeforeRecovery` is true
-        //      and the call is still in Recovering (the reattach path builds a
-        //      new BaseCall whose answer flow would otherwise reach Active).
-        // In either case the call stays/reverts to Held; only an explicit
-        // unhold/toggle or terminal transition may make it active again.
-        if (
-          this.gotAnswer &&
-          this._state !== State.Held &&
-          !(this._wasHeldBeforeRecovery && this._isRecovering)
-        ) {
+        // VSUP-145: preserve held state across ICE restart re-answer.
+        if (this.gotAnswer && this._state !== State.Held) {
           this.setState(State.Active);
-        } else if (this._wasHeldBeforeRecovery && this._isRecovering) {
-          // A recovering call that was held before recovery transitions
-          // Recovering → Held on the re-answer, preserving the customer-
-          // visible held state through the reattachment/reconnect (VSUP-145).
-          // This mirrors the _isRecovering pattern: the construction-time
-          // flag drives the post-recovery state, not a late setState(Held).
-          this.setState(State.Held);
         }
       })
       .catch(async (error) => {
@@ -2049,17 +1996,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          // VSUP-145: attach-recovery reaches this answer-success
-          // callback via _onIceSdp/_onTrickleIceSdp (the attach SDP is
-          // applied as a remote offer in Peer.createPeerConnection; the
-          // local answer is sent here, NOT through _onRemoteSdp). Without
-          // this guard the unconditional setState(State.Active) clears
-          // _isRecovering and _wasHeldBeforeRecovery (via the State.Active
-          // case), so a held call undergoing reattachment flips to Active
-          // — the customer-visible bug. When the recovering call was held
-          // before recovery, transition Recovering -> Held (mirroring the
-          // _onRemoteSdp branch), preserving the public held state through
-          // the reattach. Only an explicit unhold/toggle may activate it.
+          // VSUP-145: preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
             this.setState(State.Held);
           } else {
@@ -2159,17 +2096,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          // VSUP-145: attach-recovery reaches this answer-success
-          // callback via _onIceSdp/_onTrickleIceSdp (the attach SDP is
-          // applied as a remote offer in Peer.createPeerConnection; the
-          // local answer is sent here, NOT through _onRemoteSdp). Without
-          // this guard the unconditional setState(State.Active) clears
-          // _isRecovering and _wasHeldBeforeRecovery (via the State.Active
-          // case), so a held call undergoing reattachment flips to Active
-          // — the customer-visible bug. When the recovering call was held
-          // before recovery, transition Recovering -> Held (mirroring the
-          // _onRemoteSdp branch), preserving the public held state through
-          // the reattach. Only an explicit unhold/toggle may activate it.
+          // VSUP-145: preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
             this.setState(State.Held);
           } else {
@@ -2541,11 +2468,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
       this._isRecovering = true;
-      // Preserve held intent across attach-recovery. When the original call
-      // was held at the moment of recovery, the replacement call's re-answer
-      // path transitions Recovering → Held instead of the default
-      // Recovering → Active (VSUP-145). Set here in _init() so the flag is
-      // available before the first state transition, mirroring _isRecovering.
+      // VSUP-145: preserve held intent across attach-recovery.
       this._wasHeldBeforeRecovery = Boolean(wasHeldBeforeRecovery);
     }
 
@@ -2617,13 +2540,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        //
-        // Defense-in-depth: skip the no-RTP report while the call
-        // is held. The CallReportCollector already suppresses
-        // LOW_BYTES_RECEIVED during hold (so this branch is not
-        // reached via the collector), but a future caller or an
-        // out-of-band warning could otherwise feed recovery from
-        // expected hold silence. (VSUP-145)
+        // VSUP-145: skip no-RTP report while held (defense-in-depth).
         if (warning.code === LOW_BYTES_RECEIVED && this._state !== State.Held) {
           this.session.reportNoRtp?.(this.id, 'inbound');
         } else if (

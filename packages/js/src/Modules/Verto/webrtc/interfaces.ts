@@ -104,20 +104,7 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
-  /**
-   * Whether the call was held (`State.Held`) before attach-recovery replaced
-   * it. Set on the replacement call so its `_onRemoteSdp` re-answer path
-   * transitions `Recovering → Held` (instead of the default
-   * `Recovering → Active`), preserving the customer-visible held state across
-   * a reattachment/reconnect that affects a held call (VSUP-145).
-   *
-   * This mirrors the `_isRecovering` pattern: a construction-time flag drives
-   * the post-recovery state transition, rather than relying on a late
-   * `setState(State.Held)` after the answer flow has already reached Active.
-   * Backward compatible — omitted/`false` for active (non-held) recoveries.
-   *
-   * @internal
-   */
+  /** VSUP-145: true when the call was held before attach-recovery replaced it. @internal */
   wasHeldBeforeRecovery?: boolean;
 }
 

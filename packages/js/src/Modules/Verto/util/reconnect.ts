@@ -21,16 +21,7 @@ export interface IStoredActiveCall {
    * local stream preview. Same string-only persistence constraint.
    */
   localElement?: string;
-  /**
-   * Whether the call was held (`State.Held`) at the moment the marker was
-   * written before unload. Persisted so attach-recovery after a page reload
-   * can restore the held public state on the replacement call rather than
-   * letting the normal answer flow reach `State.Active` (VSUP-145).
-   *
-   * Only the boolean is persisted (no DOM references, no functions), so it
-   * survives a page reload. Omitted / `false` for active calls — backward
-   * compatible with markers written by older SDK versions.
-   */
+  /** VSUP-145: true when the call was held when the marker was written (page-reload recovery). */
   wasHeld?: boolean;
 }
 export interface IStoredActiveCalls {

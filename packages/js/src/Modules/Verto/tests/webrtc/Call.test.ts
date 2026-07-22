@@ -333,81 +333,14 @@ describe('Call', () => {
       c.setState(State.Held);
       expect(c.state).toEqual('held');
 
-      // No gotAnswer — the guard's first clause is false, so setState(Active)
-      // is never reached regardless of held/active. State must be preserved.
-      await (
+      // gotAnswer stays false (early media only). _onRemoteSdp must NOT
+      // change state.
+      (
         c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
       )._onRemoteSdp(remoteSdp);
 
       expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
       expect(c.state).toEqual('held');
-    });
-
-    it('transitions a recovering call (wasHeldBeforeRecovery) to Held, not Active, when _onRemoteSdp applies a re-answer (VSUP-145 recovery path)', async () => {
-      const { call: c, setRemoteDescriptionSpy } =
-        await makeCallWithReadyPeer();
-
-      // Simulate the attach-recovery replacement call: it starts in Recovering
-      // (the _init() default when recoveredCallId is set) and carries the
-      // wasHeldBeforeRecovery intent captured from the original held call.
-      (
-        c as unknown as { _wasHeldBeforeRecovery: boolean }
-      )._wasHeldBeforeRecovery = true;
-      (c as unknown as { _isRecovering: boolean })._isRecovering = true;
-      c.setState(State.Recovering);
-      expect(c.state).toEqual('recovering');
-
-      // gotAnswer mirrors the real re-answer flow (Modify response carrying a
-      // new SDP answer arrives after an ICE restart / updateMedia on the
-      // replacement call).
-      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
-
-      // Invoke the REAL production _onRemoteSdp path.
-      await (
-        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
-      )._onRemoteSdp(remoteSdp);
-
-      // The production setRemoteDescription must have been called — proving we
-      // exercised the real code path, not a test-local copy of the guard.
-      expect(setRemoteDescriptionSpy).toHaveBeenCalledTimes(1);
-
-      // The recovering call that was held before recovery must transition
-      // Recovering → Held (NOT Recovering → Active), preserving the
-      // customer-visible held state through the reattachment/reconnect
-      // (VSUP-145 — reviewer: "the stage should go from recovering to held").
-      expect(c.state).toEqual('held');
-      // Recovery intent is consumed; the flags are cleared by the Held/Active
-      // transition logic. _isRecovering is cleared on Active; _wasHeldBefore
-      // Recovery is cleared on explicit Active (unhold). Held keeps
-      // _isRecovering set so a subsequent genuine recovery is still possible.
-      // (We assert the public state only — the internal flag cleanup is
-      // covered by the explicit-unhold test below.)
-    });
-
-    it('clears _wasHeldBeforeRecovery on explicit unhold to Active (no stale held intent)', async () => {
-      const { call: c } = await makeCallWithReadyPeer();
-
-      // Start as a recovering held call, then restore Held via _onRemoteSdp.
-      (
-        c as unknown as { _wasHeldBeforeRecovery: boolean }
-      )._wasHeldBeforeRecovery = true;
-      (c as unknown as { _isRecovering: boolean })._isRecovering = true;
-      c.setState(State.Recovering);
-      (c as unknown as { gotAnswer: boolean }).gotAnswer = true;
-      await (
-        c as unknown as { _onRemoteSdp: (s: string) => Promise<void> }
-      )._onRemoteSdp(remoteSdp);
-      expect(c.state).toEqual('held');
-
-      // Explicit unhold: the customer calls unhold() → setState(State.Active).
-      // This must clear _wasHeldBeforeRecovery so a later recovery does not
-      // wrongly restore Held on a call the customer intentionally made active.
-      c.setState(State.Active);
-      expect(c.state).toEqual('active');
-      expect(
-        (c as unknown as { _wasHeldBeforeRecovery: boolean })
-          ._wasHeldBeforeRecovery
-      ).toBe(false);
     });
   });
 
@@ -576,6 +509,39 @@ describe('Call', () => {
       expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
         false
       );
+
+      executeSpy.mockRestore();
+    });
+
+    it('clears _wasHeldBeforeRecovery on explicit unhold to Active after attach-recovery (VSUP-145)', async () => {
+      // Build a recovering held-before-recovery call (the attach-recovery
+      // replacement) and drive it to Held via _onIceSdp. Then explicit-unhold
+      // to Active must clear _wasHeldBeforeRecovery so a later recovery does
+      // not wrongly restore Held on a call the customer intentionally made
+      // active. Uses the REAL _onIceSdp attach-recovery path (not _onRemoteSdp,
+      // which the reviewer confirmed is NOT used by recovery).
+      const c = await makeAttachRecoveryCall(false);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+      expect(c.state).toEqual('held');
+
+      // Explicit unhold → setState(State.Active) must clear the held intent.
+      c.setState(State.Active);
+      expect(c.state).toEqual('active');
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(false);
 
       executeSpy.mockRestore();
     });

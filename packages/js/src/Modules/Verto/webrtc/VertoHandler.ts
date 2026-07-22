@@ -243,11 +243,7 @@ class VertoHandler {
       // the session-level `client.remoteElement` / `client.localElement`.
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
-      // Whether the original call was held (`State.Held`) at the moment of
-      // attach-recovery. Carried onto the replacement call so its `_onRemoteSdp`
-      // re-answer path transitions Recovering → Held (instead of the default
-      // Recovering → Active), preserving the customer-visible held state
-      // (VSUP-145). Backward compatible — omitted/`false` for active recoveries.
+      /** VSUP-145: true when the original call was held at the moment of attach-recovery. */
       wasHeldBeforeRecovery?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
@@ -308,10 +304,7 @@ class VertoHandler {
         callOptions.recoveredCallId = recoveredCallId;
       }
 
-      // Carry held intent onto the replacement call so its _onRemoteSdp
-      // re-answer path transitions Recovering → Held instead of the default
-      // Recovering → Active (VSUP-145). Only set when explicitly provided so
-      // non-held recoveries remain backward compatible.
+      // VSUP-145: carry held intent onto the replacement call.
       if (wasHeldBeforeRecovery) {
         callOptions.wasHeldBeforeRecovery = wasHeldBeforeRecovery;
       }
@@ -413,10 +406,7 @@ class VertoHandler {
           // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
-          // Whether the call was held before the page reloaded — persisted in
-          // the recovery marker so attach-recovery restores the held public
-          // state on the replacement call rather than letting the normal
-          // answer flow reach State.Active (VSUP-145).
+          // VSUP-145: held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
@@ -439,14 +429,7 @@ class VertoHandler {
             recoveredCallId: callID,
             remoteElement: recoveredRemoteElement,
             localElement: recoveredLocalElement,
-            // Carry the held intent from the page-reload recovery marker onto
-            // the replacement call so its _onRemoteSdp re-answer transitions
-            // Recovering → Held (VSUP-145). The held state is restored through
-            // the construction-time flag inside the production re-answer path,
-            // not via a late setState(State.Held) after answer() — the
-            // reviewer flagged the late-setState approach as broken because
-            // the establishment flow cycles through Recovering → Active →
-            // Held.
+            // VSUP-145: carry held intent onto the replacement call.
             wasHeldBeforeRecovery: wasHeldBeforeUnload,
           });
           call.answer();
@@ -464,12 +447,7 @@ class VertoHandler {
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
-          // Capture the held state BEFORE hangup() destroys the matched
-          // call's state. This boolean is carried onto the replacement call
-          // via _buildCall's wasHeldBeforeRecovery option so the production
-          // re-answer path (_onRemoteSdp) transitions Recovering → Held
-          // instead of the default Recovering → Active (VSUP-145 — P1
-          // finding). `matchedCall.state` is the lowercased State enum name.
+          // VSUP-145: capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           if (forceRelayCandidateForRecovery) {
@@ -498,15 +476,7 @@ class VertoHandler {
             // undefined case falls back to the session-level default.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
-            // Carry the held intent captured BEFORE hangup() destroyed the
-            // matched call's state. The replacement call's _onRemoteSdp
-            // re-answer path transitions Recovering → Held when this flag is
-            // set (VSUP-145), restoring the held state through the
-            // construction-time flag inside the production re-answer path
-            // rather than via a late setState(State.Held) after answer() —
-            // the reviewer flagged the late-setState approach as broken
-            // because the establishment flow cycles through Recovering →
-            // Active → Held.
+            // VSUP-145: carry held intent captured BEFORE hangup().
             wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
           call.answer();

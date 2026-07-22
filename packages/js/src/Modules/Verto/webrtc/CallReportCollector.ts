@@ -629,16 +629,7 @@ export class CallReportCollector {
   // statsBuffer while the active call and health monitoring continue.
   private _previousStatsEntryForWarnings: IStatsInterval | null = null;
 
-  // Whether the owning call is currently held. While held, the expected
-  // silence (no inbound audio / no inbound bytes) must NOT be interpreted as
-  // degraded media. LOW_INBOUND_AUDIO (31006) and LOW_BYTES_RECEIVED (32001)
-  // are suppressed so expected hold silence does not emit customer-visible
-  // warnings and does not reach the no-RTP ICE-restart recovery path. Other
-  // quality warnings (RTT, jitter, packet loss, MOS) remain active so a
-  // genuine network issue during hold is still surfaced. Call-scoped: each
-  // CallReportCollector belongs to one call, so suppression follows the call
-  // that produced the report and cannot affect a sibling active call.
-  // (VSUP-145)
+  // VSUP-145: true while the owning call is held; suppresses 31006/32001 silence warnings.
   private _isHeld: boolean = false;
 
   // Last logged local audio track snapshot, used to avoid repetitive logs.
@@ -1095,32 +1086,10 @@ export class CallReportCollector {
     }
   }
 
-  /**
-   * Mark whether the owning call is currently held.
-   *
-   * While held, expected inbound silence is NOT a media-health signal:
-   * LOW_INBOUND_AUDIO (31006) and LOW_BYTES_RECEIVED (32001) are suppressed
-   * so they neither emit customer-visible warnings nor feed the no-RTP
-   * ICE-restart recovery path. Other quality warnings (RTT, jitter, packet
-   * loss, MOS) remain active so genuine network issues during hold are
-   * still surfaced.
-   *
-   * On every transition (hold OR unhold) the breach counters and active
-   * episode state for 31006 and 32001 are reset. This prevents stale
-   * hold-silence from firing immediately after unhold, and prevents a
-   * pre-hold breach from carrying into the held episode.
-   *
-   * Call-scoped: each CallReportCollector belongs to one call, so this
-   * suppression cannot affect a sibling active call in the same session.
-   * (VSUP-145)
-   */
+  /** VSUP-145: mark whether the owning call is held. Resets 31006/32001 breach counters on every transition. */
   public setHeld(isHeld: boolean): void {
     if (this._isHeld === isHeld) return;
     this._isHeld = isHeld;
-
-    // Reset the silence-driven warning state for both directions of the
-    // transition. _trackBreach(code, false) clears the breach counter,
-    // active-episode flag, and throttle timestamp for the given code.
     this._trackBreach(LOW_INBOUND_AUDIO, false);
     this._trackBreach(LOW_BYTES_RECEIVED, false);
   }
@@ -1571,11 +1540,7 @@ export class CallReportCollector {
     // comfort-noise (e.g. one-way audio from a media bridge issue). Requires
     // CONSECUTIVE_BREACHES_REQUIRED intervals below threshold to avoid
     // firing on natural conversation pauses.
-    //
-    // Suppressed while the owning call is held: expected hold silence is
-    // not degraded media. Without this gate, a held call emits 31006 after
-    // ~3 stats intervals and (via the onWarning handler in BaseCall) can
-    // feed the no-RTP recovery path. (VSUP-145)
+    // VSUP-145: suppress while held (expected silence is not degraded media).
     if (this._isHeld) {
       this._trackBreach(LOW_INBOUND_AUDIO, false);
     } else {
@@ -1600,9 +1565,7 @@ export class CallReportCollector {
     }
 
     // Low bytes received (32001) — check bytesReceived delta is 0.
-    // Suppressed while held: an intentionally held call expects no inbound
-    // audio bytes, and 32001 otherwise feeds the no-RTP ICE-restart recovery
-    // path. (VSUP-145)
+    // VSUP-145: suppress while held (an intentionally held call expects no inbound bytes).
     if (statsEntry.audio?.inbound?.bytesReceived !== undefined) {
       const prevBytes =
         this._previousStatsEntryForWarnings?.audio?.inbound?.bytesReceived;

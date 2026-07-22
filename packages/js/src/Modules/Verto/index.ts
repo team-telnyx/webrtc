@@ -113,10 +113,7 @@ export default class Verto extends BrowserSession {
               id: call.id,
               customHeaders: call.options.customHeaders,
             };
-            // Persist the held state so attach-recovery after a page reload
-            // restores the held public state on the replacement call rather
-            // than letting the normal answer flow reach State.Active
-            // (VSUP-145). `call.state` is the lowercased State enum name.
+            // VSUP-145: persist held state for page-reload attach-recovery.
             if (call.state === 'held') {
               stored.wasHeld = true;
             }
