@@ -522,6 +522,154 @@ describe('VertoHandler', () => {
 
       Call.prototype.answer = originalAnswer;
     });
+
+    // ── Reattach preserves held state ──
+
+    it('should restore held state on the recovered call when the matched call was held (scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'reattach-held-scenario1-call-id';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      // Put the matched call on hold — this is the customer-visible bug
+      // scenario: a held call that undergoes reattachment must stay held.
+      call.setState(State.Held);
+      expect(call.state).toEqual('held');
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4601,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      // The recovered call starts in 'recovering' (the _init() default when
+      // recoveredCallId is set). The held state is restored by _onRemoteSdp
+      // when the re-answer completes (the production path), NOT by a late
+      // setState(State.Held) after answer() — the reviewer flagged the
+      // late-setState approach as broken. Here answer() is mocked,
+      // so we assert the call carries the held-before-recovery intent that
+      // the production re-answer path will honor.
+      expect(newCall.state).toEqual('recovering');
+      expect((newCall as any)._wasHeldBeforeRecovery).toBe(true);
+      expect((newCall as any)._isRecovering).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('should not force held state on the recovered call when the matched call was active (scenario 1 backward compat)', async () => {
+      await instance.connect();
+      const callId = 'reattach-active-scenario1-call-id';
+      _setupCall({ id: callId });
+      call.setState(State.Active);
+      expect(call.state).toEqual('active');
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4602,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Active call recovery must NOT be forced to held — held restoration
+      // only applies when the matched call was actually held. The recovered
+      // call starts in 'recovering' (attach default) and would reach Active
+      // via the real (un-mocked) answer flow; here answer() is mocked, so we
+      // assert it is NOT held rather than asserting a specific active state.
+      expect(newCall.state).not.toEqual('held');
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('should restore held state from the recovery marker on page-reload attach (scenario 2)', async () => {
+      await instance.connect();
+      const callId = 'reattach-held-scenario2-call-id';
+      const sessId = (instance as any).sessionid;
+
+      // Simulate a marker written before the previous page unloaded, where
+      // the call was held at unload time.
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            wasHeld: true,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4603,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      // The recovered call starts in 'recovering' (the _init() default when
+      // recoveredCallId is set). The held state is restored by _onRemoteSdp
+      // when the re-answer completes (the production path), NOT by a late
+      // setState(State.Held) after answer() — the reviewer flagged the
+      // late-setState approach as broken. Here answer() is mocked,
+      // so we assert the call carries the held-before-recovery intent from
+      // the page-reload marker that the production re-answer path will honor.
+      expect(newCall.state).toEqual('recovering');
+      expect((newCall as any)._wasHeldBeforeRecovery).toBe(true);
+      expect((newCall as any)._isRecovering).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('should not force held state on page-reload attach when the marker says the call was active (scenario 2 backward compat)', async () => {
+      await instance.connect();
+      const callId = 'reattach-active-scenario2-call-id';
+      const sessId = (instance as any).sessionid;
+
+      // Marker with wasHeld absent (older SDK) or explicitly false.
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            wasHeld: false,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      const msg = JSON.parse(
+        `{"jsonrpc":"2.0","id":4604,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+      );
+      handler.handleMessage(msg);
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Active call → recovered call must NOT be forced to held. The
+      // recovered call starts in 'recovering' (attach default) and would
+      // reach Active via the real (un-mocked) answer flow; here answer() is
+      // mocked, so we assert it is NOT held rather than asserting a specific
+      // active state.
+      expect(newCall.state).not.toEqual('held');
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
   });
 
   describe('telnyx_rtc.info', () => {
@@ -1495,9 +1643,9 @@ describe('VertoHandler', () => {
         // The marker must still be present (peek semantics).
         const markerAfterReattach = getActiveCallsRecoveryMarker();
         expect(markerAfterReattach).not.toBeNull();
-        expect(
-          markerAfterReattach?.calls.some((c) => c.id === callId)
-        ).toBe(true);
+        expect(markerAfterReattach?.calls.some((c) => c.id === callId)).toBe(
+          true
+        );
 
         // 2. Attach arrives for the same call — the handler reads the marker
         //    (still present) and restores per-call media elements.

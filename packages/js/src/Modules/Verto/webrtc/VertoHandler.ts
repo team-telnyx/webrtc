@@ -212,7 +212,11 @@ class VertoHandler {
           // Re-save the drained marker: only reattached calls remain. If
           // every call was notified (none reattached), the marker is cleared
           // (setActiveCallsRecoveryMarker clears on an empty array).
-          setActiveCallsRecoveryMarker(remainingCalls, saved.sessionId, saved.storedAt);
+          setActiveCallsRecoveryMarker(
+            remainingCalls,
+            saved.sessionId,
+            saved.storedAt
+          );
         }
       }
     }
@@ -227,6 +231,7 @@ class VertoHandler {
       mutedMicOnStart,
       remoteElement,
       localElement,
+      wasHeldBeforeRecovery,
     }: {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
@@ -238,6 +243,8 @@ class VertoHandler {
       // the session-level `client.remoteElement` / `client.localElement`.
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
+      /** True when the original call was held at the moment of attach-recovery. */
+      wasHeldBeforeRecovery?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -295,6 +302,11 @@ class VertoHandler {
 
       if (recoveredCallId) {
         callOptions.recoveredCallId = recoveredCallId;
+      }
+
+      // Carry held intent onto the replacement call.
+      if (wasHeldBeforeRecovery) {
+        callOptions.wasHeldBeforeRecovery = wasHeldBeforeRecovery;
       }
 
       // Restore per-call media elements on attach-recovery (VSUP-121 review
@@ -394,12 +406,15 @@ class VertoHandler {
           // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
+          // Held intent from the page-reload recovery marker.
+          let wasHeldBeforeUnload = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
             const savedCall = savedMarker.calls.find((c) => c.id === callID);
             if (savedCall) {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
+              wasHeldBeforeUnload = savedCall.wasHeld === true;
               if (recoveredRemoteElement || recoveredLocalElement) {
                 logger.info(
                   `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
@@ -414,6 +429,8 @@ class VertoHandler {
             recoveredCallId: callID,
             remoteElement: recoveredRemoteElement,
             localElement: recoveredLocalElement,
+            // Carry held intent onto the replacement call.
+            wasHeldBeforeRecovery: wasHeldBeforeUnload,
           });
           call.answer();
 
@@ -429,6 +446,9 @@ class VertoHandler {
           const recoveredCallId = matchedCall.id;
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+
+          // Capture held state BEFORE hangup() destroys it.
+          const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           if (forceRelayCandidateForRecovery) {
             logger.warn(
@@ -456,6 +476,8 @@ class VertoHandler {
             // undefined case falls back to the session-level default.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
+            // Carry held intent captured BEFORE hangup().
+            wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
           call.answer();
 

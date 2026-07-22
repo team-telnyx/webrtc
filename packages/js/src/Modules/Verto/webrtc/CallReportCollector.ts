@@ -629,6 +629,9 @@ export class CallReportCollector {
   // statsBuffer while the active call and health monitoring continue.
   private _previousStatsEntryForWarnings: IStatsInterval | null = null;
 
+  // True while the owning call is held; suppresses 31006/32001 silence warnings.
+  private _isHeld: boolean = false;
+
   // Last logged local audio track snapshot, used to avoid repetitive logs.
   private _lastLocalAudioTrackSnapshotJson: string | null = null;
 
@@ -1083,6 +1086,14 @@ export class CallReportCollector {
     }
   }
 
+  /** Mark whether the owning call is held. Resets 31006/32001 breach counters on every transition. */
+  public setHeld(isHeld: boolean): void {
+    if (this._isHeld === isHeld) return;
+    this._isHeld = isHeld;
+    this._trackBreach(LOW_INBOUND_AUDIO, false);
+    this._trackBreach(LOW_BYTES_RECEIVED, false);
+  }
+
   private _scheduleNextCollection(): void {
     if (
       this._stopped ||
@@ -1529,7 +1540,12 @@ export class CallReportCollector {
     // comfort-noise (e.g. one-way audio from a media bridge issue). Requires
     // CONSECUTIVE_BREACHES_REQUIRED intervals below threshold to avoid
     // firing on natural conversation pauses.
-    this._trackLowInboundAudio(statsEntry);
+    // Suppress while held (expected silence is not degraded media).
+    if (this._isHeld) {
+      this._trackBreach(LOW_INBOUND_AUDIO, false);
+    } else {
+      this._trackLowInboundAudio(statsEntry);
+    }
 
     // MOS warning — simplified E-model
     if (
@@ -1548,14 +1564,15 @@ export class CallReportCollector {
       this._trackBreach(LOW_MOS, false);
     }
 
-    // Low bytes received (32001) — check bytesReceived delta is 0
+    // Low bytes received (32001) — check bytesReceived delta is 0.
+    // Suppress while held (an intentionally held call expects no inbound bytes).
     if (statsEntry.audio?.inbound?.bytesReceived !== undefined) {
       const prevBytes =
         this._previousStatsEntryForWarnings?.audio?.inbound?.bytesReceived;
       const currBytes = statsEntry.audio.inbound.bytesReceived;
       this._trackBreach(
         LOW_BYTES_RECEIVED,
-        prevBytes !== undefined && currBytes - prevBytes === 0
+        !this._isHeld && prevBytes !== undefined && currBytes - prevBytes === 0
       );
     }
 

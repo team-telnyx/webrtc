@@ -256,6 +256,9 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  // True when the call was held before attach-recovery replaced it.
+  private _wasHeldBeforeRecovery: boolean = false;
+
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -1370,6 +1373,14 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
+        // Clear held-before-recovery intent and collector hold flag.
+        if (this._wasHeldBeforeRecovery) {
+          logger.debug(
+            `[${this.id}] Cleared held-before-recovery intent on transition to Active`
+          );
+          this._wasHeldBeforeRecovery = false;
+        }
+        this._callReportCollector?.setHeld(false);
 
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
@@ -1421,6 +1432,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         // Start logging media devices for debugging
         this._mediaDeviceCollector = new MediaDeviceCollector();
         this._mediaDeviceCollector.logDevicesAtStart();
+        break;
+      }
+      case State.Held: {
+        // Suppress silence warnings while held.
+        this._callReportCollector?.setHeld(true);
         break;
       }
       case State.Destroy:
@@ -1836,7 +1852,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        if (this.gotAnswer) {
+        // Preserve held state across ICE restart re-answer.
+        if (this.gotAnswer && this._state !== State.Held) {
           this.setState(State.Active);
         }
       })
@@ -1981,7 +1998,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // Preserve held state across attach-recovery re-answer.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
@@ -2076,7 +2098,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // Preserve held state across attach-recovery re-answer.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
@@ -2431,6 +2458,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       remoteCallerNumber,
       onNotification,
       recoveredCallId,
+      wasHeldBeforeRecovery,
     } = this.options;
     if (id) {
       this.options.id = id.toString();
@@ -2442,6 +2470,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
       this._isRecovering = true;
+      // Preserve held intent across attach-recovery.
+      this._wasHeldBeforeRecovery = Boolean(wasHeldBeforeRecovery);
     }
 
     if (!userVariables || objEmpty(userVariables)) {
@@ -2512,10 +2542,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        if (warning.code === LOW_BYTES_RECEIVED) {
+        // Skip no-RTP report while held (defense-in-depth).
+        if (warning.code === LOW_BYTES_RECEIVED && this._state !== State.Held) {
           this.session.reportNoRtp?.(this.id, 'inbound');
         } else if (
           warning.code === LOW_BYTES_SENT &&
+          this._state !== State.Held &&
           this._hasActiveUnmutedLocalAudioTrack()
         ) {
           this.session.reportNoRtp?.(this.id, 'outbound');
