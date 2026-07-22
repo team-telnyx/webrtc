@@ -204,13 +204,11 @@ describe('CallRecorder', () => {
 
   describe('buffer accumulation + overflow', () => {
     it('accumulates packets from captured frames', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000 }, // no periodic flush during the test
         fetchImpl
@@ -226,16 +224,14 @@ describe('CallRecorder', () => {
       expect(fetchImpl).not.toHaveBeenCalled();
     });
 
-    it('drops oldest packets on overflow and emits RECORDING_BUFFER_OVERFLOW once per window', async () => {
+    it('drops oldest packets on overflow and emits RECORDING_BUFFER_OVERFLOW once per track per window', async () => {
       // Tiny cap so a single 480-frame Float32 packet (1920 bytes) overflows
       // after a couple of packets.
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const onWarning = jest.fn();
       const recorder = makeRecorder(
         {
@@ -249,27 +245,171 @@ describe('CallRecorder', () => {
       await flushMicrotasks();
       recorder.stop();
 
-      // The recorder should have warned at most once about overflow within
-      // this single flush window.
+      // Both tracks overflow, and the throttle is per-track (VSDK-453) — a
+      // shared flag let an overflow on `local` mask one on `remote`, hiding
+      // packet loss on half the recording. Two tracks => at most two warnings.
       const overflowCalls = onWarning.mock.calls.filter(
         (c) => c[0].name === 'RECORDING_BUFFER_OVERFLOW'
       );
-      expect(overflowCalls.length).toBeLessThanOrEqual(1);
+      expect(overflowCalls.length).toBeLessThanOrEqual(2);
       expect(overflowCalls.length).toBeGreaterThanOrEqual(0);
 
+      recorder.cleanup();
+    });
+
+    it('throttles the overflow warning to one per track within a window', async () => {
+      // Only `local` is recorded, so the many frames that overflow the tiny
+      // cap must still produce exactly one warning.
+      const onWarning = jest.fn();
+      const recorder = makeRecorder({
+        maxBufferBytes: 4000, // ~2 packets before overflow
+        flushIntervalMs: 100_000,
+        tracks: ['local'],
+      });
+      recorder.onWarning = onWarning;
+      recorder.start(fakeAudioTrack(), fakeAudioTrack());
+      await flushMicrotasks();
+      recorder.stop();
+
+      const overflowCalls = onWarning.mock.calls.filter(
+        (c) => c[0].name === 'RECORDING_BUFFER_OVERFLOW'
+      );
+      expect(overflowCalls.length).toBe(1);
+
+      recorder.cleanup();
+    });
+  });
+
+  describe('flush interval clamping (VSDK-453)', () => {
+    // A flush interval longer than the buffer's fill time means the oldest
+    // packets are evicted before they are ever uploaded. At 48 kHz the capture
+    // rate is ~208 KB/s per track, so an 8 MB buffer fills in ~38s.
+    const safeIntervalMs = (maxBufferBytes: number, sampleRate = 48000) =>
+      (maxBufferBytes / (sampleRate * 4 + 100 * 160)) * 500;
+
+    /** Read the clamped interval off the private method under test. */
+    const flushIntervalOf = (recorder: CallRecorder): number =>
+      (
+        recorder as unknown as { _flushIntervalMs(): number }
+      )._flushIntervalMs();
+
+    it('clamps an interval that outlives the buffer fill time', () => {
+      const recorder = makeRecorder({
+        flushIntervalMs: 240_000, // the old default
+        maxBufferBytes: 8_000_000,
+        sampleRate: 48000,
+      });
+      const interval = flushIntervalOf(recorder);
+      expect(interval).toBeCloseTo(safeIntervalMs(8_000_000), 0);
+      expect(interval).toBeLessThan(38_000);
+    });
+
+    it('leaves an already-safe interval untouched', () => {
+      const recorder = makeRecorder({
+        flushIntervalMs: 5_000,
+        maxBufferBytes: 8_000_000,
+        sampleRate: 48000,
+      });
+      expect(flushIntervalOf(recorder)).toBe(5_000);
+    });
+
+    it('passes through 0 to disable time-based flushes', () => {
+      const recorder = makeRecorder({
+        flushIntervalMs: 0,
+        maxBufferBytes: 8_000_000,
+      });
+      expect(flushIntervalOf(recorder)).toBe(0);
+    });
+  });
+
+  describe('final flush concurrency (VSDK-453)', () => {
+    it('posts every track even when the first upload is slow', async () => {
+      // Serialized posts made `remote` start only after `local` finished, so a
+      // slow first upload pushed it past BaseSession's 10s upload drain and it
+      // was never sent. Both must now be in flight together.
+      let resolveLocal: () => void = () => {};
+      const inFlight: string[] = [];
+      const fetchImpl = jest.fn().mockImplementation((_url, init) => {
+        const body = JSON.parse(init.body);
+        inFlight.push(body.track);
+        const ok = {
+          ok: true,
+          status: 202,
+          text: () => Promise.resolve(''),
+        };
+        if (body.track === 'local') {
+          // Hold the local POST open until both have been issued.
+          return new Promise((resolve) => {
+            resolveLocal = () => resolve(ok);
+          });
+        }
+        return Promise.resolve(ok);
+      });
+
+      const recorder = makeRecorder(
+        { flushIntervalMs: 100_000, maxBufferBytes: 8_000_000 },
+        fetchImpl
+      );
+      recorder.start(fakeAudioTrack(), fakeAudioTrack());
+      await flushMicrotasks();
+
+      const finalPost = recorder.postFinalReport();
+      await flushMicrotasks();
+
+      // `remote` was issued while `local` was still pending — the old
+      // sequential loop would have only issued `local` at this point.
+      expect(inFlight).toContain('local');
+      expect(inFlight).toContain('remote');
+
+      resolveLocal();
+      await finalPost;
+
+      const postedTracks = fetchImpl.mock.calls.map(
+        (c) => JSON.parse(c[1].body).track
+      );
+      expect(postedTracks.sort()).toEqual(['local', 'remote']);
+      recorder.cleanup();
+    });
+
+    it('still posts the second track when the first fails outright', async () => {
+      const fetchImpl = jest.fn().mockImplementation((_url, init) => {
+        const body = JSON.parse(init.body);
+        if (body.track === 'local') {
+          return Promise.reject(new Error('network down'));
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 202,
+          text: () => Promise.resolve(''),
+        });
+      });
+
+      const recorder = makeRecorder(
+        { flushIntervalMs: 100_000, maxBufferBytes: 8_000_000 },
+        fetchImpl
+      );
+      recorder.start(fakeAudioTrack(), fakeAudioTrack());
+      await flushMicrotasks();
+
+      // The local track exhausts its retries and postFinalReport rethrows,
+      // but the remote track must have been uploaded regardless.
+      await expect(recorder.postFinalReport()).rejects.toThrow('network down');
+
+      const remotePosts = fetchImpl.mock.calls.filter(
+        (c) => JSON.parse(c[1].body).track === 'remote'
+      );
+      expect(remotePosts.length).toBe(1);
       recorder.cleanup();
     });
   });
 
   describe('periodic flush', () => {
     it('fires _periodicFlush and clears the buffer on success', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const recorder = makeRecorder({ flushIntervalMs: 10 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
       // Wait long enough for the pump + at least one 10ms flush tick.
@@ -335,13 +475,11 @@ describe('CallRecorder', () => {
     });
 
     it('throws after retry exhaustion and cleanup still runs', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: false,
-          status: 500,
-          text: () => Promise.resolve('err'),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('err'),
+      });
 
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, tracks: ['local'] },
@@ -362,13 +500,11 @@ describe('CallRecorder', () => {
 
     it('sets keepalive: true for final payloads below 60 KB', async () => {
       // Use a single small frame so the final payload is small.
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
 
       const recorder = makeRecorder({ flushIntervalMs: 100_000 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
@@ -409,13 +545,11 @@ describe('CallRecorder', () => {
         globalThis as { MediaStreamTrackProcessor?: unknown }
       ).MediaStreamTrackProcessor = BigMSTP as unknown;
 
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
 
       const recorder = makeRecorder(
         {
@@ -445,13 +579,11 @@ describe('CallRecorder', () => {
       // BaseCall constructs the recorder in _init() before the server assigns
       // session.callReportId, so the context value is empty. _setCallReportId
       // is called later (at the Active state / before the final flush).
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
 
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, tracks: ['local'] },
@@ -476,13 +608,11 @@ describe('CallRecorder', () => {
     });
 
     it('ignores empty _setCallReportId and keeps the context value', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
 
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, tracks: ['local'] },
@@ -504,13 +634,11 @@ describe('CallRecorder', () => {
 
   describe('cleanup', () => {
     it('is idempotent and clears the timer', () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const recorder = makeRecorder({ flushIntervalMs: 10 }, fetchImpl);
       recorder.start(fakeAudioTrack(), fakeAudioTrack());
 
@@ -558,13 +686,11 @@ describe('CallRecorder', () => {
 
   describe('endpoint resolution', () => {
     it('converts ws/wss host to http/https endpoint', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const recorder = makeRecorder({ flushIntervalMs: 100_000 }, fetchImpl, {
         host: 'wss://example.fs.telnyx',
       });
@@ -578,13 +704,11 @@ describe('CallRecorder', () => {
     });
 
     it('honors a custom endpoint path', async () => {
-      const fetchImpl = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          status: 200,
-          text: () => Promise.resolve(''),
-        });
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
       const recorder = makeRecorder(
         { flushIntervalMs: 100_000, endpoint: '/custom_recording' },
         fetchImpl,

@@ -225,8 +225,16 @@ export class CallRecorder {
   private _startedAt: Date | null = null;
   /** Recording end timestamp (set on final flush). */
   private _endedAt: Date | null = null;
-  /** Throttle: only log RECORDING_BUFFER_OVERFLOW once per flush window. */
-  private _overflowWarnedThisWindow: boolean = false;
+  /**
+   * Throttle: only log RECORDING_BUFFER_OVERFLOW once per track per flush
+   * window. Per-track (not a single shared flag) so an overflow on `local`
+   * cannot mask a concurrent overflow on `remote` — operators need to know
+   * which tracks actually lost packets.
+   */
+  private _overflowWarnedThisWindow: Record<RecordingTrackKind, boolean> = {
+    local: false,
+    remote: false,
+  };
 
   /** Callback invoked when a quality warning should be surfaced. */
   public onWarning: ((warning: ITelnyxWarning) => void) | null = null;
@@ -236,6 +244,10 @@ export class CallRecorder {
   private static readonly KEEPALIVE_BODY_LIMIT_BYTES = 60 * 1024;
   /** Per-packet overhead estimate (envelope JSON keys ~120B + RTP header). */
   private static readonly PACKET_OVERHEAD_BYTES = 160;
+  /** Bytes per PCM sample on the wire (Float32). */
+  private static readonly BYTES_PER_SAMPLE = 4;
+  /** AudioData frames delivered per second (~10ms frames). */
+  private static readonly FRAMES_PER_SECOND = 100;
 
   constructor(
     options: ICallRecordingOptions,
@@ -366,19 +378,36 @@ export class CallRecorder {
       'remote',
     ]) as RecordingTrackKind[];
 
-    for (const track of tracks) {
-      const packets = this._drain(track);
-      if (packets.length === 0) {
-        continue;
-      }
-      const envelope = this._buildEnvelope(
-        packets,
-        track,
-        'final',
-        this._startedAt,
-        this._endedAt || new Date()
-      );
-      await this._postRecording(endpoint, envelope, true);
+    // Post tracks concurrently. Serializing them made the last track (always
+    // `remote`) start only after the first finished uploading — multi-MB final
+    // segments regularly take longer than BaseSession's 10s upload drain, so
+    // the remote segment was abandoned before its POST was ever issued.
+    // allSettled (not all) so one track's failure cannot cancel the other.
+    const startedAt = this._startedAt;
+    const endedAt = this._endedAt || new Date();
+    const results = await Promise.allSettled(
+      tracks.map((track) => {
+        const packets = this._drain(track);
+        if (packets.length === 0) {
+          return Promise.resolve();
+        }
+        const envelope = this._buildEnvelope(
+          packets,
+          track,
+          'final',
+          startedAt,
+          endedAt
+        );
+        return this._postRecording(endpoint, envelope, true);
+      })
+    );
+
+    // Surface the first failure so BaseCall can log it, having attempted all.
+    const rejected = results.find(
+      (r): r is PromiseRejectedResult => r.status === 'rejected'
+    );
+    if (rejected) {
+      throw rejected.reason;
     }
   }
 
@@ -522,8 +551,8 @@ export class CallRecorder {
             dropped.payloadBytes.length + CallRecorder.PACKET_OVERHEAD_BYTES;
         }
       }
-      if (!this._overflowWarnedThisWindow) {
-        this._overflowWarnedThisWindow = true;
+      if (!this._overflowWarnedThisWindow[track]) {
+        this._overflowWarnedThisWindow[track] = true;
         logger.warn('CallRecorder: buffer overflow — oldest packets dropped', {
           track,
         });
@@ -534,10 +563,34 @@ export class CallRecorder {
 
   // ── Internal: flush ─────────────────────────────────────────────────
 
+  /**
+   * Flush cadence, clamped so a flush always happens before the ring buffer
+   * can fill. An interval longer than the buffer's fill time means the oldest
+   * packets are evicted before they are ever uploaded, silently punching holes
+   * in the recording. 0 (or negative) disables time-based flushes entirely and
+   * is passed through untouched — that is an explicit "final flush only" opt-in.
+   */
   private _flushIntervalMs(): number {
-    return (
-      this.options.flushIntervalMs ?? DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
-    );
+    const configured =
+      this.options.flushIntervalMs ?? DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS;
+    if (configured <= 0) {
+      return configured;
+    }
+    return Math.min(configured, this._maxSafeFlushIntervalMs());
+  }
+
+  /**
+   * Time (ms) to fill half the ring buffer at the current capture rate. Each
+   * ~10ms AudioData frame yields (sampleRate / 100) Float32 samples plus
+   * PACKET_OVERHEAD_BYTES, so the rate is (sampleRate * 4) + (100 * overhead)
+   * bytes/sec per track. Half, not all, to leave headroom for a flush that is
+   * still uploading when the next one is due.
+   */
+  private _maxSafeFlushIntervalMs(): number {
+    const bytesPerSecond =
+      this._sampleRate() * CallRecorder.BYTES_PER_SAMPLE +
+      CallRecorder.FRAMES_PER_SECOND * CallRecorder.PACKET_OVERHEAD_BYTES;
+    return Math.max(1000, (this._maxBufferBytes() / bytesPerSecond) * 500);
   }
 
   private _maxBufferBytes(): number {
@@ -608,22 +661,33 @@ export class CallRecorder {
       ]) as RecordingTrackKind[];
       const windowStart = this._startedAt || new Date();
       const windowEnd = new Date();
-      for (const track of tracks) {
-        const packets = this._drain(track);
-        if (packets.length === 0) {
-          continue;
-        }
-        const envelope = this._buildEnvelope(
-          packets,
-          track,
-          'intermediate',
-          windowStart,
-          windowEnd
-        );
-        await this._postRecording(endpoint, envelope, false);
-      }
-      // New flush window — allow overflow warning to fire again.
-      this._overflowWarnedThisWindow = false;
+      // Concurrent for the same reason as postFinalReport: serialized posts
+      // let one slow track delay the next flush window for every other track.
+      await Promise.allSettled(
+        tracks.map((track) => {
+          const packets = this._drain(track);
+          if (packets.length === 0) {
+            return Promise.resolve();
+          }
+          const envelope = this._buildEnvelope(
+            packets,
+            track,
+            'intermediate',
+            windowStart,
+            windowEnd
+          );
+          return this._postRecording(endpoint, envelope, false).catch((err) => {
+            // Intermediate flushes are best-effort; the packets are already
+            // drained, so log and let the recording continue with the tail.
+            logger.error('CallRecorder: intermediate flush failed', {
+              track,
+              error: err,
+            });
+          });
+        })
+      );
+      // New flush window — allow overflow warnings to fire again.
+      this._overflowWarnedThisWindow = { local: false, remote: false };
     } finally {
       this._flushing = false;
     }
