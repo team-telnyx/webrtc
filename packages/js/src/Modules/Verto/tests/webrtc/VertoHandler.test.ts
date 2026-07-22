@@ -546,8 +546,16 @@ describe('VertoHandler', () => {
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
       expect(newCall.recoveredCallId).toEqual(callId);
-      // The recovered call must remain held, NOT flip to active.
-      expect(newCall.state).toEqual('held');
+      // The recovered call starts in 'recovering' (the _init() default when
+      // recoveredCallId is set). The held state is restored by _onRemoteSdp
+      // when the re-answer completes (the production path), NOT by a late
+      // setState(State.Held) after answer() — the reviewer flagged the
+      // late-setState approach as broken (VSUP-145). Here answer() is mocked,
+      // so we assert the call carries the held-before-recovery intent that
+      // the production re-answer path will honor.
+      expect(newCall.state).toEqual('recovering');
+      expect((newCall as any)._wasHeldBeforeRecovery).toBe(true);
+      expect((newCall as any)._isRecovering).toBe(true);
 
       Call.prototype.answer = originalAnswer;
     });
@@ -609,8 +617,16 @@ describe('VertoHandler', () => {
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
       expect(newCall.recoveredCallId).toEqual(callId);
-      // The recovered call must be held, matching the pre-unload state.
-      expect(newCall.state).toEqual('held');
+      // The recovered call starts in 'recovering' (the _init() default when
+      // recoveredCallId is set). The held state is restored by _onRemoteSdp
+      // when the re-answer completes (the production path), NOT by a late
+      // setState(State.Held) after answer() — the reviewer flagged the
+      // late-setState approach as broken (VSUP-145). Here answer() is mocked,
+      // so we assert the call carries the held-before-recovery intent from
+      // the page-reload marker that the production re-answer path will honor.
+      expect(newCall.state).toEqual('recovering');
+      expect((newCall as any)._wasHeldBeforeRecovery).toBe(true);
+      expect((newCall as any)._isRecovering).toBe(true);
 
       Call.prototype.answer = originalAnswer;
       clearActiveCallsRecoveryMarker();

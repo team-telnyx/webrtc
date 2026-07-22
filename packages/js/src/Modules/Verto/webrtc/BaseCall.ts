@@ -256,6 +256,22 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _isRecovering: boolean = false;
 
+  /**
+   * Whether the call was held (`State.Held`) before attach-recovery replaced
+   * it. When true and the call is recovering (`_isRecovering`), the `_onRemoteSdp`
+   * re-answer path transitions `Recovering → Held` instead of the default
+   * `Recovering → Active`, preserving the customer-visible held state across a
+   * reattachment/reconnect that affects a held call (VSUP-145).
+   *
+   * This mirrors the `_isRecovering` pattern: the flag is set at construction
+   * time (via `IVertoCallOptions.wasHeldBeforeRecovery`) and drives the
+   * post-recovery state transition inside the production re-answer path —
+   * rather than relying on a late `setState(State.Held)` after the answer flow
+   * has already reached Active (which the reviewer flagged as broken because
+   * the state cycles through Recovering → Active → Held).
+   */
+  private _wasHeldBeforeRecovery: boolean = false;
+
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
 
@@ -1370,6 +1386,14 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
+        // An explicit unhold/toggle to Active clears the held-before-recovery
+        // intent so a later recovery no longer restores Held. This prevents a
+        // stale flag from carrying held intent past a genuine unhold
+        // (VSUP-145). Safe on the initial Active transition (flag defaults
+        // to false and is only set when recovering from a held call).
+        if (this._wasHeldBeforeRecovery) {
+          this._wasHeldBeforeRecovery = false;
+        }
 
         // The call is (no longer) held. Clear the hold flag on the
         // call-report collector so silence-based warnings and the no-RTP
@@ -1855,16 +1879,33 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        // Apply the Active state only for a genuine new answer on a call
-        // that is NOT currently held. A held call may receive a fresh
-        // remote SDP as the answer to an ICE restart / updateMedia
-        // (recovery) flow; applying Active there would silently flip the
-        // public state from `held` to `active`, which is the customer-
-        // visible bug in VSUP-145. Preserve the held state across such a
-        // re-answer — only an explicit unhold/toggle or terminal
-        // transition may make the call active again.
-        if (this.gotAnswer && this._state !== State.Held) {
+        // Apply the Active state only for a genuine new answer on a call that
+        // is NOT currently held AND was not held immediately before an
+        // attach-recovery that replaced it. A held call may receive a fresh
+        // remote SDP as the answer to an ICE restart / updateMedia (recovery)
+        // flow; applying Active there would silently flip the public state
+        // from `held` to `active`, which is the customer-visible bug in
+        // VSUP-145. Two cases are covered:
+        //   1. Same-instance re-answer: `this._state === State.Held` (the
+        //      hold()/toggleHold() ICE restart path on a live call).
+        //   2. Attach-recovery replacement: `_wasHeldBeforeRecovery` is true
+        //      and the call is still in Recovering (the reattach path builds a
+        //      new BaseCall whose answer flow would otherwise reach Active).
+        // In either case the call stays/reverts to Held; only an explicit
+        // unhold/toggle or terminal transition may make it active again.
+        if (
+          this.gotAnswer &&
+          this._state !== State.Held &&
+          !(this._wasHeldBeforeRecovery && this._isRecovering)
+        ) {
           this.setState(State.Active);
+        } else if (this._wasHeldBeforeRecovery && this._isRecovering) {
+          // A recovering call that was held before recovery transitions
+          // Recovering → Held on the re-answer, preserving the customer-
+          // visible held state through the reattachment/reconnect (VSUP-145).
+          // This mirrors the _isRecovering pattern: the construction-time
+          // flag drives the post-recovery state, not a late setState(Held).
+          this.setState(State.Held);
         }
       })
       .catch(async (error) => {
@@ -2458,6 +2499,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       remoteCallerNumber,
       onNotification,
       recoveredCallId,
+      wasHeldBeforeRecovery,
     } = this.options;
     if (id) {
       this.options.id = id.toString();
@@ -2469,6 +2511,12 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
       this._isRecovering = true;
+      // Preserve held intent across attach-recovery. When the original call
+      // was held at the moment of recovery, the replacement call's re-answer
+      // path transitions Recovering → Held instead of the default
+      // Recovering → Active (VSUP-145). Set here in _init() so the flag is
+      // available before the first state transition, mirroring _isRecovering.
+      this._wasHeldBeforeRecovery = Boolean(wasHeldBeforeRecovery);
     }
 
     if (!userVariables || objEmpty(userVariables)) {

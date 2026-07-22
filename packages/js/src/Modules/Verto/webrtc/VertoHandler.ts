@@ -231,6 +231,7 @@ class VertoHandler {
       mutedMicOnStart,
       remoteElement,
       localElement,
+      wasHeldBeforeRecovery,
     }: {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
@@ -242,6 +243,12 @@ class VertoHandler {
       // the session-level `client.remoteElement` / `client.localElement`.
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
+      // Whether the original call was held (`State.Held`) at the moment of
+      // attach-recovery. Carried onto the replacement call so its `_onRemoteSdp`
+      // re-answer path transitions Recovering → Held (instead of the default
+      // Recovering → Active), preserving the customer-visible held state
+      // (VSUP-145). Backward compatible — omitted/`false` for active recoveries.
+      wasHeldBeforeRecovery?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -299,6 +306,14 @@ class VertoHandler {
 
       if (recoveredCallId) {
         callOptions.recoveredCallId = recoveredCallId;
+      }
+
+      // Carry held intent onto the replacement call so its _onRemoteSdp
+      // re-answer path transitions Recovering → Held instead of the default
+      // Recovering → Active (VSUP-145). Only set when explicitly provided so
+      // non-held recoveries remain backward compatible.
+      if (wasHeldBeforeRecovery) {
+        callOptions.wasHeldBeforeRecovery = wasHeldBeforeRecovery;
       }
 
       // Restore per-call media elements on attach-recovery (VSUP-121 review
@@ -424,21 +439,17 @@ class VertoHandler {
             recoveredCallId: callID,
             remoteElement: recoveredRemoteElement,
             localElement: recoveredLocalElement,
+            // Carry the held intent from the page-reload recovery marker onto
+            // the replacement call so its _onRemoteSdp re-answer transitions
+            // Recovering → Held (VSUP-145). The held state is restored through
+            // the construction-time flag inside the production re-answer path,
+            // not via a late setState(State.Held) after answer() — the
+            // reviewer flagged the late-setState approach as broken because
+            // the establishment flow cycles through Recovering → Active →
+            // Held.
+            wasHeldBeforeRecovery: wasHeldBeforeUnload,
           });
           call.answer();
-
-          // Preserve the held state across attach-recovery after a page
-          // reload. The replacement call's normal answer flow reaches
-          // State.Active; if the original call was held, restoring State.Held
-          // here keeps the customer-visible state correct and drives
-          // CallReportCollector.setHeld(true) via the State.Held case in
-          // setState. (VSUP-145)
-          if (wasHeldBeforeUnload) {
-            logger.info(
-              `[${callID}] Attach: restoring held state on recovered call (was held before unload).`
-            );
-            call.setState(State.Held);
-          }
 
           // Emit warning if there are other active calls (recovered calls are active calls too)
           this.session.emitMultipleActiveCallsWarning(call.id);
@@ -454,11 +465,11 @@ class VertoHandler {
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
           // Capture the held state BEFORE hangup() destroys the matched
-          // call's state. The replacement call's normal answer flow reaches
-          // State.Active; if the original was held, we restore State.Held
-          // after answer() so a reattachment/reconnect that affects a held
-          // call preserves the public held state (VSUP-145 — P1 finding).
-          // `matchedCall.state` is the lowercased State enum name.
+          // call's state. This boolean is carried onto the replacement call
+          // via _buildCall's wasHeldBeforeRecovery option so the production
+          // re-answer path (_onRemoteSdp) transitions Recovering → Held
+          // instead of the default Recovering → Active (VSUP-145 — P1
+          // finding). `matchedCall.state` is the lowercased State enum name.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           if (forceRelayCandidateForRecovery) {
@@ -487,20 +498,18 @@ class VertoHandler {
             // undefined case falls back to the session-level default.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
+            // Carry the held intent captured BEFORE hangup() destroyed the
+            // matched call's state. The replacement call's _onRemoteSdp
+            // re-answer path transitions Recovering → Held when this flag is
+            // set (VSUP-145), restoring the held state through the
+            // construction-time flag inside the production re-answer path
+            // rather than via a late setState(State.Held) after answer() —
+            // the reviewer flagged the late-setState approach as broken
+            // because the establishment flow cycles through Recovering →
+            // Active → Held.
+            wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
           call.answer();
-
-          // Preserve the held state across attach-recovery. The replacement
-          // call's normal answer flow reaches State.Active; if the original
-          // call was held, restoring State.Held here keeps the customer-
-          // visible state correct and drives CallReportCollector.setHeld(true)
-          // via the State.Held case in setState. (VSUP-145)
-          if (wasHeldBeforeRecovery) {
-            logger.info(
-              `[${callID}] Attach: restoring held state on recovered call (was held before recovery).`
-            );
-            call.setState(State.Held);
-          }
 
           // Emit warning if there are other active calls (recovered calls are active calls too)
           this.session.emitMultipleActiveCallsWarning(call.id);
