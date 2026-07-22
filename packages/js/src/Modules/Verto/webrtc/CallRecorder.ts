@@ -378,28 +378,44 @@ export class CallRecorder {
       'remote',
     ]) as RecordingTrackKind[];
 
+    const startedAt = this._startedAt;
+    const endedAt = this._endedAt || new Date();
+    const finalUploads = tracks.flatMap((track) => {
+      const packets = this._drain(track);
+      if (packets.length === 0) {
+        return [];
+      }
+      const envelope = this._buildEnvelope(
+        packets,
+        track,
+        'final',
+        startedAt,
+        endedAt
+      );
+      return [{ envelope, bodyBytes: JSON.stringify(envelope).length }];
+    });
+
     // Post tracks concurrently. Serializing them made the last track (always
     // `remote`) start only after the first finished uploading — multi-MB final
     // segments regularly take longer than BaseSession's 10s upload drain, so
     // the remote segment was abandoned before its POST was ever issued.
+    //
+    // Keepalive has a browser-wide in-flight body quota (~64 KiB). Since these
+    // final uploads are concurrent, the decision must be per batch, not per
+    // request; two individually-small final segments can otherwise exceed the
+    // aggregate quota and drop one track before it is sent.
+    const finalKeepaliveBodyBytes = finalUploads.reduce(
+      (total, upload) => total + upload.bodyBytes,
+      0
+    );
+    const useFinalKeepalive =
+      finalKeepaliveBodyBytes <= CallRecorder.KEEPALIVE_BODY_LIMIT_BYTES;
+
     // allSettled (not all) so one track's failure cannot cancel the other.
-    const startedAt = this._startedAt;
-    const endedAt = this._endedAt || new Date();
     const results = await Promise.allSettled(
-      tracks.map((track) => {
-        const packets = this._drain(track);
-        if (packets.length === 0) {
-          return Promise.resolve();
-        }
-        const envelope = this._buildEnvelope(
-          packets,
-          track,
-          'final',
-          startedAt,
-          endedAt
-        );
-        return this._postRecording(endpoint, envelope, true);
-      })
+      finalUploads.map(({ envelope }) =>
+        this._postRecording(endpoint, envelope, useFinalKeepalive)
+      )
     );
 
     // Surface the first failure so BaseCall can log it, having attempted all.
@@ -803,14 +819,13 @@ export class CallRecorder {
   }
 
   /**
-   * POST a recording envelope with retry + keepalive, mirroring
-   * CallReportCollector._sendPayload. `isFinal` controls keepalive for small
-   * payloads. Throws on exhaustion.
+   * POST a recording envelope with retry + optional keepalive, mirroring
+   * CallReportCollector._sendPayload. Throws on exhaustion.
    */
   private async _postRecording(
     endpoint: string,
     envelope: ICallRecordingEnvelope,
-    isFinal: boolean
+    useKeepalive: boolean
   ): Promise<void> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -822,8 +837,8 @@ export class CallRecorder {
     }
 
     const body = JSON.stringify(envelope);
-    const useKeepalive =
-      isFinal && body.length <= CallRecorder.KEEPALIVE_BODY_LIMIT_BYTES;
+    const shouldUseKeepalive =
+      useKeepalive && body.length <= CallRecorder.KEEPALIVE_BODY_LIMIT_BYTES;
     const fetchImpl = this.options.fetchImpl || fetch;
 
     let lastError: unknown;
@@ -838,7 +853,7 @@ export class CallRecorder {
           method: 'POST',
           headers,
           body,
-          ...(useKeepalive ? { keepalive: true } : {}),
+          ...(shouldUseKeepalive ? { keepalive: true } : {}),
         });
         if (!response.ok) {
           const errorText = await response.text().catch(() => '');

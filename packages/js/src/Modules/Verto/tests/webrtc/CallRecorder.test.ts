@@ -520,6 +520,64 @@ describe('CallRecorder', () => {
       recorder.cleanup();
     });
 
+    it('does not set keepalive when concurrent final payloads exceed the aggregate keepalive budget', async () => {
+      // Each track is individually below the 60KB keepalive cap, but together
+      // they exceed it. Keepalive quota is shared across in-flight requests,
+      // so concurrent final uploads must disable keepalive for this batch.
+      class MediumAudioData extends FakeAudioData {
+        constructor() {
+          super(8000);
+        }
+      }
+      class MediumReadableStream extends FakeReadableStream {
+        constructor() {
+          super([new MediumAudioData()]);
+        }
+      }
+      class MediumMSTP extends FakeMediaStreamTrackProcessor {
+        constructor() {
+          super({ track: {} as MediaStreamTrack });
+          this.readable = new MediumReadableStream();
+        }
+      }
+      (
+        globalThis as { MediaStreamTrackProcessor?: unknown }
+      ).MediaStreamTrackProcessor = MediumMSTP as unknown;
+
+      const fetchImpl = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(''),
+      });
+
+      const recorder = makeRecorder(
+        {
+          flushIntervalMs: 100_000,
+          maxBufferBytes: 200_000,
+          tracks: ['local', 'remote'],
+        },
+        fetchImpl
+      );
+      recorder.start(fakeAudioTrack(), fakeAudioTrack());
+      await flushMicrotasks();
+      recorder.stop();
+
+      await recorder.postFinalReport();
+
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      const calls = fetchImpl.mock.calls.map((c) => ({
+        keepalive: c[1].keepalive,
+        bodyLength: c[1].body.length,
+      }));
+      expect(calls.every((c) => c.bodyLength < 60 * 1024)).toBe(true);
+      expect(calls.reduce((sum, c) => sum + c.bodyLength, 0)).toBeGreaterThan(
+        60 * 1024
+      );
+      expect(calls.every((c) => c.keepalive === undefined)).toBe(true);
+
+      recorder.cleanup();
+    });
+
     it('does not set keepalive for large final payloads', async () => {
       // Large frames + small cap still produces a payload, but force the body
       // over 60KB by lowering nothing — instead use a cap that keeps a few
