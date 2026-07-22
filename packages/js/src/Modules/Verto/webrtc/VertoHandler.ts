@@ -212,7 +212,11 @@ class VertoHandler {
           // Re-save the drained marker: only reattached calls remain. If
           // every call was notified (none reattached), the marker is cleared
           // (setActiveCallsRecoveryMarker clears on an empty array).
-          setActiveCallsRecoveryMarker(remainingCalls, saved.sessionId, saved.storedAt);
+          setActiveCallsRecoveryMarker(
+            remainingCalls,
+            saved.sessionId,
+            saved.storedAt
+          );
         }
       }
     }
@@ -394,12 +398,18 @@ class VertoHandler {
           // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
+          // Whether the call was held before the page reloaded — persisted in
+          // the recovery marker so attach-recovery restores the held public
+          // state on the replacement call rather than letting the normal
+          // answer flow reach State.Active (VSUP-145).
+          let wasHeldBeforeUnload = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
             const savedCall = savedMarker.calls.find((c) => c.id === callID);
             if (savedCall) {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
+              wasHeldBeforeUnload = savedCall.wasHeld === true;
               if (recoveredRemoteElement || recoveredLocalElement) {
                 logger.info(
                   `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
@@ -417,6 +427,19 @@ class VertoHandler {
           });
           call.answer();
 
+          // Preserve the held state across attach-recovery after a page
+          // reload. The replacement call's normal answer flow reaches
+          // State.Active; if the original call was held, restoring State.Held
+          // here keeps the customer-visible state correct and drives
+          // CallReportCollector.setHeld(true) via the State.Held case in
+          // setState. (VSUP-145)
+          if (wasHeldBeforeUnload) {
+            logger.info(
+              `[${callID}] Attach: restoring held state on recovered call (was held before unload).`
+            );
+            call.setState(State.Held);
+          }
+
           // Emit warning if there are other active calls (recovered calls are active calls too)
           this.session.emitMultipleActiveCallsWarning(call.id);
 
@@ -429,6 +452,14 @@ class VertoHandler {
           const recoveredCallId = matchedCall.id;
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+
+          // Capture the held state BEFORE hangup() destroys the matched
+          // call's state. The replacement call's normal answer flow reaches
+          // State.Active; if the original was held, we restore State.Held
+          // after answer() so a reattachment/reconnect that affects a held
+          // call preserves the public held state (VSUP-145 — P1 finding).
+          // `matchedCall.state` is the lowercased State enum name.
+          const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           if (forceRelayCandidateForRecovery) {
             logger.warn(
@@ -458,6 +489,18 @@ class VertoHandler {
             localElement: matchedCall.options.localElement,
           });
           call.answer();
+
+          // Preserve the held state across attach-recovery. The replacement
+          // call's normal answer flow reaches State.Active; if the original
+          // call was held, restoring State.Held here keeps the customer-
+          // visible state correct and drives CallReportCollector.setHeld(true)
+          // via the State.Held case in setState. (VSUP-145)
+          if (wasHeldBeforeRecovery) {
+            logger.info(
+              `[${callID}] Attach: restoring held state on recovered call (was held before recovery).`
+            );
+            call.setState(State.Held);
+          }
 
           // Emit warning if there are other active calls (recovered calls are active calls too)
           this.session.emitMultipleActiveCallsWarning(call.id);

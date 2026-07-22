@@ -108,10 +108,18 @@ export default class Verto extends BrowserSession {
               customHeaders: typeof call.options.customHeaders;
               remoteElement?: string;
               localElement?: string;
+              wasHeld?: boolean;
             } = {
               id: call.id,
               customHeaders: call.options.customHeaders,
             };
+            // Persist the held state so attach-recovery after a page reload
+            // restores the held public state on the replacement call rather
+            // than letting the normal answer flow reach State.Active
+            // (VSUP-145). `call.state` is the lowercased State enum name.
+            if (call.state === 'held') {
+              stored.wasHeld = true;
+            }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not
             // serializable and cannot survive a page reload, so we skip them
