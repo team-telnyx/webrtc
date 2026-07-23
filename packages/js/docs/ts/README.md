@@ -186,17 +186,25 @@ Which audio track a packet belongs to.
 
 ### DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
 
-• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `240000`
+• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `15000`
 
 Default interval (ms) between intermediate call-recording flushes.
 The recorder POSTs buffered RTP packets to /call_recording on this cadence
 so long calls do not buffer unbounded packet data in memory. A final flush
 at end of call submits the tail.
 
+This must stay well below the time it takes to fill
+`DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES`, or every call long enough to fill
+the buffer drops packets before the first flush ever runs. At 48 kHz the
+capture rate is ~208 KB/s per track, so an 8 MB buffer fills in ~38s — the
+previous 4-minute default meant no call over ~38s recorded cleanly.
+`CallRecorder` additionally clamps this at runtime against the configured
+buffer size and sample rate.
+
 **`Default`**
 
 ```ts
-240000 (4 minutes)
+15000 (15 seconds)
 ```
 
 ---

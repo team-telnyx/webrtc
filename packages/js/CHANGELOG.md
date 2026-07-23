@@ -1,3 +1,7 @@
+## [2.27.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.7...webrtc/v2.27.8) (2026-07-23)
+
+- docs: update ts docs
+- fix: post CallRecorder tracks concurrently so the remote segment is not dropped (VSDK-453) (#746)
 ## [2.27.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.6...webrtc/v2.27.7) (2026-07-22)
 
 - fix(js): suppress silence warnings and no-RTP recovery while held (VSUP-145) (#747)
