@@ -4,6 +4,7 @@ import {
   type AIConversationParams,
   type AIConversationFunctionCallParams,
   type AIConversationFunctionCallOutputParams,
+  type AIConversationOutboundItem,
 } from '../../webrtc/AIConversationTypes';
 import { AIConversationMessage } from '../../messages/verto/AIConversationMessage';
 import { SwEvent } from '../../util/constants';
@@ -118,11 +119,15 @@ describe('AIConversationTypes', () => {
     });
 
     it('should return false for null', () => {
-      expect(isFunctionCallParams(null as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallParams(null as unknown as AIConversationParams)
+      ).toBe(false);
     });
 
     it('should return false for undefined', () => {
-      expect(isFunctionCallParams(undefined as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallParams(undefined as unknown as AIConversationParams)
+      ).toBe(false);
     });
 
     it('should return false when item is null', () => {
@@ -130,7 +135,9 @@ describe('AIConversationTypes', () => {
         type: 'conversation.item.created',
         item: null,
       };
-      expect(isFunctionCallParams(params as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallParams(params as unknown as AIConversationParams)
+      ).toBe(false);
     });
   });
 
@@ -169,7 +176,9 @@ describe('AIConversationTypes', () => {
           output: '{}',
         },
       };
-      expect(isFunctionCallOutputParams(params as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallOutputParams(params as unknown as AIConversationParams)
+      ).toBe(false);
     });
 
     it('should return false when call_id is missing', () => {
@@ -180,7 +189,9 @@ describe('AIConversationTypes', () => {
           output: '{}',
         },
       };
-      expect(isFunctionCallOutputParams(params as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallOutputParams(params as unknown as AIConversationParams)
+      ).toBe(false);
     });
 
     it('should return false when output is missing', () => {
@@ -191,7 +202,9 @@ describe('AIConversationTypes', () => {
           call_id: 'call-123',
         },
       };
-      expect(isFunctionCallOutputParams(params as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallOutputParams(params as unknown as AIConversationParams)
+      ).toBe(false);
     });
 
     it('should return false when output is not a string', () => {
@@ -203,7 +216,9 @@ describe('AIConversationTypes', () => {
           output: 42,
         },
       };
-      expect(isFunctionCallOutputParams(params as unknown as AIConversationParams)).toBe(false);
+      expect(
+        isFunctionCallOutputParams(params as unknown as AIConversationParams)
+      ).toBe(false);
     });
   });
 
@@ -254,6 +269,25 @@ describe('AIConversationTypes', () => {
       expect(parsed.params.item.call_id).toBe('call-xyz');
       expect(parsed.params.item.output).toBe('ok');
     });
+
+    it('should accept response.audio_stream.subscribe outbound items', () => {
+      const item: AIConversationOutboundItem = {
+        type: 'response.audio_stream.subscribe',
+      };
+
+      const msg = new AIConversationMessage(item);
+
+      expect(msg.request).toBeDefined();
+      expect(msg.request.jsonrpc).toBe('2.0');
+      expect(msg.request.method).toBe('ai_conversation');
+      expect(msg.request).not.toHaveProperty('id');
+      expect(msg.request.params).toEqual({
+        type: 'conversation.item.create',
+        item: {
+          type: 'response.audio_stream.subscribe',
+        },
+      });
+    });
   });
 
   describe('Call.sendAIConversationMessage', () => {
@@ -267,7 +301,7 @@ describe('AIConversationTypes', () => {
             sentTexts.push(text);
           }),
         },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
 
       // Use Call's sendAIConversationMessage logic directly
@@ -295,7 +329,9 @@ describe('AIConversationTypes', () => {
           call_id: 'call-1',
           output: 'ok',
         })
-      ).toThrow('Cannot send AI conversation message: session is not connected');
+      ).toThrow(
+        'Cannot send AI conversation message: session is not connected'
+      );
     });
 
     it('should send fire-and-forget notification when connected', () => {
@@ -330,6 +366,37 @@ describe('AIConversationTypes', () => {
       expect(sent.params.item.type).toBe('function_call_output');
       expect(sent.params.item.call_id).toBe('call-1');
       expect(sent.params.item.output).toBe('{"status": "found"}');
+    });
+
+    it('should send audio stream subscription items when connected', () => {
+      const { mockSession, sentTexts } = makeCallWithMockSession(true);
+
+      const sendAIConversationMessage = (item: AIConversationOutboundItem) => {
+        if (!mockSession.connected) {
+          throw new Error(
+            'Cannot send AI conversation message: session is not connected. ' +
+              'sendAIConversationMessage requires an active WebSocket connection.'
+          );
+        }
+        const msg = new AIConversationMessage(item);
+        mockSession.connection.sendRawText(JSON.stringify(msg.request));
+      };
+
+      sendAIConversationMessage({
+        type: 'response.audio_stream.subscribe',
+      });
+
+      expect(mockSession.connection.sendRawText).toHaveBeenCalledTimes(1);
+      const sent = JSON.parse(sentTexts[0]);
+      expect(sent.jsonrpc).toBe('2.0');
+      expect(sent.method).toBe('ai_conversation');
+      expect(sent).not.toHaveProperty('id');
+      expect(sent.params).toEqual({
+        type: 'conversation.item.create',
+        item: {
+          type: 'response.audio_stream.subscribe',
+        },
+      });
     });
 
     it('should not queue or reconnect when disconnected', () => {

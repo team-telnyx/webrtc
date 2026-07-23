@@ -4,7 +4,7 @@ import logger from '../util/logger';
 import { getDisplayMedia, setMediaElementSinkId } from '../util/webrtc';
 import BaseCall from './BaseCall';
 import { IVertoCallOptions } from './interfaces';
-import type { FunctionCallOutputItem } from './AIConversationTypes';
+import type { AIConversationOutboundItem } from './AIConversationTypes';
 
 /**
  * A `Call` is the representation of an audio or video call between
@@ -112,12 +112,11 @@ export class Call extends BaseCall {
   };
 
   /**
-   * Sends an AI conversation message (e.g. a `function_call_output`) over
-   * the active VSP WebSocket session.
+   * Sends an outbound AI conversation item over the active VSP WebSocket session.
    *
    * Use this to return the result of a client-side tool execution back to
    * the AI backend after receiving a `function_call` via the
-   * `telnyx.ai.conversation` event.
+   * `telnyx.ai.conversation` event, or to subscribe to ACA pre-playout audio.
    *
    * This is a fire-and-forget JSON-RPC notification (no `id`): the backend
    * is not expected to ack each tool result, and the SDK does not wait for
@@ -128,9 +127,10 @@ export class Call extends BaseCall {
    * than having the output silently queued for a future reconnect (which
    * could deliver stale results after ACA has timed out the waiter).
    *
-   * @param item - The function call output item to send.
-   * Must include `type: "function_call_output"`, the matching `call_id`,
-   * and the `output` string.
+   * @param item - The outbound conversation item to send.
+   * For client-side tool results, use `type: "function_call_output"` with
+   * the matching `call_id` and `output` string. For ACA pre-playout audio,
+   * use `type: "response.audio_stream.subscribe"` to subscribe to stream events.
    *
    * @throws {Error} If the session is not connected.
    *
@@ -150,7 +150,7 @@ export class Call extends BaseCall {
    * });
    * ```
    */
-  sendAIConversationMessage = (item: FunctionCallOutputItem) => {
+  sendAIConversationMessage = (item: AIConversationOutboundItem) => {
     if (!this.session.connected) {
       throw new Error(
         'Cannot send AI conversation message: session is not connected. ' +

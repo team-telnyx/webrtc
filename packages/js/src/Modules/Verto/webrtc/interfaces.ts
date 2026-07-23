@@ -244,8 +244,15 @@ export interface IWebRTCCall {
   setSpeakerPhone?: (flag: boolean) => void;
   // AI Conversation
   sendConversationMessage?: (message: string, attachments?: string[]) => void;
-  sendAIConversationMessage?: (item: import('./AIConversationTypes').FunctionCallOutputItem) => void;
-  recordSessionWarning?: (code: string, name: string, message: string, activeCallIds?: string[]) => void;
+  sendAIConversationMessage?: (
+    item: import('./AIConversationTypes').AIConversationOutboundItem
+  ) => void;
+  recordSessionWarning?: (
+    code: string,
+    name: string,
+    message: string,
+    activeCallIds?: string[]
+  ) => void;
 }
 export interface IWebRTCInfo {
   browserInfo: any;
