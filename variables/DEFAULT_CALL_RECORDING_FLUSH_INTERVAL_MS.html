@@ -15,14 +15,21 @@
 <li><a href="../index.html">@telnyx/webrtc</a></li>
 <li><a href="DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS.html">DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS</a></li></ul>
 <h1>Variable DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS<code class="tsd-tag ts-flagConst">Const</code> </h1></div>
-<div class="tsd-signature"><span class="tsd-kind-variable">DEFAULT_<wbr/>CALL_<wbr/>RECORDING_<wbr/>FLUSH_<wbr/>INTERVAL_<wbr/>MS</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">240000</span><span class="tsd-signature-symbol"> = 240_000</span></div>
+<div class="tsd-signature"><span class="tsd-kind-variable">DEFAULT_<wbr/>CALL_<wbr/>RECORDING_<wbr/>FLUSH_<wbr/>INTERVAL_<wbr/>MS</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">15000</span><span class="tsd-signature-symbol"> = 15_000</span></div>
 <div class="tsd-comment tsd-typography"><p>Default interval (ms) between intermediate call-recording flushes.
 The recorder POSTs buffered RTP packets to /call_recording on this cadence
 so long calls do not buffer unbounded packet data in memory. A final flush
 at end of call submits the tail.</p>
+<p>This must stay well below the time it takes to fill
+<code>DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES</code>, or every call long enough to fill
+the buffer drops packets before the first flush ever runs. At 48 kHz the
+capture rate is ~208 KB/s per track, so an 8 MB buffer fills in ~38s — the
+previous 4-minute default meant no call over ~38s recorded cleanly.
+<code>CallRecorder</code> additionally clamps this at runtime against the configured
+buffer size and sample rate.</p>
 </div>
 <div class="tsd-comment tsd-typography">
-<h4>Default</h4><pre><code class="language-ts"><span class="hl-8">240000</span><span class="hl-1"> (</span><span class="hl-8">4</span><span class="hl-1"> </span><span class="hl-3">minutes</span><span class="hl-1">)</span>
+<h4>Default</h4><pre><code class="language-ts"><span class="hl-8">15000</span><span class="hl-1"> (</span><span class="hl-8">15</span><span class="hl-1"> </span><span class="hl-3">seconds</span><span class="hl-1">)</span>
 </code><button>Copy</button></pre>
 </div></div>
 <div class="col-sidebar">
