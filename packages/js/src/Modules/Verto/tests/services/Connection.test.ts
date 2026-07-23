@@ -11,6 +11,7 @@ jest.unmock('../../services/Connection');
 import Connection, { setWebSocket } from '../../services/Connection';
 import { trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
+import { Region } from '../../../../index';
 import logger from '../../util/logger';
 import { getReconnectToken, setReconnectToken } from '../../util/reconnect';
 
@@ -74,6 +75,54 @@ class MockWebSocket {
     }
   }
 }
+
+describe('Connection - region selection', () => {
+  const hostFor = (options: Record<string, unknown> = {}): string => {
+    const connection = new Connection({
+      uuid: 'region-test-uuid',
+      sessionid: 'region-test-session',
+      callReportVoiceSdkId: null,
+      options: {
+        login: 'test-login',
+        password: 'test-password',
+        ...options,
+      },
+    } as any);
+
+    return (connection as any)._host;
+  };
+
+  beforeAll(() => setWebSocket(MockWebSocket as any));
+
+  it('exports the supported region values', () => {
+    expect(Region).toEqual({
+      EU: 'eu',
+      US_CENTRAL: 'us-central',
+      US_EAST: 'us-east',
+      US_WEST: 'us-west',
+      CA_CENTRAL: 'ca-central',
+      APAC: 'apac',
+      SOUTH_ASIA: 'south-asia',
+    });
+  });
+
+  it.each(Object.values(Region))('builds hosts for %s', (region) => {
+    expect(hostFor({ region })).toBe(`wss://${region}.rtc.telnyx.com`);
+    expect(hostFor({ env: 'development', region })).toBe(
+      `wss://${region}.rtcdev.telnyx.com`
+    );
+  });
+
+  it('preserves default, custom-host, and unknown-region behavior', () => {
+    expect(hostFor()).toBe('wss://rtc.telnyx.com');
+    expect(
+      hostFor({ host: 'wss://rtc.example.com', region: Region.EU })
+    ).toBe('wss://eu.rtc.example.com');
+    expect(hostFor({ region: 'future-region' })).toBe(
+      'wss://future-region.rtc.telnyx.com'
+    );
+  });
+});
 
 describe('Connection - Safety Timeout', () => {
   let connection: Connection;

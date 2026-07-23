@@ -143,7 +143,10 @@ export interface IClientOptions {
   hangupOnBeforeUnload?: boolean;
 
   /**
-   * Region to use for the connection.
+   * Region to use for the connection. Use {@link Region} for the supported
+   * values, or omit this option to use automatic routing.
+   *
+   * Arbitrary strings remain supported for backwards compatibility.
    */
   region?: string;
 
