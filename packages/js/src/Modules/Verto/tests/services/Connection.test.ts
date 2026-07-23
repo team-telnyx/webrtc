@@ -831,3 +831,85 @@ describe('Connection - VSDK-318 WEBSOCKET_CONNECTION_FAILED teardown', () => {
     expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('Connection - setRegion()', () => {
+  let connection: Connection;
+  let mockSession: any;
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+
+    mockSession = {
+      uuid: 'setregion-uuid',
+      sessionid: 'setregion-session',
+      callReportVoiceSdkId: null,
+      options: {
+        login: 'test-login',
+        password: 'test-password',
+      },
+    };
+
+    connection = new Connection(mockSession);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('recomputes host with the regional subdomain prefix', () => {
+    // Default host is wss://rtc.telnyx.com
+    expect(connection.host).toBe('wss://rtc.telnyx.com');
+
+    connection.setRegion('eu');
+
+    expect(connection.host).toBe('wss://eu.rtc.telnyx.com');
+  });
+
+  it('handles multi-part regions like us-east', () => {
+    connection.setRegion('us-east');
+
+    expect(connection.host).toBe('wss://us-east.rtc.telnyx.com');
+  });
+
+  it('handles apac region', () => {
+    connection.setRegion('apac');
+
+    expect(connection.host).toBe('wss://apac.rtc.telnyx.com');
+  });
+
+  it('reverts to default host when null is passed', () => {
+    // First switch to eu
+    connection.setRegion('eu');
+    expect(connection.host).toBe('wss://eu.rtc.telnyx.com');
+
+    // Revert
+    connection.setRegion(null);
+    expect(connection.host).toBe('wss://rtc.telnyx.com');
+  });
+
+  it('respects development env when reverting', () => {
+    mockSession.options.env = 'development';
+    connection = new Connection(mockSession);
+    // Dev host is wss://rtcdev.telnyx.com
+    expect(connection.host).toBe('wss://rtcdev.telnyx.com');
+
+    connection.setRegion('eu');
+    expect(connection.host).toBe('wss://eu.rtcdev.telnyx.com');
+
+    connection.setRegion(null);
+    expect(connection.host).toBe('wss://rtcdev.telnyx.com');
+  });
+
+  it('can switch from one region to another', () => {
+    connection.setRegion('eu');
+    expect(connection.host).toBe('wss://eu.rtc.telnyx.com');
+
+    connection.setRegion('apac');
+    expect(connection.host).toBe('wss://apac.rtc.telnyx.com');
+  });
+});

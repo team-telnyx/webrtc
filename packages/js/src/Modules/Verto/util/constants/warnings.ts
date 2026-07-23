@@ -470,6 +470,22 @@ export const SDK_WARNINGS = {
       'If a call should be active, start a new call manually',
     ],
   },
+
+  // ── Region switching warnings (360xx) ───────────────────────────────
+  36008: {
+    name: 'REGION_SWITCH_WITH_ACTIVE_CALLS',
+    message: 'Region switch initiated while calls are active',
+    description:
+      'switchRegion() was called while one or more calls are in an active state. The region switch proceeds, but active calls will be disconnected when the WebSocket closes. Hang up active calls before switching regions if graceful call teardown is desired.',
+    causes: [
+      'Application called switchRegion() during an active call',
+      'Application did not hang up calls before switching regions',
+    ],
+    solutions: [
+      'Hang up active calls with call.hangup() before calling switchRegion()',
+      'If intentional, monitor telnyx.notification for call state changes after the switch',
+    ],
+  },
 } as const;
 
 export type SdkWarningCode = keyof typeof SDK_WARNINGS;

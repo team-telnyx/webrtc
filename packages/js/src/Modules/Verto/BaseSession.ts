@@ -25,7 +25,9 @@ import {
   RECONNECTION_EXHAUSTED,
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
   WS_CLOSE_CODES,
+  SUPPORTED_REGIONS,
 } from './util/constants';
+import type { SupportedRegion } from './util/constants';
 import {
   createTelnyxError,
   createTelnyxWarning,
@@ -502,6 +504,96 @@ export default abstract class BaseSession {
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
+  }
+
+  /**
+   * Switch the signaling connection to a different regional endpoint.
+   *
+   * This updates the session's `region` option, recomputes the WebSocket
+   * host to use the regional subdomain (e.g. `eu` → `wss://eu.rtc.telnyx.com`),
+   * closes the current WebSocket, and re-establishes the connection.
+   *
+   * Active calls are **not** automatically terminated — the caller is
+   * responsible for hanging up active calls before switching regions if
+   * that is desired. If there are active calls, a `telnyx.warning` event
+   * is emitted with code `36008` (`REGION_SWITCH_WITH_ACTIVE_CALLS`)
+   * but the switch proceeds.
+   *
+   * @param region - One of the supported regions: `'us-east'`, `'us-central'`,
+   *   `'us-west'`, `'ca-central'`, `'eu'`, `'apac'`.
+   *   Pass `null` to revert to the default anycast endpoint.
+   * @throws {Error} if `region` is not a supported region.
+   *
+   * @examples
+   *
+   * ```js
+   * // Pin connection to Europe
+   * client.switchRegion('eu');
+   *
+   * // Revert to default anycast routing
+   * client.switchRegion(null);
+   * ```
+   */
+  public switchRegion(region: SupportedRegion | null): void {
+    if (region !== null && !SUPPORTED_REGIONS.includes(region)) {
+      throw new Error(
+        `Unsupported region "${region}". Supported regions: ${SUPPORTED_REGIONS.join(', ')}`
+      );
+    }
+
+    logger.info(`Switching region to: ${region ?? 'default (anycast)'}`, {
+      currentRegion: this.options.region ?? 'default',
+      activeCalls: this.hasActiveCall(),
+    });
+
+    // Warn if there are active calls during the switch.
+    if (this.hasActiveCall()) {
+      const warning = createTelnyxWarning(36008);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          region,
+          currentRegion: this.options.region ?? null,
+          sessionId: this.sessionid,
+        },
+        this.uuid
+      );
+    }
+
+    // Update the session option so reconnects use the new region.
+    this.options.region = region ?? undefined;
+
+    // Recompute the Connection host for the new region.
+    if (this.connection) {
+      this.connection.setRegion(region);
+    }
+
+    // Close the current WebSocket and reconnect to the new regional endpoint.
+    this._closeConnection();
+
+    // Reset reconnect state for the fresh connection.
+    this._autoReconnect = true;
+    this._reconnectAttempts = 0;
+    this._reconnectCountedGeneration = -1;
+
+    // Re-attach listeners (they were detached during _closeConnection path
+    // via onNetworkClose → deRegisterAll, but _closeConnection itself
+    // does not detach socket listeners; re-attach to be safe).
+    this._attachListeners();
+
+    // Re-create the Connection if it was null or to ensure clean state.
+    if (!this.connection) {
+      this.connection = new Connection(this);
+    }
+
+    // Initiate connection to the new region.
+    this.connection.connect();
+
+    logger.debug('Region switch initiated', {
+      newHost: this.connection.host,
+      region: region ?? 'default',
+    });
   }
 
   /**
