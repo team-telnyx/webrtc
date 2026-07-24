@@ -45,12 +45,15 @@
 
 - [AIConversationFunctionCallOutputParams](#aiconversationfunctioncalloutputparams)
 - [AIConversationFunctionCallParams](#aiconversationfunctioncallparams)
+- [AIConversationOutboundItem](#aiconversationoutbounditem)
+- [AIConversationOutboundParams](#aiconversationoutboundparams)
 - [AIConversationParams](#aiconversationparams)
 - [FunctionCallItem](#functioncallitem)
 - [FunctionCallOutputItem](#functioncalloutputitem)
 - [IAIConversationMessageEvent](#iaiconversationmessageevent)
 - [ISendAIConversationMessageOptions](#isendaiconversationmessageoptions)
 - [RecordingTrackKind](#recordingtrackkind)
+- [ResponseAudioStreamSubscribeItem](#responseaudiostreamsubscribeitem)
 
 ### Variables
 
@@ -103,12 +106,36 @@ Contains a function_call item from the backend.
 
 ---
 
+### AIConversationOutboundItem
+
+Ƭ **AIConversationOutboundItem**: [`FunctionCallOutputItem`](#functioncalloutputitem) \| [`ResponseAudioStreamSubscribeItem`](#responseaudiostreamsubscribeitem)
+
+Outbound item accepted by `conversation.item.create` over `ai_conversation`.
+
+---
+
+### AIConversationOutboundParams
+
+Ƭ **AIConversationOutboundParams**: `Object`
+
+Params for an outbound `ai_conversation` message with `params.type = "conversation.item.create"`.
+Contains any outbound item to send back to the backend.
+
+#### Type declaration
+
+| Name   | Type                                                        |
+| :----- | :---------------------------------------------------------- |
+| `item` | [`AIConversationOutboundItem`](#aiconversationoutbounditem) |
+| `type` | `"conversation.item.create"`                                |
+
+---
+
 ### AIConversationParams
 
-Ƭ **AIConversationParams**: [`AIConversationFunctionCallParams`](#aiconversationfunctioncallparams) \| [`AIConversationFunctionCallOutputParams`](#aiconversationfunctioncalloutputparams) \| \{ `[key: string]`: `unknown`; `type`: `string` }
+Ƭ **AIConversationParams**: [`AIConversationFunctionCallParams`](#aiconversationfunctioncallparams) \| [`AIConversationOutboundParams`](#aiconversationoutboundparams) \| \{ `[key: string]`: `unknown`; `type`: `string` }
 
 Generic params for any `ai_conversation` message.
-Can be a function_call (inbound) or function_call_output (outbound),
+Can be a function_call (inbound) or outbound conversation item,
 as well as other `ai_conversation` message types (transcript, etc.).
 
 ---
@@ -167,11 +194,11 @@ Represents an inbound `ai_conversation` JSON-RPC message from the backend.
 
 ### ISendAIConversationMessageOptions
 
-Ƭ **ISendAIConversationMessageOptions**: [`FunctionCallOutputItem`](#functioncalloutputitem)
+Ƭ **ISendAIConversationMessageOptions**: [`AIConversationOutboundItem`](#aiconversationoutbounditem)
 
 Argument accepted by `call.sendAIConversationMessage()`: the
-`function_call_output` item to send back to the backend. Alias of
-[FunctionCallOutputItem](#functioncalloutputitem), kept as a named export so callers can refer
+outbound item to send back to the backend. Alias of
+[AIConversationOutboundItem](#aiconversationoutbounditem), kept as a named export so callers can refer
 to the method's parameter type directly.
 
 ---
@@ -182,21 +209,43 @@ to the method's parameter type directly.
 
 Which audio track a packet belongs to.
 
+---
+
+### ResponseAudioStreamSubscribeItem
+
+Ƭ **ResponseAudioStreamSubscribeItem**: `Object`
+
+An outbound subscription item for ACA pre-playout assistant audio events.
+
+#### Type declaration
+
+| Name   | Type                                |
+| :----- | :---------------------------------- |
+| `type` | `"response.audio_stream.subscribe"` |
+
 ## Variables
 
 ### DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
 
-• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `240000`
+• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `15000`
 
 Default interval (ms) between intermediate call-recording flushes.
 The recorder POSTs buffered RTP packets to /call_recording on this cadence
 so long calls do not buffer unbounded packet data in memory. A final flush
 at end of call submits the tail.
 
+This must stay well below the time it takes to fill
+`DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES`, or every call long enough to fill
+the buffer drops packets before the first flush ever runs. At 48 kHz the
+capture rate is ~208 KB/s per track, so an 8 MB buffer fills in ~38s — the
+previous 4-minute default meant no call over ~38s recorded cleanly.
+`CallRecorder` additionally clamps this at runtime against the configured
+buffer size and sample rate.
+
 **`Default`**
 
 ```ts
-240000 (4 minutes)
+15000 (15 seconds)
 ```
 
 ---
