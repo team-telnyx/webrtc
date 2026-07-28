@@ -23,6 +23,17 @@ export interface IStoredActiveCall {
   localElement?: string;
   /** True when the call was held when the marker was written (page-reload recovery). */
   wasHeld?: boolean;
+  /**
+   * Effective relay-only policy persisted for page-reload recovery (VSDK-467).
+   * Only a genuine `true` is persisted by the marker producer; absence is
+   * backward compatible with markers written by older SDK versions and means
+   * the ordinary option-precedence fallback applies. A `false` value is never
+   * written (the producer omits the field when relay is disabled), so a
+   * boolean `true` is the only meaningful persisted signal. Malformed non-boolean
+   * values must not influence reconstruction — the consumer checks
+   * `=== true` rather than truthiness.
+   */
+  forceRelayCandidate?: boolean;
 }
 export interface IStoredActiveCalls {
   sessionId: string;

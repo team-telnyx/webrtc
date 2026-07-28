@@ -672,6 +672,417 @@ describe('VertoHandler', () => {
     });
   });
 
+  // ── VSDK-467: preserve forceRelayCandidate across attach recovery ──
+  //
+  // These tests pin the stage's acceptance criteria:
+  //   - Client-level forceRelayCandidate:true remains true through repeated
+  //     attach recoveries (scenario 1).
+  //   - Per-call forceRelayCandidate:true remains true when the session-level
+  //     option is false/absent.
+  //   - Relay-only state introduced by the recovery heuristic remains
+  //     effective on later attaches even when the heuristic no longer requests
+  //     it (the heuristic returns false once relay is already enabled).
+  //   - A false heuristic result never clears an already-enabled relay policy.
+  //   - Page-refresh markers restore a persisted true before the replacement
+  //     peer is created; mismatched/malformed markers do not apply.
+  //   - An ordinary call with relay disabled stays "all" unless the heuristic
+  //     explicitly requests relay.
+  describe('telnyx_rtc.attach preserves forceRelayCandidate (VSDK-467)', () => {
+    const attachMsg = (callId: string, msgId = 14700) =>
+      JSON.parse(
+        `{\"jsonrpc\":\"2.0\",\"id\":${msgId},\"method\":\"telnyx_rtc.attach\",\"params\":{\"callID\":\"${callId}\",\"sdp\":\"SDP\",\"caller_id_name\":\"Extension 1004\",\"caller_id_number\":\"1004\",\"callee_id_name\":\"Outbound Call\",\"callee_id_number\":\"1003\"}}`
+      );
+
+    const mockCallReportHeuristic = (
+      c: Call,
+      fn: () => boolean
+    ): jest.Mock => {
+      const mock = jest.fn(fn);
+      (c as unknown as { _callReportCollector: unknown })._callReportCollector =
+        { shouldForceRelayCandidateForRecovery: mock } as unknown as {
+          shouldForceRelayCandidateForRecovery: jest.Mock;
+        };
+      return mock;
+    };
+
+    it('preserves client-configured forceRelayCandidate=true across a first attach (scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-client-relay-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: true });
+      call.setState(State.Active);
+      // Heuristic must NOT be consulted when relay is already enabled
+      // (BaseCall.shouldForceRelayCandidateForRecovery short-circuits to false
+      // at the first `if (this.options.forceRelayCandidate)` guard).
+      const heuristic = mockCallReportHeuristic(call, () => false);
+      expect(call.options.forceRelayCandidate).toBe(true);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14701));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      // Heuristic short-circuited (relay already enabled) but the preserved
+      // value keeps the recovered call relay-only.
+      expect(heuristic).not.toHaveBeenCalled();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('preserves client-configured forceRelayCandidate=true across a SECOND attach (repeated recovery, scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-repeated-relay-call-id';
+      // First recovered call already had relay enabled (e.g. by client config
+      // or a prior recovery). A second attach must keep it relay-only even
+      // though the heuristic would return false for already-relay calls.
+      _setupCall({ id: callId, forceRelayCandidate: true, recoveredCallId: callId });
+      call.setState(State.Active);
+      const heuristic = mockCallReportHeuristic(call, () => false);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14702));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      expect(heuristic).not.toHaveBeenCalled();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('preserves per-call forceRelayCandidate=true when the session-level option is false (scenario 1)', async () => {
+      // Session has relay disabled; the matched call has it enabled per-call.
+      // The recovered call must stay relay-only despite the session default.
+      (instance as unknown as { options: { forceRelayCandidate?: boolean } }).options.forceRelayCandidate = false;
+      await instance.connect();
+      const callId = 'vsdk467-percall-relay-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: true });
+      call.setState(State.Active);
+      mockCallReportHeuristic(call, () => false);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14703));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('keeps a heuristic-forced relay call relay-only on the next attach when the heuristic no longer requests relay (scenario 1)', async () => {
+      // Simulates: first recovery's heuristic forced relay; the call is now
+      // relay-only. On the next attach the heuristic would return false (relay
+      // already enabled), but the preserved value must keep it relay-only.
+      await instance.connect();
+      const callId = 'vsdk467-heuristic-then-preserve-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: true, recoveredCallId: callId });
+      call.setState(State.Active);
+      const heuristic = mockCallReportHeuristic(call, () => false);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14704));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      expect(heuristic).not.toHaveBeenCalled();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('does not clear an already-enabled relay policy when the heuristic returns false (scenario 1)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-false-heuristic-no-clear-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: true });
+      call.setState(State.Active);
+      const heuristic = mockCallReportHeuristic(call, () => false);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14705));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      expect(heuristic).not.toHaveBeenCalled();
+      // Preserved OR heuristic(false) OR session(false) || false === true
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('keeps an ordinary call with relay disabled on "all" unless the heuristic requests relay (scenario 1 backward compat)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-ordinary-all-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: false });
+      call.setState(State.Active);
+      // No recoveredCallId → heuristic short-circuits to false in BaseCall.
+      mockCallReportHeuristic(call, () => false);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14706));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(false);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('still forces relay when the heuristic requests it on a non-relay recovered call (scenario 1 additive)', async () => {
+      // Matched call has relay disabled, but the heuristic detects a stalled
+      // VPN media path and requests relay. The recovered call must be relay.
+      await instance.connect();
+      const callId = 'vsdk467-heuristic-adds-relay-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: false, recoveredCallId: callId });
+      call.setState(State.Active);
+      const heuristic = mockCallReportHeuristic(call, () => true);
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14707));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(heuristic).toHaveBeenCalledTimes(1);
+      // preserved(false) || heuristic(true) || session(false) || false === true
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+    });
+
+    it('restores forceRelayCandidate=true from the page-reload recovery marker (scenario 2)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-relay-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            forceRelayCandidate: true,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14708));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.recoveredCallId).toEqual(callId);
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does NOT restore forceRelayCandidate when the marker was saved for a different sessid (scenario 2 mismatch)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-sessid-mismatch-call-id';
+
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            forceRelayCandidate: true,
+          } as unknown as IStoredActiveCall,
+        ],
+        'a-different-sessid'
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14709));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Different sessid → relay not restored, falls back to session default.
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does NOT restore forceRelayCandidate when the marker has a different call id (scenario 2 call mismatch)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-callmismatch-actual';
+      const markerCallId = 'vsdk467-scenario2-callmismatch-marker';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: markerCallId,
+            customHeaders: undefined,
+            forceRelayCandidate: true,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14710));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Marker's call id doesn't match → relay not restored.
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does NOT apply a malformed non-boolean forceRelayCandidate from the marker (scenario 2 malformed)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-malformed-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      // Inject a marker with a non-boolean forceRelayCandidate. The consumer
+      // checks `=== true`, so truthy-but-not-boolean must NOT apply (prevents
+      // malformed data from forcing relay).
+      sessionStorage.setItem(
+        'telnyx-voice-sdk-active-calls',
+        JSON.stringify({
+          sessionId: sessId,
+          storedAt: Date.now(),
+          calls: [
+            {
+              id: callId,
+              customHeaders: undefined,
+              forceRelayCandidate: 'yes',
+            },
+          ],
+        })
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14711));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // 'yes' !== true → not applied, falls back to session default.
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does NOT apply a numeric truthy forceRelayCandidate from the marker (scenario 2 malformed number)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-malformed-num-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      sessionStorage.setItem(
+        'telnyx-voice-sdk-active-calls',
+        JSON.stringify({
+          sessionId: sessId,
+          storedAt: Date.now(),
+          calls: [
+            {
+              id: callId,
+              customHeaders: undefined,
+              forceRelayCandidate: 1,
+            },
+          ],
+        })
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14712));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // 1 !== true → not applied.
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('stays backward compatible when the marker has no forceRelayCandidate field (scenario 2 legacy)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-legacy-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      // Marker written by an older SDK version without the new field.
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14713));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // Absence → backward-compatible fallback, no relay forced.
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does not force relay on a fresh (no matched call) attach when no marker exists (scenario 2 no marker backward compat)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-nomarker-relay-call-id';
+
+      clearActiveCallsRecoveryMarker();
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      handler.handleMessage(attachMsg(callId, 14714));
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+    });
+  });
+
   describe('telnyx_rtc.info', () => {
     it('should dispatch a notification', () => {
       handler.handleMessage(

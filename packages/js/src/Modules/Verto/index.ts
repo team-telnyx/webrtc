@@ -109,6 +109,7 @@ export default class Verto extends BrowserSession {
               remoteElement?: string;
               localElement?: string;
               wasHeld?: boolean;
+              forceRelayCandidate?: boolean;
             } = {
               id: call.id,
               customHeaders: call.options.customHeaders,
@@ -116,6 +117,18 @@ export default class Verto extends BrowserSession {
             // Persist held state for page-reload attach-recovery.
             if (call.state === 'held') {
               stored.wasHeld = true;
+            }
+            // Persist the effective relay-only policy for page-reload
+            // attach-recovery (VSDK-467). Only a genuine `true` is persisted so
+            // that absence stays backward compatible with markers written by
+            // older SDK versions (the consumer checks `=== true`, never
+            // truthiness). `forceRelayCandidate` can be customer configuration
+            // (client/per-call option) or effective state introduced by an
+            // earlier recovery heuristic decision; both must survive a page
+            // refresh so the replacement peer keeps `iceTransportPolicy:
+            // "relay"`.
+            if (call.options.forceRelayCandidate === true) {
+              stored.forceRelayCandidate = true;
             }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not

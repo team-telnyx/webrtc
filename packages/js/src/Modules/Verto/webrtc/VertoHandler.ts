@@ -232,6 +232,7 @@ class VertoHandler {
       remoteElement,
       localElement,
       wasHeldBeforeRecovery,
+      preservedForceRelayCandidate,
     }: {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
@@ -245,6 +246,15 @@ class VertoHandler {
       localElement?: IVertoCallOptions['localElement'];
       /** True when the original call was held at the moment of attach-recovery. */
       wasHeldBeforeRecovery?: boolean;
+      /**
+       * Effective relay-only policy preserved from the matched call (scenario 1)
+       * or the page-refresh recovery marker (scenario 2) — VSDK-467. Only a
+       * genuine `true` is ever passed here. It is OR'd with the recovery
+       * heuristic decision so that the heuristic can ADD relay but never clear
+       * an already-enabled effective policy. Absence (undefined/false) leaves
+       * the existing option precedence intact (`heuristic || session || false`).
+       */
+      preservedForceRelayCandidate?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -263,7 +273,15 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
+        // Preserve the effective relay-only policy across attach-recovery
+        // (VSDK-467). The preserved value is OR'd with the recovery heuristic
+        // decision so the heuristic can add relay but never clear it, then
+        // falls back to the session-level option. `preserved === true` means
+        // the matched call (or a matching page-refresh marker) already had
+        // relay enabled, so the replacement peer must keep
+        // `iceTransportPolicy: "relay"` even when the heuristic returns false.
         forceRelayCandidate:
+          preservedForceRelayCandidate ||
           forceRelayCandidateForRecovery ||
           session.options.forceRelayCandidate ||
           false,
@@ -408,6 +426,11 @@ class VertoHandler {
           let recoveredLocalElement: string | undefined;
           // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
+          // Effective relay-only policy preserved from the page-reload
+          // recovery marker (VSDK-467). Only a genuine `true` is meaningful;
+          // absence, false, and malformed non-boolean values must NOT apply
+          // (so we check `=== true`, not truthiness).
+          let preservedForceRelayCandidate = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
             const savedCall = savedMarker.calls.find((c) => c.id === callID);
@@ -415,11 +438,18 @@ class VertoHandler {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
               wasHeldBeforeUnload = savedCall.wasHeld === true;
+              preservedForceRelayCandidate =
+                savedCall.forceRelayCandidate === true;
               if (recoveredRemoteElement || recoveredLocalElement) {
                 logger.info(
                   `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
                     recoveredRemoteElement ?? '<none>'
                   }, localElement=${recoveredLocalElement ?? '<none>'}).`
+                );
+              }
+              if (preservedForceRelayCandidate) {
+                logger.info(
+                  `[${callID}] Attach: restoring effective forceRelayCandidate=true from recovery marker.`
                 );
               }
             }
@@ -431,6 +461,9 @@ class VertoHandler {
             localElement: recoveredLocalElement,
             // Carry held intent onto the replacement call.
             wasHeldBeforeRecovery: wasHeldBeforeUnload,
+            // Preserve effective relay-only policy from the page-reload
+            // marker so the replacement peer keeps iceTransportPolicy:"relay".
+            preservedForceRelayCandidate,
           });
           call.answer();
 
@@ -449,6 +482,16 @@ class VertoHandler {
 
           // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
+
+          // Preserve the matched call's effective relay-only policy so the
+          // replacement peer keeps iceTransportPolicy:"relay" even when the
+          // recovery heuristic returns false (it deliberately returns false
+          // when relay is already enabled — see
+          // BaseCall.shouldForceRelayCandidateForRecovery). Only a genuine
+          // `true` is preserved; absence leaves the existing option
+          // precedence intact (VSDK-467).
+          const preservedForceRelayCandidate =
+            matchedCall.options.forceRelayCandidate === true;
 
           if (forceRelayCandidateForRecovery) {
             logger.warn(
@@ -478,6 +521,9 @@ class VertoHandler {
             localElement: matchedCall.options.localElement,
             // Carry held intent captured BEFORE hangup().
             wasHeldBeforeRecovery: wasHeldBeforeRecovery,
+            // Preserve effective relay-only policy so a relay-only call stays
+            // relay-only across repeated attach recoveries (VSDK-467).
+            preservedForceRelayCandidate,
           });
           call.answer();
 

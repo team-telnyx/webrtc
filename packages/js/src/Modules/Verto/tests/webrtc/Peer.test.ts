@@ -139,3 +139,64 @@ describe('Peer negotiation during ICE restart', () => {
     expect(trickleSpy).not.toHaveBeenCalled();
   });
 });
+
+// ── VSDK-467: Peer RTC configuration reflects forceRelayCandidate ──
+//
+// The stage requires direct Peer coverage proving the replacement
+// RTCPeerConnection receives iceTransportPolicy:"relay" when relay is
+// preserved/forced, and "all" otherwise. A unit assertion on reconstructed
+// call options does NOT prove the new peer received the relay policy
+// (stage risk: "A unit assertion on reconstructed call options does not prove
+// the new peer received iceTransportPolicy:'relay'"). These tests call the
+// private _config() directly to verify the RTCConfiguration contract.
+describe('Peer RTC configuration reflects forceRelayCandidate (VSDK-467)', () => {
+  const createConfigPeer = (opts: Partial<IVertoCallOptions> = {}) => {
+    const session: SessionDouble = {
+      options: {},
+      sessionid: 'session-1',
+      connected: true,
+      reportPeerFailure: jest.fn(),
+    };
+
+    const peer = new Peer(
+      PeerType.Offer,
+      {
+        id: 'call-relay',
+        debug: false,
+        ...opts,
+      } as IVertoCallOptions,
+      session as unknown as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+
+    return { peer };
+  };
+
+  it('sets iceTransportPolicy to "relay" when forceRelayCandidate is true', () => {
+    const { peer } = createConfigPeer({ forceRelayCandidate: true });
+    const config = (peer as unknown as { _config: () => RTCConfiguration })._config();
+    expect(config.iceTransportPolicy).toBe('relay');
+  });
+
+  it('sets iceTransportPolicy to "all" when forceRelayCandidate is false', () => {
+    const { peer } = createConfigPeer({ forceRelayCandidate: false });
+    const config = (peer as unknown as { _config: () => RTCConfiguration })._config();
+    expect(config.iceTransportPolicy).toBe('all');
+  });
+
+  it('sets iceTransportPolicy to "all" when forceRelayCandidate is absent (default)', () => {
+    const { peer } = createConfigPeer({});
+    const config = (peer as unknown as { _config: () => RTCConfiguration })._config();
+    expect(config.iceTransportPolicy).toBe('all');
+  });
+
+  it('sets iceTransportPolicy to "relay" when forceRelayCandidate was preserved across recovery', () => {
+    // Simulates the recovered call options after VertoHandler._buildCall
+    // computed forceRelayCandidate = preservedForceRelayCandidate (true) ||
+    // heuristic (false) || session (false) || false === true.
+    const { peer } = createConfigPeer({ forceRelayCandidate: true });
+    const config = (peer as unknown as { _config: () => RTCConfiguration })._config();
+    expect(config.iceTransportPolicy).toBe('relay');
+  });
+});
