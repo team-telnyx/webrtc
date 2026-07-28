@@ -8,6 +8,25 @@ export const PROD_HOST = 'wss://rtc.telnyx.com';
 export const DEV_HOST = 'wss://rtcdev.telnyx.com';
 
 /**
+ * Supported regional signaling endpoints for `rtc.telnyx.com`.
+ *
+ * Each value is a subdomain prefix that replaces the `rtc` segment in the
+ * host URL (e.g. `eu` → `eu.rtc.telnyx.com`).
+ *
+ * See: docs/network-connectivity-requirements.md → "Region selection"
+ */
+export const SUPPORTED_REGIONS = [
+  'us-east',
+  'us-central',
+  'us-west',
+  'ca-central',
+  'eu',
+  'apac',
+] as const;
+
+export type SupportedRegion = (typeof SUPPORTED_REGIONS)[number];
+
+/**
  * WebSocket close status codes (RFC 6455)
  * https://www.rfc-editor.org/rfc/rfc6455.html#section-7.4.1
  */

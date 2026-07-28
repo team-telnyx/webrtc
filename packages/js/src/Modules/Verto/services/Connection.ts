@@ -143,6 +143,37 @@ export default class Connection {
     return this._host;
   }
 
+  /**
+   * Recompute `_host` for a different region.
+   *
+   * If the current host is a Telnyx default (`rtc.telnyx.com` or
+   * `rtcdev.telnyx.com`), the region is applied as a subdomain prefix
+   * (e.g. `eu` → `eu.rtc.telnyx.com`). If the user supplied a custom
+   * `host` option, we update `session.options.region` but leave the
+   * custom host unchanged — the caller is responsible for their own
+   * DNS / host configuration in that case.
+   *
+   * @param region - Regional prefix (e.g. `eu`, `apac`, `us-east`).
+   *   Pass `null` to revert to the default anycast host.
+   */
+  setRegion(region: string | null): void {
+    if (region === null) {
+      // Revert to the default host (respecting env).
+      const { env } = this.session.options;
+      this._host = env === 'development' ? DEV_HOST : PROD_HOST;
+      return;
+    }
+
+    // Replace the `rtc` or `rtcdev` segment with `<region>.rtc` / `<region>.rtcdev`.
+    // Handles both the default anycast host (`wss://rtc.telnyx.com`) and a
+    // previously-switched regional host (`wss://eu.rtc.telnyx.com`) by
+    // optionally consuming an existing regional subdomain prefix.
+    this._host = this._host.replace(
+      /(https?|wss?):\/\/(?:[a-z-]+\.)?rtc(dev)?\./,
+      `$1://${region}.rtc$2.`
+    );
+  }
+
   connect() {
     logger.debug('Connection.connect() called', {
       host: this._host,
