@@ -259,8 +259,7 @@ describe('Verto', () => {
     // explicit `false` (effective non-relay) from an absent legacy field.
     // Persisting `false` prevents recovery from broadening an ordinary call
     // from "all" to "relay" when the session default is true but the per-call
-    // effective value is false (Stage risk line 52; Acceptance line 72;
-    // review round 3).
+    // effective value is false (Stage risk line 52; Acceptance line 72).
 
     it('should persist forceRelayCandidate as a genuine boolean (true OR false) in the recovery marker, omitting only absent values (VSDK-467 beforeunload projection)', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
@@ -334,8 +333,7 @@ describe('Verto', () => {
       // A genuine `false` IS persisted so the consumer can distinguish an
       // explicit non-relay policy from an absent legacy field. This prevents
       // recovery from broadening an ordinary call from "all" to "relay" when
-      // the session default is true but the per-call effective value is false
-      // (VSDK-467 review round 3).
+      // the session default is true but the per-call effective value is false.
       expect(relayFalse!.forceRelayCandidate).toBe(false);
 
       const relayAbsent = result!.calls.find((m) => m.id === 'call-relay-absent');

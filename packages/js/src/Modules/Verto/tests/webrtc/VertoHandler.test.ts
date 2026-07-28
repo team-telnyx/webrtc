@@ -680,11 +680,12 @@ describe('VertoHandler', () => {
   //   - Per-call forceRelayCandidate:true remains true when the session-level
   //     option is false/absent.
   //   - Relay-only state introduced by the recovery heuristic remains
-  //     effective on later attaches even when the heuristic no longer requests
-  //     it (the heuristic returns false once relay is already enabled).
+  //     effective on later attaches (shouldForceRelayCandidateForRecovery is
+  //     the source of truth: it returns true when the call is already
+  //     relay-only, so the heuristic is not consulted again).
   //   - A false heuristic result never clears an already-enabled relay policy.
-  //   - Page-refresh markers restore a persisted true before the replacement
-  //     peer is created; mismatched/malformed markers do not apply.
+  //   - Page-refresh markers restore a persisted true/false before the
+  //     replacement peer is created; mismatched/malformed markers do not apply.
   //   - An ordinary call with relay disabled stays "all" unless the heuristic
   //     explicitly requests relay.
   describe('telnyx_rtc.attach preserves forceRelayCandidate (VSDK-467)', () => {
@@ -711,8 +712,8 @@ describe('VertoHandler', () => {
       _setupCall({ id: callId, forceRelayCandidate: true });
       call.setState(State.Active);
       // Heuristic must NOT be consulted when relay is already enabled
-      // (BaseCall.shouldForceRelayCandidateForRecovery short-circuits to false
-      // at the first `if (this.options.forceRelayCandidate)` guard).
+      // (shouldForceRelayCandidateForRecovery short-circuits to true at the
+      // first `if (this.options.forceRelayCandidate)` guard).
       const heuristic = mockCallReportHeuristic(call, () => false);
       expect(call.options.forceRelayCandidate).toBe(true);
 
@@ -749,7 +750,8 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      // shouldForceRelayCandidateForRecovery short-circuits to true (relay
+      // already enabled), so the heuristic is not consulted.
       expect(heuristic).not.toHaveBeenCalled();
       expect(newCall.options.forceRelayCandidate).toBe(true);
 
@@ -795,7 +797,8 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      // shouldForceRelayCandidateForRecovery short-circuits to true (relay
+      // already enabled), so the heuristic is not consulted.
       expect(heuristic).not.toHaveBeenCalled();
       expect(newCall.options.forceRelayCandidate).toBe(true);
 
@@ -816,9 +819,10 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // BaseCall short-circuits at `if (this.options.forceRelayCandidate)`.
+      // shouldForceRelayCandidateForRecovery short-circuits to true (relay
+      // already enabled), so the heuristic is not consulted.
       expect(heuristic).not.toHaveBeenCalled();
-      // Preserved OR heuristic(false) OR session(false) || false === true
+      // shouldForceRelayCandidateForRecovery returns true (relay preserved).
       expect(newCall.options.forceRelayCandidate).toBe(true);
 
       Call.prototype.answer = originalAnswer;
@@ -829,7 +833,7 @@ describe('VertoHandler', () => {
       const callId = 'vsdk467-ordinary-all-call-id';
       _setupCall({ id: callId, forceRelayCandidate: false });
       call.setState(State.Active);
-      // No recoveredCallId → heuristic short-circuits to false in BaseCall.
+      // No recoveredCallId → shouldForceRelayCandidateForRecovery returns false.
       mockCallReportHeuristic(call, () => false);
 
       const originalAnswer = Call.prototype.answer;
@@ -861,7 +865,7 @@ describe('VertoHandler', () => {
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
       expect(heuristic).toHaveBeenCalledTimes(1);
-      // preserved(false) || heuristic(true) || session(false) || false === true
+      // heuristic(true) → shouldForceRelayCandidateForRecovery returns true.
       expect(newCall.options.forceRelayCandidate).toBe(true);
 
       Call.prototype.answer = originalAnswer;
@@ -1082,7 +1086,7 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
     });
 
-    // ── VSDK-467 review round 2: malformed record crash regression ──
+    // ── malformed record crash regression ──
     //
     // `getActiveCallsRecoveryMarker()` returns per-record data verbatim
     // (a peek contract pinned in reconnect.test.ts:281-343), so individual
@@ -1161,7 +1165,7 @@ describe('VertoHandler', () => {
       clearActiveCallsRecoveryMarker();
     });
 
-    // ── VSDK-467 review round 2: recovered PeerConnection evidence ──
+    // ── recovered PeerConnection evidence ──
     //
     // The stage requires direct proof that the replacement
     // RTCPeerConnection receives iceTransportPolicy:"relay" when relay is
@@ -1278,7 +1282,7 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // preserved(false) || heuristic(true) || session(false) || false === true
+      // heuristic(true) → shouldForceRelayCandidateForRecovery returns true.
       expect(newCall.options.forceRelayCandidate).toBe(true);
       expect(configs.length).toBeGreaterThan(0);
       const lastConfig = configs[configs.length - 1];
@@ -1334,15 +1338,15 @@ describe('VertoHandler', () => {
       restore();
     });
 
-    // ── VSDK-467 review round 3: explicit per-call `false` precedence ──
+    // ── explicit per-call `false` precedence ──
     //
     // BaseCall gives per-call options precedence over session options
     // (BaseCall.ts:294-323), so a call created with `{ forceRelayCandidate:
     // false }` while the client/session default is `true` is effectively
-    // non-relay. The tri-state preservation must honor that explicit `false`
-    // so recovery does NOT broaden the call from "all" to "relay" by falling
-    // back to the session `true`. These regressions inspect the replacement
-    // PeerConnection's iceTransportPolicy directly (stage risk line 57).
+    // non-relay. shouldForceRelayCandidateForRecovery is the source of truth
+    // and returns false for this call, so recovery does NOT broaden it from
+    // "all" to "relay" by falling back to the session `true`. These
+    // regressions inspect the replacement PeerConnection's iceTransportPolicy.
 
     it('honors an explicit per-call forceRelayCandidate=false and does NOT fall back to a true session default on attach (scenario 1 precedence, integration)', async () => {
       await instance.connect();
@@ -1354,7 +1358,7 @@ describe('VertoHandler', () => {
       // Per-call false overrides the session true (BaseCall precedence).
       _setupCall({ id: callId, forceRelayCandidate: false });
       call.setState(State.Active);
-      // No recoveredCallId → heuristic short-circuits to false in BaseCall.
+      // No recoveredCallId → shouldForceRelayCandidateForRecovery returns false.
       mockCallReportHeuristic(call, () => false);
 
       const { configs, restore } = capturePeerConfigs();
@@ -1364,8 +1368,8 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // Preserved false (boolean) || heuristic(false) === false — session
-      // true must NOT leak through.
+      // shouldForceRelayCandidateForRecovery returns false (no relay) — the
+      // session `true` must NOT leak through (source of truth is used directly).
       expect(newCall.options.forceRelayCandidate).toBe(false);
       expect(configs.length).toBeGreaterThan(0);
       const lastConfig = configs[configs.length - 1];
@@ -1392,8 +1396,8 @@ describe('VertoHandler', () => {
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
       expect(heuristic).toHaveBeenCalledTimes(1);
-      // Preserved false (boolean) || heuristic(true) === true — the heuristic
-      // can still ADD relay even when the preserved policy is false.
+      // heuristic(true) → shouldForceRelayCandidateForRecovery returns true —
+      // the heuristic can still ADD relay even when the effective policy is false.
       expect(newCall.options.forceRelayCandidate).toBe(true);
       expect(configs.length).toBeGreaterThan(0);
       const lastConfig = configs[configs.length - 1];
@@ -1413,8 +1417,8 @@ describe('VertoHandler', () => {
       ).sessionid;
 
       clearActiveCallsRecoveryMarker();
-      // The marker persists a genuine `false` (review round 3) so the
-      // consumer can distinguish it from an absent legacy field.
+      // The marker persists a genuine `false` so the consumer can distinguish
+      // it from an absent legacy field.
       setActiveCallsRecoveryMarker(
         [
           {
@@ -1433,8 +1437,8 @@ describe('VertoHandler', () => {
 
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
-      // Preserved false (boolean) || heuristic(false) === false — session
-      // true must NOT leak through.
+      // shouldForceRelayCandidateForRecovery returns false (no relay) — the
+      // session `true` must NOT leak through (source of truth is used directly).
       expect(newCall.options.forceRelayCandidate).toBe(false);
       expect(configs.length).toBeGreaterThan(0);
       const lastConfig = configs[configs.length - 1];
@@ -1479,8 +1483,8 @@ describe('VertoHandler', () => {
       const newCall = instance.calls[callId];
       expect(newCall).toBeDefined();
       // Page-refresh path does not run the heuristic (no matched call), so
-      // preserved false (boolean) is the only input → false. Session true
-      // must NOT leak through.
+      // the marker's false is the only input → false. Session true must NOT
+      // leak through.
       expect(newCall.options.forceRelayCandidate).toBe(false);
       expect(configs.length).toBeGreaterThan(0);
       const lastConfig = configs[configs.length - 1];
@@ -1492,7 +1496,7 @@ describe('VertoHandler', () => {
 
     // Regression: a legacy marker (no forceRelayCandidate field) MUST fall
     // back to the session default when the session default is true — absence
-    // is the backward-compatible legacy signal (review round 3).
+    // is the backward-compatible legacy signal.
     it('falls back to a true session default when the marker has no forceRelayCandidate field (scenario 2 legacy + true session, integration)', async () => {
       await instance.connect();
       (

@@ -193,8 +193,8 @@ describe('Peer RTC configuration reflects forceRelayCandidate (VSDK-467)', () =>
 
   it('sets iceTransportPolicy to "relay" when forceRelayCandidate was preserved across recovery', () => {
     // Simulates the recovered call options after VertoHandler._buildCall
-    // computed forceRelayCandidate = preservedForceRelayCandidate (true) ||
-    // heuristic (false) || session (false) || false === true.
+    // used the source-of-truth boolean (true) from
+    // shouldForceRelayCandidateForRecovery.
     const { peer } = createConfigPeer({ forceRelayCandidate: true });
     const config = (peer as unknown as { _config: () => RTCConfiguration })._config();
     expect(config.iceTransportPolicy).toBe('relay');

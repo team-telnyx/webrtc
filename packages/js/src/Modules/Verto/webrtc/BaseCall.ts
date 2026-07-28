@@ -451,9 +451,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
   }
 
+  /**
+   * Source of truth for whether the replacement call should be relay-only.
+   * Returns `true` when the call is already relay-only (preservation) OR when
+   * the recovery heuristic requests relay for a stalled VPN media path.
+   */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
-      return false;
+      return true;
     }
 
     if (!this.recoveredCallId) {
