@@ -248,6 +248,96 @@ describe('Verto', () => {
       clearActiveCallsRecoveryMarker();
     });
 
+    // ── VSDK-467: beforeunload marker projection for forceRelayCandidate ──
+    //
+    // The producer (Verto/index.ts beforeunload handler) must persist only a
+    // genuine `true` for forceRelayCandidate and omit the field when relay
+    // is disabled or absent (so absence stays backward compatible with
+    // markers written by older SDK versions). The consumer checks `=== true`,
+    // never truthiness. (Stage risk line 52; Acceptance line 72.)
+
+    it('should persist forceRelayCandidate=true in the recovery marker only for calls with relay enabled (VSDK-467 beforeunload projection)', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      telnyxRTC.sessionid = 'session-vsdk-467-projection';
+
+      // Three active calls: one with relay enabled (client config), one with
+      // relay disabled, and one with the option absent (legacy default).
+      const hangup = jest.fn();
+      telnyxRTC.calls = {
+        'call-relay-true': {
+          id: 'call-relay-true',
+          hangup,
+          state: 'active',
+          direction: 'outbound',
+          options: {
+            customHeaders: undefined,
+            forceRelayCandidate: true,
+          },
+        } as unknown as IWebRTCCall,
+        'call-relay-false': {
+          id: 'call-relay-false',
+          hangup,
+          state: 'active',
+          direction: 'outbound',
+          options: {
+            customHeaders: undefined,
+            forceRelayCandidate: false,
+          },
+        } as unknown as IWebRTCCall,
+        'call-relay-absent': {
+          id: 'call-relay-absent',
+          hangup,
+          state: 'active',
+          direction: 'outbound',
+          options: {
+            customHeaders: undefined,
+          },
+        } as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+
+      expect(beforeUnloadHandler).toBeDefined();
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      // No hangup in the hangupOnBeforeUnload=false branch.
+      expect(hangup).not.toHaveBeenCalled();
+
+      const result = getActiveCallsRecoveryMarker();
+      expect(result).not.toBeNull();
+      expect(result!.calls.length).toBe(3);
+
+      const relayTrue = result!.calls.find((m) => m.id === 'call-relay-true');
+      expect(relayTrue).toBeDefined();
+      // Genuine true is persisted.
+      expect(relayTrue!.forceRelayCandidate).toBe(true);
+
+      const relayFalse = result!.calls.find((m) => m.id === 'call-relay-false');
+      expect(relayFalse).toBeDefined();
+      // A `false` value is NOT persisted (the producer omits the field when
+      // relay is disabled, so absence is the backward-compatible signal).
+      expect(relayFalse!.forceRelayCandidate).toBeUndefined();
+
+      const relayAbsent = result!.calls.find((m) => m.id === 'call-relay-absent');
+      expect(relayAbsent).toBeDefined();
+      // Absent option → field is absent in the marker too.
+      expect(relayAbsent!.forceRelayCandidate).toBeUndefined();
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
     it('should persist the session-level remoteElement/localElement string id in the recovery marker when a call relies on the session default (VSDK-408)', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();

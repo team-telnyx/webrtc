@@ -1081,6 +1081,258 @@ describe('VertoHandler', () => {
 
       Call.prototype.answer = originalAnswer;
     });
+
+    // ── VSDK-467 review round 2: malformed record crash regression ──
+    //
+    // `getActiveCallsRecoveryMarker()` returns per-record data verbatim
+    // (a peek contract pinned in reconnect.test.ts:281-343), so individual
+    // entries may be null or non-objects. The attach-side lookup must skip
+    // malformed records without throwing so a marker like
+    // `calls: [null, { id: callID, forceRelayCandidate: true }]` does not
+    // crash while evaluating `null.id` before reaching the valid record.
+
+    it('does NOT throw when the marker has null records before a valid match (scenario 2 malformed records)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-malformed-records-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      // Marker with malformed entries (null, non-object) BEFORE the valid
+      // matching record. Before the fix, `savedMarker.calls.find((c) =>
+      // c.id === callID)` threw because `null.id` is a TypeError.
+      sessionStorage.setItem(
+        'telnyx-voice-sdk-active-calls',
+        JSON.stringify({
+          sessionId: sessId,
+          storedAt: Date.now(),
+          calls: [
+            null,
+            'not-an-object',
+            { id: callId, customHeaders: undefined, forceRelayCandidate: true },
+            { options: {} },
+          ],
+        })
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      // Must not throw.
+      expect(() => handler.handleMessage(attachMsg(callId, 14720))).not.toThrow();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // The valid matching record is found despite preceding malformed
+      // entries, and its forceRelayCandidate=true is restored.
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('does NOT throw and does NOT restore relay when ALL marker records are malformed (scenario 2 all-malformed)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-scenario2-all-malformed-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      sessionStorage.setItem(
+        'telnyx-voice-sdk-active-calls',
+        JSON.stringify({
+          sessionId: sessId,
+          storedAt: Date.now(),
+          calls: [null, 'not-an-object', { options: {} }, { id: 123 }],
+        })
+      );
+
+      const originalAnswer = Call.prototype.answer;
+      Call.prototype.answer = jest.fn();
+
+      // Must not throw.
+      expect(() => handler.handleMessage(attachMsg(callId, 14721))).not.toThrow();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // No valid matching record → relay not restored, falls back to
+      // session default (no relay).
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+
+      Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
+    });
+
+    // ── VSDK-467 review round 2: recovered PeerConnection evidence ──
+    //
+    // The stage requires direct proof that the replacement
+    // RTCPeerConnection receives iceTransportPolicy:"relay" when relay is
+    // preserved/forced — an option assertion alone does not prove the new
+    // peer received the relay policy (stage risk line 57). These tests let
+    // the real answer() run and intercept the RTCPeerConnection constructor
+    // to capture the RTCConfiguration passed to the replacement peer, then
+    // assert iceTransportPolicy on the actual peer config.
+
+    /**
+     * Wrap the global RTCPeerConnection constructor so each call records
+     * the RTCConfiguration passed to it. Returns the list of captured
+     * configs and a restore function. The mock instance is still created
+     * so the SDK's peer lifecycle proceeds normally.
+     */
+    const capturePeerConfigs = (): {
+      configs: RTCConfiguration[];
+      restore: () => void;
+    } => {
+      const configs: RTCConfiguration[] = [];
+      const OriginalRTCPC = global.RTCPeerConnection;
+      const wrapper = function (config: RTCConfiguration) {
+        configs.push(config);
+        // Delegate to the original mock to create a usable instance.
+        const instance = OriginalRTCPC.call(this, config);
+        return instance;
+      };
+      (global as unknown as { RTCPeerConnection: typeof RTCPeerConnection }).RTCPeerConnection =
+        wrapper as unknown as typeof RTCPeerConnection;
+      return {
+        configs,
+        restore: () => {
+          (global as unknown as { RTCPeerConnection: typeof RTCPeerConnection }).RTCPeerConnection =
+            OriginalRTCPC;
+        },
+      };
+    };
+
+    it('recovered PeerConnection gets iceTransportPolicy:"relay" when forceRelayCandidate is preserved from the matched call (scenario 1 integration)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-integration-scenario1-relay-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: true });
+      call.setState(State.Active);
+      mockCallReportHeuristic(call, () => false);
+
+      const { configs, restore } = capturePeerConfigs();
+
+      // Let the real answer() run so the replacement Peer is created and
+      // calls RTCPeerConnection(config).
+      handler.handleMessage(attachMsg(callId, 14730));
+
+      // The attach path is synchronous up to call.answer(); the Peer
+      // constructor calls RTCPeerConnection synchronously inside
+      // createPeerConnection, so the config is captured by the time
+      // handleMessage returns. Flush any pending microtasks just in case.
+      await Promise.resolve();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(configs.length).toBeGreaterThan(0);
+      // The replacement PeerConnection received the relay policy.
+      const lastConfig = configs[configs.length - 1];
+      expect(lastConfig.iceTransportPolicy).toBe('relay');
+
+      restore();
+    });
+
+    it('recovered PeerConnection gets iceTransportPolicy:"relay" when forceRelayCandidate is restored from the page-refresh marker (scenario 2 integration)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-integration-scenario2-relay-call-id';
+      const sessId = (instance as unknown as { sessionid: string }).sessionid;
+
+      clearActiveCallsRecoveryMarker();
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            forceRelayCandidate: true,
+          } as unknown as IStoredActiveCall,
+        ],
+        sessId
+      );
+
+      const { configs, restore } = capturePeerConfigs();
+
+      // Let the real answer() run so the replacement Peer is created.
+      handler.handleMessage(attachMsg(callId, 14731));
+      await Promise.resolve();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(configs.length).toBeGreaterThan(0);
+      const lastConfig = configs[configs.length - 1];
+      expect(lastConfig.iceTransportPolicy).toBe('relay');
+
+      restore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('recovered PeerConnection gets iceTransportPolicy:"relay" when the recovery heuristic forces relay (scenario 1 heuristic integration)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-integration-heuristic-relay-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: false, recoveredCallId: callId });
+      call.setState(State.Active);
+      mockCallReportHeuristic(call, () => true);
+
+      const { configs, restore } = capturePeerConfigs();
+
+      handler.handleMessage(attachMsg(callId, 14732));
+      await Promise.resolve();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      // preserved(false) || heuristic(true) || session(false) || false === true
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(configs.length).toBeGreaterThan(0);
+      const lastConfig = configs[configs.length - 1];
+      expect(lastConfig.iceTransportPolicy).toBe('relay');
+
+      restore();
+    });
+
+    it('recovered PeerConnection gets iceTransportPolicy:"all" when relay is disabled and the heuristic does not request relay (ordinary recovery integration)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-integration-ordinary-all-call-id';
+      _setupCall({ id: callId, forceRelayCandidate: false });
+      call.setState(State.Active);
+      mockCallReportHeuristic(call, () => false);
+
+      const { configs, restore } = capturePeerConfigs();
+
+      handler.handleMessage(attachMsg(callId, 14733));
+      await Promise.resolve();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBeFalsy();
+      expect(configs.length).toBeGreaterThan(0);
+      const lastConfig = configs[configs.length - 1];
+      expect(lastConfig.iceTransportPolicy).toBe('all');
+
+      restore();
+    });
+
+    it('recovered PeerConnection gets iceTransportPolicy:"relay" across a SECOND attach recovery (repeated recovery integration)', async () => {
+      await instance.connect();
+      const callId = 'vsdk467-integration-repeated-relay-call-id';
+      // First recovered call already had relay enabled (e.g. by client
+      // config or a prior recovery). A second attach must keep it
+      // relay-only.
+      _setupCall({ id: callId, forceRelayCandidate: true, recoveredCallId: callId });
+      call.setState(State.Active);
+      mockCallReportHeuristic(call, () => false);
+
+      const { configs, restore } = capturePeerConfigs();
+
+      handler.handleMessage(attachMsg(callId, 14734));
+      await Promise.resolve();
+
+      const newCall = instance.calls[callId];
+      expect(newCall).toBeDefined();
+      expect(newCall.options.forceRelayCandidate).toBe(true);
+      expect(configs.length).toBeGreaterThan(0);
+      const lastConfig = configs[configs.length - 1];
+      expect(lastConfig.iceTransportPolicy).toBe('relay');
+
+      restore();
+    });
   });
 
   describe('telnyx_rtc.info', () => {

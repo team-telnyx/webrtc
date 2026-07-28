@@ -433,7 +433,17 @@ class VertoHandler {
           let preservedForceRelayCandidate = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
-            const savedCall = savedMarker.calls.find((c) => c.id === callID);
+            // `getActiveCallsRecoveryMarker()` returns per-record data verbatim
+            // (a peek contract pinned in reconnect.test.ts), so individual
+            // entries may be null or non-objects. Guard the lookup so a
+            // malformed record never throws while evaluating `c.id` before a
+            // valid matching record is reached (VSDK-467 review round 2).
+            const savedCall = savedMarker.calls.find(
+              (c) =>
+                c !== null &&
+                typeof c === 'object' &&
+                c.id === callID
+            );
             if (savedCall) {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
