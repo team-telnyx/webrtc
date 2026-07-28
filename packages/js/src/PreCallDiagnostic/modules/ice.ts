@@ -72,6 +72,7 @@ function parseIceReport(
 ): PreCallIceReport {
   // Phase 2: Collect candidate pairs, transport stats, and remote candidates
   const candidatePairs: RTCIceCandidatePairStats[] = [];
+  const selectedPairIds = new Set<string>();
   const remoteCandidates = new Map<string, RTCIceCandidateStats>();
   const localCandidates = new Map<string, RTCIceCandidateStats>();
   const candidateCounts: Record<RTCIceCandidateType, number> = {
@@ -99,12 +100,20 @@ function parseIceReport(
         candidatePairs.push(pair);
         break;
       }
+      case 'transport': {
+        const transport = report as RTCTransportStats;
+        if (typeof transport.selectedCandidatePairId === 'string') {
+          selectedPairIds.add(transport.selectedCandidatePairId);
+        }
+        break;
+      }
     }
   });
 
   // Phase 3: Resolve the selected candidate pair
   const selectedPairResult = resolveSelectedPair(
     candidatePairs,
+    selectedPairIds,
     localCandidates,
     remoteCandidates
   );
@@ -154,30 +163,44 @@ function parseIceReport(
  * Resolution order:
  * 1. transport.selectedCandidatePairId → lookup in candidatePairs
  * 2. candidate-pair with selected === true
- * 3. nominated or succeeded candidate-pair as fallback
+ * 3. nominated and succeeded candidate-pair
+ * 4. a single succeeded candidate-pair as a legacy fallback
  *
  * Local/remote candidate metadata is resolved from the pre-parsed
  * candidate maps (no stats.get() re-query needed).
  */
 function resolveSelectedPair(
   candidatePairs: RTCIceCandidatePairStats[],
+  selectedPairIds: Set<string>,
   localCandidates: Map<string, RTCIceCandidateStats>,
   remoteCandidates: Map<string, RTCIceCandidateStats>
 ): NominatedPair | null {
-  const nominatedPairArr = candidatePairs.filter(
-    (p) => p.nominated || p.state === 'succeeded'
+  const transportSelectedPair = candidatePairs.find((pair) =>
+    selectedPairIds.has(pair.id)
   );
+  const legacySelectedPair = candidatePairs.find(
+    (pair) =>
+      (pair as RTCIceCandidatePairStats & { selected?: boolean }).selected ===
+      true
+  );
+  const nominatedPair = candidatePairs.find(
+    (pair) => pair.nominated === true && pair.state === 'succeeded'
+  );
+  const succeededPairs = candidatePairs.filter(
+    (pair) => pair.state === 'succeeded'
+  );
+  const selectedPair =
+    transportSelectedPair ??
+    legacySelectedPair ??
+    nominatedPair ??
+    (succeededPairs.length === 1 ? succeededPairs[0] : undefined);
 
-  if (nominatedPairArr.length !== 1) {
-    return null;
-  }
+  if (!selectedPair) return null;
 
   return {
-    ...nominatedPairArr[0],
-    localCandidate: localCandidates.get(nominatedPairArr[0].localCandidateId),
-    remoteCandidate: remoteCandidates.get(
-      nominatedPairArr[0].remoteCandidateId
-    ),
+    ...selectedPair,
+    localCandidate: localCandidates.get(selectedPair.localCandidateId),
+    remoteCandidate: remoteCandidates.get(selectedPair.remoteCandidateId),
   };
 }
 

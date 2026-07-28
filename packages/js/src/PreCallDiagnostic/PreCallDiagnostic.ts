@@ -340,8 +340,13 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
     const deadline = Date.now() + durationMs;
 
     while (Date.now() < deadline) {
-      const stats = await call.peer.instance?.getStats();
-      if (stats) context.statsSamples.push(stats);
+      try {
+        const stats = await call.peer.instance?.getStats();
+        if (stats) context.statsSamples.push(stats);
+      } catch {
+        // A transient stats read must not abort the diagnostic. Continue
+        // sampling until the configured duration expires.
+      }
       await delay(Math.min(intervalMs, Math.max(0, deadline - Date.now())));
     }
   }

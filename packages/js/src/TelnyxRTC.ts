@@ -360,9 +360,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * `destinationNumber` is optional — when omitted, the diagnostic call
    * dials a sensible default (`'+1-872-231-5806'`).
    *
-   * Timer semantics: the total budget is `callSetupTimeoutMs + durationMs`.
-   * `callSetupTimeoutMs` bounds call establishment; `durationMs` is the
-   * post-establishment sampling window (starts only after establishment).
+   * `durationMs` controls the post-establishment sampling window and starts
+   * only after the diagnostic call is established. Call setup is bounded by
+   * an internal SDK deadline.
    *
    * @param options Options for the pre-call diagnostic. All fields are
    *   optional; `destinationNumber` defaults to `'+1-872-231-5806'`.
@@ -385,12 +385,11 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    *
-   * Override duration and setup timeout:
+   * Override the sampling duration:
    *
    * ```js
    * const report = await client.runPreCall({
    *   durationMs: 3000,
-   *   callSetupTimeoutMs: 20000,
    * });
    * ```
    *
