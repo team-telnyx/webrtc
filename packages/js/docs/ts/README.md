@@ -57,6 +57,7 @@
 - [DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS](#default_call_recording_flush_interval_ms)
 - [DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES](#default_call_recording_max_buffer_bytes)
 - [DEFAULT_CALL_RECORDING_SAMPLE_RATE](#default_call_recording_sample_rate)
+- [Region](#region)
 
 ### Functions
 
@@ -239,6 +240,28 @@ payload. 48 kHz is the typical WebRTC audio track rate.
 ```ts
 48000;
 ```
+
+---
+
+### Region
+
+• `Const` **Region**: `Object`
+
+Supported WebRTC signaling regions.
+
+Omit `IClientOptions.region` to use automatic routing.
+
+#### Type declaration
+
+| Name         | Type           |
+| :----------- | :------------- |
+| `APAC`       | `"apac"`       |
+| `CA_CENTRAL` | `"ca-central"` |
+| `EU`         | `"eu"`         |
+| `SOUTH_ASIA` | `"south-asia"` |
+| `US_CENTRAL` | `"us-central"` |
+| `US_EAST`    | `"us-east"`    |
+| `US_WEST`    | `"us-west"`    |
 
 ## Functions
 
