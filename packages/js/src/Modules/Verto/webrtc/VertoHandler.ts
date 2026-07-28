@@ -236,10 +236,7 @@ class VertoHandler {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
       mutedMicOnStart?: boolean;
-      // Per-call remote/local media element to restore on attach-recovery.
-      // Carried forward from the matched existing call (scenario 1) or from
-      // the recovery marker (scenario 2 — page reload). When omitted, the
-      // call falls back to the session-level default.
+      // Per-call media element to restore on attach-recovery (matched call or page-refresh marker).
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
       /** True when the original call was held at the moment of attach-recovery. */
@@ -262,15 +259,11 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
-        // `forceRelayCandidateForRecovery` is the source of truth: a genuine
-        // boolean (from the matched call's heuristic or the page-refresh
-        // marker) is used directly so an explicit `false` is honored (no
-        // session-default leak). `undefined` (page-refresh with no marker)
-        // falls back to the session option.
+        // `forceRelayCandidateForRecovery` is the source of truth; `undefined` falls back to the session option.
         forceRelayCandidate:
           typeof forceRelayCandidateForRecovery === 'boolean'
             ? forceRelayCandidateForRecovery
-            : session.options.forceRelayCandidate ?? false,
+            : (session.options.forceRelayCandidate ?? false),
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
         mutedMicOnStart: mutedMicOnStart ?? session.options.mutedMicOnStart,
@@ -412,21 +405,13 @@ class VertoHandler {
           let recoveredLocalElement: string | undefined;
           // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
-          // Relay-only policy from the page-reload marker (source of truth for
-          // page-refresh recovery, since there is no matched call to consult
-          // the heuristic). `undefined` (no marker or missing field) falls back
-          // to the session option; only a genuine boolean applies.
+          // Relay-only policy from the page-reload marker; `undefined` falls back to the session option.
           let forceRelayCandidateForRecovery: boolean | undefined = undefined;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
-            // Marker records may be null or non-objects (peek contract); guard
-            // the lookup so a malformed record never throws before a valid
-            // matching record is reached.
+            // Guard against null/non-object marker records (peek contract).
             const savedCall = savedMarker.calls.find(
-              (c) =>
-                c !== null &&
-                typeof c === 'object' &&
-                c.id === callID
+              (c) => c !== null && typeof c === 'object' && c.id === callID
             );
             if (savedCall) {
               recoveredRemoteElement = savedCall.remoteElement;
@@ -470,8 +455,7 @@ class VertoHandler {
         if (matchedCall) {
           // ── We have matching call by callID — recover it
           const recoveredCallId = matchedCall.id;
-          // Source of truth: already relay-only (preservation) OR the recovery
-          // heuristic requests relay for a stalled VPN media path.
+          // Source of truth: preserved relay-only state OR the recovery heuristic.
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
@@ -497,8 +481,7 @@ class VertoHandler {
             recoveredCallId,
             forceRelayCandidateForRecovery,
             mutedMicOnStart: matchedCall.isAudioMuted,
-            // Carry forward per-call media elements; undefined falls back to
-            // the session-level default.
+            // Carry forward per-call media elements.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
             // Carry held intent captured BEFORE hangup().

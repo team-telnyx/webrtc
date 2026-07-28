@@ -118,12 +118,7 @@ export default class Verto extends BrowserSession {
             if (call.state === 'held') {
               stored.wasHeld = true;
             }
-            // Persist the effective relay-only policy for page-reload
-            // recovery. Persist both `true` and `false` as genuine booleans
-            // so the consumer distinguishes an explicit non-relay policy
-            // from an absent legacy field. The effective boolean must survive
-            // a page refresh so the replacement peer keeps the matching
-            // `iceTransportPolicy`.
+            // Persist effective relay-only policy (true/false) for page-reload recovery.
             if (typeof call.options.forceRelayCandidate === 'boolean') {
               stored.forceRelayCandidate = call.options.forceRelayCandidate;
             }
