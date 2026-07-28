@@ -119,16 +119,21 @@ export default class Verto extends BrowserSession {
               stored.wasHeld = true;
             }
             // Persist the effective relay-only policy for page-reload
-            // attach-recovery (VSDK-467). Only a genuine `true` is persisted so
-            // that absence stays backward compatible with markers written by
-            // older SDK versions (the consumer checks `=== true`, never
-            // truthiness). `forceRelayCandidate` can be customer configuration
-            // (client/per-call option) or effective state introduced by an
-            // earlier recovery heuristic decision; both must survive a page
-            // refresh so the replacement peer keeps `iceTransportPolicy:
-            // "relay"`.
-            if (call.options.forceRelayCandidate === true) {
-              stored.forceRelayCandidate = true;
+            // attach-recovery (VSDK-467). Persist BOTH `true` and `false` as
+            // genuine booleans so the consumer can distinguish an explicit
+            // non-relay policy from an absent legacy field; absence stays
+            // backward compatible with markers written by older SDK versions
+            // (the consumer checks `typeof === 'boolean'`, never truthiness).
+            // `forceRelayCandidate` can be customer configuration (client/
+            // per-call option) or effective state introduced by an earlier
+            // recovery heuristic decision; the effective boolean must survive
+            // a page refresh so the replacement peer keeps the matching
+            // `iceTransportPolicy`. Persisting `false` prevents recovery from
+            // broadening an ordinary call from `"all"` to `"relay"` when the
+            // client/session default is `true` but the per-call effective
+            // value is `false` (VSDK-467 review round 3).
+            if (typeof call.options.forceRelayCandidate === 'boolean') {
+              stored.forceRelayCandidate = call.options.forceRelayCandidate;
             }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not

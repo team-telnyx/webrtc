@@ -248,11 +248,16 @@ class VertoHandler {
       wasHeldBeforeRecovery?: boolean;
       /**
        * Effective relay-only policy preserved from the matched call (scenario 1)
-       * or the page-refresh recovery marker (scenario 2) — VSDK-467. Only a
-       * genuine `true` is ever passed here. It is OR'd with the recovery
-       * heuristic decision so that the heuristic can ADD relay but never clear
-       * an already-enabled effective policy. Absence (undefined/false) leaves
-       * the existing option precedence intact (`heuristic || session || false`).
+       * or the page-refresh recovery marker (scenario 2) — VSDK-467. This is a
+       * tri-state value: a genuine `boolean` (`true` or `false`) means a
+       * preserved effective policy exists and the replacement call must use it
+       * (combined additively with the heuristic so relay can be ADDED but never
+       * CLEARED); `undefined` means no preserved value exists (legacy marker or
+       * a missing call) and the call falls back to the existing option
+       * precedence (`heuristic || session || false`). Persisting an explicit
+       * `false` prevents recovery from broadening an ordinary call from
+       * `"all"` to `"relay"` when the client/session default is `true` but the
+       * per-call effective value is `false` (VSDK-467 review round 3).
        */
       preservedForceRelayCandidate?: boolean;
     } = {}) => {
@@ -274,17 +279,25 @@ class VertoHandler {
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
         // Preserve the effective relay-only policy across attach-recovery
-        // (VSDK-467). The preserved value is OR'd with the recovery heuristic
-        // decision so the heuristic can add relay but never clear it, then
-        // falls back to the session-level option. `preserved === true` means
-        // the matched call (or a matching page-refresh marker) already had
-        // relay enabled, so the replacement peer must keep
-        // `iceTransportPolicy: "relay"` even when the heuristic returns false.
+        // (VSDK-467). `preservedForceRelayCandidate` is a tri-state value.
+        // When a genuine boolean exists (true OR false), the replacement
+        // call uses `preserved || heuristic === true` — the heuristic can ADD
+        // relay but never clears a preserved value, and a preserved `false`
+        // is honored so recovery cannot broaden an ordinary call from
+        // `"all"` to `"relay"` when the session default is `true` (review
+        // round 3). The `=== true` guard is required: `forceRelayCandidateForRecovery`
+        // is `undefined` in the page-refresh path (scenario 2 has no matched
+        // call to consult the heuristic), and `false || undefined` would
+        // evaluate to `undefined` (dropping the explicit `false`). When no
+        // preserved value exists (undefined — legacy marker or missing
+        // call), the call falls back to the existing option precedence
+        // (`heuristic || session || false`).
         forceRelayCandidate:
-          preservedForceRelayCandidate ||
-          forceRelayCandidateForRecovery ||
-          session.options.forceRelayCandidate ||
-          false,
+          typeof preservedForceRelayCandidate === 'boolean'
+            ? preservedForceRelayCandidate || forceRelayCandidateForRecovery === true
+            : forceRelayCandidateForRecovery ||
+              session.options.forceRelayCandidate ||
+              false,
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
         mutedMicOnStart: mutedMicOnStart ?? session.options.mutedMicOnStart,
@@ -427,10 +440,17 @@ class VertoHandler {
           // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
           // Effective relay-only policy preserved from the page-reload
-          // recovery marker (VSDK-467). Only a genuine `true` is meaningful;
-          // absence, false, and malformed non-boolean values must NOT apply
-          // (so we check `=== true`, not truthiness).
-          let preservedForceRelayCandidate = false;
+          // recovery marker (VSDK-467). This is a tri-state value: a genuine
+          // boolean (true OR false) means a preserved effective policy exists
+          // and the replacement call honors it (the heuristic can ADD relay
+          // but never clears it); undefined means no preserved value (legacy
+          // marker or missing record) and the call falls back to the session
+          // option. Persisting `false` prevents recovery from broadening an
+          // ordinary call from "all" to "relay" when the session default is
+          // true but the per-call effective value is false (review round 3).
+          // Malformed non-boolean values must NOT apply — use `typeof ===
+          // 'boolean'`, not truthiness.
+          let preservedForceRelayCandidate: boolean | undefined = undefined;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
             // `getActiveCallsRecoveryMarker()` returns per-record data verbatim
@@ -448,8 +468,13 @@ class VertoHandler {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
               wasHeldBeforeUnload = savedCall.wasHeld === true;
+              // Pass the genuine boolean | undefined value so the tri-state
+              // consumer distinguishes an explicit `false` from an absent
+              // legacy field. A malformed non-boolean value stays undefined.
               preservedForceRelayCandidate =
-                savedCall.forceRelayCandidate === true;
+                typeof savedCall.forceRelayCandidate === 'boolean'
+                  ? savedCall.forceRelayCandidate
+                  : undefined;
               if (recoveredRemoteElement || recoveredLocalElement) {
                 logger.info(
                   `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
@@ -457,9 +482,9 @@ class VertoHandler {
                   }, localElement=${recoveredLocalElement ?? '<none>'}).`
                 );
               }
-              if (preservedForceRelayCandidate) {
+              if (typeof preservedForceRelayCandidate === 'boolean') {
                 logger.info(
-                  `[${callID}] Attach: restoring effective forceRelayCandidate=true from recovery marker.`
+                  `[${callID}] Attach: restoring effective forceRelayCandidate=${preservedForceRelayCandidate} from recovery marker.`
                 );
               }
             }
@@ -497,11 +522,17 @@ class VertoHandler {
           // replacement peer keeps iceTransportPolicy:"relay" even when the
           // recovery heuristic returns false (it deliberately returns false
           // when relay is already enabled — see
-          // BaseCall.shouldForceRelayCandidateForRecovery). Only a genuine
-          // `true` is preserved; absence leaves the existing option
-          // precedence intact (VSDK-467).
+          // BaseCall.shouldForceRelayCandidateForRecovery). Pass the genuine
+          // boolean | undefined value so the tri-state consumer distinguishes
+          // an explicit `false` (effective non-relay) from an absent value
+          // (no preserved policy — falls back to session option). This
+          // prevents recovery from broadening an ordinary call from "all"
+          // to "relay" when the session default is true but the per-call
+          // effective value is false (VSDK-467 review round 3).
           const preservedForceRelayCandidate =
-            matchedCall.options.forceRelayCandidate === true;
+            typeof matchedCall.options.forceRelayCandidate === 'boolean'
+              ? matchedCall.options.forceRelayCandidate
+              : undefined;
 
           if (forceRelayCandidateForRecovery) {
             logger.warn(

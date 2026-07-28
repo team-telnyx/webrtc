@@ -25,13 +25,16 @@ export interface IStoredActiveCall {
   wasHeld?: boolean;
   /**
    * Effective relay-only policy persisted for page-reload recovery (VSDK-467).
-   * Only a genuine `true` is persisted by the marker producer; absence is
+   * The producer persists a genuine boolean (`true` or `false`) when the call
+   * has an effective relay policy to carry across the page refresh; absence is
    * backward compatible with markers written by older SDK versions and means
-   * the ordinary option-precedence fallback applies. A `false` value is never
-   * written (the producer omits the field when relay is disabled), so a
-   * boolean `true` is the only meaningful persisted signal. Malformed non-boolean
-   * values must not influence reconstruction — the consumer checks
-   * `=== true` rather than truthiness.
+   * the ordinary option-precedence fallback applies. The consumer must
+   * distinguish an explicit `false` (effective non-relay) from an absent
+   * legacy field — use `typeof === 'boolean'`, not truthiness — so that
+   * recovery cannot broaden an ordinary call from `"all"` to `"relay"` when
+   * the client/session default is `true` but the per-call effective value is
+   * `false`. Malformed non-boolean values must not influence reconstruction;
+   * the consumer checks `typeof === 'boolean'` and ignores everything else.
    */
   forceRelayCandidate?: boolean;
 }

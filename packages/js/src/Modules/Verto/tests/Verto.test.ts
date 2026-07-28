@@ -250,13 +250,19 @@ describe('Verto', () => {
 
     // ── VSDK-467: beforeunload marker projection for forceRelayCandidate ──
     //
-    // The producer (Verto/index.ts beforeunload handler) must persist only a
-    // genuine `true` for forceRelayCandidate and omit the field when relay
-    // is disabled or absent (so absence stays backward compatible with
-    // markers written by older SDK versions). The consumer checks `=== true`,
-    // never truthiness. (Stage risk line 52; Acceptance line 72.)
+    // The producer (Verto/index.ts beforeunload handler) persists the genuine
+    // boolean effective value (`true` OR `false`) when the call has an
+    // effective relay policy to carry across the page refresh, and omits the
+    // field when the option is absent (so absence stays backward compatible
+    // with markers written by older SDK versions). The consumer checks
+    // `typeof === 'boolean'`, never truthiness, so it can distinguish an
+    // explicit `false` (effective non-relay) from an absent legacy field.
+    // Persisting `false` prevents recovery from broadening an ordinary call
+    // from "all" to "relay" when the session default is true but the per-call
+    // effective value is false (Stage risk line 52; Acceptance line 72;
+    // review round 3).
 
-    it('should persist forceRelayCandidate=true in the recovery marker only for calls with relay enabled (VSDK-467 beforeunload projection)', () => {
+    it('should persist forceRelayCandidate as a genuine boolean (true OR false) in the recovery marker, omitting only absent values (VSDK-467 beforeunload projection)', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
       clearActiveCallsRecoveryMarker();
@@ -325,9 +331,12 @@ describe('Verto', () => {
 
       const relayFalse = result!.calls.find((m) => m.id === 'call-relay-false');
       expect(relayFalse).toBeDefined();
-      // A `false` value is NOT persisted (the producer omits the field when
-      // relay is disabled, so absence is the backward-compatible signal).
-      expect(relayFalse!.forceRelayCandidate).toBeUndefined();
+      // A genuine `false` IS persisted so the consumer can distinguish an
+      // explicit non-relay policy from an absent legacy field. This prevents
+      // recovery from broadening an ordinary call from "all" to "relay" when
+      // the session default is true but the per-call effective value is false
+      // (VSDK-467 review round 3).
+      expect(relayFalse!.forceRelayCandidate).toBe(false);
 
       const relayAbsent = result!.calls.find((m) => m.id === 'call-relay-absent');
       expect(relayAbsent).toBeDefined();
