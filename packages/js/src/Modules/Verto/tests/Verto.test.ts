@@ -261,7 +261,7 @@ describe('Verto', () => {
     // from "all" to "relay" when the session default is true but the per-call
     // effective value is false (Stage risk line 52; Acceptance line 72).
 
-    it('should persist forceRelayCandidate as a genuine boolean (true OR false) in the recovery marker, omitting only absent values (VSDK-467 beforeunload projection)', () => {
+    it('should persist forceRelayCandidate as the evaluated single source of truth (true OR false) in the recovery marker, omitting only when no method is available (VSDK-467 beforeunload projection)', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
       clearActiveCallsRecoveryMarker();
@@ -275,7 +275,9 @@ describe('Verto', () => {
       telnyxRTC.sessionid = 'session-vsdk-467-projection';
 
       // Three active calls: one with relay enabled (client config), one with
-      // relay disabled, and one with the option absent (legacy default).
+      // relay disabled, and one with no method (legacy default). The producer
+      // persists the evaluated `shouldForceRelayCandidateForRecovery()` result,
+      // which folds in the per-call option and the recovery heuristic.
       const hangup = jest.fn();
       telnyxRTC.calls = {
         'call-relay-true': {
@@ -287,6 +289,7 @@ describe('Verto', () => {
             customHeaders: undefined,
             forceRelayCandidate: true,
           },
+          shouldForceRelayCandidateForRecovery: () => true,
         } as unknown as IWebRTCCall,
         'call-relay-false': {
           id: 'call-relay-false',
@@ -297,6 +300,7 @@ describe('Verto', () => {
             customHeaders: undefined,
             forceRelayCandidate: false,
           },
+          shouldForceRelayCandidateForRecovery: () => false,
         } as unknown as IWebRTCCall,
         'call-relay-absent': {
           id: 'call-relay-absent',
@@ -325,7 +329,7 @@ describe('Verto', () => {
 
       const relayTrue = result!.calls.find((m) => m.id === 'call-relay-true');
       expect(relayTrue).toBeDefined();
-      // Genuine true is persisted.
+      // The evaluated source-of-truth result (true) is persisted.
       expect(relayTrue!.forceRelayCandidate).toBe(true);
 
       const relayFalse = result!.calls.find((m) => m.id === 'call-relay-false');
@@ -338,7 +342,8 @@ describe('Verto', () => {
 
       const relayAbsent = result!.calls.find((m) => m.id === 'call-relay-absent');
       expect(relayAbsent).toBeDefined();
-      // Absent option → field is absent in the marker too.
+      // No `shouldForceRelayCandidateForRecovery` method → field is absent in
+      // the marker too (backward compatible with legacy calls/markers).
       expect(relayAbsent!.forceRelayCandidate).toBeUndefined();
 
       addEventListenerSpy.mockRestore();

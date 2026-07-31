@@ -452,9 +452,14 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   /**
-   * Source of truth for whether the replacement call should be relay-only.
-   * Returns `true` when the call is already relay-only (preservation) OR when
-   * the recovery heuristic requests relay for a stalled VPN media path.
+   * Single source of truth for whether the replacement call should be
+   * relay-only. Checks every available resource: the per-call `forceRelayCandidate`
+   * option and the recovery heuristic (`callStatsCollector` decision).
+   *
+   * Returns `true` (relay-only) when either resource requests it. The "stalled
+   * VPN media path" warning fires only for the heuristic path, where it is
+   * factually accurate; a statically-configured relay-only call is preserved
+   * silently.
    */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
@@ -465,9 +470,16 @@ export default abstract class BaseCall implements IWebRTCCall {
       return false;
     }
 
-    return (
-      this._callReportCollector?.shouldForceRelayCandidateForRecovery() ?? false
-    );
+    const collectorRequestsRelay =
+      this._callReportCollector?.shouldForceRelayCandidateForRecovery() ?? false;
+    if (collectorRequestsRelay) {
+      logger.warn(
+        `[${new Date().toISOString()}][${this.id}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+      );
+      return true;
+    }
+
+    return false;
   }
 
   async invite() {

@@ -118,9 +118,13 @@ export default class Verto extends BrowserSession {
             if (call.state === 'held') {
               stored.wasHeld = true;
             }
-            // Persist effective relay-only policy (true/false) for page-reload recovery.
-            if (typeof call.options.forceRelayCandidate === 'boolean') {
-              stored.forceRelayCandidate = call.options.forceRelayCandidate;
+            // Persist effective relay-only policy for page-reload recovery.
+            // Persist the evaluated single source of truth (per-call option OR
+            // recovery heuristic) so a page refresh restores the same decision
+            // the in-memory attach path would make.
+            if (typeof call.shouldForceRelayCandidateForRecovery === 'function') {
+              const relay = call.shouldForceRelayCandidateForRecovery();
+              stored.forceRelayCandidate = relay;
             }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not

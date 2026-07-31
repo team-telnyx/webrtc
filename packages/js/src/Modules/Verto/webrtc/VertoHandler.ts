@@ -455,18 +455,15 @@ class VertoHandler {
         if (matchedCall) {
           // ── We have matching call by callID — recover it
           const recoveredCallId = matchedCall.id;
-          // Source of truth: preserved relay-only state OR the recovery heuristic.
-          const forceRelayCandidateForRecovery =
-            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
-
           // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
-          if (forceRelayCandidateForRecovery) {
-            logger.warn(
-              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
-            );
-          }
+          // `shouldForceRelayCandidateForRecovery()` is the single source of
+          // truth: it folds in the per-call option and the recovery heuristic,
+          // and emits its own accurate "stalled VPN" warning when the heuristic
+          // (not static config) requests relay.
+          const forceRelayCandidateForRecovery =
+            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
 
           logger.info(
             `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
