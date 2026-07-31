@@ -3,6 +3,7 @@ import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
+import logger from '../util/logger';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -266,6 +267,14 @@ describe('Verto', () => {
       addEventListenerSpy.mockClear();
       clearActiveCallsRecoveryMarker();
 
+      // Marker projection invokes `shouldForceRelayCandidateForRecovery()` (the
+      // single source of truth) to persist the evaluated relay decision. The
+      // evaluator must be side-effect-free: page unload is not an attach event,
+      // so no `Attach:` diagnostic may be emitted during projection.
+      const loggerWarnSpy = jest
+        .spyOn(logger, 'warn')
+        .mockImplementation(() => undefined);
+
       const telnyxRTC = _buildInstance({
         host: 'example.telnyx.com',
         login: 'login',
@@ -346,6 +355,15 @@ describe('Verto', () => {
       // the marker too (backward compatible with legacy calls/markers).
       expect(relayAbsent!.forceRelayCandidate).toBeUndefined();
 
+
+      // Marker projection (page unload) must not emit an `Attach:` diagnostic:
+      // `shouldForceRelayCandidateForRecovery()` is side-effect-free, and the
+      // "stalled VPN" warning is reserved for the actual attach-recovery path.
+      const attachWarnings = loggerWarnSpy.mock.calls.filter(
+        ([msg]: unknown[]) => (typeof msg === 'string' ? msg.includes('Attach:') : false)
+      );
+      expect(attachWarnings).toHaveLength(0);
+      loggerWarnSpy.mockRestore();
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
     });

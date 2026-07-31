@@ -459,16 +459,26 @@ class VertoHandler {
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
           // `shouldForceRelayCandidateForRecovery()` is the single source of
-          // truth: it folds in the per-call option and the recovery heuristic,
-          // and emits its own accurate "stalled VPN" warning when the heuristic
-          // (not static config) requests relay.
+          // truth: it folds in the per-call option and the recovery heuristic.
+          // The evaluator is side-effect-free; emit the "stalled VPN" warning
+          // here — in the actual attach-recovery path — only when the decision
+          // came from the heuristic (not from static config), so the diagnostic
+          // is factually accurate and marker projection during page unload
+          // does not produce a misleading `Attach:` log.
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+          if (
+            forceRelayCandidateForRecovery &&
+            !matchedCall.options.forceRelayCandidate
+          ) {
+            logger.warn(
+              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+            );
+          }
 
           logger.info(
             `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
           );
-
           void matchedCall.hangup(
             { isRecovering: true, initiator: 'sdk:attach-recovery' },
             false
