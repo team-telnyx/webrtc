@@ -26,6 +26,7 @@ import {
   RECOVERY_MARKER_MAX_AGE_MS,
   type IStoredActiveCall,
 } from '../../util/reconnect';
+import logger from '../../util/logger';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -695,6 +696,7 @@ describe('VertoHandler', () => {
         const answer = jest
           .spyOn(Call.prototype, 'answer')
           .mockImplementation();
+        const warn = jest.spyOn(logger, 'warn').mockImplementation();
 
         handler.handleMessage(attachMessage(callId));
 
@@ -702,6 +704,14 @@ describe('VertoHandler', () => {
         expect(instance.calls[callId].options.forceRelayCandidate).toBe(
           forceRelayCandidate
         );
+        expect(
+          warn.mock.calls.some(([message]) =>
+            String(message).includes(
+              'Attach: forcing relay candidate for recovery'
+            )
+          )
+        ).toBe(forceRelayCandidate);
+        warn.mockRestore();
         answer.mockRestore();
         evaluator.mockRestore();
       }
@@ -710,7 +720,7 @@ describe('VertoHandler', () => {
     it.each([
       ['true', true, false, true],
       ['false overriding the session default', false, true, false],
-      ['a missing legacy value', undefined, true, true],
+      ['a missing value defaults to false', undefined, true, false],
     ])(
       'uses an exact matching marker value of %s',
       async (_label, marker, sessionDefault, expected) => {
@@ -725,7 +735,7 @@ describe('VertoHandler', () => {
               id: callId,
               customHeaders: undefined,
               forceRelayCandidate: marker,
-            } as IStoredActiveCall,
+            } as unknown as IStoredActiveCall,
           ],
           instance.sessionid
         );

@@ -23,8 +23,8 @@ export interface IStoredActiveCall {
   localElement?: string;
   /** True when the call was held when the marker was written (page-reload recovery). */
   wasHeld?: boolean;
-  /** Evaluated relay policy; absence preserves legacy marker behavior. */
-  forceRelayCandidate?: boolean;
+  /** Evaluated relay policy for page-refresh recovery. */
+  forceRelayCandidate: boolean;
 }
 export interface IStoredActiveCalls {
   sessionId: string;

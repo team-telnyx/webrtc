@@ -405,8 +405,7 @@ class VertoHandler {
           let recoveredLocalElement: string | undefined;
           // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
-          // `undefined` preserves compatibility with older markers.
-          let forceRelayCandidateForRecovery: boolean | undefined = undefined;
+          let forceRelayCandidateForRecovery = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
             // Guard against null/non-object marker records (peek contract).
@@ -458,15 +457,11 @@ class VertoHandler {
           // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
-          // Warn only when recovery stats, rather than static config, forced relay.
           const forceRelayCandidateForRecovery =
-            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
-          if (
-            forceRelayCandidateForRecovery &&
-            !matchedCall.options.forceRelayCandidate
-          ) {
+            matchedCall.shouldForceRelayCandidateForRecovery();
+          if (forceRelayCandidateForRecovery) {
             logger.warn(
-              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate for recovery`
             );
           }
 

@@ -61,18 +61,10 @@ export default class Verto extends BrowserSession {
 
       // Flush clears collector evidence, so snapshot the final relay decision
       // for every active call before flushing any of them.
-      const activeCalls = this.calls
-        ? Object.keys(this.calls)
-            .map((callId) => this.calls[callId])
-            .filter(Boolean)
-        : [];
-      const activeCallSnapshots = activeCalls.map((call) => {
-        let forceRelayCandidate: boolean | undefined;
+      const activeCallSnapshots = this.getActiveCalls().map((call) => {
+        let forceRelayCandidate = false;
         try {
-          forceRelayCandidate =
-            typeof call.shouldForceRelayCandidateForRecovery === 'function'
-              ? call.shouldForceRelayCandidateForRecovery()
-              : undefined;
+          forceRelayCandidate = call.shouldForceRelayCandidateForRecovery();
         } catch (err) {
           logger.debug(
             `Failed to snapshot relay policy for ${call.id}: ${
@@ -134,17 +126,15 @@ export default class Verto extends BrowserSession {
               remoteElement?: string;
               localElement?: string;
               wasHeld?: boolean;
-              forceRelayCandidate?: boolean;
+              forceRelayCandidate: boolean;
             } = {
               id: call.id,
               customHeaders: call.options.customHeaders,
+              forceRelayCandidate,
             };
             // Persist held state for page-reload attach-recovery.
             if (call.state === 'held') {
               stored.wasHeld = true;
-            }
-            if (typeof forceRelayCandidate === 'boolean') {
-              stored.forceRelayCandidate = forceRelayCandidate;
             }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not

@@ -172,9 +172,7 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
-      // Simulate a logged-in session with active calls. The save path
-      // (Verto/index.ts beforeunload handler) projects each active call to a
-      // narrow shape (`id` + `options.customHeaders`).
+      // Simulate a logged-in session with active calls.
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
@@ -188,6 +186,7 @@ describe('Verto', () => {
           options: {
             customHeaders: [{ name: 'X-Test', value: '1' }],
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
         'call-2': {
           id: 'call-2',
@@ -197,6 +196,7 @@ describe('Verto', () => {
           session: {}, // not persisted — narrow projection drops it
           peer: {}, // not persisted — narrow projection drops it
           options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -219,18 +219,17 @@ describe('Verto', () => {
 
       const m1 = result!.calls.find((m) => m.id === 'call-1');
       expect(m1!.id).toBe('call-1');
-      // Only the narrow projection is persisted: id + customHeaders.
-      // State, direction, session, peer are all dropped by the projection.
+      // Runtime objects are dropped by the narrow marker projection.
       expect(m1!.customHeaders).toEqual([{ name: 'X-Test', value: '1' }]);
+      expect(m1!.forceRelayCandidate).toBe(false);
 
       // call-2 had no custom headers — `customHeaders` is undefined.
       const m2 = result!.calls.find((m) => m.id === 'call-2');
       expect(m2!.id).toBe('call-2');
       expect(m2!.customHeaders).toBeUndefined();
+      expect(m2!.forceRelayCandidate).toBe(false);
 
-      // The narrow projection excludes sensitive / host fields — only id
-      // and customHeaders are persisted. No session, peer, state,
-      // direction, localStream, remoteStream, iceServers, options.
+      // Sensitive and host fields are excluded from the marker.
       const serialized = JSON.stringify(result!.calls[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
@@ -370,6 +369,7 @@ describe('Verto', () => {
             localElement: sessionLocal,
             customHeaders: undefined,
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -424,6 +424,7 @@ describe('Verto', () => {
             remoteElement: perCallDomElement,
             customHeaders: undefined,
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -653,6 +654,9 @@ describe('Verto', () => {
       instance.calls = {
         'call-1': {
           id: 'call-1',
+          state: 'active',
+          options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
           flushIntermediateCallReport: flush,
         } as unknown as IWebRTCCall,
       };
