@@ -451,18 +451,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
   }
 
-  /**
-   * Single source of truth for whether the replacement call should be
-   * relay-only. Checks every available resource: the per-call `forceRelayCandidate`
-   * option and the recovery heuristic (`callStatsCollector` decision).
-   *
-   * Returns `true` (relay-only) when either resource requests it. This evaluator
-   * is side-effect-free: callers (e.g. the attach-recovery path) are responsible
-   * for emitting the "stalled VPN media path" warning only where an attach is
-   * actually being handled and only when the decision came from the heuristic
-   * (not from static config), so that marker projection during page unload does
-   * not produce a misleading `Attach:` diagnostic.
-   */
+  /** Returns the final relay policy from call options and recovery stats. */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
       return true;

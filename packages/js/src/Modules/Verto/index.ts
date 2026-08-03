@@ -59,6 +59,30 @@ export default class Verto extends BrowserSession {
         return;
       }
 
+      // Flush clears collector evidence, so snapshot the final relay decision
+      // for every active call before flushing any of them.
+      const activeCalls = this.calls
+        ? Object.keys(this.calls)
+            .map((callId) => this.calls[callId])
+            .filter(Boolean)
+        : [];
+      const activeCallSnapshots = activeCalls.map((call) => {
+        let forceRelayCandidate: boolean | undefined;
+        try {
+          forceRelayCandidate =
+            typeof call.shouldForceRelayCandidateForRecovery === 'function'
+              ? call.shouldForceRelayCandidateForRecovery()
+              : undefined;
+        } catch (err) {
+          logger.debug(
+            `Failed to snapshot relay policy for ${call.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+        return { call, forceRelayCandidate };
+      });
+
       // hangupOnBeforeUnload === false: calls are kept alive across unload, so
       // they never hang up and no final call report is ever posted for a call
       // the user reloads/closes on — its report would otherwise be lost. Flush
@@ -69,15 +93,19 @@ export default class Verto extends BrowserSession {
       // runs even when there is no sessionid to persist. Redundant flushes are
       // cheap — CallReportCollector.flush() returns null when nothing new has
       // buffered since the last flush.
-      if (this.calls) {
-        Object.keys(this.calls).forEach((callId) => {
-          const call = this.calls[callId];
-          if (call?.flushIntermediateCallReport) {
-            logger.debug(`beforeunload: flushing call report for ${callId}.`);
-            call.flushIntermediateCallReport({ type: 'page-unload' });
-          }
-        });
-      }
+      activeCallSnapshots.forEach(({ call }) => {
+        if (!call.flushIntermediateCallReport) return;
+        try {
+          logger.debug(`beforeunload: flushing call report for ${call.id}.`);
+          call.flushIntermediateCallReport({ type: 'page-unload' });
+        } catch (err) {
+          logger.debug(
+            `beforeunload: failed to flush call report for ${call.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          );
+        }
+      });
 
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
@@ -98,11 +126,8 @@ export default class Verto extends BrowserSession {
       // written when the page is truly going away, regardless of how the SDK
       // handles transient socket drops.
       try {
-        const callIds = this.calls ? Object.keys(this.calls) : [];
-        const activeCalls = callIds
-          .filter((callId) => !!this.calls[callId])
-          .map((callId) => this.calls[callId])
-          .map((call) => {
+        const storedActiveCalls = activeCallSnapshots.map(
+          ({ call, forceRelayCandidate }) => {
             const stored: {
               id: typeof call.id;
               customHeaders: typeof call.options.customHeaders;
@@ -118,13 +143,8 @@ export default class Verto extends BrowserSession {
             if (call.state === 'held') {
               stored.wasHeld = true;
             }
-            // Persist effective relay-only policy for page-reload recovery.
-            // Persist the evaluated single source of truth (per-call option OR
-            // recovery heuristic) so a page refresh restores the same decision
-            // the in-memory attach path would make.
-            if (typeof call.shouldForceRelayCandidateForRecovery === 'function') {
-              const relay = call.shouldForceRelayCandidateForRecovery();
-              stored.forceRelayCandidate = relay;
+            if (typeof forceRelayCandidate === 'boolean') {
+              stored.forceRelayCandidate = forceRelayCandidate;
             }
             // Persist per-call media elements ONLY in their serializable string
             // form (element id). DOM elements and Function resolvers are not
@@ -158,11 +178,12 @@ export default class Verto extends BrowserSession {
               stored.localElement = this.localElementId;
             }
             return stored;
-          });
+          }
+        );
 
-        if (!this.sessionid || activeCalls.length === 0) {
+        if (!this.sessionid || storedActiveCalls.length === 0) {
           logger.debug(
-            `No sessionID ${this.sessionid} or activeCalls ${activeCalls.length} during saving calls recover marker!`
+            `No sessionID ${this.sessionid} or activeCalls ${storedActiveCalls.length} during saving calls recover marker!`
           );
           // No active calls or no session context — wipe any stale marker
           // left over from a previous page so it can't be re-consumed.
@@ -171,11 +192,11 @@ export default class Verto extends BrowserSession {
         }
 
         logger.info(
-          `Saving recovery marker for ${activeCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${activeCalls
+          `Saving recovery marker for ${storedActiveCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${storedActiveCalls
             .map((c) => c.id)
             .join(', ')}].`
         );
-        setActiveCallsRecoveryMarker(activeCalls, this.sessionid);
+        setActiveCallsRecoveryMarker(storedActiveCalls, this.sessionid);
       } catch (err) {
         // Any failure here must not break unload or normal call setup.
         const idsOnError = this.calls ? Object.keys(this.calls) : [];

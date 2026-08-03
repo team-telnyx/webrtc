@@ -259,7 +259,7 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
-        // `forceRelayCandidateForRecovery` is the source of truth; `undefined` falls back to the session option.
+        // An evaluated recovery value takes precedence over the session default.
         forceRelayCandidate:
           typeof forceRelayCandidateForRecovery === 'boolean'
             ? forceRelayCandidateForRecovery
@@ -405,7 +405,7 @@ class VertoHandler {
           let recoveredLocalElement: string | undefined;
           // Held intent from the page-reload recovery marker.
           let wasHeldBeforeUnload = false;
-          // Relay-only policy from the page-reload marker; `undefined` falls back to the session option.
+          // `undefined` preserves compatibility with older markers.
           let forceRelayCandidateForRecovery: boolean | undefined = undefined;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
@@ -458,13 +458,7 @@ class VertoHandler {
           // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
-          // `shouldForceRelayCandidateForRecovery()` is the single source of
-          // truth: it folds in the per-call option and the recovery heuristic.
-          // The evaluator is side-effect-free; emit the "stalled VPN" warning
-          // here — in the actual attach-recovery path — only when the decision
-          // came from the heuristic (not from static config), so the diagnostic
-          // is factually accurate and marker projection during page unload
-          // does not produce a misleading `Attach:` log.
+          // Warn only when recovery stats, rather than static config, forced relay.
           const forceRelayCandidateForRecovery =
             matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
           if (

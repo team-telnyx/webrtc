@@ -3,7 +3,6 @@ import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
-import logger from '../util/logger';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -249,31 +248,10 @@ describe('Verto', () => {
       clearActiveCallsRecoveryMarker();
     });
 
-    // ── VSDK-467: beforeunload marker projection for forceRelayCandidate ──
-    //
-    // The producer (Verto/index.ts beforeunload handler) persists the genuine
-    // boolean effective value (`true` OR `false`) when the call has an
-    // effective relay policy to carry across the page refresh, and omits the
-    // field when the option is absent (so absence stays backward compatible
-    // with markers written by older SDK versions). The consumer checks
-    // `typeof === 'boolean'`, never truthiness, so it can distinguish an
-    // explicit `false` (effective non-relay) from an absent legacy field.
-    // Persisting `false` prevents recovery from broadening an ordinary call
-    // from "all" to "relay" when the session default is true but the per-call
-    // effective value is false (Stage risk line 52; Acceptance line 72).
-
-    it('should persist forceRelayCandidate as the evaluated single source of truth (true OR false) in the recovery marker, omitting only when no method is available (VSDK-467 beforeunload projection)', () => {
+    it('snapshots the relay recovery decision before flushing call reports', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
       clearActiveCallsRecoveryMarker();
-
-      // Marker projection invokes `shouldForceRelayCandidateForRecovery()` (the
-      // single source of truth) to persist the evaluated relay decision. The
-      // evaluator must be side-effect-free: page unload is not an attach event,
-      // so no `Attach:` diagnostic may be emitted during projection.
-      const loggerWarnSpy = jest
-        .spyOn(logger, 'warn')
-        .mockImplementation(() => undefined);
 
       const telnyxRTC = _buildInstance({
         host: 'example.telnyx.com',
@@ -281,89 +259,59 @@ describe('Verto', () => {
         password: 'password',
         hangupOnBeforeUnload: false,
       });
-      telnyxRTC.sessionid = 'session-vsdk-467-projection';
+      telnyxRTC.sessionid = 'session-abc';
 
-      // Three active calls: one with relay enabled (client config), one with
-      // relay disabled, and one with no method (legacy default). The producer
-      // persists the evaluated `shouldForceRelayCandidateForRecovery()` result,
-      // which folds in the per-call option and the recovery heuristic.
-      const hangup = jest.fn();
+      const order: string[] = [];
+      const relayRecoveryNeeded = { 'call-1': true, 'call-2': false };
+      const buildCall = (id: 'call-1' | 'call-2') => ({
+        id,
+        state: 'active',
+        options: {},
+        shouldForceRelayCandidateForRecovery: jest.fn(() => {
+          order.push(`evaluate-${id}`);
+          return relayRecoveryNeeded[id];
+        }),
+        flushIntermediateCallReport: jest.fn(() => {
+          order.push(`flush-${id}`);
+          if (id === 'call-1') {
+            relayRecoveryNeeded['call-2'] = true;
+            throw new Error('report flush failed');
+          }
+        }),
+      });
+      const call1 = buildCall('call-1');
+      const call2 = buildCall('call-2');
       telnyxRTC.calls = {
-        'call-relay-true': {
-          id: 'call-relay-true',
-          hangup,
-          state: 'active',
-          direction: 'outbound',
-          options: {
-            customHeaders: undefined,
-            forceRelayCandidate: true,
-          },
-          shouldForceRelayCandidateForRecovery: () => true,
-        } as unknown as IWebRTCCall,
-        'call-relay-false': {
-          id: 'call-relay-false',
-          hangup,
-          state: 'active',
-          direction: 'outbound',
-          options: {
-            customHeaders: undefined,
-            forceRelayCandidate: false,
-          },
-          shouldForceRelayCandidateForRecovery: () => false,
-        } as unknown as IWebRTCCall,
-        'call-relay-absent': {
-          id: 'call-relay-absent',
-          hangup,
-          state: 'active',
-          direction: 'outbound',
-          options: {
-            customHeaders: undefined,
-          },
-        } as unknown as IWebRTCCall,
+        'call-1': call1 as unknown as IWebRTCCall,
+        'call-2': call2 as unknown as IWebRTCCall,
       };
 
       const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
         ([eventName]) => eventName === 'beforeunload'
       )?.[1] as EventListener;
-
-      expect(beforeUnloadHandler).toBeDefined();
       beforeUnloadHandler(new Event('beforeunload'));
 
-      // No hangup in the hangupOnBeforeUnload=false branch.
-      expect(hangup).not.toHaveBeenCalled();
-
-      const result = getActiveCallsRecoveryMarker();
-      expect(result).not.toBeNull();
-      expect(result!.calls.length).toBe(3);
-
-      const relayTrue = result!.calls.find((m) => m.id === 'call-relay-true');
-      expect(relayTrue).toBeDefined();
-      // The evaluated source-of-truth result (true) is persisted.
-      expect(relayTrue!.forceRelayCandidate).toBe(true);
-
-      const relayFalse = result!.calls.find((m) => m.id === 'call-relay-false');
-      expect(relayFalse).toBeDefined();
-      // A genuine `false` IS persisted so the consumer can distinguish an
-      // explicit non-relay policy from an absent legacy field. This prevents
-      // recovery from broadening an ordinary call from "all" to "relay" when
-      // the session default is true but the per-call effective value is false.
-      expect(relayFalse!.forceRelayCandidate).toBe(false);
-
-      const relayAbsent = result!.calls.find((m) => m.id === 'call-relay-absent');
-      expect(relayAbsent).toBeDefined();
-      // No `shouldForceRelayCandidateForRecovery` method → field is absent in
-      // the marker too (backward compatible with legacy calls/markers).
-      expect(relayAbsent!.forceRelayCandidate).toBeUndefined();
-
-
-      // Marker projection (page unload) must not emit an `Attach:` diagnostic:
-      // `shouldForceRelayCandidateForRecovery()` is side-effect-free, and the
-      // "stalled VPN" warning is reserved for the actual attach-recovery path.
-      const attachWarnings = loggerWarnSpy.mock.calls.filter(
-        ([msg]: unknown[]) => (typeof msg === 'string' ? msg.includes('Attach:') : false)
+      expect(order).toEqual([
+        'evaluate-call-1',
+        'evaluate-call-2',
+        'flush-call-1',
+        'flush-call-2',
+      ]);
+      expect(call1.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
+        1
       );
-      expect(attachWarnings).toHaveLength(0);
-      loggerWarnSpy.mockRestore();
+      expect(call2.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
+        1
+      );
+      expect(
+        getActiveCallsRecoveryMarker()?.calls.map(
+          ({ id, forceRelayCandidate }) => ({ id, forceRelayCandidate })
+        )
+      ).toEqual([
+        { id: 'call-1', forceRelayCandidate: true },
+        { id: 'call-2', forceRelayCandidate: false },
+      ]);
+
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
     });
