@@ -2,8 +2,13 @@ import { VertoMethod, VertoModifyAction } from '../../webrtc/constants';
 import Call from '../../webrtc/Call';
 import Verto from '../..';
 import type { IVertoCallOptions } from '../../webrtc/interfaces';
-import { SDP_CREATE_OFFER_FAILED } from '../../util/constants';
+import {
+  ONLY_HOST_ICE_CANDIDATES,
+  SDP_CREATE_OFFER_FAILED,
+  SwEvent,
+} from '../../util/constants';
 import { createTelnyxError } from '../../util/errors';
+import { deRegister, register } from '../../services/Handler';
 
 const originalConsoleDebug = console.debug;
 const originalConsoleLog = console.log;
@@ -181,6 +186,130 @@ describe('Call Trickle ICE', () => {
   });
 
   describe('Trickle ICE message behavior', () => {
+    const sdpPrefix = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n';
+
+    const finishIceGathering = (sdp: string) => {
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({ type: 'offer', sdp }),
+        configurable: true,
+      });
+      call.peer.instance.onicecandidate({
+        type: 'icecandidate',
+        candidate: null,
+        target: call.peer.instance,
+      } as unknown as RTCPeerConnectionIceEvent);
+    };
+
+    afterEach(() => {
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+      jest.restoreAllMocks();
+    });
+
+    it('warns for host-only local SDP at end-of-candidates and still sends EndOfCandidates', () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest.spyOn(session, 'execute').mockResolvedValue({});
+      const restartIceSpy = jest.spyOn(call.peer, 'restartIce');
+      const startNegotiationSpy = jest.spyOn(call.peer, 'startNegotiation');
+      const hangupSpy = jest.spyOn(call, 'hangup').mockResolvedValue();
+
+      finishIceGathering(
+        sdpPrefix +
+          'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n'
+      );
+
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: ONLY_HOST_ICE_CANDIDATES,
+            name: 'ONLY_HOST_ICE_CANDIDATES',
+          }),
+          callId: call.id,
+        })
+      );
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.EndOfCandidates,
+          }),
+        })
+      );
+      expect(restartIceSpy).not.toHaveBeenCalled();
+      expect(startNegotiationSpy).not.toHaveBeenCalled();
+      expect(hangupSpy).not.toHaveBeenCalled();
+    });
+
+    it('waits for the null candidate before warning about host-only SDP', () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest.spyOn(session, 'execute').mockResolvedValue({});
+      const hostOnlySdp =
+        sdpPrefix +
+        'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n';
+
+      Object.defineProperty(call.peer.instance, 'localDescription', {
+        get: () => ({ type: 'offer', sdp: hostOnlySdp }),
+        configurable: true,
+      });
+      call.peer.instance.onicecandidate({
+        candidate: { candidate: '' } as RTCIceCandidate,
+      } as RTCPeerConnectionIceEvent);
+
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: VertoMethod.EndOfCandidates,
+          }),
+        })
+      );
+      expect(warningHandler).not.toHaveBeenCalled();
+
+      finishIceGathering(hostOnlySdp);
+
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: ONLY_HOST_ICE_CANDIDATES }),
+        })
+      );
+    });
+
+    it.each([
+      ['zero-candidate', sdpPrefix],
+      [
+        'srflx',
+        sdpPrefix +
+          'a=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx\r\n',
+      ],
+      [
+        'prflx',
+        sdpPrefix +
+          'a=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ prflx\r\n',
+      ],
+      [
+        'relay',
+        sdpPrefix +
+          'a=candidate:1 1 UDP 1006632447 198.51.100.1 54400 typ relay\r\n',
+      ],
+    ])(
+      'does not warn for %s SDP and still sends EndOfCandidates',
+      (_description, sdp) => {
+        const warningHandler = jest.fn();
+        register(SwEvent.Warning, warningHandler, session.uuid);
+        const executeSpy = jest.spyOn(session, 'execute').mockResolvedValue({});
+
+        finishIceGathering(sdp);
+
+        expect(warningHandler).not.toHaveBeenCalled();
+        expect(executeSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            request: expect.objectContaining({
+              method: VertoMethod.EndOfCandidates,
+            }),
+          })
+        );
+      }
+    );
+
     it('should handle ICE candidate events from peer connection', () => {
       // Mock session execute to capture outgoing messages
       const sessionExecuteSpy = jest
@@ -472,7 +601,9 @@ describe('Call Trickle ICE', () => {
       const modifyCall = sessionExecuteSpy.mock.calls.find(
         (c) => (c[0] as any)?.request?.method === VertoMethod.Modify
       );
-      expect((modifyCall?.[0] as any)?.request?.params?.trickle).toBeUndefined();
+      expect(
+        (modifyCall?.[0] as any)?.request?.params?.trickle
+      ).toBeUndefined();
     });
 
     it('reattached/recovered trickle call follows the trickle restart Modify flow', () => {

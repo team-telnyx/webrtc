@@ -145,9 +145,3 @@ export const {
   MEDIA_RECOVERY_REQUIRED,
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
 } = TELNYX_WARNING_CODES;
-/**
- * Regex to detect non-host ICE candidates (srflx, prflx, or relay) in SDP.
- * Used to check if only host candidates were gathered.
- */
-export const HAS_NON_HOST_ICE_CANDIDATE_REGEX =
-  /^a=candidate:.+typ (srflx|prflx|relay)/m;

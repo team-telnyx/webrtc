@@ -12,10 +12,16 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { PeerType, State, Direction } from '../../webrtc/constants';
+import {
+  PeerType,
+  State,
+  Direction,
+  VertoMethod,
+} from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
+  ONLY_HOST_ICE_CANDIDATES,
   SwEvent,
 } from '../../util/constants';
 import { LOW_BYTES_RECEIVED } from '../../util/constants/errorCodes';
@@ -78,6 +84,126 @@ describe('Call', () => {
       expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(true);
       expect(call.state).toEqual('new');
       expect(session.calls).toHaveProperty(call.id);
+    });
+  });
+
+  describe('non-trickle host-only ICE diagnostics', () => {
+    const sdpPrefix = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n';
+
+    const configurePeer = () => {
+      const startNegotiation = jest.fn();
+      const restartIce = jest.fn();
+      call.peer = {
+        iceDone: false,
+        isIceRestarting: false,
+        startNegotiation,
+        restartIce,
+        instance: { removeEventListener: jest.fn() },
+      } as unknown as Peer;
+      return { startNegotiation, restartIce };
+    };
+
+    afterEach(() => {
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+      jest.restoreAllMocks();
+    });
+
+    it('warns for host-only SDP while Invite signaling continues without recovery or hangup', async () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+      const hangupSpy = jest.spyOn(call, 'hangup').mockResolvedValue();
+      const { startNegotiation, restartIce } = configurePeer();
+      const hostOnlySdp =
+        sdpPrefix +
+        'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n' +
+        'a=candidate:2 1 TCP 2113667326 192.168.1.1 9 typ host tcptype active\r\n';
+
+      (
+        call as unknown as {
+          _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+        }
+      )._onIceSdp({
+        type: PeerType.Offer,
+        sdp: hostOnlySdp,
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: ONLY_HOST_ICE_CANDIDATES,
+            name: 'ONLY_HOST_ICE_CANDIDATES',
+          }),
+          callId: call.id,
+        })
+      );
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: VertoMethod.Invite }),
+        })
+      );
+      expect(startNegotiation).not.toHaveBeenCalled();
+      expect(restartIce).not.toHaveBeenCalled();
+      expect(hangupSpy).not.toHaveBeenCalled();
+    });
+
+    it.each(['srflx', 'prflx', 'relay'])(
+      'does not warn when SDP contains a %s candidate',
+      async (candidateType) => {
+        const warningHandler = jest.fn();
+        register(SwEvent.Warning, warningHandler, session.uuid);
+        const executeSpy = jest
+          .spyOn(session, 'execute')
+          .mockResolvedValue({ node_id: null });
+        configurePeer();
+
+        (
+          call as unknown as {
+            _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+          }
+        )._onIceSdp({
+          type: PeerType.Offer,
+          sdp:
+            sdpPrefix +
+            'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n' +
+            `a=candidate:2 1 UDP 1694498815 198.51.100.1 54401 typ ${candidateType}\r\n`,
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(warningHandler).not.toHaveBeenCalled();
+        expect(executeSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            request: expect.objectContaining({ method: VertoMethod.Invite }),
+          })
+        );
+      }
+    );
+
+    it('does not classify zero-candidate SDP as host-only and still signals it', async () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+      const { startNegotiation } = configurePeer();
+
+      (
+        call as unknown as {
+          _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+        }
+      )._onIceSdp({ type: PeerType.Offer, sdp: sdpPrefix });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(warningHandler).not.toHaveBeenCalled();
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: VertoMethod.Invite }),
+        })
+      );
+      expect(startNegotiation).not.toHaveBeenCalled();
     });
   });
 
