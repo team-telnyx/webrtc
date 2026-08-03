@@ -10,15 +10,9 @@
     "postpublish": "pinst --enable",
     "prepare": "husky install"
   },
-  "workspaces": {
-    "packages": [
-      "packages/*"
-    ],
-    "nohoist": [
-      "**/react-native",
-      "**/react-native/**"
-    ]
-  },
+  "workspaces": [
+    "packages/*"
+  ],
   "repository": "git@github.com:team-telnyx/webrtc.git",
   "author": "Deivid Veloso <veloso.deivid@gmail.com>",
   "license": "MIT",
