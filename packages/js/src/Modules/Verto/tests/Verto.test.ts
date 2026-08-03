@@ -43,7 +43,6 @@ describe('Verto', () => {
       })
     );
     //VertoHandler.call(this, Verto)
-    //LayoutHandler.call(this, Verto)
   });
 
   beforeEach(() => {

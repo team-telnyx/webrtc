@@ -687,6 +687,129 @@ describe('VertoHandler', () => {
     });
   });
 
+  describe('telnyx_rtc.event', () => {
+    it('preserves exact-channel subscription delivery', () => {
+      const channel = 'application.events';
+      const onEvent = jest.fn();
+      (instance as any)._addSubscription(
+        instance.relayProtocol,
+        onEvent,
+        channel
+      );
+      const params = { eventChannel: channel, eventData: { status: 'ok' } };
+
+      handler.handleMessage({
+        jsonrpc: '2.0',
+        id: 38,
+        method: 'telnyx_rtc.event',
+        params,
+      });
+
+      expect(onEvent).toHaveBeenCalledWith(params);
+      (instance as any)._removeSubscription(instance.relayProtocol, channel);
+    });
+
+    it('preserves prefix subscription delivery', () => {
+      const channel = 'presence';
+      const onEvent = jest.fn();
+      (instance as any)._addSubscription(
+        instance.relayProtocol,
+        onEvent,
+        channel
+      );
+      const params = {
+        eventChannel: `${channel}.user-123`,
+        eventData: { state: 'online' },
+      };
+
+      handler.handleMessage({
+        jsonrpc: '2.0',
+        id: 39,
+        method: 'telnyx_rtc.event',
+        params,
+      });
+
+      expect(onEvent).toHaveBeenCalledWith(params);
+      (instance as any)._removeSubscription(instance.relayProtocol, channel);
+    });
+
+    it('preserves call-scoped event delivery', () => {
+      _setupCall({ id: 'call-event-channel' });
+      call.handleMessage = jest.fn();
+      const msg = {
+        jsonrpc: '2.0',
+        id: 40,
+        method: 'telnyx_rtc.event',
+        params: {
+          eventChannel: call.id,
+          eventData: { type: 'call-event' },
+        },
+      };
+
+      handler.handleMessage(msg);
+
+      expect(call.handleMessage).toHaveBeenCalledWith(msg);
+    });
+
+    it('preserves generic application event delivery', () => {
+      const params = {
+        eventChannel: 'application.unsubscribed',
+        eventData: { type: 'application-event' },
+      };
+
+      handler.handleMessage({
+        jsonrpc: '2.0',
+        id: 41,
+        method: 'telnyx_rtc.event',
+        params,
+      });
+
+      expect(onNotification).toHaveBeenCalledWith(params);
+    });
+
+    it('ignores unsupported private-channel events without subscribing', async () => {
+      instance.vertoSubscribe = jest.fn().mockResolvedValue({
+        subscribed: ['conference-live-array.test'],
+      });
+
+      await handler.handleMessage({
+        jsonrpc: '2.0',
+        id: 38,
+        method: 'telnyx_rtc.event',
+        params: {
+          eventType: 'channelPvtData',
+          pvtData: {
+            action: 'conference-liveArray-join',
+            laChannel: 'conference-live-array.test',
+            laName: 'test-conference',
+          },
+        },
+      });
+
+      expect(instance.vertoSubscribe).not.toHaveBeenCalled();
+      expect(onNotification).not.toHaveBeenCalled();
+    });
+
+    it('ignores unsupported session-scoped conference events', () => {
+      instance.sessionid = 'test-session';
+
+      handler.handleMessage({
+        jsonrpc: '2.0',
+        id: 39,
+        method: 'telnyx_rtc.event',
+        params: {
+          eventChannel: instance.sessionid,
+          eventData: {
+            contentType: 'layout-info',
+            canvasType: 'mcu-personal-canvas',
+          },
+        },
+      });
+
+      expect(onNotification).not.toHaveBeenCalled();
+    });
+  });
+
   describe('telnyx_rtc.gatewayState', () => {
     it('should dispatch a telnyx.ready notification', () => {
       handler.handleMessage(

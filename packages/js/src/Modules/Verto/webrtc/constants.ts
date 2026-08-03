@@ -37,7 +37,6 @@ export const NOTIFICATION_TYPE = {
   generic: 'event',
   [VertoMethod.Display]: 'participantData',
   [VertoMethod.Attach]: 'participantData',
-  conferenceUpdate: 'conferenceUpdate',
   callUpdate: 'callUpdate',
   vertoClientReady: 'vertoClientReady',
   userMediaError: 'userMediaError',
@@ -114,27 +113,6 @@ export enum State {
   Hangup,
   Destroy,
   Purge,
-}
-
-export enum Role {
-  Participant = 'participant',
-  Moderator = 'moderator',
-}
-
-export enum ConferenceAction {
-  Join = 'join',
-  Leave = 'leave',
-  Bootstrap = 'bootstrap',
-  Add = 'add',
-  Modify = 'modify',
-  Delete = 'delete',
-  Clear = 'clear',
-  ChatMessage = 'chatMessage',
-  LayerInfo = 'layerInfo',
-  LogoInfo = 'logoInfo',
-  LayoutInfo = 'layoutInfo',
-  LayoutList = 'layoutList',
-  ModCmdResponse = 'modCommandResponse',
 }
 
 export enum DeviceType {

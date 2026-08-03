@@ -1,5 +1,4 @@
 import { IMessageRPC, IVertoOptions } from './interfaces';
-import logger from './logger';
 import { STORAGE_PREFIX } from './constants';
 import { GatewayStateType } from '../webrtc/constants';
 
@@ -9,31 +8,6 @@ export const deepCopy = (obj: Object) => JSON.parse(JSON.stringify(obj));
 export const objEmpty = (obj: Object) => Object.keys(obj).length === 0;
 
 export const mutateStorageKey = (key: string) => `${STORAGE_PREFIX}${key}`;
-
-export const mutateLiveArrayData = (data: any) => {
-  const [
-    participantId,
-    participantNumber,
-    participantName,
-    codec,
-    mediaJson,
-    participantData,
-  ] = data;
-  let media = {};
-  try {
-    media = JSON.parse(mediaJson.replace(/ID"/g, 'Id"'));
-  } catch (error) {
-    logger.warn('Verto LA invalid media JSON string:', mediaJson);
-  }
-  return {
-    participantId: Number(participantId),
-    participantNumber,
-    participantName,
-    codec,
-    media,
-    participantData,
-  };
-};
 
 export const safeParseJson = (value: string): string | Object => {
   if (typeof value !== 'string') {

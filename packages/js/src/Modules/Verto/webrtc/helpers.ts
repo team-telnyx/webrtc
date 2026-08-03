@@ -364,17 +364,6 @@ const sdpMediaOrderHack = (answer: string, localOffer: string): string => {
 
 type SubscribeResponse = Record<string, string[] | undefined>;
 
-const checkSubscribeResponse = (
-  response: SubscribeResponse,
-  channel: string
-): boolean => {
-  if (!response) {
-    return false;
-  }
-  const { subscribed, alreadySubscribed } = destructSubscribeResponse(response);
-  return subscribed.includes(channel) || alreadySubscribed.includes(channel);
-};
-
 type DestructuredResult = {
   subscribed: string[];
   alreadySubscribed: string[];
@@ -879,7 +868,6 @@ export {
   sdpMediaOrderHack,
   sdpBitrateHack,
   sdpBitrateASHack,
-  checkSubscribeResponse,
   destructSubscribeResponse,
   enableAudioTracks,
   disableAudioTracks,
