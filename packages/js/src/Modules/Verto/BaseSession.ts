@@ -1188,6 +1188,17 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Called by Connection.send() when a request we sent comes back
+   * answered. Feeds the monitor's outbound-liveness clock, which is what
+   * distinguishes a working socket from one that only still receives.
+   *
+   * Public because Connection calls it; not part of the app-facing API.
+   */
+  public onOutboundConfirmed(): void {
+    this._signalingHealthMonitor.onOutboundConfirmed();
+  }
+
+  /**
    * Returns true if there is at least one active (non-terminated) call.
    * Public so that BaseCall can check if the monitor should stop.
    */
