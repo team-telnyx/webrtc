@@ -37,7 +37,6 @@ import {
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
-  HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
@@ -88,6 +87,7 @@ import {
   enableVideoTracks,
   getStreamTrackDebugInfo,
   getTrackDebugInfo,
+  hasOnlyHostIceCandidates,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -1891,24 +1891,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _requestAnotherLocalDescription() {
-    if (isFunction(this.peer.onSdpReadyTwice)) {
-      const telnyxError = createTelnyxError(
-        SDP_SEND_FAILED,
-        new Error('SDP without candidates for the second time!')
-      );
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
+  private _warnIfOnlyHostIceCandidates(sdp: string | null | undefined) {
+    if (!hasOnlyHostIceCandidates(sdp)) {
       return;
     }
-    Object.defineProperty(this.peer, 'onSdpReadyTwice', {
-      value: this._onIceSdp.bind(this),
-    });
-    this.peer.iceDone = false;
-    this.peer.startNegotiation();
+
+    const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
+    logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
+    trigger(
+      SwEvent.Warning,
+      { warning, callId: this.id, sessionId: this.session.sessionid },
+      this.session.uuid
+    );
   }
 
   private _onIceSdp(data: RTCSessionDescription | null) {
@@ -1929,24 +1923,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const { sdp, type } = data;
 
-    if (sdp.indexOf('candidate') === -1) {
-      logger.info('No candidate - retry \n');
-      this._requestAnotherLocalDescription();
-      return;
-    }
-
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
-
-    // W5d: Check for host-only ICE candidates (non-trickle path)
-    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
-      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
-      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
-      trigger(
-        SwEvent.Warning,
-        { warning, callId: this.id, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
-    }
+    this._warnIfOnlyHostIceCandidates(sdp);
 
     performance.mark(callMarkName(this.id, 'ice-gathering-end'));
     let msg = null;
@@ -2165,6 +2143,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._trackCandidateMarks(event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
+      if (event.candidate === null) {
+        this._warnIfOnlyHostIceCandidates(
+          this.peer?.instance?.localDescription?.sdp
+        );
+      }
       this._sendEndOfCandidates();
     }
   }

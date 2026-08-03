@@ -831,6 +831,21 @@ function stopAudio(audioElement: IAudio): void {
   }
 }
 
+const hasOnlyHostIceCandidates = (sdp: string | null | undefined): boolean => {
+  if (!sdp) {
+    return false;
+  }
+
+  const candidateLines = sdp
+    .split(/\r?\n/)
+    .filter((line) => /^a=candidate:/i.test(line));
+
+  return (
+    candidateLines.length > 0 &&
+    candidateLines.every((line) => /\styp\s+host(?:\s|$)/i.test(line))
+  );
+};
+
 const getPreferredCodecs = (preferred_codecs?: RTCRtpCodecCapability[]) => {
   const audioCodecs: RTCRtpCodecCapability[] = [];
   const videoCodecs: RTCRtpCodecCapability[] = [];
@@ -883,6 +898,7 @@ export {
   getPreferredCodecs,
   getTrackDebugInfo,
   getStreamTrackDebugInfo,
+  hasOnlyHostIceCandidates,
   // Exported for testing
   isDeviceNotFoundError,
   getConstraintsWithoutDeviceId,
