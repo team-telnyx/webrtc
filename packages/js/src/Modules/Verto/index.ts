@@ -59,46 +59,6 @@ export default class Verto extends BrowserSession {
         return;
       }
 
-      // Flush clears collector evidence, so snapshot the final relay decision
-      // for every active call before flushing any of them.
-      const activeCallSnapshots = this.getActiveCalls().map((call) => {
-        let forceRelayCandidate = false;
-        try {
-          forceRelayCandidate = call.shouldForceRelayCandidateForRecovery();
-        } catch (err) {
-          logger.debug(
-            `Failed to snapshot relay policy for ${call.id}: ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
-        }
-        return { call, forceRelayCandidate };
-      });
-
-      // hangupOnBeforeUnload === false: calls are kept alive across unload, so
-      // they never hang up and no final call report is ever posted for a call
-      // the user reloads/closes on — its report would otherwise be lost. Flush
-      // an intermediate call report for each active call and send it with
-      // keepalive (threaded via the `page-unload` flush reason) so the POST is
-      // allowed to outlive the document tear-down; a plain async POST would be
-      // cut off. Done here, before the recovery-marker logic below, so it still
-      // runs even when there is no sessionid to persist. Redundant flushes are
-      // cheap — CallReportCollector.flush() returns null when nothing new has
-      // buffered since the last flush.
-      activeCallSnapshots.forEach(({ call }) => {
-        if (!call.flushIntermediateCallReport) return;
-        try {
-          logger.debug(`beforeunload: flushing call report for ${call.id}.`);
-          call.flushIntermediateCallReport({ type: 'page-unload' });
-        } catch (err) {
-          logger.debug(
-            `beforeunload: failed to flush call report for ${call.id}: ${
-              err instanceof Error ? err.message : String(err)
-            }`
-          );
-        }
-      });
-
       // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
       // before unload, so the server may still know about them. After a page
       // reload the SDK starts with a fresh in-memory cache and may not detect
@@ -118,58 +78,71 @@ export default class Verto extends BrowserSession {
       // written when the page is truly going away, regardless of how the SDK
       // handles transient socket drops.
       try {
-        const storedActiveCalls = activeCallSnapshots.map(
-          ({ call, forceRelayCandidate }) => {
-            const stored: {
-              id: typeof call.id;
-              customHeaders: typeof call.options.customHeaders;
-              remoteElement?: string;
-              localElement?: string;
-              wasHeld?: boolean;
-              forceRelayCandidate: boolean;
-            } = {
-              id: call.id,
-              customHeaders: call.options.customHeaders,
-              forceRelayCandidate,
-            };
-            // Persist held state for page-reload attach-recovery.
-            if (call.state === 'held') {
-              stored.wasHeld = true;
-            }
-            // Persist per-call media elements ONLY in their serializable string
-            // form (element id). DOM elements and Function resolvers are not
-            // serializable and cannot survive a page reload, so we skip them
-            // (VSDK-316: keep host objects out of sessionStorage). On the next
-            // page the SDK restores the id and re-resolves the element via
-            // document.getElementById.
-            if (typeof call.options.remoteElement === 'string') {
-              stored.remoteElement = call.options.remoteElement;
-            } else if (
-              // VSDK-408: a call that relies on the session-level
-              // `client.remoteElement` default inherits the *resolved* DOM
-              // element (the session setter resolves string→HTML immediately),
-              // so `typeof === 'string'` is false and the session-level id was
-              // silently dropped. Fall back to the session-level string id
-              // when the call's element is the session default (same
-              // reference) and the session captured a string id. A call with
-              // a per-call DOM/Function element is NOT the session default, so
-              // it is intentionally skipped (no stable id to persist).
-              this.remoteElementId &&
-              call.options.remoteElement === this.remoteElement
-            ) {
-              stored.remoteElement = this.remoteElementId;
-            }
-            if (typeof call.options.localElement === 'string') {
-              stored.localElement = call.options.localElement;
-            } else if (
-              this.localElementId &&
-              call.options.localElement === this.localElement
-            ) {
-              stored.localElement = this.localElementId;
-            }
-            return stored;
+        const storedActiveCalls = this.getActiveCalls().map((call) => {
+          const stored: {
+            id: typeof call.id;
+            customHeaders: typeof call.options.customHeaders;
+            remoteElement?: string;
+            localElement?: string;
+            wasHeld?: boolean;
+            forceRelayCandidate: boolean;
+          } = {
+            id: call.id,
+            customHeaders: call.options.customHeaders,
+            forceRelayCandidate: call.shouldForceRelayCandidateForRecovery(),
+          };
+          // Persist held state for page-reload attach-recovery.
+          if (call.state === 'held') {
+            stored.wasHeld = true;
           }
-        );
+          // Persist per-call media elements ONLY in their serializable string
+          // form (element id). DOM elements and Function resolvers are not
+          // serializable and cannot survive a page reload, so we skip them
+          // (VSDK-316: keep host objects out of sessionStorage). On the next
+          // page the SDK restores the id and re-resolves the element via
+          // document.getElementById.
+          if (typeof call.options.remoteElement === 'string') {
+            stored.remoteElement = call.options.remoteElement;
+          } else if (
+            // VSDK-408: a call that relies on the session-level
+            // `client.remoteElement` default inherits the *resolved* DOM
+            // element (the session setter resolves string→HTML immediately),
+            // so `typeof === 'string'` is false and the session-level id was
+            // silently dropped. Fall back to the session-level string id
+            // when the call's element is the session default (same
+            // reference) and the session captured a string id. A call with
+            // a per-call DOM/Function element is NOT the session default, so
+            // it is intentionally skipped (no stable id to persist).
+            this.remoteElementId &&
+            call.options.remoteElement === this.remoteElement
+          ) {
+            stored.remoteElement = this.remoteElementId;
+          }
+          if (typeof call.options.localElement === 'string') {
+            stored.localElement = call.options.localElement;
+          } else if (
+            this.localElementId &&
+            call.options.localElement === this.localElement
+          ) {
+            stored.localElement = this.localElementId;
+          }
+          return stored;
+        });
+
+        // Snapshot policy before flushing clears collector evidence.
+        this.getActiveCalls().forEach((call) => {
+          if (!call.flushIntermediateCallReport) return;
+          try {
+            logger.debug(`beforeunload: flushing call report for ${call.id}.`);
+            call.flushIntermediateCallReport({ type: 'page-unload' });
+          } catch (err) {
+            logger.debug(
+              `beforeunload: failed to flush call report for ${call.id}: ${
+                err instanceof Error ? err.message : String(err)
+              }`
+            );
+          }
+        });
 
         if (!this.sessionid || storedActiveCalls.length === 0) {
           logger.debug(
