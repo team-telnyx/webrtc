@@ -192,7 +192,9 @@ export interface IClientOptions {
   rtcPort?: number;
 
   /**
-   *  Use Telnyx's Canary RTC server
+   * Override VSP RTC routing for this connection. `true` forces the Canary
+   * RTC server, `false` forces the stable RTC server, and omission leaves
+   * routing to VSP's default load-based behavior.
    */
   useCanaryRtcServer?: boolean;
 

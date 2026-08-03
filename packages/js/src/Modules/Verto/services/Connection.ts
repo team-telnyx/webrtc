@@ -57,8 +57,8 @@ export default class Connection {
   private _wsClient: WebSocket | null = null;
   private _host: string = PROD_HOST;
   private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
-  private _useCanaryRtcServer: boolean = false;
-  private _hasCanaryBeenUsed: boolean = false;
+  /** Canary override associated with the currently stored reconnect token. */
+  private _reconnectTokenCanaryRtcServer: boolean | undefined;
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -107,10 +107,6 @@ export default class Connection {
     if (region) {
       this._host = this._host.replace(/rtc(dev)?/, `${region}.rtc$1`);
     }
-
-    if (useCanaryRtcServer) {
-      this._useCanaryRtcServer = true;
-    }
   }
 
   get connected(): boolean {
@@ -152,10 +148,10 @@ export default class Connection {
 
     const websocketUrl = new URL(this._host);
     let reconnectToken = getReconnectToken();
+    let canaryRtcServerForConnection: boolean | undefined;
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
-      this._useCanaryRtcServer = false;
       websocketUrl.searchParams.set('rtc_ip', this.session.options.rtcIp);
       websocketUrl.searchParams.set(
         'rtc_port',
@@ -167,15 +163,26 @@ export default class Connection {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
     }
 
-    if (this._useCanaryRtcServer) {
-      websocketUrl.searchParams.set('canary', 'true');
+    if (
+      !(this.session.options.rtcIp && this.session.options.rtcPort) &&
+      typeof this.session.options.useCanaryRtcServer === 'boolean'
+    ) {
+      canaryRtcServerForConnection = this.session.options.useCanaryRtcServer;
+      websocketUrl.searchParams.set(
+        'canary',
+        String(canaryRtcServerForConnection)
+      );
 
-      if (reconnectToken && !this._hasCanaryBeenUsed) {
+      if (
+        reconnectToken &&
+        canaryRtcServerForConnection !== this._reconnectTokenCanaryRtcServer
+      ) {
         websocketUrl.searchParams.delete('voice_sdk_id');
-        logger.debug('first canary connection. Refreshing voice_sdk_id');
+        logger.debug('Canary routing changed. Refreshing voice_sdk_id', {
+          previous: this._reconnectTokenCanaryRtcServer,
+          current: canaryRtcServerForConnection,
+        });
       }
-
-      this._hasCanaryBeenUsed = true;
     }
 
     // Snapshot the owning session's voice_sdk_id for call report uploads.
@@ -212,7 +219,10 @@ export default class Connection {
       });
       this.lastInboundAt = 0;
       this._cleanupPendingRequests();
-      this._registerSocketEvents(this._wsClient);
+      this._registerSocketEvents(
+        this._wsClient,
+        canaryRtcServerForConnection
+      );
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
@@ -344,7 +354,10 @@ export default class Connection {
     );
   }
 
-  private _registerSocketEvents(ws: WebSocket): void {
+  private _registerSocketEvents(
+    ws: WebSocket,
+    canaryRtcServerForConnection: boolean | undefined
+  ): void {
     // Capture the generation at registration time — when this socket's
     // event handlers are being attached — not at event-dispatch time.
     // If a reconnect creates a new socket (incrementing socketGeneration)
@@ -444,6 +457,7 @@ export default class Connection {
       if (msg.voice_sdk_id) {
         this.session.callReportVoiceSdkId = msg.voice_sdk_id;
         setReconnectToken(msg.voice_sdk_id);
+        this._reconnectTokenCanaryRtcServer = canaryRtcServerForConnection;
       }
       this._unsetTimer(msg.id);
       logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');

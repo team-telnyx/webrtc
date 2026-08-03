@@ -533,4 +533,6 @@ Enable or disable Trickle ICE.
 
 • `Optional` **useCanaryRtcServer**: `boolean`
 
-Use Telnyx's Canary RTC server
+Override VSP RTC routing for this connection. `true` forces the Canary RTC
+server, `false` forces the stable RTC server, and omission leaves routing to
+VSP's default load-based behavior.
