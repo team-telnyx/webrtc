@@ -198,8 +198,6 @@ export interface IWebRTCCall {
   options: IVertoCallOptions;
   cause: string;
   causeCode: number;
-  channels: string[];
-  role: string;
   extension: string;
   localStream: MediaStream;
   remoteStream: MediaStream;
@@ -234,8 +232,6 @@ export interface IWebRTCCall {
   setState: (state: State) => void;
   // Privates
   handleMessage: (msg: any) => void;
-  _addChannel: (laChannel: any) => void;
-  handleConferenceUpdate: (packet: any, pvtData: any) => Promise<string>;
   // WEB
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
   stopScreenShare?: () => Promise<void>;
@@ -244,8 +240,15 @@ export interface IWebRTCCall {
   setSpeakerPhone?: (flag: boolean) => void;
   // AI Conversation
   sendConversationMessage?: (message: string, attachments?: string[]) => void;
-  sendAIConversationMessage?: (item: import('./AIConversationTypes').FunctionCallOutputItem) => void;
-  recordSessionWarning?: (code: string, name: string, message: string, activeCallIds?: string[]) => void;
+  sendAIConversationMessage?: (
+    item: import('./AIConversationTypes').FunctionCallOutputItem
+  ) => void;
+  recordSessionWarning?: (
+    code: string,
+    name: string,
+    message: string,
+    activeCallIds?: string[]
+  ) => void;
 }
 export interface IWebRTCInfo {
   browserInfo: any;

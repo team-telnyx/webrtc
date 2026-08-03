@@ -49,7 +49,7 @@ import {
   TelnyxError,
 } from '../util/errors';
 import { ITelnyxWarning } from '../util/constants/warnings';
-import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
+import { isFunction, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
@@ -61,11 +61,9 @@ import {
   stopStream,
 } from '../util/webrtc';
 import Call from './Call';
-import { MCULayoutEventHandler } from './LayoutHandler';
 import { callMarkName, clearCallMarks } from './CallEstablishmentTimings';
 import Peer from './Peer';
 import {
-  ConferenceAction,
   DEFAULT_CALL_OPTIONS,
   DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS,
   DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES,
@@ -73,13 +71,11 @@ import {
   Direction,
   NOTIFICATION_TYPE,
   PeerType,
-  Role,
   State,
   VertoMethod,
   VertoModifyAction,
 } from './constants';
 import {
-  checkSubscribeResponse,
   createAudio,
   disableAudioTracks,
   disableVideoTracks,
@@ -189,10 +185,6 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   public sipCallId: string;
 
-  public channels: string[] = [];
-
-  public role: string = Role.Participant;
-
   public extension: string = null;
 
   get creatingPeer(): boolean {
@@ -215,8 +207,6 @@ export default abstract class BaseCall implements IWebRTCCall {
   private gotAnswer: boolean = false;
 
   private gotEarly: boolean = false;
-
-  private _lastSerno: number = 0;
 
   private _targetNodeId: string = null;
 
@@ -409,10 +399,6 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   get remoteStream() {
     return this.options.remoteStream;
-  }
-
-  get memberChannel() {
-    return `conference-member.${this.id}`;
   }
 
   /**
@@ -1563,193 +1549,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async handleConferenceUpdate(packet: any, initialPvtData: any) {
-    // FIXME: 'reorder' - changepage' - 'heartbeat' methods not implemented
-    if (
-      !this._checkConferenceSerno(packet.wireSerno) &&
-      packet.name !== initialPvtData.laName
-    ) {
-      logger.error(
-        'ConferenceUpdate invalid wireSerno or packet name:',
-        packet
-      );
-      return 'INVALID_PACKET';
-    }
-    const {
-      action,
-      data,
-      hashKey: callId = String(this._lastSerno),
-      arrIndex: index,
-    } = packet;
-    switch (action) {
-      case 'bootObj': {
-        this._lastSerno = 0;
-        const {
-          chatChannel,
-          infoChannel,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          modChannel,
-          laName,
-          conferenceMemberID,
-          role,
-        } = initialPvtData;
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.Join,
-          conferenceName: laName,
-          participantId: Number(conferenceMemberID),
-          role,
-        });
-        if (chatChannel) {
-          await this._subscribeConferenceChat(chatChannel);
-        }
-        if (infoChannel) {
-          await this._subscribeConferenceInfo(infoChannel);
-        }
-        const participants = [];
-        for (const i in data) {
-          participants.push({
-            callId: data[i][0],
-            index: Number(i),
-            ...mutateLiveArrayData(data[i][1]),
-          });
-        }
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.Bootstrap,
-          participants,
-        });
-        break;
-      }
-      case 'add': {
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.Add,
-          callId,
-          index,
-          ...mutateLiveArrayData(data),
-        });
-        break;
-      }
-      case 'modify':
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.Modify,
-          callId,
-          index,
-          ...mutateLiveArrayData(data),
-        });
-        break;
-      case 'del':
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.Delete,
-          callId,
-          index,
-          ...mutateLiveArrayData(data),
-        });
-        break;
-      case 'clear':
-        this._dispatchConferenceUpdate({ action: ConferenceAction.Clear });
-        break;
-      // case 'reorder':
-      //   break
-      default:
-        this._dispatchConferenceUpdate({ action, data, callId, index });
-        break;
-    }
-  }
-
-  _addChannel(channel: string): void {
-    if (!this.channels.includes(channel)) {
-      this.channels.push(channel);
-    }
-    const protocol = this.session.relayProtocol;
-    if (this.session._existsSubscription(protocol, channel)) {
-      this.session.subscriptions[protocol][channel] = {
-        ...this.session.subscriptions[protocol][channel],
-        callId: this.id,
-      };
-    }
-  }
-
-  private async _subscribeConferenceChat(channel: string) {
-    const tmp = {
-      nodeId: this.nodeId,
-      channels: [channel],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      handler: (params: any) => {
-        const {
-          direction,
-          from: participantNumber,
-          fromDisplay: participantName,
-          message: messageText,
-          type: messageType,
-        } = params.data;
-        this._dispatchConferenceUpdate({
-          action: ConferenceAction.ChatMessage,
-          direction,
-          participantNumber,
-          participantName,
-          messageText,
-          messageType,
-          messageId: params.eventSerno,
-        });
-      },
-    };
-    const response = await this.session.vertoSubscribe(tmp).catch((error) => {
-      logger.error('ConfChat subscription error:', error);
-    });
-    if (checkSubscribeResponse(response, channel)) {
-      this._addChannel(channel);
-      Object.defineProperties(this, {
-        sendChatMessage: {
-          configurable: true,
-          value: (message: string, type: string) => {
-            this.session.vertoBroadcast({
-              nodeId: this.nodeId,
-              channel,
-              data: { action: 'send', message, type },
-            });
-          },
-        },
-      });
-    }
-  }
-
-  private async _subscribeConferenceInfo(channel: string) {
-    const tmp = {
-      nodeId: this.nodeId,
-      channels: [channel],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      handler: (params: any) => {
-        const { eventData } = params;
-        switch (eventData.contentType) {
-          case 'layout-info':
-            // FIXME: workaround to fix missing callID on payload
-            eventData.callID = this.id;
-            MCULayoutEventHandler(this.session, eventData);
-            break;
-          default:
-            logger.error('Conference-Info unknown contentType', params);
-        }
-      },
-    };
-    const response = await this.session.vertoSubscribe(tmp).catch((error) => {
-      logger.error('ConfInfo subscription error:', error);
-    });
-    if (checkSubscribeResponse(response, channel)) {
-      this._addChannel(channel);
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _confControl(channel: string, params: any = {}) {
-    const data = {
-      application: 'conf-control',
-      callID: this.id,
-      value: null,
-      ...params,
-    };
-    this.session.vertoBroadcast({ nodeId: this.nodeId, channel, data });
-  }
-
   private _handleChangeHoldStateSuccess(response) {
     response.holdState === 'active'
       ? this.setState(State.Active)
@@ -2301,17 +2100,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
-  private _checkConferenceSerno = (serno: number) => {
-    const check =
-      serno < 0 ||
-      !this._lastSerno ||
-      (this._lastSerno && serno === this._lastSerno + 1);
-    if (check && serno >= 0) {
-      this._lastSerno = serno;
-    }
-    return check;
-  };
-
   private _onMediaError(error: TelnyxError) {
     const errorName = error?.name || 'UnknownError';
     const errorMessage = error?.message || 'Unknown media error';
@@ -2373,15 +2161,6 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.debug(
       'Peer connection signaling state closed, call is not recoverable'
     );
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _dispatchConferenceUpdate(params: any) {
-    this._dispatchNotification({
-      type: NOTIFICATION_TYPE.conferenceUpdate,
-      call: this,
-      ...params,
-    });
   }
 
   private _dispatchNotification(notification: INotificationEventData) {

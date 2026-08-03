@@ -1,7 +1,6 @@
 import { IVertoOptions } from '../util/interfaces';
 import {
   objEmpty,
-  mutateLiveArrayData,
   safeParseJson,
   isDefined,
   checkWebSocketHost,
@@ -17,25 +16,6 @@ describe('Helpers functions', () => {
 
       const tmp1 = {};
       expect(objEmpty(tmp1)).toEqual(true);
-    });
-  });
-
-  describe('mutateLiveArrayData', () => {
-    it('should filter data from liveArray', () => {
-      const data = JSON.parse(
-        '["0067","email@domain.com","Js Client Test","opus@48000","{\\"audio\\":{\\"muted\\":false,\\"deaf\\":false,\\"onHold\\":false,\\"talking\\":true,\\"floor\\":true,\\"energyScore\\":1159},\\"video\\":{\\"visible\\":true,\\"videoOnly\\":false,\\"avatarPresented\\":false,\\"mediaFlow\\":\\"sendRecv\\",\\"muted\\":false,\\"floor\\":true,\\"reservationID\\":null,\\"roleID\\":null,\\"videoLayerID\\":1},\\"oldStatus\\":\\"TALKING (FLOOR) VIDEO (FLOOR)\\"}",{"email":"email","avatar":"avatar"},null]'
-      );
-      const media = JSON.parse(
-        '{"audio":{"muted":false,"deaf":false,"onHold":false,"talking":true,"floor":true,"energyScore":1159},"video":{"visible":true,"videoOnly":false,"avatarPresented":false,"mediaFlow":"sendRecv","muted":false,"floor":true,"reservationId":null,"roleId":null,"videoLayerId":1},"oldStatus":"TALKING (FLOOR) VIDEO (FLOOR)"}'
-      );
-      expect(mutateLiveArrayData(data)).toMatchObject({
-        participantId: 67,
-        participantNumber: 'email@domain.com',
-        participantName: 'Js Client Test',
-        codec: 'opus@48000',
-        media,
-        participantData: { email: 'email', avatar: 'avatar' },
-      });
     });
   });
 
