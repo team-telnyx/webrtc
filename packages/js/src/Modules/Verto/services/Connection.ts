@@ -171,15 +171,15 @@ export default class Connection {
       websocketUrl.searchParams.set('voice_sdk_id', reconnectToken);
     }
 
-    if (
-      !(this.session.options.rtcIp && this.session.options.rtcPort) &&
-      typeof this.session.options.useCanaryRtcServer === 'boolean'
-    ) {
+    if (!(this.session.options.rtcIp && this.session.options.rtcPort)) {
       canaryRtcServerForConnection = this.session.options.useCanaryRtcServer;
-      websocketUrl.searchParams.set(
-        'canary',
-        String(canaryRtcServerForConnection)
-      );
+
+      if (typeof canaryRtcServerForConnection === 'boolean') {
+        websocketUrl.searchParams.set(
+          'canary',
+          String(canaryRtcServerForConnection)
+        );
+      }
 
       if (
         reconnectToken &&
