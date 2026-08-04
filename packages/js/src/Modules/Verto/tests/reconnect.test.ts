@@ -2,6 +2,7 @@ import {
   clearReconnectToken,
   getReconnectSessionId,
   getReconnectToken,
+  getReconnectTokenCanaryRtcServer,
   RECONNECT_SESSION_ID_MAX_AGE_MS,
   setReconnectSessionId,
   setReconnectToken,
@@ -11,6 +12,7 @@ import {
   RECOVERY_MARKER_MAX_AGE_MS,
   type IStoredActiveCall,
 } from '../util/reconnect';
+import Verto from '..';
 
 const ACTIVE_CALLS_KEY = 'telnyx-voice-sdk-active-calls';
 
@@ -42,6 +44,62 @@ describe('reconnect token storage', () => {
 
     expect(getReconnectToken()).toBeNull();
     expect(getReconnectSessionId()).toBeNull();
+  });
+
+  it.each([true, false])(
+    'keeps the canary=%s routing association with voice_sdk_id across a page refresh',
+    (useCanaryRtcServer) => {
+      setReconnectToken('voice-sdk-id', useCanaryRtcServer);
+
+      window.dispatchEvent(new Event('beforeunload'));
+
+      expect(getReconnectToken()).toBe('voice-sdk-id');
+      expect(getReconnectTokenCanaryRtcServer()).toBe(useCanaryRtcServer);
+
+      clearReconnectToken();
+    }
+  );
+
+  it.each([true, false])(
+    'restores the canary=%s routing association on a new session after page refresh',
+    (useCanaryRtcServer) => {
+      setReconnectToken('voice-sdk-id', useCanaryRtcServer);
+
+      const refreshedSession = new Verto({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        useCanaryRtcServer,
+      });
+
+      expect(refreshedSession.reconnectTokenCanaryRtcServer).toBe(
+        useCanaryRtcServer
+      );
+      clearReconnectToken();
+    }
+  );
+
+  it('clears the session-level canary routing association with voice_sdk_id', () => {
+    setReconnectToken('voice-sdk-id', true);
+    const session = new Verto({
+      host: 'example.telnyx.com',
+      login: 'login',
+      password: 'password',
+      useCanaryRtcServer: true,
+    });
+
+    session.clearReconnectToken();
+
+    expect(session.reconnectTokenCanaryRtcServer).toBeUndefined();
+    expect(getReconnectTokenCanaryRtcServer()).toBeUndefined();
+  });
+
+  it('clears the persisted canary routing association with voice_sdk_id', () => {
+    setReconnectToken('voice-sdk-id', true);
+
+    clearReconnectToken();
+
+    expect(getReconnectTokenCanaryRtcServer()).toBeUndefined();
   });
 
   it('expires the previous sessid after 90 seconds', () => {
@@ -173,7 +231,11 @@ describe('active-calls recovery marker storage', () => {
   it('returns null and clears storage when calls is not an array', () => {
     sessionStorage.setItem(
       ACTIVE_CALLS_KEY,
-      JSON.stringify({ sessionId: 's', calls: 'not-an-array', storedAt: Date.now() })
+      JSON.stringify({
+        sessionId: 's',
+        calls: 'not-an-array',
+        storedAt: Date.now(),
+      })
     );
 
     const result = getActiveCallsRecoveryMarker();

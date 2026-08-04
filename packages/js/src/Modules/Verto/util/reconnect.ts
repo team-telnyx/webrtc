@@ -31,6 +31,7 @@ export interface IStoredActiveCalls {
 }
 
 const STORAGE_KEY = 'telnyx-voice-sdk-id';
+const CANARY_RTC_SERVER_STORAGE_KEY = 'telnyx-voice-sdk-id-canary-rtc-server';
 const SESSION_ID_STORAGE_KEY = 'telnyx-voice-sdk-session-id';
 const SESSION_ID_STORED_AT_STORAGE_KEY =
   'telnyx-voice-sdk-session-id-stored-at';
@@ -56,8 +57,26 @@ export function getReconnectToken(): string | null {
   return token;
 }
 
-export function setReconnectToken(token: string): void {
+export function getReconnectTokenCanaryRtcServer(): boolean | undefined {
+  const value = safeGetItem(CANARY_RTC_SERVER_STORAGE_KEY);
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
+export function setReconnectToken(
+  token: string,
+  useCanaryRtcServer?: boolean
+): void {
   sessionStorage.setItem(STORAGE_KEY, token);
+  if (typeof useCanaryRtcServer === 'boolean') {
+    sessionStorage.setItem(
+      CANARY_RTC_SERVER_STORAGE_KEY,
+      String(useCanaryRtcServer)
+    );
+  } else {
+    sessionStorage.removeItem(CANARY_RTC_SERVER_STORAGE_KEY);
+  }
 }
 
 export function getReconnectSessionId(now = Date.now()): string | null {
@@ -83,6 +102,7 @@ export function setReconnectSessionId(
 
 export function clearReconnectToken(): void {
   sessionStorage.removeItem(STORAGE_KEY);
+  sessionStorage.removeItem(CANARY_RTC_SERVER_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
 }
