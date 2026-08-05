@@ -155,6 +155,12 @@ Each error below is classified as **fatal** or **non-fatal** and includes guidan
 | `45003` | `RECONNECTION_EXHAUSTED`      | Unable to reconnect to server | Gateway reconnect attempts were exhausted | Fatal for session | Call `client.connect()` manually to start fresh                                   |
 | `45004` | `GATEWAY_FAILED`              | Gateway connection failed     | Gateway reported `FAILED` or `FAIL_WAIT`  | Fatal for session | SDK auto-reconnects if `autoReconnect` enabled; otherwise call `client.connect()` |
 
+#### ICE restart errors
+
+| Code    | Name                 | Message         | Typical trigger                                              | Fatal?    | Customer action                                               |
+| ------- | -------------------- | --------------- | ----------------------------------------------------------- | --------- | ------------------------------------------------------------- |
+| `47001` | `ICE_RESTART_FAILED` | ICE restart failed | WebSocket lost during ICE restart, server rejected Modify, or timeout | Non-fatal | Call may recover via WebSocket reconnect + Attach; if not, hang up and retry |
+
 #### Authentication and session errors
 
 | Code    | Name                      | Message                       | Typical trigger                                           | Fatal?            | Customer action                                            |
@@ -163,6 +169,7 @@ Each error below is classified as **fatal** or **non-fatal** and includes guidan
 | `46002` | `INVALID_CREDENTIALS`     | Invalid credential parameters | Client-side login validation failed before request send   | Fatal for session | Fix credential parameters                                  |
 | `46003` | `AUTHENTICATION_REQUIRED` | Authentication required       | Request sent before auth completed or after auth was lost | Fatal for session | Re-authenticate with a new token                           |
 | `48001` | `NETWORK_OFFLINE`         | Device is offline             | Browser `offline` event fired                             | Fatal for session | Restore connectivity; SDK auto-reconnects when back online |
+| `48501` | `SESSION_NOT_REATTACHED`  | Active call lost after reconnect | Server did not reattach the active call session after reconnect | Fatal             | Terminate the local call; start a new call                |
 | `49001` | `UNEXPECTED_ERROR`        | An unexpected error occurred  | Unclassified failure during peer/call setup               | Fatal             | Check logs; retry the operation                            |
 
 > [!NOTE]
@@ -213,6 +220,8 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 | `31002` | `HIGH_JITTER`      | High jitter detected          | Jitter stayed above threshold      | May self-resolve | Show quality indicator; no immediate action    |
 | `31003` | `HIGH_PACKET_LOSS` | High packet loss detected     | Packet loss stayed above threshold | May self-resolve | Show quality indicator; no immediate action    |
 | `31004` | `LOW_MOS`          | Low call quality score        | MOS stayed below threshold         | May self-resolve | Show quality indicator; consider advising user |
+| `31005` | `LOW_LOCAL_AUDIO`  | Low local microphone audio detected | Local outbound audio stayed below threshold before mic produced real audio, or silent for a long window after | No | Check selected microphone; increase input gain; move closer; verify not muted at OS/hardware level |
+| `31006` | `LOW_INBOUND_AUDIO` | Low inbound audio detected    | Inbound audio level stayed below threshold while RTP kept flowing | No | Verify remote party not muted and speaking; check media bridge for comfort-noise injection; report for server-side media investigation if persistent |
 
 #### Data-flow warnings
 
@@ -220,6 +229,8 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 | ------- | -------------------- | ------------------------ | ------------------------------------- | ----------------------------- | ----------------------------------------------------- |
 | `32001` | `LOW_BYTES_RECEIVED` | No audio data received   | Remote audio bytes stopped increasing | May self-resolve on reconnect | Show degraded audio indicator; check remote party     |
 | `32002` | `LOW_BYTES_SENT`     | No audio data being sent | Local audio bytes stopped increasing  | May self-resolve on reconnect | Show degraded audio indicator; check local microphone |
+| `32003` | `RECORDING_UNAVAILABLE` | Call recording is not available in this browser | Browser lacks `MediaStreamTrackProcessor` (Firefox, Safari, Chrome < 94) while recording enabled | No | Use Chromium 94+ for recordings; or disable `enableCallRecording` if not required |
+| `32004` | `RECORDING_BUFFER_OVERFLOW` | Call recording buffer overflow — oldest packets dropped | Recording buffer hit `maxBufferBytes` before next scheduled flush | Yes (newer packets retained) | Reduce `callRecordingFlushIntervalMs`; increase `callRecordingMaxBufferBytes`; check `/call_recording` endpoint health |
 
 #### Connectivity warnings
 
@@ -231,13 +242,26 @@ client.on(SwEvent.Warning, ({ warning, callId }) => {
 | `33004` | `PEER_CONNECTION_FAILED`   | Connection failed                                     | Peer connection state became `failed`                    | May recover — SDK may attempt ICE restart | Show reconnecting/degraded UI; wait for SDK recovery; only clean up after final hangup or call termination                                                         |
 | `33005` | `ONLY_HOST_ICE_CANDIDATES` | Only local network candidates available               | SDP contained only host ICE candidates                   | No                                        | Check STUN/TURN config; may work on local network only                                                                                                             |
 | `33006` | `ANSWER_WHILE_PEER_ACTIVE` | Answer attempted while peer connection already active | An answer was received while the peer was already active | No                                        | Ensure `answer()` is called only once per call; disable the answer button after the first click; check that `answer()` is not invoked from multiple event handlers |
+| `33007` | `DUPLICATE_INBOUND_ANSWER` | Call answer ignored because another inbound call is already being answered | `answer()` called on inbound call while another inbound call is already answering in same runtime | No | Keep a single active TelnyxRTC instance; call `disconnect()` before replacing an instance; only answer one inbound call at a time |
+| `33008` | `ICE_CANDIDATE_PAIR_CHANGED` | ICE candidate pair changed mid-call | Selected ICE pair changed during active call (Wi-Fi→cellular, NAT rebinding, relay fallback) | Yes (call continues normally) | Monitor audio quality after path change; check network stability if frequent; verify TURN config |
+| `33009` | `AUDIO_INPUT_DEVICE_CHANGE_SKIPPED` | Audio input device change skipped | `setAudioInDevice` called but peer connection has no audio RTP sender to replace | No (existing mic/mute left unchanged) | Retry after call is active and media attached; verify call started with audio; check sender availability |
+| `33010` | `MULTIPLE_ACTIVE_CALLS_DETECTED` | Multiple active calls detected in one SDK session | New call created or received while another call still active in same session | Yes (new call proceeds; diagnostic only) | Verify this is expected behavior; hang up previous call before starting a new one if only one call is expected |
+| `33011` | `SHARED_REMOTE_ELEMENT_OVERWRITE` | Remote media element overwritten by another call | Two concurrent calls share one `remoteElement`; last writer wins | No (disrupts other call's media) | Pass a distinct `remoteElement` per call via `newCall({ remoteElement })` or `answer({ remoteElement })` |
 
 #### Authentication and session warnings
 
 | Code    | Name                     | Message                            | Typical trigger                                                                       | Auto-recovered?     | Customer action                           |
 | ------- | ------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------- | ------------------- | ----------------------------------------- |
 | `34001` | `TOKEN_EXPIRING_SOON`    | Authentication token expiring soon | JWT expires within 120 seconds                                                        | No, but preventable | Refresh token before expiry; ~120s window |
-| `35001` | `SESSION_NOT_REATTACHED` | Active call lost after reconnect   | Server returned an empty `reattached_sessions` list while calls still existed locally | No                  | Clean up call UI; active calls were lost  |
+| `35002` | `UNKNOWN_REATTACHED_SESSION` | Unknown reattach session after reconnect | Server sent an Attach for a session that does not match any active SDK call | No (unknown Attach ACK'd and ignored) | Check app logic for multiple simultaneous calls; inspect Attach callID in warning payload; start a new call manually if needed |
+
+#### Signaling health warnings
+
+| Code    | Name                                          | Message                                   | Typical trigger                                                                              | Auto-recovered?                           | Customer action                                                              |
+| ------- | --------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------- |
+| `36003` | `SIGNALING_RECOVERY_REQUIRED`                 | Signaling recovery required               | WebSocket path detected unhealthy (probe timeout, critical request timeout, or peer failure) | Yes (SDK reconnects and recovers calls via reattach) | Wait for SDK recovery; check for network interface changes; verify firewall/NAT timeout settings |
+| `36004` | `MEDIA_RECOVERY_REQUIRED`                     | Media recovery required                   | Peer connection or media flow unhealthy while signaling healthy; SDK attempts ICE restart   | Yes (SDK auto-attempts ICE restart)       | Wait for ICE restart; check network/ICE candidate availability; verify TURN config |
+| `36005` | `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT` | Reconnection failed — auto-reconnect disabled | WebSocket closed and `autoReconnect` disabled (after `disconnect()` or reconnection exhausted) | No (SDK will not reconnect)               | Call `connect()` manually; check if `disconnect()` was intentional; review `maxReconnectAttempts` |
 
 ## Notifications (`telnyx.notification`)
 

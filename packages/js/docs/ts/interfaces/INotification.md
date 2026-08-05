@@ -2,10 +2,13 @@ An event dispatched by Telnyx to notify the client of changes to the session or 
 
 The conditions of the event can be identified by the `type` property.
 
-| `type`           | Description                                                  | Additional properties |
-| ---------------- | ------------------------------------------------------------ | --------------------- |
-| `callUpdate`     | A call has changed state                                     | `call`                |
-| `userMediaError` | The browser does not have permission to access media devices | `error`               |
+| `type`           | Description                                                  | Additional properties        |
+| ---------------- | ------------------------------------------------------------ | ---------------------------- |
+| `callUpdate`     | A call has changed state                                     | `call`                       |
+| `userMediaError` | The browser does not have permission to access media devices | `error`                      |
+| `vertoClientReady` | Client is ready to make/receive calls                      | `{}`                         |
+| `peerConnectionFailureError` | Peer connection failed                          | `error`                      |
+| `signalingStateClosed` | Peer signaling state closed                            | `previousConnectionState`     |
 
 **`Examples`**
 

@@ -12,6 +12,8 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
     - [Session Readiness \& Notifications](#session-readiness--notifications)
       - [`telnyx.ready`](#telnyxready)
       - [`telnyx.notification`](#telnyxnotification)
+    - [AI Conversation](#ai-conversation)
+      - [`telnyx.ai.conversation`](#telnyxaiconversation)
     - [Diagnostics \& Telemetry](#diagnostics--telemetry)
       - [`telnyx.stats.frame`](#telnyxstatsframe)
       - [`telnyx.stats.report`](#telnyxstatsreport)
@@ -27,6 +29,7 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 | --------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
 | `telnyx.ready`        | Session readiness | SDK is authenticated and the gateway reports `REGED`                | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises               |
 | `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events |
+| `telnyx.ai.conversation` | AI Conversation | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent` | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
 | `telnyx.stats.frame`  | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter    | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                         |
 | `telnyx.stats.report` | Diagnostics       | Entire timeline returned when stats capture stops                   | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                 |
 
@@ -51,7 +54,7 @@ client.on('telnyx.ready', () => {
 
 | Property        | Type             | Description                                                                                                              |
 | --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`) |
+| `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"south-asia"`) |
 | `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
 
 Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
@@ -69,6 +72,30 @@ A catch-all event that delivers call updates, hangup reasons, DTMF indications, 
 | `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          |
 | `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   |
 | `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` |
+
+### AI Conversation
+
+#### `telnyx.ai.conversation`
+
+Emitted when an `ai_conversation` JSON-RPC message is received from the backend. This event powers the client-side tool wire protocol: the AI backend sends a `function_call` item requesting the application to execute a client-side tool, and the application responds with a `function_call_output` via `call.sendAIConversationMessage()`.
+
+```ts
+client.on('telnyx.ai.conversation', (event) => {
+  // event.params.type === 'conversation.item.created'
+  // event.params.item?.type === 'function_call'
+  const { call_id, name, arguments: argsJson } = event.params.item;
+
+  // Execute the tool, then send the result back
+  const result = executeTool(name, JSON.parse(argsJson));
+  call.sendAIConversationMessage({
+    type: 'function_call_output',
+    call_id,
+    output: JSON.stringify(result),
+  });
+});
+```
+
+The event payload is an `IAIConversationMessageEvent` with `method: 'ai_conversation'`, `params: AIConversationParams`, and an optional `voice_sdk_id`. Use the `isFunctionCallParams()` type guard to check whether the inbound message contains a `function_call` item.
 
 ### Diagnostics & Telemetry
 

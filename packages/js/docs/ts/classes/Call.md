@@ -68,12 +68,11 @@ call.muteAudio();
 
 ### Methods
 
-- [\_applyDesiredAudioMuteState](#_applydesiredaudiomutestate)
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
-- [flushIntermediateCallReport](#flushintermediatecallreport)
 - [getStats](#getstats)
+- [hangup](#hangup)
 - [hold](#hold)
 - [muteAudio](#muteaudio)
 - [muteVideo](#mutevideo)
@@ -311,26 +310,6 @@ BaseCall.telnyxIDs
 
 ## Methods
 
-### \_applyDesiredAudioMuteState
-
-▸ **\_applyDesiredAudioMuteState**(): `void`
-
-Apply the current desired mute state to all local audio tracks.
-Called internally after track creation/replacement (Peer init,
-setAudioInDevice, setVideoDevice, reattach, ICE restart) to
-ensure the mic stays muted when the SDK creates or replaces
-local audio tracks.
-
-#### Returns
-
-`void`
-
-#### Inherited from
-
-BaseCall.\_applyDesiredAudioMuteState
-
----
-
 ### answer
 
 ▸ **answer**(`params?`): `Promise`\<`void`\>
@@ -412,30 +391,6 @@ BaseCall.dtmf
 
 ---
 
-### flushIntermediateCallReport
-
-▸ **flushIntermediateCallReport**(`flushReason?`): `void`
-
-Flush an intermediate call report segment mid-call.
-Used for periodic, size-limit, and socket-close safety flushes without
-falsely finalizing the call.
-
-#### Parameters
-
-| Name          | Type                     |
-| :------------ | :----------------------- |
-| `flushReason` | `ICallReportFlushReason` |
-
-#### Returns
-
-`void`
-
-#### Inherited from
-
-BaseCall.flushIntermediateCallReport
-
----
-
 ### getStats
 
 ▸ **getStats**(`callback`, `constraints`): `void`
@@ -456,6 +411,28 @@ Registers callback for stats.
 #### Inherited from
 
 BaseCall.getStats
+
+---
+
+### hangup
+
+▸ **hangup**(): `Promise`\<`void`\>
+
+Hangs up the call. If a screen-share call is active, it is hung up first.
+
+**`Example`**
+
+```js
+call.hangup();
+```
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+BaseCall.hangup
 
 ---
 
