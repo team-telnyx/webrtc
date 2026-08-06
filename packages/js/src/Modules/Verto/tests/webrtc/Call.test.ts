@@ -207,6 +207,68 @@ describe('Call', () => {
     });
   });
 
+  describe('non-trickle ICE lifecycle', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
+
+    it.each([
+      ['hangup', State.Hangup],
+      ['destroy', State.Destroy],
+      ['purge', State.Purge],
+    ])(
+      'does not schedule an ICE completion timeout for a queued event in %s state',
+      (_stateName, terminalState) => {
+        call.setState(terminalState);
+        call.peer = {
+          instance: {
+            localDescription: null,
+          },
+          incrementGatheredCandidates: jest.fn(),
+        } as unknown as Peer;
+        const privateCall = call as unknown as {
+          _iceTimeout: ReturnType<typeof setTimeout> | null;
+          _onIce: (event: RTCPeerConnectionIceEvent) => void;
+        };
+        const candidate = {
+          candidate:
+            'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        } as RTCIceCandidate;
+
+        privateCall._onIce({ candidate } as RTCPeerConnectionIceEvent);
+
+        expect(privateCall._iceTimeout).toBeNull();
+      }
+    );
+
+    it('clears an existing ICE completion timeout before ignoring terminal SDP', () => {
+      const privateCall = call as unknown as {
+        _iceTimeout: ReturnType<typeof setTimeout> | null;
+        _onIceSdp: (data: RTCSessionDescriptionInit) => void;
+      };
+      const iceTimeout = setTimeout(noop, 1000);
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      privateCall._iceTimeout = iceTimeout;
+      call.setState(State.Hangup);
+
+      privateCall._onIceSdp({
+        type: PeerType.Offer,
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+      });
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(iceTimeout);
+      expect(privateCall._iceTimeout).toBeNull();
+    });
+  });
+
   describe('specifying an ID', () => {
     it('should use the ID as callId', () => {
       call = new Call(session, { ...defaultParams, id: 'test-id-example' });
@@ -908,6 +970,11 @@ describe('Call', () => {
   });
 
   describe('outbound invite response races', () => {
+    const localOffer: RTCSessionDescriptionInit = {
+      type: PeerType.Offer,
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+    };
+
     it('should not move a hung up outbound call back to trying when invite ACK arrives late', async () => {
       let resolveInvite: (response: { node_id: string }) => void;
       const inviteResponse = new Promise<{ node_id: string }>((resolve) => {
@@ -921,10 +988,7 @@ describe('Call', () => {
         ) => void
       ).bind(call);
 
-      onTrickleIceSdp({
-        type: PeerType.Offer,
-        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
-      });
+      onTrickleIceSdp(localOffer);
       expect(call.state).toEqual('requesting');
 
       call.setState(State.Hangup);
@@ -933,6 +997,69 @@ describe('Call', () => {
       await Promise.resolve();
 
       expect(call.state).toEqual('hangup');
+    });
+
+    it('does not send deferred non-trickle local SDP after destroy', () => {
+      const onIceSdp = (
+        Reflect.get(call, '_onIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onIceSdp(localOffer);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not send deferred trickle local SDP after destroy', () => {
+      const onTrickleIceSdp = (
+        Reflect.get(call, '_onTrickleIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onTrickleIceSdp(localOffer);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not signal queued trickle candidate or end-of-candidates events after destroy', () => {
+      const onTrickleIce = (
+        Reflect.get(call, '_onTrickleIce') as (
+          this: Call,
+          event: RTCPeerConnectionIceEvent
+        ) => void
+      ).bind(call);
+      const candidate = {
+        candidate: 'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+      } as RTCIceCandidate;
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onTrickleIce({ candidate } as RTCPeerConnectionIceEvent);
+      onTrickleIce({ candidate: null } as RTCPeerConnectionIceEvent);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
     });
   });
 
