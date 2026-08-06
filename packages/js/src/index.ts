@@ -55,9 +55,12 @@ export * from './PreCallDiagnosis';
 export type {
   FunctionCallItem,
   FunctionCallOutputItem,
+  ResponseAudioStreamSubscribeItem,
+  AIConversationOutboundItem,
   AIConversationParams,
   AIConversationFunctionCallParams,
   AIConversationFunctionCallOutputParams,
+  AIConversationOutboundParams,
   IAIConversationMessageEvent,
   ISendAIConversationMessageOptions,
 } from './Modules/Verto/webrtc/AIConversationTypes';

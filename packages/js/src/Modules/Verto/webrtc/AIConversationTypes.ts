@@ -1,9 +1,10 @@
 /**
  * Types for AI conversation signaling over the VSP WebSocket.
  *
- * These types support the PR-531 client-side tool wire protocol:
+ * These types support outbound and inbound ACA conversation items:
  * - Inbound: `conversation.item.created` with `item.type = "function_call"`
  * - Outbound: `conversation.item.create` with `item.type = "function_call_output"`
+ * - Outbound: `conversation.item.create` with `item.type = "response.audio_stream.subscribe"`
  */
 
 /**
@@ -33,6 +34,20 @@ export type FunctionCallOutputItem = {
 };
 
 /**
+ * An outbound subscription item for ACA pre-playout assistant audio events.
+ */
+export type ResponseAudioStreamSubscribeItem = {
+  type: 'response.audio_stream.subscribe';
+};
+
+/**
+ * Outbound item accepted by `conversation.item.create` over `ai_conversation`.
+ */
+export type AIConversationOutboundItem =
+  | FunctionCallOutputItem
+  | ResponseAudioStreamSubscribeItem;
+
+/**
  * Params for an inbound `ai_conversation` message with `params.type = "conversation.item.created"`.
  * Contains a function_call item from the backend.
  */
@@ -51,13 +66,22 @@ export type AIConversationFunctionCallOutputParams = {
 };
 
 /**
+ * Params for an outbound `ai_conversation` message with `params.type = "conversation.item.create"`.
+ * Contains any outbound item to send back to the backend.
+ */
+export type AIConversationOutboundParams = {
+  type: 'conversation.item.create';
+  item: AIConversationOutboundItem;
+};
+
+/**
  * Generic params for any `ai_conversation` message.
- * Can be a function_call (inbound) or function_call_output (outbound),
+ * Can be a function_call (inbound) or outbound conversation item,
  * as well as other `ai_conversation` message types (transcript, etc.).
  */
 export type AIConversationParams =
   | AIConversationFunctionCallParams
-  | AIConversationFunctionCallOutputParams
+  | AIConversationOutboundParams
   | {
       type: string;
       [key: string]: unknown;
@@ -78,11 +102,11 @@ export type IAIConversationMessageEvent = {
 
 /**
  * Argument accepted by `call.sendAIConversationMessage()`: the
- * `function_call_output` item to send back to the backend. Alias of
- * {@link FunctionCallOutputItem}, kept as a named export so callers can refer
+ * outbound item to send back to the backend. Alias of
+ * {@link AIConversationOutboundItem}, kept as a named export so callers can refer
  * to the method's parameter type directly.
  */
-export type ISendAIConversationMessageOptions = FunctionCallOutputItem;
+export type ISendAIConversationMessageOptions = AIConversationOutboundItem;
 
 /**
  * Type guard: checks if an `ai_conversation` message contains a `function_call` item.
