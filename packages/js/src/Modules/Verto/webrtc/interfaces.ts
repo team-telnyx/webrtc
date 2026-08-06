@@ -240,8 +240,6 @@ export interface IWebRTCCall {
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
   stopScreenShare?: () => Promise<void>;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
-  // RN
-  setSpeakerPhone?: (flag: boolean) => void;
   // AI Conversation
   sendConversationMessage?: (message: string, attachments?: string[]) => void;
   sendAIConversationMessage?: (
