@@ -439,7 +439,7 @@ false;
 
 • `Optional` **region**: `string`
 
-Region to use for the connection. Use [Region](https://developers.telnyx.com/development/webrtc/js-sdk/readme#region) for the supported
+Region to use for the connection. Use [Region](https://developers.telnyx.com/development/webrtc/js-sdk/reference/iclientoptions#supported-regions) for the supported
 values, or omit this option to use automatic routing.
 
 Arbitrary strings remain supported for backwards compatibility.
