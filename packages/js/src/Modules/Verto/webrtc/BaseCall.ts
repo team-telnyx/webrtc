@@ -1910,6 +1910,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
+
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (this.peer) {
       this.peer.iceDone = true;
     }
@@ -2016,6 +2021,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onTrickleIceSdp(data: RTCSessionDescription) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (!data) {
       logger.error('No SDP data provided');
       void this.hangup({ initiator: 'sdk:missing-local-sdp' }, false);
@@ -2116,6 +2125,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     const { instance } = this.peer;
     if (this._iceTimeout === null) {
       // Use a longer timeout for attach (reconnection) to allow full ICE
@@ -2137,6 +2150,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
       this.peer?.incrementGatheredCandidates();
