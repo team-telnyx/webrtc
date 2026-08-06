@@ -1,3 +1,25 @@
+## [2.27.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.8...webrtc/v2.27.9) (2026-08-06)
+
+### Features
+
+- **expose supported regions** (VSDK-447) (#745): Export a new `Region` constant from the package entry point with the seven supported signaling regions (`EU`, `US_CENTRAL`, `US_EAST`, `US_WEST`, `CA_CENTRAL`, `APAC`, `SOUTH_ASIA`). `IClientOptions.region` now links to `Region` for the accepted values; omitting it keeps automatic routing, and arbitrary strings remain supported for backwards compatibility.
+- **accept outbound AI conversation items** (#751): `Call.sendAIConversationMessage()` now accepts any `AIConversationOutboundItem` rather than only a `function_call_output`. In addition to returning client-side tool results, callers can now send a `response.audio_stream.subscribe` item to subscribe to ACA pre-playout assistant audio events. The new `AIConversationOutboundItem`, `AIConversationOutboundParams`, and `ResponseAudioStreamSubscribeItem` types are exported from the package entry point.
+
+### Bug Fixes
+
+- **preserve forceRelayCandidate across attach recovery and page refresh** (VSDK-467) (#753): A relay-only call could regress to `iceTransportPolicy:"all"` on a later attach-recovery or page-refresh reconstruction because the recovery heuristic returns false when relay is already enabled. The handler now ORs a carried `preservedForceRelayCandidate` flag with the heuristic decision, so an already-enabled relay policy is never cleared. The persisted recovery marker stores only a genuine `true` (checked with `=== true`, not truthiness) so malformed legacy markers never force relay.
+- **detect a socket that receives but no longer sends** (VSUP-171) (#760): The `SignalingHealthMonitor` previously judged health solely from the last inbound WebSocket frame, so a socket where nothing the SDK sends is ever answered stayed "healthy" indefinitely while the registration was held uselessly. A second clock now tracks the last outbound request that came back answered; when frames keep arriving but nothing outbound has been answered for 45s (three b2bua-rtc ping cycles), a probe is sent, and if that probe is also unanswered within the existing 5s window the session is declared unhealthy and the normal reconnect path is taken. The inbound-silence trigger still fires first at 20s.
+- **ignore deferred signaling after hangup** (#762): Deferred ICE and trickle-ICE callbacks (`_onIceSdp`, `_onTrickleIceSdp`, `_onIce`, `_onTrickleIce`) could fire after a call was already terminating or terminated, re-animating a torn-down peer. All four handlers now early-return when `_isTerminatingOrTerminated()` is true.
+
+### Refactors
+
+- **simplify host-only ICE diagnostics** (#755): Replace the `_requestAnotherLocalDescription` retry-and-error flow (which fired `onSdpReadyTwice` and re-requested a local description) with a single `_warnIfOnlyHostIceCandidates` check that emits an `ONLY_HOST_ICE_CANDIDATES` warning when the SDP contains only host candidates. The diagnostic is now non-blocking and no longer forces a renegotiation cycle.
+- **remove legacy React Native support** (#757): Drop the unused `.native.ts` platform shims (`Call.native.ts`, `storage/index.native.ts`, `webrtc/index.native.ts`) and the `setSpeakerPhone` call method. These shims targeted React Native, which was never a supported platform for `@telnyx/webrtc` — the React Native Voice SDK lives in a separate repo. This is a dead-code removal, not a breaking change for any supported target.
+
+### Documentation
+
+- Sync internal docs with the current implementation (#761): Restore internal API types to `docs/internal/`, clean `docs/ts/` to public-only content, mark deprecated notification types, and add the `response.audio_stream.subscribe` README example. TSDoc auto-generation is now off; `docs/ts/` and `docs/internal/` are hand-maintained on release.
+
 ## [2.27.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.7...webrtc/v2.27.8) (2026-07-23)
 
 - docs: update ts docs
