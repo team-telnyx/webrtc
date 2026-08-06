@@ -260,7 +260,7 @@ export default class Connection {
         // frames, which inbound activity alone does not. Recorded even
         // when the response is late or is an error — both still prove the
         // round trip completed.
-        this.session.onOutboundConfirmed?.();
+        this.session.onOutboundConfirmed();
 
         if (timedOut) {
           // Response arrived after timeout — discard silently
