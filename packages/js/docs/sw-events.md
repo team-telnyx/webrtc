@@ -61,17 +61,19 @@ Both values are set from the gateway `REGED` response. They are `null` until the
 
 #### `telnyx.notification`
 
-A catch-all event that delivers call updates, hangup reasons, DTMF indications, chat payloads, and other Verto `event`/`info` messages when they are not routed directly to a specific call. Clients should branch on `notification.type` (e.g., `callUpdate`, `userMediaError`, `vertoClientReady`) to keep UI and state synchronized.
+A catch-all event that delivers call updates, hangup reasons, DTMF indications, chat payloads, and other Verto `event`/`info` messages when they are not routed directly to a specific call. Clients should branch on `notification.type` to keep UI and state synchronized.
+
+Only `callUpdate` is the recommended notification type for application use. The other types are still emitted for backward compatibility but are deprecated — use the dedicated `telnyx.error`, `telnyx.warning`, and `telnyx.ready` events instead.
 
 **Notification Types:**
 
-| `type`                       | Description                           | Payload                       |
-| ---------------------------- | ------------------------------------- | ----------------------------- |
-| `callUpdate`                 | A call has changed state              | `{ call }`                    |
-| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   |
-| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          |
-| `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   |
-| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` |
+| `type`                       | Description                           | Payload                       | Status |
+| ---------------------------- | ------------------------------------- | ----------------------------- | ------ |
+| `callUpdate`                 | A call has changed state              | `{ call }`                    | Active |
+| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   | Deprecated |
+| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          | Deprecated — use `telnyx.ready` |
+| `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   | Deprecated — use `telnyx.warning` |
+| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` | Deprecated |
 
 ### AI Conversation
 

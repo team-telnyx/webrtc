@@ -2,13 +2,16 @@ An event dispatched by Telnyx to notify the client of changes to the session or 
 
 The conditions of the event can be identified by the `type` property.
 
-| `type`           | Description                                                  | Additional properties        |
-| ---------------- | ------------------------------------------------------------ | ---------------------------- |
-| `callUpdate`     | A call has changed state                                     | `call`                       |
-| `userMediaError` | The browser does not have permission to access media devices | `error`                      |
-| `vertoClientReady` | Client is ready to make/receive calls                      | `{}`                         |
-| `peerConnectionFailureError` | Peer connection failed                          | `error`                      |
-| `signalingStateClosed` | Peer signaling state closed                            | `previousConnectionState`     |
+| `type`           | Description                                                  | Additional properties        | Status |
+| ---------------- | ------------------------------------------------------------ | ---------------------------- | ------ |
+| `callUpdate`     | A call has changed state                                     | `call`                       | Active |
+| `userMediaError` | The browser does not have permission to access media devices | `error`                      | Deprecated |
+| `vertoClientReady` | Client is ready to make/receive calls                      | `{}`                         | Deprecated — use `telnyx.ready` event instead |
+| `peerConnectionFailureError` | Peer connection failed                          | `error`                      | Deprecated — use `telnyx.warning` event with `PEER_CONNECTION_FAILED` warning code |
+| `signalingStateClosed` | Peer signaling state closed                            | `previousConnectionState`     | Deprecated |
+
+> [!NOTE]
+> Only `callUpdate` is the recommended notification type for application use. The other types are still emitted for backward compatibility but are deprecated — use the dedicated `telnyx.error`, `telnyx.warning`, and `telnyx.ready` events instead.
 
 **`Examples`**
 
