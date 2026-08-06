@@ -75,6 +75,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <a href="TelnyxRTC.html#newCall" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>new<wbr/>Call</span></a>
 <a href="TelnyxRTC.html#off" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>off</span></a>
 <a href="TelnyxRTC.html#on" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on</span></a>
+<a href="TelnyxRTC.html#onOutboundConfirmed" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Outbound<wbr/>Confirmed</span></a>
 <a href="TelnyxRTC.html#onSignalingRequestTimeout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Signaling<wbr/>Request<wbr/>Timeout</span></a>
 <a href="TelnyxRTC.html#reportIceRestartFailed" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>report<wbr/>Ice<wbr/>Restart<wbr/>Failed</span></a>
 <a href="TelnyxRTC.html#reportNoRtp" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>report<wbr/>No<wbr/>Rtp</span></a>
@@ -851,6 +852,19 @@ so make sure to use the same reference in both <code>.on()</code> and <code>.off
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.on</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="onOutboundConfirmed" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>on<wbr/>Outbound<wbr/>Confirmed</span><a href="#onOutboundConfirmed" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature tsd-anchor-link" id="onOutboundConfirmed.onOutboundConfirmed-1"><span class="tsd-kind-call-signature">on<wbr/>Outbound<wbr/>Confirmed</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#onOutboundConfirmed.onOutboundConfirmed-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Called by Connection.send() when a request we sent comes back
+answered. Feeds the monitor&#39;s outbound-liveness clock, which is what
+distinguishes a working socket from one that only still receives.</p>
+<p>Public because Connection calls it; not part of the app-facing API.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.onOutboundConfirmed</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="onSignalingRequestTimeout" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>on<wbr/>Signaling<wbr/>Request<wbr/>Timeout</span><a href="#onSignalingRequestTimeout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1178,6 +1192,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li>
 <ul>
 <li><a href="#md:events"><span>Events</span></a></li></ul></li>
+<li><a href="#onOutboundConfirmed" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Outbound<wbr/>Confirmed</span></a></li>
 <li><a href="#onSignalingRequestTimeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>on<wbr/>Signaling<wbr/>Request<wbr/>Timeout</span></a></li>
 <li><a href="#reportIceRestartFailed" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>report<wbr/>Ice<wbr/>Restart<wbr/>Failed</span></a></li>
 <li><a href="#reportNoRtp" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-2048"></use></svg><span>report<wbr/>No<wbr/>Rtp</span></a></li>
