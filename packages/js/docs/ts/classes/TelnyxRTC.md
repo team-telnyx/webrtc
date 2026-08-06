@@ -61,7 +61,6 @@ client.off('telnyx.notification');
 
 ### Methods
 
-- [\_terminateActiveCallsLocally](#_terminateactivecallslocally)
 - [checkPermissions](#checkpermissions)
 - [clearReconnectToken](#clearreconnecttoken)
 - [connect](#connect)
@@ -456,29 +455,6 @@ if (result.length) {
 TelnyxRTCClient.speaker
 
 ## Methods
-
-### \_terminateActiveCallsLocally
-
-▸ **\_terminateActiveCallsLocally**(): `void`
-
-Tear down every active call LOCALLY without sending BYE on the wire.
-
-Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
-the signaling socket is already dead). Sending BYE over a dead socket
-would only generate `BYE_SEND_FAILED` noise, so each call is finalized
-via `hangup({}, false)` — which closes the RTCPeerConnection, stops
-media, fires the local hangup notification, and removes the call from
-`session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
-
-#### Returns
-
-`void`
-
-#### Inherited from
-
-TelnyxRTCClient.\_terminateActiveCallsLocally
-
----
 
 ### checkPermissions
 

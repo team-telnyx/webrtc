@@ -343,6 +343,36 @@ client.newCall({
 });
 ```
 
+### Receiving and Responding to AI Conversation Events
+
+When the AI backend wants the client to execute a tool, it sends a `function_call` item via the `telnyx.ai.conversation` event. Your application executes the tool and sends the result back using `call.sendAIConversationMessage()`.
+
+```js
+client.on('telnyx.ai.conversation', (event) => {
+  // Check if the message contains a function_call item
+  if (
+    event.params.type === 'conversation.item.created' &&
+    event.params.item?.type === 'function_call'
+  ) {
+    const { call_id, name, arguments: argsJson } = event.params.item;
+
+    // Execute the client-side tool
+    const result = executeTool(name, JSON.parse(argsJson));
+
+    // Send the result back to the AI backend
+    call.sendAIConversationMessage({
+      type: 'function_call_output',
+      call_id,
+      output: JSON.stringify(result),
+    });
+  }
+});
+```
+
+The `call_id` from the `function_call` must match the `call_id` in the `function_call_output` — this is how the backend correlates the request with the response.
+
+> See [Call#sendAIConversationMessage](./docs/ts/classes/Call.md#sendaiconversationmessage) for the full API reference.
+
 ---
 
 ## Examples
