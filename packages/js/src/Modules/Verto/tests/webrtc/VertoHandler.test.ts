@@ -26,6 +26,7 @@ import {
   RECOVERY_MARKER_MAX_AGE_MS,
   type IStoredActiveCall,
 } from '../../util/reconnect';
+import logger from '../../util/logger';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -670,6 +671,93 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
       clearActiveCallsRecoveryMarker();
     });
+  });
+
+  describe('relay policy on attach recovery', () => {
+    const attachMessage = (callId: string) =>
+      JSON.parse(
+        `{"jsonrpc":"2.0","id":4700,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Caller","caller_id_number":"1004","callee_id_name":"Callee","callee_id_number":"1003"}}`
+      );
+
+    it.each([true, false])(
+      'uses the matched call evaluator result %s',
+      async (forceRelayCandidate) => {
+        (
+          instance.options as { forceRelayCandidate?: boolean }
+        ).forceRelayCandidate = !forceRelayCandidate;
+        await instance.connect();
+        const callId = 'matched-call';
+        _setupCall({ id: callId, forceRelayCandidate });
+        call.setState(State.Active);
+        const evaluator = jest.spyOn(
+          call,
+          'shouldForceRelayCandidateForRecovery'
+        );
+        const answer = jest
+          .spyOn(Call.prototype, 'answer')
+          .mockImplementation();
+        const warn = jest.spyOn(logger, 'warn').mockImplementation();
+
+        handler.handleMessage(attachMessage(callId));
+
+        expect(evaluator).toHaveBeenCalledTimes(1);
+        expect(instance.calls[callId].options.forceRelayCandidate).toBe(
+          forceRelayCandidate
+        );
+        expect(
+          warn.mock.calls.some(([message]) =>
+            String(message).includes(
+              'Attach: forcing relay candidate for recovery'
+            )
+          )
+        ).toBe(forceRelayCandidate);
+        warn.mockRestore();
+        answer.mockRestore();
+        evaluator.mockRestore();
+      }
+    );
+
+    it.each([
+      ['true', true, false, true],
+      ['false overriding the session default', false, true, false],
+      ['a missing value defaults to false', undefined, true, false],
+    ])(
+      'uses an exact matching marker value of %s',
+      async (_label, marker, sessionDefault, expected) => {
+        (
+          instance.options as { forceRelayCandidate?: boolean }
+        ).forceRelayCandidate = sessionDefault;
+        await instance.connect();
+        const callId = `page-refresh-${marker}`;
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: callId,
+              customHeaders: undefined,
+              forceRelayCandidate: marker,
+            } as unknown as IStoredActiveCall,
+          ],
+          instance.sessionid
+        );
+        const evaluator = jest.spyOn(
+          Call.prototype,
+          'shouldForceRelayCandidateForRecovery'
+        );
+        const answer = jest
+          .spyOn(Call.prototype, 'answer')
+          .mockImplementation();
+
+        handler.handleMessage(attachMessage(callId));
+
+        expect(instance.calls[callId].options.forceRelayCandidate).toBe(
+          expected
+        );
+        expect(evaluator).not.toHaveBeenCalled();
+        answer.mockRestore();
+        evaluator.mockRestore();
+        clearActiveCallsRecoveryMarker();
+      }
+    );
   });
 
   describe('telnyx_rtc.info', () => {

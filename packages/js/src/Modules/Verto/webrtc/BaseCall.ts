@@ -451,9 +451,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
   }
 
+  /** Returns the final relay policy from call options and recovery stats. */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
-      return false;
+      return true;
     }
 
     if (!this.recoveredCallId) {
