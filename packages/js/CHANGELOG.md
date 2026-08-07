@@ -51,52 +51,6 @@
 - feat: add AI conversation signaling API for client-side tools (#682)
 - feat: flush call report on beforeunload (keepalive) (#718)
 
-## [2.27.4-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.2) (2026-07-07)
-
-- chore: release webrtc@2.27.4-beta.1 (#727)
-- feat(js): default enableCallRecording to false (opt-in)
-- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
-- fix(call-recorder): enable recording by default
-- fix(call-recorder): preserve buffer in \_finalize so postFinalReport can drain (VSDK-279)
-- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
-- refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
-- feat(VSUP-122): scoped inbound answer blocking per callID (#724)
-- feat: add AI conversation signaling API for client-side tools (#682)
-- feat(js): flush call report on beforeunload (keepalive) (#718)
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
-
-## [2.27.4-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.1) (2026-07-03)
-
-- docs: update ts docs
-- feat(js): default enableCallRecording to false (opt-in)
-- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
-- fix(call-recorder): enable recording by default
-- fix(call-recorder): preserve buffer in \_finalize so postFinalReport can drain (VSDK-279)
-- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
-- feat: add AI conversation signaling API for client-side tools (#682)
-- feat(js): flush call report on beforeunload (keepalive) (#718)
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
-
-## [2.27.4-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.0) (2026-07-01)
-
-- docs: update ts docs
-- fix: add eslint-disable comments for test helper any/unused patterns
-- fix: send AI conversation messages as fire-and-forget notifications
-- feat: add AI conversation signaling API for client-side tools
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
-
 ## [2.27.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2...webrtc/v2.27.3) (2026-07-01)
 
 - fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
@@ -189,14 +143,6 @@
 - **Diagnostics:** new warnings `LOW_INBOUND_AUDIO`, `MULTIPLE_ACTIVE_CALLS_DETECTED`, `AUDIO_INPUT_DEVICE_CHANGE_SKIPPED`, `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT`, `UNKNOWN_REATTACHED_SESSION`; new error `SESSION_NOT_REATTACHED`; removed warning codes `SESSION_NOT_REATTACHED` (35001, promoted to error), `SIGNALING_HEALTH_PROBE_TIMEOUT`, `SIGNALING_REQUEST_TIMEOUT`.
 - **Call reports:** 1-second collection for the full call duration; richer inbound/outbound RTP, remote RTCP (loss/jitter/RTT), codec identity, media-playout, and selected ICE evidence for RTC investigations.
 - **Config:** new `skipTrailing` option (internal/test-infra).
-
-## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
-
-- No notable changes
-
-## [2.27.2-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.1...webrtc/v2.27.2-beta.0) (2026-06-29)
-
-- docs: update ts docs
 
 ## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
 
@@ -443,40 +389,6 @@
 - fix(ci): create release tag after version bump commit (#586)
 - chore: include README.md in npm packages and remove Slack notifications (#578)
 
-## [2.26.1-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.2) (2026-04-08)
-
-- chore: release webrtc@2.26.1-beta.1 (#595)
-- fix(ci): allow non-immutable installs for draft release tagging step (#592)
-- fix(ci): allow non-immutable installs for draft release tagging step
-- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
-- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
-- fix(ci): update lockfile after version bump in draft-release (#587)
-- fix(ci): create release tag after version bump commit (#586)
-- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
-- feat: make hangup async, properly await BYE execution (#581)
-- Feat: wire structured errors and warnings across SDK (#548)
-
-## [2.26.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.1) (2026-04-08)
-
-- fix(ci): allow non-immutable installs for draft release tagging step (#592)
-- fix(ci): allow non-immutable installs for draft release tagging step
-- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
-- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
-- fix(ci): update lockfile after version bump in draft-release (#587)
-- fix(ci): create release tag after version bump commit (#586)
-- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
-- feat: make hangup async, properly await BYE execution (#581)
-- Feat: wire structured errors and warnings across SDK (#548)
-
-## [2.26.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1-beta.0) (2026-04-07)
-
-- docs: update ts docs
-- fix: read dc/region instead of local_dc/local_region from REGED params
-- refactor: rename localDc/localRegion to dc/region and use structured logging
-- feat: store local_dc and local_region from REGED message
-- feat: store source datacenter identifier from REGED message
-- chore: include README.md in npm packages and remove Slack notifications (#578)
-
 ## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
 
 - chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
@@ -502,11 +414,6 @@
 - fix: don't null global LogCollector on call cleanup (#555)
 - chore: add OIDC permissions and npm provenance to prerelease workflow (#566)
 - chore: add OIDC permissions and npm provenance to publish-release workflow (#565)
-
-## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
-
-- docs: update ts docs
-- feat: add recoveredCallId to call object for recovery correlation (ENGDESK-50308)
 
 ## [2.25.25](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.24...webrtc/v2.25.25) (2026-03-11)
 
