@@ -1,3 +1,13 @@
+## [2.27.10-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10-beta.0) (2026-08-10)
+
+### Features
+
+- **unified pre-call diagnostic API** (VSDK-412) (#733): Add a new `PreCallDiagnostic` family exposing three client-level methods — `TelnyxRTC.runPreCall()`, `runNetworkCheck()`, and `runMicrophoneCheck()` — that run a temporary diagnostic call and return a structured `PreCallDiagnosticReport` with a top-level `verdict` (`ready` / `degraded` / `blocked` / `permission_denied` / `inconclusive`), machine-readable `reasons[]`, `warnings[]`, and per-module sections for ICE, network, microphone, media, and timings. The ICE module reports candidate counts/types, the selected pair, host-only/VPN/multi-interface detection, and per-server connectivity; the network module normalizes RTT, jitter, packet loss, and bitrate into a `good`/`fair`/`poor`/`unknown` quality classification; the microphone module checks permission state, device availability, and optional active capture with audio-level detection. `runNetworkCheck` tests each configured ICE server independently (in parallel) and reports per-server results; `runMicrophoneCheck` supports opt-in recording and playback with a pre-recording consent callback. The existing `PreCallDiagnosis` API is unchanged. New public types (`PreCallDiagnosticOptions`, `PreCallDiagnosticReport`, `RunPreCallOptions`, `RunNetworkCheckOptions`, `RunMicrophoneCheckOptions`, section report types, reason-code enums) are exported from the package entry point alongside the legacy API.
+
+### Documentation
+
+- **pre-call diagnostics guide** (VSDK-311) (#744): Add a comprehensive `pre-call-diagnostics.md` guide covering the three client-level methods — prerequisites, options, defaults, side effects, timer semantics, report interpretation (verdict precedence, reasons vs warnings, per-section semantics, units), common-outcome handling, and privacy/safe-report-sharing guidance. Update the README to distinguish the new `PreCallDiagnostic` family from the legacy `PreCallDiagnosis` API and link to the new guide.
+
 ## [2.27.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.8...webrtc/v2.27.9) (2026-08-06)
 
 ### Features
