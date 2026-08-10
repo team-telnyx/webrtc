@@ -26,6 +26,7 @@ import {
   collectCallEstablishmentTimings,
   logCallEstablishmentTimings,
   clearCallMarks,
+  type ICallEstablishmentTimings,
 } from './CallEstablishmentTimings';
 import {
   createWebRTCStatsReporter,
@@ -82,6 +83,7 @@ export default class Peer {
   private static readonly ICE_GATHERING_SAFETY_TIMEOUT_MS = 15000;
   private _firstMediaTrackMarked: boolean = false;
   private _timingsCollected: boolean = false;
+  private _callEstablishmentTimings?: ICallEstablishmentTimings;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
 
@@ -189,6 +191,17 @@ export default class Peer {
 
   get restartedIceOnConnectionStateFailed() {
     return this._restartedIceOnConnectionStateFailed;
+  }
+
+  /**
+   * The timeline captured by the regular call-establishment flow.
+   *
+   * `tryCollectTimings()` clears the underlying performance marks after it
+   * logs them, so consumers must read this retained result instead of trying
+   * to reconstruct it later from marks that no longer exist.
+   */
+  get callEstablishmentTimings(): ICallEstablishmentTimings | undefined {
+    return this._callEstablishmentTimings;
   }
 
   isConnectionHealthy() {
@@ -475,6 +488,7 @@ export default class Peer {
       mode,
       direction
     );
+    this._callEstablishmentTimings = timings;
     logCallEstablishmentTimings(timings);
     clearCallMarks(this.options.id);
   }

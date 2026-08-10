@@ -9,8 +9,108 @@ import {
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
+import { PreCallDiagnostic } from './PreCallDiagnostic';
+import type {
+  PreCallDiagnosticOptions,
+  PreCallDiagnosticReport,
+} from './PreCallDiagnostic/types';
 
 import * as pkg from '../package.json';
+
+/**
+ * Default destination number for `runPreCall()` when the caller omits
+ * `destinationNumber`. Mirrors Twilio's `Device.runPreflight(token, options?)`
+ * zero-arg shape — callers can run a pre-call diagnostic without knowing
+ * a specific test number.
+ */
+const DEFAULT_PRECALL_DESTINATION = '+1-872-231-5806';
+
+/**
+ * Options for the `TelnyxRTC.runPreCall()` public method.
+ *
+ * `runPreCall` maps these into the internal `PreCallDiagnosticOptions`
+ * internally, reusing the client's existing configuration where
+ * appropriate (e.g. caller name/number, audio constraints, ICE servers).
+ *
+ * `destinationNumber` is optional — when omitted, the diagnostic call
+ * dials a sensible default (`'+1-872-231-5806'`). This mirrors the
+ * zero-arg shape of Twilio's `Device.runPreflight(token, options?)`.
+ */
+export interface RunPreCallOptions {
+  /**
+   * The destination number to dial for the diagnostic call.
+   * Optional; defaults to `'+1-872-231-5806'` when omitted.
+   */
+  destinationNumber?: string;
+  /**
+   * Post-establishment sampling window in ms. The timer starts **only**
+   * after the call reaches the established state. If establishment
+   * never completes, this timer is never started. Default: ~5000.
+   */
+  durationMs?: number;
+  /**
+   * Custom ICE servers for the diagnostic call only (folded VSDK-308).
+   *
+   * When provided, these ICE servers are used for the temporary
+   * diagnostic call and do not mutate or override the client's
+   * configured ICE servers. When omitted, the diagnostic call uses
+   * the client's existing ICE server configuration, matching normal
+   * call behavior. Takes precedence over the client's ICE servers but
+   * not over an explicit `rtcConfig` override.
+   */
+  iceServers?: RTCIceServer[];
+}
+
+/**
+ * Options for the `TelnyxRTC.runNetworkCheck()` public method.
+ *
+ * This is a narrow version of `RunPreCallOptions` that only exposes
+ * the ICE/network-relevant fields. Per-call network quality is included in
+ * each ICE server result; the microphone module is disabled.
+ *
+ * The ICE module always runs inside `runNetworkCheck()` — callers cannot
+ * opt out of it from the public API (VSDK-412 Gap 3).
+ */
+export type RunNetworkCheckOptions = Pick<RunPreCallOptions, 'iceServers'>;
+
+/**
+ * Options for the `TelnyxRTC.runMicrophoneCheck()` public method.
+ *
+ * This is a narrow version of `RunPreCallOptions` that only exposes
+ * the microphone-relevant fields. When `runMicrophoneCheck` is called,
+ * the other modules (ICE and network) are disabled.
+ *
+ * The microphone module always runs inside `runMicrophoneCheck()` —
+ * callers cannot opt out of it from the public API (VSDK-412 Gap 3).
+ *
+ * Recording is opt-in and defaults to `false` so the zero-argument path does
+ * not silently record the user. Successful recordings are played back
+ * automatically. Callers can pass `warnOnRecording` to display a warning
+ * immediately before recording starts.
+ */
+export interface RunMicrophoneCheckOptions extends Pick<
+  RunPreCallOptions,
+  'durationMs'
+> {
+  /**
+   * Audio level at or above which the microphone is considered non-silent.
+   * Clamped to the range 0–1. Default: `0.01`.
+   */
+  silenceThreshold?: number;
+
+  /**
+   * Whether to record the microphone audio during the check so the
+   * user can listen to it afterwards. Defaults to `false`.
+   */
+  record?: boolean;
+
+  /**
+   * Optional callback invoked immediately before recording starts. It
+   * receives `MICROPHONE_RECORDING_NOTICE`, allowing the application to
+   * display a warning to the user.
+   */
+  warnOnRecording?: (notice: string) => void;
+}
 
 /**
  * The `TelnyxRTC` client connects your application to the Telnyx backend,
@@ -244,6 +344,217 @@ export class TelnyxRTC extends TelnyxRTCClient {
    */
   newCall(options: ICallOptions) {
     return super.newCall(options);
+  }
+
+  /**
+   * Runs a pre-call diagnostic using the new `PreCallDiagnostic` framework.
+   *
+   * This method creates a temporary diagnostic call to probe network, ICE,
+   * audio flow, and microphone conditions before placing a real call. The
+   * diagnostic call is automatically cleaned up (hung up) on completion
+   * unless `autoHangup` is set to `false`.
+   *
+   * The client's existing ICE servers and audio constraints are reused
+   * unless explicitly overridden via `options`.
+   *
+   * `destinationNumber` is optional — when omitted, the diagnostic call
+   * dials a sensible default (`'+1-872-231-5806'`).
+   *
+   * `durationMs` controls the post-establishment sampling window and starts
+   * only after the diagnostic call is established. Call setup is bounded by
+   * an internal SDK deadline.
+   *
+   * @param options Options for the pre-call diagnostic. All fields are
+   *   optional; `destinationNumber` defaults to `'+1-872-231-5806'`.
+   * @returns A promise that resolves with the `PreCallDiagnosticReport`.
+   *
+   * @examples
+   *
+   * Zero-arg form — run with all defaults:
+   *
+   * ```js
+   * const report = await client.runPreCall();
+   * console.log(report.verdict); // => 'ready' | 'degraded' | 'blocked' | 'inconclusive'
+   * ```
+   *
+   * With an explicit destination:
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   destinationNumber: '+155****4567',
+   * });
+   * ```
+   *
+   * Override the sampling duration:
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   durationMs: 3000,
+   * });
+   * ```
+   *
+   * Custom ICE servers (diagnostic-only, does not mutate client config):
+   *
+   * ```js
+   * const report = await client.runPreCall({
+   *   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+   * });
+   * ```
+   */
+  async runPreCall(
+    options: RunPreCallOptions = {}
+  ): Promise<PreCallDiagnosticReport> {
+    const diagnosticOptions: PreCallDiagnosticOptions = {
+      client: this,
+      destinationNumber:
+        options.destinationNumber ?? DEFAULT_PRECALL_DESTINATION,
+      durationMs: options.durationMs,
+      // All diagnostic modules always run inside runPreCall() (VSDK-412 spec).
+      // Module toggles are not part of the public surface for runPreCall.
+      ice: true,
+      network: true,
+      // Microphone capture and audio-level measurement now run whenever the
+      // module is enabled. Recording remains disabled by default.
+      microphone: true,
+      mode: 'full',
+      // Reuse client's ICE servers unless overridden via iceServers.
+      // options.iceServers is diagnostic-only and must not mutate client config.
+      rtcConfig: {
+        iceServers: options.iceServers ?? this.iceServers,
+      },
+    };
+
+    const diagnostic = new PreCallDiagnostic(diagnosticOptions);
+    return diagnostic.run();
+  }
+
+  /**
+   * Runs a network/ICE check using the `PreCallDiagnostic` framework.
+   *
+   * This method tests each configured ICE server URL independently using a
+   * real, short diagnostic call. Each call stays active for three seconds and
+   * all calls run concurrently to keep the total check duration bounded.
+   * TURN URLs force relay policy to verify that the relay is actually usable.
+   *
+   * Results from every call are combined under `serverTests` so a
+   * failed server does not hide successful servers (and vice versa).
+   *
+   * @param options Options for the network check. All fields are optional.
+   * @returns A promise that resolves with the `PreCallDiagnosticReport`.
+   *
+   * @examples
+   *
+   * Zero-arg form — run with the client's default ICE servers:
+   *
+   * ```js
+   * const report = await client.runNetworkCheck();
+   * console.log(report.serverTests);
+   * ```
+   *
+   * With custom ICE servers:
+   *
+   * ```js
+   * const report = await client.runNetworkCheck({
+   *   iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+   * });
+   * ```
+   */
+  async runNetworkCheck(
+    options: RunNetworkCheckOptions = {}
+  ): Promise<PreCallDiagnosticReport> {
+    const diagnosticOptions: PreCallDiagnosticOptions = {
+      client: this,
+      destinationNumber: DEFAULT_PRECALL_DESTINATION,
+      // ICE and per-server network measurements run for every short call.
+      // Callers cannot opt out from the public API.
+      ice: true,
+      network: true,
+      microphone: false,
+      // Network-only mode places one fixed three-second call per ICE URL.
+      mode: 'network-only',
+      // Reuse client's ICE servers unless overridden via iceServers.
+      // options.iceServers is diagnostic-only and must not mutate client config.
+      rtcConfig: {
+        iceServers: options.iceServers ?? this.iceServers,
+      },
+    };
+
+    const diagnostic = new PreCallDiagnostic(diagnosticOptions);
+    return diagnostic.run();
+  }
+
+  /**
+   * Runs a microphone check using the `PreCallDiagnostic` framework.
+   *
+   * This method performs an active microphone check: it calls
+   * `getUserMedia({ audio: true })` to verify capture works, measures
+   * the audio level using Web Audio APIs, enumerates all available
+   * audio input devices, and optionally records the audio so the user
+   * can listen to it afterwards.
+   *
+   * This method does **not** dial (`client.newCall()` is not called) —
+   * it calls `getUserMedia({ audio: true })` for permission + device
+   * check, then runs a Web Audio `AnalyserNode` for level measurement.
+   * No SIP signaling or `destinationNumber` is required.
+   *
+   * @param options Options for the microphone check. All fields are optional.
+   * @returns A promise that resolves with the `PreCallDiagnosticReport`.
+   *
+   * @examples
+   *
+   * Zero-arg form — run with defaults (active capture enabled):
+   *
+   * ```js
+   * const report = await client.runMicrophoneCheck();
+   * console.log(report.microphone?.isPermissionGrantedCurrently);
+   * console.log(report.microphone?.devices);
+   * console.log(report.microphone?.audioLevelStats);
+   * ```
+   *
+   * With recording enabled (user can listen to it afterwards):
+   *
+   * ```js
+   * const report = await client.runMicrophoneCheck({
+   *   durationMs: 5000,
+   *   record: true,
+   *   warnOnRecording: (notice) => {
+   *     showRecordingWarning(notice);
+   *   },
+   * });
+   * ```
+   */
+  async runMicrophoneCheck(
+    options: RunMicrophoneCheckOptions = {}
+  ): Promise<PreCallDiagnosticReport> {
+    const diagnosticOptions: PreCallDiagnosticOptions = {
+      client: this,
+      // Module gating: only microphone enabled, others disabled.
+      // Microphone always runs in runMicrophoneCheck() — callers cannot
+      // opt out from the public API (VSDK-412 Gap 3).
+      ice: false,
+      network: false,
+      // Active capture and audio-level measurement run whenever the module is
+      // enabled. Recording remains an explicit opt-in and successful
+      // recordings are played back automatically.
+      // Map the public `durationMs` (inherited from RunPreCallOptions) to
+      // the microphone module's `sampleDurationMs` so the user's chosen
+      // sampling window is honored in microphone-only mode. Without this
+      // the module always falls back to its hardcoded default (2000ms)
+      // regardless of what the caller passes (VSDK-412 round-6 review:
+      // "durationMs is ignored in microphone-only mode").
+      microphone: {
+        sampleDurationMs: options.durationMs,
+        silenceThreshold: options.silenceThreshold,
+        record: options.record ?? false,
+        warnOnRecording: options.warnOnRecording,
+      },
+      // microphone-only mode: skip client.newCall() — run getUserMedia +
+      // Web Audio level analysis directly without dialing.
+      mode: 'microphone-only',
+    };
+
+    const diagnostic = new PreCallDiagnostic(diagnosticOptions);
+    return diagnostic.run();
   }
 
   /**

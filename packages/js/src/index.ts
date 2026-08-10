@@ -51,6 +51,7 @@ export type {
 } from './Modules/Verto/util/constants/warnings';
 
 export * from './PreCallDiagnosis';
+export * from './PreCallDiagnostic';
 
 export type {
   FunctionCallItem,

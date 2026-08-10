@@ -13,6 +13,7 @@ Object.defineProperty(global, 'performance', {
 
 import BrowserSession from '../../BrowserSession';
 import Peer from '../../webrtc/Peer';
+import { callMarkName } from '../../webrtc/CallEstablishmentTimings';
 import { PeerType } from '../../webrtc/constants';
 import { IVertoCallOptions } from '../../webrtc/interfaces';
 
@@ -137,6 +138,71 @@ describe('Peer negotiation during ICE restart', () => {
 
     expect(nonTrickleSpy).toHaveBeenCalledTimes(1);
     expect(trickleSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('Peer call-establishment timings', () => {
+  it('retains the regular call timeline after clearing performance marks', () => {
+    const marks = new Map<string, number>();
+    let now = 0;
+    Object.defineProperty(global, 'performance', {
+      writable: true,
+      value: {
+        mark: jest.fn((name: string) => {
+          marks.set(name, now++);
+        }),
+        clearMarks: jest.fn((name: string) => marks.delete(name)),
+        getEntriesByName: jest.fn((name: string) => {
+          const startTime = marks.get(name);
+          return startTime === undefined ? [] : [{ startTime }];
+        }),
+        getEntriesByType: jest.fn().mockReturnValue([]),
+        measure: jest.fn(),
+        clearMeasures: jest.fn(),
+        now: jest.fn(() => now),
+      },
+    });
+
+    const callId = 'timed-call';
+    performance.mark(callMarkName(callId, 'new-call-start'));
+    performance.mark(callMarkName(callId, 'new-peer'));
+    performance.mark(callMarkName(callId, 'ringing'));
+    performance.mark(callMarkName(callId, 'call-active'));
+
+    const peer = new Peer(
+      PeerType.Offer,
+      {
+        id: callId,
+        debug: false,
+        trickleIce: true,
+      } as IVertoCallOptions,
+      {
+        options: {},
+      } as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+    peer.instance = {
+      connectionState: 'connected',
+    } as RTCPeerConnection;
+
+    peer.tryCollectTimings();
+
+    expect(peer.callEstablishmentTimings).toEqual({
+      mode: 'trickle',
+      direction: 'outbound',
+      steps: [
+        { label: 'Peer object created', fromStart: 1, delta: 1 },
+        { label: 'Remote side ringing', fromStart: 2, delta: 1 },
+        { label: 'Call is active', fromStart: 3, delta: 1 },
+      ],
+    });
+    expect(
+      performance.getEntriesByName(
+        callMarkName(callId, 'new-call-start'),
+        'mark'
+      )
+    ).toEqual([]);
   });
 });
 

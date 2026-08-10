@@ -54,7 +54,7 @@ export interface RTCIceCandidateStats {
   /**
    * The protocol used by the ICE candidate.
    */
-  protocol: RTCIceCandidate['protocol'];
+  protocol: RTCIceCandidate['protocol'] | 'tls';
   /**
    * The relay protocol used by the ICE candidate, if applicable.
    */
@@ -75,6 +75,7 @@ export interface RTCIceCandidateStats {
    * The URL of the ICE candidate.
    */
   url: string;
+  networkType: string;
 }
 /**
  * Interface representing the minimum, maximum, and average values.
