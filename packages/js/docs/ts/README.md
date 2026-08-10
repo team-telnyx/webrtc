@@ -14,7 +14,6 @@
 
 ### Other Classes
 
-- [CallRecorder](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/CallRecorder.md)
 - [PreCallDiagnosis](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/PreCallDiagnosis.md)
 
 ### Notification Interfaces
@@ -25,15 +24,8 @@
 
 - [ICallEstablishmentTimings](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
 - [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
-- [ICallRecordingContext](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingContext.md)
-- [ICallRecordingEnvelope](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingEnvelope.md)
-- [ICallRecordingOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingOptions.md)
+- [ICredentials](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICredentials.md)
 - [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
-- [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
-- [ILocalAudioSourceStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioSourceStats.md)
-- [ILocalAudioTrackSnapshot](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioTrackSnapshot.md)
-- [IRecordingPacket](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IRecordingPacket.md)
-- [ITransportStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ITransportStats.md)
 - [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
 - [PreCallDiagnosisOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md)
 - [RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)
@@ -45,29 +37,23 @@
 
 - [AIConversationFunctionCallOutputParams](#aiconversationfunctioncalloutputparams)
 - [AIConversationFunctionCallParams](#aiconversationfunctioncallparams)
+- [AIConversationOutboundItem](#aiconversationoutbounditem)
+- [AIConversationOutboundParams](#aiconversationoutboundparams)
 - [AIConversationParams](#aiconversationparams)
 - [FunctionCallItem](#functioncallitem)
 - [FunctionCallOutputItem](#functioncalloutputitem)
 - [IAIConversationMessageEvent](#iaiconversationmessageevent)
 - [ISendAIConversationMessageOptions](#isendaiconversationmessageoptions)
-- [RecordingTrackKind](#recordingtrackkind)
+- [ResponseAudioStreamSubscribeItem](#responseaudiostreamsubscribeitem)
 
 ### Variables
 
-- [DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS](#default_call_recording_flush_interval_ms)
-- [DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES](#default_call_recording_max_buffer_bytes)
-- [DEFAULT_CALL_RECORDING_SAMPLE_RATE](#default_call_recording_sample_rate)
+- [Region](#region)
 
 ### Functions
 
-- [callMarkName](#callmarkname)
-- [clearCallMarks](#clearcallmarks)
-- [collectCallEstablishmentTimings](#collectcallestablishmenttimings)
-- [getConstraintsWithoutDeviceId](#getconstraintswithoutdeviceid)
-- [isDeviceNotFoundError](#isdevicenotfounderror)
 - [isFunctionCallOutputParams](#isfunctioncalloutputparams)
 - [isFunctionCallParams](#isfunctioncallparams)
-- [logCallEstablishmentTimings](#logcallestablishmenttimings)
 
 ## Type Aliases
 
@@ -103,12 +89,36 @@ Contains a function_call item from the backend.
 
 ---
 
+### AIConversationOutboundItem
+
+Ƭ **AIConversationOutboundItem**: [`FunctionCallOutputItem`](#functioncalloutputitem) \| [`ResponseAudioStreamSubscribeItem`](#responseaudiostreamsubscribeitem)
+
+Outbound item accepted by `conversation.item.create` over `ai_conversation`.
+
+---
+
+### AIConversationOutboundParams
+
+Ƭ **AIConversationOutboundParams**: `Object`
+
+Params for an outbound `ai_conversation` message with `params.type = "conversation.item.create"`.
+Contains any outbound item to send back to the backend.
+
+#### Type declaration
+
+| Name   | Type                                                        |
+| :----- | :---------------------------------------------------------- |
+| `item` | [`AIConversationOutboundItem`](#aiconversationoutbounditem) |
+| `type` | `"conversation.item.create"`                                |
+
+---
+
 ### AIConversationParams
 
-Ƭ **AIConversationParams**: [`AIConversationFunctionCallParams`](#aiconversationfunctioncallparams) \| [`AIConversationFunctionCallOutputParams`](#aiconversationfunctioncalloutputparams) \| \{ `[key: string]`: `unknown`; `type`: `string` }
+Ƭ **AIConversationParams**: [`AIConversationFunctionCallParams`](#aiconversationfunctioncallparams) \| [`AIConversationOutboundParams`](#aiconversationoutboundparams) \| \{ `[key: string]`: `unknown`; `type`: `string` }
 
 Generic params for any `ai_conversation` message.
-Can be a function_call (inbound) or function_call_output (outbound),
+Can be a function_call (inbound) or outbound conversation item,
 as well as other `ai_conversation` message types (transcript, etc.).
 
 ---
@@ -167,172 +177,52 @@ Represents an inbound `ai_conversation` JSON-RPC message from the backend.
 
 ### ISendAIConversationMessageOptions
 
-Ƭ **ISendAIConversationMessageOptions**: [`FunctionCallOutputItem`](#functioncalloutputitem)
+Ƭ **ISendAIConversationMessageOptions**: [`AIConversationOutboundItem`](#aiconversationoutbounditem)
 
 Argument accepted by `call.sendAIConversationMessage()`: the
-`function_call_output` item to send back to the backend. Alias of
-[FunctionCallOutputItem](#functioncalloutputitem), kept as a named export so callers can refer
+outbound item to send back to the backend. Alias of
+[AIConversationOutboundItem](#aiconversationoutbounditem), kept as a named export so callers can refer
 to the method's parameter type directly.
 
 ---
 
-### RecordingTrackKind
+---
 
-Ƭ **RecordingTrackKind**: `"local"` \| `"remote"`
+### ResponseAudioStreamSubscribeItem
 
-Which audio track a packet belongs to.
+Ƭ **ResponseAudioStreamSubscribeItem**: `Object`
+
+An outbound subscription item for ACA pre-playout assistant audio events.
+
+#### Type declaration
+
+| Name   | Type                                |
+| :----- | :---------------------------------- |
+| `type` | `"response.audio_stream.subscribe"` |
 
 ## Variables
 
-### DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS
+### Region
 
-• `Const` **DEFAULT_CALL_RECORDING_FLUSH_INTERVAL_MS**: `240000`
+• `Const` **Region**: `Object`
 
-Default interval (ms) between intermediate call-recording flushes.
-The recorder POSTs buffered RTP packets to /call_recording on this cadence
-so long calls do not buffer unbounded packet data in memory. A final flush
-at end of call submits the tail.
+Supported WebRTC signaling regions.
 
-**`Default`**
+Omit `IClientOptions.region` to use automatic routing.
 
-```ts
-240000 (4 minutes)
-```
+#### Type declaration
 
----
-
-### DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES
-
-• `Const` **DEFAULT_CALL_RECORDING_MAX_BUFFER_BYTES**: `8000000`
-
-Default hard cap (bytes) on the in-memory call-recording packet buffer.
-On overflow the recorder drops the oldest packets and emits a
-RECORDING_BUFFER_OVERFLOW warning (once per flush window).
-
-**`Default`**
-
-```ts
-8_000_000 (8 MB)
-```
-
----
-
-### DEFAULT_CALL_RECORDING_SAMPLE_RATE
-
-• `Const` **DEFAULT_CALL_RECORDING_SAMPLE_RATE**: `48000`
-
-Default sample rate (Hz) advertised in the recording envelope. The
-captured Float32 PCM frames already carry the track's actual sample rate;
-this is the value reported to voice-sdk-debug so it can interpret the
-payload. 48 kHz is the typical WebRTC audio track rate.
-
-**`Default`**
-
-```ts
-48000;
-```
+| Name         | Type           |
+| :----------- | :------------- |
+| `APAC`       | `"apac"`       |
+| `CA_CENTRAL` | `"ca-central"` |
+| `EU`         | `"eu"`         |
+| `SOUTH_ASIA` | `"south-asia"` |
+| `US_CENTRAL` | `"us-central"` |
+| `US_EAST`    | `"us-east"`    |
+| `US_WEST`    | `"us-west"`    |
 
 ## Functions
-
-### callMarkName
-
-▸ **callMarkName**(`callId`, `suffix`): `string`
-
-Build a call-scoped performance mark name.
-Format: `telnyx:call:{callId}:{suffix}`
-
-Scoping marks by call_id prevents stale marks from a previous call
-from being picked up by a subsequent call's timing collection.
-
-#### Parameters
-
-| Name     | Type     |
-| :------- | :------- |
-| `callId` | `string` |
-| `suffix` | `string` |
-
-#### Returns
-
-`string`
-
----
-
-### clearCallMarks
-
-▸ **clearCallMarks**(`callId`): `void`
-
-Clear all call establishment performance marks for a given call.
-Marks are scoped by call_id, so only marks belonging to this call are removed.
-
-#### Parameters
-
-| Name     | Type     |
-| :------- | :------- |
-| `callId` | `string` |
-
-#### Returns
-
-`void`
-
----
-
-### collectCallEstablishmentTimings
-
-▸ **collectCallEstablishmentTimings**(`callId`, `mode`, `direction`): [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
-
-Collect all call establishment timings from performance marks.
-All times are measured from the 'new-call-start' mark.
-
-#### Parameters
-
-| Name        | Type                           | Description                          |
-| :---------- | :----------------------------- | :----------------------------------- |
-| `callId`    | `string`                       | The call ID to scope mark lookups to |
-| `mode`      | `"trickle"` \| `"non-trickle"` | 'trickle' or 'non-trickle' ICE mode  |
-| `direction` | `"inbound"` \| `"outbound"`    | 'outbound' or 'inbound'              |
-
-#### Returns
-
-[`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
-
----
-
-### getConstraintsWithoutDeviceId
-
-▸ **getConstraintsWithoutDeviceId**(`constraints`): `MediaStreamConstraints`
-
-Remove deviceId constraints from constraints to fallback to default device
-Returns null if no deviceId was specified (no fallback possible)
-
-#### Parameters
-
-| Name          | Type                     |
-| :------------ | :----------------------- |
-| `constraints` | `MediaStreamConstraints` |
-
-#### Returns
-
-`MediaStreamConstraints`
-
----
-
-### isDeviceNotFoundError
-
-▸ **isDeviceNotFoundError**(`error`): `boolean`
-
-Check if error is related to a specific device being unavailable
-
-#### Parameters
-
-| Name    | Type    |
-| :------ | :------ |
-| `error` | `Error` |
-
-#### Returns
-
-`boolean`
-
----
 
 ### isFunctionCallOutputParams
 
@@ -369,19 +259,3 @@ Type guard: checks if an `ai_conversation` message contains a `function_call` it
 params is AIConversationFunctionCallParams
 
 ---
-
-### logCallEstablishmentTimings
-
-▸ **logCallEstablishmentTimings**(`timings`): `void`
-
-Log call establishment timings as a readable table.
-
-#### Parameters
-
-| Name      | Type                                                                                                                                       |
-| :-------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| `timings` | [`ICallEstablishmentTimings`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md) |
-
-#### Returns
-
-`void`

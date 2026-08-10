@@ -273,7 +273,7 @@ export const SDK_WARNINGS = {
     name: 'ONLY_HOST_ICE_CANDIDATES',
     message: 'Only local network candidates available',
     description:
-      'ICE gathering completed but only host (local network) candidates were collected — no server-reflexive (srflx) or relay (turn) candidates were found. This typically means the STUN/TURN servers are unreachable, which will prevent connections outside the local network.',
+      'ICE gathering completed with host (local network) candidates only. This is diagnostic evidence that no server-reflexive (srflx), peer-reflexive (prflx), or relay (TURN) candidates were found; connectivity may still succeed, but network traversal options can be limited.',
     causes: [
       'STUN/TURN servers unreachable',
       'Firewall blocking UDP traffic to STUN/TURN servers',

@@ -32,6 +32,22 @@ const PROBE_TIMEOUT_MS = 5 * 1000; // 5s after probe → give up
 const CHECK_INTERVAL_MS = 3 * 1000;
 
 /**
+ * How long (ms) the socket may go without a single outbound request being
+ * answered before signaling health is treated as unknown and probed.
+ *
+ * Inbound bytes alone do not prove the socket works. b2bua-rtc pings every
+ * ~15s and the SDK answers each one, so a working session confirms an
+ * outbound round trip at roughly that cadence. When frames keep arriving
+ * but nothing we send is ever answered, the socket is half-open (or the
+ * page has stopped executing our handlers) — a state the inbound-only
+ * check reads as perfectly healthy, because the pings keep landing.
+ *
+ * Set to three missed ping cycles so a single slow round trip cannot
+ * trigger a probe.
+ */
+const OUTBOUND_CONFIRM_THRESHOLD_MS = 45 * 1000;
+
+/**
  * If inbound WS activity was received within this window (ms),
  * signaling is considered recently active and a triggered probe
  * is skipped.
@@ -68,6 +84,12 @@ type PendingMediaRecovery = {
 export default class SignalingHealthMonitor {
   /** Timestamp of the last inbound WS message. */
   private _lastInboundAt: number = 0;
+  /**
+   * Timestamp of the last outbound request that came back answered.
+   * Distinct from _lastInboundAt: this one proves the socket carries our
+   * frames, not just the server's. See OUTBOUND_CONFIRM_THRESHOLD_MS.
+   */
+  private _lastOutboundConfirmedAt: number = 0;
   /** Timestamp of the last health probe (Ping) sent. Reset to 0 on activity. */
   private _lastProbeSentAt: number = 0;
   /** True when a probe has been sent and we're waiting for a response. */
@@ -116,6 +138,7 @@ export default class SignalingHealthMonitor {
     }
     logger.debug('Signaling health: monitor started');
     this._lastInboundAt = Date.now();
+    this._lastOutboundConfirmedAt = Date.now();
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
 
@@ -165,6 +188,20 @@ export default class SignalingHealthMonitor {
     this._lastInboundAt = Date.now();
   }
 
+  /**
+   * Called when a request the SDK sent comes back answered — by a result
+   * or by an error, since either one proves the frame reached the server
+   * and the reply reached our handler.
+   *
+   * This is the only signal that says the socket works in both
+   * directions. onSocketActivity() cannot: it fires on server-initiated
+   * traffic too, so it stays fresh on a socket that is no longer carrying
+   * anything we send.
+   */
+  onOutboundConfirmed(): void {
+    this._lastOutboundConfirmedAt = Date.now();
+  }
+
   private _resolveProbe(): void {
     if (!this._probeInFlight) {
       return;
@@ -173,6 +210,8 @@ export default class SignalingHealthMonitor {
     this._probeInFlight = false;
     this._lastProbeSentAt = 0;
     this._lastInboundAt = Date.now();
+    // A resolved probe is itself a completed outbound round trip.
+    this._lastOutboundConfirmedAt = Date.now();
     logger.debug('Signaling health: probe resolved by matching Ping response');
 
     if (!this._pendingMediaRecovery) {
@@ -437,9 +476,18 @@ export default class SignalingHealthMonitor {
   // ── Private ─────────────────────────────────────────────────────────
 
   /**
-   * Periodic check: if no inbound WS activity during an active call for
-   * PROBE_THRESHOLD_MS, send a probe. If a probe is in-flight and
-   * PROBE_TIMEOUT_MS has elapsed, declare signaling unhealthy.
+   * Periodic check. Two independent reasons to probe:
+   *
+   * - Inbound silence for PROBE_THRESHOLD_MS — nothing is arriving.
+   * - No outbound request answered for OUTBOUND_CONFIRM_THRESHOLD_MS —
+   *   frames may still be arriving, but none of ours are getting through
+   *   (or are being processed). Inbound silence alone never catches this,
+   *   because server pings keep the inbound clock fresh.
+   *
+   * Either way the probe is the arbiter: it resolves only on its own
+   * matching response, so it settles both questions at once. If a probe
+   * is in flight and PROBE_TIMEOUT_MS has elapsed, declare signaling
+   * unhealthy.
    */
   private _check(): void {
     if (!this._session.connection?.connected) {
@@ -448,16 +496,21 @@ export default class SignalingHealthMonitor {
 
     const now = Date.now();
     const silenceMs = now - this._lastInboundAt;
+    const unconfirmedMs = now - this._lastOutboundConfirmedAt;
+    const inboundStale = silenceMs >= PROBE_THRESHOLD_MS;
+    const outboundStale = unconfirmedMs >= OUTBOUND_CONFIRM_THRESHOLD_MS;
 
-    // If we have recent activity, nothing to do
-    if (silenceMs < PROBE_THRESHOLD_MS) {
+    // If both directions look recently healthy, nothing to do
+    if (!inboundStale && !outboundStale) {
       return;
     }
 
     // If no probe is in flight, send one
     if (!this._probeInFlight) {
       logger.info(
-        `Signaling health: no inbound WS activity for ${Math.round(silenceMs / 1000)}s during active call, sending health probe`
+        inboundStale
+          ? `Signaling health: no inbound WS activity for ${Math.round(silenceMs / 1000)}s during active call, sending health probe`
+          : `Signaling health: inbound WS activity is flowing but no outbound request has been answered for ${Math.round(unconfirmedMs / 1000)}s, sending health probe`
       );
       this._sendProbe();
       return;
@@ -467,10 +520,15 @@ export default class SignalingHealthMonitor {
     const probeElapsedMs = now - this._lastProbeSentAt;
     if (probeElapsedMs >= PROBE_TIMEOUT_MS) {
       logger.warn(
-        `Signaling health: probe timed out after ${probeElapsedMs}ms with no inbound activity — declaring signaling unhealthy`
+        `Signaling health: probe timed out after ${probeElapsedMs}ms ` +
+          `(inbound silent for ${Math.round(silenceMs / 1000)}s, ` +
+          `no outbound request answered for ${Math.round(unconfirmedMs / 1000)}s) — ` +
+          `declaring signaling unhealthy`
       );
       this._triggerSignalingRecovery(
-        'Signaling health probe timed out: no inbound WS activity after probe',
+        inboundStale
+          ? 'Signaling health probe timed out: no inbound WS activity after probe'
+          : 'Signaling health probe timed out: inbound WS activity is flowing but no outbound request is being answered',
         'probe'
       );
     }

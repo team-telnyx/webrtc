@@ -57,7 +57,7 @@ The SDK connects to Telnyx signaling infrastructure via secure WebSocket (WSS) o
 | EU | AMS3 (Amsterdam) | `185.246.41.166` |
 | EU | FR5 (Frankfurt) | `185.246.41.136` |
 | EU | LD6 (London) | `185.246.41.135` |
-| APAC | CN1 (Chennai) | `36.255.198.250` |
+| South Asia | CN1 (Chennai) | `36.255.198.250` |
 
 ### Regional signaling endpoints
 
@@ -80,7 +80,7 @@ The SDK uses STUN for NAT traversal (discovering the client's public-facing IP) 
 | STUN (UDP) | ANY | ANY | `stun.l.google.com` | **19302** |
 | TURN (UDP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
 | TURN (TCP) | ANY | ANY | `turn.telnyx.com` / TURN server IPs | **3478** |
-| TURNS (TLS) | ANY | ANY | `turn2.telnyx.com` / TURN server IPs | **443** |
+| TURNS (TLS) | ANY | ANY | `turn.telnyx.com` / `turn2.telnyx.com` / TURN server IPs | **443** |
 | TURN relay (UDP) | ANY | ANY | TURN server IPs | **49152–65535** |
 
 ### SDK ICE server URLs
@@ -93,7 +93,8 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 | STUN fallback | `stun:stun.l.google.com:19302` |
 | TURN over UDP | `turn:turn.telnyx.com:3478?transport=udp` |
 | TURN over TCP | `turn:turn.telnyx.com:3478?transport=tcp` |
-| TURNS over TLS | `turns:turn2.telnyx.com:443` |
+| TURNS over TLS (primary) | `turns:turn.telnyx.com:443` |
+| TURNS over TLS (secondary) | `turns:turn2.telnyx.com:443` |
 
 ### TURN server IP addresses
 
@@ -163,6 +164,7 @@ In a typical organization network, a firewall protects internal hosts from the I
 3. **Allow outgoing UDP and TCP** to SDK TURN server URLs:
    - `turn:turn.telnyx.com:3478?transport=udp`
    - `turn:turn.telnyx.com:3478?transport=tcp`
+   - `turns:turn.telnyx.com:443`
    - `turns:turn2.telnyx.com:443`
 4. **Allow outgoing UDP** to media server subnets on ports `16384–32768`
 5. **Allow return traffic** for all of the above (stateful firewall)
@@ -182,7 +184,7 @@ If your network blocks all UDP traffic:
    })
    ```
 2. Ensure TCP port **3478** is open to the TURN server URL `turn:turn.telnyx.com:3478?transport=tcp` and the TURN server IPs listed above.
-3. If TCP port 3478 is also blocked, the SDK automatically falls back to TURNS (TURN over TLS) on port **443** via `turns:turn.telnyx.com:443?transport=tcp`. Ensure TCP port 443 is open to the TURN server IPs.
+3. If TCP port 3478 is also blocked, allow TURNS (TURN over TLS) on port **443** via `turns:turn.telnyx.com:443` and `turns:turn2.telnyx.com:443`. Ensure TCP port 443 is open to the TURN server IPs.
 
 > **Warning:** Forcing relay candidates adds latency since all media is relayed through the TURN server. Use this only when direct UDP is not possible.
 
@@ -255,7 +257,8 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `us-west.rtc.telnyx.com` | US West | LV1 (Las Vegas) |
 | `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| `apac.rtc.telnyx.com` | Asia-Pacific | CN1 (Chennai), SY1 (Sydney) |
+| `apac.rtc.telnyx.com` | Asia-Pacific | SY1 (Sydney) |
+| `south-asia.rtc.telnyx.com` | South Asia | CN1 (Chennai) |
 
 Use regional endpoints when:
 - Your users are concentrated in a known region
@@ -292,6 +295,7 @@ new TelnyxRTC({
 | United States | CH1 (Chicago), AT1 (Atlanta), NJ1 (New Jersey), LV1 (Las Vegas), DA1 (Dallas) |
 | Canada | TR1 (Toronto), MT1 (Montreal) |
 | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
-| Asia-Pacific | CN1 (Chennai), SY1 (Sydney) |
+| Asia-Pacific | SY1 (Sydney) |
+| South Asia | CN1 (Chennai) |
 
 Customers can request a direct connection to the Telnyx network via Megaport or direct peering.

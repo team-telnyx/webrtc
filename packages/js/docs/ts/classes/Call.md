@@ -68,12 +68,11 @@ call.muteAudio();
 
 ### Methods
 
-- [\_applyDesiredAudioMuteState](#_applydesiredaudiomutestate)
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
-- [flushIntermediateCallReport](#flushintermediatecallreport)
 - [getStats](#getstats)
+- [hangup](#hangup)
 - [hold](#hold)
 - [muteAudio](#muteaudio)
 - [muteVideo](#mutevideo)
@@ -311,26 +310,6 @@ BaseCall.telnyxIDs
 
 ## Methods
 
-### \_applyDesiredAudioMuteState
-
-▸ **\_applyDesiredAudioMuteState**(): `void`
-
-Apply the current desired mute state to all local audio tracks.
-Called internally after track creation/replacement (Peer init,
-setAudioInDevice, setVideoDevice, reattach, ICE restart) to
-ensure the mic stays muted when the SDK creates or replaces
-local audio tracks.
-
-#### Returns
-
-`void`
-
-#### Inherited from
-
-BaseCall.\_applyDesiredAudioMuteState
-
----
-
 ### answer
 
 ▸ **answer**(`params?`): `Promise`\<`void`\>
@@ -412,30 +391,6 @@ BaseCall.dtmf
 
 ---
 
-### flushIntermediateCallReport
-
-▸ **flushIntermediateCallReport**(`flushReason?`): `void`
-
-Flush an intermediate call report segment mid-call.
-Used for periodic, size-limit, and socket-close safety flushes without
-falsely finalizing the call.
-
-#### Parameters
-
-| Name          | Type                     |
-| :------------ | :----------------------- |
-| `flushReason` | `ICallReportFlushReason` |
-
-#### Returns
-
-`void`
-
-#### Inherited from
-
-BaseCall.flushIntermediateCallReport
-
----
-
 ### getStats
 
 ▸ **getStats**(`callback`, `constraints`): `void`
@@ -456,6 +411,28 @@ Registers callback for stats.
 #### Inherited from
 
 BaseCall.getStats
+
+---
+
+### hangup
+
+▸ **hangup**(): `Promise`\<`void`\>
+
+Hangs up the call. If a screen-share call is active, it is hung up first.
+
+**`Example`**
+
+```js
+call.hangup();
+```
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Inherited from
+
+BaseCall.hangup
 
 ---
 
@@ -546,12 +523,11 @@ BaseCall.muteVideo
 
 ▸ **sendAIConversationMessage**(`item`): `void`
 
-Sends an AI conversation message (e.g. a `function_call_output`) over
-the active VSP WebSocket session.
+Sends an outbound AI conversation item over the active VSP WebSocket session.
 
 Use this to return the result of a client-side tool execution back to
 the AI backend after receiving a `function_call` via the
-`telnyx.ai.conversation` event.
+`telnyx.ai.conversation` event, or to subscribe to ACA pre-playout audio.
 
 This is a fire-and-forget JSON-RPC notification (no `id`): the backend
 is not expected to ack each tool result, and the SDK does not wait for
@@ -564,9 +540,9 @@ could deliver stale results after ACA has timed out the waiter).
 
 #### Parameters
 
-| Name   | Type                                                                                                              | Description                                                                                                                          |
-| :----- | :---------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
-| `item` | [`FunctionCallOutputItem`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#functioncalloutputitem) | The function call output item to send. Must include `type: "function_call_output"`, the matching `call_id`, and the `output` string. |
+| Name   | Type                                                                                                                      | Description                                                                                                                                                                                                                                                       |
+| :----- | :------------------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `item` | [`AIConversationOutboundItem`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#aiconversationoutbounditem) | The outbound conversation item to send. For client-side tool results, use `type: "function_call_output"` with the matching `call_id` and `output` string. For ACA pre-playout audio, use `type: "response.audio_stream.subscribe"` to subscribe to stream events. |
 
 #### Returns
 

@@ -1,11 +1,10 @@
 import BaseMessage from '../BaseMessage';
-import type { FunctionCallOutputItem } from '../../webrtc/AIConversationTypes';
+import type { AIConversationOutboundItem } from '../../webrtc/AIConversationTypes';
 
 /**
  * Outbound ai_conversation JSON-RPC notification.
  *
- * Used to send `function_call_output` items back to the backend
- * after a client-side tool has been executed.
+ * Used to send outbound conversation items back to the backend.
  *
  * This is a JSON-RPC notification (no `id`) per the PR-531 wire protocol:
  * the backend is not required to send a response for each tool result,
@@ -28,7 +27,7 @@ import type { FunctionCallOutputItem } from '../../webrtc/AIConversationTypes';
  * ```
  */
 class AIConversationMessage extends BaseMessage {
-  constructor(item: FunctionCallOutputItem) {
+  constructor(item: AIConversationOutboundItem) {
     super();
     this.method = 'ai_conversation';
 

@@ -94,6 +94,6 @@ Sample rate (Hz) advertised in the recording envelope.
 
 ### tracks
 
-• `Optional` **tracks**: [`RecordingTrackKind`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/README.md#recordingtrackkind)[]
+• `Optional` **tracks**: `("local" | "remote")[]`
 
 Which tracks to record.

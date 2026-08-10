@@ -37,7 +37,6 @@ import {
   ONLY_HOST_ICE_CANDIDATES,
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
-  HAS_NON_HOST_ICE_CANDIDATE_REGEX,
   UNEXPECTED_ERROR,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
@@ -93,6 +92,7 @@ import {
   enableVideoTracks,
   getStreamTrackDebugInfo,
   getTrackDebugInfo,
+  hasOnlyHostIceCandidates,
   playAudio,
   stopAudio,
   toggleAudioTracks,
@@ -260,6 +260,9 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _firstNonHostCandidateSent: boolean = false;
 
   private _isRecovering: boolean = false;
+
+  // True when the call was held before attach-recovery replaced it.
+  private _wasHeldBeforeRecovery: boolean = false;
 
   private _captureHangupCallerStack(): string[] {
     const stack = new Error('Call.hangup caller').stack;
@@ -453,9 +456,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
   }
 
+  /** Returns the final relay policy from call options and recovery stats. */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
-      return false;
+      return true;
     }
 
     if (!this.recoveredCallId) {
@@ -1375,6 +1379,14 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._isRecovering = false;
           logger.debug(`[${this.id}] Recovery complete, call is active`);
         }
+        // Clear held-before-recovery intent and collector hold flag.
+        if (this._wasHeldBeforeRecovery) {
+          logger.debug(
+            `[${this.id}] Cleared held-before-recovery intent on transition to Active`
+          );
+          this._wasHeldBeforeRecovery = false;
+        }
+        this._callReportCollector?.setHeld(false);
 
         // Start signaling health monitor for active calls
         this.session.startSignalingHealthMonitor();
@@ -1426,6 +1438,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         // Start logging media devices for debugging
         this._mediaDeviceCollector = new MediaDeviceCollector();
         this._mediaDeviceCollector.logDevicesAtStart();
+        break;
+      }
+      case State.Held: {
+        // Suppress silence warnings while held.
+        this._callReportCollector?.setHeld(true);
         break;
       }
       case State.Destroy:
@@ -1841,7 +1858,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (this.gotEarly) {
           this.setState(State.Early);
         }
-        if (this.gotAnswer) {
+        // Preserve held state across ICE restart re-answer.
+        if (this.gotAnswer && this._state !== State.Held) {
           this.setState(State.Active);
         }
       })
@@ -1879,24 +1897,18 @@ export default abstract class BaseCall implements IWebRTCCall {
       });
   }
 
-  private _requestAnotherLocalDescription() {
-    if (isFunction(this.peer.onSdpReadyTwice)) {
-      const telnyxError = createTelnyxError(
-        SDP_SEND_FAILED,
-        new Error('SDP without candidates for the second time!')
-      );
-      trigger(
-        SwEvent.Error,
-        { error: telnyxError, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
+  private _warnIfOnlyHostIceCandidates(sdp: string | null | undefined) {
+    if (!hasOnlyHostIceCandidates(sdp)) {
       return;
     }
-    Object.defineProperty(this.peer, 'onSdpReadyTwice', {
-      value: this._onIceSdp.bind(this),
-    });
-    this.peer.iceDone = false;
-    this.peer.startNegotiation();
+
+    const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
+    logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
+    trigger(
+      SwEvent.Warning,
+      { warning, callId: this.id, sessionId: this.session.sessionid },
+      this.session.uuid
+    );
   }
 
   private _onIceSdp(data: RTCSessionDescription | null) {
@@ -1904,6 +1916,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       clearTimeout(this._iceTimeout);
     }
     this._iceTimeout = null;
+
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (this.peer) {
       this.peer.iceDone = true;
     }
@@ -1917,24 +1934,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const { sdp, type } = data;
 
-    if (sdp.indexOf('candidate') === -1) {
-      logger.info('No candidate - retry \n');
-      this._requestAnotherLocalDescription();
-      return;
-    }
-
     this.peer?.instance?.removeEventListener('icecandidate', this._onIce);
-
-    // W5d: Check for host-only ICE candidates (non-trickle path)
-    if (!HAS_NON_HOST_ICE_CANDIDATE_REGEX.test(sdp)) {
-      const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
-      logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
-      trigger(
-        SwEvent.Warning,
-        { warning, callId: this.id, sessionId: this.session.sessionid },
-        this.session.uuid
-      );
-    }
+    this._warnIfOnlyHostIceCandidates(sdp);
 
     performance.mark(callMarkName(this.id, 'ice-gathering-end'));
     let msg = null;
@@ -1986,7 +1987,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // Preserve held state across attach-recovery re-answer.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
@@ -2021,6 +2027,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onTrickleIceSdp(data: RTCSessionDescription) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (!data) {
       logger.error('No SDP data provided');
       void this.hangup({ initiator: 'sdk:missing-local-sdp' }, false);
@@ -2081,7 +2091,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         if (type === PeerType.Offer) {
           this.setState(State.Trying);
         } else {
-          this.setState(State.Active);
+          // Preserve held state across attach-recovery re-answer.
+          if (this._wasHeldBeforeRecovery && this._isRecovering) {
+            this.setState(State.Held);
+          } else {
+            this.setState(State.Active);
+          }
         }
       })
       .catch(async (error) => {
@@ -2116,6 +2131,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onIce(event: RTCPeerConnectionIceEvent) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     const { instance } = this.peer;
     if (this._iceTimeout === null) {
       // Use a longer timeout for attach (reconnection) to allow full ICE
@@ -2137,12 +2156,21 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   private _onTrickleIce(event: RTCPeerConnectionIceEvent) {
+    if (this._isTerminatingOrTerminated()) {
+      return;
+    }
+
     if (event.candidate && event.candidate.candidate) {
       logger.debug('RTCPeer Candidate:', event.candidate);
       this.peer?.incrementGatheredCandidates();
       this._trackCandidateMarks(event.candidate);
       this._sendIceCandidate(event.candidate);
     } else {
+      if (event.candidate === null) {
+        this._warnIfOnlyHostIceCandidates(
+          this.peer?.instance?.localDescription?.sdp
+        );
+      }
       this._sendEndOfCandidates();
     }
   }
@@ -2436,6 +2464,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       remoteCallerNumber,
       onNotification,
       recoveredCallId,
+      wasHeldBeforeRecovery,
     } = this.options;
     if (id) {
       this.options.id = id.toString();
@@ -2447,6 +2476,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     if (recoveredCallId) {
       this.recoveredCallId = recoveredCallId;
       this._isRecovering = true;
+      // Preserve held intent across attach-recovery.
+      this._wasHeldBeforeRecovery = Boolean(wasHeldBeforeRecovery);
     }
 
     if (!userVariables || objEmpty(userVariables)) {
@@ -2517,10 +2548,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         // signaling health monitor. This is strong evidence that
         // the media path is broken (unlike low audio level which
         // is ambiguous).
-        if (warning.code === LOW_BYTES_RECEIVED) {
+        // Skip no-RTP report while held (defense-in-depth).
+        if (warning.code === LOW_BYTES_RECEIVED && this._state !== State.Held) {
           this.session.reportNoRtp?.(this.id, 'inbound');
         } else if (
           warning.code === LOW_BYTES_SENT &&
+          this._state !== State.Held &&
           this._hasActiveUnmutedLocalAudioTrack()
         ) {
           this.session.reportNoRtp?.(this.id, 'outbound');

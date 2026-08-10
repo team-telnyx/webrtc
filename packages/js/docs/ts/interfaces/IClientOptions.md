@@ -29,6 +29,7 @@ IClientOptions
 - [mutedMicOnStart](#mutedmiconstart)
 - [password](#password)
 - [prefetchIceCandidates](#prefetchicecandidates)
+- [pushWhenActive](#pushwhenactive)
 - [region](#region)
 - [ringbackFile](#ringbackfile)
 - [ringtoneFile](#ringtonefile)
@@ -418,11 +419,30 @@ Enable or disable prefetching ICE candidates. Defaults to true.
 
 ---
 
+### pushWhenActive
+
+• `Optional` **pushWhenActive**: `boolean`
+
+When `true`, the backend sends mobile push notifications for incoming
+calls even while this browser has an active registration for the same
+credential, allowing browser and mobile clients to ring simultaneously.
+
+**`Default`**
+
+```ts
+false;
+```
+
+---
+
 ### region
 
 • `Optional` **region**: `string`
 
-Region to use for the connection.
+Region to use for the connection. Use [Region](https://developers.telnyx.com/development/webrtc/js-sdk/reference/iclientoptions#supported-regions) for the supported
+values, or omit this option to use automatic routing.
+
+Arbitrary strings remain supported for backwards compatibility.
 
 ---
 

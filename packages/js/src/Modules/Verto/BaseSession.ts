@@ -737,12 +737,21 @@ export default abstract class BaseSession {
       : '';
 
     if (type === 'login') {
+      const pushWhenActive =
+        this.options.pushWhenActive ??
+        this.options.userVariables?.push_when_active ??
+        false;
+      const userVariables = {
+        ...this.options.userVariables,
+        push_when_active: pushWhenActive,
+        pn_late_fanout: pushWhenActive,
+      };
       msg = new Login(
         this.options.login,
         this.options.password || this.options.passwd,
         this.options.login_token,
         reconnectSessionId,
-        this.options.userVariables,
+        userVariables,
         isReconnection
       );
     } else {
@@ -1176,6 +1185,17 @@ export default abstract class BaseSession {
    */
   private _onSocketActivity(): void {
     this._signalingHealthMonitor.onSocketActivity();
+  }
+
+  /**
+   * Called by Connection.send() when a request we sent comes back
+   * answered. Feeds the monitor's outbound-liveness clock, which is what
+   * distinguishes a working socket from one that only still receives.
+   *
+   * Public because Connection calls it; not part of the app-facing API.
+   */
+  public onOutboundConfirmed(): void {
+    this._signalingHealthMonitor.onOutboundConfirmed();
   }
 
   /**

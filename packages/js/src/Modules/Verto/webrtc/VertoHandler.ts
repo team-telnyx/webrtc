@@ -212,7 +212,11 @@ class VertoHandler {
           // Re-save the drained marker: only reattached calls remain. If
           // every call was notified (none reattached), the marker is cleared
           // (setActiveCallsRecoveryMarker clears on an empty array).
-          setActiveCallsRecoveryMarker(remainingCalls, saved.sessionId, saved.storedAt);
+          setActiveCallsRecoveryMarker(
+            remainingCalls,
+            saved.sessionId,
+            saved.storedAt
+          );
         }
       }
     }
@@ -227,17 +231,16 @@ class VertoHandler {
       mutedMicOnStart,
       remoteElement,
       localElement,
+      wasHeldBeforeRecovery,
     }: {
       recoveredCallId?: string;
       forceRelayCandidateForRecovery?: boolean;
       mutedMicOnStart?: boolean;
-      // Per-call remote/local media element to restore on attach-recovery
-      // (VSUP-121 review round 3). Carried forward from the matched existing
-      // call (scenario 1) or from the recovery marker's serializable string
-      // form (scenario 2 — page reload). When omitted, the call falls back to
-      // the session-level `client.remoteElement` / `client.localElement`.
+      // Per-call media element to restore on attach-recovery (matched call or page-refresh marker).
       remoteElement?: IVertoCallOptions['remoteElement'];
       localElement?: IVertoCallOptions['localElement'];
+      /** True when the original call was held at the moment of attach-recovery. */
+      wasHeldBeforeRecovery?: boolean;
     } = {}) => {
       const callOptions: IVertoCallOptions = {
         audio: true,
@@ -256,10 +259,11 @@ class VertoHandler {
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
         prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
+        // An evaluated recovery value takes precedence over the session default.
         forceRelayCandidate:
-          forceRelayCandidateForRecovery ||
-          session.options.forceRelayCandidate ||
-          false,
+          typeof forceRelayCandidateForRecovery === 'boolean'
+            ? forceRelayCandidateForRecovery
+            : (session.options.forceRelayCandidate ?? false),
         keepConnectionAliveOnSocketClose:
           session.options.keepConnectionAliveOnSocketClose ?? false,
         mutedMicOnStart: mutedMicOnStart ?? session.options.mutedMicOnStart,
@@ -295,6 +299,11 @@ class VertoHandler {
 
       if (recoveredCallId) {
         callOptions.recoveredCallId = recoveredCallId;
+      }
+
+      // Carry held intent onto the replacement call.
+      if (wasHeldBeforeRecovery) {
+        callOptions.wasHeldBeforeRecovery = wasHeldBeforeRecovery;
       }
 
       // Restore per-call media elements on attach-recovery (VSUP-121 review
@@ -394,12 +403,22 @@ class VertoHandler {
           // session) and we fall back to the session-level default.
           let recoveredRemoteElement: string | undefined;
           let recoveredLocalElement: string | undefined;
+          // Held intent from the page-reload recovery marker.
+          let wasHeldBeforeUnload = false;
+          let forceRelayCandidateForRecovery = false;
           const savedMarker = getActiveCallsRecoveryMarker();
           if (savedMarker && savedMarker.sessionId === session.sessionid) {
-            const savedCall = savedMarker.calls.find((c) => c.id === callID);
+            // Guard against null/non-object marker records (peek contract).
+            const savedCall = savedMarker.calls.find(
+              (c) => c !== null && typeof c === 'object' && c.id === callID
+            );
             if (savedCall) {
               recoveredRemoteElement = savedCall.remoteElement;
               recoveredLocalElement = savedCall.localElement;
+              wasHeldBeforeUnload = savedCall.wasHeld === true;
+              if (typeof savedCall.forceRelayCandidate === 'boolean') {
+                forceRelayCandidateForRecovery = savedCall.forceRelayCandidate;
+              }
               if (recoveredRemoteElement || recoveredLocalElement) {
                 logger.info(
                   `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
@@ -407,13 +426,21 @@ class VertoHandler {
                   }, localElement=${recoveredLocalElement ?? '<none>'}).`
                 );
               }
+              if (typeof savedCall.forceRelayCandidate === 'boolean') {
+                logger.info(
+                  `[${callID}] Attach: restoring forceRelayCandidate=${savedCall.forceRelayCandidate} from recovery marker.`
+                );
+              }
             }
           }
 
           const call = _buildCall({
             recoveredCallId: callID,
+            forceRelayCandidateForRecovery,
             remoteElement: recoveredRemoteElement,
             localElement: recoveredLocalElement,
+            // Carry held intent onto the replacement call.
+            wasHeldBeforeRecovery: wasHeldBeforeUnload,
           });
           call.answer();
 
@@ -427,19 +454,20 @@ class VertoHandler {
         if (matchedCall) {
           // ── We have matching call by callID — recover it
           const recoveredCallId = matchedCall.id;
-          const forceRelayCandidateForRecovery =
-            matchedCall.shouldForceRelayCandidateForRecovery?.() ?? false;
+          // Capture held state BEFORE hangup() destroys it.
+          const wasHeldBeforeRecovery = matchedCall.state === 'held';
 
+          const forceRelayCandidateForRecovery =
+            matchedCall.shouldForceRelayCandidateForRecovery();
           if (forceRelayCandidateForRecovery) {
             logger.warn(
-              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate because recovered VPN media path is still stalled`
+              `[${new Date().toISOString()}][${callID}] Attach: forcing relay candidate for recovery`
             );
           }
 
           logger.info(
             `[${new Date().toISOString()}][${callID}] Attach: recovering active call ${recoveredCallId}.`
           );
-
           void matchedCall.hangup(
             { isRecovering: true, initiator: 'sdk:attach-recovery' },
             false
@@ -449,13 +477,11 @@ class VertoHandler {
             recoveredCallId,
             forceRelayCandidateForRecovery,
             mutedMicOnStart: matchedCall.isAudioMuted,
-            // Carry forward the per-call media elements so the recovered call
-            // keeps the same remoteElement/localElement as the original call
-            // (VSUP-121 review round 3 — scenario 1: matched call exists).
-            // Only forward when the original call had a per-call element; the
-            // undefined case falls back to the session-level default.
+            // Carry forward per-call media elements.
             remoteElement: matchedCall.options.remoteElement,
             localElement: matchedCall.options.localElement,
+            // Carry held intent captured BEFORE hangup().
+            wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
           call.answer();
 

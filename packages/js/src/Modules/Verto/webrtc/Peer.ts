@@ -34,7 +34,6 @@ import {
   WebRTCStatsReporter,
 } from '../util/debug';
 
-import { isFunction } from '../util/helpers';
 import logger from '../util/logger';
 import {
   attachMediaStream,
@@ -62,7 +61,6 @@ export type RestartIceResult = {
  */
 export default class Peer {
   public instance: RTCPeerConnection;
-  public onSdpReadyTwice: ((data: RTCSessionDescription) => void) | null = null;
   public statsReporter: WebRTCStatsReporter | null = null;
   public isIceRestarting: boolean = false;
   public iceDone: boolean = false;
@@ -103,7 +101,6 @@ export default class Peer {
       offerToReceiveVideo: !!options.video,
     };
 
-    this._sdpReady = this._sdpReady.bind(this);
     this.handleSignalingStateChangeEvent =
       this.handleSignalingStateChangeEvent.bind(this);
     this.handleNegotiationNeededEvent =
@@ -938,10 +935,6 @@ export default class Peer {
       performance.mark(callMarkName(this.options.id, 'set-local-description'));
       performance.mark(callMarkName(this.options.id, 'ice-gathering-started'));
 
-      if (!this._isTrickleIce()) {
-        this._sdpReady();
-      }
-
       return offer;
     } catch (error) {
       logger.error('Peer _createOffer error:', error);
@@ -1048,13 +1041,6 @@ export default class Peer {
       return transceiver.setCodecPreferences(codecs);
     }
   };
-  /** Workaround for ReactNative: first time SDP has no candidates */
-  private _sdpReady(): void {
-    if (isFunction(this.onSdpReadyTwice)) {
-      this.onSdpReadyTwice(this.instance.localDescription);
-    }
-  }
-
   private async _retrieveLocalStream() {
     if (streamIsValid(this.options.localStream)) {
       return this.options.localStream;

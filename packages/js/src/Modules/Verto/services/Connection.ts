@@ -255,6 +255,13 @@ export default class Connection {
         }
         this._pendingRequestIds.delete(request.id);
         this._pendingRequestRejecters.delete(request.id);
+
+        // A response to something we sent proves the socket carries our
+        // frames, which inbound activity alone does not. Recorded even
+        // when the response is late or is an error — both still prove the
+        // round trip completed.
+        this.session.onOutboundConfirmed();
+
         if (timedOut) {
           // Response arrived after timeout — discard silently
           return;

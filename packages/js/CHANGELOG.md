@@ -1,3 +1,44 @@
+## [2.27.9](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.8...webrtc/v2.27.9) (2026-08-06)
+
+### Features
+
+- **expose supported regions** (VSDK-447) (#745): Export a new `Region` constant from the package entry point with the seven supported signaling regions (`EU`, `US_CENTRAL`, `US_EAST`, `US_WEST`, `CA_CENTRAL`, `APAC`, `SOUTH_ASIA`). `IClientOptions.region` now links to `Region` for the accepted values; omitting it keeps automatic routing, and arbitrary strings remain supported for backwards compatibility.
+- **accept outbound AI conversation items** (#751): `Call.sendAIConversationMessage()` now accepts any `AIConversationOutboundItem` rather than only a `function_call_output`. In addition to returning client-side tool results, callers can now send a `response.audio_stream.subscribe` item to subscribe to ACA pre-playout assistant audio events. The new `AIConversationOutboundItem`, `AIConversationOutboundParams`, and `ResponseAudioStreamSubscribeItem` types are exported from the package entry point.
+
+### Bug Fixes
+
+- **preserve forceRelayCandidate across attach recovery and page refresh** (VSDK-467) (#753): A relay-only call could regress to `iceTransportPolicy:"all"` on a later attach-recovery or page-refresh reconstruction because the recovery heuristic returns false when relay is already enabled. The handler now ORs a carried `preservedForceRelayCandidate` flag with the heuristic decision, so an already-enabled relay policy is never cleared. The persisted recovery marker stores only a genuine `true` (checked with `=== true`, not truthiness) so malformed legacy markers never force relay.
+- **detect a socket that receives but no longer sends** (VSUP-171) (#760): The `SignalingHealthMonitor` previously judged health solely from the last inbound WebSocket frame, so a socket where nothing the SDK sends is ever answered stayed "healthy" indefinitely while the registration was held uselessly. A second clock now tracks the last outbound request that came back answered; when frames keep arriving but nothing outbound has been answered for 45s (three b2bua-rtc ping cycles), a probe is sent, and if that probe is also unanswered within the existing 5s window the session is declared unhealthy and the normal reconnect path is taken. The inbound-silence trigger still fires first at 20s.
+- **ignore deferred signaling after hangup** (#762): Deferred ICE and trickle-ICE callbacks (`_onIceSdp`, `_onTrickleIceSdp`, `_onIce`, `_onTrickleIce`) could fire after a call was already terminating or terminated, re-animating a torn-down peer. All four handlers now early-return when `_isTerminatingOrTerminated()` is true.
+
+### Refactors
+
+- **simplify host-only ICE diagnostics** (#755): Replace the `_requestAnotherLocalDescription` retry-and-error flow (which fired `onSdpReadyTwice` and re-requested a local description) with a single `_warnIfOnlyHostIceCandidates` check that emits an `ONLY_HOST_ICE_CANDIDATES` warning when the SDP contains only host candidates. The diagnostic is now non-blocking and no longer forces a renegotiation cycle.
+- **remove legacy React Native support** (#757): Drop the unused `.native.ts` platform shims (`Call.native.ts`, `storage/index.native.ts`, `webrtc/index.native.ts`) and the `setSpeakerPhone` call method. These shims targeted React Native, which was never a supported platform for `@telnyx/webrtc` — the React Native Voice SDK lives in a separate repo. This is a dead-code removal, not a breaking change for any supported target.
+
+### Documentation
+
+- Sync internal docs with the current implementation (#761): Restore internal API types to `docs/internal/`, clean `docs/ts/` to public-only content, mark deprecated notification types, and add the `response.audio_stream.subscribe` README example. TSDoc auto-generation is now off; `docs/ts/` and `docs/internal/` are hand-maintained on release.
+
+## [2.27.8](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.7...webrtc/v2.27.8) (2026-07-23)
+
+- docs: update ts docs
+- fix: post CallRecorder tracks concurrently so the remote segment is not dropped (VSDK-453) (#746)
+
+## [2.27.7](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.6...webrtc/v2.27.7) (2026-07-22)
+
+- fix(js): suppress silence warnings and no-RTP recovery while held (VSUP-145) (#747)
+
+## [2.27.6](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.5...webrtc/v2.27.6) (2026-07-20)
+
+- feat(js): add internal PN late fanout login flag (#741)
+
+## [2.27.5](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.4...webrtc/v2.27.5) (2026-07-15)
+
+- docs: split CN1 (Chennai) into its own South Asia region (VSDK-82) (#739)
+- feat(js): support push when active (#735)
+- feat(ice): add primary TURNS 443 endpoint (#738)
+
 ## [2.27.4](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.3...webrtc/v2.27.4) (2026-07-08)
 
 - docs: update ts docs
@@ -10,49 +51,6 @@
 - feat: add AI conversation signaling API for client-side tools (#682)
 - feat: flush call report on beforeunload (keepalive) (#718)
 
-## [2.27.4-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.2) (2026-07-07)
-
-- chore: release webrtc@2.27.4-beta.1 (#727)
-- feat(js): default enableCallRecording to false (opt-in)
-- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
-- fix(call-recorder): enable recording by default
-- fix(call-recorder): preserve buffer in _finalize so postFinalReport can drain (VSDK-279)
-- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
-- refactor(sdk): move browser offline/online listeners into SignalingHealthMonitor (VSDK-214 part 2) (#710)
-- feat(VSUP-122): scoped inbound answer blocking per callID (#724)
-- feat: add AI conversation signaling API for client-side tools (#682)
-- feat(js): flush call report on beforeunload (keepalive) (#718)
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
-## [2.27.4-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.1) (2026-07-03)
-
-- docs: update ts docs
-- feat(js): default enableCallRecording to false (opt-in)
-- fix(call-recorder): resolve call_report_id lazily so recordings correlate (VSDK-279)
-- fix(call-recorder): enable recording by default
-- fix(call-recorder): preserve buffer in _finalize so postFinalReport can drain (VSDK-279)
-- feat: CallRecorder — single-submission raw audio capture at end of call (VSDK-279)
-- feat: add AI conversation signaling API for client-side tools (#682)
-- feat(js): flush call report on beforeunload (keepalive) (#718)
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
-## [2.27.4-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.4-beta.0) (2026-07-01)
-
-- docs: update ts docs
-- fix: add eslint-disable comments for test helper any/unused patterns
-- fix: send AI conversation messages as fire-and-forget notifications
-- feat: add AI conversation signaling API for client-side tools
-- chore: release webrtc@2.27.3 (#719)
-- fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
-- fix(sdk): send login synchronously on WebSocket open to avoid event loop congestion (#713)
-- chore: release webrtc@2.27.2 (#716)
-- chore: release webrtc@2.27.2-beta.1 (#712)
 ## [2.27.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2...webrtc/v2.27.3) (2026-07-01)
 
 - fix(js): re-stamp reconnect session-id on visibilitychange → hidden (#717)
@@ -63,7 +61,7 @@
 ### Reconnect and recovery hardening
 
 - **fix(sdk): dedupe reconnect attempts and add exponential backoff** (#709)
-  Browsers commonly emit both `socket.onerror` and `socket.onclose` for one physical disconnect, previously consuming two logical reconnect attempts. `BaseSession.onNetworkClose` now tracks the socket generation that was already handled (`_reconnectCountedGeneration`) and skips same-generation duplicate events before destructive cleanup, so a stale event can no longer clear an already-scheduled reconnect timer or schedule a redundant one. `Connection._registerSocketEvents` captures `registeredGeneration` at registration time so stale events from an old socket carry their own generation, and `onNetworkClose` guards against `eventGeneration < currentGeneration` *before* flushing call reports or clearing timers. Reconnect delay is now exponential backoff with jitter (base 1s, doubling per attempt, capped at 30s, 25% jitter), replacing the old fixed 1000ms / `randomInt(2,6)*1000ms`. Backoff resets only on a confirmed `REGED`. `BrowserSession` no longer overrides the delay — it inherits the backoff from `BaseSession`.
+  Browsers commonly emit both `socket.onerror` and `socket.onclose` for one physical disconnect, previously consuming two logical reconnect attempts. `BaseSession.onNetworkClose` now tracks the socket generation that was already handled (`_reconnectCountedGeneration`) and skips same-generation duplicate events before destructive cleanup, so a stale event can no longer clear an already-scheduled reconnect timer or schedule a redundant one. `Connection._registerSocketEvents` captures `registeredGeneration` at registration time so stale events from an old socket carry their own generation, and `onNetworkClose` guards against `eventGeneration < currentGeneration` _before_ flushing call reports or clearing timers. Reconnect delay is now exponential backoff with jitter (base 1s, doubling per attempt, capped at 30s, 25% jitter), replacing the old fixed 1000ms / `randomInt(2,6)*1000ms`. Backoff resets only on a confirmed `REGED`. `BrowserSession` no longer overrides the delay — it inherits the backoff from `BaseSession`.
 
 - **feat: add reconnection lifecycle diagnostics for SDK WebSocket recovery visibility** (#678)
   Adds call-report-visible diagnostics for the SDK WebSocket close/reconnect lifecycle after `SignalingHealthService` requests recovery, without overloading reports with noisy logs. Consolidates the previous per-source warning codes into a single `SIGNALING_RECOVERY_REQUIRED` warning (with a `source` field), and adds a new `RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT` (36005) warning gated on a new `_intentionalClose` flag so it only fires on unexpected socket close when auto-reconnect is disabled — not on normal `disconnect()`/cleanup. The flag resets at the end of `onNetworkClose`. Adds debug lifecycle logging in `Connection` (constructor, connect, close, `_handleCloseTimeout`), `BrowserSession.connect()`, and `SignalingHealthMonitor` (no pending recovery, connection not connected). `reconnectDelay` is now computed once before logging and `setTimeout`, so the logged value matches the scheduled delay.
@@ -103,7 +101,7 @@
 ### Call reports and observability
 
 - **fix: include selected ICE evidence in call reports** (#686)
-  Call reports now include the *selected* candidate pair (resolved from `transportStats.selectedCandidatePairId`, with a fallback search when the stat isn't directly retrievable) plus the `localCandidateId`/`remoteCandidateId` references and the `selectedCandidatePairId` itself, so investigators can reconstruct the actually-nominated ICE path rather than only candidate-pair snapshots.
+  Call reports now include the _selected_ candidate pair (resolved from `transportStats.selectedCandidatePairId`, with a fallback search when the stat isn't directly retrievable) plus the `localCandidateId`/`remoteCandidateId` references and the `selectedCandidatePairId` itself, so investigators can reconstruct the actually-nominated ICE path rather than only candidate-pair snapshots.
 
 - **Collect call report stats every second for full call duration** (#702)
   Replaces the previous two-phase cadence (1s for the first 10s, then 5s) with a constant 1-second collection interval for the full call duration, giving full-resolution stats for every call regardless of length. Removed the now-dead `intervalStartTime` parameter from `_collectionIntervalFor`.
@@ -115,7 +113,7 @@
   Extends outbound RTP stats with the additional fields needed for outbound loss/jitter/RTT visibility.
 
 - **feat(webrtc): collect remote RTCP stats for outbound loss/jitter/RTT visibility** (#703)
-  Parses `remote-inbound-rtp` (RTCP Receiver Report describing *our* outbound stream) and `remote-outbound-rtp` (RTCP Sender Report from the remote peer) into a new `remoteRtcp` block on call reports: `inbound` carries `packetsLost`, `jitter` (ms), `roundTripTime`, `roundTripTimeMeasurements`, `nackCount`, `localId`; `outbound` carries `localId`, `remoteId`, `roundTripTime`. `roundTripTimeSource` is recorded on the audio stats so investigators know which RTCP report the RTT came from.
+  Parses `remote-inbound-rtp` (RTCP Receiver Report describing _our_ outbound stream) and `remote-outbound-rtp` (RTCP Sender Report from the remote peer) into a new `remoteRtcp` block on call reports: `inbound` carries `packetsLost`, `jitter` (ms), `roundTripTime`, `roundTripTimeMeasurements`, `nackCount`, `localId`; `outbound` carries `localId`, `remoteId`, `roundTripTime`. `roundTripTimeSource` is recorded on the audio stats so investigators know which RTCP report the RTT came from.
 
 - **feat(webrtc): collect codec identity in call reports** (#704)
   Adds an extended `RTCCodecStats` snapshot (`mimeType`, `clockRate`, `channels`, `payloadType`, `codecId`) referenced by `outbound-rtp`/`inbound-rtp` via `codecId`, so call reports identify the negotiated codec for each RTP stream.
@@ -146,12 +144,6 @@
 - **Call reports:** 1-second collection for the full call duration; richer inbound/outbound RTP, remote RTCP (loss/jitter/RTT), codec identity, media-playout, and selected ICE evidence for RTC investigations.
 - **Config:** new `skipTrailing` option (internal/test-infra).
 
-## [2.27.2-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.0...webrtc/v2.27.2-beta.1) (2026-06-29)
-
-- No notable changes
-## [2.27.2-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.2-beta.1...webrtc/v2.27.2-beta.0) (2026-06-29)
-
-- docs: update ts docs
 ## [2.27.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.0...webrtc/v2.27.1) (2026-05-27)
 
 - fix: include sessid on reconnect login (#657)
@@ -397,40 +389,6 @@
 - fix(ci): create release tag after version bump commit (#586)
 - chore: include README.md in npm packages and remove Slack notifications (#578)
 
-## [2.26.1-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.2) (2026-04-08)
-
-- chore: release webrtc@2.26.1-beta.1 (#595)
-- fix(ci): allow non-immutable installs for draft release tagging step (#592)
-- fix(ci): allow non-immutable installs for draft release tagging step
-- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
-- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
-- fix(ci): update lockfile after version bump in draft-release (#587)
-- fix(ci): create release tag after version bump commit (#586)
-- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
-- feat: make hangup async, properly await BYE execution (#581)
-- Feat: wire structured errors and warnings across SDK (#548)
-
-## [2.26.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.1-beta.0...webrtc/v2.26.1-beta.1) (2026-04-08)
-
-- fix(ci): allow non-immutable installs for draft release tagging step (#592)
-- fix(ci): allow non-immutable installs for draft release tagging step
-- fix(ci): drop lockfile update step, set YARN_ENABLE_IMMUTABLE_INSTALLS=false (#591)
-- fix(ci): use --mode update-lockfile to avoid upgrading all deps (#589)
-- fix(ci): update lockfile after version bump in draft-release (#587)
-- fix(ci): create release tag after version bump commit (#586)
-- Fix: interrupt call negotiation on media failure for non-receive-only peers (#582)
-- feat: make hangup async, properly await BYE execution (#581)
-- Feat: wire structured errors and warnings across SDK (#548)
-
-## [2.26.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.26.0...webrtc/v2.26.1-beta.0) (2026-04-07)
-
-- docs: update ts docs
-- fix: read dc/region instead of local_dc/local_region from REGED params
-- refactor: rename localDc/localRegion to dc/region and use structured logging
-- feat: store local_dc and local_region from REGED message
-- feat: store source datacenter identifier from REGED message
-- chore: include README.md in npm packages and remove Slack notifications (#578)
-
 ## [2.26.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.29...webrtc/v2.26.0) (2026-03-31)
 
 - chore: upgrade Node.js to 24.5.0 (npm 11.5.1 for OIDC trusted publishing) (#576)
@@ -456,11 +414,6 @@
 - fix: don't null global LogCollector on call cleanup (#555)
 - chore: add OIDC permissions and npm provenance to prerelease workflow (#566)
 - chore: add OIDC permissions and npm provenance to publish-release workflow (#565)
-
-## [2.25.26-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.25...webrtc/v2.25.26-beta.2) (2026-03-13)
-
-- docs: update ts docs
-- feat: add recoveredCallId to call object for recovery correlation (ENGDESK-50308)
 
 ## [2.25.25](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.25.24...webrtc/v2.25.25) (2026-03-11)
 

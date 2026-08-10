@@ -104,6 +104,8 @@ export interface IVertoCallOptions {
    * ended/destroyed call and avoid duplicate UI elements (e.g. dialers).
    */
   recoveredCallId?: string;
+  /** True when the call was held before attach-recovery replaced it. @internal */
+  wasHeldBeforeRecovery?: boolean;
 }
 
 export interface IStatsBinding {
@@ -228,7 +230,7 @@ export interface IWebRTCCall {
   setAudioBandwidthEncodingsMaxBps: (max: number) => void;
   setVideoBandwidthEncodingsMaxBps: (max: number) => void;
   getStats: (callback: Function, constraints: any) => void;
-  shouldForceRelayCandidateForRecovery?: () => boolean;
+  shouldForceRelayCandidateForRecovery: () => boolean;
   setState: (state: State) => void;
   // Privates
   handleMessage: (msg: any) => void;
@@ -238,12 +240,17 @@ export interface IWebRTCCall {
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
   stopScreenShare?: () => Promise<void>;
   setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
-  // RN
-  setSpeakerPhone?: (flag: boolean) => void;
   // AI Conversation
   sendConversationMessage?: (message: string, attachments?: string[]) => void;
-  sendAIConversationMessage?: (item: import('./AIConversationTypes').FunctionCallOutputItem) => void;
-  recordSessionWarning?: (code: string, name: string, message: string, activeCallIds?: string[]) => void;
+  sendAIConversationMessage?: (
+    item: import('./AIConversationTypes').AIConversationOutboundItem
+  ) => void;
+  recordSessionWarning?: (
+    code: string,
+    name: string,
+    message: string,
+    activeCallIds?: string[]
+  ) => void;
 }
 export interface IWebRTCInfo {
   browserInfo: any;

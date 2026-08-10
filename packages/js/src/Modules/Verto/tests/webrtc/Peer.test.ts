@@ -205,3 +205,33 @@ describe('Peer call-establishment timings', () => {
     ).toEqual([]);
   });
 });
+
+describe('Peer relay policy', () => {
+  it.each([
+    [true, 'relay'],
+    [false, 'all'],
+  ])('maps forceRelayCandidate=%s to %s', (forceRelayCandidate, expected) => {
+    const session: SessionDouble = {
+      options: {},
+      sessionid: 'session-1',
+      connected: true,
+      reportPeerFailure: jest.fn(),
+    };
+    const peer = new Peer(
+      PeerType.Offer,
+      {
+        id: 'call-1',
+        debug: false,
+        forceRelayCandidate,
+      } as IVertoCallOptions,
+      session as unknown as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+
+    expect(
+      (peer as unknown as { _config: () => RTCConfiguration })._config()
+        .iceTransportPolicy
+    ).toBe(expected);
+  });
+});

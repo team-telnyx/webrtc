@@ -172,9 +172,7 @@ describe('Verto', () => {
         hangupOnBeforeUnload: false,
       });
 
-      // Simulate a logged-in session with active calls. The save path
-      // (Verto/index.ts beforeunload handler) projects each active call to a
-      // narrow shape (`id` + `options.customHeaders`).
+      // Simulate a logged-in session with active calls.
       telnyxRTC.sessionid = 'session-abc';
       const hangup = jest.fn();
       telnyxRTC.calls = {
@@ -188,6 +186,7 @@ describe('Verto', () => {
           options: {
             customHeaders: [{ name: 'X-Test', value: '1' }],
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
         'call-2': {
           id: 'call-2',
@@ -197,6 +196,7 @@ describe('Verto', () => {
           session: {}, // not persisted — narrow projection drops it
           peer: {}, // not persisted — narrow projection drops it
           options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -219,18 +219,17 @@ describe('Verto', () => {
 
       const m1 = result!.calls.find((m) => m.id === 'call-1');
       expect(m1!.id).toBe('call-1');
-      // Only the narrow projection is persisted: id + customHeaders.
-      // State, direction, session, peer are all dropped by the projection.
+      // Runtime objects are dropped by the narrow marker projection.
       expect(m1!.customHeaders).toEqual([{ name: 'X-Test', value: '1' }]);
+      expect(m1!.forceRelayCandidate).toBe(false);
 
       // call-2 had no custom headers — `customHeaders` is undefined.
       const m2 = result!.calls.find((m) => m.id === 'call-2');
       expect(m2!.id).toBe('call-2');
       expect(m2!.customHeaders).toBeUndefined();
+      expect(m2!.forceRelayCandidate).toBe(false);
 
-      // The narrow projection excludes sensitive / host fields — only id
-      // and customHeaders are persisted. No session, peer, state,
-      // direction, localStream, remoteStream, iceServers, options.
+      // Sensitive and host fields are excluded from the marker.
       const serialized = JSON.stringify(result!.calls[0]);
       expect(serialized).not.toContain('"session"');
       expect(serialized).not.toContain('"peer"');
@@ -243,6 +242,74 @@ describe('Verto', () => {
       // projection (the producer maps only `customHeaders`).
       expect(serialized).not.toContain('"options"');
       expect(serialized).not.toContain('"telnyxSessionId"');
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
+    it('snapshots the relay recovery decision before flushing call reports', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      telnyxRTC.sessionid = 'session-abc';
+
+      const order: string[] = [];
+      const relayRecoveryNeeded = { 'call-1': true, 'call-2': false };
+      const buildCall = (id: 'call-1' | 'call-2') => ({
+        id,
+        state: 'active',
+        options: {},
+        shouldForceRelayCandidateForRecovery: jest.fn(() => {
+          order.push(`evaluate-${id}`);
+          return relayRecoveryNeeded[id];
+        }),
+        flushIntermediateCallReport: jest.fn(() => {
+          order.push(`flush-${id}`);
+          if (id === 'call-1') {
+            relayRecoveryNeeded['call-2'] = true;
+            throw new Error('report flush failed');
+          }
+        }),
+      });
+      const call1 = buildCall('call-1');
+      const call2 = buildCall('call-2');
+      telnyxRTC.calls = {
+        'call-1': call1 as unknown as IWebRTCCall,
+        'call-2': call2 as unknown as IWebRTCCall,
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      expect(order).toEqual([
+        'evaluate-call-1',
+        'evaluate-call-2',
+        'flush-call-1',
+        'flush-call-2',
+      ]);
+      expect(call1.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
+        1
+      );
+      expect(call2.shouldForceRelayCandidateForRecovery).toHaveBeenCalledTimes(
+        1
+      );
+      expect(
+        getActiveCallsRecoveryMarker()?.calls.map(
+          ({ id, forceRelayCandidate }) => ({ id, forceRelayCandidate })
+        )
+      ).toEqual([
+        { id: 'call-1', forceRelayCandidate: true },
+        { id: 'call-2', forceRelayCandidate: false },
+      ]);
 
       addEventListenerSpy.mockRestore();
       clearActiveCallsRecoveryMarker();
@@ -302,6 +369,7 @@ describe('Verto', () => {
             localElement: sessionLocal,
             customHeaders: undefined,
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -356,6 +424,7 @@ describe('Verto', () => {
             remoteElement: perCallDomElement,
             customHeaders: undefined,
           },
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
         } as unknown as IWebRTCCall,
       };
 
@@ -585,6 +654,9 @@ describe('Verto', () => {
       instance.calls = {
         'call-1': {
           id: 'call-1',
+          state: 'active',
+          options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
           flushIntermediateCallReport: flush,
         } as unknown as IWebRTCCall,
       };
@@ -623,6 +695,183 @@ describe('Verto', () => {
 
       expect(() => handler(new Event('beforeunload'))).not.toThrow();
       restore();
+    });
+  });
+
+  describe('pushWhenActive login option', () => {
+    const loginRequestFor = async (options: Partial<IVertoOptions> = {}) => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...options,
+      } as IVertoOptions);
+
+      await client.login();
+
+      return Connection.mockSend.mock.calls[0][0].request;
+    };
+
+    it('sends push_when_active=false by default on credential login', async () => {
+      const request = await loginRequestFor();
+
+      expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(request.params.userVariables.pn_late_fanout).toBe(false);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+      expect(request.params.push_when_active).toBeUndefined();
+      expect(request.params.loginParams.push_when_active).toBeUndefined();
+      expect(request.params.pn_late_fanout).toBeUndefined();
+      expect(request.params.loginParams.pn_late_fanout).toBeUndefined();
+    });
+
+    it('sends push_when_active=true when explicitly enabled', async () => {
+      const request = await loginRequestFor({ pushWhenActive: true });
+
+      expect(request.params.userVariables.push_when_active).toBe(true);
+      expect(request.params.userVariables.pn_late_fanout).toBe(true);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+    });
+
+    it('sends push_when_active on token login', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login_token: 'token',
+        pushWhenActive: true,
+      } as IVertoOptions);
+
+      await client.login();
+
+      const request = Connection.mockSend.mock.calls[0][0].request;
+      expect(request.method).toBe('login');
+      expect(request.params.userVariables.push_when_active).toBe(true);
+      expect(request.params.userVariables.pn_late_fanout).toBe(true);
+    });
+
+    it('sends push_when_active=false when explicitly disabled', async () => {
+      const request = await loginRequestFor({ pushWhenActive: false });
+
+      expect(request.params.userVariables.push_when_active).toBe(false);
+      expect(request.params.userVariables.pn_late_fanout).toBe(false);
+      expect(typeof request.params.userVariables.push_when_active).toBe(
+        'boolean'
+      );
+    });
+
+    it('preserves caller-provided userVariables', async () => {
+      const request = await loginRequestFor({
+        pushWhenActive: true,
+        userVariables: {
+          push_device_token: 'device-token',
+          custom_key: 'custom-value',
+        },
+      });
+
+      expect(request.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        custom_key: 'custom-value',
+        push_when_active: true,
+        pn_late_fanout: true,
+      });
+    });
+
+    it('preserves a low-level push_when_active value when the typed option is omitted', async () => {
+      const request = await loginRequestFor({
+        userVariables: {
+          push_device_token: 'device-token',
+          push_when_active: true,
+        },
+      });
+
+      expect(request.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        push_when_active: true,
+        pn_late_fanout: true,
+      });
+    });
+
+    it.each([
+      { pushWhenActive: true, lowLevelValue: false },
+      { pushWhenActive: false, lowLevelValue: true },
+    ])(
+      'gives explicit pushWhenActive=$pushWhenActive precedence over userVariables',
+      async ({ pushWhenActive, lowLevelValue }) => {
+        const request = await loginRequestFor({
+          pushWhenActive,
+          userVariables: { push_when_active: lowLevelValue },
+        });
+
+        expect(request.params.userVariables.push_when_active).toBe(
+          pushWhenActive
+        );
+        expect(request.params.userVariables.pn_late_fanout).toBe(
+          pushWhenActive
+        );
+      }
+    );
+
+    it.each([true, false])(
+      'derives pn_late_fanout from push_when_active=%s instead of caller input',
+      async (pushWhenActive) => {
+        const request = await loginRequestFor({
+          pushWhenActive,
+          userVariables: { pn_late_fanout: !pushWhenActive },
+        });
+
+        expect(request.params.userVariables.pn_late_fanout).toBe(
+          pushWhenActive
+        );
+      }
+    );
+
+    it('preserves push_when_active on reconnect login payloads', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        pushWhenActive: true,
+        userVariables: { push_device_token: 'device-token' },
+      } as IVertoOptions);
+
+      await client.login();
+      setReconnectToken('voice-sdk-id');
+      await client.login();
+
+      const initialRequest = Connection.mockSend.mock.calls[0][0].request;
+      const reconnectRequest = Connection.mockSend.mock.calls[1][0].request;
+      expect(initialRequest.params.userVariables).toEqual({
+        push_device_token: 'device-token',
+        push_when_active: true,
+        pn_late_fanout: true,
+      });
+      expect(reconnectRequest.params.reconnection).toBe(true);
+      expect(reconnectRequest.params.userVariables).toEqual(
+        initialRequest.params.userVariables
+      );
+    });
+
+    it('does not add push_when_active to anonymous login', async () => {
+      const client = _buildInstance({
+        host: 'example.telnyx.com',
+        anonymous_login: {
+          target_type: 'ai_assistant',
+          target_id: 'assistant-id',
+        },
+        pushWhenActive: true,
+        userVariables: { custom_key: 'custom-value' },
+      } as IVertoOptions);
+
+      await client.login();
+
+      const request = Connection.mockSend.mock.calls[0][0].request;
+      expect(request.method).toBe('anonymous_login');
+      expect(request.params.userVariables).toEqual({
+        custom_key: 'custom-value',
+      });
+      expect(request.params.userVariables.pn_late_fanout).toBeUndefined();
     });
   });
 
@@ -745,15 +994,31 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('uses only the turn2 TURNS/443 entry in DEFAULT_PROD_ICE_SERVERS', () => {
-    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    // turn.telnyx.com:443 is dropped; turn2 is the sole TURNS endpoint.
-    expect(urls).not.toContain('turns:turn.telnyx.com:443?transport=tcp');
-    expect(
-      urls.filter(
-        (u): u is string => typeof u === 'string' && u.startsWith('turns:')
-      )
-    ).toEqual(['turns:turn2.telnyx.com:443']);
+  it('uses the confirmed production ICE server order and credentials', () => {
+    expect(DEFAULT_PROD_ICE_SERVERS).toEqual([
+      { urls: 'stun:stun.telnyx.com:3478' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:turn.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turn:turn.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:turn.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:turn2.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+    ]);
   });
 
   it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
@@ -765,13 +1030,26 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_DEV_ICE_SERVERS);
   });
 
-  it('should include TURNS port 443 dev entry in DEFAULT_DEV_ICE_SERVERS', () => {
-    const turns443DevEntry = DEFAULT_DEV_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turndev.telnyx.com:443'
-    );
-    expect(turns443DevEntry).toBeDefined();
-    expect(turns443DevEntry!.username).toBe('testuser');
-    expect(turns443DevEntry!.credential).toBe('testpassword');
+  it('uses the confirmed development ICE server order and credentials', () => {
+    expect(DEFAULT_DEV_ICE_SERVERS).toEqual([
+      { urls: 'stun:stundev.telnyx.com:3478' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:turndev.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turn:turndev.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:turndev.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+    ]);
   });
 
   it('should return iceServers with DEFAULT_PROD_ICE_SERVERS when env is production', () => {
@@ -783,36 +1061,11 @@ describe('Verto', () => {
     expect(telnyxRTC.iceServers).toEqual(DEFAULT_PROD_ICE_SERVERS);
   });
 
-  it('offers TURN UDP/3478, TCP/3478, then TURNS/443 in production defaults', () => {
-    const urls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
-    // Both 3478 transports are offered, with TURNS/443 last as the fallback for
-    // networks that block both.
-    const turnUdp3478Index = urls.indexOf(
-      'turn:turn.telnyx.com:3478?transport=udp'
-    );
-    const turnTcp3478Index = urls.indexOf(
-      'turn:turn.telnyx.com:3478?transport=tcp'
-    );
-    const turns443Index = urls.indexOf('turns:turn2.telnyx.com:443');
-    expect(turnUdp3478Index).toBeGreaterThan(-1);
-    expect(turnTcp3478Index).toBeGreaterThan(-1);
-    expect(turns443Index).toBeGreaterThan(turnTcp3478Index);
-  });
-
   it('offers TURN TCP/3478 in both prod and dev defaults (no mismatch)', () => {
     const prodUrls = DEFAULT_PROD_ICE_SERVERS.map((s) => s.urls);
     const devUrls = DEFAULT_DEV_ICE_SERVERS.map((s) => s.urls);
     expect(prodUrls).toContain('turn:turn.telnyx.com:3478?transport=tcp');
     expect(devUrls).toContain('turn:turndev.telnyx.com:3478?transport=tcp');
-  });
-
-  it('should include the transport-less TURNS turn2:443 entry in production defaults', () => {
-    const turns2Entry = DEFAULT_PROD_ICE_SERVERS.find(
-      (server) => server.urls === 'turns:turn2.telnyx.com:443'
-    );
-    expect(turns2Entry).toBeDefined();
-    expect(turns2Entry!.username).toBe('testuser');
-    expect(turns2Entry!.credential).toBe('testpassword');
   });
 
   it('should return iceServers with provided value when iceServers is provided', () => {
@@ -829,6 +1082,14 @@ describe('Verto', () => {
 
   describe('TELNYX_ICE_SERVERS public catalog', () => {
     it('exposes the expected building-block keys with correct URLs', () => {
+      expect(Object.keys(TELNYX_ICE_SERVERS)).toEqual([
+        'GOOGLE_STUN',
+        'TELNYX_STUN',
+        'TELNYX_TURN_UDP_3478',
+        'TELNYX_TURN_TCP_3478',
+        'TELNYX_TURNS_TCP_443',
+        'TELNYX_TURNS_TCP_443_PRIMARY',
+      ]);
       expect(TELNYX_ICE_SERVERS.GOOGLE_STUN).toEqual({
         urls: 'stun:stun.l.google.com:19302',
       });
@@ -850,13 +1111,18 @@ describe('Verto', () => {
         username: 'testuser',
         credential: 'testpassword',
       });
+      expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY).toEqual({
+        urls: 'turns:turn.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      });
     });
 
     it('lets a customer compose a custom iceServers array from the catalog', () => {
       const composed: RTCIceServer[] = [
         TELNYX_ICE_SERVERS.TELNYX_STUN,
         TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
-        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
+        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY,
       ];
       const telnyxRTC = _buildInstance({
         iceServers: composed,
@@ -867,7 +1133,7 @@ describe('Verto', () => {
       expect(telnyxRTC.iceServers.map((s) => s.urls)).toEqual([
         'stun:stun.telnyx.com:3478',
         'turn:turn.telnyx.com:3478?transport=udp',
-        'turns:turn2.telnyx.com:443',
+        'turns:turn.telnyx.com:443',
       ]);
     });
 

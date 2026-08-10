@@ -6,6 +6,7 @@ import {
   INotification,
 } from './utils/interfaces';
 import { SwEvent, TELNYX_ICE_SERVERS } from './Modules/Verto/util/constants';
+import { Region } from './Region';
 import {
   NOTIFICATION_TYPE,
   ERROR_TYPE,
@@ -21,6 +22,7 @@ export {
   INotification,
   SwEvent,
   TELNYX_ICE_SERVERS,
+  Region,
   NOTIFICATION_TYPE,
   ERROR_TYPE,
 };
@@ -54,9 +56,12 @@ export * from './PreCallDiagnostic';
 export type {
   FunctionCallItem,
   FunctionCallOutputItem,
+  ResponseAudioStreamSubscribeItem,
+  AIConversationOutboundItem,
   AIConversationParams,
   AIConversationFunctionCallParams,
   AIConversationFunctionCallOutputParams,
+  AIConversationOutboundParams,
   IAIConversationMessageEvent,
   ISendAIConversationMessageOptions,
 } from './Modules/Verto/webrtc/AIConversationTypes';

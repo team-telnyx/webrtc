@@ -12,12 +12,19 @@ Object.defineProperty(global, 'performance', {
 });
 
 import { isQueued, register, deRegister } from '../../services/Handler';
-import { PeerType, State, Direction } from '../../webrtc/constants';
+import {
+  PeerType,
+  State,
+  Direction,
+  VertoMethod,
+} from '../../webrtc/constants';
 import {
   ANSWER_WHILE_PEER_ACTIVE,
   DUPLICATE_INBOUND_ANSWER,
+  ONLY_HOST_ICE_CANDIDATES,
   SwEvent,
 } from '../../util/constants';
+import { LOW_BYTES_RECEIVED } from '../../util/constants/errorCodes';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
@@ -77,6 +84,188 @@ describe('Call', () => {
       expect(isQueued('telnyx.rtc.mediaError', call.id)).toEqual(true);
       expect(call.state).toEqual('new');
       expect(session.calls).toHaveProperty(call.id);
+    });
+  });
+
+  describe('non-trickle host-only ICE diagnostics', () => {
+    const sdpPrefix = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n';
+
+    const configurePeer = () => {
+      const startNegotiation = jest.fn();
+      const restartIce = jest.fn();
+      call.peer = {
+        iceDone: false,
+        isIceRestarting: false,
+        startNegotiation,
+        restartIce,
+        instance: { removeEventListener: jest.fn() },
+      } as unknown as Peer;
+      return { startNegotiation, restartIce };
+    };
+
+    afterEach(() => {
+      deRegister(SwEvent.Warning, undefined, session.uuid);
+      jest.restoreAllMocks();
+    });
+
+    it('warns for host-only SDP while Invite signaling continues without recovery or hangup', async () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+      const hangupSpy = jest.spyOn(call, 'hangup').mockResolvedValue();
+      const { startNegotiation, restartIce } = configurePeer();
+      const hostOnlySdp =
+        sdpPrefix +
+        'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n' +
+        'a=candidate:2 1 TCP 2113667326 192.168.1.1 9 typ host tcptype active\r\n';
+
+      (
+        call as unknown as {
+          _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+        }
+      )._onIceSdp({
+        type: PeerType.Offer,
+        sdp: hostOnlySdp,
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(warningHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({
+            code: ONLY_HOST_ICE_CANDIDATES,
+            name: 'ONLY_HOST_ICE_CANDIDATES',
+          }),
+          callId: call.id,
+        })
+      );
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: VertoMethod.Invite }),
+        })
+      );
+      expect(startNegotiation).not.toHaveBeenCalled();
+      expect(restartIce).not.toHaveBeenCalled();
+      expect(hangupSpy).not.toHaveBeenCalled();
+    });
+
+    it.each(['srflx', 'prflx', 'relay'])(
+      'does not warn when SDP contains a %s candidate',
+      async (candidateType) => {
+        const warningHandler = jest.fn();
+        register(SwEvent.Warning, warningHandler, session.uuid);
+        const executeSpy = jest
+          .spyOn(session, 'execute')
+          .mockResolvedValue({ node_id: null });
+        configurePeer();
+
+        (
+          call as unknown as {
+            _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+          }
+        )._onIceSdp({
+          type: PeerType.Offer,
+          sdp:
+            sdpPrefix +
+            'a=candidate:1 1 UDP 2113667327 192.168.1.1 54400 typ host\r\n' +
+            `a=candidate:2 1 UDP 1694498815 198.51.100.1 54401 typ ${candidateType}\r\n`,
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(warningHandler).not.toHaveBeenCalled();
+        expect(executeSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            request: expect.objectContaining({ method: VertoMethod.Invite }),
+          })
+        );
+      }
+    );
+
+    it('does not classify zero-candidate SDP as host-only and still signals it', async () => {
+      const warningHandler = jest.fn();
+      register(SwEvent.Warning, warningHandler, session.uuid);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+      const { startNegotiation } = configurePeer();
+
+      (
+        call as unknown as {
+          _onIceSdp: (data: { type: PeerType; sdp: string }) => void;
+        }
+      )._onIceSdp({ type: PeerType.Offer, sdp: sdpPrefix });
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(warningHandler).not.toHaveBeenCalled();
+      expect(executeSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: VertoMethod.Invite }),
+        })
+      );
+      expect(startNegotiation).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('non-trickle ICE lifecycle', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
+
+    it.each([
+      ['hangup', State.Hangup],
+      ['destroy', State.Destroy],
+      ['purge', State.Purge],
+    ])(
+      'does not schedule an ICE completion timeout for a queued event in %s state',
+      (_stateName, terminalState) => {
+        call.setState(terminalState);
+        call.peer = {
+          instance: {
+            localDescription: null,
+          },
+          incrementGatheredCandidates: jest.fn(),
+        } as unknown as Peer;
+        const privateCall = call as unknown as {
+          _iceTimeout: ReturnType<typeof setTimeout> | null;
+          _onIce: (event: RTCPeerConnectionIceEvent) => void;
+        };
+        const candidate = {
+          candidate:
+            'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+        } as RTCIceCandidate;
+
+        privateCall._onIce({ candidate } as RTCPeerConnectionIceEvent);
+
+        expect(privateCall._iceTimeout).toBeNull();
+      }
+    );
+
+    it('clears an existing ICE completion timeout before ignoring terminal SDP', () => {
+      const privateCall = call as unknown as {
+        _iceTimeout: ReturnType<typeof setTimeout> | null;
+        _onIceSdp: (data: RTCSessionDescriptionInit) => void;
+      };
+      const iceTimeout = setTimeout(noop, 1000);
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      privateCall._iceTimeout = iceTimeout;
+      call.setState(State.Hangup);
+
+      privateCall._onIceSdp({
+        type: PeerType.Offer,
+        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+      });
+
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(iceTimeout);
+      expect(privateCall._iceTimeout).toBeNull();
     });
   });
 
@@ -187,6 +376,363 @@ describe('Call', () => {
       expect(call.prevState).toEqual('ringing');
       call.setState(State.Hangup);
       expect(call.prevState).toEqual('active');
+    });
+  });
+
+  // ── BaseCall state transitions drive CallReportCollector.setHeld ──
+  // Integration test proving that the public hold/unhold state transitions
+  // actually drive the call-report collector's hold flag — not just that
+  // setHeld() works in isolation (which the CallReportCollector tests cover).
+  describe('setState drives CallReportCollector.setHeld', () => {
+    it('transitions to Held call setHeld(true) on the collector', () => {
+      call = new Call(session, { ...defaultParams, onNotification: noop });
+      const setHeld = jest.fn();
+      (
+        call as unknown as {
+          _callReportCollector: { setHeld: jest.Mock };
+        }
+      )._callReportCollector = { setHeld };
+
+      call.setState(State.Held);
+      expect(call.state).toEqual('held');
+      expect(setHeld).toHaveBeenCalledWith(true);
+    });
+
+    it('transitions to Active call setHeld(false) on the collector', () => {
+      call = new Call(session, { ...defaultParams, onNotification: noop });
+      const setHeld = jest.fn();
+      (
+        call as unknown as {
+          _callReportCollector: { setHeld: jest.Mock };
+        }
+      )._callReportCollector = { setHeld };
+
+      // Held first so setHeld(true) is the baseline.
+      call.setState(State.Held);
+      expect(setHeld).toHaveBeenCalledWith(true);
+
+      // Unhold → Active must clear the held flag.
+      setHeld.mockClear();
+      call.setState(State.Active);
+      expect(call.state).toEqual('active');
+      expect(setHeld).toHaveBeenCalledWith(false);
+    });
+
+    it('initial Active transition calls setHeld(false) (safe default)', () => {
+      call = new Call(session, { ...defaultParams, onNotification: noop });
+      const setHeld = jest.fn();
+      (
+        call as unknown as {
+          _callReportCollector: { setHeld: jest.Mock };
+        }
+      )._callReportCollector = { setHeld };
+
+      // The very first Active transition (no prior Held) must still clear the
+      // flag safely — the collector defaults to not-held, so this is a no-op
+      // in practice but proves the Active path always re-enables detection.
+      call.setState(State.Active);
+      expect(setHeld).toHaveBeenCalledWith(false);
+    });
+  });
+
+  // ── Attach-recovery answer-success preserves Held ──
+  // The attach-recovery path does NOT use _onRemoteSdp: the attach SDP is
+  // applied as a remote offer in Peer.createPeerConnection and the local
+  // answer is sent via _onIceSdp (non-trickle) / _onTrickleIceSdp (trickle).
+  // Both answer-success callbacks must honor _wasHeldBeforeRecovery so a
+  // held call undergoing reattachment transitions Recovering -> Held (not
+  // Recovering -> Active, which would clear the held intent and expose the
+  // customer-visible bug). These tests invoke the REAL _onIceSdp /
+  // _onTrickleIceSdp handlers (the same pattern used by Call.trickle-ice
+  // .test.ts): a call is constructed with attach + recoveredCallId +
+  // wasHeldBeforeRecovery, invite() initializes the peer, session.execute
+  // is mocked to resolve, then the private SDP callback is invoked with a
+  // candidate-bearing answer SDP. They fail if the production guards at
+  // BaseCall._onIceSdp / _onTrickleIceSdp are removed or moved incorrectly.
+  describe('attach-recovery answer-success preserves Held', () => {
+    // SDP carrying at least one candidate so _onIceSdp does not retry.
+    const answerSdp =
+      'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n' +
+      'a=candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx\r\n';
+
+    // Helper: construct an attach-recovery replacement call (the kind
+    // VertoHandler._buildCall creates) carrying held-before-recovery intent.
+    // invite() initializes peer.instance so the real SDP path can run.
+    async function makeAttachRecoveryCall(trickle: boolean): Promise<Call> {
+      const c = new Call(session, {
+        ...defaultParams,
+        id: 'attach-recovery-call-id',
+        onNotification: noop,
+        // Attach-recovery: recoveredCallId drives _isRecovering=true in
+        // _init(); wasHeldBeforeRecovery drives _wasHeldBeforeRecovery=true.
+        attach: true,
+        recoveredCallId: 'previous-held-call-id',
+        wasHeldBeforeRecovery: true,
+        trickleIce: trickle,
+      });
+      // invite() constructs peer.instance (a mocked RTCPeerConnection in the
+      // test environment). It may attempt media; swallow any rejection.
+      await c.invite().catch(() => {});
+      if (!c.peer || !c.peer.instance) {
+        throw new Error('peer.instance not initialized after invite()');
+      }
+      // invite() may kick off an async offer-send whose .then() calls
+      // setState(State.Trying/Requesting). Flush pending microtasks and clear
+      // mocks so that promise settles BEFORE we drive the answer callback,
+      // otherwise its .then() could overwrite the answer's Held transition.
+      await new Promise((r) => setImmediate(r));
+      jest.clearAllMocks();
+      // Re-assert the recovery state after flushing invite()'s offer path.
+      // If invite()'s offer settled and set state to trying/requesting, the
+      // _isRecovering guard kept it from reaching Answering, but the state
+      // may no longer be 'recovering' — that is fine, we only need the
+      // recovery + held flags to be in place for the answer callback.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(true);
+      return c;
+    }
+
+    it('non-trickle: _onIceSdp answer-success transitions Recovering -> Held (not Active)', async () => {
+      const c = await makeAttachRecoveryCall(false);
+
+      // Mock session.execute so _execute(Attach) resolves — this is the
+      // path the real _onIceSdp takes for PeerType.Answer with attach=true.
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      // Invoke the REAL _onIceSdp handler with a candidate-bearing answer.
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      // Flush the microtask queue so the .then() callback (which calls
+      // setState) runs before we assert.
+      await new Promise((r) => setImmediate(r));
+
+      // The Attach message was sent (proving we exercised the real answer
+      // path for an attach-recovery call, not a test-local copy).
+      expect(executeSpy).toHaveBeenCalled();
+
+      // The recovering held-before-recovery call must transition to Held,
+      // NOT Active. This is the customer-visible requirement: a held call
+      // undergoing reattachment stays held until explicit unhold.
+      expect(c.state).toEqual('held');
+      // Recovery intent is consumed by the Held transition; _isRecovering
+      // is NOT cleared by Held (only Active clears it), so a subsequent
+      // genuine recovery is still possible.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+
+      executeSpy.mockRestore();
+    });
+
+    it('trickle: _onTrickleIceSdp answer-success transitions Recovering -> Held (not Active)', async () => {
+      const c = await makeAttachRecoveryCall(true);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      // Invoke the REAL _onTrickleIceSdp handler with a candidate-bearing answer.
+      (
+        c as unknown as {
+          _onTrickleIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onTrickleIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(executeSpy).toHaveBeenCalled();
+      expect(c.state).toEqual('held');
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        true
+      );
+
+      executeSpy.mockRestore();
+    });
+
+    it('non-trickle: a recovering call WITHOUT held intent still goes Active (backward compat)', async () => {
+      // An active call that recovers must NOT be forced to held. This is the
+      // backward-compat case: wasHeldBeforeRecovery is absent/false.
+      const c = new Call(session, {
+        ...defaultParams,
+        id: 'attach-recovery-active-call-id',
+        onNotification: noop,
+        attach: true,
+        recoveredCallId: 'previous-active-call-id',
+        // wasHeldBeforeRecovery intentionally omitted — active call recovery.
+      });
+      await c.invite().catch(() => {});
+      // Flush invite()'s pending offer-send so it doesn't overwrite the
+      // answer callback's state transition.
+      await new Promise((r) => setImmediate(r));
+      jest.clearAllMocks();
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(false);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+
+      expect(executeSpy).toHaveBeenCalled();
+      // Active call recovery reaches Active (the default), NOT Held.
+      expect(c.state).toEqual('active');
+      // _isRecovering is cleared by the Active transition.
+      expect((c as unknown as { _isRecovering: boolean })._isRecovering).toBe(
+        false
+      );
+
+      executeSpy.mockRestore();
+    });
+
+    it('clears _wasHeldBeforeRecovery on explicit unhold to Active after attach-recovery', async () => {
+      // Build a recovering held-before-recovery call (the attach-recovery
+      // replacement) and drive it to Held via _onIceSdp. Then explicit-unhold
+      // to Active must clear _wasHeldBeforeRecovery so a later recovery does
+      // not wrongly restore Held on a call the customer intentionally made
+      // active. Uses the REAL _onIceSdp attach-recovery path (not _onRemoteSdp,
+      // which the reviewer confirmed is NOT used by recovery).
+      const c = await makeAttachRecoveryCall(false);
+
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockResolvedValue({ node_id: null });
+
+      (
+        c as unknown as {
+          _onIceSdp: (data: { sdp: string; type: string }) => void;
+        }
+      )._onIceSdp({ sdp: answerSdp, type: 'answer' as RTCSdpType });
+
+      await new Promise((r) => setImmediate(r));
+      expect(c.state).toEqual('held');
+
+      // Explicit unhold → setState(State.Active) must clear the held intent.
+      c.setState(State.Active);
+      expect(c.state).toEqual('active');
+      expect(
+        (c as unknown as { _wasHeldBeforeRecovery: boolean })
+          ._wasHeldBeforeRecovery
+      ).toBe(false);
+
+      executeSpy.mockRestore();
+    });
+  });
+
+  // ── Mixed-call isolation ──
+  // Stage acceptance: "With one held and one active call, health decisions
+  // are isolated by affected call: the held call's silence is ignored while a
+  // genuine no-RTP condition on the active call remains actionable."
+  // This test creates two calls in the SAME session, drives one to Held and
+  // one to Active, and asserts that a LOW_BYTES_RECEIVED warning on each call
+  // reaches session.reportNoRtp ONLY for the active call — proving the
+  // hold-suppression and the no-RTP defense-in-depth guard are call-scoped
+  // and do not leak across calls sharing a session.
+  describe('mixed held + active call isolation', () => {
+    it('suppresses reportNoRtp for the held call but not the active call', async () => {
+      // Build two calls on the same session with ready peers.
+      const heldCall = new Call(session, {
+        ...defaultParams,
+        id: 'held-call-id',
+        onNotification: noop,
+      });
+      const activeCall = new Call(session, {
+        ...defaultParams,
+        id: 'active-call-id',
+        onNotification: noop,
+      });
+      await heldCall.invite().catch(() => {});
+      await activeCall.invite().catch(() => {});
+
+      // Mock setRemoteDescription on both peers so _onRemoteSdp / recovery
+      // paths never hit a real browser API.
+      if (heldCall.peer?.instance) {
+        jest
+          .spyOn(heldCall.peer.instance, 'setRemoteDescription')
+          .mockResolvedValue(undefined as unknown as void);
+      }
+      if (activeCall.peer?.instance) {
+        jest
+          .spyOn(activeCall.peer.instance, 'setRemoteDescription')
+          .mockResolvedValue(undefined as unknown as void);
+      }
+
+      // Drive each call to its target state.
+      heldCall.setState(State.Active);
+      heldCall.setState(State.Held);
+      activeCall.setState(State.Active);
+      expect(heldCall.state).toEqual('held');
+      expect(activeCall.state).toEqual('active');
+
+      // Spy on session.reportNoRtp — this is the no-RTP → ICE-restart
+      // recovery handoff. We assert it is called per-call-id.
+      const reportNoRtpSpy = jest
+        .spyOn(session, 'reportNoRtp')
+        .mockImplementation(() => {});
+
+      // Reach into each call's CallReportCollector and drive a
+      // LOW_BYTES_RECEIVED warning through the REAL onWarning callback that
+      // BaseCall wires (the same callback that calls session.reportNoRtp).
+      // This proves the BaseCall → collector → reportNoRtp wiring is
+      // call-scoped and respects the State.Held guard.
+      const fireLowBytesReceived = (c: Call) => {
+        const collector = (
+          c as unknown as {
+            _callReportCollector: {
+              onWarning: ((w: { code: number; name: string }) => void) | null;
+            };
+          }
+        )._callReportCollector;
+        expect(collector).toBeTruthy();
+        expect(typeof collector.onWarning).toBe('function');
+        // The warning shape matches ITelnyxWarning as used by the collector.
+        collector.onWarning!({
+          code: LOW_BYTES_RECEIVED,
+          name: 'LOW_BYTES_RECEIVED',
+        });
+      };
+
+      // Held call: LOW_BYTES_RECEIVED must NOT reach reportNoRtp.
+      fireLowBytesReceived(heldCall);
+      expect(reportNoRtpSpy).not.toHaveBeenCalled();
+
+      // Active call: LOW_BYTES_RECEIVED MUST reach reportNoRtp for that call.
+      fireLowBytesReceived(activeCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(1);
+      expect(reportNoRtpSpy).toHaveBeenCalledWith(activeCall.id, 'inbound');
+
+      // Defense-in-depth: a second fire on the held call still does not leak.
+      fireLowBytesReceived(heldCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(1);
+
+      // And a second fire on the active call reports again for that call only.
+      fireLowBytesReceived(activeCall);
+      expect(reportNoRtpSpy).toHaveBeenCalledTimes(2);
+      expect(reportNoRtpSpy).toHaveBeenLastCalledWith(activeCall.id, 'inbound');
+      // Never once reported for the held call's id.
+      expect(reportNoRtpSpy).not.toHaveBeenCalledWith(
+        heldCall.id,
+        expect.anything()
+      );
     });
   });
 
@@ -424,6 +970,11 @@ describe('Call', () => {
   });
 
   describe('outbound invite response races', () => {
+    const localOffer: RTCSessionDescriptionInit = {
+      type: PeerType.Offer,
+      sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
+    };
+
     it('should not move a hung up outbound call back to trying when invite ACK arrives late', async () => {
       let resolveInvite: (response: { node_id: string }) => void;
       const inviteResponse = new Promise<{ node_id: string }>((resolve) => {
@@ -437,10 +988,7 @@ describe('Call', () => {
         ) => void
       ).bind(call);
 
-      onTrickleIceSdp({
-        type: PeerType.Offer,
-        sdp: 'v=0\no=- 1 2 IN IP4 127.0.0.1\ns=-',
-      });
+      onTrickleIceSdp(localOffer);
       expect(call.state).toEqual('requesting');
 
       call.setState(State.Hangup);
@@ -449,6 +997,69 @@ describe('Call', () => {
       await Promise.resolve();
 
       expect(call.state).toEqual('hangup');
+    });
+
+    it('does not send deferred non-trickle local SDP after destroy', () => {
+      const onIceSdp = (
+        Reflect.get(call, '_onIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onIceSdp(localOffer);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not send deferred trickle local SDP after destroy', () => {
+      const onTrickleIceSdp = (
+        Reflect.get(call, '_onTrickleIceSdp') as (
+          this: Call,
+          data: RTCSessionDescriptionInit
+        ) => void
+      ).bind(call);
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onTrickleIceSdp(localOffer);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not signal queued trickle candidate or end-of-candidates events after destroy', () => {
+      const onTrickleIce = (
+        Reflect.get(call, '_onTrickleIce') as (
+          this: Call,
+          event: RTCPeerConnectionIceEvent
+        ) => void
+      ).bind(call);
+      const candidate = {
+        candidate: 'candidate:1 1 UDP 1694498815 198.51.100.1 54400 typ srflx',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+      } as RTCIceCandidate;
+
+      call.setState(State.Destroy);
+      const executeSpy = jest
+        .spyOn(session, 'execute')
+        .mockImplementation(() => new Promise(() => {}));
+
+      onTrickleIce({ candidate } as RTCPeerConnectionIceEvent);
+      onTrickleIce({ candidate: null } as RTCPeerConnectionIceEvent);
+
+      expect(call.state).toEqual('destroy');
+      expect(executeSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -1030,9 +1641,7 @@ describe('Call', () => {
 
     beforeEach(() => {
       // Prevent real RTCPeerConnection setup so answer() completes in tests.
-      initSpy = jest
-        .spyOn(Peer.prototype, 'init')
-        .mockResolvedValue(undefined);
+      initSpy = jest.spyOn(Peer.prototype, 'init').mockResolvedValue(undefined);
     });
 
     afterEach(() => {
