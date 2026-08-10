@@ -11,7 +11,8 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
 - [Examples](#Examples)
   - [Vanilla JavaScript](#vanilla-javascript)
   - [React.js](#reactjs)
-- [Error Handling](docs/ERROR_HANDLING.md)
+- [Error Handling](docs/error-handling.md)
+- [Pre-Call Diagnostics](docs/pre-call-diagnostics.md)
 - [Browser support](#Browser-support)
 - [Development](#Development)
 
@@ -221,9 +222,44 @@ client.on('telnyx.stats.frame', (stats) => {
 });
 ```
 
-### Pre-Call Diagnosis
+### Pre-Call Diagnostics
 
-To be able to run pre-call diagnosis you can use the `PreCallDiagnosis.run` method.
+The SDK provides two pre-call diagnostic APIs. See the
+[Pre-Call Diagnostics guide](docs/pre-call-diagnostics.md) for the full
+contract, option defaults, report interpretation, and privacy/safe-sharing
+guidance.
+
+#### `PreCallDiagnostic` (new — `client.runPreCall()` family)
+
+The `PreCallDiagnostic` family (`client.runPreCall()`,
+`client.runNetworkCheck()`, `client.runMicrophoneCheck()`) provides
+structured verdicts, per-ICE-server testing, and microphone checks with
+optional recording. It returns a `PreCallDiagnosticReport` with stable
+machine-readable reason/warning codes.
+
+> **Availability:** this family is part of the consolidated pre-call
+> diagnostics work ([VSDK-412](https://github.com/team-telnyx/webrtc/pull/733))
+> and is **not yet available in a published `@telnyx/webrtc` package** until
+> that work merges and is released. Confirm the installed package version
+> before relying on these symbols.
+
+```js
+// runPreCall() requires an authenticated client (wait for telnyx.ready).
+client.on('telnyx.ready', async () => {
+  const report = await client.runPreCall();
+  console.log(report.verdict); // 'ready' | 'degraded' | 'blocked' | 'permission_denied' | 'inconclusive'
+  for (const reason of report.reasons ?? []) {
+    console.log(reason.code, '-', reason.message);
+  }
+});
+```
+
+#### `PreCallDiagnosis` (legacy — static `PreCallDiagnosis.run()`)
+
+The legacy `PreCallDiagnosis.run()` method remains available and unchanged.
+It creates its own `TelnyxRTC` from the provided credentials, places a
+single diagnostic call, and returns a `Report` with ICE candidate stats,
+selected pair, and summary MOS/quality.
 
 ```js
 import { PreCallDiagnosis } from '@telnyx/webrtc';
@@ -243,6 +279,11 @@ PreCallDiagnosis.run({
     console.error(error);
   });
 ```
+
+> **Do not confuse the names.** `PreCallDiagnostic` (the new class/report
+> family) and `PreCallDiagnosis` (the legacy class) are different exports.
+> The new family is not a drop-in replacement for the legacy API — their
+> report shapes are not structurally equivalent.
 
 ### Setting Preferred Codec
 
