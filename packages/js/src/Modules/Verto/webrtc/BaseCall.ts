@@ -318,7 +318,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         debug: options.debug,
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
-        prefetchIceCandidates: options.prefetchIceCandidates,
+        // `Object.assign` copies keys whose value is `undefined`, so reading
+        // `options.prefetchIceCandidates` directly would overwrite the `true`
+        // from DEFAULT_CALL_OPTIONS whenever the client did not set it.
+        prefetchIceCandidates:
+          options.prefetchIceCandidates ??
+          DEFAULT_CALL_OPTIONS.prefetchIceCandidates,
         forceRelayCandidate: options.forceRelayCandidate,
         keepConnectionAliveOnSocketClose:
           options.keepConnectionAliveOnSocketClose,
