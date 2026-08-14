@@ -1305,13 +1305,16 @@ describe('CallReportCollector media-playout stats', () => {
       [
         'MP_audio',
         {
+          // Field names must match RTCAudioPlayoutStats as the browser emits
+          // them. A real Chrome media-playout stat looks exactly like this.
           id: 'MP_audio',
           type: 'media-playout',
           kind: 'audio',
-          synthesizedSamples: 1500,
-          synthesizedDuration: 0.03,
+          synthesizedSamplesEvents: 1500,
+          synthesizedSamplesDuration: 0.03,
           totalPlayoutDelay: 0.12,
-          totalSampleCount: 48000,
+          totalSamplesCount: 48000,
+          totalSamplesDuration: 1.0,
         },
       ],
     ]);
@@ -1330,10 +1333,11 @@ describe('CallReportCollector media-playout stats', () => {
     ).toEqual(
       expect.objectContaining({
         mediaPlayout: {
-          synthesizedSamples: 1500,
-          synthesizedDuration: 0.03,
+          synthesizedSamplesEvents: 1500,
+          synthesizedSamplesDuration: 0.03,
           totalPlayoutDelay: 0.12,
-          totalSampleCount: 48000,
+          totalSamplesCount: 48000,
+          totalSamplesDuration: 1.0,
         },
       })
     );
