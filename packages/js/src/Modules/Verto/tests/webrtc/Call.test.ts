@@ -87,6 +87,47 @@ describe('Call', () => {
     });
   });
 
+  describe('prefetchIceCandidates default', () => {
+    const newSession = async (opts = {}) => {
+      const s = new Verto({
+        host: 'example.fs.telnyx',
+        login: 'login',
+        passwd: 'passwd',
+        ...opts,
+      });
+      await s.connect().catch(console.error);
+      return s;
+    };
+
+    it('defaults to true when the client did not set it', () => {
+      // Regression: DEFAULT_CALL_OPTIONS.prefetchIceCandidates was being
+      // clobbered with `undefined`, leaving iceCandidatePoolSize at 0.
+      expect(call.options.prefetchIceCandidates).toBe(true);
+    });
+
+    it('honours an explicit client-level false', async () => {
+      const s = await newSession({ prefetchIceCandidates: false });
+      expect(new Call(s, defaultParams).options.prefetchIceCandidates).toBe(
+        false
+      );
+    });
+
+    it('honours an explicit client-level true', async () => {
+      const s = await newSession({ prefetchIceCandidates: true });
+      expect(new Call(s, defaultParams).options.prefetchIceCandidates).toBe(
+        true
+      );
+    });
+
+    it('lets a per-call option override the client default', () => {
+      const c = new Call(session, {
+        ...defaultParams,
+        prefetchIceCandidates: false,
+      });
+      expect(c.options.prefetchIceCandidates).toBe(false);
+    });
+  });
+
   describe('non-trickle host-only ICE diagnostics', () => {
     const sdpPrefix = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n';
 
