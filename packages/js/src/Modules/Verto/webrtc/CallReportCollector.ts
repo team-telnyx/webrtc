@@ -622,6 +622,19 @@ export class CallReportCollector {
   private _lastWarningEmitted: Record<number, number> = {};
   // Minimum interval (ms) between repeated warnings of the same code
   private static readonly WARNING_THROTTLE_MS = 15_000;
+
+  // An observation gap is a stretch where our sampling timer did not run:
+  // `_scheduleNextCollection` drives collection from setTimeout on the JS main
+  // thread, so a frozen or backgrounded tab stops producing stats intervals
+  // entirely. libwebrtc's ICE agent runs on native threads and keeps pinging
+  // regardless, so requestsSent is still cumulative across the gap and the
+  // first sample after we resume tells us what happened while we were blind.
+  //
+  // Threshold has to clear ordinary timer slack (setTimeout drifts under load,
+  // and throttled background tabs settle around 1s), hence a multiple of the
+  // collection interval with a floor well above it.
+  private static readonly STUN_OBSERVATION_GAP_FACTOR = 4;
+  private static readonly STUN_OBSERVATION_GAP_FLOOR_MS = 5_000;
   // Previous packets values for packet loss delta calculation
   private _prevPacketsReceived: number | null = null;
   private _prevPacketsLost: number | null = null;
@@ -655,6 +668,34 @@ export class CallReportCollector {
 
   /** Whether stop() has been requested (prevents timer re-scheduling). */
   private _stopped: boolean = false;
+
+  // STUN Binding keepalive tracking. requestsSent/responsesReceived are
+  // cumulative *per candidate pair*, so a delta is only meaningful while the
+  // pair id is unchanged; a pair change resets tracking rather than producing a
+  // bogus delta against another pair's counter.
+  private _lastStunSample: {
+    pairId: string;
+    at: number;
+    requestsSent: number;
+    responsesReceived: number;
+  } | null = null;
+
+  private _stunTotals: {
+    requestsSent: number;
+    responsesReceived: number;
+    observedMs: number;
+    gaps: number;
+    longestGapMs: number;
+    /** Longest stretch with no Binding Request sent, observed or not. */
+    longestSilenceMs: number;
+  } = {
+    requestsSent: 0,
+    responsesReceived: 0,
+    observedMs: 0,
+    gaps: 0,
+    longestGapMs: 0,
+    longestSilenceMs: 0,
+  };
 
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
@@ -724,6 +765,9 @@ export class CallReportCollector {
     if (this.peerConnection && this.intervalStartTime) {
       await this._collectStats(true);
     }
+
+    // Before the log collector stops, so the summary lands in the report.
+    this._logStunBindingSummary();
 
     // Stop log collector
     const logCount = this.logCollector?.getLogCount() ?? 0;
@@ -1096,6 +1140,143 @@ export class CallReportCollector {
     this._trackBreach(LOW_BYTES_RECEIVED, false);
   }
 
+  /**
+   * Track STUN Binding keepalive activity on the selected candidate pair.
+   *
+   * libwebrtc does not implement RFC 8445 s11 Binding Indications. It pings the
+   * selected pair with Binding *Requests* on a writability timer
+   * (kStrongAndStableWritableConnectionPingInterval, 2500ms once stable; 900ms
+   * while settling), independently of whether media is flowing. Those pings are
+   * what hold the media-path NAT mapping open through silence, and
+   * `requestsSent` counts exactly them.
+   *
+   * Individual Binding Requests are not observable from JS — the browser
+   * exposes only cumulative counters on the candidate-pair stat — so this logs
+   * the counter behaviour rather than the packets.
+   *
+   * Deliberately does NOT log per interval. LogCollector is a ring buffer
+   * capped at maxEntries (1000 by default) and stats are collected roughly
+   * every second, so a per-interval line would evict the whole buffer on a
+   * ~17-minute call, taking setup and negotiation logs with it. Only gaps are
+   * logged here; the per-call summary is emitted once, from stop().
+   */
+  private _trackStunBindingActivity(pair: IICECandidatePair): void {
+    const requestsSent = pair.requestsSent;
+    const responsesReceived = pair.responsesReceived;
+
+    if (typeof requestsSent !== 'number' || !pair.id) {
+      return;
+    }
+
+    const now = Date.now();
+    const previous = this._lastStunSample;
+    const sample = {
+      pairId: pair.id,
+      at: now,
+      requestsSent,
+      responsesReceived:
+        typeof responsesReceived === 'number' ? responsesReceived : 0,
+    };
+
+    // First sample, or the path moved: nothing subtractable against it.
+    if (!previous || previous.pairId !== pair.id) {
+      this._lastStunSample = sample;
+      return;
+    }
+
+    const elapsedMs = now - previous.at;
+    const requestsDelta = this._positiveDelta(
+      requestsSent,
+      previous.requestsSent
+    );
+    const responsesDelta = this._positiveDelta(
+      sample.responsesReceived,
+      previous.responsesReceived
+    );
+
+    this._lastStunSample = sample;
+
+    if (elapsedMs <= 0) {
+      return;
+    }
+
+    this._stunTotals.requestsSent += requestsDelta;
+    this._stunTotals.responsesReceived += responsesDelta;
+    this._stunTotals.observedMs += elapsedMs;
+
+    // A stretch with no Binding Request sent extends the running silence.
+    // This is the number Tr structurally cannot produce: a mean over a run
+    // hides the single long gap that actually trips a NAT idle timer.
+    if (requestsDelta === 0) {
+      this._stunTotals.longestSilenceMs = Math.max(
+        this._stunTotals.longestSilenceMs,
+        elapsedMs
+      );
+    }
+
+    const gapThresholdMs = Math.max(
+      CallReportCollector.STUN_OBSERVATION_GAP_FLOOR_MS,
+      this._collectionIntervalFor() *
+        CallReportCollector.STUN_OBSERVATION_GAP_FACTOR
+    );
+
+    if (elapsedMs < gapThresholdMs) {
+      return;
+    }
+
+    this._stunTotals.gaps += 1;
+    this._stunTotals.longestGapMs = Math.max(
+      this._stunTotals.longestGapMs,
+      elapsedMs
+    );
+
+    const context = {
+      gapMs: elapsedMs,
+      requestsSentDuringGap: requestsDelta,
+      responsesReceivedDuringGap: responsesDelta,
+      impliedIntervalMs:
+        requestsDelta > 0 ? Math.round(elapsedMs / requestsDelta) : null,
+      pairId: pair.id,
+    };
+
+    if (requestsDelta > 0) {
+      // We stopped watching, libwebrtc did not stop pinging. The media-path
+      // mapping was held open; only the application-layer signaling keepalive
+      // was affected. This is the benign half of a tab freeze.
+      logger.info(
+        'CallReportCollector: STUN Binding keepalive continued through an observation gap',
+        context
+      );
+      return;
+    }
+
+    // No Binding Request left the machine for the whole gap, so the media-path
+    // NAT mapping was unprotected for that long and may have been dropped.
+    logger.warn(
+      'CallReportCollector: STUN Binding keepalive stopped during an observation gap',
+      context
+    );
+  }
+
+  /** One-line STUN Binding keepalive summary, emitted once from stop(). */
+  private _logStunBindingSummary(): void {
+    const totals = this._stunTotals;
+
+    if (totals.observedMs <= 0 || totals.requestsSent <= 0) {
+      return;
+    }
+
+    logger.info('CallReportCollector: STUN Binding keepalive summary', {
+      requestsSent: totals.requestsSent,
+      responsesReceived: totals.responsesReceived,
+      observedMs: totals.observedMs,
+      meanIntervalMs: Math.round(totals.observedMs / totals.requestsSent),
+      observationGaps: totals.gaps,
+      longestGapMs: totals.longestGapMs,
+      longestSilenceMs: totals.longestSilenceMs,
+    });
+  }
+
   private _scheduleNextCollection(): void {
     if (
       this._stopped ||
@@ -1351,6 +1532,7 @@ export class CallReportCollector {
           this._emitWarning(ICE_CANDIDATE_PAIR_CHANGED);
         }
         this.previousCandidatePairSnapshot = currentCandidatePairSnapshot;
+        this._trackStunBindingActivity(currentCandidatePairSnapshot);
       }
 
       let localAudioTrack: ILocalAudioTrackSnapshot | undefined;

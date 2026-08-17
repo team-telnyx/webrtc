@@ -1769,3 +1769,176 @@ describe('CallReportCollector codec identity collection', () => {
     expect(collector._getCodec(stats, 'missing')).toBeUndefined();
   });
 });
+
+describe('CallReportCollector STUN Binding keepalive logging', () => {
+  type StunTestable = {
+    _trackStunBindingActivity: (pair: {
+      id?: string;
+      requestsSent?: number;
+      responsesReceived?: number;
+    }) => void;
+    stop: () => Promise<void>;
+  };
+
+  // interval 5000 -> _collectionIntervalFor() is min(1000, 5000) = 1000, so the
+  // gap threshold is max(5000, 1000 * 4) = 5000ms.
+  const createStunCollector = () =>
+    new CallReportCollector({
+      enabled: true,
+      interval: 5000,
+    }) as unknown as StunTestable;
+
+  const pair = (requestsSent: number, responsesReceived = requestsSent) => ({
+    id: 'pair-A',
+    requestsSent,
+    responsesReceived,
+  });
+
+  let nowSpy: jest.SpyInstance<number, []>;
+  let clock = 0;
+
+  const advance = (ms: number) => {
+    clock += ms;
+  };
+
+  beforeEach(() => {
+    clock = 1_700_000_000_000;
+    nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+  });
+
+  afterEach(() => {
+    nowSpy.mockRestore();
+    jest.restoreAllMocks();
+  });
+
+  it('says nothing while sampling keeps up, so the log ring buffer is not flooded', () => {
+    // LogCollector caps at maxEntries (1000) and stats are collected ~1/s, so a
+    // per-interval line would evict setup and negotiation logs on a long call.
+    const collector = createStunCollector();
+    const infoSpy = jest.spyOn(logger, 'info').mockImplementation();
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+
+    let requests = 100;
+    for (let i = 0; i < 60; i++) {
+      collector._trackStunBindingActivity(pair(requests));
+      advance(1000);
+      requests += 1;
+    }
+
+    const stunLogs = [...infoSpy.mock.calls, ...warnSpy.mock.calls].filter(
+      ([message]) => String(message).includes('STUN Binding')
+    );
+    expect(stunLogs).toHaveLength(0);
+  });
+
+  it('logs a gap that libwebrtc kept pinging through as informational', () => {
+    // The benign half of a tab freeze: our setTimeout stopped, the native ICE
+    // agent did not, so the media-path NAT mapping stayed open.
+    const collector = createStunCollector();
+    const infoSpy = jest.spyOn(logger, 'info').mockImplementation();
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+
+    collector._trackStunBindingActivity(pair(100));
+    advance(40_000);
+    collector._trackStunBindingActivity(pair(116));
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    const [message, context] =
+      infoSpy.mock.calls.find(([m]) =>
+        String(m).includes('STUN Binding keepalive continued')
+      ) ?? [];
+
+    expect(message).toBeDefined();
+    expect(context).toMatchObject({
+      gapMs: 40_000,
+      requestsSentDuringGap: 16,
+      impliedIntervalMs: 2500,
+    });
+  });
+
+  it('warns when no Binding Request left the machine during a gap', () => {
+    const collector = createStunCollector();
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+    jest.spyOn(logger, 'info').mockImplementation();
+
+    collector._trackStunBindingActivity(pair(100));
+    advance(40_000);
+    collector._trackStunBindingActivity(pair(100));
+
+    const [message, context] =
+      warnSpy.mock.calls.find(([m]) =>
+        String(m).includes('STUN Binding keepalive stopped')
+      ) ?? [];
+
+    expect(message).toBeDefined();
+    expect(context).toMatchObject({
+      gapMs: 40_000,
+      requestsSentDuringGap: 0,
+      impliedIntervalMs: null,
+    });
+  });
+
+  it('does not subtract across a candidate pair change', () => {
+    // requestsSent is per-pair, so B's counter is not subtractable from A's.
+    // Getting this wrong is what produced three separate merge bugs in the
+    // dashboard's Tr derivation.
+    const collector = createStunCollector();
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation();
+    jest.spyOn(logger, 'info').mockImplementation();
+
+    collector._trackStunBindingActivity({
+      id: 'pair-A',
+      requestsSent: 500,
+      responsesReceived: 500,
+    });
+    advance(40_000);
+    collector._trackStunBindingActivity({
+      id: 'pair-B',
+      requestsSent: 3,
+      responsesReceived: 3,
+    });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('summarises longest silence at stop, which a mean interval cannot show', async () => {
+    // Bursty pinging: 10 requests in one second, then 24s of nothing. The mean
+    // interval looks healthy; the 24s silence is what would trip a NAT timer.
+    const collector = createStunCollector();
+    const infoSpy = jest.spyOn(logger, 'info').mockImplementation();
+
+    collector._trackStunBindingActivity(pair(0));
+    advance(1000);
+    collector._trackStunBindingActivity(pair(10));
+    advance(24_000);
+    collector._trackStunBindingActivity(pair(10));
+
+    await collector.stop();
+
+    const [, context] =
+      infoSpy.mock.calls.find(([m]) =>
+        String(m).includes('STUN Binding keepalive summary')
+      ) ?? [];
+
+    expect(context).toMatchObject({
+      requestsSent: 10,
+      observedMs: 25_000,
+      meanIntervalMs: 2500,
+      longestSilenceMs: 24_000,
+      observationGaps: 1,
+      longestGapMs: 24_000,
+    });
+  });
+
+  it('emits no summary when there was nothing to observe', async () => {
+    const collector = createStunCollector();
+    const infoSpy = jest.spyOn(logger, 'info').mockImplementation();
+
+    await collector.stop();
+
+    const summaries = infoSpy.mock.calls.filter(([m]) =>
+      String(m).includes('STUN Binding keepalive summary')
+    );
+    expect(summaries).toHaveLength(0);
+  });
+});
