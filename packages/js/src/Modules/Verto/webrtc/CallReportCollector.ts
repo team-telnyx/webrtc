@@ -148,10 +148,11 @@ interface ExtendedMediaPlayoutStats {
   type: string;
   id: string;
   kind?: string;
-  synthesizedSamples?: number;
-  synthesizedDuration?: number;
+  synthesizedSamplesEvents?: number;
+  synthesizedSamplesDuration?: number;
   totalPlayoutDelay?: number;
-  totalSampleCount?: number;
+  totalSamplesCount?: number;
+  totalSamplesDuration?: number;
 }
 
 /**
@@ -386,10 +387,11 @@ export interface IStatsInterval {
    * Reports playout delay and synthesized-sample indicators.
    */
   mediaPlayout?: {
-    synthesizedSamples?: number;
-    synthesizedDuration?: number;
+    synthesizedSamplesEvents?: number;
+    synthesizedSamplesDuration?: number;
     totalPlayoutDelay?: number;
-    totalSampleCount?: number;
+    totalSamplesCount?: number;
+    totalSamplesDuration?: number;
   };
   /**
    * Remote RTCP stats parsed from `remote-inbound-rtp` (RTCP Receiver Report
@@ -1918,10 +1920,11 @@ export class CallReportCollector {
     // Media-playout stats (audio playout delay + synthesized samples)
     if (mediaPlayout) {
       entry.mediaPlayout = this._withoutUndefined({
-        synthesizedSamples: mediaPlayout.synthesizedSamples,
-        synthesizedDuration: mediaPlayout.synthesizedDuration,
+        synthesizedSamplesEvents: mediaPlayout.synthesizedSamplesEvents,
+        synthesizedSamplesDuration: mediaPlayout.synthesizedSamplesDuration,
         totalPlayoutDelay: mediaPlayout.totalPlayoutDelay,
-        totalSampleCount: mediaPlayout.totalSampleCount,
+        totalSamplesCount: mediaPlayout.totalSamplesCount,
+        totalSamplesDuration: mediaPlayout.totalSamplesDuration,
       });
     }
 
