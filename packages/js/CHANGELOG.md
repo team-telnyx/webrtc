@@ -1,3 +1,8 @@
+## [2.27.10-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.0...webrtc/v2.27.10-beta.1) (2026-08-19)
+
+- docs: update ts docs
+- fix(js): read media-playout stats using their real RTCAudioPlayoutStats names (#767)
+- fix(js): restore prefetchIceCandidates default on outbound calls (#766)
 ## [2.27.10-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10-beta.0) (2026-08-10)
 
 ### Features

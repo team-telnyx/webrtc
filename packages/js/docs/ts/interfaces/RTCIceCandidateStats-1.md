@@ -13,7 +13,6 @@ Interface representing the statistics of an RTC ICE candidate.
 - [port](#port)
 - [priority](#priority)
 - [protocol](#protocol)
-- [relayProtocol](#relayprotocol)
 - [timestamp](#timestamp)
 - [transportId](#transportid)
 - [type](#type)
@@ -74,14 +73,6 @@ The priority of the ICE candidate.
 • **protocol**: `RTCIceProtocol` \| `"tls"`
 
 The protocol used by the ICE candidate.
-
----
-
-### relayProtocol
-
-• `Optional` **relayProtocol**: `"tcp"` \| `"udp"` \| `"tls"`
-
-The relay protocol used by the ICE candidate, if applicable.
 
 ---
 
