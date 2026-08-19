@@ -61,6 +61,7 @@ client.off('telnyx.notification');
 
 ### Methods
 
+- [\_terminateActiveCallsLocally](#_terminateactivecallslocally)
 - [checkPermissions](#checkpermissions)
 - [clearReconnectToken](#clearreconnecttoken)
 - [connect](#connect)
@@ -80,11 +81,15 @@ client.off('telnyx.notification');
 - [newCall](#newcall)
 - [off](#off)
 - [on](#on)
+- [onOutboundConfirmed](#onoutboundconfirmed)
 - [onSignalingRequestTimeout](#onsignalingrequesttimeout)
 - [reportIceRestartFailed](#reporticerestartfailed)
 - [reportNoRtp](#reportnortp)
 - [reportPeerFailure](#reportpeerfailure)
 - [resetReconnectAttempts](#resetreconnectattempts)
+- [runMicrophoneCheck](#runmicrophonecheck)
+- [runNetworkCheck](#runnetworkcheck)
+- [runPreCall](#runprecall)
 - [serverDisconnect](#serverdisconnect)
 - [setAudioSettings](#setaudiosettings)
 - [startSignalingHealthMonitor](#startsignalinghealthmonitor)
@@ -455,6 +460,29 @@ if (result.length) {
 TelnyxRTCClient.speaker
 
 ## Methods
+
+### \_terminateActiveCallsLocally
+
+▸ **\_terminateActiveCallsLocally**(): `void`
+
+Tear down every active call LOCALLY without sending BYE on the wire.
+
+Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
+the signaling socket is already dead). Sending BYE over a dead socket
+would only generate `BYE_SEND_FAILED` noise, so each call is finalized
+via `hangup({}, false)` — which closes the RTCPeerConnection, stops
+media, fires the local hangup notification, and removes the call from
+`session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.\_terminateActiveCallsLocally
+
+---
 
 ### checkPermissions
 
@@ -1292,6 +1320,26 @@ TelnyxRTCClient.on
 
 ---
 
+### onOutboundConfirmed
+
+▸ **onOutboundConfirmed**(): `void`
+
+Called by Connection.send() when a request we sent comes back
+answered. Feeds the monitor's outbound-liveness clock, which is what
+distinguishes a working socket from one that only still receives.
+
+Public because Connection calls it; not part of the app-facing API.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.onOutboundConfirmed
+
+---
+
 ### onSignalingRequestTimeout
 
 ▸ **onSignalingRequestTimeout**(`requestId`, `timeoutMs`, `method?`): `void`
@@ -1420,6 +1468,173 @@ or when the user manually initiates a reconnect after exhaustion.
 #### Inherited from
 
 TelnyxRTCClient.resetReconnectAttempts
+
+---
+
+### runMicrophoneCheck
+
+▸ **runMicrophoneCheck**(`options?`): `Promise`\<`PreCallDiagnosticReport`\>
+
+Runs a microphone check using the `PreCallDiagnostic` framework.
+
+This method performs an active microphone check: it calls
+`getUserMedia({ audio: true })` to verify capture works, measures
+the audio level using Web Audio APIs, enumerates all available
+audio input devices, and optionally records the audio so the user
+can listen to it afterwards.
+
+This method does **not** dial (`client.newCall()` is not called) —
+it calls `getUserMedia({ audio: true })` for permission + device
+check, then runs a Web Audio `AnalyserNode` for level measurement.
+No SIP signaling or `destinationNumber` is required.
+
+#### Parameters
+
+| Name      | Type                                                                                                                        | Description                                                |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------- |
+| `options` | [`RunMicrophoneCheckOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/runmicrophonecheckoptions) | Options for the microphone check. All fields are optional. |
+
+#### Returns
+
+`Promise`\<`PreCallDiagnosticReport`\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with defaults (active capture enabled):
+
+```js
+const report = await client.runMicrophoneCheck();
+console.log(report.microphone?.isPermissionGrantedCurrently);
+console.log(report.microphone?.devices);
+console.log(report.microphone?.audioLevelStats);
+```
+
+With recording enabled (user can listen to it afterwards):
+
+```js
+const report = await client.runMicrophoneCheck({
+  durationMs: 5000,
+  record: true,
+  warnOnRecording: (notice) => {
+    showRecordingWarning(notice);
+  },
+});
+```
+
+---
+
+### runNetworkCheck
+
+▸ **runNetworkCheck**(`options?`): `Promise`\<`PreCallDiagnosticReport`\>
+
+Runs a network/ICE check using the `PreCallDiagnostic` framework.
+
+This method tests each configured ICE server URL independently using a
+real, short diagnostic call. Each call stays active for three seconds and
+all calls run concurrently to keep the total check duration bounded.
+TURN URLs force relay policy to verify that the relay is actually usable.
+
+Results from every call are combined under `serverTests` so a
+failed server does not hide successful servers (and vice versa).
+
+#### Parameters
+
+| Name      | Type                                                                                                              | Description                                             |
+| :-------- | :---------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------ |
+| `options` | [`RunNetworkCheckOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#runnetworkcheckoptions) | Options for the network check. All fields are optional. |
+
+#### Returns
+
+`Promise`\<`PreCallDiagnosticReport`\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with the client's default ICE servers:
+
+```js
+const report = await client.runNetworkCheck();
+console.log(report.serverTests);
+```
+
+With custom ICE servers:
+
+```js
+const report = await client.runNetworkCheck({
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+});
+```
+
+---
+
+### runPreCall
+
+▸ **runPreCall**(`options?`): `Promise`\<`PreCallDiagnosticReport`\>
+
+Runs a pre-call diagnostic using the new `PreCallDiagnostic` framework.
+
+This method creates a temporary diagnostic call to probe network, ICE,
+audio flow, and microphone conditions before placing a real call. The
+diagnostic call is automatically cleaned up (hung up) on completion
+unless `autoHangup` is set to `false`.
+
+The client's existing ICE servers and audio constraints are reused
+unless explicitly overridden via `options`.
+
+`destinationNumber` is optional — when omitted, the diagnostic call
+dials a sensible default (`'+1-872-231-5806'`).
+
+`durationMs` controls the post-establishment sampling window and starts
+only after the diagnostic call is established. Call setup is bounded by
+an internal SDK deadline.
+
+#### Parameters
+
+| Name      | Type                                                                                                        | Description                                                                                                        |
+| :-------- | :---------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| `options` | [`RunPreCallOptions`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/runprecalloptions) | Options for the pre-call diagnostic. All fields are optional; `destinationNumber` defaults to `'+1-872-231-5806'`. |
+
+#### Returns
+
+`Promise`\<`PreCallDiagnosticReport`\>
+
+A promise that resolves with the `PreCallDiagnosticReport`.
+
+**`Examples`**
+
+Zero-arg form — run with all defaults:
+
+```js
+const report = await client.runPreCall();
+console.log(report.verdict); // => 'ready' | 'degraded' | 'blocked' | 'inconclusive'
+```
+
+With an explicit destination:
+
+```js
+const report = await client.runPreCall({
+  destinationNumber: '+155****4567',
+});
+```
+
+Override the sampling duration:
+
+```js
+const report = await client.runPreCall({
+  durationMs: 3000,
+});
+```
+
+Custom ICE servers (diagnostic-only, does not mutate client config):
+
+```js
+const report = await client.runPreCall({
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+});
+```
 
 ---
 

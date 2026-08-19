@@ -68,11 +68,13 @@ call.muteAudio();
 
 ### Methods
 
+- [\_applyDesiredAudioMuteState](#_applydesiredaudiomutestate)
 - [answer](#answer)
 - [deaf](#deaf)
 - [dtmf](#dtmf)
+- [flushIntermediateCallReport](#flushintermediatecallreport)
+- [getEstablishmentTimings](#getestablishmenttimings)
 - [getStats](#getstats)
-- [hangup](#hangup)
 - [hold](#hold)
 - [muteAudio](#muteaudio)
 - [muteVideo](#mutevideo)
@@ -80,6 +82,7 @@ call.muteAudio();
 - [setAudioInDevice](#setaudioindevice)
 - [setAudioOutDevice](#setaudiooutdevice)
 - [setVideoDevice](#setvideodevice)
+- [shouldForceRelayCandidateForRecovery](#shouldforcerelaycandidateforrecovery)
 - [toggleAudioMute](#toggleaudiomute)
 - [toggleDeaf](#toggledeaf)
 - [toggleHold](#togglehold)
@@ -310,6 +313,26 @@ BaseCall.telnyxIDs
 
 ## Methods
 
+### \_applyDesiredAudioMuteState
+
+▸ **\_applyDesiredAudioMuteState**(): `void`
+
+Apply the current desired mute state to all local audio tracks.
+Called internally after track creation/replacement (Peer init,
+setAudioInDevice, setVideoDevice, reattach, ICE restart) to
+ensure the mic stays muted when the SDK creates or replaces
+local audio tracks.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.\_applyDesiredAudioMuteState
+
+---
+
 ### answer
 
 ▸ **answer**(`params?`): `Promise`\<`void`\>
@@ -391,6 +414,59 @@ BaseCall.dtmf
 
 ---
 
+### flushIntermediateCallReport
+
+▸ **flushIntermediateCallReport**(`flushReason?`): `void`
+
+Flush an intermediate call report segment mid-call.
+Used for periodic, size-limit, and socket-close safety flushes without
+falsely finalizing the call.
+
+#### Parameters
+
+| Name          | Type                     |
+| :------------ | :----------------------- |
+| `flushReason` | `ICallReportFlushReason` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+BaseCall.flushIntermediateCallReport
+
+---
+
+### getEstablishmentTimings
+
+▸ **getEstablishmentTimings**(): [`ICallEstablishmentTimings`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icallestablishmenttimings)
+
+Return structured call-establishment timings for this call.
+
+Prefers the timeline retained by `Peer.tryCollectTimings()`, which is the
+same result logged by the regular call flow before it clears its marks.
+While a call is still being established, falls back to collecting the
+currently available W3C `performance.mark()` lifecycle.
+
+Mode is derived from the active ICE mode: trickle unless an ICE restart
+forced the non-trickle path. Direction comes from the existing `Direction`
+enum (string values already match the literal type).
+
+— diagnostic-only seam; not part of the public SDK type
+surface. Exposed for the PreCallDiagnostic framework (VSDK-412) and
+subject to change without a semver bump.
+
+#### Returns
+
+[`ICallEstablishmentTimings`](https://developers.telnyx.com/development/webrtc/js-sdk/interfaces/icallestablishmenttimings)
+
+#### Inherited from
+
+BaseCall.getEstablishmentTimings
+
+---
+
 ### getStats
 
 ▸ **getStats**(`callback`, `constraints`): `void`
@@ -411,28 +487,6 @@ Registers callback for stats.
 #### Inherited from
 
 BaseCall.getStats
-
----
-
-### hangup
-
-▸ **hangup**(): `Promise`\<`void`\>
-
-Hangs up the call. If a screen-share call is active, it is hung up first.
-
-**`Example`**
-
-```js
-call.hangup();
-```
-
-#### Returns
-
-`Promise`\<`void`\>
-
-#### Inherited from
-
-BaseCall.hangup
 
 ---
 
@@ -719,6 +773,22 @@ if (result.length) {
 #### Inherited from
 
 BaseCall.setVideoDevice
+
+---
+
+### shouldForceRelayCandidateForRecovery
+
+▸ **shouldForceRelayCandidateForRecovery**(): `boolean`
+
+Returns the final relay policy from call options and recovery stats.
+
+#### Returns
+
+`boolean`
+
+#### Inherited from
+
+BaseCall.shouldForceRelayCandidateForRecovery
 
 ---
 
