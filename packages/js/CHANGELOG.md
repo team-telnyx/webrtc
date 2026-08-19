@@ -1,8 +1,10 @@
 ## [2.27.10-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.0...webrtc/v2.27.10-beta.1) (2026-08-19)
 
-- docs: update ts docs
-- fix(js): read media-playout stats using their real RTCAudioPlayoutStats names (#767)
-- fix(js): restore prefetchIceCandidates default on outbound calls (#766)
+### Bug Fixes
+
+- **read media-playout stats using their real RTCAudioPlayoutStats names** (#767): The media-playout stats block read three property names that do not exist on `RTCAudioPlayoutStats` (`synthesizedSamples` → `synthesizedSamplesEvents`, `synthesizedDuration` → `synthesizedSamplesDuration`, `totalSampleCount` → `totalSamplesCount`), so they were always `undefined` and stripped before the call report was built — leaving every production call report with a `mediaPlayout` block containing only `totalPlayoutDelay`. Without `totalSamplesCount` (the denominator for `totalPlayoutDelay`), the playout delay could not be normalised, so `voice-sdk-call-report-stats` rendered the raw cumulative value (e.g. "2367908170.6 ms" on a 39s call instead of the real ~41.8 ms). Also collects `totalSamplesDuration`, which the spec provides alongside. The existing test masked this because it fed the collector a fabricated stats object using the same wrong names the code read.
+
+- **restore prefetchIceCandidates default on outbound calls** (#766): `DEFAULT_CALL_OPTIONS` sets `prefetchIceCandidates: true`, but the overlay object in `BaseCall`'s constructor passed `options.prefetchIceCandidates` through verbatim. `Object.assign` copies keys whose value is `undefined`, so whenever the integrator did not set the option at client level the `true` default was overwritten with `undefined`, leaving `iceCandidatePoolSize` at 0 and pre-gathering no ICE candidates. The call report builder read the same value with `?? true`, so reports showed "Prefetch ICE Candidates: yes" while the browser received 0 — which is why this went unnoticed. Scope: outbound calls only. #523 enabled the default in 2.25.19 and fixed the inbound path, but left the `BaseCall` overlay untouched, so default-on prefetching has been inert for outbound calls since then. Confirmed against production call reports from SDK 2.27.3 and 2.27.9.
 ## [2.27.10-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10-beta.0) (2026-08-10)
 
 ### Features
