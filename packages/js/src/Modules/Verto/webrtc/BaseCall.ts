@@ -1810,8 +1810,20 @@ export default abstract class BaseCall implements IWebRTCCall {
       .then(async (response) => {
         if (response?.sdp) {
           logger.info('ICE restart Modify response received');
-          this.peer?.finishIceRestart();
-          await this._onRemoteSdp(response.sdp);
+          // Keep `isIceRestarting` set until the remote answer has been fully
+          // applied. Applying it triggers renegotiation, which fires
+          // onLocalSdpReady with the post-restart offer; if the flag were
+          // already cleared, that offer would take the PeerType.Offer branch
+          // and emit a second Invite reusing this call's ID. The server
+          // rejects an Invite for an existing dialog with
+          // DESTINATION_OUT_OF_ORDER and tears the call down (VSDK-525).
+          // The `finally` matters: if _onRemoteSdp throws, the flag must
+          // still be cleared or the call can never restart ICE again.
+          try {
+            await this._onRemoteSdp(response.sdp);
+          } finally {
+            this.peer?.finishIceRestart();
+          }
         } else {
           this._onIceRestartFailed('ICE restart Modify response missing SDP');
         }
