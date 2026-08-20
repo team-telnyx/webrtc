@@ -1,3 +1,8 @@
+## [2.27.10-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.1...webrtc/v2.27.10-beta.2) (2026-08-20)
+
+### Features
+
+- **early SDP answer client option** (#772): Add an optional `earlySdpAnswer` flag to `IClientOptions`. When `true`, the SDK requests early SDP answers during the standard authenticated login flow by passing `{ early_sdp_answer: true }` in the Verto `loginParams`, enabling faster media negotiation on supported backends. The option defaults to `false` and does not apply to anonymous login. `IClientOptions` public reference docs updated.
 ## [2.27.10-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.0...webrtc/v2.27.10-beta.1) (2026-08-19)
 
 - docs: update ts docs
