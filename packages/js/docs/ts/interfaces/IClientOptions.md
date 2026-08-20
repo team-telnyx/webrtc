@@ -15,6 +15,7 @@ IClientOptions
 - [callReportInterval](#callreportinterval)
 - [debug](#debug)
 - [debugOutput](#debugoutput)
+- [earlySdpAnswer](#earlysdpanswer)
 - [enableCallRecording](#enablecallrecording)
 - [enableCallReports](#enablecallreports)
 - [env](#env)
@@ -191,6 +192,21 @@ This will gather WebRTC debugging information.
 • `Optional` **debugOutput**: `"file"` \| `"socket"`
 
 Debug output option
+
+---
+
+### earlySdpAnswer
+
+• `Optional` **earlySdpAnswer**: `boolean`
+
+When `true`, requests early SDP answers during standard authenticated
+login. This option does not apply to anonymous login.
+
+**`Default`**
+
+```ts
+false;
+```
 
 ---
 

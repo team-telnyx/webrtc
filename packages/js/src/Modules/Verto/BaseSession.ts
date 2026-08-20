@@ -746,13 +746,15 @@ export default abstract class BaseSession {
         push_when_active: pushWhenActive,
         pn_late_fanout: pushWhenActive,
       };
+      const earlySdpAnswer = this.options.earlySdpAnswer ?? false;
       msg = new Login(
         this.options.login,
         this.options.password || this.options.passwd,
         this.options.login_token,
         reconnectSessionId,
         userVariables,
-        isReconnection
+        isReconnection,
+        earlySdpAnswer
       );
     } else {
       msg = new AnonymousLogin({

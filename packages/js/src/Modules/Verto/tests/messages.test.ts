@@ -31,7 +31,7 @@ describe('Messages', function () {
           false
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password", "reconnection": false,"login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password", "reconnection": false,"login_token": "dskbksdjbfkjsdf234y67234kjrwe98","loginParams":{"early_sdp_answer":false},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -46,7 +46,7 @@ describe('Messages', function () {
           false
         ).request;
         const res = JSON.parse(
-          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","reconnection": false, "login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{},"userVariables":{}}}`
+          `{"jsonrpc":"2.0","id":"${message.id}","method":"login","params":{"User-Agent": ${userAgent},"login":"login","passwd":"password","reconnection": false, "login_token": "dskbksdjbfkjsdf234y67234kjrwe98","sessid":"123456789","loginParams":{"early_sdp_answer":false},"userVariables":{}}}`
         );
         expect(message).toEqual(res);
       });
@@ -67,6 +67,22 @@ describe('Messages', function () {
             }),
           })
         );
+      });
+
+      it('serializes early_sdp_answer only under loginParams', () => {
+        const { params } = new Login(
+          'login',
+          'password',
+          'token',
+          'session',
+          { custom_key: 'custom-value' },
+          false,
+          true
+        ).request;
+
+        expect(params.loginParams).toEqual({ early_sdp_answer: true });
+        expect(params).not.toHaveProperty('early_sdp_answer');
+        expect(params.userVariables).not.toHaveProperty('early_sdp_answer');
       });
     });
 
