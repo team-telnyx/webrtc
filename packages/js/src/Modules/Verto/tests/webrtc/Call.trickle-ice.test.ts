@@ -678,14 +678,23 @@ describe('Call Trickle ICE', () => {
       expect(call.peer.isIceRestarting).toBe(false);
     });
 
-    it('clears isIceRestarting even when applying the remote answer throws', async () => {
+    it('still reports failure when applying the remote answer throws', async () => {
+      // Awaiting _onRemoteSdp inside the .then() means its rejection has to
+      // travel through the try/finally to reach the .catch(). Assert the
+      // failure path is intact: the error is logged and emitted as
+      // telnyx.error (ICE_RESTART_FAILED) via _onIceRestartFailed, SignalingHealth
+      // is notified, and the restart gate is released so a later attempt is
+      // possible.
       jest
         .spyOn((call as any).session, 'execute')
         .mockResolvedValue({ sdp: remoteSdp });
 
-      jest
-        .spyOn(call as any, '_onRemoteSdp')
-        .mockRejectedValue(new Error('setRemoteDescription failed'));
+      const applyError = new Error('setRemoteDescription failed');
+      jest.spyOn(call as any, '_onRemoteSdp').mockRejectedValue(applyError);
+
+      const failedSpy = jest.spyOn(call as any, '_onIceRestartFailed');
+      const reportSpy = jest.fn();
+      (call as any).session.reportIceRestartFailed = reportSpy;
 
       call.peer.isIceRestarting = true;
 
@@ -696,6 +705,11 @@ describe('Call Trickle ICE', () => {
 
       await new Promise((resolve) => setImmediate(resolve));
 
+      expect(failedSpy).toHaveBeenCalledWith(
+        'ICE restart Modify failed',
+        applyError
+      );
+      expect(reportSpy).toHaveBeenCalledWith(call.id);
       // Otherwise the call could never restart ICE again.
       expect(call.peer.isIceRestarting).toBe(false);
     });

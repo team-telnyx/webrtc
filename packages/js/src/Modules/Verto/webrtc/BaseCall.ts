@@ -1817,8 +1817,11 @@ export default abstract class BaseCall implements IWebRTCCall {
           // and emit a second Invite reusing this call's ID. The server
           // rejects an Invite for an existing dialog with
           // DESTINATION_OUT_OF_ORDER and tears the call down (VSDK-525).
-          // The `finally` matters: if _onRemoteSdp throws, the flag must
-          // still be cleared or the call can never restart ICE again.
+          // The `finally` is defence in depth, not the primary guarantee: a
+          // rejection here still propagates to the .catch() below, and
+          // _onIceRestartFailed() also calls finishIceRestart(). Clearing it
+          // here too keeps the invariant local to the scope that depends on
+          // it, rather than relying on a distant handler.
           try {
             await this._onRemoteSdp(response.sdp);
           } finally {
