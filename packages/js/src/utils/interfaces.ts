@@ -117,6 +117,24 @@ export interface IClientOptions {
   prefetchIceCandidates?: boolean;
 
   /**
+   * Build an idle RTCPeerConnection at client init so its ICE candidate pool has
+   * time to gather before a call needs it. Defaults to false.
+   *
+   * `prefetchIceCandidates` sets `iceCandidatePoolSize`, but the pool only pays
+   * off when there is wall-clock time between constructing the peer connection
+   * and calling setLocalDescription. In the normal flow that gap is about 40ms —
+   * too short for a STUN round trip, let alone a TURN allocation — so the pool
+   * costs sockets and returns nothing. Warming a connection at init turns that
+   * gap into however long the user takes to place a call.
+   *
+   * The warmed connection is only adopted by a call whose ICE configuration
+   * matches it, and is discarded after 60 seconds because TURN allocations
+   * expire and any network change invalidates gathered candidates. Calls that
+   * override `iceServers` or set `forceRelayCandidate` gather fresh.
+   */
+  prewarmPeerConnection?: boolean;
+
+  /**
    * Force the use of a relay ICE candidate.
    */
   forceRelayCandidate?: boolean;

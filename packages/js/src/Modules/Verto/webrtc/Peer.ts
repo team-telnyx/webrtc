@@ -494,7 +494,25 @@ export default class Peer {
   }
 
   private async createPeerConnection() {
-    this.instance = RTCPeerConnection(this._config());
+    const config = this._config();
+
+    // Adopt the connection warmed at client init when its ICE configuration
+    // matches this call's. Its candidate pool has had seconds to gather rather
+    // than the ~40ms between newCall() and the offer, which is the only window
+    // in which iceCandidatePoolSize can actually save anything.
+    const prewarmed = this._session.takePrewarmedPeerConnection(config);
+    if (prewarmed) {
+      logger.info('Adopted prewarmed peer connection');
+      performance.mark(callMarkName(this.options.id, 'peer-prewarmed'));
+    }
+
+    this.instance = prewarmed || RTCPeerConnection(config);
+
+    // Warm the next one now, so a second call in the same session gets the same
+    // head start rather than only the first benefiting.
+    if (prewarmed) {
+      this._session.warmPeerConnection(this.options.prefetchIceCandidates);
+    }
 
     this.instance.onsignalingstatechange = this.handleSignalingStateChangeEvent;
     this.instance.onnegotiationneeded = this.handleNegotiationNeededEvent;

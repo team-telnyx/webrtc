@@ -29,6 +29,7 @@ export interface IVertoOptions {
   debugOutput?: 'socket' | 'file';
   /** Enable or disable prefetching ICE candidates. Defaults to true. */
   prefetchIceCandidates?: boolean;
+  prewarmPeerConnection?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
   /**
