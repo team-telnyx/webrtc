@@ -1,3 +1,6 @@
+## [2.27.10-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.1...webrtc/v2.27.10-beta.2) (2026-08-20)
+
+- feat: add early SDP answer client option (#772)
 ## [2.27.10-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.0...webrtc/v2.27.10-beta.1) (2026-08-19)
 
 - docs: update ts docs
