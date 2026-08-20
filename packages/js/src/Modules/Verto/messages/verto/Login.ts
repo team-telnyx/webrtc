@@ -10,18 +10,18 @@ class Login extends BaseRequest {
     login_token: string,
     sessionid: string,
     userVariables: Record<string, any> = {},
-    reconnection: boolean
+    reconnection: boolean,
+    earlySdpAnswer: boolean = false
   ) {
     super();
 
-    // TODO: handle loginParams && userVariables
     const params: any = {
       login,
       passwd,
       login_token,
       userVariables,
       reconnection,
-      loginParams: {},
+      loginParams: { early_sdp_answer: earlySdpAnswer },
       'User-Agent': {
         sdkVersion: pkg.version,
         data: navigator.userAgent,

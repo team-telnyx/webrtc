@@ -12,6 +12,7 @@ export interface IVertoOptions {
   login_token?: string;
   userVariables?: Record<string, any>;
   pushWhenActive?: boolean;
+  earlySdpAnswer?: boolean;
   ringtoneFile?: string;
   ringbackFile?: string;
   env?: Environment;

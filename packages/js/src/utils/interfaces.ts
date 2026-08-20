@@ -91,6 +91,13 @@ export interface IClientOptions {
    */
   pushWhenActive?: boolean;
   /**
+   * When `true`, requests early SDP answers during standard authenticated
+   * login. This option does not apply to anonymous login.
+   *
+   * @default false
+   */
+  earlySdpAnswer?: boolean;
+  /**
    * A URL to a wav/mp3 ringtone file.
    */
   ringtoneFile?: string;

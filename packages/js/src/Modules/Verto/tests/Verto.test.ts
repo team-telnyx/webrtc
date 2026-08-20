@@ -3,6 +3,7 @@ import { isQueued } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
+import type { IClientOptions } from '../../../utils/interfaces';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
@@ -872,6 +873,89 @@ describe('Verto', () => {
         custom_key: 'custom-value',
       });
       expect(request.params.userVariables.pn_late_fanout).toBeUndefined();
+    });
+  });
+
+  describe('earlySdpAnswer login option', () => {
+    const loginRequestFor = async (options: IClientOptions) => {
+      const client = _buildInstance(options as IVertoOptions);
+
+      await client.login();
+
+      return Connection.mockSend.mock.calls[0][0].request;
+    };
+
+    it('sends an explicit false by default on password login', async () => {
+      const request = await loginRequestFor({
+        login: 'login',
+        password: 'password',
+      });
+
+      expect(request.params.loginParams).toEqual({ early_sdp_answer: false });
+      expect(request.params).not.toHaveProperty('early_sdp_answer');
+      expect(request.params.userVariables).not.toHaveProperty(
+        'early_sdp_answer'
+      );
+    });
+
+    it('sends false when explicitly disabled', async () => {
+      const request = await loginRequestFor({
+        login: 'login',
+        password: 'password',
+        earlySdpAnswer: false,
+      });
+
+      expect(request.params.loginParams).toEqual({ early_sdp_answer: false });
+    });
+
+    it.each([
+      ['password', { login: 'login', password: 'password' }],
+      ['login token', { login_token: 'token' }],
+    ])('sends true on %s authentication', async (_label, credentials) => {
+      const request = await loginRequestFor({
+        ...credentials,
+        earlySdpAnswer: true,
+      });
+
+      expect(request.method).toBe('login');
+      expect(request.params.loginParams).toEqual({ early_sdp_answer: true });
+    });
+
+    it('preserves the option on reconnect login payloads', async () => {
+      const client = _buildInstance({
+        login: 'login',
+        password: 'password',
+        earlySdpAnswer: true,
+      } as IVertoOptions);
+
+      await client.login();
+      setReconnectToken('voice-sdk-id');
+      await client.login();
+
+      const initialRequest = Connection.mockSend.mock.calls[0][0].request;
+      const reconnectRequest = Connection.mockSend.mock.calls[1][0].request;
+      expect(initialRequest.params.loginParams).toEqual({
+        early_sdp_answer: true,
+      });
+      expect(reconnectRequest.params.reconnection).toBe(true);
+      expect(reconnectRequest.params.loginParams).toEqual(
+        initialRequest.params.loginParams
+      );
+    });
+
+    it('does not change anonymous_login payloads', async () => {
+      const request = await loginRequestFor({
+        anonymous_login: {
+          target_type: 'ai_assistant',
+          target_id: 'assistant-id',
+        },
+        earlySdpAnswer: true,
+      });
+
+      expect(request.method).toBe('anonymous_login');
+      expect(request.params).not.toHaveProperty('early_sdp_answer');
+      expect(request.params).not.toHaveProperty('loginParams');
+      expect(request.params.userVariables?.early_sdp_answer).toBeUndefined();
     });
   });
 
