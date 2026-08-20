@@ -433,6 +433,11 @@ The `password` to authenticate with your SIP Connection.
 
 Enable or disable prefetching ICE candidates. Defaults to true.
 
+Sets `iceCandidatePoolSize` to 1 when on and 0 when off. A deeper pool gains
+nothing — BUNDLE negotiates the call down to a single transport, so only one
+pre-gathered set is ever adopted — while costing one gathering pass per local
+network interface per ICE server for each unit.
+
 ---
 
 ### pushWhenActive
