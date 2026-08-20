@@ -235,3 +235,39 @@ describe('Peer relay policy', () => {
     ).toBe(expected);
   });
 });
+
+describe('Peer ICE candidate pool', () => {
+  const poolSizeFor = (prefetchIceCandidates: boolean) => {
+    const session: SessionDouble = {
+      options: {},
+      sessionid: 'session-1',
+      connected: true,
+      reportPeerFailure: jest.fn(),
+    };
+    const peer = new Peer(
+      PeerType.Offer,
+      {
+        id: 'call-1',
+        debug: false,
+        prefetchIceCandidates,
+      } as IVertoCallOptions,
+      session as unknown as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+
+    return (peer as unknown as { _config: () => RTCConfiguration })._config()
+      .iceCandidatePoolSize;
+  };
+
+  it('pre-gathers a single component set when prefetching is on', () => {
+    // Deliberately asserts 1 rather than "greater than 0": the cost of the pool
+    // is pool x local interfaces x ICE servers, so a regression back to the
+    // original 10 is what this guards against.
+    expect(poolSizeFor(true)).toBe(1);
+  });
+
+  it('pre-gathers nothing when prefetching is off', () => {
+    expect(poolSizeFor(false)).toBe(0);
+  });
+});

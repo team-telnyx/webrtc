@@ -57,6 +57,22 @@ export type RestartIceResult = {
 };
 
 /**
+ * How many ICE component sets the browser pre-gathers when `prefetchIceCandidates`
+ * is on.
+ *
+ * Each unit gathers against every configured ICE server on every local network
+ * interface, so the cost scales as pool x interfaces x servers: on a four-homed
+ * client with six ICE servers a pool of 10 asks for roughly 160 TURN allocations
+ * to serve a call that uses 16.
+ *
+ * There is nothing to gain from a deeper pool. BUNDLE negotiates the call down to
+ * a single transport, so only one pre-gathered set is ever adopted; the rest are
+ * discarded. The value was 10 from the original prefetch implementation and was
+ * never measured.
+ */
+const ICE_CANDIDATE_POOL_SIZE = 1;
+
+/**
  * @ignore Hide in docs output
  */
 export default class Peer {
@@ -1067,7 +1083,7 @@ export default class Peer {
 
     const config: RTCConfiguration = {
       bundlePolicy: 'balanced',
-      iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
+      iceCandidatePoolSize: prefetchIceCandidates ? ICE_CANDIDATE_POOL_SIZE : 0,
       iceServers,
       iceTransportPolicy: forceRelayCandidate ? 'relay' : 'all',
     };
