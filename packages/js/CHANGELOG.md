@@ -1,3 +1,6 @@
+## [2.27.10-beta.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.2...webrtc/v2.27.10-beta.3) (2026-08-20)
+
+- fix(js): reduce iceCandidatePoolSize from 10 to 1 (VSDK-523) (#774)
 ## [2.27.10-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.1...webrtc/v2.27.10-beta.2) (2026-08-20)
 
 ### Features
