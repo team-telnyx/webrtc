@@ -1,6 +1,8 @@
 ## [2.27.10-beta.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.2...webrtc/v2.27.10-beta.3) (2026-08-20)
 
-- fix(js): reduce iceCandidatePoolSize from 10 to 1 (VSDK-523) (#774)
+### Bug Fixes
+
+- **reduce ICE candidate pool from 10 to 1** (VSDK-523) (#774): The `iceCandidatePoolSize` used for `prefetchIceCandidates` was 10 since the original prefetch implementation and was never measured. Each pool unit gathers against every configured ICE server on every local network interface, so the cost scales as pool × interfaces × servers — on a four-homed client with six ICE servers, a pool of 10 requested roughly 160 TURN allocations to serve a call that uses 16. BUNDLE negotiates the call down to a single transport, so only one pre-gathered component set is ever adopted and the other nine are discarded. The value is now 1 (named `ICE_CANDIDATE_POOL_SIZE`), and tests assert the exact number so a regression back to 10 is caught.
 ## [2.27.10-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.1...webrtc/v2.27.10-beta.2) (2026-08-20)
 
 ### Features
