@@ -71,7 +71,7 @@ The priority of the ICE candidate.
 
 ### protocol
 
-• **protocol**: `RTCIceProtocol` \| `"tls"`
+• **protocol**: `RTCIceProtocol`
 
 The protocol used by the ICE candidate.
 
