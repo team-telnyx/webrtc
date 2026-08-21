@@ -1,23 +1,20 @@
-## [2.27.10-beta.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.2...webrtc/v2.27.10-beta.3) (2026-08-20)
-
-### Bug Fixes
-
-- **reduce ICE candidate pool from 10 to 1** (VSDK-523) (#774): The `iceCandidatePoolSize` used for `prefetchIceCandidates` was 10 since the original prefetch implementation and was never measured. Each pool unit gathers against every configured ICE server on every local network interface, so the cost scales as pool × interfaces × servers — on a four-homed client with six ICE servers, a pool of 10 requested roughly 160 TURN allocations to serve a call that uses 16. BUNDLE negotiates the call down to a single transport, so only one pre-gathered component set is ever adopted and the other nine are discarded. The value is now 1 (named `ICE_CANDIDATE_POOL_SIZE`), and tests assert the exact number so a regression back to 10 is caught.
-## [2.27.10-beta.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.1...webrtc/v2.27.10-beta.2) (2026-08-20)
-
-### Features
-
-- **early SDP answer client option** (#772): Add an optional `earlySdpAnswer` flag to `IClientOptions`. When `true`, the SDK requests early SDP answers during the standard authenticated login flow by passing `{ early_sdp_answer: true }` in the Verto `loginParams`, enabling faster media negotiation on supported backends. The option defaults to `false` and does not apply to anonymous login. `IClientOptions` public reference docs updated.
-## [2.27.10-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.0...webrtc/v2.27.10-beta.1) (2026-08-19)
-
-- docs: update ts docs
-- fix(js): read media-playout stats using their real RTCAudioPlayoutStats names (#767)
-- fix(js): restore prefetchIceCandidates default on outbound calls (#766)
-## [2.27.10-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10-beta.0) (2026-08-10)
+## [2.27.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10) (2026-08-21)
 
 ### Features
 
 - **unified pre-call diagnostic API** (VSDK-412) (#733): Add a new `PreCallDiagnostic` family exposing three client-level methods — `TelnyxRTC.runPreCall()`, `runNetworkCheck()`, and `runMicrophoneCheck()` — that run a temporary diagnostic call and return a structured `PreCallDiagnosticReport` with a top-level `verdict` (`ready` / `degraded` / `blocked` / `permission_denied` / `inconclusive`), machine-readable `reasons[]`, `warnings[]`, and per-module sections for ICE, network, microphone, media, and timings. The ICE module reports candidate counts/types, the selected pair, host-only/VPN/multi-interface detection, and per-server connectivity; the network module normalizes RTT, jitter, packet loss, and bitrate into a `good`/`fair`/`poor`/`unknown` quality classification; the microphone module checks permission state, device availability, and optional active capture with audio-level detection. `runNetworkCheck` tests each configured ICE server independently (in parallel) and reports per-server results; `runMicrophoneCheck` supports opt-in recording and playback with a pre-recording consent callback. The existing `PreCallDiagnosis` API is unchanged. New public types (`PreCallDiagnosticOptions`, `PreCallDiagnosticReport`, `RunPreCallOptions`, `RunNetworkCheckOptions`, `RunMicrophoneCheckOptions`, section report types, reason-code enums) are exported from the package entry point alongside the legacy API.
+
+- **early SDP answer client option** (#772): Add an optional `earlySdpAnswer` flag to `IClientOptions`. When `true`, the SDK requests early SDP answers during the standard authenticated login flow by passing `{ early_sdp_answer: true }` in the Verto `loginParams`, enabling faster media negotiation on supported backends. The option defaults to `false` and does not apply to anonymous login. `IClientOptions` public reference docs updated.
+
+### Bug Fixes
+
+- **disable ICE candidate prefetching by default** (#778): Change `prefetchIceCandidates` default from `true` to `false` in both `DEFAULT_CALL_OPTIONS` and the call-report sanitization fallback, and update TSDoc defaults on `IClientOptions` and `ICallOptions`. Prefetching allocated an ICE candidate pool (see below) on every call even when most calls never use the pre-gathered candidates — BUNDLE negotiates the call down to a single transport, so the extra pool units are wasted. Callers who need prefetching can still set `prefetchIceCandidates: true` explicitly.
+
+- **reduce ICE candidate pool from 10 to 1** (VSDK-523) (#774): The `iceCandidatePoolSize` used for `prefetchIceCandidates` was 10 since the original prefetch implementation and was never measured. Each pool unit gathers against every configured ICE server on every local network interface, so the cost scales as pool × interfaces × servers — on a four-homed client with six ICE servers, a pool of 10 requested roughly 160 TURN allocations to serve a call that uses 16. BUNDLE negotiates the call down to a single transport, so only one pre-gathered component set is ever adopted and the other nine are discarded. The value is now 1 (named `ICE_CANDIDATE_POOL_SIZE`), and tests assert the exact number so a regression back to 10 is caught.
+
+- **restore prefetchIceCandidates default on outbound calls** (#766): `DEFAULT_CALL_OPTIONS` set `prefetchIceCandidates: true`, but the overlay object in `BaseCall`'s constructor passed `options.prefetchIceCandidates` through verbatim. `Object.assign` copies keys whose value is `undefined`, so whenever the integrator did not set the option at client level the `true` default was overwritten with `undefined`. `peer._config()` then evaluated `prefetchIceCandidates ? 10 : 0`, so `iceCandidatePoolSize` stayed at 0 and no ICE candidates were pre-gathered. The fix uses `??` to fall back to the default. (Scope: outbound calls only. This bug was later made moot by #778 which disabled prefetching by default.)
+
+- **read media-playout stats using their real RTCAudioPlayoutStats names** (#767): The media-playout block read three properties that do not exist on `RTCAudioPlayoutStats`, so they were always `undefined` and stripped before the report was built: `synthesizedSamples` → `synthesizedSamplesEvents`, `synthesizedDuration` → `synthesizedSamplesDuration`, `totalSampleCount` → `totalSamplesCount`. Only `totalPlayoutDelay` was named correctly, which is why every production call report carried a media-playout block with exactly one field. `totalSamplesCount` is the denominator for `totalPlayoutDelay` (a cumulative sum in seconds), so without it the playout delay could not be normalised and reports rendered raw cumulative values (e.g. "2367908170.6 ms" instead of ~41.8 ms on a 39-second call). Also collects `totalSamplesDuration` alongside.
 
 ### Documentation
 
