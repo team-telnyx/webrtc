@@ -65,6 +65,33 @@ import type { RestartIceResult } from './webrtc/Peer';
  */
 const KEEPALIVE_INTERVAL = 35 * 1000;
 
+/**
+ * JSON-RPC error codes the gateway uses for a rejected login.
+ *
+ * Both are ambiguous on their own — the same code covers a terminal
+ * rejection (expired/revoked credential) and a transient one (the
+ * credential has not propagated to the b2bua-rtc instance yet), so the
+ * message text is what disambiguates. See TRANSIENT_LOGIN_ERROR_MESSAGES.
+ */
+const LOGIN_INCORRECT_CODE = -32001;
+const AUTHENTICATION_REQUIRED_CODE = -32000;
+
+/**
+ * Login rejections that are worth retrying on a different b2bua-rtc.
+ *
+ * These are the two messages emitted while a freshly minted credential is
+ * still propagating to the instance handling the login. Any other message
+ * carried by the same error codes (e.g. an expired credential) is terminal
+ * and must pass straight through — retrying it only delays the error the
+ * caller needs to see.
+ *
+ * Matches the message-based gating voice-sdk-proxy uses for the same race.
+ */
+const TRANSIENT_LOGIN_ERROR_MESSAGES = [
+  'login incorrect',
+  'authentication required',
+];
+
 export default abstract class BaseSession {
   public uuid: string = uuidv4();
   public sessionid: string = '';
@@ -108,8 +135,23 @@ export default abstract class BaseSession {
    *  on normal app teardown or token refresh. */
   protected _intentionalClose: boolean = false;
 
+  /**
+   * Socket reconnects already spent retrying a transient login rejection.
+   * Reset on a successful login so a later, unrelated race gets a fresh
+   * budget. See _handleLoginError.
+   */
+  private _transientLoginReconnects: number = 0;
+
   private _tokenExpiryTimeout: ReturnType<typeof setTimeout> | null = null;
   private static readonly TOKEN_EXPIRY_WARNING_SECONDS = 120;
+  /**
+   * How many times the SDK will reconnect to retry a transient login
+   * rejection before surfacing it. Deliberately small: voice-sdk-proxy
+   * already re-sends the login up to 10 times in-connection, so this only
+   * covers the case where that whole burst lost the race on one
+   * b2bua-rtc instance and a different instance is worth trying.
+   */
+  private static readonly MAX_TRANSIENT_LOGIN_RECONNECTS = 2;
   private static readonly CALL_REPORT_UPLOAD_DRAIN_TIMEOUT_MS = 10000;
   private _pendingCallReportUploads = new Set<Promise<void>>();
 
@@ -515,17 +557,98 @@ export default abstract class BaseSession {
   }
 
   /**
+   * True when a rejected login is the credential-propagation race rather
+   * than a genuinely bad credential — i.e. worth retrying elsewhere.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private static _isTransientLoginError(error: any): boolean {
+    const code = error?.code;
+    if (
+      code !== LOGIN_INCORRECT_CODE &&
+      code !== AUTHENTICATION_REQUIRED_CODE
+    ) {
+      return false;
+    }
+    const message = String(error?.message ?? '').toLowerCase();
+    return TRANSIENT_LOGIN_ERROR_MESSAGES.some((candidate) =>
+      message.includes(candidate)
+    );
+  }
+
+  /**
    * Handle login error
+   *
+   * A login rejected because the credential has not propagated yet is
+   * recoverable, but only somewhere else: the gateway has already re-sent
+   * the login on this connection and exhausted its own retries, so
+   * re-sending again here would hit the same b2bua-rtc instance and fail
+   * the same way. Recovery therefore means a new socket.
+   *
+   * Reconnecting is enough to reach a different instance — `connect()`
+   * consults `options.skipLastVoiceSdkId`, so setting it here makes the
+   * next connection exclude the instance that just rejected us. Without
+   * a reconnect the flag is never read: nothing else re-enters
+   * `connect()` on a login error, which leaves the socket open and
+   * unauthenticated until something unrelated closes it.
+   *
+   * Bounded by MAX_TRANSIENT_LOGIN_RECONNECTS so a credential that is
+   * broken everywhere still surfaces promptly instead of cycling the
+   * b2bua-rtc pool.
+   *
    * @return void
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
-    const telnyxError = createTelnyxError(LOGIN_FAILED, error);
+    const isTransient = BaseSession._isTransientLoginError(error);
+    const willRetry =
+      isTransient &&
+      this._autoReconnect &&
+      this._transientLoginReconnects <
+        BaseSession.MAX_TRANSIENT_LOGIN_RECONNECTS;
+
+    // While the SDK still has a reconnect to spend the situation is not
+    // terminal, so `fatal` stays false and the app can keep waiting.
+    const telnyxError = createTelnyxError(
+      LOGIN_FAILED,
+      error,
+      undefined,
+      !willRetry
+    );
     trigger(
       SwEvent.Error,
       { error: telnyxError, sessionId: this.sessionid },
       this.uuid
     );
+
+    if (!willRetry) {
+      if (isTransient) {
+        logger.info(
+          `Login rejected as transient but not retrying ` +
+            `(reconnects spent=${this._transientLoginReconnects}/` +
+            `${BaseSession.MAX_TRANSIENT_LOGIN_RECONNECTS}, ` +
+            `autoReconnect=${this._autoReconnect})`
+        );
+      }
+      return;
+    }
+
+    this._transientLoginReconnects += 1;
+
+    // Route the next connection away from the instance that rejected us
+    // instead of sticky-reconnecting to it.
+    this.options.skipLastVoiceSdkId = true;
+
+    logger.info(
+      `Login rejected by the gateway as transient ` +
+        `(code=${error?.code}, message=${error?.message}) — reconnecting to a ` +
+        `different b2bua-rtc instance ` +
+        `(${this._transientLoginReconnects}/${BaseSession.MAX_TRANSIENT_LOGIN_RECONNECTS})`
+    );
+
+    // Closing the socket routes into the existing reconnect path
+    // (SocketClose → onNetworkClose → connect()), which owns the backoff
+    // and the attempt ceiling. Do not call connect() directly.
+    this._closeConnection();
   }
 
   /**
@@ -774,6 +897,9 @@ export default abstract class BaseSession {
     });
 
     if (response) {
+      // A login got through, so the propagation race (if any) is over.
+      // Give a later, unrelated race a fresh retry budget.
+      this._transientLoginReconnects = 0;
       this.sessionid = response.sessid;
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
