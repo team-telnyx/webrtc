@@ -285,15 +285,14 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * 
    * ### ICE Candidate Prefetching
    * 
-   * ICE candidate prefetching is enabled by default. This pre-gathers ICE candidates when the
-   * `RTCPeerConnection` is created, before `setLocalDescription` is called, improving call setup
-   * performance and reducing DTLS handshake issues caused by late-arriving candidates.
-   * 
-   * To disable prefetching, pass `prefetchIceCandidates: false` to the `newCall` method:
+   * ICE candidate prefetching is disabled by default. To opt in, pass
+   * `prefetchIceCandidates: true` to `newCall`. This pre-gathers one ICE candidate set when the
+   * `RTCPeerConnection` is created, before `setLocalDescription` is called.
+   *
    * ```js
    * client.newCall({
    *  destinationNumber: 'xxx',
-   *  prefetchIceCandidates: false,
+   *  prefetchIceCandidates: true,
    * });
    * ```
    * 

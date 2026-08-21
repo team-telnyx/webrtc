@@ -99,10 +99,8 @@ describe('Call', () => {
       return s;
     };
 
-    it('defaults to true when the client did not set it', () => {
-      // Regression: DEFAULT_CALL_OPTIONS.prefetchIceCandidates was being
-      // clobbered with `undefined`, leaving iceCandidatePoolSize at 0.
-      expect(call.options.prefetchIceCandidates).toBe(true);
+    it('defaults to false when the client did not set it', () => {
+      expect(call.options.prefetchIceCandidates).toBe(false);
     });
 
     it('honours an explicit client-level false', async () => {
@@ -119,12 +117,12 @@ describe('Call', () => {
       );
     });
 
-    it('lets a per-call option override the client default', () => {
+    it('lets a per-call option enable prefetching over the client default', () => {
       const c = new Call(session, {
         ...defaultParams,
-        prefetchIceCandidates: false,
+        prefetchIceCandidates: true,
       });
-      expect(c.options.prefetchIceCandidates).toBe(false);
+      expect(c.options.prefetchIceCandidates).toBe(true);
     });
   });
 

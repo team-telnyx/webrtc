@@ -119,7 +119,7 @@ export interface IClientOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
-   * Enable or disable prefetching ICE candidates. Defaults to true.
+   * Enable or disable prefetching ICE candidates. Defaults to false.
    *
    * Sets `iceCandidatePoolSize` to 1 when on and 0 when off. A deeper pool gains
    * nothing — BUNDLE negotiates the call down to a single transport, so only one
@@ -542,7 +542,7 @@ export interface ICallOptions {
   preferred_codecs?: RTCRtpCodecCapability[];
 
   /**
-   * Enable or disable prefetching ICE candidates. Defaults to true.
+   * Enable or disable prefetching ICE candidates. Defaults to false.
    *
    * Sets `iceCandidatePoolSize` to 1 when on and 0 when off. A deeper pool gains
    * nothing — BUNDLE negotiates the call down to a single transport, so only one
