@@ -14,7 +14,9 @@
 
 ### Other Classes
 
+- [CallRecorder](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/CallRecorder.md)
 - [PreCallDiagnosis](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/PreCallDiagnosis.md)
+- [TimingsCollector](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/TimingsCollector.md)
 
 ### Notification Interfaces
 
@@ -24,15 +26,27 @@
 
 - [ICallEstablishmentTimings](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallEstablishmentTimings.md)
 - [ICallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallOptions.md)
+- [ICallRecordingContext](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingContext.md)
+- [ICallRecordingEnvelope](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingEnvelope.md)
+- [ICallRecordingOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ICallRecordingOptions.md)
 - [IClientOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IClientOptions.md)
+- [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
+- [ILocalAudioSourceStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioSourceStats.md)
+- [ILocalAudioTrackSnapshot](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioTrackSnapshot.md)
+- [IRecordingPacket](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IRecordingPacket.md)
+- [ITransportStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ITransportStats.md)
 - [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
 - [PreCallDiagnosisOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosisOptions.md)
+- [PreCallDiagnosticContext](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/PreCallDiagnosticContext.md)
 - [RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats.md)
+- [RTCIceCandidateStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RTCIceCandidateStats-1.md)
 - [Report](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/Report.md)
 - [RunMicrophoneCheckOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RunMicrophoneCheckOptions.md)
 - [RunPreCallOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/RunPreCallOptions.md)
 - [TargetParams](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TargetParams.md)
 - [TelnyxIDs](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TelnyxIDs.md)
+- [TimingsBuildOptions](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TimingsBuildOptions.md)
+- [TimingsCallLike](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/TimingsCallLike.md)
 
 ### Type Aliases
 
@@ -69,6 +83,8 @@
 - [clearCallMarks](#clearcallmarks)
 - [collectCallEstablishmentTimings](#collectcallestablishmenttimings)
 - [compareIceServers](#compareiceservers)
+- [createDiagnosticContext](#creatediagnosticcontext)
+- [createTimingsCollector](#createtimingscollector)
 - [flattenIceServersByUrl](#flatteniceserversbyurl)
 - [getConstraintsWithoutDeviceId](#getconstraintswithoutdeviceid)
 - [isDeviceNotFoundError](#isdevicenotfounderror)
