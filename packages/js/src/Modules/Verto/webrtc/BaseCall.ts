@@ -319,8 +319,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         debugOutput: options.debugOutput,
         trickleIce: options.trickleIce,
         // `Object.assign` copies keys whose value is `undefined`, so reading
-        // `options.prefetchIceCandidates` directly would overwrite the `true`
-        // from DEFAULT_CALL_OPTIONS whenever the client did not set it.
+        // `options.prefetchIceCandidates` directly would overwrite the default
+        // whenever the client did not set it.
         prefetchIceCandidates:
           options.prefetchIceCandidates ??
           DEFAULT_CALL_OPTIONS.prefetchIceCandidates,
@@ -2750,7 +2750,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         audio: this._sanitizeClientOption(this.options.audio),
         video: this._sanitizeClientOption(this.options.video),
         mutedMicOnStart: this.options.mutedMicOnStart ?? false,
-        prefetchIceCandidates: this.options.prefetchIceCandidates ?? true,
+        prefetchIceCandidates: this.options.prefetchIceCandidates ?? false,
         forceRelayCandidate: this.options.forceRelayCandidate ?? false,
         trickleIce: this.options.trickleIce ?? false,
         iceServers: this._sanitizeIceServers(this.options.iceServers),

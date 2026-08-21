@@ -258,7 +258,7 @@ class VertoHandler {
         debug: session.options.debug ?? false,
         debugOutput: session.options.debugOutput ?? 'socket',
         trickleIce: session.options.trickleIce ?? false,
-        prefetchIceCandidates: session.options.prefetchIceCandidates ?? true,
+        prefetchIceCandidates: session.options.prefetchIceCandidates ?? false,
         // An evaluated recovery value takes precedence over the session default.
         forceRelayCandidate:
           typeof forceRelayCandidateForRecovery === 'boolean'

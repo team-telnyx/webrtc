@@ -80,7 +80,7 @@ export interface IVertoCallOptions {
    * Defaults to false.
    */
   receiveOnlyAudio?: boolean;
-  /** Enable or disable prefetching ICE candidates. Defaults to true. */
+  /** Enable or disable prefetching ICE candidates. Defaults to false. */
   prefetchIceCandidates?: boolean;
   forceRelayCandidate?: boolean;
   trickleIce?: boolean;
