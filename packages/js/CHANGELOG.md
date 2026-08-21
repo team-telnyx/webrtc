@@ -1,3 +1,7 @@
+## [2.27.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.3...webrtc/v2.27.10) (2026-08-21)
+
+- fix(js): disable ICE candidate prefetching by default (#778)
+- chore: curated changelog for webrtc@2.27.10-beta.3 (#776)
 ## [2.27.10-beta.3](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10-beta.2...webrtc/v2.27.10-beta.3) (2026-08-20)
 
 ### Bug Fixes
