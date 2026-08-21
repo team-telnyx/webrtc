@@ -47,6 +47,7 @@ import logger, { setConsoleLoggerMinLevel } from './util/logger';
 import {
   getReconnectSessionId,
   getReconnectToken,
+  getReconnectTokenCanaryRtcServer,
   clearReconnectToken,
   isReconnectSessionIdFresh,
   setReconnectSessionId,
@@ -81,6 +82,11 @@ export default abstract class BaseSession {
   public callReportId: string | null = null;
   /** voice_sdk_id used when posting call report payloads for this session. */
   public callReportVoiceSdkId: string | null = null;
+  /** Persisted voice_sdk_id whose routing association is owned by this session. */
+  public reconnectTokenVoiceSdkId: string | null = getReconnectToken();
+  /** Canary routing override associated with the persisted voice_sdk_id. */
+  public reconnectTokenCanaryRtcServer: boolean | undefined =
+    getReconnectTokenCanaryRtcServer();
   public dc: string | null = null;
   public region: string | null = null;
 
@@ -535,6 +541,8 @@ export default abstract class BaseSession {
    */
   public clearReconnectToken(): void {
     clearReconnectToken();
+    this.reconnectTokenVoiceSdkId = null;
+    this.reconnectTokenCanaryRtcServer = undefined;
   }
 
   /**
