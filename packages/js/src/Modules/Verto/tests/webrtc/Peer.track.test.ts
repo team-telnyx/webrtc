@@ -72,7 +72,7 @@ const makeTrackEvent = (
     streams: [stream],
     receiver: {} as RTCRtpReceiver,
     transceiver: {} as RTCRtpTransceiver,
-  } as unknown as RTCTrackEvent);
+  }) as unknown as RTCTrackEvent;
 
 describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', () => {
   const createPeer = (opts: Partial<IVertoCallOptions> = {}) => {
@@ -119,7 +119,12 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
   });
 
   it('emits REMOTE_AUDIO_ELEMENT_UNRESOLVED when remoteElement is null and an audio track arrives', () => {
-    const { peer } = createPeer({ remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null) });
+    const { peer } = createPeer({
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
+    });
 
     (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
       makeTrackEvent('audio')
@@ -154,7 +159,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
   it('emits warning when remoteElement resolver function returns null', () => {
     const resolver = (): null => null;
     const { peer } = createPeer({
-      remoteElement: resolver as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: resolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
@@ -170,7 +178,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
   it('emits warning when remoteElement resolver function returns undefined', () => {
     const resolver = (): undefined => undefined;
     const { peer } = createPeer({
-      remoteElement: resolver as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: resolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
@@ -181,6 +192,86 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
     expect(triggerMock.mock.calls[0][1].warning.code).toBe(
       REMOTE_AUDIO_ELEMENT_UNRESOLVED
     );
+  });
+
+  it('invokes a function-valued resolver exactly once per track event on the missing-element path', () => {
+    // Regression test for the MAJOR review comment on PR #781: a
+    // function-valued remoteElement must be resolved exactly once and the
+    // same value used for both attachMediaStream and the missing-element
+    // warning check. A second resolution call could observe a different
+    // return value for a stateful/dynamic resolver, producing attachment
+    // and warning inconsistencies.
+    const resolver = jest.fn((): null => null);
+    const { peer } = createPeer({
+      remoteElement: resolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
+    });
+
+    (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+      makeTrackEvent('audio')
+    );
+
+    // Resolver invoked exactly once across both attachMediaStream and the
+    // warning check — the single resolved value is shared.
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+    expect(triggerMock.mock.calls[0][1].warning.code).toBe(
+      REMOTE_AUDIO_ELEMENT_UNRESOLVED
+    );
+  });
+
+  it('invokes a function-valued resolver exactly once when it returns a valid element', () => {
+    // The valid-element path must also resolve the resolver exactly once so
+    // a stateful resolver that returns a valid element first (attachment
+    // succeeds) does not get re-invoked and observe a different value that
+    // would incorrectly trigger (or suppress) the warning.
+    const audioElement = document.createElement('audio');
+    document.body.appendChild(audioElement);
+    const resolver = jest.fn((): HTMLAudioElement => audioElement);
+    const { peer } = createPeer({
+      remoteElement: resolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
+    });
+
+    (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+      makeTrackEvent('audio')
+    );
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(triggerMock).not.toHaveBeenCalled();
+  });
+
+  it('uses a single resolution of a stateful resolver (no false warning on attachment success)', () => {
+    // Stateful resolver returns a valid element on the first call and null on
+    // the second. With the single-resolve fix, attachMediaStream attaches
+    // successfully and the warning must NOT fire (the resolver is never
+    // called a second time). Without the fix, the second call returns null
+    // and a false REMOTE_AUDIO_ELEMENT_UNRESOLVED warning would be emitted.
+    const audioElement = document.createElement('audio');
+    document.body.appendChild(audioElement);
+    let callCount = 0;
+    const statefulResolver = jest.fn((): HTMLMediaElement | null => {
+      callCount += 1;
+      return callCount === 1 ? audioElement : null;
+    });
+    const { peer } = createPeer({
+      remoteElement: statefulResolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
+    });
+
+    (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+      makeTrackEvent('audio')
+    );
+
+    expect(statefulResolver).toHaveBeenCalledTimes(1);
+    // Attachment succeeded on the first (and only) resolution — no warning.
+    expect(triggerMock).not.toHaveBeenCalled();
   });
 
   it('does NOT emit on a video-only track', () => {
@@ -195,7 +286,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('does NOT emit when screenShare is true (screen-share path)', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
       screenShare: true,
     });
 
@@ -210,7 +304,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('deduplicates per call across repeated audio track events', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     const handler = peer as unknown as PeerWithHandleTrackEvent;
@@ -223,11 +320,17 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('separate concurrent calls (separate Peer instances) each emit their own warning', () => {
     const { peer: peer1 } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
     const { peer: peer2 } = createPeer({
       id: 'call-B',
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     (peer1 as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
@@ -274,7 +377,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
     document.body.appendChild(audioElement);
     const resolver = (): HTMLAudioElement => audioElement;
     const { peer } = createPeer({
-      remoteElement: resolver as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: resolver as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
@@ -286,7 +392,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('preserves remoteStream assignment on the call (informational, non-fatal)', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
     const remoteStream = new MediaStream();
 
@@ -303,7 +412,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('does NOT throw on null remoteElement (null-safe path)', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     expect(() =>
@@ -325,7 +437,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('emits warning only once across audio + video track events mixed per call', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     const handler = peer as unknown as PeerWithHandleTrackEvent;
@@ -340,7 +455,10 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
 
   it('warning payload includes advisory causes/solutions covering both SDK-managed and app-managed attachment', () => {
     const { peer } = createPeer({
-      remoteElement: null as unknown as HTMLMediaElement | string | (() => HTMLMediaElement | null),
+      remoteElement: null as unknown as
+        | HTMLMediaElement
+        | string
+        | (() => HTMLMediaElement | null),
     });
 
     (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(

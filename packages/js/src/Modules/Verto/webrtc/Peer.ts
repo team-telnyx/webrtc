@@ -378,7 +378,19 @@ export default class Peer {
     this.options.remoteStream = first;
 
     if (screenShare === false) {
-      attachMediaStream(remoteElement, this.options.remoteStream, {
+      // VSUP-215 — Resolve the remote element ONCE here, before both the
+      // attachment call and the missing-element warning check, so a
+      // function-valued resolver is invoked exactly once per track event.
+      // `attachMediaStream` calls `findElementByType` internally, but when
+      // passed an already-resolved HTMLMediaElement (or null) that helper
+      // returns the value unchanged without re-invoking any resolver. A
+      // stateful/dynamic resolver that returned different values on each call
+      // would otherwise produce attachment+warning inconsistencies (e.g.
+      // successful attachment with a false warning, or no attachment with no
+      // warning).
+      const resolvedRemoteElement = findElementByType(remoteElement);
+
+      attachMediaStream(resolvedRemoteElement, this.options.remoteStream, {
         callId: this.options.id,
         sessionId: this._session.sessionid,
         eventTarget: this._session.uuid,
@@ -395,25 +407,19 @@ export default class Peer {
       // recovery/reattachment do not create noise; concurrent calls remain
       // independently diagnosable because each Peer has its own flag.
       //
-      // The check mirrors `attachMediaStream`'s own early-return condition
-      // (it calls `findElementByType` and bails when the result is null) and
-      // additionally rejects resolver-returned values that are not
-      // HTMLMediaElement instances: a `<div>` resolves via `findElementByType`
-      // (which preserves the resolver's raw return value for backwards
-      // compatibility) but cannot host `srcObject`, so `attachMediaStream`
-      // would silently no-op on it. We treat absent values, unresolved string
-      // IDs, resolvers returning null/undefined, and resolvers returning a
-      // non-HTMLMediaElement node as the same advisory condition without
-      // throwing. The shared `findElementByType` contract is unchanged.
+      // We reuse the single `resolvedRemoteElement` value from above (the same
+      // value `attachMediaStream` saw) and additionally reject resolver-returned
+      // values that are not HTMLMediaElement instances: a `<div>` resolves via
+      // `findElementByType` (which preserves the resolver's raw return value for
+      // backwards compatibility) but cannot host `srcObject`, so
+      // `attachMediaStream` would silently no-op on it. We treat absent values,
+      // unresolved string IDs, resolvers returning null/undefined, and resolvers
+      // returning a non-HTMLMediaElement node as the same advisory condition
+      // without throwing. The shared `findElementByType` contract is unchanged.
       if (
         event.track?.kind === 'audio' &&
         !this._missingRemoteAudioElementWarned &&
-        // `findElementByType` is null-safe for null/undefined inputs and
-        // missing DOM elements; for resolver functions it returns the
-        // resolver's raw (nullable) value. We additionally require the
-        // resolved value to be an HTMLMediaElement so the warning also fires
-        // for the silent `<div>`-style attachment failure path.
-        findElementByType(remoteElement) instanceof HTMLMediaElement === false
+        resolvedRemoteElement instanceof HTMLMediaElement === false
       ) {
         this._missingRemoteAudioElementWarned = true;
         const warning = createTelnyxWarning(REMOTE_AUDIO_ELEMENT_UNRESOLVED);
