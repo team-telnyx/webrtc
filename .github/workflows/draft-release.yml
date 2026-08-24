@@ -83,14 +83,6 @@ jobs:
         env:
           CI: true
 
-      - if: github.event.inputs.package == 'webrtc'
-        name: Generate docs
-        working-directory: packages/${{ env.PACKAGE_DIR }}
-        run: |
-          yarn docs
-          git add docs
-          git commit -m "docs: update ts docs" || echo "docs: no docs changes to commit"
-
       - name: Determine next version
         id: version
         working-directory: packages/${{ env.PACKAGE_DIR }}
