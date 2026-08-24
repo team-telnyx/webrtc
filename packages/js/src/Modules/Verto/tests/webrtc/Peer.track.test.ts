@@ -56,6 +56,7 @@ type SessionDouble = {
   uuid: string;
   connected: boolean;
   reportPeerFailure: jest.Mock;
+  markMissingRemoteAudioElementWarned: (callId: string) => boolean;
 };
 
 /**
@@ -75,14 +76,39 @@ const makeTrackEvent = (
   }) as unknown as RTCTrackEvent;
 
 describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', () => {
-  const createPeer = (opts: Partial<IVertoCallOptions> = {}) => {
-    const session: SessionDouble = {
+  /**
+   * Creates a session double with a real `markMissingRemoteAudioElementWarned`
+   * implementation (check-and-add Set) so tests exercise the same dedupe
+   * semantics as production. Multiple peers created with the same session
+   * instance share the same dedupe set, mirroring the production behavior
+   * where attach-recovery replaces a Peer but the session persists.
+   */
+  const createSession = (
+    overrides: Partial<SessionDouble> = {}
+  ): SessionDouble => {
+    const warnedCallIds = new Set<string>();
+    return {
       options: {},
       sessionid: 'real-verto-sessid-1',
       uuid: 'session-uuid-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: (callId: string): boolean => {
+        if (warnedCallIds.has(callId)) {
+          return true;
+        }
+        warnedCallIds.add(callId);
+        return false;
+      },
+      ...overrides,
     };
+  };
+
+  const createPeer = (
+    opts: Partial<IVertoCallOptions> = {},
+    sharedSession?: SessionDouble
+  ) => {
+    const session = sharedSession ?? createSession();
 
     const peer = new Peer(
       PeerType.Offer,
@@ -318,20 +344,30 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
     expect(triggerMock).toHaveBeenCalledTimes(1);
   });
 
-  it('separate concurrent calls (separate Peer instances) each emit their own warning', () => {
-    const { peer: peer1 } = createPeer({
-      remoteElement: null as unknown as
-        | HTMLMediaElement
-        | string
-        | (() => HTMLMediaElement | null),
-    });
-    const { peer: peer2 } = createPeer({
-      id: 'call-B',
-      remoteElement: null as unknown as
-        | HTMLMediaElement
-        | string
-        | (() => HTMLMediaElement | null),
-    });
+  it('separate concurrent calls (different call IDs on the same session) each emit their own warning', () => {
+    // Both peers share the SAME session (the production scenario: two
+    // concurrent calls on one client). The session-level dedupe set is keyed
+    // by call ID, so different call IDs each emit independently.
+    const sharedSession = createSession();
+    const { peer: peer1 } = createPeer(
+      {
+        remoteElement: null as unknown as
+          | HTMLMediaElement
+          | string
+          | (() => HTMLMediaElement | null),
+      },
+      sharedSession
+    );
+    const { peer: peer2 } = createPeer(
+      {
+        id: 'call-B',
+        remoteElement: null as unknown as
+          | HTMLMediaElement
+          | string
+          | (() => HTMLMediaElement | null),
+      },
+      sharedSession
+    );
 
     (peer1 as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
       makeTrackEvent('audio')
@@ -340,10 +376,90 @@ describe('Peer.handleTrackEvent — VSUP-215 REMOTE_AUDIO_ELEMENT_UNRESOLVED', (
       makeTrackEvent('audio')
     );
 
-    // Each Peer has its own dedupe flag, so both emit.
+    // Different call IDs on the same session each emit their own warning.
     expect(triggerMock).toHaveBeenCalledTimes(2);
     expect(triggerMock.mock.calls[0][1].callId).toBe('call-A');
     expect(triggerMock.mock.calls[1][1].callId).toBe('call-B');
+  });
+
+  it('does NOT re-emit after attach-recovery replaces the Peer with the same call ID (once-per-call across recovery)', () => {
+    // Regression test for the MAJOR review comment on PR #781: the dedupe
+    // flag must survive Call/Peer replacement during in-process
+    // `telnyx_rtc.attach` recovery. The original Peer emits the warning on
+    // its first audio track. Recovery hangs up the matched call and
+    // constructs a replacement Call/Peer with the SAME call ID. The
+    // replacement Peer must NOT re-emit the warning because the call ID is
+    // already in the session's dedupe set.
+    const sharedSession = createSession();
+    const originalCallId = 'call-recovery-1';
+
+    // Original Peer — emits the warning once.
+    const { peer: originalPeer } = createPeer(
+      {
+        id: originalCallId,
+        remoteElement: null as unknown as
+          | HTMLMediaElement
+          | string
+          | (() => HTMLMediaElement | null),
+      },
+      sharedSession
+    );
+
+    (originalPeer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+      makeTrackEvent('audio')
+    );
+    expect(triggerMock).toHaveBeenCalledTimes(1);
+    expect(triggerMock.mock.calls[0][1].callId).toBe(originalCallId);
+
+    // Simulate attach-recovery: the original Call/Peer is hung up and a
+    // replacement Peer is constructed with the SAME call ID on the SAME
+    // session. The replacement Peer's per-instance state is fresh, but the
+    // session-level dedupe set still has the call ID.
+    const { peer: recoveredPeer } = createPeer(
+      {
+        id: originalCallId,
+        remoteElement: null as unknown as
+          | HTMLMediaElement
+          | string
+          | (() => HTMLMediaElement | null),
+      },
+      sharedSession
+    );
+
+    // The recovered Peer receives a new audio track — it must NOT re-emit.
+    (recoveredPeer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+      makeTrackEvent('audio')
+    );
+
+    expect(triggerMock).toHaveBeenCalledTimes(1); // still just the original
+  });
+
+  it('does NOT re-emit across multiple recovery cycles with the same call ID', () => {
+    // Stress test: the call goes through two recovery cycles (Peer replaced
+    // twice). Each replacement shares the session-level dedupe set, so the
+    // warning fires exactly once across all three Peer lifetimes.
+    const sharedSession = createSession();
+    const callId = 'call-multi-recovery';
+
+    for (let i = 0; i < 3; i++) {
+      const { peer } = createPeer(
+        {
+          id: callId,
+          remoteElement: null as unknown as
+            | HTMLMediaElement
+            | string
+            | (() => HTMLMediaElement | null),
+        },
+        sharedSession
+      );
+      (peer as unknown as PeerWithHandleTrackEvent).handleTrackEvent(
+        makeTrackEvent('audio')
+      );
+    }
+
+    // Only the first Peer's track event emits; the two recovered Peers are
+    // deduped by the session-level set.
+    expect(triggerMock).toHaveBeenCalledTimes(1);
   });
 
   it('does NOT emit when a valid per-call remoteElement (HTMLMediaElement) resolves', () => {

@@ -105,14 +105,16 @@ export default class Peer {
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
   /**
-   * Per-call dedupe flag for the REMOTE_AUDIO_ELEMENT_UNRESOLVED warning
-   * (VSUP-215). The warning fires at most once per call when remote audio
-   * arrives and the SDK cannot resolve a call-level or session-level
-   * remoteElement. Repeated track events and recovery/reattachment must not
-   * re-emit the warning for the same call; separate concurrent calls remain
-   * independently diagnosable because each Peer instance has its own flag.
+   * VSUP-215 — The REMOTE_AUDIO_ELEMENT_UNRESOLVED warning dedupe state lives
+   * on the session (BrowserSession._missingRemoteAudioElementWarnedCallIds),
+   * NOT on this Peer instance. A per-Peer boolean would reset when
+   * `telnyx_rtc.attach` recovery replaces the Call/Peer with a new instance
+   * carrying the same call ID, causing the warning to fire again on the
+   * recovered Peer's next audio track. Scoping dedupe to the session by call
+   * ID preserves the once-per-call guarantee across recovery/reattachment
+   * while keeping separate concurrent calls (different call IDs) independently
+   * diagnosable. See `markMissingRemoteAudioElementWarned()` on BrowserSession.
    */
-  private _missingRemoteAudioElementWarned: boolean = false;
 
   constructor(
     public type: PeerType,
@@ -402,10 +404,17 @@ export default class Peer {
       // is informational: remoteStream is still stored on the call, the call
       // remains active, and applications that intentionally consume
       // call.remoteStream keep working. Video tracks and screen-share paths
-      // are excluded so this only fires for the audio playout path. Deduped
-      // per call (one warning per Peer instance) so repeated track events and
-      // recovery/reattachment do not create noise; concurrent calls remain
-      // independently diagnosable because each Peer has its own flag.
+      // are excluded so this only fires for the audio playout path.
+      //
+      // Dedup is scoped to the logical call ID on the session (not per-Peer)
+      // so repeated track events AND attach-recovery replacement of the
+      // Call/Peer instance do not re-emit the warning for the same call.
+      // `markMissingRemoteAudioElementWarned` is an atomic check-and-add: it
+      // returns false (and records the call ID) the first time a given call ID
+      // reaches this point, and true on every subsequent check. We only call
+      // it when the warning will actually fire (audio track + unresolved
+      // element) so a valid element or video track does not consume the
+      // once-per-call slot.
       //
       // We reuse the single `resolvedRemoteElement` value from above (the same
       // value `attachMediaStream` saw) and additionally reject resolver-returned
@@ -418,10 +427,9 @@ export default class Peer {
       // without throwing. The shared `findElementByType` contract is unchanged.
       if (
         event.track?.kind === 'audio' &&
-        !this._missingRemoteAudioElementWarned &&
-        resolvedRemoteElement instanceof HTMLMediaElement === false
+        resolvedRemoteElement instanceof HTMLMediaElement === false &&
+        !this._session.markMissingRemoteAudioElementWarned(this.options.id)
       ) {
-        this._missingRemoteAudioElementWarned = true;
         const warning = createTelnyxWarning(REMOTE_AUDIO_ELEMENT_UNRESOLVED);
         trigger(
           SwEvent.Warning,

@@ -66,6 +66,7 @@ type SessionDouble = {
   uuid: string;
   connected: boolean;
   reportPeerFailure: jest.Mock;
+  markMissingRemoteAudioElementWarned: (callId: string) => boolean;
 };
 
 /**
@@ -129,12 +130,20 @@ const makeTrackEvent = (
 
 describe('VSUP-215 live track dispatch — resolver invoked once across ontrack + registered listener', () => {
   const createPeer = (opts: Partial<IVertoCallOptions> = {}) => {
+    const warnedCallIds = new Set<string>();
     const session: SessionDouble = {
       options: {},
       sessionid: 'real-verto-sessid-1',
       uuid: 'session-uuid-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: (callId: string): boolean => {
+        if (warnedCallIds.has(callId)) {
+          return true;
+        }
+        warnedCallIds.add(callId);
+        return false;
+      },
     };
 
     const peer = new Peer(
