@@ -95,6 +95,47 @@ class FakeMediaStreamTrackProcessor {
   }
 }
 
+/**
+ * Processor whose pending reads are completed explicitly by a test. Cancelling
+ * intentionally does not settle an in-flight read: Chromium may deliver a
+ * frame that was already queued when cancel() won the track-replacement race.
+ */
+class ControlledMediaStreamTrackProcessor {
+  static instances: ControlledMediaStreamTrackProcessor[] = [];
+
+  readonly track: MediaStreamTrack;
+  readonly cancel = jest.fn().mockResolvedValue(undefined);
+  private pendingReads: Array<
+    (result: { done: boolean; value?: FakeAudioData }) => void
+  > = [];
+  readonly reader = {
+    read: jest.fn(
+      () =>
+        new Promise<{ done: boolean; value?: FakeAudioData }>((resolve) => {
+          this.pendingReads.push(resolve);
+        })
+    ),
+    cancel: this.cancel,
+    releaseLock: jest.fn(),
+  };
+  readonly readable = {
+    getReader: () => this.reader,
+  };
+
+  constructor({ track }: { track: MediaStreamTrack }) {
+    this.track = track;
+    ControlledMediaStreamTrackProcessor.instances.push(this);
+  }
+
+  emit(frame: FakeAudioData): void {
+    const resolve = this.pendingReads.shift();
+    if (!resolve) {
+      throw new Error(`No pending read for track ${this.track.id}`);
+    }
+    resolve({ done: false, value: frame });
+  }
+}
+
 /** Build a CallRecorder with injectable fetch + a fake MSTP. */
 function makeRecorder(
   options: Partial<ICallRecordingOptions> = {},
@@ -150,6 +191,12 @@ function fakeAudioTrack(): MediaStreamTrack {
 /** Wait for the reader pump loop to drain its frames into the buffer. */
 function flushMicrotasks(ms = 20): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Settle promise continuations without allowing a periodic timer to fire. */
+async function settleReaderPump(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────
@@ -277,6 +324,108 @@ describe('CallRecorder', () => {
       expect(overflowCalls.length).toBe(1);
 
       recorder.cleanup();
+    });
+  });
+
+  describe('active track reconciliation', () => {
+    beforeEach(() => {
+      ControlledMediaStreamTrackProcessor.instances = [];
+      (
+        globalThis as { MediaStreamTrackProcessor?: unknown }
+      ).MediaStreamTrackProcessor =
+        ControlledMediaStreamTrackProcessor as unknown;
+    });
+
+    it('attaches a late inbound track on repeated start without duplicating the outbound reader', () => {
+      const recorder = makeRecorder({ flushIntervalMs: 100_000 });
+      const outboundTrack = fakeAudioTrack();
+      const inboundTrack = {
+        ...fakeAudioTrack(),
+        id: 'late-inbound-track',
+      } as MediaStreamTrack;
+
+      try {
+        recorder.start(outboundTrack);
+        recorder.start(outboundTrack, inboundTrack);
+        recorder.start(outboundTrack, inboundTrack);
+
+        expect(
+          ControlledMediaStreamTrackProcessor.instances.map(({ track }) =>
+            track === outboundTrack ? 'outbound' : 'inbound'
+          )
+        ).toEqual(['outbound', 'inbound']);
+      } finally {
+        recorder.cleanup();
+      }
+    });
+
+    it('cancels only the superseded reader when the active outbound track is replaced and never stops either track', async () => {
+      const recorder = makeRecorder({
+        flushIntervalMs: 100_000,
+        tracks: ['local'],
+      });
+      const oldStop = jest.fn();
+      const liveStop = jest.fn();
+      const oldTrack = {
+        ...fakeAudioTrack(),
+        id: 'old-outbound-track',
+        stop: oldStop,
+      } as MediaStreamTrack;
+      const liveTrack = {
+        ...fakeAudioTrack(),
+        id: 'live-outbound-track',
+        stop: liveStop,
+      } as MediaStreamTrack;
+
+      try {
+        recorder.start(oldTrack);
+        const oldProcessor = ControlledMediaStreamTrackProcessor.instances[0];
+
+        recorder.start(liveTrack);
+        await settleReaderPump();
+
+        expect(oldProcessor.cancel).toHaveBeenCalledTimes(1);
+        expect(oldStop).not.toHaveBeenCalled();
+        expect(liveStop).not.toHaveBeenCalled();
+      } finally {
+        recorder.cleanup();
+      }
+    });
+
+    it('closes and ignores a stale frame that resolves after its track was replaced', async () => {
+      const recorder = makeRecorder({
+        flushIntervalMs: 100_000,
+        tracks: ['local'],
+      });
+      const oldTrack = {
+        ...fakeAudioTrack(),
+        id: 'stale-outbound-track',
+      } as MediaStreamTrack;
+      const liveTrack = {
+        ...fakeAudioTrack(),
+        id: 'replacement-outbound-track',
+      } as MediaStreamTrack;
+      const staleFrame = new FakeAudioData(480);
+
+      try {
+        recorder.start(oldTrack);
+        const oldProcessor = ControlledMediaStreamTrackProcessor.instances[0];
+        recorder.start(liveTrack);
+
+        // Simulate a read that was already queued resolving after cancellation.
+        oldProcessor.emit(staleFrame);
+        await settleReaderPump();
+
+        const localBuffer = (
+          recorder as unknown as {
+            _buffers: { local: unknown[] };
+          }
+        )._buffers.local;
+        expect(staleFrame.closed).toBe(true);
+        expect(localBuffer).toHaveLength(0);
+      } finally {
+        recorder.cleanup();
+      }
     });
   });
 
