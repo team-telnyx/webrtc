@@ -2318,14 +2318,23 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
     instance.addEventListener('track', (event: RTCTrackEvent) => {
       this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream, {
-          callId: this.id,
-          sessionId: this.session.sessionid,
-          eventTarget: this.session.uuid,
-        });
-      }
+      // VSUP-215: remote-track attachment for normal (non-screen-share) calls
+      // is owned by `Peer.handleTrackEvent` (set as `instance.ontrack` in
+      // `Peer.createPeerConnection`). This listener used to call
+      // `attachMediaStream(remoteElement, ...)` too, but that re-invoked a
+      // function-valued `remoteElement` resolver a SECOND time on the same
+      // RTCTrackEvent (both `ontrack` and `addEventListener('track')` fire for
+      // every track event per the WebRTC spec). A stateful/dynamic resolver
+      // could then return a different value on the second call, diverging from
+      // the value `Peer.handleTrackEvent` used for its single-resolve
+      // attachment + missing-element warning check. Removing the duplicate
+      // attachment here keeps the resolver invoked exactly once per track
+      // event and makes `Peer.handleTrackEvent` the single source of truth for
+      // attachment and the REMOTE_AUDIO_ELEMENT_UNRESOLVED warning. The
+      // `remoteStream` assignment above is kept as a defensive fallback for
+      // any caller that reads `options.remoteStream` before `ontrack` fires.
+      // `screenShare` calls are unaffected because `Peer.handleTrackEvent`
+      // already skips attachment for `screenShare === true`.
     });
   }
 
