@@ -61,6 +61,36 @@ describe('Peer connection state recovery', () => {
     return { peer, session };
   };
 
+  it('arms no-RTP recovery only after aggregate connection, and keeps it armed after degradation', async () => {
+    const { peer } = createPeer('connecting');
+    const hasEverConnected = () => peer.hasEverConnected;
+    const changeState = async (connectionState: RTCPeerConnectionState) => {
+      Object.assign(peer.instance, { connectionState });
+      await (
+        peer as unknown as PeerWithConnectionStateHandler
+      ).handleConnectionStateChange();
+    };
+
+    // ICE is already connected, but aggregate connection (including DTLS) is not.
+    await changeState('connecting');
+    expect(hasEverConnected()).toBe(false);
+    await changeState('connected');
+    expect(hasEverConnected()).toBe(true);
+    await changeState('disconnected');
+    expect(hasEverConnected()).toBe(true);
+    await changeState('failed');
+    expect(hasEverConnected()).toBe(true);
+
+    const replacement = createPeer('connecting').peer;
+    expect(replacement.hasEverConnected).toBe(false);
+    peer.instance = replacement.instance;
+    expect(hasEverConnected()).toBe(false);
+    await changeState('connected');
+    expect(hasEverConnected()).toBe(true);
+    peer.instance = null;
+    expect(hasEverConnected()).toBe(false);
+  });
+
   it('reports peer failure for disconnected the same way as failed', async () => {
     const { peer, session } = createPeer('disconnected');
 

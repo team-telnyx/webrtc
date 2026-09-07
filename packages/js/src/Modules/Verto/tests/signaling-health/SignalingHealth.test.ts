@@ -820,6 +820,14 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     mockSession.hasActiveCall = jest.fn(() => true);
     mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
     mockSession.socketDisconnect = jest.fn();
+    mockSession.calls = {
+      'call-1': {
+        peer: {
+          hasEverConnected: true,
+          instance: { connectionState: 'connected' },
+        },
+      },
+    };
     connection = new Connection(mockSession);
     connection.connect();
     await Promise.resolve();
@@ -831,6 +839,107 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     monitor.stop();
     jest.useRealTimers();
   });
+
+  it.each(['healthy', 'unknown', 'probe pending'])(
+    'never-connected peer does not arm no-RTP recovery with %s signaling',
+    (health) => {
+      mockSession.connection = connection;
+      mockSession.calls['call-1'].peer = {
+        hasEverConnected: false,
+        instance: {
+          connectionState: 'connecting',
+          iceConnectionState: 'connected',
+        },
+      };
+      // Another call having established transport must not arm this call.
+      mockSession.calls['call-2'] = {
+        peer: { hasEverConnected: true },
+      };
+      jest.spyOn(connection, 'send').mockReturnValue(new Promise(() => {}));
+      if (health === 'healthy') {
+        monitor.onSocketActivity();
+      } else if (health === 'probe pending') {
+        (monitor as any)._probeInFlight = true;
+      }
+
+      monitor.onNoRtp('call-1', 'inbound');
+      monitor.onNoRtp('call-1', 'outbound');
+
+      expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+      expect(connection.send).not.toHaveBeenCalled();
+      expect((monitor as any)._pendingMediaRecovery).toBeNull();
+      expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+      expect(trigger).not.toHaveBeenCalledWith(
+        SwEvent.Warning,
+        expect.anything(),
+        expect.anything()
+      );
+    }
+  );
+
+  it.each(['connected', 'disconnected', 'failed'])(
+    'connected-once peer still recovers no-RTP when currently %s',
+    (connectionState) => {
+      mockSession.connection = connection;
+      mockSession.calls['call-1'].peer.instance.connectionState =
+        connectionState;
+      monitor.onSocketActivity();
+
+      monitor.onNoRtp('call-1', 'outbound');
+
+      expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+      expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    }
+  );
+
+  it('preserves genuine initial ICE failure recovery before aggregate connection', () => {
+    mockSession.connection = connection;
+    mockSession.calls['call-1'].peer.hasEverConnected = false;
+    monitor.onSocketActivity();
+
+    monitor.onPeerFailure('call-1', 'ice_failed');
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+  });
+
+  it.each(['same peer', 'unconnected replacement', 'connected replacement'])(
+    'resolves pending no-RTP recovery only for its original transport: %s',
+    async (target) => {
+      mockSession.connection = connection;
+      let resolveProbe!: () => void;
+      jest.spyOn(connection, 'send').mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveProbe = resolve;
+        })
+      );
+      monitor.onNoRtp('call-1', 'inbound');
+      expect(connection.send).toHaveBeenCalledTimes(1);
+      expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+
+      if (target !== 'same peer') {
+        mockSession.calls['call-1'].peer = {
+          hasEverConnected: target === 'connected replacement',
+          instance: {},
+        };
+      }
+      resolveProbe();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      if (target === 'same peer') {
+        expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+      } else {
+        expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+        expect(trigger).not.toHaveBeenCalledWith(
+          SwEvent.Warning,
+          expect.anything(),
+          expect.anything()
+        );
+      }
+      expect((monitor as any)._pendingMediaRecovery).toBeNull();
+      expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    }
+  );
 
   it('socket disconnected + peer failure does not trigger ICE restart', () => {
     mockSession.connection = connection;

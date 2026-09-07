@@ -19,6 +19,15 @@ export interface ISignalingHealthSession {
   uuid: string;
   sessionid: string;
   connection: Connection | null;
+  calls?: Record<
+    string,
+    {
+      peer?: {
+        readonly hasEverConnected: boolean;
+        instance: RTCPeerConnection;
+      };
+    }
+  >;
   hasActiveCall(): boolean;
   socketDisconnect(): void;
   /**
