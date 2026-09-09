@@ -208,6 +208,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * Indicates if the peer connection's signaling state has transitioned to 'closed'
    * while the connection was previously active. Used to determine if the call
    * can be recovered on reconnection.
+   * @internal
    */
   get signalingStateClosed(): boolean {
     return this._signalingStateClosed;
@@ -461,7 +462,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       );
   }
 
-  /** Returns the final relay policy from call options and recovery stats. */
+  /**
+   * Returns the final relay policy from call options and recovery stats.
+   * @internal
+   */
   shouldForceRelayCandidateForRecovery(): boolean {
     if (this.options.forceRelayCandidate) {
       return true;
@@ -669,9 +673,9 @@ export default abstract class BaseCall implements IWebRTCCall {
    */
   hangup(hangupParams: IHangupParams, hangupExecute: boolean): Promise<void>;
   /**
-   * @internal
    * @param hangupParams _For internal use_ Specify custom hangup cause and call ID
    * @param hangupExecute _For internal use_ Allow or prevent execution of `Bye`
+   * @internal
    */
   async hangup(
     hangupParams?: IHangupParams,
@@ -959,6 +963,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * setAudioInDevice, setVideoDevice, reattach, ICE restart) to
    * ensure the mic stays muted when the SDK creates or replaces
    * local audio tracks.
+   * @internal
    */
   _applyDesiredAudioMuteState(): void {
     logger.debug('applyDesiredAudioMuteState called', {
@@ -2646,9 +2651,7 @@ export default abstract class BaseCall implements IWebRTCCall {
    * forced the non-trickle path. Direction comes from the existing `Direction`
    * enum (string values already match the literal type).
    *
-   * @internal — diagnostic-only seam; not part of the public SDK type
-   * surface. Exposed for the PreCallDiagnostic framework (VSDK-412) and
-   * subject to change without a semver bump.
+   * @internal
    */
   public getEstablishmentTimings(): ICallEstablishmentTimings | undefined {
     const collectedTimings = this.peer?.callEstablishmentTimings;
@@ -2837,6 +2840,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   /**
    * Flush an intermediate call report segment mid-call.
+   * @internal
    * Used for periodic, size-limit, and socket-close safety flushes without
    * falsely finalizing the call.
    */

@@ -188,6 +188,7 @@ export interface ICallRecordingEnvelope {
  * behaves the same way the call-report upload does (x-call-report-id /
  * x-call-id / x-voice-sdk-id headers, retry with [500,1000,2000]ms backoff,
  * `keepalive: true` for small final payloads).
+ * @internal
  */
 export class CallRecorder {
   private options: ICallRecordingOptions;
