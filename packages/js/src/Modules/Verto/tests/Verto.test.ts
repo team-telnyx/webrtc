@@ -1195,7 +1195,7 @@ describe('Verto', () => {
       const composed: RTCIceServer[] = [
         TELNYX_ICE_SERVERS.TELNYX_STUN,
         TELNYX_ICE_SERVERS.TELNYX_TURN_UDP_3478,
-        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY,
+        TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443,
       ];
       const telnyxRTC = _buildInstance({
         iceServers: composed,
