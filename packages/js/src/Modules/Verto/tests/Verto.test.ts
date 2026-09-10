@@ -1097,11 +1097,6 @@ describe('Verto', () => {
         username: 'testuser',
         credential: 'testpassword',
       },
-      {
-        urls: 'turns:turn2.telnyx.com:443',
-        username: 'testuser',
-        credential: 'testpassword',
-      },
     ]);
   });
 
@@ -1172,7 +1167,6 @@ describe('Verto', () => {
         'TELNYX_TURN_UDP_3478',
         'TELNYX_TURN_TCP_3478',
         'TELNYX_TURNS_TCP_443',
-        'TELNYX_TURNS_TCP_443_PRIMARY',
       ]);
       expect(TELNYX_ICE_SERVERS.GOOGLE_STUN).toEqual({
         urls: 'stun:stun.l.google.com:19302',
@@ -1191,11 +1185,6 @@ describe('Verto', () => {
         credential: 'testpassword',
       });
       expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443).toEqual({
-        urls: 'turns:turn2.telnyx.com:443',
-        username: 'testuser',
-        credential: 'testpassword',
-      });
-      expect(TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY).toEqual({
         urls: 'turns:turn.telnyx.com:443',
         username: 'testuser',
         credential: 'testpassword',
