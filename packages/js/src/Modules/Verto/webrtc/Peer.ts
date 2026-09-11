@@ -88,6 +88,7 @@ export default class Peer {
   private _session: BrowserSession;
   private _negotiating: boolean = false;
   private _prevConnectionState: RTCPeerConnectionState = null;
+  private _connectedInstance: RTCPeerConnection | null = null;
   private _restartedIceOnConnectionStateFailed: boolean = false;
   private _trickleIceSdpFn: (sdp: RTCSessionDescriptionInit) => void;
   private _registerPeerEvents: (instance: RTCPeerConnection) => void;
@@ -207,6 +208,11 @@ export default class Peer {
 
   get restartedIceOnConnectionStateFailed() {
     return this._restartedIceOnConnectionStateFailed;
+  }
+
+  /** Historical readiness for this transport, including DTLS, not just ICE. */
+  get hasEverConnected(): boolean {
+    return !!this.instance && this._connectedInstance === this.instance;
   }
 
   /**
@@ -448,6 +454,7 @@ export default class Peer {
     this._prevConnectionState = connectionState;
 
     if (connectionState === 'connected') {
+      this._connectedInstance = this.instance;
       performance.mark(callMarkName(this.options.id, 'dtls-connected'));
       this.tryCollectTimings();
 
