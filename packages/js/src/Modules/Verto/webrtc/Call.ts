@@ -58,6 +58,18 @@ export class Call extends BaseCall {
 
   private _statsInterval: any = null;
 
+  /**
+   * Hang up the call and release its media resources.
+   * @example
+   * ```ts
+   * call.hangup();
+   * ```
+   */
+  hangup(): Promise<void>;
+  /** @internal Preserve the existing internal call signature without publishing it. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Preserve the existing callable signature.
+  hangup(params?: any, execute?: boolean): Promise<void>;
+  /** @internal */
   async hangup(params: any = {}, execute: boolean = true): Promise<void> {
     if (this.screenShare instanceof Call) {
       await this.screenShare.hangup(params, execute);

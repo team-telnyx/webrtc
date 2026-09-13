@@ -1,6 +1,7 @@
 name: publish-gh-pages
 
 on:
+  pull_request:
   push:
     branches:
       - main
@@ -22,12 +23,14 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      - name: Create the docs directory locally in CI
+      - name: Generate and validate Markdown and HTML public API docs
         working-directory: packages/js
-        run: yarn docs:html
+        run: yarn docs:check
 
       - name: Deploy 🚀
+        if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: packages/js/docs/ts
+          clean: true

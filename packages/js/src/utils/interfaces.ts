@@ -12,7 +12,7 @@ export interface ICredentials {
 
 /**
  * Optional parameters to pass to the target during anonymous login.
- * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+ * These are forwarded as custom headers on the SIP INVITE.
  *
  * Known keys are typed explicitly for discoverability and autocomplete.
  * Unknown keys are still accepted and forwarded as-is.
@@ -45,11 +45,8 @@ export interface TargetParams {
   /**
    * Telnyx AI conversation ID to join.
    *
-   * When omitted, the TeXML endpoint starts a new conversation by rendering
-   * `<AIAssistant id="...">`. When provided, voice-sdk-proxy maps the value
-   * to `X-AI-Assistant-Conversation-ID` on the SIP INVITE, and the TeXML
-   * endpoint renders `<AIAssistant join="...">` to attach the call to that
-   * existing conversation.
+   * Omit this value to start a new conversation. When provided, it is sent
+   * as `X-AI-Assistant-Conversation-ID` on the SIP INVITE to join that conversation.
    *
    * Do not use this field for application session tracking or as an external
    * correlation ID. If the ID does not exist, or does not belong to the caller's
@@ -184,7 +181,7 @@ export interface IClientOptions {
 
     /**
      * Optional parameters to pass to the target.
-     * These are forwarded to voice-sdk-proxy and mapped to custom headers on the SIP INVITE.
+     * These are forwarded as custom headers on the SIP INVITE.
      * Use `target_params.conversation_id` only to join an existing Telnyx AI
      * conversation; omit it to start a new conversation.
      * @see {@link TargetParams}
@@ -195,11 +192,13 @@ export interface IClientOptions {
   /**
    * RTC connection IP address to use instead of the default one.
    * Useful when using a custom signaling server.
+   * @internal
    */
   rtcIp?: string;
   /**
    * RTC connection port to use instead of the default one.
    * Useful when using a custom signaling server.
+   * @internal
    */
   rtcPort?: number;
 
@@ -207,6 +206,7 @@ export interface IClientOptions {
    * Override VSP RTC routing for this connection. `true` forces the Canary
    * RTC server, `false` forces the stable RTC server, and omission leaves
    * routing to VSP's default load-based behavior.
+   * @internal
    */
   useCanaryRtcServer?: boolean;
 
@@ -218,6 +218,7 @@ export interface IClientOptions {
    * caused by stale state on a specific b2bua-rtc node.
    *
    * @default false
+   * @internal
    */
   skipLastVoiceSdkId?: boolean;
 
@@ -233,12 +234,14 @@ export interface IClientOptions {
    * lookup used for trailing target selection.
    *
    * @default false
+   * @internal
    */
   skipTrailing?: boolean;
 
   /**
    *  Environment to use for the connection.
    *  So far this property is only for internal purposes.
+   * @internal
    */
   env?: Environment;
 
@@ -266,9 +269,9 @@ export interface IClientOptions {
   maxReconnectAttempts?: number;
 
   /**
-   * Enable automatic call quality reporting to voice-sdk-proxy.
+   * Enable automatic call quality reporting to Telnyx.
    * When enabled, WebRTC stats are collected periodically during calls
-   * and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+   * and submitted when the call ends.
    *
    * @default true
    */
@@ -292,13 +295,10 @@ export interface IClientOptions {
   callReportFlushInterval?: number;
 
   /**
-   * Enable client-side call recording of the raw audio payload (depacketized
-   * PCM) flowing through the active WebRTC audio tracks. When enabled, the SDK
-   * captures PCM via `MediaStreamTrackProcessor` (Chromium-only), synthesizes
-   * RTP packets, buffers them with a bounded in-memory ring buffer, and
-   * submits intermediate flushes every `callRecordingFlushIntervalMs` plus a
-   * final flush at end of call. Recordings are stored as `.pcap` files by
-   * voice-sdk-debug for Wireshark-based audio-quality diagnosis.
+   * Enable client-side diagnostic recording of the active WebRTC audio tracks.
+   * Requires `MediaStreamTrackProcessor` (Chromium-only). Audio is buffered
+   * up to `callRecordingMaxBufferBytes` and submitted every
+   * `callRecordingFlushIntervalMs`, with a final submission at the end of the call.
    *
    * **Browser support:** Requires `MediaStreamTrackProcessor` (Chrome 94+,
    * Edge 94+). Firefox and Safari are NOT supported — on those browsers the
@@ -341,8 +341,8 @@ export interface IClientOptions {
   callRecordingMaxBufferBytes?: number;
 
   /**
-   * Sample rate (Hz) advertised in the recording envelope sent to
-   * voice-sdk-debug. The captured Float32 PCM frames carry the track's
+   * Sample rate (Hz) advertised in the diagnostic recording.
+   * Captured Float32 PCM frames carry the track's
    * actual sample rate; this value is what the server uses to interpret the
    * payload. 48 kHz is the typical WebRTC audio track rate.
    *
@@ -362,8 +362,7 @@ export interface IClientOptions {
 
   /**
    * Endpoint path (relative to the SDK connection host) where recording
-   * payloads are POSTed. Defaults to `/call_recording`, which voice-sdk-proxy
-   * forwards to voice-sdk-debug. Override only if pointing at a custom
+   * payloads are POSTed. Defaults to `/call_recording`. Override only if pointing at a custom
    * recording endpoint.
    *
    * @default '/call_recording'

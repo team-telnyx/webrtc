@@ -1,6 +1,7 @@
 {
   "out": "./docs/ts",
   "entryPoints": ["./src/index.ts"],
+  "entryPointStrategy": "resolve",
   "exclude": [
     "**/*+(test|index).ts",
     "src/Modules/Verto/messages/**/*",
@@ -12,9 +13,10 @@
   "excludeExternals": true,
   "excludePrivate": true,
   "excludeProtected": true,
+  "excludeInternal": true,
   "excludeNotDocumented": true,
   "githubPages": true,
-  "excludeTags": ["@internalnote", "@internal"],
+  "excludeTags": ["@internalnote"],
   "cleanOutputDir": true,
   "hideGenerator": true,
   "readme": "none",

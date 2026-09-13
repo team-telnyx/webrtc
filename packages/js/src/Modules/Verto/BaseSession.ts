@@ -80,11 +80,11 @@ export default abstract class BaseSession {
   public invalidMethodErrorCode = -32601;
   public authenticationRequiredErrorCode = -32000;
   public callReportId: string | null = null;
-  /** voice_sdk_id used when posting call report payloads for this session. */
+  /** @internal voice_sdk_id used when posting call report payloads for this session. */
   public callReportVoiceSdkId: string | null = null;
-  /** Persisted voice_sdk_id whose routing association is owned by this session. */
+  /** @internal Persisted voice_sdk_id whose routing association is owned by this session. */
   public reconnectTokenVoiceSdkId: string | null = getReconnectToken();
-  /** Canary routing override associated with the persisted voice_sdk_id. */
+  /** @internal Canary routing override associated with the persisted voice_sdk_id. */
   public reconnectTokenCanaryRtcServer: boolean | undefined =
     getReconnectTokenCanaryRtcServer();
   public dc: string | null = null;
@@ -514,6 +514,7 @@ export default abstract class BaseSession {
    * Reset the automatic reconnection attempt counter.
    * Call this when the connection is fully established (e.g. on REGED)
    * or when the user manually initiates a reconnect after exhaustion.
+   * @internal
    */
   public resetReconnectAttempts(): void {
     this._reconnectAttempts = 0;
@@ -538,6 +539,7 @@ export default abstract class BaseSession {
    * Clears the reconnect token from sessionStorage.
    * This forces the next connection to pick a new b2bua-rtc instance
    * via weighted round-robin instead of sticking to the same one.
+   * @internal
    */
   public clearReconnectToken(): void {
     clearReconnectToken();
@@ -1203,6 +1205,7 @@ export default abstract class BaseSession {
    * distinguishes a working socket from one that only still receives.
    *
    * Public because Connection calls it; not part of the app-facing API.
+   * @internal
    */
   public onOutboundConfirmed(): void {
     this._signalingHealthMonitor.onOutboundConfirmed();
@@ -1210,9 +1213,9 @@ export default abstract class BaseSession {
 
   /**
    * Returns true if there is at least one active (non-terminated) call.
-   * Public so that BaseCall can check if the monitor should stop.
    */
   public hasActiveCall(): boolean {
+    // Public so that BaseCall can check if the monitor should stop.
     const calls = (
       this as unknown as { calls?: Record<string, { _state?: number }> }
     ).calls;
@@ -1238,6 +1241,7 @@ export default abstract class BaseSession {
    * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
    * media, fires the local hangup notification, and removes the call from
    * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   * @internal
    */
   public _terminateActiveCallsLocally(): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1258,6 +1262,7 @@ export default abstract class BaseSession {
   /**
    * Start the signaling health monitor. Called when a call becomes active
    * or on reconnect if calls exist.
+   * @internal
    */
   startSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.start();
@@ -1266,6 +1271,7 @@ export default abstract class BaseSession {
   /**
    * Stop the signaling health monitor. Called when no active calls remain
    * or on disconnect.
+   * @internal
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
@@ -1273,10 +1279,10 @@ export default abstract class BaseSession {
 
   /**
    * Trigger ICE restart on the call identified by callId.
-   * Called by the health monitor when media/peer is unhealthy but
-   * signaling is healthy.
+   * Returns whether the restart started, or the reason it could not start.
    */
   triggerIceRestart(callId: string): TriggerIceRestartResult {
+    // Also called by the health monitor when media/peer is unhealthy but signaling is healthy.
     const calls = (
       this as unknown as {
         calls?: Record<
@@ -1323,6 +1329,7 @@ export default abstract class BaseSession {
    * Delegates to the signaling health monitor for recovery.
    * Only critical methods (Modify, Bye, Ping) trigger force-reconnect;
    * non-critical timeouts are just logged.
+   * @internal
    */
   onSignalingRequestTimeout(
     requestId: string,
@@ -1340,6 +1347,7 @@ export default abstract class BaseSession {
    * The health monitor decides whether to trigger ICE restart
    * (if signaling is healthy) or socket reconnect (if signaling
    * is also unhealthy).
+   * @internal
    */
   reportPeerFailure(callId: string, evidence: PeerFailureEvidence): void {
     this._signalingHealthMonitor.onPeerFailure(callId, evidence);
@@ -1353,6 +1361,7 @@ export default abstract class BaseSession {
    * The health monitor decides whether to trigger ICE restart
    * (if signaling is healthy) or socket reconnect (if signaling
    * is also unhealthy).
+   * @internal
    */
   reportNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
     this._signalingHealthMonitor.onNoRtp(callId, direction);
@@ -1366,6 +1375,7 @@ export default abstract class BaseSession {
    * The health monitor owns the recovery decision (whether to reconnect
    * the socket, when, etc.). BaseCall does NOT trigger recovery itself —
    * this handoff keeps recovery logic in one place.
+   * @internal
    */
   reportIceRestartFailed(callId: string): void {
     this._signalingHealthMonitor.onIceRestartFailed(callId);

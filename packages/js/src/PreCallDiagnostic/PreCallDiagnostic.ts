@@ -52,9 +52,11 @@ interface RunTestResult {
   error?: Error;
 }
 
+/** Run pre-call connectivity and microphone diagnostics. */
 export class PreCallDiagnostic implements PreCallDiagnosticRunner {
   constructor(private readonly options: PreCallDiagnosticOptions) {}
 
+  /** Run the configured checks and return their diagnostic report. */
   async run(): Promise<PreCallDiagnosticReport> {
     switch (this.options.mode) {
       case 'network-only':
