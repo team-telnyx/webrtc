@@ -453,6 +453,25 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  33012: {
+    name: 'REMOTE_AUDIO_ELEMENT_UNRESOLVED',
+    message: 'No remote media element available for remote audio',
+    description:
+      'A remote audio track arrived for a call, but the SDK could not resolve a call-level or session-level remoteElement to attach it to. The remote MediaStream is still stored on the call (call.remoteStream) and is not interrupted, but the SDK cannot drive playout because there is no element to attach to. Applications that intentionally consume call.remoteStream themselves may still hear audio; this is an advisory, not proof of playout failure. This is common when remoteElement is set to null and the application owns stream attachment.',
+    causes: [
+      'remoteElement is null and the application owns stream attachment',
+      'remoteElement is a string ID that does not resolve to a DOM element',
+      'remoteElement resolver function returns null or undefined',
+      'Application forgot to configure a session-level or per-call remoteElement',
+    ],
+    solutions: [
+      'Provide a session-level remoteElement in new TelnyxRTC({ remoteElement }) so the SDK attaches playout for every call',
+      'Pass a per-call remoteElement via client.newCall({ remoteElement }) or call.answer({ remoteElement })',
+      'If your application intentionally attaches call.remoteStream to its own element, no SDK action is needed — this warning is advisory',
+      'Verify any string remoteElement resolves to a real DOM element ID before connect()',
+    ],
+  },
+
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35002: {
     name: 'UNKNOWN_REATTACHED_SESSION',
