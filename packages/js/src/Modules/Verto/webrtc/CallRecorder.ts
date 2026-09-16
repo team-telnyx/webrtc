@@ -156,6 +156,13 @@ interface TrackState {
   ts: number;
 }
 
+interface TrackBinding {
+  track: MediaStreamTrack;
+  generation: number;
+  processor: MediaStreamTrackProcessor;
+  cancel: () => void;
+}
+
 /** Wire envelope posted to /call_recording (mirrors the VSDK-279 plan). */
 export interface ICallRecordingEnvelope {
   call_report_id: string;
@@ -209,18 +216,24 @@ export class CallRecorder {
     local: null,
     remote: null,
   };
-  /** Active MediaStreamTrackProcessor instances, for cleanup. */
-  private _processors: MediaStreamTrackProcessor[] = [];
-  /** Active reader loops (so cleanup can cancel). */
-  private _readerCancellers: Array<() => void> = [];
+  /** The current capture binding for each direction. */
+  private _bindings: Record<RecordingTrackKind, TrackBinding | null> = {
+    local: null,
+    remote: null,
+  };
+  /** Monotonic per-kind token used to reject stale pending reads. */
+  private _bindingGenerations: Record<RecordingTrackKind, number> = {
+    local: 0,
+    remote: 0,
+  };
   /** setInterval id for periodic flushes. */
   private _flushTimerId: ReturnType<typeof setInterval> | null = null;
   /** Whether a flush is in progress (prevents re-entrant flushes). */
   private _flushing: boolean = false;
   /** Whether stop() has been requested. */
   private _stopped: boolean = false;
-  /** Whether start() succeeded (at least one track attached). */
-  private _started: boolean = false;
+  /** Whether the unsupported-browser warning has already been emitted. */
+  private _unavailableWarned: boolean = false;
   /** Recording start timestamp. */
   private _startedAt: Date | null = null;
   /** Recording end timestamp (set on final flush). */
@@ -274,55 +287,54 @@ export class CallRecorder {
     localTrack?: MediaStreamTrack,
     remoteTrack?: MediaStreamTrack
   ): void {
-    if (!this.options.enabled || this._started) {
+    if (!this.options.enabled || this._stopped) {
       return;
     }
 
     // Capability check — Chromium-only. No fallback (see module header).
     if (typeof MediaStreamTrackProcessor !== 'function') {
-      logger.warn(
-        'CallRecorder: MediaStreamTrackProcessor unavailable — recording disabled for this call'
-      );
-      this._emitWarning(RECORDING_UNAVAILABLE);
-      // No-op: call proceeds normally, no capture, no buffer, no POST.
-      this._started = true;
+      if (!this._unavailableWarned) {
+        this._unavailableWarned = true;
+        logger.warn(
+          'CallRecorder: MediaStreamTrackProcessor unavailable — recording disabled for this call'
+        );
+        this._emitWarning(RECORDING_UNAVAILABLE);
+      }
       return;
     }
 
     const tracks = this.options.tracks || (['local', 'remote'] as const);
-    let attached = 0;
+    let attached = false;
 
-    if (tracks.includes('local') && localTrack) {
-      this._attach(localTrack, 'local');
-      attached++;
+    if (tracks.includes('local')) {
+      attached = this._reconcileTrack(localTrack, 'local') || attached;
     }
-    if (tracks.includes('remote') && remoteTrack) {
-      this._attach(remoteTrack, 'remote');
-      attached++;
+    if (tracks.includes('remote')) {
+      attached = this._reconcileTrack(remoteTrack, 'remote') || attached;
     }
 
-    if (attached === 0) {
-      // No tracks available to record — log once and no-op. Do NOT emit
-      // RECORDING_UNAVAILABLE here (that's for the API-missing case); a
-      // missing track is a call-state issue, not a browser-capability issue.
+    if (!this._startedAt && !attached) {
+      // No tracks available to record — do not treat a call-state issue as a
+      // missing browser capability. A later call reconciles late tracks.
       logger.info(
         'CallRecorder: no audio tracks available to record — recording idle for this call',
         { callId: this.callContext.callId }
       );
-      this._started = true;
       return;
     }
 
-    this._startedAt = new Date();
-    this._started = true;
+    if (!this._startedAt) {
+      this._startedAt = new Date();
+    }
     this._scheduleFlush();
 
-    logger.info('CallRecorder: started', {
-      callId: this.callContext.callId,
-      tracksAttached: attached,
-      flushIntervalMs: this._flushIntervalMs(),
-      maxBufferBytes: this._maxBufferBytes(),
-    });
+    if (attached) {
+      logger.info('CallRecorder: active tracks reconciled', {
+        callId: this.callContext.callId,
+        flushIntervalMs: this._flushIntervalMs(),
+        maxBufferBytes: this._maxBufferBytes(),
+      });
+    }
   }
 
   /**
@@ -433,6 +445,7 @@ export class CallRecorder {
    * blocks and _finalize so failed/aborted calls still release resources.
    */
   public cleanup(): void {
+    this._stopped = true;
     this._clearFlushTimer();
     this._cancelReaders();
     this._buffers = { local: [], remote: [] };
@@ -442,33 +455,52 @@ export class CallRecorder {
 
   // ── Internal: capture ──────────────────────────────────────────────
 
-  /**
-   * Attach a MediaStreamTrackProcessor to a track and pump frames into the
-   * ring buffer. Capability check is assumed to have passed in start().
-   */
-  private _attach(track: MediaStreamTrack, kind: RecordingTrackKind): void {
-    // Initialize per-track synthesis state with a random SSRC.
-    this._trackStates[kind] = {
-      ssrc: Math.floor(Math.random() * 0xffffffff) >>> 0,
-      seq: 0,
-      ts: 0,
-    };
+  private _reconcileTrack(
+    track: MediaStreamTrack | undefined,
+    kind: RecordingTrackKind
+  ): boolean {
+    const current = this._bindings[kind];
+    if (current?.track === track) {
+      return false;
+    }
+    if (current) {
+      this._cancelBinding(kind);
+    }
+    if (!track || this._stopped) {
+      this._trackStates[kind] = null;
+      return false;
+    }
+    return this._attach(track, kind);
+  }
 
+  /** Attach a processor and pump frames for one exact active track. */
+  private _attach(track: MediaStreamTrack, kind: RecordingTrackKind): boolean {
     try {
-      // MediaStreamTrackProcessor is a global constructor (Chrome 94+).
       const processor = new MediaStreamTrackProcessor({ track });
-      this._processors.push(processor);
-
       const reader = processor.readable.getReader();
       let cancelled = false;
       const cancel = () => {
+        if (cancelled) {
+          return;
+        }
         cancelled = true;
         reader
           .cancel()
           .catch(() => undefined)
           .finally(() => undefined);
       };
-      this._readerCancellers.push(cancel);
+      const binding: TrackBinding = {
+        track,
+        generation: ++this._bindingGenerations[kind],
+        processor,
+        cancel,
+      };
+      this._bindings[kind] = binding;
+      this._trackStates[kind] = {
+        ssrc: Math.floor(Math.random() * 0xffffffff) >>> 0,
+        seq: 0,
+        ts: 0,
+      };
 
       const pump = async (): Promise<void> => {
         try {
@@ -477,10 +509,24 @@ export class CallRecorder {
             if (done) {
               break;
             }
-            this._onFrame(kind, value as AudioData);
+            const frame = value as AudioData;
+            if (
+              cancelled ||
+              this._stopped ||
+              this._bindings[kind] !== binding ||
+              this._bindingGenerations[kind] !== binding.generation
+            ) {
+              frame.close();
+              break;
+            }
+            this._onFrame(kind, frame);
           }
         } catch (err) {
-          if (!this._stopped) {
+          if (
+            !cancelled &&
+            !this._stopped &&
+            this._bindings[kind] === binding
+          ) {
             logger.warn('CallRecorder: reader loop error', {
               track: kind,
               error: err,
@@ -488,16 +534,17 @@ export class CallRecorder {
           }
         }
       };
-      // Fire-and-forget; cleanup() cancels via this._readerCancellers.
+      // Fire-and-forget; cleanup() cancels the current per-kind binding.
       pump();
+      return true;
     } catch (err) {
-      // Failed to construct the processor for this track — log and continue.
-      // Don't emit RECORDING_UNAVAILABLE (the API exists; this track failed).
+      // Don't emit RECORDING_UNAVAILABLE: the API exists but this track failed.
       logger.warn('CallRecorder: failed to attach track', {
         track: kind,
         error: err,
       });
       this._trackStates[kind] = null;
+      return false;
     }
   }
 
@@ -508,15 +555,20 @@ export class CallRecorder {
   private _onFrame(kind: RecordingTrackKind, audioData: AudioData): void {
     const state = this._trackStates[kind];
     if (!state || this._stopped) {
+      audioData.close();
       return;
     }
 
-    // Pull Float32 PCM samples from the AudioData. AudioData.copyTo writes
-    // planar Float32 into the destination buffer.
-    const numberOfFrames = audioData.numberOfFrames;
-    const float32 = new Float32Array(numberOfFrames);
-    audioData.copyTo(float32, { planeIndex: 0 });
-    audioData.close?.();
+    let numberOfFrames: number;
+    let float32: Float32Array;
+    try {
+      // Pull planar Float32 PCM samples from the AudioData.
+      numberOfFrames = audioData.numberOfFrames;
+      float32 = new Float32Array(numberOfFrames);
+      audioData.copyTo(float32, { planeIndex: 0 });
+    } finally {
+      audioData.close();
+    }
 
     // Raw Float32 PCM bytes (little-endian) — the RTP payload.
     const payloadBytes = new Uint8Array(
@@ -642,15 +694,22 @@ export class CallRecorder {
   }
 
   private _cancelReaders(): void {
-    for (const cancel of this._readerCancellers) {
-      try {
-        cancel();
-      } catch {
-        // ignore — cleanup must not throw
-      }
+    this._cancelBinding('local');
+    this._cancelBinding('remote');
+  }
+
+  private _cancelBinding(kind: RecordingTrackKind): void {
+    const binding = this._bindings[kind];
+    this._bindings[kind] = null;
+    this._trackStates[kind] = null;
+    if (!binding) {
+      return;
     }
-    this._readerCancellers = [];
-    this._processors = [];
+    try {
+      binding.cancel();
+    } catch {
+      // Cleanup and reconciliation must never throw.
+    }
   }
 
   /**

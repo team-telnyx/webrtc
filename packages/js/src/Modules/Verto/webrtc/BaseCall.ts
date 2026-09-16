@@ -117,6 +117,10 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _callReportCollector: CallReportCollector | null = null;
   private _callRecorder: CallRecorder | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
+  private _trackListenerPeerConnection: RTCPeerConnection | null = null;
+  private _recordingLocalAudioTrack: MediaStreamTrack | null = null;
+  private _recordingRemoteAudioTrack: MediaStreamTrack | null = null;
+  private _postCallReportPromise: Promise<void> | null = null;
 
   /**
    * The call identifier.
@@ -1112,6 +1116,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     localStream.getAudioTracks().forEach((t) => t.stop());
     localStream.getVideoTracks().forEach((t) => newStream.addTrack(t));
     this.options.localStream = newStream;
+    this._syncCallRecorderTracks(instance, { local: audioTrack });
 
     logger.debug('Finished audio input device change', {
       callId: this.id,
@@ -1413,12 +1418,9 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._callReportCollector.start(this.peer.instance);
         }
 
-        // Start call recording when call becomes active. The recorder needs
-        // the local outbound and remote inbound audio tracks, which are
-        // attached to this.options.localStream / remoteStream by Peer once
-        // the connection is active. If the tracks are missing the recorder
-        // no-ops gracefully (or logs RECORDING_UNAVAILABLE if the browser
-        // lacks MediaStreamTrackProcessor).
+        // Reconcile recording with the exact outbound sender and inbound
+        // receiver tracks. A repeated Active transition (including recovery)
+        // performs a full, idempotent resync.
         if (this._callRecorder) {
           // Refresh the connection host in case it changed since construction
           // (e.g. after a reconnect) so periodic flushes resolve the endpoint.
@@ -1434,10 +1436,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           if (this.session.callReportId) {
             this._callRecorder._setCallReportId(this.session.callReportId);
           }
-          const localAudioTrack = this.options.localStream?.getAudioTracks()[0];
-          const remoteAudioTrack =
-            this.options.remoteStream?.getAudioTracks()[0];
-          this._callRecorder.start(localAudioTrack, remoteAudioTrack);
+          this._syncCallRecorderTracks();
         }
 
         // Start logging media devices for debugging
@@ -2269,6 +2268,89 @@ export default abstract class BaseCall implements IWebRTCCall {
     });
   }
 
+  private _syncCallRecorderTracks(
+    instance: RTCPeerConnection | undefined = this.peer?.instance,
+    trackOverrides: {
+      local?: MediaStreamTrack;
+      remote?: MediaStreamTrack;
+    } = {}
+  ): void {
+    if (!this._callRecorder || !instance) {
+      return;
+    }
+
+    const senders = instance.getSenders();
+    const receivers = instance.getReceivers();
+    const transceivers = instance.getTransceivers?.() ?? [];
+    const activeSendTrack = transceivers.find(
+      ({ currentDirection, sender }) =>
+        (currentDirection === 'sendrecv' || currentDirection === 'sendonly') &&
+        sender.track?.kind === 'audio'
+    )?.sender.track;
+    const activeReceiveTrack = transceivers.find(
+      ({ currentDirection, receiver }) =>
+        (currentDirection === 'sendrecv' || currentDirection === 'recvonly') &&
+        receiver.track?.kind === 'audio'
+    )?.receiver.track;
+
+    const cachedLocalTrack = this._recordingLocalAudioTrack;
+    const cachedRemoteTrack = this._recordingRemoteAudioTrack;
+    const localAudioTrack =
+      trackOverrides.local ??
+      (cachedLocalTrack?.readyState !== 'ended' &&
+      senders.some(({ track }) => track === cachedLocalTrack)
+        ? cachedLocalTrack
+        : (activeSendTrack ??
+          senders.find(({ track }) => track?.kind === 'audio')?.track));
+    const remoteAudioTrack =
+      trackOverrides.remote ??
+      (cachedRemoteTrack?.readyState !== 'ended' &&
+      receivers.some(({ track }) => track === cachedRemoteTrack)
+        ? cachedRemoteTrack
+        : (activeReceiveTrack ??
+          receivers.find(({ track }) => track?.kind === 'audio')?.track));
+
+    this._recordingLocalAudioTrack = localAudioTrack ?? null;
+    this._recordingRemoteAudioTrack = remoteAudioTrack ?? null;
+    this._callRecorder.start(localAudioTrack, remoteAudioTrack);
+  }
+
+  /** Reconcile recording after Peer has processed an inbound track event. */
+  private _onPeerTrack = (event: RTCTrackEvent): void => {
+    if (event.track.kind !== 'audio') {
+      return;
+    }
+
+    const instance =
+      (event.currentTarget as RTCPeerConnection | null) ??
+      this._trackListenerPeerConnection;
+    if (!instance || instance !== this._trackListenerPeerConnection) {
+      return;
+    }
+
+    const remoteTrack = event.receiver?.track ?? event.track;
+    this._recordingRemoteAudioTrack = remoteTrack;
+    if (this._state === State.Active || this._state === State.Held) {
+      this._syncCallRecorderTracks(instance, { remote: remoteTrack });
+    }
+  };
+
+  private _setTrackListenerPeerConnection(
+    instance: RTCPeerConnection | null
+  ): void {
+    if (this._trackListenerPeerConnection === instance) {
+      return;
+    }
+    this._trackListenerPeerConnection?.removeEventListener(
+      'track',
+      this._onPeerTrack
+    );
+    this._recordingLocalAudioTrack = null;
+    this._recordingRemoteAudioTrack = null;
+    this._trackListenerPeerConnection = instance;
+    instance?.addEventListener('track', this._onPeerTrack);
+  }
+
   /**
    * Register peer connection event handlers.
    *
@@ -2316,17 +2398,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
-    instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream, {
-          callId: this.id,
-          sessionId: this.session.sessionid,
-          eventTarget: this.session.uuid,
-        });
-      }
-    });
+    this._setTrackListenerPeerConnection(this._callRecorder ? instance : null);
   }
 
   private _checkConferenceSerno = (serno: number) => {
@@ -2683,6 +2755,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     clearCallMarks(this.id);
 
     logger.debug(`[${this.id}] Closing peer from _finalize`);
+    this._setTrackListenerPeerConnection(null);
     this.peer?.close();
     const { remoteStream, localStream, remoteElement, localElement } =
       this.options;
@@ -2914,51 +2987,33 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.session.trackCallReportUpload(upload);
   }
 
-  private async _postCallReport() {
-    if (!this._callReportCollector) {
+  private _postCallReport(): Promise<void> {
+    if (!this._postCallReportPromise) {
+      this._postCallReportPromise = this._postCallReportOnce();
+    }
+    return this._postCallReportPromise;
+  }
+
+  private async _postCallReportOnce(): Promise<void> {
+    // Start the final recording upload before checking the stats collector.
+    // Recording is an independent opt-in diagnostic and must still be posted
+    // when call reports are disabled or failed to initialize.
+    this._postFinalCallRecording();
+
+    const callReportCollector = this._callReportCollector;
+    if (!callReportCollector) {
       logger.warn('Call report collector not initialized');
       return;
     }
 
     // Await stop() so the final stats collection (including partial
     // intervals for short calls) completes before we post the report.
-    await this._callReportCollector.stop();
-
-    // Finalize the call recorder independently of the call report's
-    // call_report_id / host availability. The recorder resolves its own
-    // endpoint from callContext.host / _setHost(). Stopping it cancels
-    // capture loops + the flush timer; postFinalReport() POSTs the remaining
-    // packets as a final segment; cleanup() releases the buffer. Recorder
-    // failures never break the call report. Track the upload so disconnect()
-    // can drain it alongside the call report upload.
-    if (this._callRecorder) {
-      this._callRecorder.stop();
-      // Ensure the recorder has the latest connection host before the final
-      // flush (the host may have changed on reconnect).
-      const finalHost = this.session.connection?.host;
-      if (finalHost) {
-        this._callRecorder._setHost(finalHost);
-      }
-      // Ensure the final segment carries the real call_report_id even if the
-      // call never reached the Active state where it is normally set.
-      if (this.session.callReportId) {
-        this._callRecorder._setCallReportId(this.session.callReportId);
-      }
-      const recorderUpload = this._callRecorder
-        .postFinalReport()
-        .catch((error) => {
-          logger.error('Failed to post final call recording', { error });
-        })
-        .finally(() => {
-          this._callRecorder?.cleanup();
-        });
-      this.session.trackCallReportUpload(recorderUpload);
-    }
+    await callReportCollector.stop();
 
     const callReportId = this.session.callReportId;
     if (!callReportId) {
       logger.debug('Cannot post call report: call_report_id not available');
-      this._callReportCollector.cleanup();
+      callReportCollector.cleanup();
       return;
     }
 
@@ -2986,7 +3041,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     const callReportVoiceSdkId = this._getCallReportVoiceSdkId();
 
     try {
-      await this._callReportCollector.postReport(
+      await callReportCollector.postReport(
         summary,
         callReportId,
         host,
@@ -2997,13 +3052,33 @@ export default abstract class BaseCall implements IWebRTCCall {
       throw error;
     } finally {
       // Clean up log collector resources
-      this._callReportCollector?.cleanup();
-      // Defensive cleanup of the recorder in case _postCallReport is called
-      // without going through the recorder branch above (e.g. when
-      // callReportId is missing the recorder branch is skipped). cleanup() is
-      // idempotent.
-      this._callRecorder?.cleanup();
+      callReportCollector.cleanup();
     }
+  }
+
+  private _postFinalCallRecording(): void {
+    const recorder = this._callRecorder;
+    if (!recorder) {
+      return;
+    }
+
+    const finalHost = this.session.connection?.host;
+    if (finalHost) {
+      recorder._setHost(finalHost);
+    }
+    if (this.session.callReportId) {
+      recorder._setCallReportId(this.session.callReportId);
+    }
+
+    const recorderUpload = recorder
+      .postFinalReport()
+      .catch((error) => {
+        logger.error('Failed to post final call recording', { error });
+      })
+      .finally(() => {
+        recorder.cleanup();
+      });
+    this.session.trackCallReportUpload(recorderUpload);
   }
 
   private _startStats(interval: number) {
