@@ -531,6 +531,23 @@ export interface ICallReportPayload {
   segment?: number;
   /** Why this intermediate segment was flushed. */
   flushReason?: ICallReportFlushReason;
+  /**
+   * Event-loop congestion episodes detected during the session.
+   * Present only when congestion was detected (at least one episode).
+   * Each episode records the detection source ('heartbeat' or 'longtask'),
+   * the lag or task duration, and an ISO timestamp.
+   */
+  eventLoopCongestion?: {
+    totalEpisodes: number;
+    maxLagMs: number;
+    episodes: Array<{
+      timestamp: string;
+      lagMs?: number;
+      intervalMs?: number;
+      taskDurationMs?: number;
+      source: 'heartbeat' | 'longtask';
+    }>;
+  };
 }
 
 export class CallReportCollector {
@@ -816,7 +833,8 @@ export class CallReportCollector {
     summary: ICallSummary,
     callReportId: string,
     host: string,
-    voiceSdkId?: string
+    voiceSdkId?: string,
+    eventLoopCongestion?: ICallReportPayload['eventLoopCongestion']
   ): Promise<void> {
     // Get remaining logs (getLogs for final, drain was used for intermediates)
     const logs = this.logCollector?.getLogs();
@@ -853,6 +871,7 @@ export class CallReportCollector {
       stats: this.statsBuffer,
       ...(logs && logs.length > 0 ? { logs } : {}),
       ...(isMultiSegment ? { segment } : {}),
+      ...(eventLoopCongestion ? { eventLoopCongestion } : {}),
     };
 
     await this._sendPayload(payload, callReportId, host, voiceSdkId, true);

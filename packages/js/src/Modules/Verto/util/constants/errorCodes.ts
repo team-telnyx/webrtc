@@ -87,6 +87,9 @@ export const TELNYX_WARNING_CODES = {
   SIGNALING_RECOVERY_REQUIRED: 36003,
   MEDIA_RECOVERY_REQUIRED: 36004,
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT: 36005,
+
+  // ── Performance warnings (370xx) ───────────────────────────────────
+  EVENT_LOOP_CONGESTION: 37001,
 } as const;
 
 // Extract constants to simplify how we use them internally
@@ -144,4 +147,5 @@ export const {
   SIGNALING_RECOVERY_REQUIRED,
   MEDIA_RECOVERY_REQUIRED,
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
+  EVENT_LOOP_CONGESTION,
 } = TELNYX_WARNING_CODES;
