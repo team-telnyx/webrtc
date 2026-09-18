@@ -2527,7 +2527,8 @@ export default abstract class BaseCall implements IWebRTCCall {
           enabled: true, // Debug logs enabled when call reports are enabled
           level: debugLogLevel,
           maxEntries: debugLogMaxEntries,
-        }
+        },
+        () => this.session._registrationTimings?.getLogEntry()
       );
 
       // Wire up size-aware early flush: when the payload approaches the
