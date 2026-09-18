@@ -1,6 +1,6 @@
 import { GatewayStateType, VertoMethod } from '../webrtc/constants';
 import type { ILogEntry } from './LogCollector';
-import logger from './logger';
+import logger, { isConsoleLogEnabled } from './logger';
 
 export const REGISTRATION_TIMING_MESSAGE = 'Registration timing';
 
@@ -75,6 +75,11 @@ interface RegistrationTimingSummary {
 }
 
 const roundMs = (value: number): number => Number(value.toFixed(2));
+const formatDetails = (details: TimingDetails = {}): string =>
+  Object.entries(details)
+    .filter(([, value]) => value !== undefined)
+    .map(([key, value]) => `${key}=${value}${key.endsWith('Ms') ? ' ms' : ''}`)
+    .join(', ');
 const isRegistrationMethod = (method: unknown): method is RegistrationMethod =>
   method === 'login' ||
   method === 'anonymous_login' ||
@@ -181,10 +186,12 @@ export default class RegistrationTimings {
 
   private logStep(entry: TimingEntry): void {
     try {
-      logger.info('Registration timing step', {
-        clientId: this.clientId,
-        ...entry,
-      });
+      const details = formatDetails(entry.details);
+      logger.info(
+        `[TelnyxRTC registration ${this.clientId}] ${entry.timestamp} ` +
+          `+${entry.deltaMs} ms / ${entry.elapsedMs} ms total: ${entry.step}` +
+          (details ? ` (${details})` : '')
+      );
     } catch {
       // An application-supplied logging sink must not break registration.
     }
@@ -323,9 +330,42 @@ export default class RegistrationTimings {
     void Promise.resolve().then(() => {
       this.logStep(readyEntry);
       try {
-        logger.info(REGISTRATION_TIMING_MESSAGE, this.getLogEntry()?.context);
+        const summary = this.summary;
+        const durations = [`${summary.totalMs} ms total`];
+        if (summary.constructorMs !== undefined) {
+          durations.push(`constructor=${summary.constructorMs} ms`);
+        }
+        if (summary.appWaitBeforeConnectMs !== undefined) {
+          durations.push(`app wait=${summary.appWaitBeforeConnectMs} ms`);
+        }
+        if (summary.connectToReadyMs !== undefined) {
+          durations.push(`connect-to-ready=${summary.connectToReadyMs} ms`);
+        }
+        const longest = summary.longestInterval;
+        logger.info(
+          `[TelnyxRTC registration ${this.clientId}] ${summary.timestamp} COMPLETE: ` +
+            `${durations.join('; ')}; longest interval: ${longest.from} → ${longest.to} ` +
+            `(${longest.durationMs} ms); socket attempts=${summary.socketAttempts}; ` +
+            `dropped steps=${summary.droppedSteps}`
+        );
       } catch {
         // Best-effort diagnostic output only.
+      }
+      try {
+        if (
+          isConsoleLogEnabled('info') &&
+          typeof console !== 'undefined' &&
+          typeof console.table === 'function'
+        ) {
+          console.table(
+            this.summary.steps.map((entry) => ({
+              ...entry,
+              details: formatDetails(entry.details),
+            }))
+          );
+        }
+      } catch {
+        // An unavailable or throwing console table must not affect signaling.
       }
     });
   }

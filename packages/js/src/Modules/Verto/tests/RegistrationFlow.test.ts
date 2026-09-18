@@ -5,7 +5,6 @@ import { setWebSocket } from '../services/Connection';
 import { clearQueue } from '../services/Handler';
 import logger from '../util/logger';
 import { VertoMethod } from '../webrtc/constants';
-import { REGISTRATION_TIMING_MESSAGE } from '../util/RegistrationTimings';
 import type { IClientOptions } from '../../../utils/interfaces';
 
 class TestSocket {
@@ -78,19 +77,13 @@ describe('TelnyxRTC registration timing integration', () => {
     async (_type, options, method) => {
       client = new TelnyxRTC({ ...options, debug: false });
       expect(info).toHaveBeenCalledWith(
-        'Registration timing step',
-        expect.objectContaining({
-          step: 'TelnyxRTC constructor complete',
-          timestamp: expect.stringMatching(
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-          ),
-        })
+        expect.stringMatching(
+          /^\[TelnyxRTC registration .+\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \+0 ms \/ 0 ms total: TelnyxRTC constructor complete$/
+        )
       );
       const onReady = jest.fn(() => {
         expect(
-          info.mock.calls.filter(
-            ([message]) => message === REGISTRATION_TIMING_MESSAGE
-          )
+          info.mock.calls.filter(([message]) => message.includes('COMPLETE:'))
         ).toHaveLength(0);
         // A slow application handler must not count towards registration.
         now = 9000;
@@ -126,23 +119,25 @@ describe('TelnyxRTC registration timing integration', () => {
       expect(onReady).toHaveBeenCalledTimes(1);
       await Promise.resolve();
       expect(info).toHaveBeenCalledWith(
-        REGISTRATION_TIMING_MESSAGE,
-        expect.objectContaining({
-          sessionId: 'session-a',
-          totalMs: 602,
-          connectToReadyMs: 579,
-          steps: expect.arrayContaining([
-            expect.objectContaining({
-              step: `receive ${method}`,
-              details: expect.objectContaining({ requestMs: 145 }),
-            }),
-            expect.objectContaining({
-              step: 'receive telnyx_rtc.gatewayState',
-              details: expect.objectContaining({ requestMs: 65 }),
-            }),
-          ]),
-        })
+        expect.stringContaining(
+          'COMPLETE: 602 ms total; constructor=0 ms; app wait=23 ms; connect-to-ready=579 ms'
+        )
       );
+      expect(client._registrationTimings.getLogEntry()!.context).toMatchObject({
+        sessionId: 'session-a',
+        totalMs: 602,
+        connectToReadyMs: 579,
+        steps: expect.arrayContaining([
+          expect.objectContaining({
+            step: `receive ${method}`,
+            details: expect.objectContaining({ requestMs: 145 }),
+          }),
+          expect.objectContaining({
+            step: 'receive telnyx_rtc.gatewayState',
+            details: expect.objectContaining({ requestMs: 65 }),
+          }),
+        ]),
+      });
       expect(socket.sent).toHaveLength(2);
       const entry = JSON.stringify(client._registrationTimings.getLogEntry());
       expect(entry).not.toContain('secret');

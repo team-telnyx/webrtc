@@ -1,7 +1,7 @@
 import RegistrationTimings, {
   REGISTRATION_TIMING_MESSAGE,
 } from '../../util/RegistrationTimings';
-import logger from '../../util/logger';
+import logger, { setConsoleLoggerMinLevel } from '../../util/logger';
 import { GatewayStateType, VertoMethod } from '../../webrtc/constants';
 import { CallReportCollector } from '../../webrtc/CallReportCollector';
 import {
@@ -14,19 +14,27 @@ describe('registration timing diagnostics', () => {
   let now: number;
   let info: jest.SpyInstance;
   let debug: jest.SpyInstance;
+  let table: jest.SpyInstance;
+  let previousLogLevel: ReturnType<typeof logger.getLevel>;
   const summary = (timing: RegistrationTimings) =>
     timing.getLogEntry()!.context!;
 
   beforeEach(() => {
+    previousLogLevel = logger.getLevel();
+    logger.setLevel('info', false);
+    setConsoleLoggerMinLevel('info');
     now = 0;
     jest.spyOn(performance, 'now').mockImplementation(() => now);
     info = jest.spyOn(logger, 'info').mockImplementation(() => undefined);
     debug = jest.spyOn(logger, 'debug').mockImplementation(() => undefined);
+    table = jest.spyOn(console, 'table').mockImplementation(() => undefined);
   });
 
   afterEach(async () => {
     await Promise.resolve();
     jest.restoreAllMocks();
+    logger.setLevel(previousLogLevel, false);
+    setConsoleLoggerMinLevel('info');
     setGlobalLogCollector(null);
   });
 
@@ -59,19 +67,12 @@ describe('registration timing diagnostics', () => {
 
     expect(debug).not.toHaveBeenCalled();
     expect(info).toHaveBeenCalledWith(
-      'Registration timing step',
-      expect.objectContaining({
-        clientId: 'client-a',
-        step: 'TelnyxRTC constructor complete',
-        timestamp: expect.stringMatching(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-        ),
-      })
+      expect.stringMatching(
+        /^\[TelnyxRTC registration client-a\] \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z \+5 ms \/ 5 ms total: TelnyxRTC constructor complete$/
+      )
     );
-    expect(info).not.toHaveBeenCalledWith(
-      REGISTRATION_TIMING_MESSAGE,
-      expect.anything()
-    );
+    expect(info).not.toHaveBeenCalledWith(expect.stringContaining('COMPLETE:'));
+    expect(table).not.toHaveBeenCalled();
     expect(summary(timing)).toMatchObject({
       event: 'registration_timing',
       schemaVersion: 1,
@@ -110,9 +111,32 @@ describe('registration timing diagnostics', () => {
     await Promise.resolve();
     expect(info).toHaveBeenCalledTimes(11);
     expect(info).toHaveBeenCalledWith(
-      REGISTRATION_TIMING_MESSAGE,
-      expect.objectContaining({ totalMs: 311, sessionId: 'session-a' })
+      expect.stringContaining(
+        'COMPLETE: 311 ms total; constructor=5 ms; app wait=20 ms; connect-to-ready=286 ms; ' +
+          'longest interval: create WebSocket → WebSocket open (174 ms)'
+      )
     );
+    expect(
+      info.mock.calls.every(
+        (args) => args.length === 1 && typeof args[0] === 'string'
+      )
+    ).toBe(true);
+    expect(table).toHaveBeenCalledTimes(1);
+    expect(table).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          step: 'receive telnyx_rtc.gatewayState',
+          deltaMs: 40,
+          elapsedMs: 310,
+          details: 'requestId=gateway-id, requestMs=59 ms, state=REGED',
+        }),
+      ])
+    );
+    expect(
+      table.mock.calls[0][0].every((row) =>
+        Object.values(row).every((value) => typeof value !== 'object')
+      )
+    ).toBe(true);
     const report = timing.getLogEntry()!;
     const steps = report.context!.steps as Array<{ timestamp: string }>;
     for (const step of steps) {
@@ -259,11 +283,24 @@ describe('registration timing diagnostics', () => {
     info.mockImplementation(() => {
       throw new Error('info sink failed');
     });
+    table.mockImplementation(() => {
+      throw new Error('table sink failed');
+    });
     const timing = new RegistrationTimings('test');
     expect(() => timing.mark('WebSocket open')).not.toThrow();
     expect(() => timing.finish('session')).not.toThrow();
     await Promise.resolve();
     expect(info).toHaveBeenCalledTimes(3);
+    expect(table).toHaveBeenCalledTimes(1);
+    expect(timing.getLogEntry()).toBeDefined();
+  });
+
+  it('respects info-level filtering when printing the table', async () => {
+    const timing = new RegistrationTimings('test');
+    setConsoleLoggerMinLevel('warn');
+    timing.finish('session');
+    await Promise.resolve();
+    expect(table).not.toHaveBeenCalled();
     expect(timing.getLogEntry()).toBeDefined();
   });
 });

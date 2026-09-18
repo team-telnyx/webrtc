@@ -1,23 +1,39 @@
 # Registration timing logs
 
 The SDK records the flow from `new TelnyxRTC(options)` to the first
-`telnyx.ready` event (`vertoClientReady`). It emits one structured **info** log
-named `Registration timing`, with `context.event: "registration_timing"`, plus
-**info** logs named `Registration timing step` for individual milestones. Both
-are visible with the default SDK logging level; `debug: true` is not required.
+`telnyx.ready` event (`vertoClientReady`). Individual milestones appear as readable
+**info** log lines, followed by a `COMPLETE` line and a console table at the end.
+They are visible with the default SDK logging level; `debug: true` is not required.
+Look for the `[TelnyxRTC registration <client UUID>]` prefix.
+
+Each line includes the UTC timestamp, time since the preceding milestone, total
+elapsed time, and any request/retry details as text. For example:
+
+```text
+[TelnyxRTC registration client-a] 2026-09-18T10:15:30.123Z +61.2 ms / 601.3 ms total: receive telnyx_rtc.gatewayState (requestId=gateway-id, requestMs=61.2 ms, state=REGED)
+```
+
+The `COMPLETE` line includes the total, constructor time, app wait, connect-to-ready
+time, longest interval, socket attempts, and dropped step count. The table shows
+`timestamp`, `step`, `deltaMs`, `elapsedMs`, and a plain-text `details` column,
+without nested objects to expand. The table follows the SDK's info-level console
+filter and is omitted when the host does not support `console.table`.
 
 The endpoint is captured immediately before dispatch to the application. The
-summary is logged asynchronously after dispatch, so application ready-handler
-execution and summary logging are excluded from the measured duration.
+summary and table are logged asynchronously after dispatch, so application
+ready-handler execution and summary/table output are excluded from the measured
+duration.
 
 Every milestone includes a `timestamp` in ISO 8601 UTC with milliseconds, for
 example `2026-09-18T10:15:30.123Z`. The summary also includes its completion
 `timestamp` and trace `startedAt`. These timestamps are preserved in call reports;
 the final milestone and summary retain the captured completion time even though
-they are logged after the app's ready handlers run. There is no automatic console
-table; the summary includes the structured `steps` array.
+they are logged after the app's ready handlers run.
 
-## Reading the summary
+## Reading the retained summary
+
+The SDK retains structured data for call reports while console output remains
+plain text plus the table. The retained summary contains these fields:
 
 | Field                                 | Meaning                                                                                              |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------- |
@@ -50,7 +66,8 @@ fires to identify delayed timers.
 ## Call reports and VSP
 
 The completed summary is retained by the owning client. When call reporting is
-enabled, it is included as an info entry in the **first available report segment
+enabled, it is included as an info entry named `Registration timing`, with
+`context.event: "registration_timing"`, in the **first available report segment
 of each call**, using the existing `/call_report` upload path. The log retains its
 original registration-completion timestamp. It survives normal call-log buffer
 eviction and is deduplicated across subsequent segments of that call.
@@ -88,4 +105,4 @@ that cannot upload follows the existing call-report retry policy.
   and signaling payloads are not copied into the timing report.
 - Logging and diagnostic-provider failures are contained. They do not trigger
   registration retries or change readiness. Info milestones incur normal SDK
-  logging overhead, while final milestone and summary logging run after readiness.
+  logging overhead, while final milestone, summary, and table output run after readiness.
