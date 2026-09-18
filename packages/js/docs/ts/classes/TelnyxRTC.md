@@ -46,7 +46,10 @@ client.off('telnyx.notification');
 
 ### Properties
 
+- [\_registrationTimings](#_registrationtimings)
 - [callReportVoiceSdkId](#callreportvoicesdkid)
+- [reconnectTokenCanaryRtcServer](#reconnecttokencanaryrtcserver)
+- [reconnectTokenVoiceSdkId](#reconnecttokenvoicesdkid)
 
 ### Accessors
 
@@ -168,6 +171,18 @@ TelnyxRTCClient.constructor
 
 ## Properties
 
+### \_registrationTimings
+
+• `Optional` **\_registrationTimings**: `default`
+
+Bounded diagnostics for the initial registration flow.
+
+#### Inherited from
+
+TelnyxRTCClient.\_registrationTimings
+
+---
+
 ### callReportVoiceSdkId
 
 • **callReportVoiceSdkId**: `string` = `null`
@@ -177,6 +192,30 @@ voice_sdk_id used when posting call report payloads for this session.
 #### Inherited from
 
 TelnyxRTCClient.callReportVoiceSdkId
+
+---
+
+### reconnectTokenCanaryRtcServer
+
+• **reconnectTokenCanaryRtcServer**: `boolean`
+
+Canary routing override associated with the persisted voice_sdk_id.
+
+#### Inherited from
+
+TelnyxRTCClient.reconnectTokenCanaryRtcServer
+
+---
+
+### reconnectTokenVoiceSdkId
+
+• **reconnectTokenVoiceSdkId**: `string`
+
+Persisted voice_sdk_id whose routing association is owned by this session.
+
+#### Inherited from
+
+TelnyxRTCClient.reconnectTokenVoiceSdkId
 
 ## Accessors
 

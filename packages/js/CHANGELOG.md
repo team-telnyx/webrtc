@@ -1,3 +1,9 @@
+## [2.27.11-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10...webrtc/v2.27.11-beta.0) (2026-09-18)
+
+- fix(js): restore text registration logs and timing table
+- fix(js): expose registration timing logs with UTC timestamps
+- feat(js): add registration timing diagnostics
+- feat(js): support explicit canary routing toggle (#756)
 ## [2.27.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10) (2026-08-21)
 
 ### Features

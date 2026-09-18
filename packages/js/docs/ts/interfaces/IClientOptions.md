@@ -251,6 +251,7 @@ false;
 Enable automatic call quality reporting to voice-sdk-proxy.
 When enabled, WebRTC stats are collected periodically during calls
 and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+Reports also include the client's initial registration timing summary.
 
 **`Default`**
 
@@ -554,6 +555,6 @@ Enable or disable Trickle ICE.
 
 • `Optional` **useCanaryRtcServer**: `boolean`
 
-Override VSP RTC routing for this connection. `true` forces the Canary RTC
-server, `false` forces the stable RTC server, and omission leaves routing to
-VSP's default load-based behavior.
+Override VSP RTC routing for this connection. `true` forces the Canary
+RTC server, `false` forces the stable RTC server, and omission leaves
+routing to VSP's default load-based behavior.
