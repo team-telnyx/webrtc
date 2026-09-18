@@ -76,7 +76,16 @@ describe('TelnyxRTC registration timing integration', () => {
   ])(
     'captures %s registration and publishes after the app event without extra signaling',
     async (_type, options, method) => {
-      client = new TelnyxRTC(options);
+      client = new TelnyxRTC({ ...options, debug: false });
+      expect(info).toHaveBeenCalledWith(
+        'Registration timing step',
+        expect.objectContaining({
+          step: 'TelnyxRTC constructor complete',
+          timestamp: expect.stringMatching(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+          ),
+        })
+      );
       const onReady = jest.fn(() => {
         expect(
           info.mock.calls.filter(

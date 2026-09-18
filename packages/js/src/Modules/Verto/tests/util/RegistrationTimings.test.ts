@@ -58,7 +58,20 @@ describe('registration timing diagnostics', () => {
     timing.finish('session-a');
 
     expect(debug).not.toHaveBeenCalled();
-    expect(info).not.toHaveBeenCalled();
+    expect(info).toHaveBeenCalledWith(
+      'Registration timing step',
+      expect.objectContaining({
+        clientId: 'client-a',
+        step: 'TelnyxRTC constructor complete',
+        timestamp: expect.stringMatching(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+        ),
+      })
+    );
+    expect(info).not.toHaveBeenCalledWith(
+      REGISTRATION_TIMING_MESSAGE,
+      expect.anything()
+    );
     expect(summary(timing)).toMatchObject({
       event: 'registration_timing',
       schemaVersion: 1,
@@ -95,11 +108,21 @@ describe('registration timing diagnostics', () => {
     timing.responseReceived({ id: 'another-login' });
     timing.finish('another-session');
     await Promise.resolve();
-    expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledTimes(11);
     expect(info).toHaveBeenCalledWith(
       REGISTRATION_TIMING_MESSAGE,
       expect.objectContaining({ totalMs: 311, sessionId: 'session-a' })
     );
+    const report = timing.getLogEntry()!;
+    const steps = report.context!.steps as Array<{ timestamp: string }>;
+    for (const step of steps) {
+      expect(step.timestamp).toMatch(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
+      );
+    }
+    expect(report.context!.startedAt).toBe(steps[0].timestamp);
+    expect(report.timestamp).toBe(steps[steps.length - 1].timestamp);
+    expect(report.context!.timestamp).toBe(report.timestamp);
   });
 
   it('retains retry delay and the original connect start across socket replacement', () => {
@@ -233,17 +256,14 @@ describe('registration timing diagnostics', () => {
   });
 
   it('contains logging failures, including the deferred completion log', async () => {
-    debug.mockImplementation(() => {
-      throw new Error('debug sink failed');
-    });
     info.mockImplementation(() => {
       throw new Error('info sink failed');
     });
-    const timing = new RegistrationTimings('test', true);
+    const timing = new RegistrationTimings('test');
     expect(() => timing.mark('WebSocket open')).not.toThrow();
     expect(() => timing.finish('session')).not.toThrow();
     await Promise.resolve();
-    expect(info).toHaveBeenCalledTimes(1);
+    expect(info).toHaveBeenCalledTimes(3);
     expect(timing.getLogEntry()).toBeDefined();
   });
 });

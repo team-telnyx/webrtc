@@ -45,6 +45,7 @@ interface TimingDetails {
 }
 
 interface TimingEntry {
+  timestamp: string;
   step: TimingStep;
   deltaMs: number;
   elapsedMs: number;
@@ -59,6 +60,7 @@ interface RegistrationTimingSummary {
   sessionId: string;
   sdkVersion: string;
   startedAt: string;
+  timestamp: string;
   clock: 'performance' | 'date';
   clockAdjusted: boolean;
   totalMs: number;
@@ -80,7 +82,7 @@ const isRegistrationMethod = (method: unknown): method is RegistrationMethod =>
 
 /**
  * Bounded, per-client timing from construction to the first app ready event.
- * Collection does no I/O by default; publishing is deferred until after ready.
+ * Milestones log at info level; completion publishing is deferred until after ready.
  * This class never sends signaling messages or controls connection recovery.
  */
 export default class RegistrationTimings {
@@ -104,17 +106,19 @@ export default class RegistrationTimings {
   private summary?: RegistrationTimingSummary;
   private completedAtUtc?: string;
   private entries: TimingEntry[] = [
-    { step: 'new TelnyxRTC()', deltaMs: 0, elapsedMs: 0 },
+    {
+      timestamp: this.startedAtUtc,
+      step: 'new TelnyxRTC()',
+      deltaMs: 0,
+      elapsedMs: 0,
+    },
   ];
   private readonly requests = new Map<
     string,
     { method: RegistrationMethod; startedAt: number }
   >();
 
-  constructor(
-    private readonly sdkVersion: string,
-    private readonly debug = false
-  ) {
+  constructor(private readonly sdkVersion: string) {
     // Choose one clock for the entire trace; never mix epoch and performance time.
     try {
       const read = performance.now.bind(performance);
@@ -147,7 +151,7 @@ export default class RegistrationTimings {
     details?: TimingDetails,
     at = this.now(),
     log = true
-  ): void {
+  ): TimingEntry {
     const deltaMs = roundMs(at - this.previousAt);
     if (!this.longestInterval || deltaMs > this.longestInterval.durationMs) {
       this.longestInterval = {
@@ -159,6 +163,7 @@ export default class RegistrationTimings {
     this.previousAt = at;
     this.previousStep = step;
     const entry = {
+      timestamp: new Date().toISOString(),
       step,
       deltaMs,
       elapsedMs: roundMs(at - this.startedAt),
@@ -170,15 +175,18 @@ export default class RegistrationTimings {
     }
     this.entries.push(entry);
 
-    if (log && this.debug) {
-      try {
-        logger.debug('Registration timing step', {
-          clientId: this.clientId,
-          ...entry,
-        });
-      } catch {
-        // An application-supplied logging sink must not break registration.
-      }
+    if (log) this.logStep(entry);
+    return entry;
+  }
+
+  private logStep(entry: TimingEntry): void {
+    try {
+      logger.info('Registration timing step', {
+        clientId: this.clientId,
+        ...entry,
+      });
+    } catch {
+      // An application-supplied logging sink must not break registration.
     }
   }
 
@@ -264,8 +272,8 @@ export default class RegistrationTimings {
   finish(sessionId: string): void {
     if (this.finished) return;
     const at = this.now();
-    // Do not invoke even a debug log sink between this timestamp and app ready.
-    this.record(
+    // Defer logging the final milestone until after app ready dispatch.
+    const readyEntry = this.record(
       'emit telnyx.ready (vertoClientReady) to app',
       undefined,
       at,
@@ -273,7 +281,7 @@ export default class RegistrationTimings {
     );
     this.finished = true;
     this.requests.clear();
-    this.completedAtUtc = new Date().toISOString();
+    this.completedAtUtc = readyEntry.timestamp;
     this.summary = {
       event: 'registration_timing',
       schemaVersion: 1,
@@ -282,6 +290,7 @@ export default class RegistrationTimings {
       sessionId,
       sdkVersion: this.sdkVersion,
       startedAt: this.startedAtUtc,
+      timestamp: this.completedAtUtc,
       clock: this.clock,
       clockAdjusted: this.clockAdjusted,
       totalMs: roundMs(at - this.startedAt),
@@ -312,6 +321,7 @@ export default class RegistrationTimings {
     // Capture before dispatch but publish afterwards. A thrown logger must not
     // turn into an unhandled promise rejection or change ready-event delivery.
     void Promise.resolve().then(() => {
+      this.logStep(readyEntry);
       try {
         logger.info(REGISTRATION_TIMING_MESSAGE, this.getLogEntry()?.context);
       } catch {

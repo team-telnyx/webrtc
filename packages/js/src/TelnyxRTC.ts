@@ -207,10 +207,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *```
    */
   constructor(options: IClientOptions) {
-    const registrationTimings = new RegistrationTimings(
-      pkg.version,
-      options.debug === true
-    );
+    const registrationTimings = new RegistrationTimings(pkg.version);
     super(options);
     this._registrationTimings = registrationTimings;
     registrationTimings.clientId = this.uuid;
