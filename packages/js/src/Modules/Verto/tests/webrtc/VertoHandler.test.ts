@@ -72,6 +72,150 @@ describe('VertoHandler', () => {
     );
   });
 
+  describe('message dispatch with a retained peer', () => {
+    beforeEach(async () => {
+      await instance.connect();
+      _setupCall({ id: 'retained-peer-call', remoteSdp: 'SDP' });
+      await call.answer();
+      call.setState(State.Active);
+      Object.assign(call.peer.instance, {
+        connectionState: 'connected',
+        iceConnectionState: 'connected',
+        signalingState: 'stable',
+      });
+      Connection.mockSend.mockClear();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    const closeRetainedPeer = async () => {
+      await call.peer.close();
+      expect(call.peer.instance).toBeNull();
+      expect(instance.calls[call.id]).toBe(call);
+    };
+
+    it('dispatches remote BYE and cleans up a call whose peer is closed', async () => {
+      await closeRetainedPeer();
+      const health = jest.spyOn(call.peer, 'isConnectionHealthy');
+
+      handler.handleMessage({
+        id: 4601,
+        method: 'telnyx_rtc.bye',
+        params: { callID: call.id },
+      });
+
+      expect(instance.calls[call.id]).toBeUndefined();
+      expect(call.state).toBe('destroy');
+      expect(health).not.toHaveBeenCalled();
+      expect(Connection.mockSend).toHaveBeenCalledTimes(1);
+      expect(Connection.mockSend).toHaveBeenCalledWith({
+        request: {
+          jsonrpc: '2.0',
+          id: 4601,
+          result: { method: 'telnyx_rtc.bye' },
+        },
+      });
+    });
+
+    it('replaces a closed peer on ATTACH using the real answer path', async () => {
+      await closeRetainedPeer();
+      const stalePeer = call.peer;
+      const health = jest.spyOn(stalePeer, 'isConnectionHealthy');
+      const answer = jest.spyOn(Call.prototype, 'answer');
+
+      handler.handleMessage({
+        id: 4602,
+        method: 'telnyx_rtc.attach',
+        params: { callID: call.id, sdp: 'SDP' },
+      });
+      expect(answer).toHaveBeenCalledTimes(1);
+      await answer.mock.results[0].value;
+
+      const replacement = instance.calls[call.id];
+      expect(replacement).not.toBe(call);
+      expect(replacement.recoveredCallId).toBe(call.id);
+      expect(replacement.peer).not.toBe(stalePeer);
+      expect(replacement.peer.instance).toBeInstanceOf(RTCPeerConnection);
+      expect(replacement.peer.instance.signalingState).not.toBe('closed');
+      expect(replacement.options.localStream.getAudioTracks()).toHaveLength(1);
+      await expect(replacement.peer.instance.createAnswer()).resolves.toEqual(
+        expect.objectContaining({ type: 'answer' })
+      );
+      expect(stalePeer.instance).toBeNull();
+      expect(health).not.toHaveBeenCalled();
+      expect(Connection.mockSend).toHaveBeenCalledWith({
+        request: {
+          jsonrpc: '2.0',
+          id: 4602,
+          result: { method: 'telnyx_rtc.attach' },
+        },
+      });
+    });
+
+    it.each([true, false])(
+      'preserves call-ID-less clientReady handling (reattached=%s)',
+      async (reattached) => {
+        await closeRetainedPeer();
+        const health = jest.spyOn(call.peer, 'isConnectionHealthy');
+
+        handler.handleMessage({
+          id: 4603,
+          method: 'telnyx_rtc.clientReady',
+          params: { reattached_sessions: reattached ? [call.id] : [] },
+        });
+
+        expect(instance.calls[call.id]).toBe(reattached ? call : undefined);
+        expect(health).not.toHaveBeenCalled();
+        expect(Connection.mockSend).toHaveBeenCalledWith(
+          expect.objectContaining({
+            request: expect.objectContaining({
+              method: 'telnyx_rtc.gatewayState',
+            }),
+          })
+        );
+      }
+    );
+
+    it.each([false, true])(
+      'preserves PUNT keep-alive behavior (peer closed=%s)',
+      async (closed) => {
+        instance.options.keepConnectionAliveOnSocketClose = true;
+        if (closed) {
+          await closeRetainedPeer();
+        }
+        const health = jest.spyOn(call.peer, 'isConnectionHealthy');
+        const socketDisconnect = jest
+          .spyOn(instance, 'socketDisconnect')
+          .mockImplementation(() => undefined);
+        const serverDisconnect = jest
+          .spyOn(instance, 'serverDisconnect')
+          .mockResolvedValue(undefined);
+
+        handler.handleMessage({
+          id: 4604,
+          method: 'telnyx_rtc.punt',
+          params: { callID: call.id },
+        });
+
+        expect(health).toHaveBeenCalledTimes(1);
+        expect(socketDisconnect).toHaveBeenCalledTimes(closed ? 0 : 1);
+        expect(serverDisconnect).toHaveBeenCalledTimes(closed ? 1 : 0);
+        expect(Connection.mockSend).toHaveBeenCalledTimes(closed ? 0 : 1);
+        if (!closed) {
+          expect(Connection.mockSend).toHaveBeenCalledWith({
+            request: {
+              jsonrpc: '2.0',
+              id: 4604,
+              result: { method: 'telnyx_rtc.punt' },
+            },
+          });
+        }
+      }
+    );
+  });
+
   describe('telnyx_rtc.punt', () => {
     it('should call serverDisconnect (no BYE) on PUNT', () => {
       const msg = JSON.parse(
