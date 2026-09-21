@@ -47,6 +47,7 @@ import {
   disableAudioTracks,
   getMediaConstraints,
   getPreferredCodecs,
+  getTrackDebugInfo,
   getUserMedia,
 } from './helpers';
 import { IVertoCallOptions } from './interfaces';
@@ -812,17 +813,41 @@ export default class Peer {
         this.options.preferred_codecs
       );
 
+      const logAttachmentState = (
+        message: string,
+        track?: MediaStreamTrack,
+        trackIndex?: number
+      ) => {
+        const transceivers = this.instance.getTransceivers?.();
+        logger.debug(message, {
+          callId: this.options.id,
+          streamId: localStream.id,
+          isOffer: this.isOffer,
+          audioTracksLength: audioTracks.length,
+          tracksLength: tracks.length,
+          tracks: tracks.map(getTrackDebugInfo),
+          trackIndex,
+          track: getTrackDebugInfo(track),
+          transceiversLength: transceivers?.length ?? null,
+          transceivers: transceivers?.map((transceiver) => ({
+            mid: transceiver.mid,
+            direction: transceiver.direction,
+            currentDirection: transceiver.currentDirection,
+            senderTrack: getTrackDebugInfo(transceiver.sender.track),
+            receiverTrack: getTrackDebugInfo(transceiver.receiver.track),
+          })),
+        });
+      };
+
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
-        logger.debug('Attaching local tracks using addTransceiver', {
-          callId: this.options.id,
-        });
+        logAttachmentState('Attaching local tracks using addTransceiver');
         const transceiverParams: RTCRtpTransceiverInit = {
           direction: 'sendrecv',
           streams: [localStream],
         };
 
-        tracks.forEach((track) => {
+        tracks.forEach((track, trackIndex) => {
           if (track.kind === 'audio') {
             this.options.userVariables.microphoneLabel = track.label;
           }
@@ -830,10 +855,12 @@ export default class Peer {
             this.options.userVariables.cameraLabel = track.label;
           }
 
+          logAttachmentState('Before addTransceiver', track, trackIndex);
           const transceiver = this.instance.addTransceiver(
             track,
             transceiverParams
           );
+          logAttachmentState('After addTransceiver', track, trackIndex);
 
           if (track.kind === 'audio' && audioCodecs.length > 0) {
             this._setCodecs(transceiver, audioCodecs);
@@ -845,11 +872,9 @@ export default class Peer {
         });
       } else if (typeof this.instance.addTrack === 'function') {
         // Use addTrack
-        logger.debug('Attaching local tracks using addTrack', {
-          callId: this.options.id,
-        });
+        logAttachmentState('Attaching local tracks using addTrack');
 
-        tracks.forEach((track) => {
+        tracks.forEach((track, trackIndex) => {
           if (track.kind === 'audio') {
             this.options.userVariables.microphoneLabel = track.label;
           }
@@ -857,7 +882,9 @@ export default class Peer {
             this.options.userVariables.cameraLabel = track.label;
           }
 
+          logAttachmentState('Before addTrack', track, trackIndex);
           this.instance.addTrack(track, localStream);
+          logAttachmentState('After addTrack', track, trackIndex);
         });
 
         this.instance.getTransceivers().forEach((trans) => {
@@ -871,11 +898,10 @@ export default class Peer {
       } else {
         // Fallback to legacy addStream ..
         // addStream is deprecated
-        logger.debug('Attaching local stream using legacy addStream', {
-          callId: this.options.id,
-        });
+        logAttachmentState('Attaching local stream using legacy addStream');
         // @ts-expect-error addStream does not exist on RTCPeerConnection
         this.instance.addStream(localStream);
+        logAttachmentState('After legacy addStream');
       }
 
       if (screenShare === false) {
