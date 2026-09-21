@@ -7,8 +7,28 @@
 ## Install
 
 ```bash
-npm install --save @telnyx/react-client @telnyx/webrtc
+npm install --save @telnyx/react-client @telnyx/webrtc@2.27.10
 ```
+
+This wrapper targets the latest stable SDK baseline, `@telnyx/webrtc@2.27.10`,
+with a supported peer range of `>=2.27.10 <3`. Install both packages together.
+
+## Lifecycle
+
+- `useTelnyxRTC` returns `undefined` initially; `TelnyxRTCContext` initially contains
+  `null`. Guard client access until the effect-created instance is available.
+- Connection starts in a cancellable task after publication, allowing consumers
+  to subscribe in `useEffect` before synchronous startup events are emitted.
+- Changing token, login, password, or authentication mode replaces the client.
+  Equivalent credential values do not reconnect, even with a new object each render.
+  Explicit credentials are authoritative over authentication fields in `options`.
+- Other options (including debug) are a mount-time snapshot, reused on credential
+  replacement. Remount to apply changed options.
+- Unmounting or replacing credentials invokes SDK `disconnect()`, ending active
+  calls. Disconnect completes asynchronously; cleanup does not wait for it.
+  Keep the provider mounted for as long as calls should remain active.
+- Error and warning events are forwarded without disconnecting the client;
+  recovery remains owned by the SDK. StrictMode cleanup never reuses a disposed client.
 
 ## Usage example
 
@@ -60,6 +80,7 @@ function Phone() {
   useCallbacks({
     onReady: () => console.log('client ready'),
     onError: () => console.log('client registration error'),
+    onWarning: (warning) => console.log('client warning:', warning),
     onSocketError: () => console.log('client socket error'),
     onSocketClose: () => console.log('client disconnected'),
     onNotification: (x) => console.log('received notification:', x),
@@ -74,14 +95,20 @@ function Phone() {
 If you need more fine-tuned control over TelnyxRTC, you also have access to `useTelnyxRTC` directly.
 
 ```jsx
+import { useEffect } from 'react';
 import { useTelnyxRTC } from '@telnyx/react-client';
 
 function Phone() {
   const client = useTelnyxRTC({ login_token: 'mytoken' });
 
-  client.on('telnyx.ready', () => {
-    console.log('client ready');
-  });
+  useEffect(() => {
+    if (!client) return;
+    const onReady = () => console.log('client ready');
+    client.on('telnyx.ready', onReady);
+    return () => {
+      client.off('telnyx.ready', onReady);
+    };
+  }, [client]);
 
   // ...
 }
@@ -94,15 +121,20 @@ Take care to use this hook only once in your application. For most cases, we rec
 You can retrieve the current TelnyxRTC context value by using React's [`useContext` hook](https://reactjs.org/docs/hooks-reference.html#usecontext), as an alternative to [TelnyxRTCContext.Consumer](#TelnyxRTCContextConsumer).
 
 ```jsx
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { TelnyxRTCContext } from '@telnyx/react-client';
 
 function Phone() {
   const client = useContext(TelnyxRTCContext);
 
-  client.on('telnyx.ready', () => {
-    console.log('client ready');
-  });
+  useEffect(() => {
+    if (!client) return;
+    const onReady = () => console.log('client ready');
+    client.on('telnyx.ready', onReady);
+    return () => {
+      client.off('telnyx.ready', onReady);
+    };
+  }, [client]);
 
   // ...
 }
@@ -145,7 +177,7 @@ import { TelnyxRTCContext } from '@telnyx/react-client';
 function PhoneWrapper() {
   return (
     <TelnyxRTCContext.Consumer>
-      {(context) => <Phone client={context} />}
+      {(context) => (context ? <Phone client={context} /> : null)}
     </TelnyxRTCContext.Consumer>
   );
 }
@@ -194,6 +226,20 @@ to enable debugging you can set `debug=true` in the provider options
 ```
 
 ## Development
+
+The SDK dev dependency intentionally uses the exact registry tarball for 2.27.10.
+This bypasses Yarn workspace linking to the in-repository SDK, so wrapper builds
+and type checks exercise the published SDK and its real declarations. The SDK
+remains a peer dependency for consumers; it is not bundled into the wrapper.
+
+From the repository root:
+
+```bash
+yarn workspace @telnyx/react-client test --runInBand
+yarn workspace @telnyx/react-client build
+node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.json
+node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.test.json
+```
 
 Install dependencies:
 
