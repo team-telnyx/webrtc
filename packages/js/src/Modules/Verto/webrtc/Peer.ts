@@ -814,6 +814,9 @@ export default class Peer {
 
       if (this.isOffer && typeof this.instance.addTransceiver === 'function') {
         // Use addTransceiver
+        logger.debug('Attaching local tracks using addTransceiver', {
+          callId: this.options.id,
+        });
         const transceiverParams: RTCRtpTransceiverInit = {
           direction: 'sendrecv',
           streams: [localStream],
@@ -842,6 +845,9 @@ export default class Peer {
         });
       } else if (typeof this.instance.addTrack === 'function') {
         // Use addTrack
+        logger.debug('Attaching local tracks using addTrack', {
+          callId: this.options.id,
+        });
 
         tracks.forEach((track) => {
           if (track.kind === 'audio') {
@@ -865,6 +871,9 @@ export default class Peer {
       } else {
         // Fallback to legacy addStream ..
         // addStream is deprecated
+        logger.debug('Attaching local stream using legacy addStream', {
+          callId: this.options.id,
+        });
         // @ts-expect-error addStream does not exist on RTCPeerConnection
         this.instance.addStream(localStream);
       }
