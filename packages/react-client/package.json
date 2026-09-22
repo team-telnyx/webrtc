@@ -40,17 +40,17 @@
   "license": "MIT",
   "peerDependencies": {
     "@telnyx/webrtc": ">=2.27.10 <3",
-    "react": ">=16.8",
-    "react-dom": ">=16.8"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@babel/plugin-proposal-unicode-property-regex": "^7.18.6",
     "@babel/preset-env": "^7.22.20",
     "@babel/preset-react": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
-    "@telnyx/webrtc": "https://registry.npmjs.org/@telnyx/webrtc/-/webrtc-2.27.10.tgz",
-    "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.3.0",
+    "@telnyx/webrtc": "npm:2.27.10",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
     "babel-jest": "^28.0.1",
@@ -66,8 +66,8 @@
     "jest-environment-jsdom": "^28.0.1",
     "microbundle-crl": "^0.13.11",
     "prettier": "^3.7.4",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "release-it": "^14.14.2"
   },
   "files": [

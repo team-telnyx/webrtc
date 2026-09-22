@@ -7,11 +7,17 @@
 ## Install
 
 ```bash
-npm install --save @telnyx/react-client @telnyx/webrtc@2.27.10
+npm install --save @telnyx/react-client @telnyx/webrtc@2.27.10 react@^19.0.0 react-dom@^19.0.0
 ```
 
 This wrapper targets the latest stable SDK baseline, `@telnyx/webrtc@2.27.10`,
 with a supported peer range of `>=2.27.10 <3`. Install both packages together.
+
+React and React DOM 19 are required (`^19.0.0` peers); development and tests use
+19.3.0. This raises the minimum supported React version from 16.8 to 19, a breaking
+compatibility change for applications on React 16–18. Upgrade React and React DOM
+together before adopting this wrapper update. TypeScript applications should also
+upgrade `@types/react` and `@types/react-dom` to version 19.
 
 ## Lifecycle
 
@@ -227,34 +233,28 @@ to enable debugging you can set `debug=true` in the provider options
 
 ## Development
 
-The SDK dev dependency intentionally uses the exact registry tarball for 2.27.10.
-This bypasses Yarn workspace linking to the in-repository SDK, so wrapper builds
-and type checks exercise the published SDK and its real declarations. The SDK
-remains a peer dependency for consumers; it is not bundled into the wrapper.
+The SDK dev dependency uses the exact npm registry version `npm:2.27.10`, not a
+tarball URL. The repository sets `enableTransparentWorkspaces: false` in
+`.yarnrc.yml`: Yarn 4 otherwise links even an explicit npm version to the matching
+in-repository SDK. Local workspace dependencies must opt in with `workspace:`.
+Wrapper builds and type checks therefore exercise the published SDK and its real
+declarations. The SDK remains a peer dependency for consumers; it is not bundled
+into the wrapper. Development uses React and React DOM 19.3.0 with version 19 types.
 
 From the repository root:
 
 ```bash
+yarn install --immutable
 yarn workspace @telnyx/react-client test --runInBand
 yarn workspace @telnyx/react-client build
 node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.json
 node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.test.json
 ```
 
-Install dependencies:
+To rebuild the wrapper while developing, run from the repository root:
 
 ```bash
-yarn install
-yarn start
-yarn link
-
-# in another tab:
-git clone https://github.com/team-telnyx/webrtc-examples/tree/main/react-client/react-app
-
-# fill in .env
-yarn install
-yarn link @telnyx/react-client
-yarn start
+yarn workspace @telnyx/react-client start
 ```
 
 ---

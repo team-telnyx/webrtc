@@ -1,6 +1,5 @@
-import React, { StrictMode, useContext, useEffect } from 'react';
+import React, { act, StrictMode, useContext, useEffect } from 'react';
 import { createRoot, Root } from 'react-dom/client';
-import { act } from 'react-dom/test-utils';
 import { renderToString } from 'react-dom/server';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 import TelnyxRTCContext from './TelnyxRTCContext';
@@ -48,7 +47,7 @@ let container: HTMLDivElement;
 beforeEach(() => {
   jest.useFakeTimers();
   // jsdom 16 (the repository's pinned version) exposes null here on Node 25.
-  // React 18 expects the browser's undefined value outside event dispatch.
+  // React expects the browser's undefined value outside event dispatch.
   Object.defineProperty(window, 'event', {
     configurable: true,
     value: undefined,
@@ -207,7 +206,7 @@ describe('useTelnyxRTC lifecycle', () => {
     expect(clients()).toHaveLength(1);
   });
 
-  it('balances setup and cleanup in React 18 StrictMode without reconnecting a disposed instance', () => {
+  it('balances setup and cleanup in React 19 StrictMode without reconnecting a disposed instance', () => {
     const observe = jest.fn();
     render(
       <StrictMode>
