@@ -519,11 +519,21 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
   /**
    * Starts the process to answer the incoming call.
+   * Media/device overrides apply only to this call before peer initialization.
+   * Omitted or undefined values retain its defaults; audio/video false stays
+   * disabled even with a stored device ID. A valid localStream is reused.
+   * Speaker selection needs a remote element and browser setSinkId support.
+   * Camera/video options use existing video negotiation; they do not add video
+   * to an audio-only offer or provide automatic device hot-plug recovery.
    *
    * @examples
    *
    * ```js
-   * call.answer()
+   * call.answer({
+   *   micId: selectedMicrophoneId,
+   *   speakerId: selectedSpeakerId,
+   *   remoteElement: document.getElementById('remoteMedia'),
+   * });
    * ```
    */
   async answer(params: AnswerParams = {}) {
@@ -574,29 +584,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
-    // Per-call remote/local element override (VSUP-121).
-    // When the caller passes remoteElement/localElement to answer(), merge them
-    // into this.options so the rest of the call lifecycle (attach/detach in
-    // _finalize(), media element management) uses the per-call element instead
-    // of the session-level client.remoteElement/localElement default. This
-    // enables concurrent calls in one client session to attach to independent
-    // <audio>/<video> elements without the last-writer-wins overwrite behavior.
-    // Only override when explicitly provided in params; otherwise fall back to
-    // the existing this.options value (which was set from the session default
-    // at call construction) for backward compatibility.
-    if (
-      params.remoteElement !== undefined ||
-      params.localElement !== undefined
-    ) {
-      this.options = {
-        ...this.options,
-        ...(params.remoteElement !== undefined && {
-          remoteElement: params.remoteElement,
-        }),
-        ...(params.localElement !== undefined && {
-          localElement: params.localElement,
-        }),
-      };
+    // Apply only supported, explicit per-call overrides before media capture.
+    // Keep false values and leave session defaults and other calls untouched.
+    const overrideKeys = [
+      'micId',
+      'micLabel',
+      'speakerId',
+      'camId',
+      'camLabel',
+      'audio',
+      'video',
+      'remoteElement',
+      'localElement',
+    ] as const;
+    for (const key of overrideKeys) {
+      if (params[key] !== undefined) {
+        this.options = { ...this.options, [key]: params[key] };
+      }
     }
 
     if (this.options.trickleIce) {

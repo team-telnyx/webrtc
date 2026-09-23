@@ -113,7 +113,16 @@ export interface IStatsBinding {
   callback: Function;
 }
 
-export interface AnswerParams {
+/**
+ * Per-call media overrides applied before answering. Omitted or undefined
+ * values retain the call's defaults; explicit false disables media capture
+ * for that kind. A valid existing localStream is reused without recapture.
+ * Speaker selection requires browser setSinkId support and a remote element.
+ */
+export interface AnswerParams extends Pick<
+  IVertoCallOptions,
+  'micId' | 'micLabel' | 'speakerId' | 'camId' | 'camLabel' | 'audio' | 'video'
+> {
   /**
    *  *
    * ### Setting Custom Headers
@@ -130,11 +139,6 @@ export interface AnswerParams {
    * ```
    */
   customHeaders?: Array<{ name: string; value: string }>;
-
-  /**
-   * ### Setting Media Constraints
-   */
-  video?: boolean;
 
   /**
    * Remote media element to attach this call's remote stream to.
