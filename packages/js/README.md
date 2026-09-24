@@ -412,6 +412,14 @@ client.on('telnyx.ai.conversation', (event) => {
 
 The `call_id` from the `function_call` must match the `call_id` in the `function_call_output` — this is how the backend correlates the request with the response.
 
+You can also subscribe to ACA pre-playout assistant audio events:
+
+```js
+call.sendAIConversationMessage({
+  type: 'response.audio_stream.subscribe',
+});
+```
+
 > See [Call#sendAIConversationMessage](./docs/ts/classes/Call.md#sendaiconversationmessage) for the full API reference.
 
 ---
