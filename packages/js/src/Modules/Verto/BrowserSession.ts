@@ -326,6 +326,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Server-initiated disconnect (e.g. PUNT message).
    * Purges all calls locally without sending BYE — server side may already be gone.
+   * @internal
    */
   async serverDisconnect() {
     logger.info(
@@ -351,6 +352,7 @@ export default abstract class BrowserSession extends BaseSession {
   /**
    * Handle login error
    * @return void
+   * @internal
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handleLoginError(error: any) {

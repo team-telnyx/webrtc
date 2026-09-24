@@ -69,20 +69,37 @@ export interface PreCallMicrophoneOptions {
   warnOnRecording?: (notice: string) => void;
 }
 
+/**
+ * Options for a pre-call diagnostic run.
+ */
 export interface PreCallDiagnosticOptions {
+  /** Client used for the diagnostic call. */
   client: TelnyxRTC;
+  /** Destination to call for the test. */
   destinationNumber?: string;
+  /** Caller ID name. */
   callerName?: string;
+  /** Caller ID number. */
   callerNumber?: string;
+  /** Audio capture constraints. */
   audio?: boolean | MediaStreamConstraints['audio'];
+  /** Interval between statistics samples, in milliseconds. */
   statsSampleIntervalMs?: number;
+  /** Network sampling duration, in milliseconds. */
   durationMs?: number;
+  /** Whether to hang up the diagnostic call after testing. */
   autoHangup?: boolean;
+  /** ICE checks and candidate gathering options. */
   ice?: boolean | PreCallIceOptions;
+  /** Network checks to run. */
   network?: boolean | PreCallNetworkOptions;
+  /** Microphone checks and optional recording settings. */
   microphone?: boolean | PreCallMicrophoneOptions;
+  /** Which diagnostic checks to run. */
   mode?: 'full' | 'network-only' | 'microphone-only';
+  /** Include diagnostic debugging data. */
   debug?: boolean;
+  /** Peer connection configuration for the diagnostic call. */
   rtcConfig?: RTCConfiguration;
 }
 
@@ -106,6 +123,7 @@ export interface PreCallEstablishmentTimings {
   steps: PreCallEstablishmentStep[];
 }
 
+/** Diagnostic duration and call-establishment timing measurements. */
 export interface PreCallTimingsReport {
   /** Total diagnostic duration, including cleanup. */
   totalMs?: number;
@@ -153,20 +171,37 @@ export interface NominatedPair extends RTCIceCandidatePairStats {
   remoteCandidate?: RTCIceCandidateStats;
 }
 
+/**
+ * ICE candidates, selected pair and connectivity findings.
+ */
 export interface PreCallIceReport {
+  /** Whether candidate gathering completed. */
   candidateGatheringCompleted?: boolean;
+  /** Whether gathering completed for the test. */
   gatheringComplete?: boolean;
+  /** Candidate counts grouped by type. */
   candidateCounts: Record<RTCIceCandidateType, number>;
+  /** Gathered ICE candidate statistics. */
   candidates: RTCIceCandidateStats[];
+  /** Whether a relay candidate was found. */
   hasRelayCandidate: boolean;
+  /** Whether all candidates are host candidates. */
   onlyHostCandidates: boolean;
+  /** Whether the test indicates TURN is required. */
   isTurnRequired?: boolean;
+  /** Whether multiple network interfaces were detected. */
   hasMultipleNetworkInterfaces?: boolean;
+  /** Whether the test detected a possible VPN. */
   vpnDetected?: boolean;
+  /** Whether a candidate pair was selected. */
   hasSelectedPair: boolean;
+  /** Selected pair and its local and remote candidates. */
   selectedPair?: NominatedPair;
+  /** ICE gathering state at collection time. */
   iceGatheringState?: RTCIceGatheringState | string;
+  /** ICE connection state at collection time. */
   iceConnectionState?: RTCIceConnectionState | string;
+  /** Candidate results grouped by ICE server. */
   serverCandidateComparison?: PreCallIceServerComparisonEntry[];
 }
 
@@ -215,15 +250,27 @@ export interface NetworkAudioDirection {
   bytesDelta?: number;
 }
 
+/**
+ * Network quality and audio-flow measurements.
+ */
 export interface PreCallNetworkReport {
+  /** Network quality assessment. */
   quality?: 'good' | 'fair' | 'poor' | 'unknown';
+  /** Round-trip time statistics. */
   rtt?: NetworkMinMaxAverage;
+  /** Jitter statistics. */
   jitter?: NetworkMinMaxAverage;
+  /** Packet counts and loss. */
   packets?: NetworkPacketCounters;
+  /** Sent and received byte counts. */
   bytes?: NetworkByteCounters;
+  /** Inbound and outbound bitrate. */
   bitrate?: NetworkBitrate;
+  /** Received audio-flow measurements. */
   inbound?: NetworkAudioDirection;
+  /** Sent audio-flow measurements. */
   outbound?: NetworkAudioDirection;
+  /** Reasons supporting the network assessment. */
   reasons?: PreCallDiagnosticReason[];
 }
 
@@ -245,29 +292,51 @@ export interface PreCallMicrophoneAudioLevelStats {
   samples: number;
 }
 
+/**
+ * Microphone permissions, availability and optional capture results.
+ */
 export interface PreCallMicrophoneReport {
+  /** Current microphone permission state. */
   currentPermissionState: MicrophonePermissionState;
+  /** Whether microphone permission is granted. */
   isPermissionGrantedCurrently: boolean;
+  /** Whether media capture failed. */
   isGetUserMediaFailed: boolean;
+  /** Whether an audio input is available. */
   deviceAvailable: boolean;
+  /** Number of audio inputs found. */
   deviceCount: number;
+  /** Available audio inputs. */
   devices: PreCallAudioDevice[];
+  /** Whether device labels are accessible. */
   labelsAccessible?: boolean;
+  /** Whether microphone capture was attempted. */
   activeCapturePerformed?: boolean;
+  /** Measured audio level. */
   audioLevel?: number;
+  /** Audio-level summary statistics. */
   audioLevelStats?: PreCallMicrophoneAudioLevelStats;
+  /** Whether audio was detected. */
   audioDetected?: boolean;
+  /** Capture failure category. */
   captureError?:
     | 'permission_denied'
     | 'no_device'
     | 'not_supported'
     | 'unknown';
+  /** Capture failure description. */
   captureErrorMessage?: string;
+  /** Whether optional recording was performed. */
   recordingPerformed?: boolean;
+  /** Recorded audio as a data URL, when requested. */
   recordingDataUrl?: string;
+  /** Recorded audio MIME type. */
   recordingMimeType?: string;
+  /** Recorded audio duration, in milliseconds. */
   recordingDurationMs?: number;
+  /** Whether recorded audio playback was performed. */
   playbackPerformed?: boolean;
+  /** Reasons supporting the microphone assessment. */
   reasons?: PreCallDiagnosticReason[];
 }
 
@@ -282,22 +351,36 @@ export interface PreCallServerTestReport {
   error?: string;
 }
 
+/**
+ * Results of a pre-call diagnostic run, including the enabled checks.
+ */
 export interface PreCallDiagnosticReport {
+  /** Report format version. */
   version: 1;
+  /** Overall diagnostic assessment. */
   verdict?:
     | 'ready'
     | 'degraded'
     | 'blocked'
     | 'permission_denied'
     | 'inconclusive';
+  /** Reasons supporting the assessment. */
   reasons?: PreCallDiagnosticReason[];
+  /** Warnings encountered during the checks. */
   warnings?: PreCallDiagnosticWarning[];
+  /** Diagnostic and call-establishment timings. */
   timings?: PreCallTimingsReport;
+  /** ICE connectivity results. */
   ice?: PreCallIceReport;
+  /** Network quality results. */
   network?: PreCallNetworkReport;
+  /** Microphone check results. */
   microphone?: PreCallMicrophoneReport;
+  /** Results of isolated ICE server tests. */
   serverTests?: PreCallServerTestReport[];
+  /** Diagnostic call identifier, if a call was created. */
   callId?: string;
+  /** Raw statistics and samples, when included. */
   raw?: {
     stats?: RTCStatsReport | unknown;
     samples?: unknown[];

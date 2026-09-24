@@ -32,12 +32,12 @@ function findStep(
   return steps.find((step) => step.label === label);
 }
 
-/** Narrow shape of a call used to read the SDK-owned establishment timeline. */
+/** @internal Narrow shape of a call used to read the SDK-owned establishment timeline. */
 export interface TimingsCallLike {
   getEstablishmentTimings?(): PreCallEstablishmentTimings | undefined;
 }
 
-/** Optional arguments for `TimingsCollector.build()`. */
+/** @internal Optional arguments for `TimingsCollector.build()`. */
 export interface TimingsBuildOptions {
   /** The diagnostic call, if the test created one. */
   call?: TimingsCallLike;
@@ -46,6 +46,7 @@ export interface TimingsBuildOptions {
 /**
  * Collects the SDK call-establishment timeline, its requested ICE summaries,
  * and the total diagnostic duration.
+ * @internal
  */
 export class TimingsCollector {
   private readonly startedAtMonoMs = nowMonoMs();
@@ -130,7 +131,7 @@ function nowMonoMs(): number {
   return Date.now();
 }
 
-/** Create a timing collector and start measuring total diagnostic duration. */
+/** @internal Create a timing collector and start measuring total diagnostic duration. */
 export function createTimingsCollector(): TimingsCollector {
   return new TimingsCollector();
 }
