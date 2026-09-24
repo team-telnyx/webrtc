@@ -58,6 +58,7 @@ type PendingMediaRecovery = {
   callId: string;
   reason: string;
   source: 'peer_failure' | 'no_rtp';
+  peerConnection?: RTCPeerConnection;
 };
 
 /**
@@ -224,6 +225,19 @@ export default class SignalingHealthMonitor {
     const pending = this._pendingMediaRecovery;
     this._pendingMediaRecovery = null;
 
+    // A delayed no-RTP report belongs to the transport that produced it,
+    // never to a replacement peer (even if the replacement has connected).
+    if (
+      pending.source === 'no_rtp' &&
+      this._session.calls?.[pending.callId]?.peer?.instance !==
+        pending.peerConnection
+    ) {
+      logger.debug(
+        `Signaling health: ignoring stale no-RTP recovery for call ${pending.callId}`
+      );
+      return;
+    }
+
     if (this._getSignalingHealthState() === 'healthy') {
       logger.info(
         `Signaling health: signaling probe resolved, triggering pending ICE restart for call ${pending.callId}`
@@ -336,6 +350,16 @@ export default class SignalingHealthMonitor {
    * @param direction Whether inbound or outbound RTP stopped.
    */
   onNoRtp(callId: string, direction: 'inbound' | 'outbound'): void {
+    // Zero RTP during initial ICE/DTLS setup is not an established media
+    // outage. Gate before probing or queuing recovery; later degradation
+    // remains recoverable because readiness is historical and peer-owned.
+    if (!this._session.calls?.[callId]?.peer?.hasEverConnected) {
+      logger.debug(
+        `Signaling health: ignoring no-RTP recovery before initial transport connection (callId=${callId}, direction=${direction})`
+      );
+      return;
+    }
+
     logger.warn(
       `Signaling health: no RTP detected (callId=${callId}, direction=${direction})`
     );
@@ -602,6 +626,10 @@ export default class SignalingHealthMonitor {
         callId,
         reason: mediaReason,
         source: signalingSource,
+        peerConnection:
+          signalingSource === 'no_rtp'
+            ? this._session.calls?.[callId]?.peer?.instance
+            : undefined,
       };
       this._probeIfNeeded(
         `${signalingSource} detected with stale/unknown signaling`
