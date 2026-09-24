@@ -71,7 +71,12 @@ const attachMediaStream = (
   context?: IAttachMediaStreamContext
 ) => {
   const element = findElementByType(tag);
-  if (element === null) {
+  // VSUP-215: use a loose null check so a resolver function that returns
+  // `undefined` (not just `null`) is treated as "no element" and skipped
+  // without throwing on `element.getAttribute` below. The shared
+  // `findElementByType` preserves a resolver's raw return value for
+  // backwards compatibility, so it can yield `undefined` here.
+  if (element == null) {
     return;
   }
   if (!element.getAttribute('autoplay')) {
