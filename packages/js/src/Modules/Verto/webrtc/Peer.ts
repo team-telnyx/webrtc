@@ -223,6 +223,7 @@ export default class Peer {
 
   isConnectionHealthy() {
     return (
+      !!this.instance &&
       this.instance.connectionState === 'connected' &&
       this.instance.iceConnectionState === 'connected' &&
       this.instance.signalingState !== 'closed'

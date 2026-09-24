@@ -56,10 +56,37 @@ describe('Peer connection state recovery', () => {
       connectionState,
       iceConnectionState: 'connected',
       signalingState: 'stable',
-    } as RTCPeerConnection;
+      close: jest.fn(),
+    } as unknown as RTCPeerConnection;
 
     return { peer, session };
   };
+
+  it('returns false after close clears the peer connection', async () => {
+    const { peer } = createPeer('connected');
+    const connection = peer.instance;
+
+    await peer.close();
+
+    expect(connection.close).toHaveBeenCalledTimes(1);
+    expect(peer.instance).toBeNull();
+    expect(peer.isConnectionHealthy()).toBe(false);
+  });
+
+  it.each([
+    ['connected', 'connected', 'stable', true],
+    ['closed', 'closed', 'closed', false],
+    ['connected', 'connected', 'closed', false],
+    ['connected', 'completed', 'stable', false],
+  ])(
+    'preserves health for connection=%s, ICE=%s, signaling=%s',
+    (connectionState, iceConnectionState, signalingState, expected) => {
+      const { peer } = createPeer(connectionState as RTCPeerConnectionState);
+      Object.assign(peer.instance, { iceConnectionState, signalingState });
+
+      expect(peer.isConnectionHealthy()).toBe(expected);
+    }
+  );
 
   it('reports peer failure for disconnected the same way as failed', async () => {
     const { peer, session } = createPeer('disconnected');
