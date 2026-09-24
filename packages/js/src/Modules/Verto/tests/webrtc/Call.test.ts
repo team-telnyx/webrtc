@@ -1958,6 +1958,291 @@ describe('Call', () => {
     });
   });
 
+  describe('CallRecorder active-track integration', () => {
+    const makeRecorderDouble = () => ({
+      start: jest.fn(),
+      stop: jest.fn(),
+      postFinalReport: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn(),
+      _setHost: jest.fn(),
+      _setCallReportId: jest.fn(),
+    });
+
+    it('records the exact outbound sender track and inbound receiver track instead of option-stream decoys', () => {
+      const recorder = makeRecorderDouble();
+      const outboundSenderTrack = { kind: 'audio', id: 'active-outbound' };
+      const inboundReceiverTrack = { kind: 'audio', id: 'active-inbound' };
+      const decoyLocalTrack = { kind: 'audio', id: 'decoy-local' };
+      const decoyRemoteTrack = { kind: 'audio', id: 'decoy-remote' };
+
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      (call as unknown as { _callReportCollector: null })._callReportCollector =
+        null;
+      call.options.localStream = {
+        getAudioTracks: () => [decoyLocalTrack],
+      } as unknown as MediaStream;
+      call.options.remoteStream = {
+        getAudioTracks: () => [decoyRemoteTrack],
+      } as unknown as MediaStream;
+      call.peer = {
+        tryCollectTimings: jest.fn(),
+        instance: {
+          getSenders: () => [{ track: outboundSenderTrack }],
+          getReceivers: () => [{ track: inboundReceiverTrack }],
+        },
+      } as unknown as Peer;
+
+      call.setState(State.Active);
+
+      expect(recorder.start).toHaveBeenCalledWith(
+        outboundSenderTrack,
+        inboundReceiverTrack
+      );
+    });
+
+    it('keeps one stable track listener and removes it from the exact previous peer connection', () => {
+      const recorder = makeRecorderDouble();
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      const registerPeerEvents = (
+        call as unknown as {
+          _registerPeerEvents: (instance: RTCPeerConnection) => void;
+        }
+      )._registerPeerEvents;
+      const firstPeerConnection = {
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      } as unknown as RTCPeerConnection;
+      const secondPeerConnection = {
+        addEventListener: jest.fn(),
+        removeEventListener: jest.fn(),
+      } as unknown as RTCPeerConnection;
+
+      registerPeerEvents(firstPeerConnection);
+      registerPeerEvents(firstPeerConnection);
+      const trackListener = (
+        firstPeerConnection.addEventListener as jest.Mock
+      ).mock.calls.find(([type]) => type === 'track')?.[1];
+
+      expect(trackListener).toEqual(expect.any(Function));
+      expect(
+        (firstPeerConnection.addEventListener as jest.Mock).mock.calls.filter(
+          ([type]) => type === 'track'
+        )
+      ).toHaveLength(1);
+
+      registerPeerEvents(secondPeerConnection);
+
+      expect(firstPeerConnection.removeEventListener).toHaveBeenCalledWith(
+        'track',
+        trackListener
+      );
+      expect(secondPeerConnection.addEventListener).toHaveBeenCalledWith(
+        'track',
+        trackListener
+      );
+    });
+
+    it('re-syncs active recording when a peer track event exposes a late receiver', () => {
+      const recorder = makeRecorderDouble();
+      const outboundSenderTrack = { kind: 'audio', id: 'active-outbound' };
+      const oldInboundTrack = { kind: 'audio', id: 'old-inbound' };
+      const lateInboundTrack = { kind: 'audio', id: 'late-inbound' };
+      const addEventListener = jest.fn();
+      const receivers: Array<{ track: { kind: string; id: string } }> = [
+        { track: oldInboundTrack },
+      ];
+      const instance = {
+        addEventListener,
+        removeEventListener: jest.fn(),
+        getSenders: () => [{ track: outboundSenderTrack }],
+        getReceivers: () => receivers,
+      } as unknown as RTCPeerConnection;
+
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      call.peer = {
+        tryCollectTimings: jest.fn(),
+        instance,
+      } as unknown as Peer;
+      (
+        call as unknown as {
+          _registerPeerEvents: (instance: RTCPeerConnection) => void;
+        }
+      )._registerPeerEvents(instance);
+      call.setState(State.Active);
+      recorder.start.mockClear();
+      const lateReceiver = { track: lateInboundTrack };
+      // A superseded receiver may remain in getReceivers(); the event's exact
+      // receiver must win rather than selecting the first audio receiver.
+      receivers.push(lateReceiver);
+      const trackListener = addEventListener.mock.calls.find(
+        ([type]) => type === 'track'
+      )?.[1];
+
+      // Recording reconciliation does not depend on event.streams, which is
+      // empty for valid streamless WebRTC tracks.
+      trackListener({
+        receiver: lateReceiver,
+        track: lateInboundTrack,
+        streams: [],
+      });
+
+      expect(recorder.start).toHaveBeenCalledWith(
+        outboundSenderTrack,
+        lateInboundTrack
+      );
+    });
+
+    it('keeps the exact event receiver across later recorder re-syncs', () => {
+      const recorder = makeRecorderDouble();
+      const outboundTrack = { kind: 'audio', id: 'outbound' };
+      const activeInboundTrack = { kind: 'audio', id: 'active-inbound' };
+      const staleInboundTrack = { kind: 'audio', id: 'stale-inbound' };
+      const activeReceiver = { track: activeInboundTrack };
+      const addEventListener = jest.fn();
+      const instance = {
+        addEventListener,
+        removeEventListener: jest.fn(),
+        getSenders: () => [{ track: outboundTrack }],
+        // Deliberately put the stale receiver last so collection ordering
+        // cannot be used to infer which receiver is active.
+        getReceivers: () => [activeReceiver, { track: staleInboundTrack }],
+      } as unknown as RTCPeerConnection;
+
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      call.peer = {
+        tryCollectTimings: jest.fn(),
+        instance,
+      } as unknown as Peer;
+      (
+        call as unknown as {
+          _registerPeerEvents: (peerConnection: RTCPeerConnection) => void;
+        }
+      )._registerPeerEvents(instance);
+      call.setState(State.Active);
+
+      const trackListener = addEventListener.mock.calls.find(
+        ([type]) => type === 'track'
+      )?.[1];
+      trackListener({
+        receiver: activeReceiver,
+        track: activeInboundTrack,
+        streams: [],
+      });
+      recorder.start.mockClear();
+
+      (
+        call as unknown as {
+          _syncCallRecorderTracks: (peerConnection: RTCPeerConnection) => void;
+        }
+      )._syncCallRecorderTracks(instance);
+
+      expect(recorder.start).toHaveBeenCalledWith(
+        outboundTrack,
+        activeInboundTrack
+      );
+    });
+
+    it('prefers active audio transceivers when no track event has been observed', () => {
+      const recorder = makeRecorderDouble();
+      const activeOutboundTrack = { kind: 'audio', id: 'active-outbound' };
+      const staleOutboundTrack = { kind: 'audio', id: 'stale-outbound' };
+      const activeInboundTrack = { kind: 'audio', id: 'active-inbound' };
+      const staleInboundTrack = { kind: 'audio', id: 'stale-inbound' };
+      const activeTransceiver = {
+        currentDirection: 'sendrecv',
+        sender: { track: activeOutboundTrack },
+        receiver: { track: activeInboundTrack },
+      };
+      const staleTransceiver = {
+        currentDirection: 'inactive',
+        sender: { track: staleOutboundTrack },
+        receiver: { track: staleInboundTrack },
+      };
+
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      call.peer = {
+        tryCollectTimings: jest.fn(),
+        instance: {
+          getTransceivers: () => [staleTransceiver, activeTransceiver],
+          getSenders: () => [staleTransceiver.sender, activeTransceiver.sender],
+          getReceivers: () => [
+            activeTransceiver.receiver,
+            staleTransceiver.receiver,
+          ],
+        },
+      } as unknown as Peer;
+
+      call.setState(State.Active);
+
+      expect(recorder.start).toHaveBeenCalledWith(
+        activeOutboundTrack,
+        activeInboundTrack
+      );
+    });
+
+    it('re-syncs recording with the successful audio-device replacement track', async () => {
+      const recorder = makeRecorderDouble();
+      const oldOutboundTrack = { kind: 'audio', id: 'old-outbound' };
+      const inboundReceiverTrack = { kind: 'audio', id: 'active-inbound' };
+      const sender: {
+        track: { kind: string; id?: string };
+        replaceTrack: jest.Mock;
+      } = {
+        track: oldOutboundTrack,
+        replaceTrack: jest.fn(),
+      };
+      sender.replaceTrack.mockImplementation(
+        async (track: MediaStreamTrack) => {
+          sender.track = track;
+        }
+      );
+
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      call.peer = {
+        instance: {
+          getSenders: () => [sender],
+          getReceivers: () => [{ track: inboundReceiverTrack }],
+        },
+      } as unknown as Peer;
+      call.options.localStream = {
+        getAudioTracks: () => [{ stop: jest.fn() }],
+        getVideoTracks: () => [],
+      } as unknown as MediaStream;
+
+      await call.setAudioInDevice('replacement-device');
+
+      const replacementTrack = sender.replaceTrack.mock.calls[0][0];
+      expect(recorder.start).toHaveBeenCalledWith(
+        replacementTrack,
+        inboundReceiverTrack
+      );
+    });
+
+    it('posts and cleans up the final recording even when the call-report collector is null', async () => {
+      const recorder = makeRecorderDouble();
+      (call as unknown as { _callRecorder: typeof recorder })._callRecorder =
+        recorder;
+      (call as unknown as { _callReportCollector: null })._callReportCollector =
+        null;
+
+      await (
+        call as unknown as { _postCallReport: () => Promise<void> }
+      )._postCallReport();
+      await Promise.resolve();
+
+      expect({
+        postFinalReport: recorder.postFinalReport.mock.calls.length,
+        cleanup: recorder.cleanup.mock.calls.length,
+      }).toEqual({ postFinalReport: 1, cleanup: 1 });
+    });
+  });
+
   // Regression test for the VSDK-279 reviewer finding: _finalize() previously
   // called _callRecorder.cleanup() before _postCallReport() ran, which nulled
   // the packet buffer so postFinalReport() had nothing to upload on every
