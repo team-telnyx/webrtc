@@ -118,65 +118,32 @@ export interface IStatsBinding {
  * values retain the call's defaults; explicit false disables media capture
  * for that kind. A valid existing localStream is reused without recapture.
  * Speaker selection requires browser setSinkId support and a remote element.
+ *
+ * localElement and remoteElement override the session-level elements for this
+ * call. Use distinct elements for concurrent calls to keep remote playback and
+ * local previews independent. Omitted elements retain the inherited defaults.
+ *
+ * @example
+ * ```js
+ * call.answer({
+ *   remoteElement: remoteElementB,
+ *   customHeaders: [{ name: 'X-Header', value: 'value' }],
+ * });
+ * ```
  */
-export interface AnswerParams extends Pick<
+export type AnswerParams = Pick<
   IVertoCallOptions,
-  'micId' | 'micLabel' | 'speakerId' | 'camId' | 'camLabel' | 'audio' | 'video'
-> {
-  /**
-   *  *
-   * ### Setting Custom Headers
-   *
-   * ```js
-   *
-   * client.newCall({
-   *  destinationNumber: '18004377950',
-   *
-   *  callerNumber: '155531234567',
-   *
-   *  customHeaders: [ {name: "X-Header", value: "value" } ]
-   * });
-   * ```
-   */
-  customHeaders?: Array<{ name: string; value: string }>;
-
-  /**
-   * Remote media element to attach this call's remote stream to.
-   *
-   * Per-call override of the session-level `client.remoteElement`. When set,
-   * this call attaches its remote stream to the provided element instead of
-   * the shared session-level element. This is required for concurrent calls
-   * in a single client session (e.g. one active + one held) so each call can
-   * play out to its own `<audio>`/`<video>` element without the last-writer-wins
-   * overwrite behavior.
-   *
-   * If omitted, the call falls back to the session-level `client.remoteElement`
-   * (backward compatible with single-call usage).
-   *
-   * @example
-   *
-   * ```js
-   * call.answer({ remoteElement: remoteElementB });
-   * ```
-   *
-   * @type {(HTMLMediaElement | string | Function)}
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  remoteElement?: HTMLMediaElement | string | Function;
-
-  /**
-   * Local media element to attach this call's local stream to.
-   *
-   * Per-call override of the session-level `client.localElement`, mirroring
-   * `remoteElement`. Useful for concurrent calls that need independent local
-   * media previews. If omitted, the call falls back to the session-level
-   * `client.localElement`.
-   *
-   * @type {(HTMLMediaElement | string | Function)}
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  localElement?: HTMLMediaElement | string | Function;
-}
+  | 'micId'
+  | 'micLabel'
+  | 'speakerId'
+  | 'camId'
+  | 'camLabel'
+  | 'audio'
+  | 'video'
+  | 'localElement'
+  | 'remoteElement'
+  | 'customHeaders'
+>;
 
 export interface IWebRTCCall {
   id: string;
