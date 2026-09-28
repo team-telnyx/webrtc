@@ -56,7 +56,6 @@ import logger from '../util/logger';
 import {
   attachMediaStream,
   detachMediaStream,
-  getUserMedia,
   setMediaElementSinkId,
   stopStream,
 } from '../util/webrtc';
@@ -1209,7 +1208,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'video');
     if (sender) {
-      const newStream = await getUserMedia({
+      const newStream = await getUserMediaWithFallback({
         video: { deviceId: { exact: deviceId } },
       });
       const videoTrack = newStream.getVideoTracks()[0];

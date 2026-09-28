@@ -109,6 +109,42 @@ describe('setAudioInDevice fallback (VSDK-647)', () => {
     expect(warning).not.toHaveBeenCalled();
   };
 
+  it.each(['NotFoundError', 'NotReadableError', 'OverconstrainedError'])(
+    'setVideoDevice retries %s without deviceId and preserves muted audio',
+    async (name) => {
+      call.muteAudio();
+      sender.track = video;
+      const newVideo = makeTrack('video', 'default-camera');
+      const videoStream = makeStream(newVideo);
+      capture
+        .mockRejectedValueOnce(new DOMException('Device unavailable', name))
+        .mockResolvedValueOnce(videoStream);
+
+      await expect(
+        call.setVideoDevice('missing-camera')
+      ).resolves.toBeUndefined();
+
+      expect(capture).toHaveBeenCalledTimes(2);
+      expect(capture).toHaveBeenNthCalledWith(1, {
+        video: { deviceId: { exact: 'missing-camera' } },
+      });
+      expect(capture).toHaveBeenNthCalledWith(2, {
+        audio: undefined,
+        video: true,
+      });
+      expect(sender.replaceTrack).toHaveBeenCalledTimes(1);
+      expect(sender.replaceTrack).toHaveBeenCalledWith(newVideo);
+      expect(call.options.localStream).toBe(videoStream);
+      expect(videoStream.getVideoTracks()).toEqual([newVideo]);
+      expect(videoStream.getAudioTracks()).toEqual([oldAudio]);
+      expect(oldAudio.enabled).toBe(false);
+      expect(call.isAudioMuted).toBe(true);
+      expect(oldAudio.stop).not.toHaveBeenCalled();
+      expect(video.stop).toHaveBeenCalledTimes(1);
+      expect(newVideo.stop).not.toHaveBeenCalled();
+    }
+  );
+
   it('requests the exact microphone and commits its actual device ID', async () => {
     await expect(
       call.setAudioInDevice('requested-mic')
