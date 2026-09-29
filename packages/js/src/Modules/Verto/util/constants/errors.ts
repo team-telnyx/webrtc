@@ -131,6 +131,20 @@ export const _SDK_ERRORS = {
     fatal: true,
   },
 
+  42004: {
+    name: 'UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE',
+    message: 'Unable to read audio input settings after device change',
+    description:
+      'The audio input track was replaced successfully, but reading its settings failed. The call continues with the new track and the recorded microphone ID falls back to default.',
+    causes: [
+      'MediaStreamTrack.getSettings() threw after audio input replacement',
+    ],
+    solutions: [
+      'No call restart is required; inspect the original error if device identification remains unavailable',
+    ],
+    fatal: false,
+  },
+
   // ── Call-control errors (440xx) ─────────────────────────────────────
   44001: {
     name: 'HOLD_FAILED',

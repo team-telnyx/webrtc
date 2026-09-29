@@ -193,10 +193,19 @@ export class Call extends BaseCall {
    * @returns Promise that returns a boolean
    */
   async setAudioOutDevice(deviceId: string): Promise<boolean> {
-    this.options.speakerId = deviceId;
-    const { remoteElement, speakerId } = this.options;
-    if (remoteElement && speakerId) {
-      return setMediaElementSinkId(remoteElement, speakerId);
+    if (this._isTerminatingOrTerminated()) return false;
+    const { remoteElement } = this.options;
+    const generation = this._mediaDeviceGeneration;
+    if (remoteElement && deviceId) {
+      const switched = await setMediaElementSinkId(remoteElement, deviceId);
+      if (
+        this._isTerminatingOrTerminated() ||
+        generation !== this._mediaDeviceGeneration ||
+        this.options.remoteElement !== remoteElement
+      )
+        return false;
+      if (switched) this.options.speakerId = deviceId;
+      return switched;
     }
     return false;
   }
