@@ -10,7 +10,9 @@
 import { SDK_ERRORS } from '../../../util/constants/errors';
 
 describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
-  const codes = Object.keys(SDK_ERRORS) as unknown as Array<keyof typeof SDK_ERRORS>;
+  const codes = Object.keys(SDK_ERRORS) as unknown as Array<
+    keyof typeof SDK_ERRORS
+  >;
 
   it('every entry has `fatal: boolean`', () => {
     for (const code of codes) {
@@ -34,11 +36,27 @@ describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
   it('the registry covers the documented error codes', () => {
     // Ensures no code was accidentally dropped during the v4 refactor.
     const expected = [
-      40001, 40002, 40003, 40004, 40005, // SDP
-      42001, 42002, 42003, // Media
-      44001, 44002, 44003, 44004, 44005, // Call control
-      45001, 45002, 45003, 45004, // WebSocket / transport
-      46001, 46002, 46003, // Auth
+      40001,
+      40002,
+      40003,
+      40004,
+      40005, // SDP
+      42001,
+      42002,
+      42003,
+      42004, // Media
+      44001,
+      44002,
+      44003,
+      44004,
+      44005, // Call control
+      45001,
+      45002,
+      45003,
+      45004, // WebSocket / transport
+      46001,
+      46002,
+      46003, // Auth
       47001, // ICE restart
       48001, // Network
       48501, // Session not reattached
@@ -51,10 +69,18 @@ describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
 
   it('terminal codes are `fatal: true` per the v4 plan', () => {
     const terminal = [
-      40001, 40002, 40003, 40004, 40005, // SDP
-      42001, 42002, 42003, // Media (default; recovery flow overrides)
-      44002, 44005, // Invalid call params, peer closed during init
-      45001, 45003, // WS connection failed, reconnection exhausted
+      40001,
+      40002,
+      40003,
+      40004,
+      40005, // SDP
+      42001,
+      42002,
+      42003, // Media (default; recovery flow overrides)
+      44002,
+      44005, // Invalid call params, peer closed during init
+      45001,
+      45003, // WS connection failed, reconnection exhausted
       46001, // LOGIN_FAILED (review: retry will likely fail again)
       46002, // Invalid credentials
       48501, // Session not reattached
@@ -67,6 +93,7 @@ describe('SDK_ERRORS — `fatal` field (VSDK-318)', () => {
 
   it('recoverable/benign codes are `fatal: false` per the v4 plan', () => {
     const nonTerminal = [
+      42004, // UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE
       44001, // HOLD_FAILED
       44003, // BYE_SEND_FAILED
       44004, // SUBSCRIBE_FAILED

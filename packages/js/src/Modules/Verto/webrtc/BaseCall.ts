@@ -41,6 +41,7 @@ import {
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   AUDIO_INPUT_DEVICE_CHANGE_SKIPPED,
+  UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -1149,10 +1150,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       // Media already switched successfully; metadata failure must not trigger
       // the MediaError handler, which can terminate the call.
       const telnyxError = createTelnyxError(
-        classifyMediaErrorCode(error),
-        error,
-        undefined,
-        false
+        UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
+        error
       );
       logger.warn('Unable to read audio input settings after device change', {
         callId: this.id,

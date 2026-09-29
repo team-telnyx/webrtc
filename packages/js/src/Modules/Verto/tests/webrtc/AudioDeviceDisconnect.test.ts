@@ -1,7 +1,10 @@
 import Verto from '../..';
 import { clearQueue, register, trigger } from '../../services/Handler';
 import { createTelnyxError, TelnyxError } from '../../util/errors';
-import { MEDIA_GET_USER_MEDIA_FAILED } from '../../util/constants/errorCodes';
+import {
+  MEDIA_GET_USER_MEDIA_FAILED,
+  UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
+} from '../../util/constants/errorCodes';
 import { SwEvent } from '../../util/constants';
 import { State } from '../../webrtc/constants';
 import logger from '../../util/logger';
@@ -208,7 +211,11 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
         ([message]) =>
           message === 'Unable to read audio input settings after device change'
       )[1].error as TelnyxError;
-      expect(diagnostic.code).toBe(MEDIA_GET_USER_MEDIA_FAILED);
+      expect(diagnostic.code).toBe(UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE);
+      expect(diagnostic.name).toBe('UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE');
+      expect(diagnostic.message).toBe(
+        'Unable to read audio input settings after device change'
+      );
       expect(diagnostic.originalError).toBe(error);
       expect(diagnostic.fatal).toBe(false);
       expect(sender.track).toBe(replacement);
