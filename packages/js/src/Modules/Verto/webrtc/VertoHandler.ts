@@ -77,6 +77,7 @@ class VertoHandler {
     const eventType = params?.eventType;
 
     const existingCall = session.calls[callID];
+    const isPeerConnectionAlive = existingCall?.peer?.isConnectionHealthy();
     const activeCallsIDs = new Set(Object.keys(session.calls));
 
     // ── Reattach session handling ────────────────────────────────────────
@@ -348,7 +349,7 @@ class VertoHandler {
       case VertoMethod.Punt:
         if (
           session.options.keepConnectionAliveOnSocketClose &&
-          existingCall?.peer?.isConnectionHealthy()
+          isPeerConnectionAlive
         ) {
           logger.info(
             '[punt] Received PUNT from server. keepConnectionAliveOnSocketClose=true — disconnecting socket only, keeping calls alive.'

@@ -108,7 +108,8 @@ describe('VertoHandler', () => {
 
       expect(instance.calls[call.id]).toBeUndefined();
       expect(call.state).toBe('destroy');
-      expect(health).not.toHaveBeenCalled();
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(health).toHaveReturnedWith(false);
       expect(Connection.mockSend).toHaveBeenCalledTimes(1);
       expect(Connection.mockSend).toHaveBeenCalledWith({
         request: {
@@ -144,7 +145,8 @@ describe('VertoHandler', () => {
         expect.objectContaining({ type: 'answer' })
       );
       expect(stalePeer.instance).toBeNull();
-      expect(health).not.toHaveBeenCalled();
+      expect(health).toHaveBeenCalledTimes(1);
+      expect(health).toHaveReturnedWith(false);
       expect(Connection.mockSend).toHaveBeenCalledWith({
         request: {
           jsonrpc: '2.0',
