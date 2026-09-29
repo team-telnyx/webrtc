@@ -13,6 +13,7 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
   - [React.js](#reactjs)
 - [Error Handling](docs/error-handling.md)
 - [Pre-Call Diagnostics](docs/pre-call-diagnostics.md)
+- [Registration Timing Logs](docs/registration-timing.md)
 - [Browser support](#Browser-support)
 - [Development](#Development)
 

@@ -9,6 +9,7 @@ import {
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
+import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
 import type {
   PreCallDiagnosticOptions,
@@ -206,8 +207,12 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *```
    */
   constructor(options: IClientOptions) {
+    const registrationTimings = new RegistrationTimings(pkg.version);
     super(options);
+    this._registrationTimings = registrationTimings;
+    registrationTimings.clientId = this.uuid;
     logger.info(`SDK version: ${pkg.version}`);
+    registrationTimings.mark('TelnyxRTC constructor complete');
   }
 
   /**

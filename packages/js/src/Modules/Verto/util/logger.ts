@@ -27,6 +27,12 @@ export function setConsoleLoggerMinLevel(level: string): void {
     CONSOLE_LEVEL_PRIORITY[level] ?? CONSOLE_LEVEL_PRIORITY['info'];
 }
 
+/** Apply the SDK's console and loglevel thresholds to diagnostic tables. */
+export function isConsoleLogEnabled(level: LogLevel): boolean {
+  const priority = CONSOLE_LEVEL_PRIORITY[level];
+  return priority >= consoleMinLevel && priority >= logger.getLevel();
+}
+
 /**
  * Serialize a value to a JSON-safe representation.
  *
