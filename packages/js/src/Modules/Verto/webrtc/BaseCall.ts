@@ -56,7 +56,6 @@ import logger from '../util/logger';
 import {
   attachMediaStream,
   detachMediaStream,
-  getUserMedia,
   setMediaElementSinkId,
   stopStream,
 } from '../util/webrtc';
@@ -92,6 +91,7 @@ import {
   enableVideoTracks,
   getStreamTrackDebugInfo,
   getTrackDebugInfo,
+  getUserMedia as getUserMediaWithFallback,
   hasOnlyHostIceCandidates,
   playAudio,
   stopAudio,
@@ -1069,7 +1069,7 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     let newStream: MediaStream;
     try {
-      newStream = await getUserMedia({
+      newStream = await getUserMediaWithFallback({
         audio: { deviceId: { exact: deviceId } },
       });
     } catch (error) {
@@ -1106,7 +1106,9 @@ export default abstract class BaseCall implements IWebRTCCall {
     // replacement succeeds. This prevents isAudioMuted from flipping on
     // failure while the actual audio track stays unchanged.
     this._desiredAudioMuted = newDesiredMuted;
-    this.options.micId = deviceId;
+    // Capture may have fallen back to the default microphone. Never record
+    // the requested device as active unless the acquired track confirms it.
+    this.options.micId = audioTrack.getSettings()?.deviceId || 'default';
 
     const { localStream } = this.options;
     localStream.getAudioTracks().forEach((t) => t.stop());
@@ -1206,7 +1208,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'video');
     if (sender) {
-      const newStream = await getUserMedia({
+      const newStream = await getUserMediaWithFallback({
         video: { deviceId: { exact: deviceId } },
       });
       const videoTrack = newStream.getVideoTracks()[0];
