@@ -113,6 +113,34 @@ playout, and hanging up one call only detaches that call's stream. The
 session-level `client.remoteElement` remains the fallback default for any call
 that doesn't specify its own element.
 
+#### Answer-time media and device selection
+
+Inbound calls accept the same `micId`, `micLabel`, `speakerId`, `camId`,
+`camLabel`, `audio`, and `video` options as `newCall()`. Apply them when answering,
+alongside per-call elements or custom headers:
+
+```js
+call.answer({
+  micId: selectedMicrophoneId,
+  speakerId: selectedSpeakerId,
+  audio: { echoCancellation: true },
+  remoteElement: document.getElementById('remoteMedia'),
+});
+```
+
+These overrides apply to the initial call media setup, not a later device switch.
+Omitted or `undefined` fields retain the call's inherited defaults. Explicit
+`audio: false` or `video: false` disables capture for that kind even when a device
+ID is stored. A valid existing `localStream` is reused, not replaced. Client
+defaults and other calls are unchanged; use distinct remote elements for
+independent speaker routing across concurrent calls.
+
+Speaker routing requires browser `setSinkId` support, permission, and a remote
+media element. Device discovery may still request permission using a temporary
+default-device stream before the selected-device capture. Camera/video options
+use existing video negotiation and cannot add video to an audio-only offer.
+These options do not provide automatic hot-plug recovery.
+
 ### Events
 
 ```js
