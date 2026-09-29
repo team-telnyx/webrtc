@@ -1,6 +1,6 @@
 import Verto from '../..';
 import { clearQueue, register, trigger } from '../../services/Handler';
-import { createTelnyxError } from '../../util/errors';
+import { createTelnyxError, TelnyxError } from '../../util/errors';
 import { MEDIA_GET_USER_MEDIA_FAILED } from '../../util/constants/errorCodes';
 import { SwEvent } from '../../util/constants';
 import { State } from '../../webrtc/constants';
@@ -128,6 +128,7 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
     register(SwEvent.MediaError, mediaError, call.id);
     hangup = jest.spyOn(call, 'hangup').mockResolvedValue(undefined);
     jest.spyOn(logger, 'warn');
+    jest.spyOn(logger, 'debug');
   });
   afterEach(() => {
     call.setState(State.Destroy);
@@ -187,6 +188,43 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
     expect(element.setSinkId).not.toHaveBeenCalled();
     expect(call.options.micId).toBe('internal-mic');
   });
+  it.each(['manual', 'recovery'])(
+    'logs a nonfatal structured settings error after a successful %s switch',
+    async (mode) => {
+      await start();
+      call.muteAudio();
+      const error = new Error('settings unavailable');
+      replacement.getSettings = () => {
+        throw error;
+      };
+      if (mode === 'manual') await call.setAudioInDevice('internal-mic');
+      else await change(inventory.filter((d) => d !== mic));
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        'Unable to read audio input settings after device change',
+        { callId: call.id, error: expect.any(TelnyxError) }
+      );
+      const diagnostic = (logger.warn as jest.Mock).mock.calls.find(
+        ([message]) =>
+          message === 'Unable to read audio input settings after device change'
+      )[1].error as TelnyxError;
+      expect(diagnostic.code).toBe(MEDIA_GET_USER_MEDIA_FAILED);
+      expect(diagnostic.originalError).toBe(error);
+      expect(diagnostic.fatal).toBe(false);
+      expect(sender.track).toBe(replacement);
+      expect(call.options.localStream.getAudioTracks()).toEqual([replacement]);
+      expect(call.options.localStream.getVideoTracks()).toEqual([video]);
+      expect(call.options.micId).toBe('default');
+      expect(call.isAudioMuted).toBe(true);
+      expect(replacement.enabled).toBe(false);
+      expect(audio.stop).toHaveBeenCalledTimes(1);
+      expect(replacement.stop).not.toHaveBeenCalled();
+      expect(video.stop).not.toHaveBeenCalled();
+      expect(mediaError).not.toHaveBeenCalled();
+      expect(hangup).not.toHaveBeenCalled();
+      expect(call.state).toBe('active');
+    }
+  );
   it('recovers only the actual output sink without recapturing media', async () => {
     await start();
     call.options.speakerId = 'stale-requested-speaker';
@@ -300,6 +338,10 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
     fire();
     pending.resolve(builtIn);
     await flush();
+    expect(logger.debug).toHaveBeenCalledWith(
+      'MediaDeviceCollector: skipping superseded enumeration',
+      { callId: call.id }
+    );
     expect(capture).not.toHaveBeenCalled();
     expect(element.setSinkId).not.toHaveBeenCalled();
   });
@@ -403,6 +445,12 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
     pending.resolve(inventory);
     await flush();
     expect(listeners.size).toBe(0);
+    expect(logger.debug).toHaveBeenCalledWith(
+      'MediaDeviceCollector: stopped before applying enumeration',
+      { callId: call.id }
+    );
+    expect(capture).not.toHaveBeenCalled();
+    expect(element.setSinkId).not.toHaveBeenCalled();
   });
   it.each(['capture', 'replacement'])(
     'disposes new media without committing after teardown during %s',

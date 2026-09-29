@@ -211,8 +211,22 @@ export class MediaDeviceCollector {
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           // A later event supersedes this enumeration. Never apply stale removals.
-          if (this._stopped) return;
-          if (this._pending) continue;
+          if (this._stopped) {
+            logger.debug(
+              'MediaDeviceCollector: stopped before applying enumeration',
+              { callId: this._call.id }
+            );
+            return;
+          }
+          if (this._pending) {
+            logger.debug(
+              'MediaDeviceCollector: skipping superseded enumeration',
+              {
+                callId: this._call.id,
+              }
+            );
+            continue;
+          }
           await this._scan(devices);
         } catch (error) {
           logger.debug('MediaDeviceCollector: enumerate/devices failed', {
