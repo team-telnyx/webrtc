@@ -8,6 +8,7 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
   TELNYX_ICE_SERVERS,
+  getDefaultIceServers,
 } from '../util/constants';
 import {
   clearReconnectToken,
@@ -1098,6 +1099,70 @@ describe('Verto', () => {
         credential: 'testpassword',
       },
     ]);
+  });
+
+  it('points the default TURN servers at the pinned region', () => {
+    const telnyxRTC = _buildInstance({
+      login: 'login',
+      password: 'password',
+      region: 'apac',
+    });
+
+    expect(telnyxRTC.iceServers).toEqual([
+      { urls: 'stun:stun.telnyx.com:3478' },
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:apac.turn.telnyx.com:3478?transport=udp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turn:apac.turn.telnyx.com:3478?transport=tcp',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+      {
+        urls: 'turns:apac.turn.telnyx.com:443',
+        username: 'testuser',
+        credential: 'testpassword',
+      },
+    ]);
+    expect(telnyxRTC.iceServers).toEqual(
+      getDefaultIceServers(undefined, 'apac')
+    );
+    // the shared defaults are not mutated
+    expect(DEFAULT_PROD_ICE_SERVERS[2].urls).toBe(
+      'turn:turn.telnyx.com:3478?transport=udp'
+    );
+  });
+
+  it('uses the regional dev TURN names when env is development and a region is pinned', () => {
+    const telnyxRTC = _buildInstance({
+      env: 'development',
+      login: 'login',
+      password: 'password',
+      region: 'us-west',
+    });
+
+    expect(telnyxRTC.iceServers.map((server) => server.urls)).toEqual([
+      'stun:stundev.telnyx.com:3478',
+      'stun:stun.l.google.com:19302',
+      'turn:us-west.turndev.telnyx.com:3478?transport=udp',
+      'turn:us-west.turndev.telnyx.com:3478?transport=tcp',
+      'turns:us-west.turndev.telnyx.com:443',
+    ]);
+  });
+
+  it('leaves explicit iceServers alone even when a region is pinned', () => {
+    const iceServers = [{ urls: 'turn:turn.example.com:3478' }];
+    const telnyxRTC = _buildInstance({
+      login: 'login',
+      password: 'password',
+      region: 'eu',
+      iceServers,
+    });
+
+    expect(telnyxRTC.iceServers).toBe(iceServers);
   });
 
   it('should return iceServers with DEFAULT_DEV_ICE_SERVERS when env is development', () => {
