@@ -19,6 +19,7 @@ import {
   createLogCollector,
   setGlobalLogCollector,
 } from '../../../Modules/Verto/util/LogCollector';
+import type { IRegistrationSummary } from '../../../Modules/Verto/util/RegistrationTiming';
 import {
   type ITelnyxWarning,
   type SdkWarningCode,
@@ -477,6 +478,8 @@ export interface IClientSummary {
     skipLastVoiceSdkId?: boolean;
     skipTrailing?: boolean;
   };
+  /** How long the registration this call ran on took to establish. */
+  registration?: IRegistrationSummary;
   media?: {
     audio?: unknown;
     video?: unknown;

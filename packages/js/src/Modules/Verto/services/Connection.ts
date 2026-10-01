@@ -20,6 +20,7 @@ import {
   safeParseJson,
 } from '../util/helpers';
 import logger from '../util/logger';
+import { RegistrationTiming } from '../util/RegistrationTiming';
 import {
   getReconnectToken,
   getReconnectTokenCanaryRtcServer,
@@ -218,6 +219,11 @@ export default class Connection {
 
     try {
       const previousSocketGeneration = this.socketGeneration;
+      // Registration timing starts with the socket and is reported in call
+      // reports. Any connect after the session's first one is a reconnect.
+      this.session.registrationTiming = new RegistrationTiming(
+        previousSocketGeneration > 0
+      );
       this._wsClient = new WebSocketClass(websocketUrl.toString());
       this.socketGeneration += 1;
       logger.debug('WebSocket connection created', {
@@ -379,8 +385,12 @@ export default class Connection {
     // generation, causing onNetworkClose to treat the stale event as a
     // new reconnect attempt.
     const registeredGeneration = this.socketGeneration;
+    // Captured for the same reason: a stale socket must not mark the
+    // registration timing of the connection that replaced it.
+    const registrationTiming = this.session.registrationTiming;
 
     ws.onopen = (event): boolean => {
+      registrationTiming?.markSocketOpen();
       logger.debug('WebSocket onopen', {
         socketGeneration: this.socketGeneration,
         sessionId: this.session.sessionid,

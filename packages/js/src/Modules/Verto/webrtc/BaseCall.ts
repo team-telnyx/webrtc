@@ -54,6 +54,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import type { RegistrationTiming } from '../util/RegistrationTiming';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -116,6 +117,11 @@ const BYE_TIMEOUT_MS = 5000;
 export default abstract class BaseCall implements IWebRTCCall {
   private _webRTCStats: WebRTCStats | null;
   private _callReportCollector: CallReportCollector | null = null;
+  /**
+   * Registration this call was created on. Kept per call so every report
+   * segment describes the same registration, even after a reconnect.
+   */
+  private _registrationTiming: RegistrationTiming | null = null;
   private _callRecorder: CallRecorder | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
   private readonly _audioDeviceRecoveryErrors = new WeakSet<TelnyxError>();
@@ -2589,6 +2595,9 @@ export default abstract class BaseCall implements IWebRTCCall {
         }
       );
 
+      this._registrationTiming = this.session.registrationTiming ?? null;
+      this._registrationTiming?.claimCall(this.id);
+
       // Wire up size-aware early flush: when the payload approaches the
       // server's 2 MB limit, send an intermediate segment immediately
       // so the buffer can keep collecting for the rest of the call.
@@ -2772,6 +2781,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _getClientSummary(): IClientSummary {
     const options = this.session.options;
     const anonymousLogin = options.anonymous_login;
+    const registration = this._registrationTiming?.toSummary(this.id);
 
     return {
       authentication: {
@@ -2806,6 +2816,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         skipLastVoiceSdkId: options.skipLastVoiceSdkId ?? false,
         skipTrailing: options.skipTrailing ?? false,
       },
+      ...(registration ? { registration } : {}),
       media: {
         audio: this._sanitizeClientOption(this.options.audio),
         video: this._sanitizeClientOption(this.options.video),

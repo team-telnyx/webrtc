@@ -27,6 +27,7 @@ import {
   type IStoredActiveCall,
 } from '../../util/reconnect';
 import logger from '../../util/logger';
+import { RegistrationTiming } from '../../util/RegistrationTiming';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -991,6 +992,37 @@ describe('VertoHandler', () => {
       );
 
       expect(instance.callReportId).toBe('test-report-123');
+    });
+  });
+
+  describe('registration timing', () => {
+    it('marks clientReady and the registered gateway state', () => {
+      const registrationTiming = new RegistrationTiming(false);
+      instance.registrationTiming = registrationTiming;
+      jest.spyOn(instance, 'execute').mockResolvedValue(undefined);
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+        )
+      );
+
+      expect(registrationTiming.toSummary('call-1')).toHaveProperty(
+        'clientReadyMs'
+      );
+      expect(registrationTiming.toSummary('call-1')).not.toHaveProperty(
+        'registeredMs'
+      );
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED"},"sessid":"fab032b1-9b27-43fc"}}'
+        )
+      );
+
+      expect(registrationTiming.toSummary('call-1')).toHaveProperty(
+        'registeredMs'
+      );
     });
   });
 

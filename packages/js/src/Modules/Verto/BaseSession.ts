@@ -59,6 +59,7 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import type { RegistrationTiming } from './util/RegistrationTiming';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -89,6 +90,9 @@ export default abstract class BaseSession {
     getReconnectTokenCanaryRtcServer();
   public dc: string | null = null;
   public region: string | null = null;
+  // Timing marks of the current registration, replaced on every connect.
+  // A line comment on purpose: a doc comment would publish it in the API docs.
+  public registrationTiming: RegistrationTiming | null = null;
 
   public connection: Connection = null;
   protected _jwtAuth: boolean = false;
@@ -782,6 +786,7 @@ export default abstract class BaseSession {
     });
 
     if (response) {
+      this.registrationTiming?.markLogin();
       this.sessionid = response.sessid;
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
