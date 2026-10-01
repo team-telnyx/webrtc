@@ -535,6 +535,7 @@ class VertoHandler {
         break;
 
       case VertoMethod.ClientReady:
+        this.session.registrationTiming?.markClientReady();
         // We need to send a GatewayState to make sure that the user is registered
         // to avoid GATEWAY_DOWN when the user tries to make a new call
         this.session.execute(messageToCheckRegisterState);
@@ -572,6 +573,7 @@ class VertoHandler {
               ) {
                 this.session._triggerKeepAliveTimeoutCheck();
                 this.retriedRegister = 0;
+                this.session.registrationTiming?.markRegistered();
 
                 // Only reset reconnect attempts on confirmed healthy
                 // registration (REGED). REGISTER alone does not guarantee

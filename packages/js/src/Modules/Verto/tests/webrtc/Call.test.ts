@@ -26,7 +26,9 @@ import {
 } from '../../util/constants';
 import { LOW_BYTES_RECEIVED } from '../../util/constants/errorCodes';
 import logger from '../../util/logger';
+import { RegistrationTiming } from '../../util/RegistrationTiming';
 import Call from '../../webrtc/Call';
+import type { IClientSummary } from '../../webrtc/CallReportCollector';
 import Peer from '../../webrtc/Peer';
 import Verto from '../..';
 
@@ -967,6 +969,68 @@ describe('Call', () => {
         'then',
         expect.any(Function)
       );
+    });
+
+    describe('registration timing', () => {
+      const clientSummaryOf = (c: Call) =>
+        (
+          c as unknown as { _getClientSummary: () => IClientSummary }
+        )._getClientSummary();
+
+      it('flags only the first call created on a registration as its first call', () => {
+        const registrationTiming = new RegistrationTiming(false);
+        registrationTiming.markSocketOpen();
+        registrationTiming.markLogin();
+        registrationTiming.markClientReady();
+        registrationTiming.markRegistered();
+        session.registrationTiming = registrationTiming;
+
+        const firstCall = new Call(session, { ...defaultParams, id: 'first' });
+        const secondCall = new Call(session, {
+          ...defaultParams,
+          id: 'second',
+        });
+
+        expect(clientSummaryOf(firstCall).registration).toEqual({
+          socketOpenMs: expect.any(Number),
+          loginMs: expect.any(Number),
+          clientReadyMs: expect.any(Number),
+          registeredMs: expect.any(Number),
+          reconnect: false,
+          firstCall: true,
+        });
+        expect(clientSummaryOf(secondCall).registration).toEqual(
+          expect.objectContaining({ reconnect: false, firstCall: false })
+        );
+      });
+
+      it('keeps describing the registration the call was created on after a reconnect', () => {
+        session.registrationTiming = new RegistrationTiming(false);
+        const callBeforeReconnect = new Call(session, {
+          ...defaultParams,
+          id: 'before-reconnect',
+        });
+
+        session.registrationTiming = new RegistrationTiming(true);
+        const callAfterReconnect = new Call(session, {
+          ...defaultParams,
+          id: 'after-reconnect',
+        });
+
+        expect(clientSummaryOf(callBeforeReconnect).registration).toEqual(
+          expect.objectContaining({ reconnect: false, firstCall: true })
+        );
+        expect(clientSummaryOf(callAfterReconnect).registration).toEqual(
+          expect.objectContaining({ reconnect: true, firstCall: true })
+        );
+      });
+
+      it('omits the registration when the session never started one', () => {
+        session.registrationTiming = null;
+        const c = new Call(session, defaultParams);
+
+        expect(clientSummaryOf(c)).not.toHaveProperty('registration');
+      });
     });
   });
 

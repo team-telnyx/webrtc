@@ -757,6 +757,38 @@ describe('Connection - Safety Timeout', () => {
     });
   });
 
+  describe('registration timing', () => {
+    it('starts a fresh timing per connect and flags later connects as reconnects', () => {
+      connection.connect();
+      const first = mockSession.registrationTiming;
+
+      connection.connect();
+      const second = mockSession.registrationTiming;
+
+      expect(first.reconnect).toBe(false);
+      expect(second).not.toBe(first);
+      expect(second.reconnect).toBe(true);
+    });
+
+    it('marks socket open on the timing of the socket that opened', async () => {
+      connection.connect();
+      const first = mockSession.registrationTiming;
+      const firstSocket = (connection as any)._wsClient;
+
+      expect(first.toSummary('call-1')).not.toHaveProperty('socketOpenMs');
+
+      // A reconnect replaces the timing before the first socket opens.
+      connection.connect();
+      const second = mockSession.registrationTiming;
+      (connection as any)._wsClient.onopen = null;
+
+      firstSocket.onopen({ type: 'open' });
+
+      expect(first.toSummary('call-1')).toHaveProperty('socketOpenMs');
+      expect(second.toSummary('call-1')).not.toHaveProperty('socketOpenMs');
+    });
+  });
+
   describe('onmessage event', () => {
     it('stores call report voice_sdk_id on the owning session when received', async () => {
       connection.connect();
