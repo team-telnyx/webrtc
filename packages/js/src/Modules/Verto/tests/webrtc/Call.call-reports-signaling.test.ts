@@ -82,7 +82,7 @@ describe.each([false, true])(
             }),
             'User-Agent': expect.stringMatching(/^Web-/),
             ...(trickle && { trickle: true }),
-            ...(enabled === false && { call_reports_enabled: false }),
+            call_reports_enabled: enabled !== false,
           });
           expect(request.params.dialogParams).not.toHaveProperty(
             'call_reports_enabled'
