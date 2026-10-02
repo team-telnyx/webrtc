@@ -606,6 +606,13 @@ class VertoHandler {
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
 
+                // Registration is the earliest point the client is idle and the
+                // ICE configuration is settled, so it is where warming buys the
+                // most time before the first call.
+                session.warmPeerConnection(
+                  session.options.prefetchIceCandidates ?? true
+                );
+
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }

@@ -29,6 +29,10 @@ import {
 } from './webrtc/helpers';
 import { findElementByType } from './util/helpers';
 import logger from './util/logger';
+import {
+  PeerConnectionPrewarmer,
+  PrewarmConfig,
+} from './webrtc/PeerConnectionPrewarmer';
 import { Unsubscribe, Subscribe, Broadcast } from './messages/Verto';
 import { stopStream } from './util/webrtc';
 import { IWebRTCCall } from './webrtc/interfaces';
@@ -179,6 +183,12 @@ export default abstract class BrowserSession extends BaseSession {
 
   private _iceServers: RTCIceServer[] = [];
 
+  /**
+   * Holds one idle peer connection so its ICE candidate pool can gather before a
+   * call needs it. Only active when the client opts in via prewarmPeerConnection.
+   */
+  private _peerConnectionPrewarmer = new PeerConnectionPrewarmer();
+
   private _localElement: HTMLMediaElement = null;
 
   /**
@@ -319,6 +329,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._peerConnectionPrewarmer.dispose();
 
     await super.disconnect();
   }
@@ -340,6 +351,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._peerConnectionPrewarmer.dispose();
 
     await super.disconnect();
   }
@@ -741,6 +753,37 @@ export default abstract class BrowserSession extends BaseSession {
 
   get iceServers() {
     return this._iceServers;
+  }
+
+  /**
+   * Build the idle peer connection whose ICE pool a subsequent call can adopt.
+   *
+   * Called once the client is ready, which is the whole point: the pool needs
+   * wall-clock time to gather, and the gap between newCall() and the offer is
+   * only about 40ms. Warmed with the session-level ICE configuration, so a call
+   * that overrides iceServers or forces relay simply will not match and gathers
+   * fresh.
+   */
+  warmPeerConnection(prefetchIceCandidates = true) {
+    if (!this.options.prewarmPeerConnection) return;
+
+    this._peerConnectionPrewarmer.prewarm({
+      bundlePolicy: 'balanced',
+      iceCandidatePoolSize: prefetchIceCandidates ? 10 : 0,
+      iceServers: this.iceServers,
+      iceTransportPolicy: this.options.forceRelayCandidate ? 'relay' : 'all',
+    });
+  }
+
+  /**
+   * Hand a call the warmed peer connection when its configuration matches,
+   * otherwise null. Ownership transfers to the caller.
+   */
+  takePrewarmedPeerConnection(
+    config: PrewarmConfig
+  ): RTCPeerConnection | null {
+    if (!this.options.prewarmPeerConnection) return null;
+    return this._peerConnectionPrewarmer.take(config);
   }
 
   /**
