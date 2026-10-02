@@ -2005,6 +2005,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       sdp,
       dialogParams: this.options,
       'User-Agent': `Web-${SDK_VERSION}`,
+      // Expose explicit opt-out in VSP's existing call-signaling logs.
+      ...(this.session.options.enableCallReports === false && {
+        call_reports_enabled: false,
+      }),
     };
 
     // ICE restart: send Modify with new SDP regardless of original call direction
@@ -2107,6 +2111,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       dialogParams: this.options,
       trickle: true,
       'User-Agent': `Web-${SDK_VERSION}`,
+      // Expose explicit opt-out in VSP's existing call-signaling logs.
+      ...(this.session.options.enableCallReports === false && {
+        call_reports_enabled: false,
+      }),
     };
 
     // ICE restart: send a trickle Modify with the new offer SDP; subsequent
