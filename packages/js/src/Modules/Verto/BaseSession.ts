@@ -59,6 +59,7 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import TelemetryClient from './telemetry/TelemetryClient';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -91,6 +92,8 @@ export default abstract class BaseSession {
   public region: string | null = null;
 
   public connection: Connection = null;
+  /** Call Report V2 telemetry sender; null when telemetry is off. */
+  public telemetry: TelemetryClient | null = null;
   protected _jwtAuth: boolean = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
@@ -130,6 +133,14 @@ export default abstract class BaseSession {
   private registerAgent: RegisterAgent;
 
   constructor(public options: IVertoOptions) {
+    this.telemetry = TelemetryClient.create(options);
+    this.telemetry?.attach({
+      getLoginParams: () => this._getTelemetryLoginParams(),
+      getVoiceSdkId: () => this.callReportVoiceSdkId,
+      getSessionId: () => this.sessionid,
+      getSocketGeneration: () => this.connection?.socketGeneration ?? 0,
+    });
+
     if (!this.validateOptions()) {
       throw new Error('Invalid init options');
     }
@@ -334,6 +345,28 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Credentials for the telemetry socket's login: the same ones as the
+   * signaling login, never logged or sent as telemetry.
+   */
+  private _getTelemetryLoginParams(): Record<string, unknown> | null {
+    const { login, password, passwd, login_token, anonymous_login } =
+      this.options;
+    if (login_token) return { login_token };
+    if (login && (password || passwd)) {
+      return { login, passwd: password || passwd };
+    }
+    if (anonymous_login) {
+      return {
+        anonymous_login: {
+          target_type: anonymous_login.target_type,
+          target_id: anonymous_login.target_id,
+        },
+      };
+    }
+    return null;
+  }
+
+  /**
    * Validates the options passed in.
    * TelnyxRTC requires (login and password) OR login_token
    * Verto requires host, login, passwd OR password
@@ -373,6 +406,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+    this.telemetry?.close();
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
     );
@@ -501,6 +535,7 @@ export default abstract class BaseSession {
     }
 
     this._autoReconnect = true;
+    this.telemetry?.connect();
     if (!this.connection.isAlive) {
       logger.debug(
         "Connection wasn't alive, initiating connection to the server..."
@@ -762,7 +797,8 @@ export default abstract class BaseSession {
         reconnectSessionId,
         userVariables,
         isReconnection,
-        earlySdpAnswer
+        earlySdpAnswer,
+        this.telemetry?.sdkInstanceId
       );
     } else {
       msg = new AnonymousLogin({
@@ -773,6 +809,7 @@ export default abstract class BaseSession {
         sessionId: reconnectSessionId,
         userVariables: this.options.userVariables,
         reconnection: isReconnection,
+        sdkInstanceId: this.telemetry?.sdkInstanceId,
       });
     }
 

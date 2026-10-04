@@ -1,3 +1,4 @@
+import type { ITelemetryOptions } from '../Modules/Verto/telemetry/TelemetryClient';
 import Call from '../Modules/Verto/webrtc/Call';
 import {
   Environment,
@@ -265,6 +266,11 @@ export interface IClientOptions {
    */
   maxReconnectAttempts?: number;
 
+  /**
+   * Call Report V2 telemetry (beta): the SDK's own telemetry socket, one
+   * message per event. Off unless `url` is set; `enabled: false` switches it off.
+   */
+  telemetry?: ITelemetryOptions;
   /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, WebRTC stats are collected periodically during calls

@@ -10,6 +10,7 @@ type AnonymousLoginConstructorParams = {
   sessionId?: string;
   userVariables?: Record<string, any>;
   reconnection?: boolean;
+  sdkInstanceId?: string;
 };
 
 class AnonymousLogin extends BaseRequest {
@@ -26,6 +27,7 @@ class AnonymousLogin extends BaseRequest {
       userVariables,
       sessionId,
       reconnection,
+      sdkInstanceId,
     } = payload;
 
     const params: any = {
@@ -41,6 +43,11 @@ class AnonymousLogin extends BaseRequest {
 
     if (sessionId) {
       params.sessid = sessionId;
+    }
+
+    // Call Report V2: lets VSP's failed-login record join this SDK instance.
+    if (sdkInstanceId) {
+      params.sdk_instance_id = sdkInstanceId;
     }
 
     if (target_version_id) {
