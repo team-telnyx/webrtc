@@ -11,6 +11,7 @@ class FakeSocket {
   static instances: FakeSocket[] = [];
   readyState = 0;
   bufferedAmount = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sent: any[] = [];
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
@@ -149,7 +150,9 @@ describe('TelemetryClient', () => {
     logEvent(client, 'c');
     const all = FakeSocket.instances
       .flatMap((s) => s.events())
-      .filter((e) => e.name === 'logs' && ['a', 'b', 'c'].includes(e.payload.message));
+      .filter(
+        (e) => e.name === 'logs' && ['a', 'b', 'c'].includes(e.payload.message)
+      );
     const sequences = all.map((e) => e.sequence);
     expect(new Set(sequences).size).toBe(sequences.length);
     expect(sequences).toEqual([...sequences].sort((x, y) => x - y));
@@ -234,7 +237,7 @@ describe('TelemetryClient', () => {
     client.close();
   });
 
-  it('hands a failed instance\'s events to the next live instance', () => {
+  it("hands a failed instance's events to the next live instance", () => {
     const failed = makeClient();
     failed.emit('sdk_creation_failed', {
       error: { name: 'Error', message: 'Invalid init options', code: '44001' },

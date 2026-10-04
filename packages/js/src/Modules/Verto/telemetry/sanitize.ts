@@ -117,7 +117,10 @@ export function sanitizeMessage(message: string): string {
 
 function capStack(stack?: string): string | undefined {
   if (!stack) return undefined;
-  const frames = stack.split('\n').slice(0, MAX_STACK_FRAMES + 1).join('\n');
+  const frames = stack
+    .split('\n')
+    .slice(0, MAX_STACK_FRAMES + 1)
+    .join('\n');
   return truncate(frames, MAX_STACK_BYTES);
 }
 
@@ -129,7 +132,11 @@ function capStack(stack?: string): string | undefined {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
   if (error === null || error === undefined) {
-    return { name: 'Error', message: '', ...(code ? { code: String(code) } : {}) };
+    return {
+      name: 'Error',
+      message: '',
+      ...(code ? { code: String(code) } : {}),
+    };
   }
   if (typeof error !== 'object') {
     return {
@@ -143,7 +150,8 @@ export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
     message: sanitizeMessage(String(error.message ?? error.description ?? '')),
   };
   const sdkCode =
-    code ?? (typeof error.code === 'number' && error.code > 0 ? error.code : undefined);
+    code ??
+    (typeof error.code === 'number' && error.code > 0 ? error.code : undefined);
   if (sdkCode !== undefined) info.code = String(sdkCode);
 
   // The server's own answer: a JSON-RPC error, either the error itself or wrapped.
@@ -156,9 +164,12 @@ export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
         : undefined;
   if (server) {
     info.server_code = String(server.code);
-    if (server.message) info.server_message = sanitizeMessage(String(server.message));
+    if (server.message)
+      info.server_message = sanitizeMessage(String(server.message));
   }
-  const stack = capStack(typeof error.stack === 'string' ? scrubText(error.stack) : undefined);
+  const stack = capStack(
+    typeof error.stack === 'string' ? scrubText(error.stack) : undefined
+  );
   if (stack) info.stack = stack;
   return info;
 }

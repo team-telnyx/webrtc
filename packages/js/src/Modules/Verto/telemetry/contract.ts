@@ -1,3 +1,6 @@
+// Copied from team-telnyx/webrtc-squad-telemetry
+// docs/call-report-v2/data-design/client-data/call-report-v2-events.ts (prettier-formatted).
+// Change the contract there first, then copy it here.
 /**
  * Call Report V2: client -> VSP -> Telemetry Backend event contract (candidate, to validate in the PoC).
  * Standalone: it does not import ./call-report-v2.ts (the owner's draft), but keeps every name chosen there.
@@ -61,8 +64,8 @@
  * Server side, VSP may group many sockets' messages per request to the Telemetry Backend; that batching is ours, not the client's.
  */
 export type TelemetryNotification = {
-  jsonrpc: "2.0";
-  method: "telnyx_rtc.telemetry";
+  jsonrpc: '2.0';
+  method: 'telnyx_rtc.telemetry';
   params: ClientEvent; // the whole event: envelope + { name, payload }
 };
 
@@ -72,8 +75,8 @@ export type TelemetryNotification = {
  * Calls are never affected. Without this message, telemetry is on.
  */
 export type TelemetryControlNotification = {
-  jsonrpc: "2.0";
-  method: "telnyx_rtc.telemetry_control";
+  jsonrpc: '2.0';
+  method: 'telnyx_rtc.telemetry_control';
   params: { enabled: boolean };
 };
 
@@ -82,8 +85,8 @@ export type TelemetryControlNotification = {
 // ============================================================================
 
 export type ClientEvent =
-  | (Envelope & Exclude<EventBody, { name: "call_metrics" }>)
-  | (MetricsEnvelope & Extract<EventBody, { name: "call_metrics" }>);
+  | (Envelope & Exclude<EventBody, { name: 'call_metrics' }>)
+  | (MetricsEnvelope & Extract<EventBody, { name: 'call_metrics' }>);
 
 /**
  * call_metrics always carries these: a call cannot exist without a socket and a login (owner, 2026-09-30).
@@ -96,7 +99,7 @@ export type MetricsEnvelope = Envelope & {
 
 /** Who, where and when. Same shape for every event. */
 export type Envelope = {
-  schema_version: "2.0"; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution)
+  schema_version: '2.0'; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution)
   sequence: number; // 1, 2, 3... per sdk_instance_id, across sockets and logins, never reset, never repeated: with sdk_instance_id it identifies the event (support links, DLQ, read-time dedupe); gaps = lost events
   timestamp: string; // client time it happened. call_metrics: end of the interval
   socket_generation?: number; // the signaling socket attempt it happened on: absent before the first socket_connect_started, then 1, +1 for each new socket. A counter, not an ID
@@ -122,17 +125,17 @@ export type KnownIds = {
 
 /** What is running. Constant for the life of the SDK instance. */
 export type ClientInfo = {
-  environment: "production" | "development";
-  sdk: "js" | "react-native" | "android" | "ios" | "flutter";
+  environment: 'production' | 'development';
+  sdk: 'js' | 'react-native' | 'android' | 'ios' | 'flutter';
   sdk_version: string;
   os:
-    | "macos"
-    | "windows"
-    | "linux"
-    | "android"
-    | "ios"
-    | "chromeos"
-    | "unknown";
+    | 'macos'
+    | 'windows'
+    | 'linux'
+    | 'android'
+    | 'ios'
+    | 'chromeos'
+    | 'unknown';
   os_version?: string;
   user_agent: string; // browser UA on web; SDK-defined UA on native
   // network_type is not here: it changes during an instance's life, so it is the network_changed event.
@@ -145,100 +148,100 @@ export type ClientInfo = {
 export type EventBody =
   // ---- SDK instance ----
   /** The SDK constructor was entered. The only event that carries the options. */
-  | { name: "sdk_creation_started"; payload: { options: SdkOptions } }
+  | { name: 'sdk_creation_started'; payload: { options: SdkOptions } }
   /** The constructor threw (e.g. invalid options). */
-  | { name: "sdk_creation_failed"; payload: { error: CodedErrorInfo } }
+  | { name: 'sdk_creation_failed'; payload: { error: CodedErrorInfo } }
   /** The constructor finished. */
-  | { name: "sdk_created"; payload: SdkCreatedPayload }
+  | { name: 'sdk_created'; payload: SdkCreatedPayload }
   /** Once right after sdk_created (initial: true), then on every network type or online/offline change. */
-  | { name: "network_changed"; payload: NetworkChangedPayload }
+  | { name: 'network_changed'; payload: NetworkChangedPayload }
   /** The app went to the background or came back; on web, the tab was hidden or shown. */
-  | { name: "app_state_changed"; payload: AppStateChangedPayload }
+  | { name: 'app_state_changed'; payload: AppStateChangedPayload }
   /**
    * Devices, for the instance's whole life, in a call or not (during a call they carry its ID, like every record).
    * No device names: a label can carry a person's name, and analytics needs counts. The call's media snapshot keeps its label.
    */
-  | { name: "input_device_changed"; payload: DeviceChangedPayload }
-  | { name: "output_device_changed"; payload: DeviceChangedPayload }
+  | { name: 'input_device_changed'; payload: DeviceChangedPayload }
+  | { name: 'output_device_changed'; payload: DeviceChangedPayload }
   /** The browser's or OS's device list changed by itself (devicechange; audio route change on iOS and Android). */
-  | { name: "device_list_changed"; payload: DeviceListChangedPayload }
+  | { name: 'device_list_changed'; payload: DeviceListChangedPayload }
 
   // ---- Signaling socket (joined by the envelope's socket_generation; the target is sent once, on _started) ----
   // The telemetry socket has no events of its own: the telemetry sender logs its connects and drops (category "telemetry").
   /** A new signaling socket starts opening. socket_generation has just gone up by one. */
   | {
-      name: "socket_connect_started";
+      name: 'socket_connect_started';
       payload: { target: SocketTarget; is_reconnect: boolean };
     }
   /** The socket did not open. */
-  | { name: "socket_failed"; payload: SocketFailedPayload }
+  | { name: 'socket_failed'; payload: SocketFailedPayload }
   /** The signaling socket is open. */
-  | { name: "socket_connected"; payload: SocketConnectedPayload }
+  | { name: 'socket_connected'; payload: SocketConnectedPayload }
   /** An open socket closed. A normal close is not an error. */
-  | { name: "socket_closed"; payload: SocketClosedPayload }
+  | { name: 'socket_closed'; payload: SocketClosedPayload }
 
   // ---- Login ----
   /** The login request was sent. */
-  | { name: "login_started"; payload: LoginStartedPayload }
+  | { name: 'login_started'; payload: LoginStartedPayload }
   /** The server rejected the login, or it timed out. */
-  | { name: "login_failed"; payload: LoginFailedPayload }
+  | { name: 'login_failed'; payload: LoginFailedPayload }
   /** The server accepted the login. ids.session_id is set from this event on. */
-  | { name: "login_succeeded"; payload: LoginSucceededPayload }
+  | { name: 'login_succeeded'; payload: LoginSucceededPayload }
   /** The client can make and take calls (server clientReady). Once per (re)login. */
-  | { name: "client_ready"; payload: ClientReadyPayload }
+  | { name: 'client_ready'; payload: ClientReadyPayload }
 
   // ---- Gateway (SIP registration) ----
   /** The server reported a new gateway state. */
-  | { name: "gateway_state"; payload: GatewayStatePayload }
+  | { name: 'gateway_state'; payload: GatewayStatePayload }
   /** JS polls the gateway state after the first login. */
-  | { name: "gateway_check_started"; payload: { check_number: number } }
+  | { name: 'gateway_check_started'; payload: { check_number: number } }
   /** The poll got an answer. */
-  | { name: "gateway_check_succeeded"; payload: GatewayCheckSucceededPayload }
+  | { name: 'gateway_check_succeeded'; payload: GatewayCheckSucceededPayload }
   /** The poll errored or timed out. */
   | {
-      name: "gateway_check_failed";
+      name: 'gateway_check_failed';
       payload: { check_number: number; error: ErrorInfo; will_retry: boolean };
     }
 
   // ---- Signaling ----
   /** Every JSON-RPC frame sent or received on the signaling socket. Replaces V1's SEND:/RECV: log lines. */
-  | { name: "signaling_message"; payload: SignalingMessagePayload }
+  | { name: 'signaling_message'; payload: SignalingMessagePayload }
 
   // ---- Call ----
   /** The SDK created a call object (outbound newCall(), or an inbound invite arrived). */
-  | { name: "call_started"; payload: CallStartedPayload }
+  | { name: 'call_started'; payload: CallStartedPayload }
   /** Every SDK call state transition (trying, ringing, active, held, hangup...). */
-  | { name: "call_state"; payload: CallStatePayload }
+  | { name: 'call_state'; payload: CallStatePayload }
   /**
    * One ICE candidate, as it happens: every local candidate the SDK gathers (host, srflx, prflx, relay), and every
    * remote candidate it receives. Together they are the full list for the call. The V1 "RTCPeer Candidate:" log line
    * still goes out as a log; this is the same fact as data.
    */
-  | { name: "ice_candidate"; payload: IceCandidatePayload }
+  | { name: 'ice_candidate'; payload: IceCandidatePayload }
   /** Media setup snapshot: at the first metrics tick, then at any tick where something in it changed. */
-  | { name: "call_media_changed"; payload: CallMediaChangedPayload }
+  | { name: 'call_media_changed'; payload: CallMediaChangedPayload }
   /** Every second (1 Hz) while the call has a peer connection. */
-  | { name: "call_metrics"; payload: CallMetricsPayload }
+  | { name: 'call_metrics'; payload: CallMetricsPayload }
   /** The SDK's quality detector fired. One event per firing; episodes are derived at read time. */
-  | { name: "call_warning"; payload: CallWarningPayload }
+  | { name: 'call_warning'; payload: CallWarningPayload }
   /**
    * Once: when the call is active and DTLS has connected, whichever comes last, or at call end if either never
    * happened. Not at DTLS alone: with early media, DTLS connects before the answer. Replaces the [CallTimings] ASCII table.
    */
-  | { name: "call_timings"; payload: CallTimingsPayload }
+  | { name: 'call_timings'; payload: CallTimingsPayload }
   /** The call object was destroyed. Carries the exact final totals. */
-  | { name: "call_ended"; payload: CallEndedPayload }
+  | { name: 'call_ended'; payload: CallEndedPayload }
 
   // ---- Diagnostics, logs, errors ----
   /** An mtr/traceroute run finished (pre-call test, app, support or after a warning). Hops stay in the payload. */
-  | { name: "network_route_measured"; payload: NetworkRouteMeasuredPayload }
+  | { name: 'network_route_measured'; payload: NetworkRouteMeasuredPayload }
   /** One SDK log line = one event. The envelope timestamp is the line's time. Flattened: no `log` wrapper. */
-  | { name: "logs"; payload: LogEntry }
+  | { name: 'logs'; payload: LogEntry }
   /** An error not already covered by a *_failed event. */
-  | { name: "error"; payload: ErrorPayload };
+  | { name: 'error'; payload: ErrorPayload };
 
-export type EventName = EventBody["name"];
-export type EventPayload = EventBody["payload"];
+export type EventName = EventBody['name'];
+export type EventPayload = EventBody['payload'];
 
 // ============================================================================
 // 4. PAYLOADS AND SHARED PIECES
@@ -267,8 +270,8 @@ export type SdkOptions = {
   media_permissions_recovery: boolean | null; // JS mediaPermissionsRecovery: enabled or not (the object itself is not sent)
   ice_servers: IceServerInfo[]; // what the SDK will use: JS fills in its defaults when the app passed none
   custom_ice_servers: boolean; // true = the app passed its own ICE servers (the list above cannot say so)
-  push_provider: "fcm" | "apns" | "none";
-  log_level: "trace" | "debug" | "info" | "warn" | "error" | "off";
+  push_provider: 'fcm' | 'apns' | 'none';
+  log_level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'off';
   telemetry: TelemetryOptions;
 };
 
@@ -290,15 +293,15 @@ export type SdkCreatedPayload = {
 
 export type NetworkChangedPayload = {
   initial: boolean; // true = the snapshot right after sdk_created (the network at start), not a change
-  network_type: "wifi" | "cellular" | "ethernet" | "vpn" | "none" | "unknown";
+  network_type: 'wifi' | 'cellular' | 'ethernet' | 'vpn' | 'none' | 'unknown';
   online: boolean;
-  effective_type?: "slow-2g" | "2g" | "3g" | "4g" | "5g"; // navigator.connection or the native radio
+  effective_type?: 'slow-2g' | '2g' | '3g' | '4g' | '5g'; // navigator.connection or the native radio
   downlink_mbps?: number;
 };
 
 /** Mobile: foreground or background. Web: the tab's visibility (visibilitychange). */
 export type AppStateChangedPayload = {
-  state: "foreground" | "background" | "visible" | "hidden";
+  state: 'foreground' | 'background' | 'visible' | 'hidden';
 };
 
 /**
@@ -306,7 +309,7 @@ export type AppStateChangedPayload = {
  * "sdk" = the SDK switched by itself, e.g. back to the default device when the one in use was unplugged.
  */
 export type DeviceChangedPayload = {
-  by: "app" | "sdk";
+  by: 'app' | 'sdk';
   device_count?: number; // inputs (input_device_changed) or outputs (output_device_changed) available after the change
 };
 
@@ -361,7 +364,7 @@ export type SocketConnectedPayload = {
 export type SocketClosedPayload = {
   close_code?: number; // 1000 normal, 1006 abnormal
   reason?: string;
-  closed_by: "client" | "server" | "network" | "unknown";
+  closed_by: 'client' | 'server' | 'network' | 'unknown';
   open_duration_ms: number;
   will_reconnect: boolean;
   in_background?: boolean; // the app was in the background, or the tab hidden, when it closed (app_state_changed)
@@ -377,12 +380,12 @@ export type SocketClosedPayload = {
  * Backend replaces it with a keyed hash ("h:" + 16 hex). VSP's credential_id already identifies the credential.
  */
 export type LoginMethod =
-  | { login_type: "sip_credentials"; username: string }
-  | { login_type: "gencred"; username: string } // generated credential: provenance only, same wire login
-  | { login_type: "token" }
-  | { login_type: "anonymous"; target_type: string; target_id: string };
+  | { login_type: 'sip_credentials'; username: string }
+  | { login_type: 'gencred'; username: string } // generated credential: provenance only, same wire login
+  | { login_type: 'token' }
+  | { login_type: 'anonymous'; target_type: string; target_id: string };
 
-export type LoginType = LoginMethod["login_type"];
+export type LoginType = LoginMethod['login_type'];
 
 export type LoginStartedPayload = {
   method: LoginMethod;
@@ -437,19 +440,19 @@ export type ClientReadyPayload = SignalingVsp & {
 
 /** Known gateway states; anything else is "UNKNOWN" with raw_state kept. */
 export type GatewayState =
-  | "UNREGED"
-  | "TRYING"
-  | "REGISTER"
-  | "REGED"
-  | "UNREGISTER"
-  | "FAILED"
-  | "FAIL_WAIT"
-  | "EXPIRED"
-  | "NOREG"
-  | "TIMEOUT"
-  | "DOWN"
-  | "ATTACHED"
-  | "UNKNOWN";
+  | 'UNREGED'
+  | 'TRYING'
+  | 'REGISTER'
+  | 'REGED'
+  | 'UNREGISTER'
+  | 'FAILED'
+  | 'FAIL_WAIT'
+  | 'EXPIRED'
+  | 'NOREG'
+  | 'TIMEOUT'
+  | 'DOWN'
+  | 'ATTACHED'
+  | 'UNKNOWN';
 
 export type GatewayStatePayload = {
   state: GatewayState;
@@ -469,15 +472,15 @@ export type GatewayCheckSucceededPayload = {
 // ---------------------------------------------------------------------------
 
 /** Values from the one Category list: call frames and login/session frames. Ping/PONG and debug_report_data frames are not sent. */
-export type SignalingCategory = Extract<Category, "call" | "connection">;
+export type SignalingCategory = Extract<Category, 'call' | 'connection'>;
 
 /**
  * One JSON-RPC frame. Never params, result bodies or SDP.
  * callID and sessid from the frame go to ids.call_id / ids.session_id.
  */
 export type SignalingMessagePayload = {
-  direction: "sent" | "received";
-  kind: "request" | "response" | "error";
+  direction: 'sent' | 'received';
+  kind: 'request' | 'response' | 'error';
   method: string; // "telnyx_rtc.invite"...; a response carries its request's method
   rpc_id: string; // JSON-RPC id as a string (server ids are numbers, SDK ids UUIDs)
   response_time_ms?: number; // responses: time since the matching request
@@ -509,7 +512,7 @@ export type B2buaRtc = {
  * null = this SDK has no such option; never false for "not available".
  */
 export type CallStartedPayload = B2buaRtc & {
-  direction: "inbound" | "outbound"; // JS: a reattach after a page refresh is a new call object answered as inbound (see is_reattach)
+  direction: 'inbound' | 'outbound'; // JS: a reattach after a page refresh is a new call object answered as inbound (see is_reattach)
   // Personal data (open question). The SDK sends what it has; by default the Telemetry Backend replaces each
   // non-empty value with a keyed hash ("h:" + 16 hex, HMAC-SHA256 with a per-user secret). V1 was inconsistent: A hashed, C plain.
   caller_number?: string;
@@ -543,18 +546,18 @@ export type CallStartedPayload = B2buaRtc & {
 };
 
 export type CallState =
-  | "new"
-  | "requesting"
-  | "trying"
-  | "recovering"
-  | "ringing"
-  | "answering"
-  | "early"
-  | "active"
-  | "held"
-  | "hangup"
-  | "destroy"
-  | "purge";
+  | 'new'
+  | 'requesting'
+  | 'trying'
+  | 'recovering'
+  | 'ringing'
+  | 'answering'
+  | 'early'
+  | 'active'
+  | 'held'
+  | 'hangup'
+  | 'destroy'
+  | 'purge';
 
 /**
  * The Telnyx leg and call session IDs go to ids.telnyx_leg_id / ids.telnyx_session_id from the first call_state that knows them.
@@ -566,15 +569,15 @@ export type CallStatePayload = B2buaRtc & {
 };
 
 export type MediaChange =
-  | "initial"
-  | "codec"
-  | "candidate_pair"
-  | "ice_state"
-  | "dtls_state"
-  | "sending"
-  | "input_device"
-  | "output_device"
-  | "echo";
+  | 'initial'
+  | 'codec'
+  | 'candidate_pair'
+  | 'ice_state'
+  | 'dtls_state'
+  | 'sending'
+  | 'input_device'
+  | 'output_device'
+  | 'echo';
 
 /**
  * A full snapshot every time (the latest row is the current media state).
@@ -596,14 +599,14 @@ export type CallMediaChangedPayload = {
   previous_remote_candidate?: IceCandidate;
   pair_changes?: number; // transport.selectedCandidatePairChanges: counts every change, also two within one tick
   ice_state?:
-    | "new"
-    | "checking"
-    | "connected"
-    | "completed"
-    | "disconnected"
-    | "failed"
-    | "closed";
-  dtls_state?: "new" | "connecting" | "connected" | "closed" | "failed";
+    | 'new'
+    | 'checking'
+    | 'connected'
+    | 'completed'
+    | 'disconnected'
+    | 'failed'
+    | 'closed';
+  dtls_state?: 'new' | 'connecting' | 'connected' | 'closed' | 'failed';
   srtp_cipher?: string; // e.g. "SRTP_AES128_CM_HMAC_SHA1_80"
   dtls_version?: string; // e.g. "FEFD" (DTLS 1.2)
   sending?: boolean; // outbound encoding active (V1 audio.outbound.active)
@@ -625,13 +628,13 @@ export type Codec = {
 
 /** One ICE candidate: an entry of the candidate list (ice_candidate), or one side of the selected pair (call_media_changed). */
 export type IceCandidate = {
-  candidate_type: "host" | "srflx" | "prflx" | "relay";
-  protocol: "udp" | "tcp";
-  relay_protocol?: "udp" | "tcp" | "tls";
-  network_type?: "ethernet" | "wifi" | "cellular" | "vpn" | "unknown";
+  candidate_type: 'host' | 'srflx' | 'prflx' | 'relay';
+  protocol: 'udp' | 'tcp';
+  relay_protocol?: 'udp' | 'tcp' | 'tls';
+  network_type?: 'ethernet' | 'wifi' | 'cellular' | 'vpn' | 'unknown';
   foundation?: string;
   priority?: number;
-  tcp_type?: "active" | "passive" | "so"; // TCP candidates only
+  tcp_type?: 'active' | 'passive' | 'so'; // TCP candidates only
   related_address?: string; // raddr: for srflx/relay, the base it was derived from (masked like address)
   related_port?: number;
   // Masked by the Telemetry Backend (V1 did not mask): private, CGNAT, link-local and ULA addresses -> "192.168.139.x" /
@@ -653,9 +656,9 @@ export type IceCandidate = {
  * Remote: sent for each candidate in the remote SDP when it is applied, and for each trickle telnyx_rtc.candidate.
  */
 export type IceCandidatePayload = IceCandidate & {
-  side: "local" | "remote";
+  side: 'local' | 'remote';
   ice_generation: number; // 1 for the first gathering, +1 after each ICE restart
-  component: "rtp" | "rtcp";
+  component: 'rtp' | 'rtcp';
   since_gathering_started_ms?: number; // local: time since ICE gathering started; remote: since the remote description arrived
   // Local only. false = gathered after the SDK had already sent its SDP without trickle ICE (it waits at most 1 s,
   // 5 s on a reattach), so the far end never saw this candidate. Sample A's third relay candidate came 111 ms before
@@ -668,7 +671,7 @@ export type InputDevice = {
   label: string; // "Headset Microphone (Yealink UH37)": the trailing USB "(vid:pid)" suffix is stripped (SDK and backend)
   enabled: boolean; // false = muted by the app
   muted: boolean; // muted by the browser/OS
-  ready_state: "live" | "ended";
+  ready_state: 'live' | 'ended';
   auto_gain_control?: boolean;
   echo_cancellation?: boolean;
   noise_suppression?: boolean;
@@ -734,10 +737,10 @@ export type CallMetricsPayload = {
 
 /** Codes seen in the V1 samples, with the name the SDK sends. Other SDK codes pass through as numbers. */
 export const WARNING_CODES = {
-  31001: "high_network_latency",
-  31005: "low_local_audio", // microphone
-  31006: "low_inbound_audio", // also fires while the far side is silent
-  33008: "ice_pair_changed",
+  31001: 'high_network_latency',
+  31005: 'low_local_audio', // microphone
+  31006: 'low_inbound_audio', // also fires while the far side is silent
+  33008: 'ice_pair_changed',
 } as const;
 
 export type KnownWarningCode = keyof typeof WARNING_CODES;
@@ -788,15 +791,15 @@ export type CallTimingsPayload = {
 };
 
 export type CallEndReason =
-  | "local_hangup"
-  | "remote_hangup"
-  | "rejected" // inbound declined by the app
-  | "busy"
-  | "no_answer"
-  | "cancelled" // outbound hung up before answer
-  | "failed" // setup error (media, SDP, server error)
-  | "network_lost" // socket or ICE loss without a hangup
-  | "unknown";
+  | 'local_hangup'
+  | 'remote_hangup'
+  | 'rejected' // inbound declined by the app
+  | 'busy'
+  | 'no_answer'
+  | 'cancelled' // outbound hung up before answer
+  | 'failed' // setup error (media, SDP, server error)
+  | 'network_lost' // socket or ICE loss without a hangup
+  | 'unknown';
 
 export type CallEndedPayload = {
   end_reason: CallEndReason;
@@ -837,10 +840,10 @@ export type CallTotals = {
 // ---------------------------------------------------------------------------
 
 export type NetworkRouteMeasuredPayload = {
-  tool: "mtr" | "traceroute" | "other";
-  trigger: "preflight" | "app" | "support" | "quality_warning";
+  tool: 'mtr' | 'traceroute' | 'other';
+  trigger: 'preflight' | 'app' | 'support' | 'quality_warning';
   target: string; // host or IP tested, e.g. the media server
-  protocol: "icmp" | "udp" | "tcp";
+  protocol: 'icmp' | 'udp' | 'tcp';
   port?: number;
   packet_size_bytes?: number;
   probes_per_hop: number; // mtr "tests"
@@ -870,28 +873,28 @@ export type RouteHop = {
  * Hidden by default at read time (with a count): ice_candidate_error, telemetry. Keepalive is not sent at all.
  */
 export type Category =
-  | "connection" // SDK creation, network, app state, socket, login (VSP's failed-login records too), gateway; login/session signaling frames
-  | "call" // call state changes, hangup, new call; call signaling frames; call_* events
-  | "media" // getUserMedia, tracks, mute, devices, RTCPeerConnection and SDP steps (never SDP text); call_media_changed, device events
-  | "ice" // ice_candidate; gathering, connection state, "RTCPeer Candidate:" lines
-  | "warning" // quality warnings: the SDK's warning lines (31001...) and call_warning
-  | "metrics" // call_metrics
-  | "error" // error events and error-level problems
-  | "diagnostics" // network_route_measured
-  | "general" // anything else
-  | "ice_candidate_error" // noise: 59 of 176 lines in sample A
-  | "telemetry" // noise: the telemetry sender about itself (drops, its own socket's connects and failures); never one line per send
-  | "unknown"; // backend only: an event name from a newer minor schema version
+  | 'connection' // SDK creation, network, app state, socket, login (VSP's failed-login records too), gateway; login/session signaling frames
+  | 'call' // call state changes, hangup, new call; call signaling frames; call_* events
+  | 'media' // getUserMedia, tracks, mute, devices, RTCPeerConnection and SDP steps (never SDP text); call_media_changed, device events
+  | 'ice' // ice_candidate; gathering, connection state, "RTCPeer Candidate:" lines
+  | 'warning' // quality warnings: the SDK's warning lines (31001...) and call_warning
+  | 'metrics' // call_metrics
+  | 'error' // error events and error-level problems
+  | 'diagnostics' // network_route_measured
+  | 'general' // anything else
+  | 'ice_candidate_error' // noise: 59 of 176 lines in sample A
+  | 'telemetry' // noise: the telemetry sender about itself (drops, its own socket's connects and failures); never one line per send
+  | 'unknown'; // backend only: an event name from a newer minor schema version
 
 /** What the SDK may put on a log line. */
 export type LogCategory = Exclude<
   Category,
-  "metrics" | "diagnostics" | "unknown"
+  'metrics' | 'diagnostics' | 'unknown'
 >;
 
 /** One SDK log line. Its time is envelope.timestamp. */
 export type LogEntry = {
-  level: "trace" | "debug" | "info" | "warn" | "error";
+  level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   category: LogCategory; // set at the call site; the backend re-derives it from the message for SDKs that do not
   message: string; // max 2 KB
   details?: Record<string, unknown>; // plain JSON only, sanitized, max 4 KB serialized
@@ -900,13 +903,13 @@ export type LogEntry = {
 /** A call error (stage call or media) must carry the SDK's code: analytics counts calls by it (CallErrorRate). */
 export type ErrorPayload =
   | {
-      stage: "call" | "media";
+      stage: 'call' | 'media';
       error: CodedErrorInfo; // e.g. "42001" microphone permission denied, "40002" creating the SDP answer failed
       is_fatal: boolean; // the SDK can no longer work
       details?: Record<string, unknown>; // sanitized
     }
   | {
-      stage: "sdk" | "socket" | "login" | "gateway" | "telemetry" | "unknown";
+      stage: 'sdk' | 'socket' | 'login' | 'gateway' | 'telemetry' | 'unknown';
       error: ErrorInfo;
       is_fatal: boolean;
       details?: Record<string, unknown>;
@@ -968,7 +971,7 @@ export type VspLoginFailed = {
   timestamp: string; // VSP clock when it answered
   sdk_instance_id?: string; // from the login request: the SDK adds it (to do in every SDK). Omitted by older SDKs
   voice_sdk_id: string; // the signaling socket's
-  sdk: ClientInfo["sdk"] | "unknown"; // from the login request (JS: User-Agent.sdkVersion)
+  sdk: ClientInfo['sdk'] | 'unknown'; // from the login request (JS: User-Agent.sdkVersion)
   sdk_version: string; // "" when the request did not say
   user_agent?: string; // the login request's user agent, if it has one
   vsp: VspContext; // the signaling VSP's own: user_id is the zero UUID when the username or token matched no user
@@ -994,7 +997,7 @@ export type RecordCategory = Category;
 export type BackendFields = {
   received_at: string; // backend clock; ClickHouse partitions by its day
   backend_node: string; // the Telemetry Backend node that received the record (the backend's region and DC are still to decide)
-  browser?: "chrome" | "firefox" | "safari" | "edge" | "opera" | "other"; // web: parsed once from client.user_agent; omitted on native
+  browser?: 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera' | 'other'; // web: parsed once from client.user_agent; omitted on native
   client_country?: string; // ISO 3166-1 alpha-2 from vsp.client_ip, looked up before the IP is truncated; omitted when unknown
   clock_skew_ms: number; // received_at - (sent_at if present, else timestamp); includes one-way transit
   category: RecordCategory; // the read-time noise filter
@@ -1013,18 +1016,18 @@ export type TelemetryRecord =
  * (the Kafka key is then voice_sdk_id). client.os is "unknown": VSP does not know it.
  */
 export type VspLoginFailedRecord = {
-  schema_version: "2.0";
+  schema_version: '2.0';
   sequence: 0;
   timestamp: string;
-  client: Omit<ClientInfo, "sdk"> & { sdk: ClientInfo["sdk"] | "unknown" };
+  client: Omit<ClientInfo, 'sdk'> & { sdk: ClientInfo['sdk'] | 'unknown' };
   ids: { sdk_instance_id: string; voice_sdk_id: string };
-  name: "vsp_login_failed";
+  name: 'vsp_login_failed';
   payload: {
-    method: VspLoginFailed["method"];
+    method: VspLoginFailed['method'];
     is_reconnect?: boolean;
     started_by_push?: boolean;
     error: {
-      name: "LoginRejected";
+      name: 'LoginRejected';
       message: string;
       server_code: string;
       server_message: string;

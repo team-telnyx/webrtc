@@ -505,7 +505,10 @@ export default class TelemetryClient {
       this._loginId = null;
       if (msg.error) {
         this.log('warn', 'telemetry', 'Telemetry login failed', {
-          error: toErrorInfo({ code: msg.error.code, message: msg.error.message }),
+          error: toErrorInfo({
+            code: msg.error.code,
+            message: msg.error.message,
+          }),
         });
         ws.close(1000);
         return;
@@ -527,7 +530,11 @@ export default class TelemetryClient {
         this._pending = [];
       } else {
         this._remoteEnabled = true;
-        this.log('info', 'telemetry', 'Telemetry switched back on by the server');
+        this.log(
+          'info',
+          'telemetry',
+          'Telemetry switched back on by the server'
+        );
         this._flushPending();
       }
     }
@@ -585,7 +592,8 @@ export default class TelemetryClient {
    */
   orphan(): void {
     for (const { event } of this._pending) orphanEvents.push(event);
-    while (orphanEvents.length > DEFAULT_MAX_PENDING_EVENTS) orphanEvents.shift();
+    while (orphanEvents.length > DEFAULT_MAX_PENDING_EVENTS)
+      orphanEvents.shift();
     this._pending = [];
     this._closed = true;
     const index = liveClients.indexOf(this);
