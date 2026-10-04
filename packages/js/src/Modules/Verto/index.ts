@@ -202,6 +202,10 @@ export default class Verto extends BrowserSession {
       );
       setReconnectSessionId(this.sessionid);
     });
+
+    // Call Report V2: the constructor finished (then the initial network
+    // snapshot and the instance-lifetime listeners).
+    this.telemetryEvents?.created();
   }
 
   validateOptions() {

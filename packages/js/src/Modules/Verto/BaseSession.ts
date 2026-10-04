@@ -60,6 +60,17 @@ import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
 import TelemetryClient from './telemetry/TelemetryClient';
+import SessionTelemetry, {
+  B2BUA_RTC_FIELDS,
+  readServerNames,
+  readTelemetryToken,
+  SIGNALING_VSP_FIELDS,
+} from './telemetry/sessionEvents';
+import type {
+  B2buaRtcNames,
+  SignalingVspNames,
+} from './telemetry/sessionEvents';
+import { PING_RECEIVED_LOG } from './telemetry/filter';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -94,6 +105,14 @@ export default abstract class BaseSession {
   public connection: Connection = null;
   /** Call Report V2 telemetry sender; null when telemetry is off. */
   public telemetry: TelemetryClient | null = null;
+  /** Call Report V2 SDK-wide event hooks; null when telemetry is off. */
+  public telemetryEvents: SessionTelemetry | null = null;
+  /** The signaling VSP's names, from the login result (reset on each new socket). */
+  public signalingVsp: SignalingVspNames = {};
+  /** The B2BUA-RTC serving this socket, from the login result (reset on each new socket). */
+  public b2buaRtc: B2buaRtcNames = {};
+  /** Telemetry socket credential from the signaling login result. */
+  public telemetryToken: string | null = null;
   protected _jwtAuth: boolean = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
@@ -134,15 +153,26 @@ export default abstract class BaseSession {
 
   constructor(public options: IVertoOptions) {
     this.telemetry = TelemetryClient.create(options);
+    if (this.telemetry) {
+      this.telemetryEvents = new SessionTelemetry(this, this.telemetry);
+      // Sequence 1: the constructor was entered.
+      this.telemetryEvents.creationStarted(options);
+    }
     this.telemetry?.attach({
       getLoginParams: () => this._getTelemetryLoginParams(),
       getVoiceSdkId: () => this.callReportVoiceSdkId,
       getSessionId: () => this.sessionid,
-      getSocketGeneration: () => this.connection?.socketGeneration ?? 0,
+      // Per instance, +1 for each new signaling socket; never reset when the
+      // Connection object is replaced (contract: socket_generation).
+      getSocketGeneration: () => this.telemetryEvents?.socketGeneration ?? 0,
+      getDefaultUrl: () =>
+        this.connection ? `${this.connection.host}/telemetry` : null,
     });
 
     if (!this.validateOptions()) {
-      throw new Error('Invalid init options');
+      const error = new Error('Invalid init options');
+      this.telemetryEvents?.creationFailed(error);
+      throw error;
     }
 
     setConsoleLoggerMinLevel(options.debug ? 'debug' : 'info');
@@ -284,6 +314,9 @@ export default abstract class BaseSession {
             undefined,
             true // fatal: true (no recovery path — autoReconnect is disabled)
           );
+          this.telemetryEvents?.error('login', telnyxError, true, {
+            method: msg.request?.method,
+          });
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -349,19 +382,14 @@ export default abstract class BaseSession {
    * signaling login, never logged or sent as telemetry.
    */
   private _getTelemetryLoginParams(): Record<string, unknown> | null {
-    const { login, password, passwd, login_token, anonymous_login } =
-      this.options;
+    // VSP returns telemetry_token in the signaling login result; it works for
+    // every login type. Before that, VSP accepts a JWT or a generated SIP
+    // credential; any other login waits for the token.
+    if (this.telemetryToken) return { telemetry_token: this.telemetryToken };
+    const { login, password, passwd, login_token } = this.options;
     if (login_token) return { login_token };
-    if (login && (password || passwd)) {
+    if (login && (password || passwd) && /^gencred/i.test(login)) {
       return { login, passwd: password || passwd };
-    }
-    if (anonymous_login) {
-      return {
-        anonymous_login: {
-          target_type: anonymous_login.target_type,
-          target_id: anonymous_login.target_id,
-        },
-      };
     }
     return null;
   }
@@ -406,6 +434,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+    this.telemetryEvents?.dispose();
     this.telemetry?.close();
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
@@ -535,6 +564,7 @@ export default abstract class BaseSession {
     }
 
     this._autoReconnect = true;
+    this.telemetryEvents?.connectCalled();
     this.telemetry?.connect();
     if (!this.connection.isAlive) {
       logger.debug(
@@ -747,6 +777,7 @@ export default abstract class BaseSession {
         undefined,
         msg
       );
+      this.telemetryEvents?.error('login', telnyxError, false);
       trigger(
         SwEvent.Error,
         {
@@ -813,7 +844,13 @@ export default abstract class BaseSession {
       });
     }
 
+    this.telemetryEvents?.loginStarted(type, reconnectSessionId || undefined);
     const response = await this.execute(msg).catch((error) => {
+      // execute() already retried the login itself on "authentication required".
+      this.telemetryEvents?.loginFailed(
+        error,
+        error?.code === this.authenticationRequiredErrorCode
+      );
       this._handleLoginError(error);
       if (onError) onError(error);
     });
@@ -823,9 +860,37 @@ export default abstract class BaseSession {
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
       }
+      this._storeLoginResultNames(response);
+      this.telemetryEvents?.loginSucceeded();
+      // The telemetry socket waits for credentials (telemetry_token).
+      this.telemetry?.connect();
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }
+  }
+
+  /**
+   * Keeps the names VSP sends in the signaling login result (each optional).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _storeLoginResultNames(result: any): void {
+    try {
+      this.signalingVsp = readServerNames(result, SIGNALING_VSP_FIELDS);
+      this.b2buaRtc = readServerNames(result, B2BUA_RTC_FIELDS);
+      const telemetryToken = readTelemetryToken(result);
+      if (telemetryToken) this.telemetryToken = telemetryToken;
+    } catch {
+      // never break the login on telemetry fields
+    }
+  }
+
+  /**
+   * Called by Connection when a new signaling socket is created: one socket
+   * talks to one VSP and one B2BUA-RTC, so their names are reset.
+   */
+  public onNewSignalingSocket(): void {
+    this.signalingVsp = {};
+    this.b2buaRtc = {};
   }
 
   /**
@@ -1018,6 +1083,9 @@ export default abstract class BaseSession {
         this._terminateActiveCallsLocally();
 
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
+        this.telemetryEvents?.error('socket', telnyxError, true, {
+          max_reconnect_attempts: maxAttempts,
+        });
         trigger(
           SwEvent.Error,
           { error: telnyxError, sessionId: this.sessionid },
@@ -1219,8 +1287,21 @@ export default abstract class BaseSession {
     );
   }
 
+  /**
+   * A server telnyx_rtc.ping arrived. Its log line is the keepalive line that
+   * telemetry drops by exact match (contract 1.7): log it only here.
+   */
   public setPingReceived() {
-    logger.debug('Ping received');
+    logger.debug(PING_RECEIVED_LOG);
+    this._pong = true;
+  }
+
+  /**
+   * Any inbound message proves the socket is alive: same keepalive effect as
+   * setPingReceived(), without the "Ping received" line (V1 printed it after
+   * every server request).
+   */
+  public markSocketAlive() {
     this._pong = true;
   }
 
