@@ -39,7 +39,11 @@ const LOGIN_TIMEOUT_MS = 10000;
 export interface ITelemetryOptions {
   /** false = the SDK records and sends nothing. */
   enabled?: boolean;
-  /** The telemetry socket's URL, e.g. wss://telemetry.example:443. Telemetry is off without it. */
+  /**
+   * The telemetry socket's URL. Defaults to the signaling host's /telemetry
+   * path (e.g. wss://rtc.telnyx.com/telemetry). Telemetry is on when this is
+   * set or `enabled` is true.
+   */
   url?: string;
   metricsIntervalMs?: number;
   maxPendingEvents?: number;
@@ -54,6 +58,8 @@ export interface ITelemetryHost {
   getSessionId(): string | null | undefined;
   /** Current signaling socket generation; 0 or less = no socket attempt yet. */
   getSocketGeneration(): number;
+  /** The telemetry URL when the app gave none. */
+  getDefaultUrl?(): string | null;
 }
 
 type EmitOptions = {
@@ -131,7 +137,7 @@ export default class TelemetryClient {
   public readonly metricsIntervalMs: number;
   public readonly maxPendingEvents: number;
   public readonly maxSendBacklogBytes: number;
-  public readonly url: string;
+  public readonly url: string | undefined;
 
   private _sequence = 0;
   private _host: ITelemetryHost | null = null;
@@ -155,7 +161,11 @@ export default class TelemetryClient {
     options: { telemetry?: ITelemetryOptions; env?: string } = {}
   ): TelemetryClient | null {
     const telemetry = options.telemetry;
-    if (!telemetry || telemetry.enabled === false || !telemetry.url) {
+    if (
+      !telemetry ||
+      telemetry.enabled === false ||
+      (!telemetry.url && telemetry.enabled !== true)
+    ) {
       return null;
     }
     return new TelemetryClient(telemetry, options.env);
@@ -291,6 +301,17 @@ export default class TelemetryClient {
       }
     }
 
+    if (
+      name === 'call_metrics' &&
+      (!(this._host?.getSocketGeneration() > 0) ||
+        !ids.voice_sdk_id ||
+        !ids.session_id ||
+        !ids.call_id)
+    ) {
+      // The backend dead-letters these (contract 1.5); don't spend a sequence on it.
+      return null;
+    }
+
     const event = {
       schema_version: '2.0',
       sequence: options.sequence ?? this.reserveSequence(),
@@ -302,17 +323,6 @@ export default class TelemetryClient {
     } as ClientEvent;
     const generation = this._host?.getSocketGeneration() ?? 0;
     if (generation > 0) event.socket_generation = generation;
-
-    if (
-      name === 'call_metrics' &&
-      (!event.socket_generation ||
-        !ids.voice_sdk_id ||
-        !ids.session_id ||
-        !ids.call_id)
-    ) {
-      // The backend dead-letters these (contract 1.5); don't spend a sequence on it.
-      return null;
-    }
     return event;
   }
 
@@ -378,19 +388,26 @@ export default class TelemetryClient {
 
   // ── The telemetry socket ──────────────────────────────────────────────
 
-  /** Opens the telemetry socket if it is not open or opening. */
+  /**
+   * Opens the telemetry socket if it is not open or opening. A no-op until the
+   * session has credentials for it (for anonymous logins: the telemetry_token
+   * from the signaling login); call again once it has.
+   */
   connect(): void {
     if (this._closed || !WebSocketImpl) return;
     if (this._ws && (this._ws.readyState === 0 || this._ws.readyState === 1)) {
       return;
     }
+    if (!this._host?.getLoginParams()) return;
+    const url = this.url || this._host.getDefaultUrl?.();
+    if (!url) return;
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
     }
     let ws: WebSocket;
     try {
-      ws = new WebSocketImpl(this.url);
+      ws = new WebSocketImpl(url);
     } catch (error) {
       this.log('warn', 'telemetry', 'Telemetry socket could not be created', {
         error: toErrorInfo(error),
@@ -495,10 +512,11 @@ export default class TelemetryClient {
       }
       this._authenticated = true;
       this._reconnectAttempts = 0;
-      this.log('info', 'telemetry', 'Telemetry socket connected', {
-        pending: this._pending.length,
-      });
+      const pending = this._pending.length;
       this._flushPending();
+      this.log('info', 'telemetry', 'Telemetry socket connected', {
+        pending,
+      });
       return;
     }
 
