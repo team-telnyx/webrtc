@@ -254,3 +254,41 @@ describe('TelemetryClient', () => {
     next.close();
   });
 });
+
+describe('TelemetryClient login rejection', () => {
+  beforeEach(() => {
+    FakeSocket.instances = [];
+    setTelemetryWebSocket(FakeSocket as unknown as typeof WebSocket);
+  });
+
+  it('does not retry rejected credentials, but logs in with new ones', () => {
+    jest.useFakeTimers();
+    let params: Record<string, unknown> = { login: 'u', passwd: 'p' };
+    const client = TelemetryClient.create({
+      telemetry: { url: 'ws://localhost:9999' },
+    });
+    client.attach({ ...host, getLoginParams: () => params });
+    client.connect();
+    const first = FakeSocket.instances[0];
+    first.open();
+    const login = first.sent.find((m) => m.method === TELEMETRY_LOGIN_METHOD);
+    first.receive({
+      jsonrpc: '2.0',
+      id: login.id,
+      error: { code: -32001, message: 'Login Incorrect' },
+    });
+    jest.advanceTimersByTime(60000);
+    client.connect();
+    expect(FakeSocket.instances).toHaveLength(1);
+
+    params = { telemetry_token: 'token' };
+    client.connect();
+    expect(FakeSocket.instances).toHaveLength(2);
+    const second = FakeSocket.instances[1];
+    second.open();
+    second.acceptLogin();
+    expect(client.ready).toBe(true);
+    client.close();
+    jest.useRealTimers();
+  });
+});

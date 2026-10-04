@@ -382,13 +382,13 @@ export default abstract class BaseSession {
    * signaling login, never logged or sent as telemetry.
    */
   private _getTelemetryLoginParams(): Record<string, unknown> | null {
-    // VSP returns telemetry_token in the signaling login result; it works for
-    // every login type. Before that, VSP accepts a JWT or a generated SIP
-    // credential; any other login waits for the token.
+    // VSP may return a telemetry_token in the signaling login result; it works
+    // for every login type. Otherwise the app's own credentials are used. If
+    // VSP rejects them, the telemetry client waits for different ones.
     if (this.telemetryToken) return { telemetry_token: this.telemetryToken };
     const { login, password, passwd, login_token } = this.options;
     if (login_token) return { login_token };
-    if (login && (password || passwd) && /^gencred/i.test(login)) {
+    if (login && (password || passwd)) {
       return { login, passwd: password || passwd };
     }
     return null;

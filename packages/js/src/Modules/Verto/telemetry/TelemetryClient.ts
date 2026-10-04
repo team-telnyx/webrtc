@@ -131,6 +131,16 @@ export function buildClientInfo(env?: string): ClientInfo {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
+/** A short, non-reversible tag of a credentials object (never sent or logged). */
+function fingerprint(params: Record<string, unknown>): string {
+  const text = JSON.stringify(params);
+  let hash = 5381;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+  }
+  return `${text.length}:${hash}`;
+}
+
 export default class TelemetryClient {
   public readonly sdkInstanceId: string = uuidv4();
   public readonly client: ClientInfo;
@@ -150,6 +160,13 @@ export default class TelemetryClient {
   private _reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private _loginTimer: ReturnType<typeof setTimeout> | null = null;
   private _loginId: string | null = null;
+  /** Fingerprint of the credentials of the login in flight. */
+  private _loginFingerprint: string | null = null;
+  /**
+   * Fingerprint of credentials the server rejected: not retried until the
+   * session has other ones (e.g. the telemetry_token of the next login).
+   */
+  private _rejectedFingerprint: string | null = null;
   private _droppedBacklog = 0;
   private _droppedPending = 0;
   /** Active calls, oldest first. The newest one's ID goes on every record. */
@@ -398,7 +415,8 @@ export default class TelemetryClient {
     if (this._ws && (this._ws.readyState === 0 || this._ws.readyState === 1)) {
       return;
     }
-    if (!this._host?.getLoginParams()) return;
+    const params = this._host?.getLoginParams();
+    if (!params || fingerprint(params) === this._rejectedFingerprint) return;
     const url = this.url || this._host.getDefaultUrl?.();
     if (!url) return;
     if (this._reconnectTimer) {
@@ -444,7 +462,8 @@ export default class TelemetryClient {
         open_duration_ms: Date.now() - openedAt,
         was_authenticated: wasAuthenticated,
       });
-      this._scheduleReconnect();
+      // After a rejected login, wait for other credentials (connect() again).
+      if (!this._rejectedFingerprint) this._scheduleReconnect();
     };
   }
 
@@ -456,6 +475,7 @@ export default class TelemetryClient {
       return;
     }
     this._loginId = uuidv4();
+    this._loginFingerprint = fingerprint(params);
     ws.send(
       JSON.stringify({
         jsonrpc: '2.0',
@@ -504,6 +524,7 @@ export default class TelemetryClient {
       this._clearLoginTimer();
       this._loginId = null;
       if (msg.error) {
+        this._rejectedFingerprint = this._loginFingerprint;
         this.log('warn', 'telemetry', 'Telemetry login failed', {
           error: toErrorInfo({
             code: msg.error.code,
@@ -514,6 +535,7 @@ export default class TelemetryClient {
         return;
       }
       this._authenticated = true;
+      this._rejectedFingerprint = null;
       this._reconnectAttempts = 0;
       const pending = this._pending.length;
       this._flushPending();
