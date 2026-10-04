@@ -149,7 +149,12 @@ export default abstract class BaseSession {
   private registerAgent: RegisterAgent;
 
   constructor(public options: IVertoOptions) {
-    this.telemetry = TelemetryClient.create(options);
+    // The telemetry socket takes no anonymous login in the beta, so an
+    // anonymous-only client records nothing rather than holding events it
+    // can never send.
+    this.telemetry = BaseSession._isAnonymousOnly(options)
+      ? null
+      : TelemetryClient.create(options);
     if (this.telemetry) {
       this.telemetryEvents = new SessionTelemetry(this, this.telemetry);
       // Sequence 1: the constructor was entered.
@@ -163,7 +168,9 @@ export default abstract class BaseSession {
       // Connection object is replaced (contract: socket_generation).
       getSocketGeneration: () => this.telemetryEvents?.socketGeneration ?? 0,
       getDefaultUrl: () =>
-        this.connection ? `${this.connection.host}/telemetry` : null,
+        this.connection
+          ? `${this.connection.host.replace(/\/+$/, '')}/telemetry`
+          : null,
     });
 
     if (!this.validateOptions()) {
@@ -381,23 +388,20 @@ export default abstract class BaseSession {
    * telemetry. If VSP rejects them, the telemetry client waits for new ones.
    */
   private _getTelemetryLoginParams(): Record<string, unknown> | null {
-    const { login, password, passwd, login_token, anonymous_login } =
-      this.options;
+    const { login, password, passwd, login_token } = this.options;
     if (login_token) return { login_token };
     if (login && (password || passwd)) {
       return { login, passwd: password || passwd };
     }
-    if (anonymous_login) {
-      const { target_type, target_id, target_version_id } = anonymous_login;
-      return {
-        anonymous_login: {
-          target_type,
-          target_id,
-          ...(target_version_id ? { target_version_id } : {}),
-        },
-      };
-    }
     return null;
+  }
+
+  private static _isAnonymousOnly(options: IVertoOptions): boolean {
+    return (
+      !!options?.anonymous_login &&
+      !options.login_token &&
+      !(options.login && (options.password || options.passwd))
+    );
   }
 
   /**

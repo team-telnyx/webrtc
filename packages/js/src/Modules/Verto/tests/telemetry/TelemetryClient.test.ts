@@ -147,7 +147,7 @@ describe('TelemetryClient', () => {
     logEvent(client, 'a');
     ws.close();
     logEvent(client, 'b');
-    jest.advanceTimersByTime(1000);
+    jest.advanceTimersByTime(1500); // first retry: 1 s ± 25%
     ws = FakeSocket.instances[1];
     ws.open();
     ws.acceptLogin();
@@ -318,5 +318,35 @@ describe('toErrorInfo', () => {
     const info = toErrorInfo(domError);
     expect(info.code).toBeUndefined();
     expect(info.server_code).toBeUndefined();
+  });
+});
+
+describe('TelemetryClient when telemetry is unavailable', () => {
+  beforeEach(() => {
+    FakeSocket.instances = [];
+    setTelemetryWebSocket(FakeSocket as unknown as typeof WebSocket);
+  });
+
+  it('retries after -32003 Telemetry Unavailable, later than after a network drop', () => {
+    jest.useFakeTimers();
+    const client = TelemetryClient.create({
+      telemetry: { url: 'ws://localhost:9999' },
+    });
+    client.attach(host);
+    client.connect();
+    const first = FakeSocket.instances[0];
+    first.open();
+    const login = first.sent.find((m) => m.method === TELEMETRY_LOGIN_METHOD);
+    first.receive({
+      jsonrpc: '2.0',
+      id: login.id,
+      error: { code: -32003, message: 'Telemetry Unavailable' },
+    });
+    jest.advanceTimersByTime(15000);
+    expect(FakeSocket.instances).toHaveLength(1);
+    jest.advanceTimersByTime(30000);
+    expect(FakeSocket.instances).toHaveLength(2);
+    client.close();
+    jest.useRealTimers();
   });
 });

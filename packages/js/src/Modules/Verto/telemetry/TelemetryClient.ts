@@ -33,6 +33,13 @@ export const DEFAULT_METRICS_INTERVAL_MS = 1000;
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30000;
+/** VSP said telemetry is unavailable (backend or call party down): wait longer. */
+const UNAVAILABLE_BASE_MS = 30000;
+const UNAVAILABLE_MAX_MS = 5 * 60 * 1000;
+
+/** VSP's telemetry login errors (VSP thread, 2026-10-04). */
+const LOGIN_INCORRECT = -32001;
+const TELEMETRY_UNAVAILABLE = -32003;
 const LOGIN_TIMEOUT_MS = 10000;
 
 /** App-facing options (`options.telemetry`). */
@@ -167,6 +174,8 @@ export default class TelemetryClient {
    * session has other ones (e.g. after client.login({ creds })).
    */
   private _rejectedFingerprint: string | null = null;
+  /** The last login answer was -32003: back off longer before trying again. */
+  private _unavailable = false;
   private _droppedBacklog = 0;
   private _droppedPending = 0;
   /** Active calls, oldest first. The newest one's ID goes on every record. */
@@ -524,7 +533,13 @@ export default class TelemetryClient {
       this._clearLoginTimer();
       this._loginId = null;
       if (msg.error) {
-        this._rejectedFingerprint = this._loginFingerprint;
+        // Wrong credentials are not retried until the session has new ones;
+        // anything else (e.g. -32003 Telemetry Unavailable) is temporary.
+        if (msg.error.code === LOGIN_INCORRECT) {
+          this._rejectedFingerprint = this._loginFingerprint;
+        } else if (msg.error.code === TELEMETRY_UNAVAILABLE) {
+          this._unavailable = true;
+        }
         this.log('warn', 'telemetry', 'Telemetry login failed', {
           error: toErrorInfo({
             code: msg.error.code,
@@ -536,6 +551,7 @@ export default class TelemetryClient {
       }
       this._authenticated = true;
       this._rejectedFingerprint = null;
+      this._unavailable = false;
       this._reconnectAttempts = 0;
       const pending = this._pending.length;
       this._flushPending();
@@ -572,10 +588,15 @@ export default class TelemetryClient {
   private _scheduleReconnect(): void {
     if (this._closed || this._reconnectTimer) return;
     this._reconnectAttempts += 1;
-    const delay = Math.min(
-      RECONNECT_BASE_MS * Math.pow(2, this._reconnectAttempts - 1),
-      RECONNECT_MAX_MS
+    const [base, max] = this._unavailable
+      ? [UNAVAILABLE_BASE_MS, UNAVAILABLE_MAX_MS]
+      : [RECONNECT_BASE_MS, RECONNECT_MAX_MS];
+    const backoff = Math.min(
+      base * Math.pow(2, this._reconnectAttempts - 1),
+      max
     );
+    // ±25% jitter, so many clients don't come back at the same moment.
+    const delay = Math.round(backoff * (0.75 + Math.random() * 0.5));
     this._reconnectTimer = setTimeout(() => {
       this._reconnectTimer = null;
       this.connect();
