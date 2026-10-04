@@ -149,23 +149,32 @@ export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
     name: String(error.name || error.constructor?.name || 'Error'),
     message: sanitizeMessage(String(error.message ?? error.description ?? '')),
   };
+  // The SDK's own codes are 400xx-490xx; a DOMException's legacy code is not one.
   const sdkCode =
     code ??
-    (typeof error.code === 'number' && error.code > 0 ? error.code : undefined);
+    (typeof error.code === 'number' && error.code >= 40000 && error.code < 50000
+      ? error.code
+      : undefined);
   if (sdkCode !== undefined) info.code = String(sdkCode);
 
-  // The server's own answer: a JSON-RPC error, either the error itself or wrapped.
+  // The server's own answer: a JSON-RPC error (negative code), either the
+  // error itself or the one the SDK wrapped.
+  const isServerError = (value: unknown): value is { code: number } =>
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as { code?: unknown }).code === 'number' &&
+    (value as { code: number }).code < 0;
   const original = error.originalError ?? error.error;
-  const server =
-    original && typeof original === 'object' && 'code' in original
-      ? original
-      : typeof error.code === 'number' && error.code < 0
-        ? error
-        : undefined;
+  const server = isServerError(original)
+    ? original
+    : isServerError(error)
+      ? error
+      : undefined;
   if (server) {
     info.server_code = String(server.code);
-    if (server.message)
-      info.server_message = sanitizeMessage(String(server.message));
+    const serverMessage = (server as { message?: unknown }).message;
+    if (serverMessage)
+      info.server_message = sanitizeMessage(String(serverMessage));
   }
   const stack = capStack(
     typeof error.stack === 'string' ? scrubText(error.stack) : undefined

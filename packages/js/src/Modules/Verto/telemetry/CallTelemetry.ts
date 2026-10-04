@@ -706,7 +706,8 @@ type MediaSnapshot = Omit<CallMediaChangedPayload, 'changed'>;
 /** Which snapshot fields belong to which MediaChange. */
 const MEDIA_GROUPS: Array<[MediaChange, Array<keyof MediaSnapshot>]> = [
   ['codec', ['codec_in', 'codec_out', 'target_bitrate_bps']],
-  ['candidate_pair', ['local_candidate', 'remote_candidate', 'pair_changes']],
+  // pair_changes is compared on its own (see _pairChanged).
+  ['candidate_pair', ['local_candidate', 'remote_candidate']],
   ['ice_state', ['ice_state']],
   ['dtls_state', ['dtls_state', 'srtp_cipher', 'dtls_version']],
   ['sending', ['sending']],
@@ -884,8 +885,12 @@ export default class CallTelemetry {
       ? options.remoteCallerNumber
       : options.callerNumber;
     const callerName = inbound ? options.remoteCallerName : options.callerName;
-    if (typeof callerNumber === 'string') payload.caller_number = callerNumber;
-    if (typeof callerName === 'string') payload.caller_name = callerName;
+    if (typeof callerNumber === 'string' && callerNumber) {
+      payload.caller_number = callerNumber;
+    }
+    if (typeof callerName === 'string' && callerName) {
+      payload.caller_name = callerName;
+    }
     if (typeof options.destinationNumber === 'string') {
       payload.destination_number = options.destinationNumber;
     }
@@ -1253,6 +1258,16 @@ export default class CallTelemetry {
           (key) => JSON.stringify(media[key]) !== JSON.stringify(previous[key])
         )
       ).map(([name]) => name);
+      // The pair can change and change back within one tick: the counter
+      // still went up. A counter that merely appeared is not a change.
+      if (
+        !changed.includes('candidate_pair') &&
+        typeof previous.pair_changes === 'number' &&
+        typeof media.pair_changes === 'number' &&
+        media.pair_changes > previous.pair_changes
+      ) {
+        changed.push('candidate_pair');
+      }
       if (!changed.length) return;
     }
     const payload: CallMediaChangedPayload = { changed, ...media };

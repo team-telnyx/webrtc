@@ -734,8 +734,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       callerStack,
     });
 
+    // A plain call.hangup() is the app's; a local-only hangup({}, false)
+    // without an initiator is the SDK dropping a call it lost.
     this._callTelemetry?.noteHangup(
-      params.initiator,
+      params.initiator ?? (execute ? initiator : undefined),
       execute,
       Boolean(params.isRecovering)
     );

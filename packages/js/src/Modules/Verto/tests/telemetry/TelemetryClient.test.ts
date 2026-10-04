@@ -1,5 +1,9 @@
 jest.unmock('uuid');
 
+import { toErrorInfo } from '../../telemetry/sanitize';
+import { createTelnyxError } from '../../util/errors';
+import { BYE_SEND_FAILED } from '../../util/constants';
+
 import TelemetryClient, {
   setTelemetryWebSocket,
   TELEMETRY_CONTROL_METHOD,
@@ -290,5 +294,29 @@ describe('TelemetryClient login rejection', () => {
     expect(client.ready).toBe(true);
     client.close();
     jest.useRealTimers();
+  });
+});
+
+describe('toErrorInfo', () => {
+  it('keeps both the SDK code and the server code of a wrapped JSON-RPC error', () => {
+    const error = createTelnyxError(BYE_SEND_FAILED, {
+      code: -32002,
+      message: 'CALL DOES NOT EXIST',
+    });
+    const info = toErrorInfo(error);
+    expect(info.code).toBe(String(BYE_SEND_FAILED));
+    expect(info.server_code).toBe('-32002');
+    expect(info.server_message).toBe('CALL DOES NOT EXIST');
+  });
+
+  it('does not take a DOMException legacy code for an SDK or server code', () => {
+    const domError = {
+      name: 'NotFoundError',
+      message: 'Requested device not found',
+      code: 8,
+    };
+    const info = toErrorInfo(domError);
+    expect(info.code).toBeUndefined();
+    expect(info.server_code).toBeUndefined();
   });
 });

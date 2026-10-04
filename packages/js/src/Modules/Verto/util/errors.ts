@@ -180,6 +180,24 @@ export function classifyMediaErrorCode(
  *   non-recovery MEDIA_* path, login-after-retry-exhaustion, etc.). When
  *   omitted/null/undefined, the registry default is used.
  */
+/**
+ * Wraps a non-Error value. A server's JSON-RPC error ({ code, message }) keeps
+ * its message and code instead of becoming "[object Object]".
+ */
+function toError(value: unknown): Error {
+  if (
+    value &&
+    typeof value === 'object' &&
+    typeof (value as { message?: unknown }).message === 'string'
+  ) {
+    const { message, code } = value as { message: string; code?: unknown };
+    const error = new Error(message) as Error & { code?: unknown };
+    if (code !== undefined) error.code = code;
+    return error;
+  }
+  return new Error(String(value));
+}
+
 export function createTelnyxError(
   code: SdkErrorCode,
   originalError?: unknown,
@@ -191,7 +209,7 @@ export function createTelnyxError(
     originalError instanceof Error
       ? originalError
       : originalError !== undefined
-        ? new Error(String(originalError))
+        ? toError(originalError)
         : undefined;
   return new TelnyxError({
     code,
