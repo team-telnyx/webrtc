@@ -81,6 +81,11 @@ export default class Peer {
   public statsReporter: WebRTCStatsReporter | null = null;
   public isIceRestarting: boolean = false;
   public iceDone: boolean = false;
+  /** Call Report V2 telemetry hooks, set by the call when telemetry is on. */
+  public telemetryHooks: {
+    onRemoteDescription?: (sdp: string) => void;
+    onError?: (error: unknown) => void;
+  } | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
     offerToReceiveVideo?: boolean;
@@ -268,11 +273,22 @@ export default class Peer {
    */
   private _emitNegotiationError(error: unknown): void {
     if (error instanceof TelnyxError) {
+      this._notifyTelemetry(() => this.telemetryHooks?.onError?.(error));
       trigger(
         SwEvent.Error,
         { error, sessionId: this._session.sessionid },
         this.options.id
       );
+    }
+  }
+
+  /** Telemetry never throws into the call flow. */
+  private _notifyTelemetry(notify: () => void): void {
+    if (!this.telemetryHooks) return;
+    try {
+      notify();
+    } catch {
+      // ignore
     }
   }
 
@@ -544,6 +560,9 @@ export default class Peer {
         type: PeerType.Offer,
       });
       performance.mark(callMarkName(this.options.id, 'set-remote-description'));
+      this._notifyTelemetry(() =>
+        this.telemetryHooks?.onRemoteDescription?.(this.options.remoteSdp)
+      );
 
       // Race condition guard: close() may have run during the await above,
       // setting this.instance to null. Throw a structured error so the caller

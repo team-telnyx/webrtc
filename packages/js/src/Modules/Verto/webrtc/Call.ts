@@ -190,9 +190,14 @@ export class Call extends BaseCall {
    * ```
    *
    * @param deviceId The target audio output device ID
+   * @param by _For internal use_ Who chose the device: the app (default) or
+   * the SDK's own fallback after the speaker was unplugged (telemetry only).
    * @returns Promise that returns a boolean
    */
-  async setAudioOutDevice(deviceId: string): Promise<boolean> {
+  async setAudioOutDevice(
+    deviceId: string,
+    by: 'app' | 'sdk' = 'app'
+  ): Promise<boolean> {
     if (this._isTerminatingOrTerminated()) return false;
     const { remoteElement } = this.options;
     const generation = this._mediaDeviceGeneration;
@@ -204,7 +209,10 @@ export class Call extends BaseCall {
         this.options.remoteElement !== remoteElement
       )
         return false;
-      if (switched) this.options.speakerId = deviceId;
+      if (switched) {
+        this.options.speakerId = deviceId;
+        this._reportDeviceChanged('output', by);
+      }
       return switched;
     }
     return false;
