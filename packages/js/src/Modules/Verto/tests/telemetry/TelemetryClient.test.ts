@@ -285,7 +285,7 @@ describe('TelemetryClient login rejection', () => {
     client.connect();
     expect(FakeSocket.instances).toHaveLength(1);
 
-    params = { telemetry_token: 'token' };
+    params = { login_token: 'new-jwt' };
     client.connect();
     expect(FakeSocket.instances).toHaveLength(2);
     const second = FakeSocket.instances[1];

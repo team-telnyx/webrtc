@@ -63,7 +63,6 @@ import TelemetryClient from './telemetry/TelemetryClient';
 import SessionTelemetry, {
   B2BUA_RTC_FIELDS,
   readServerNames,
-  readTelemetryToken,
   SIGNALING_VSP_FIELDS,
 } from './telemetry/sessionEvents';
 import type {
@@ -111,8 +110,6 @@ export default abstract class BaseSession {
   public signalingVsp: SignalingVspNames = {};
   /** The B2BUA-RTC serving this socket, from the login result (reset on each new socket). */
   public b2buaRtc: B2buaRtcNames = {};
-  /** Telemetry socket credential from the signaling login result. */
-  public telemetryToken: string | null = null;
   protected _jwtAuth: boolean = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
@@ -378,18 +375,27 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Credentials for the telemetry socket's login: the same ones as the
-   * signaling login, never logged or sent as telemetry.
+   * Credentials for the telemetry socket's login: a full login with the same
+   * credentials as the signaling login, whatever their type; VSP checks them
+   * like a signaling login (owner, 2026-10-04). Never logged or sent as
+   * telemetry. If VSP rejects them, the telemetry client waits for new ones.
    */
   private _getTelemetryLoginParams(): Record<string, unknown> | null {
-    // VSP may return a telemetry_token in the signaling login result; it works
-    // for every login type. Otherwise the app's own credentials are used. If
-    // VSP rejects them, the telemetry client waits for different ones.
-    if (this.telemetryToken) return { telemetry_token: this.telemetryToken };
-    const { login, password, passwd, login_token } = this.options;
+    const { login, password, passwd, login_token, anonymous_login } =
+      this.options;
     if (login_token) return { login_token };
     if (login && (password || passwd)) {
       return { login, passwd: password || passwd };
+    }
+    if (anonymous_login) {
+      const { target_type, target_id, target_version_id } = anonymous_login;
+      return {
+        anonymous_login: {
+          target_type,
+          target_id,
+          ...(target_version_id ? { target_version_id } : {}),
+        },
+      };
     }
     return null;
   }
@@ -862,7 +868,8 @@ export default abstract class BaseSession {
       }
       this._storeLoginResultNames(response);
       this.telemetryEvents?.loginSucceeded();
-      // The telemetry socket waits for credentials (telemetry_token).
+      // The credentials may be new (client.login({ creds })): a telemetry
+      // socket that was rejected or never opened tries again with them.
       this.telemetry?.connect();
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
@@ -877,8 +884,6 @@ export default abstract class BaseSession {
     try {
       this.signalingVsp = readServerNames(result, SIGNALING_VSP_FIELDS);
       this.b2buaRtc = readServerNames(result, B2BUA_RTC_FIELDS);
-      const telemetryToken = readTelemetryToken(result);
-      if (telemetryToken) this.telemetryToken = telemetryToken;
     } catch {
       // never break the login on telemetry fields
     }

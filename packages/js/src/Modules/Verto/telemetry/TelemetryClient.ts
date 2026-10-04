@@ -164,7 +164,7 @@ export default class TelemetryClient {
   private _loginFingerprint: string | null = null;
   /**
    * Fingerprint of credentials the server rejected: not retried until the
-   * session has other ones (e.g. the telemetry_token of the next login).
+   * session has other ones (e.g. after client.login({ creds })).
    */
   private _rejectedFingerprint: string | null = null;
   private _droppedBacklog = 0;
@@ -406,9 +406,9 @@ export default class TelemetryClient {
   // ── The telemetry socket ──────────────────────────────────────────────
 
   /**
-   * Opens the telemetry socket if it is not open or opening. A no-op until the
-   * session has credentials for it (for anonymous logins: the telemetry_token
-   * from the signaling login); call again once it has.
+   * Opens the telemetry socket if it is not open or opening. A no-op while the
+   * session has no credentials, or only ones the server already rejected;
+   * call again once it has new ones.
    */
   connect(): void {
     if (this._closed || !WebSocketImpl) return;

@@ -65,8 +65,6 @@ export const B2BUA_RTC_FIELDS = [
   'b2bua_rtc_node',
 ] as const;
 
-export const TELEMETRY_TOKEN_FIELD = 'telemetry_token';
-
 export type SignalingVspNames = {
   signaling_region?: string;
   signaling_dc?: string;
@@ -95,13 +93,6 @@ export function readServerNames<K extends string>(
     if (typeof value === 'string' && value) names[field] = value;
   }
   return names;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function readTelemetryToken(result: any): string | null {
-  const value =
-    result?.[TELEMETRY_TOKEN_FIELD] ?? result?.params?.[TELEMETRY_TOKEN_FIELD];
-  return typeof value === 'string' && value ? value : null;
 }
 
 // ── Options ────────────────────────────────────────────────────────────────
