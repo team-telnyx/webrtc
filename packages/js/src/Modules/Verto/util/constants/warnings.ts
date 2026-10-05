@@ -455,20 +455,20 @@ export const SDK_WARNINGS = {
 
   33012: {
     name: 'REMOTE_AUDIO_ELEMENT_UNRESOLVED',
-    message: 'No remote media element available for remote audio',
+    message: 'Configured remote media element could not be resolved',
     description:
-      'A remote audio track arrived for a call, but the SDK could not resolve a call-level or session-level remoteElement to attach it to. The remote MediaStream is still stored on the call (call.remoteStream) and is not interrupted, but the SDK cannot drive playout because there is no element to attach to. Applications that intentionally consume call.remoteStream themselves may still hear audio; this is an advisory, not proof of playout failure. This is common when remoteElement is set to null and the application owns stream attachment.',
+      'A remote audio track arrived, but the configured call-level or session-level remoteElement did not resolve to an <audio> or <video> element, so the SDK could not attach it for playout. The call is not affected and the remote MediaStream is still available on call.remoteStream. This warning is not emitted when remoteElement is left unset, since the application is then expected to play call.remoteStream itself.',
     causes: [
-      'remoteElement is null and the application owns stream attachment',
-      'remoteElement is a string ID that does not resolve to a DOM element',
-      'remoteElement resolver function returns null or undefined',
-      'Application forgot to configure a session-level or per-call remoteElement',
+      'remoteElement is a string ID with no matching element in the DOM',
+      'client.remoteElement was set to a string ID before that element existed (session-level IDs are resolved when set)',
+      'A remoteElement resolver function returned null or undefined',
+      'remoteElement resolved to an element that is not <audio> or <video>',
     ],
     solutions: [
-      'Provide a session-level remoteElement in new TelnyxRTC({ remoteElement }) so the SDK attaches playout for every call',
+      'Make sure the element exists before setting client.remoteElement or starting/answering the call',
       'Pass a per-call remoteElement via client.newCall({ remoteElement }) or call.answer({ remoteElement })',
-      'If your application intentionally attaches call.remoteStream to its own element, no SDK action is needed — this warning is advisory',
-      'Verify any string remoteElement resolves to a real DOM element ID before connect()',
+      'Use an <audio> or <video> element as remoteElement',
+      'To play call.remoteStream in your own element instead, leave remoteElement unset',
     ],
   },
 

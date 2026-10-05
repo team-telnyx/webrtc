@@ -61,6 +61,14 @@ describe('Helpers browser functions', () => {
       fake.id = 'fakeElement';
       expect(findElementByType(jest.fn().mockReturnValue(fake))).toEqual(fake);
     });
+
+    it('should accept a media element owned by another window', () => {
+      const iframe = document.createElement('iframe');
+      document.body.appendChild(iframe);
+      const audio = iframe.contentDocument.createElement('audio');
+      expect(findElementByType(audio)).toBe(audio);
+      iframe.remove();
+    });
   });
 
   describe('sdpStereoHack', () => {

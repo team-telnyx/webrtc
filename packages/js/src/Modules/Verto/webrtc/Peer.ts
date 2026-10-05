@@ -20,6 +20,7 @@ import {
 import {
   MEDIA_GET_USER_MEDIA_FAILED,
   PEER_CLOSED_DURING_INIT,
+  REMOTE_AUDIO_ELEMENT_UNRESOLVED,
 } from '../util/constants/errorCodes';
 import {
   callMarkName,
@@ -42,8 +43,7 @@ import {
   streamIsValid,
   videoIsMediaTrackConstraints,
 } from '../util/webrtc';
-import { findElementByType } from '../util/helpers';
-import { REMOTE_AUDIO_ELEMENT_UNRESOLVED } from '../util/constants/errorCodes';
+import { findElementByType, isMediaElement } from '../util/helpers';
 import { PeerType } from './constants';
 import {
   disableAudioTracks,
@@ -104,17 +104,6 @@ export default class Peer {
   private _callEstablishmentTimings?: ICallEstablishmentTimings;
   private _iceRestartTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly ICE_RESTART_TIMEOUT_MS = 15000;
-  /**
-   * VSUP-215 — The REMOTE_AUDIO_ELEMENT_UNRESOLVED warning dedupe state lives
-   * on the session (BrowserSession._missingRemoteAudioElementWarnedCallIds),
-   * NOT on this Peer instance. A per-Peer boolean would reset when
-   * `telnyx_rtc.attach` recovery replaces the Call/Peer with a new instance
-   * carrying the same call ID, causing the warning to fire again on the
-   * recovered Peer's next audio track. Scoping dedupe to the session by call
-   * ID preserves the once-per-call guarantee across recovery/reattachment
-   * while keeping separate concurrent calls (different call IDs) independently
-   * diagnosable. See `markMissingRemoteAudioElementWarned()` on BrowserSession.
-   */
 
   constructor(
     public type: PeerType,
@@ -380,16 +369,8 @@ export default class Peer {
     this.options.remoteStream = first;
 
     if (screenShare === false) {
-      // VSUP-215 — Resolve the remote element ONCE here, before both the
-      // attachment call and the missing-element warning check, so a
-      // function-valued resolver is invoked exactly once per track event.
-      // `attachMediaStream` calls `findElementByType` internally, but when
-      // passed an already-resolved HTMLMediaElement (or null) that helper
-      // returns the value unchanged without re-invoking any resolver. A
-      // stateful/dynamic resolver that returned different values on each call
-      // would otherwise produce attachment+warning inconsistencies (e.g.
-      // successful attachment with a false warning, or no attachment with no
-      // warning).
+      // Resolve once so a function-valued resolver drives both the attachment
+      // and the warning check below with the same value.
       const resolvedRemoteElement = findElementByType(remoteElement);
 
       attachMediaStream(resolvedRemoteElement, this.options.remoteStream, {
@@ -398,36 +379,18 @@ export default class Peer {
         eventTarget: this._session.uuid,
       });
 
-      // VSUP-215 — Emit an advisory warning when a remote audio track arrives
-      // for a normal (non-screen-share) call but the SDK cannot resolve a
-      // call-level or session-level remoteElement to attach it to. The warning
-      // is informational: remoteStream is still stored on the call, the call
-      // remains active, and applications that intentionally consume
-      // call.remoteStream keep working. Video tracks and screen-share paths
-      // are excluded so this only fires for the audio playout path.
-      //
-      // Dedup is scoped to the logical call ID on the session (not per-Peer)
-      // so repeated track events AND attach-recovery replacement of the
-      // Call/Peer instance do not re-emit the warning for the same call.
-      // `markMissingRemoteAudioElementWarned` is an atomic check-and-add: it
-      // returns false (and records the call ID) the first time a given call ID
-      // reaches this point, and true on every subsequent check. We only call
-      // it when the warning will actually fire (audio track + unresolved
-      // element) so a valid element or video track does not consume the
-      // once-per-call slot.
-      //
-      // We reuse the single `resolvedRemoteElement` value from above (the same
-      // value `attachMediaStream` saw) and additionally reject resolver-returned
-      // values that are not HTMLMediaElement instances: a `<div>` resolves via
-      // `findElementByType` (which preserves the resolver's raw return value for
-      // backwards compatibility) but cannot host `srcObject`, so
-      // `attachMediaStream` would silently no-op on it. We treat absent values,
-      // unresolved string IDs, resolvers returning null/undefined, and resolvers
-      // returning a non-HTMLMediaElement node as the same advisory condition
-      // without throwing. The shared `findElementByType` contract is unchanged.
+      // An absent remoteElement means the app plays call.remoteStream itself,
+      // so only warn when an element was configured but did not resolve. The
+      // session setter resolves string ids eagerly, so an unresolved session
+      // id reaches the call as null. Deduped per call ID on the session so
+      // attach recovery does not re-emit.
+      const sessionElementUnresolved =
+        this._session.remoteElementId != null &&
+        this._session.remoteElement == null;
       if (
         event.track?.kind === 'audio' &&
-        resolvedRemoteElement instanceof HTMLMediaElement === false &&
+        (remoteElement != null || sessionElementUnresolved) &&
+        !isMediaElement(resolvedRemoteElement) &&
         !this._session.markMissingRemoteAudioElementWarned(this.options.id)
       ) {
         const warning = createTelnyxWarning(REMOTE_AUDIO_ELEMENT_UNRESOLVED);

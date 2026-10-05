@@ -38,27 +38,15 @@ export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
 
   /**
-   * Session-level dedupe set for the REMOTE_AUDIO_ELEMENT_UNRESOLVED warning
-   * (VSUP-215). Tracks call IDs that have already emitted the missing-element
-   * warning so the diagnostic fires at most once per logical call ID across
-   * the call's entire lifecycle — including when in-process
-   * `telnyx_rtc.attach` recovery replaces the Call/Peer instance with a new
-   * one carrying the same call ID. Scoping the set to the session (rather
-   * than a per-Peer boolean) ensures the recovered Peer does not reset the
-   * dedupe state and re-emit the warning, satisfying the stage's
-   * once-per-call requirement across recovery/reattachment. Separate
-   * concurrent calls (different call IDs on the same session) remain
-   * independently diagnosable because each call ID is checked independently.
+   * Call IDs that already emitted REMOTE_AUDIO_ELEMENT_UNRESOLVED. Kept on the
+   * session rather than the Peer so attach recovery, which replaces the
+   * Call/Peer under the same call ID, does not re-emit it.
    */
   private _missingRemoteAudioElementWarnedCallIds: Set<string> = new Set();
 
   /**
-   * Returns `true` when the REMOTE_AUDIO_ELEMENT_UNRESOLVED warning has
-   * already been emitted for the given call ID on this session, and records
-   * the call ID as warned (returning `false`) the first time it is checked.
-   * This is an atomic check-and-add: callers use the return value to decide
-   * whether to emit the warning, so the set acts as a once-per-call-ID lock
-   * that survives Call/Peer replacement during attach recovery.
+   * Records `callId` as warned and returns whether it already was.
+   * @ignore
    */
   public markMissingRemoteAudioElementWarned(callId: string): boolean {
     if (this._missingRemoteAudioElementWarnedCallIds.has(callId)) {
@@ -350,6 +338,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }
@@ -371,6 +360,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }
