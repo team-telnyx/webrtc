@@ -1,5 +1,5 @@
 /**
- * Call Report V2 telemetry sender (contract 1.6).
+ * Call Report V2 telemetry sender (contract 1.6, schema_version 2.1).
  *
  * - Its own WebSocket, next to the signaling one.
  * - One JSON-RPC notification per event, sent the moment it happens.
@@ -9,6 +9,10 @@
  *   and go out in sequence order with `sent_at` once it is.
  * - Above max_send_backlog_bytes of unsent socket backlog, an event is dropped.
  * - The server can switch it off with telnyx_rtc.telemetry_control.
+ * - Contract 2.1: an event not about one call (no explicit call_id) goes out
+ *   once per active call, every copy with the same sequence and timestamp and
+ *   its own ids.call_id; every record with a call_id carries call_sequence
+ *   (1, 2, 3... per call ID). call_ended is the call's last record.
  */
 import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
@@ -76,11 +80,16 @@ type EmitOptions = {
   sequence?: number;
   /** IDs of this event that override the client's current ones (call_id, Telnyx IDs). */
   ids?: Partial<KnownIds>;
-  /** Do not add the active call's ID (an event of another call). */
+  /** Do not copy the event to the active calls: send it once without call_id. */
   noActiveCall?: boolean;
 };
 
 type Pending = { event: ClientEvent };
+
+export const SCHEMA_VERSION = '2.1';
+
+/** Ended call IDs remembered so a late record of one is sent without its call_id. */
+const MAX_ENDED_CALLS = 100;
 
 type WebSocketCtor = typeof WebSocket;
 
@@ -178,8 +187,12 @@ export default class TelemetryClient {
   private _unavailable = false;
   private _droppedBacklog = 0;
   private _droppedPending = 0;
-  /** Active calls, oldest first. The newest one's ID goes on every record. */
+  /** Active calls, oldest first. A shared event goes to each of them. */
   private _activeCalls: string[] = [];
+  /** call_sequence counters: the last value used per call ID. */
+  private _callSequences = new Map<string, number>();
+  /** Calls whose call_ended was built: nothing carries their ID any more. */
+  private _endedCalls: string[] = [];
   private _emittingLog = false;
 
   /** Returns null when the app switched telemetry off or gave no URL. */
@@ -252,19 +265,38 @@ export default class TelemetryClient {
     return this._sequence;
   }
 
-  // ── Active call: its ID goes on every record while it lasts ──────────
+  // ── Active calls: each gets a copy of every shared event ─────────────
 
   callStarted(callId: string): void {
+    if (!callId) return;
     this._activeCalls = this._activeCalls.filter((id) => id !== callId);
     this._activeCalls.push(callId);
+    this._endedCalls = this._endedCalls.filter((id) => id !== callId);
   }
 
+  /**
+   * The call's call_ended was built (or the call is gone): it leaves the
+   * active list, its call_sequence counter is dropped, and later records with
+   * its ID are sent without call_id.
+   */
   callEnded(callId: string): void {
+    if (!callId) return;
     this._activeCalls = this._activeCalls.filter((id) => id !== callId);
+    this._callSequences.delete(callId);
+    if (!this._endedCalls.includes(callId)) {
+      this._endedCalls.push(callId);
+      if (this._endedCalls.length > MAX_ENDED_CALLS) this._endedCalls.shift();
+    }
   }
 
-  get activeCallId(): string | undefined {
-    return this._activeCalls[this._activeCalls.length - 1];
+  /** Active call IDs, oldest first. */
+  get activeCallIds(): string[] {
+    return [...this._activeCalls];
+  }
+
+  /** The last call_sequence used for a call ID (0 when none). */
+  callSequence(callId: string): number {
+    return this._callSequences.get(callId) ?? 0;
   }
 
   // ── Emitting ──────────────────────────────────────────────────────────
@@ -274,16 +306,28 @@ export default class TelemetryClient {
     payload: Extract<EventBody, { name: N }>['payload'],
     options: EmitOptions = {}
   ): ClientEvent | null {
-    if (this._closed || !this._remoteEnabled) return null;
-    const event = this._buildEvent(name, payload, options);
-    if (!event) return null;
+    return this.emitAll(name, payload as never, options)[0] ?? null;
+  }
+
+  /**
+   * Like emit(), returning every message sent for the event: one per active
+   * call for a shared event, else one. Empty when nothing was sent.
+   */
+  emitAll<N extends EventName>(
+    name: N,
+    payload: Extract<EventBody, { name: N }>['payload'],
+    options: EmitOptions = {}
+  ): ClientEvent[] {
+    if (this._closed || !this._remoteEnabled) return [];
+    const events = this._buildEvents(name, payload, options);
+    if (!events.length) return [];
     if (this.ready && this._pending.length === 0) {
-      this._send(event, false);
+      for (const event of events) this._send(event, false);
     } else {
-      this._enqueue(event);
+      this._enqueue(events);
       this._flushPending();
     }
-    return event;
+    return events;
   }
 
   /** One SDK log line = one `logs` event. Never logs through the SDK logger itself. */
@@ -309,23 +353,38 @@ export default class TelemetryClient {
     }
   }
 
-  private _buildEvent(
+  /**
+   * The messages of one event. An event with an explicit call ID (or
+   * noActiveCall) is one message; a shared event is one message per active
+   * call (same sequence and timestamp, own call_id and call_sequence), or one
+   * without call_id when no call is active.
+   */
+  private _buildEvents(
     name: EventName,
     payload: EventBody['payload'],
     options: EmitOptions
-  ): ClientEvent | null {
+  ): ClientEvent[] {
     const ids: KnownIds = { sdk_instance_id: this.sdkInstanceId };
     const voiceSdkId = this._host?.getVoiceSdkId();
     if (voiceSdkId) ids.voice_sdk_id = voiceSdkId;
     const sessionId = this._host?.getSessionId();
     if (sessionId) ids.session_id = sessionId;
-    const activeCallId = options.noActiveCall ? undefined : this.activeCallId;
-    if (activeCallId) ids.call_id = activeCallId;
     if (options.ids) {
       for (const [key, value] of Object.entries(options.ids)) {
         if (value) (ids as Record<string, string>)[key] = value as string;
       }
     }
+    // A record of a call whose call_ended went out no longer carries its ID.
+    if (ids.call_id && this._endedCalls.includes(ids.call_id)) {
+      delete ids.call_id;
+    }
+
+    let callIds: (string | undefined)[];
+    if (ids.call_id) callIds = [ids.call_id];
+    else if (options.ids?.call_id || options.noActiveCall)
+      callIds = [undefined];
+    else
+      callIds = this._activeCalls.length ? [...this._activeCalls] : [undefined];
 
     if (
       name === 'call_metrics' &&
@@ -335,36 +394,55 @@ export default class TelemetryClient {
         !ids.call_id)
     ) {
       // The backend dead-letters these (contract 1.5); don't spend a sequence on it.
-      return null;
+      return [];
     }
 
-    const event = {
-      schema_version: '2.0',
-      sequence: options.sequence ?? this.reserveSequence(),
-      timestamp: iso(options.timestamp ?? Date.now()),
-      client: this.client,
-      ids,
-      name,
-      payload,
-    } as ClientEvent;
+    const sequence = options.sequence ?? this.reserveSequence();
+    const timestamp = iso(options.timestamp ?? Date.now());
     const generation = this._host?.getSocketGeneration() ?? 0;
-    if (generation > 0) event.socket_generation = generation;
-    return event;
+    return callIds.map((callId) => {
+      const event = {
+        schema_version: SCHEMA_VERSION,
+        sequence,
+        timestamp,
+        client: this.client,
+        ids: callId ? { ...ids, call_id: callId } : ids,
+        name,
+        payload,
+      } as ClientEvent;
+      if (callId) {
+        const callSequence = (this._callSequences.get(callId) ?? 0) + 1;
+        this._callSequences.set(callId, callSequence);
+        event.call_sequence = callSequence;
+      }
+      if (generation > 0) event.socket_generation = generation;
+      return event;
+    });
   }
 
-  private _enqueue(event: ClientEvent): void {
-    // Keep sequence order: a reserved sequence may arrive after newer ones.
+  /**
+   * Adds the copies of one event to the pending queue, in sequence order
+   * (a reserved sequence may arrive after newer ones). Copies share a sequence:
+   * they stay together, in the order built. Above max_pending_events messages,
+   * the oldest event is dropped with all its copies.
+   */
+  private _enqueue(events: ClientEvent[]): void {
+    if (!events.length) return;
+    const sequence = events[0].sequence;
     let index = this._pending.length;
-    while (
-      index > 0 &&
-      this._pending[index - 1].event.sequence > event.sequence
-    ) {
+    while (index > 0 && this._pending[index - 1].event.sequence > sequence) {
       index -= 1;
     }
-    this._pending.splice(index, 0, { event });
+    this._pending.splice(index, 0, ...events.map((event) => ({ event })));
     while (this._pending.length > this.maxPendingEvents) {
-      this._pending.shift();
-      this._droppedPending += 1;
+      const oldest = this._pending[0].event.sequence;
+      while (
+        this._pending.length &&
+        this._pending[0].event.sequence === oldest
+      ) {
+        this._pending.shift();
+        this._droppedPending += 1;
+      }
     }
   }
 

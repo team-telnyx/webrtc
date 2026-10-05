@@ -1,9 +1,11 @@
 jest.unmock('uuid');
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { toErrorInfo } from '../../telemetry/sanitize';
 import { createTelnyxError } from '../../util/errors';
 import { BYE_SEND_FAILED } from '../../util/constants';
 
+import CallTelemetry from '../../telemetry/CallTelemetry';
 import TelemetryClient, {
   setTelemetryWebSocket,
   TELEMETRY_CONTROL_METHOD,
@@ -15,7 +17,6 @@ class FakeSocket {
   static instances: FakeSocket[] = [];
   readyState = 0;
   bufferedAmount = 0;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   sent: any[] = [];
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
@@ -133,7 +134,8 @@ describe('TelemetryClient', () => {
       session_id: 'sess-1',
     });
     expect(live.socket_generation).toBe(2);
-    expect(live.schema_version).toBe('2.0');
+    expect(live.schema_version).toBe('2.1');
+    expect(live.call_sequence).toBeUndefined();
     client.close();
   });
 
@@ -233,12 +235,175 @@ describe('TelemetryClient', () => {
     logEvent(client, 'after');
     const [during, after] = ws.events();
     expect(during.ids.call_id).toBe('call-1');
+    expect(during.call_sequence).toBe(1);
     expect(after.ids.call_id).toBeUndefined();
+    expect(after.call_sequence).toBeUndefined();
 
     const before = client.lastSequence;
     client.emit('call_metrics', { interval_ms: 1000 });
     expect(client.lastSequence).toBe(before);
     client.close();
+  });
+
+  const connected = () => {
+    const client = makeClient();
+    client.connect();
+    const ws = FakeSocket.instances[FakeSocket.instances.length - 1];
+    ws.open();
+    ws.acceptLogin();
+    return { client, ws };
+  };
+
+  it('sends a shared event to every active call with one sequence and per-call call_sequence (2.1)', () => {
+    const { client, ws } = connected();
+    client.callStarted('call-a');
+    client.emit(
+      'call_state',
+      { state: 'requesting' },
+      { ids: { call_id: 'call-a' } }
+    );
+    client.callStarted('call-b');
+    client.emit(
+      'call_state',
+      { state: 'requesting' },
+      { ids: { call_id: 'call-b' } }
+    );
+    client.emit('socket_closed', {
+      close_code: 1006,
+      closed_by: 'network',
+      open_duration_ms: 5000,
+      will_reconnect: true,
+    });
+
+    const closed = ws.events().filter((e) => e.name === 'socket_closed');
+    expect(closed).toHaveLength(2);
+    expect(closed.map((e) => e.ids.call_id)).toEqual(['call-a', 'call-b']);
+    expect(closed[0].sequence).toBe(closed[1].sequence);
+    expect(closed[0].timestamp).toBe(closed[1].timestamp);
+    expect(closed.map((e) => e.call_sequence)).toEqual([2, 2]);
+    expect(client.lastSequence).toBe(closed[0].sequence);
+    // emit() returns the first copy
+    const first = client.emit('logs', {
+      level: 'info',
+      category: 'general',
+      message: 'x',
+    });
+    expect(first.ids.call_id).toBe('call-a');
+    expect(first.call_sequence).toBe(3);
+
+    // A call's own event is never copied.
+    client.emit(
+      'call_state',
+      { state: 'active' },
+      { ids: { call_id: 'call-b' } }
+    );
+    const own = ws
+      .events()
+      .filter((e) => e.name === 'call_state' && e.payload.state === 'active');
+    expect(own).toHaveLength(1);
+    expect(own[0].call_sequence).toBe(4);
+    // noActiveCall: once, without call_id
+    client.emit(
+      'logs',
+      { level: 'info', category: 'general', message: 'y' },
+      {
+        noActiveCall: true,
+      }
+    );
+    const y = ws.events().filter((e) => e.payload?.message === 'y');
+    expect(y).toHaveLength(1);
+    expect(y[0].ids.call_id).toBeUndefined();
+    expect(y[0].call_sequence).toBeUndefined();
+  });
+
+  it('sends nothing with a call ID after the call ended', () => {
+    const { client, ws } = connected();
+    client.callStarted('call-a');
+    client.emit(
+      'call_state',
+      { state: 'active' },
+      { ids: { call_id: 'call-a' } }
+    );
+    client.callEnded('call-a');
+    expect(client.activeCallIds).toEqual([]);
+    expect(client.callSequence('call-a')).toBe(0);
+    // A late frame of the ended call goes out without its call_id.
+    client.emit(
+      'signaling_message',
+      {
+        direction: 'received',
+        kind: 'response',
+        method: 'telnyx_rtc.bye',
+        rpc_id: '1',
+        size_bytes: 10,
+        category: 'call',
+      } as any,
+      { ids: { call_id: 'call-a' } }
+    );
+    const late = ws.events().find((e) => e.name === 'signaling_message');
+    expect(late.ids.call_id).toBeUndefined();
+    expect(late.call_sequence).toBeUndefined();
+  });
+
+  it('keeps the copies of a shared event together in the pending queue and drops them together', () => {
+    const client = makeClient({ maxPendingEvents: 5 });
+    client.callStarted('call-a');
+    client.callStarted('call-b');
+    const reserved = client.reserveSequence();
+    logEvent(client, 'one'); // 2 copies
+    logEvent(client, 'two'); // 2 copies
+    client.emit(
+      'logs',
+      { level: 'info', category: 'general', message: 'reserved' },
+      { sequence: reserved }
+    ); // 2 copies, sorted before 'one'
+    // 6 messages > 5: the oldest event (reserved) is dropped with both copies.
+    client.connect();
+    const ws = FakeSocket.instances[0];
+    ws.open();
+    ws.acceptLogin();
+    const sent = ws.events().filter((e) => e.payload.category === 'general');
+    expect(sent.map((e) => [e.payload.message, e.ids.call_id])).toEqual([
+      ['one', 'call-a'],
+      ['one', 'call-b'],
+      ['two', 'call-a'],
+      ['two', 'call-b'],
+    ]);
+    const drops = ws
+      .allEvents()
+      .find((e) => e.payload.message === 'Telemetry events dropped');
+    expect(drops.payload.details.dropped_pending).toBe(2);
+  });
+
+  it("ends a call with call_ended as its last record, carrying the call's record count", async () => {
+    const { client, ws } = connected();
+    const callA = { id: 'call-a', options: {} };
+    const callB = { id: 'call-b', options: {} };
+    const a = CallTelemetry.create(callA as any, { telemetry: client })!;
+    const b = CallTelemetry.create(callB as any, { telemetry: client })!;
+    a.start();
+    a.onState('requesting', 'new');
+    b.start();
+    logEvent(client, 'shared');
+    a.onState('hangup', 'requesting');
+    await a.end();
+    logEvent(client, 'after a');
+    b.onState('requesting', 'new');
+
+    const ofA = ws.events().filter((e) => e.ids.call_id === 'call-a');
+    const ended = ofA[ofA.length - 1];
+    expect(ended.name).toBe('call_ended');
+    expect(ended.call_sequence).toBe(ofA.length);
+    expect(ofA.map((e) => e.call_sequence)).toEqual(ofA.map((_, i) => i + 1));
+    const after = ws.events().find((e) => e.payload?.message === 'after a');
+    expect(after.ids.call_id).toBe('call-b');
+    expect(client.activeCallIds).toEqual(['call-b']);
+
+    // call_state always says where it came from
+    const states = ws.events().filter((e) => e.name === 'call_state');
+    expect(states.every((e) => e.payload.previous_state)).toBe(true);
+    await b.end();
+    expect(client.activeCallIds).toEqual([]);
   });
 
   it("hands a failed instance's events to the next live instance", () => {

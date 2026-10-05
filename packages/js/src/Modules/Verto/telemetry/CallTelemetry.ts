@@ -727,6 +727,8 @@ export default class CallTelemetry {
     {};
   private _b2buaSent = false;
   private _lastState: CallState = 'new';
+  /** The state of the last call_state built (fallback for previous_state). */
+  private _lastEmittedState: CallState | null = null;
   private _frozenLastState: CallState | null = null;
   private _answered = false;
   private _activeAtPerf: number | null = null;
@@ -935,9 +937,12 @@ export default class CallTelemetry {
         this._telnyxIds.telnyx_session_id = options.telnyxSessionId;
       }
       const payload: CallStatePayload = { state: state as CallState };
-      if (previousState && previousState !== state) {
-        payload.previous_state = previousState as CallState;
-      }
+      // Always when known, also for a repeated state: the call report rebuilds
+      // the state machine from transitions and finds a lost call_state where
+      // previous_state differs from the state before it.
+      const previous = previousState || this._lastEmittedState;
+      if (previous) payload.previous_state = previous as CallState;
+      this._lastEmittedState = state as CallState;
       if (!this._b2buaSent) {
         const b2bua = readB2buaRtc(this._session);
         if (Object.keys(b2bua).length) {
@@ -1503,19 +1508,26 @@ export default class CallTelemetry {
           );
         } catch {
           // never throw into the SDK
+        } finally {
+          // Synchronously after call_ended (contract 2.1): it is the call's last
+          // record, so nothing built after it may carry the call's ID.
+          this._release();
         }
       })
-      .finally(() => {
-        try {
-          if (CallTelemetry._latest.get(this._call.id) === this) {
-            CallTelemetry._latest.delete(this._call.id);
-            this._telemetry.callEnded(this._call.id);
-          }
-        } catch {
-          // ignore
-        }
-      });
+      .finally(() => this._release());
     return this._endPromise;
+  }
+
+  /** The call leaves the telemetry client's active calls. Idempotent. */
+  private _release(): void {
+    try {
+      if (CallTelemetry._latest.get(this._call.id) === this) {
+        CallTelemetry._latest.delete(this._call.id);
+        this._telemetry.callEnded(this._call.id);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   private _buildEnded(

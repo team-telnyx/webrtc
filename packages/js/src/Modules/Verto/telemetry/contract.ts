@@ -99,8 +99,9 @@ export type MetricsEnvelope = Envelope & {
 
 /** Who, where and when. Same shape for every event. */
 export type Envelope = {
-  schema_version: '2.0'; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution)
-  sequence: number; // 1, 2, 3... per sdk_instance_id, across sockets and logins, never reset, never repeated: with sdk_instance_id it identifies the event (support links, DLQ, read-time dedupe); gaps = lost events
+  schema_version: '2.1'; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution). 2.1: call_sequence, shared events copied per active call
+  sequence: number; // 1, 2, 3... per sdk_instance_id, across sockets and logins, never reset; never reused for a different event (the copies of one shared event share it): with sdk_instance_id it identifies the event (support links, DLQ, read-time dedupe); gaps = lost events
+  call_sequence?: number; // since 2.1. On every record with ids.call_id: 1, 2, 3... per (sdk_instance_id, call_id), counting the call's own events, its call_metrics and its copies of shared events. call_ended carries the last one (= the call's record count). Absent without call_id
   timestamp: string; // client time it happened. call_metrics: end of the interval
   socket_generation?: number; // the signaling socket attempt it happened on: absent before the first socket_connect_started, then 1, +1 for each new socket. A counter, not an ID
   client: ClientInfo; // repeated in every message; permessage-deflate removes the repetition on the wire
@@ -113,7 +114,7 @@ export type KnownIds = {
   sdk_instance_id: string; // created with the SDK, never changes; the Kafka key
   voice_sdk_id?: string; // from the server on connect; kept across socket reconnects and, in session storage, across page refreshes, so it can span several SDK instances
   session_id?: string; // server sessid, from login_succeeded on; kept across socket reconnects
-  call_id?: string; // SDK call id (verto callID); on every event of the call, and while the call is active on every other record too (socket, login, gateway, logs)
+  call_id?: string; // SDK call id (verto callID); on every event of the call. Since 2.1 a shared event (socket, login, gateway, logs...) is sent once per active call, each copy with that call's id (same sequence and timestamp); none after the call's call_ended
   /**
    * Telnyx call-control IDs, from the first call_state that knows them onward, on every call-scoped event
    * EXCEPT call_metrics: they are constant per call and would add ~119 B (+13%) to every 1 Hz sample,
