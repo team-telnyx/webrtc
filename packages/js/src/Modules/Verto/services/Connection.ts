@@ -50,6 +50,8 @@ const CLOSE_SAFETY_TIMEOUT_MS = 5000;
 
 export default class Connection {
   public previousGatewayState = '';
+  // Public readiness is independent of gateway registration confirmation.
+  public readyEmitted = false;
   /** Timestamp (Date.now()) of the last inbound WS message — any parsed message, not just pongs. */
   public lastInboundAt: number = 0;
   /**

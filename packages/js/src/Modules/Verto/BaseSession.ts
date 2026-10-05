@@ -953,9 +953,10 @@ export default abstract class BaseSession {
       setReconnectSessionId(this.sessionid);
     }
 
-    // Reset gateway state on socket close so telnyx.ready fires again on reconnection
+    // Reset readiness on socket close so telnyx.ready fires again on reconnection.
     if (this.connection) {
       this.connection.previousGatewayState = '';
+      this.connection.readyEmitted = false;
     }
 
     if (this._autoReconnect) {
