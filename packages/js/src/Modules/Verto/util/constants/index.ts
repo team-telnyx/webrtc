@@ -28,9 +28,7 @@ export const STUN_SERVER = { urls: 'stun:stun.telnyx.com:3478' };
 export const STUN_DEV_SERVER = { urls: 'stun:stundev.telnyx.com:3478' };
 // Individual Telnyx TURN servers. Both the prod and dev defaults (see
 // DEFAULT_PROD_ICE_SERVERS / DEFAULT_DEV_ICE_SERVERS below) include TURN over
-// UDP/3478 and TCP/3478, plus TURNS on 443. The production TURNS endpoints are
-// kept in the confirmed configuration order: turn.telnyx.com, then turn2. This
-// array order does not guarantee browser ICE candidate-pair priority.
+// UDP/3478 and TCP/3478, plus TURNS on 443.
 export const TURN_UDP_3478_SERVER = {
   urls: 'turn:turn.telnyx.com:3478?transport=udp',
   username: 'testuser',
@@ -61,13 +59,6 @@ export const TURN_TLS_443_PRIMARY_SERVER = {
   username: 'testuser',
   credential: 'testpassword',
 };
-// Keep the existing turn2 endpoint while infrastructure migrates to the
-// primary turn.telnyx.com DNS name.
-export const TURN_TLS_443_SERVER = {
-  urls: 'turns:turn2.telnyx.com:443',
-  username: 'testuser',
-  credential: 'testpassword',
-};
 // NOTE: the dev TURNS/443 endpoint may not gather any relay candidates in some
 // dev environments — it is kept for parity with the prod list (harmless when it
 // yields no candidates), but don't rely on TURNS/443 working in dev.
@@ -82,7 +73,6 @@ export const DEFAULT_PROD_ICE_SERVERS: RTCIceServer[] = [
   GOOGLE_STUN_SERVER,
   ...TURN_SERVER,
   TURN_TLS_443_PRIMARY_SERVER,
-  TURN_TLS_443_SERVER,
 ];
 
 export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
@@ -122,8 +112,7 @@ export const TELNYX_ICE_SERVERS = {
   TELNYX_STUN: STUN_SERVER,
   TELNYX_TURN_UDP_3478: TURN_UDP_3478_SERVER,
   TELNYX_TURN_TCP_3478: TURN_TCP_3478_SERVER,
-  TELNYX_TURNS_TCP_443: TURN_TLS_443_SERVER,
-  TELNYX_TURNS_TCP_443_PRIMARY: TURN_TLS_443_PRIMARY_SERVER,
+  TELNYX_TURNS_TCP_443: TURN_TLS_443_PRIMARY_SERVER,
 } as const;
 
 export enum SwEvent {

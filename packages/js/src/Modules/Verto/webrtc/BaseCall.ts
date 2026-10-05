@@ -41,6 +41,7 @@ import {
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   AUDIO_INPUT_DEVICE_CHANGE_SKIPPED,
+  UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
 } from '../util/constants';
 import {
   classifyMediaErrorCode,
@@ -56,7 +57,6 @@ import logger from '../util/logger';
 import {
   attachMediaStream,
   detachMediaStream,
-  getUserMedia,
   setMediaElementSinkId,
   stopStream,
 } from '../util/webrtc';
@@ -92,6 +92,7 @@ import {
   enableVideoTracks,
   getStreamTrackDebugInfo,
   getTrackDebugInfo,
+  getUserMedia as getUserMediaWithFallback,
   hasOnlyHostIceCandidates,
   playAudio,
   stopAudio,
@@ -117,6 +118,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _callReportCollector: CallReportCollector | null = null;
   private _callRecorder: CallRecorder | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
+  private readonly _audioDeviceRecoveryErrors = new WeakSet<TelnyxError>();
+  protected _mediaDeviceGeneration = 0;
 
   /**
    * The call identifier.
@@ -519,11 +522,21 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
   /**
    * Starts the process to answer the incoming call.
+   * Media/device overrides apply only to this call before peer initialization.
+   * Omitted or undefined values retain its defaults; audio/video false stays
+   * disabled even with a stored device ID. A valid localStream is reused.
+   * Speaker selection needs a remote element and browser setSinkId support.
+   * Camera/video options use existing video negotiation; they do not add video
+   * to an audio-only offer or provide automatic device hot-plug recovery.
    *
    * @examples
    *
    * ```js
-   * call.answer()
+   * call.answer({
+   *   micId: selectedMicrophoneId,
+   *   speakerId: selectedSpeakerId,
+   *   remoteElement: document.getElementById('remoteMedia'),
+   * });
    * ```
    */
   async answer(params: AnswerParams = {}) {
@@ -574,29 +587,23 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
-    // Per-call remote/local element override (VSUP-121).
-    // When the caller passes remoteElement/localElement to answer(), merge them
-    // into this.options so the rest of the call lifecycle (attach/detach in
-    // _finalize(), media element management) uses the per-call element instead
-    // of the session-level client.remoteElement/localElement default. This
-    // enables concurrent calls in one client session to attach to independent
-    // <audio>/<video> elements without the last-writer-wins overwrite behavior.
-    // Only override when explicitly provided in params; otherwise fall back to
-    // the existing this.options value (which was set from the session default
-    // at call construction) for backward compatibility.
-    if (
-      params.remoteElement !== undefined ||
-      params.localElement !== undefined
-    ) {
-      this.options = {
-        ...this.options,
-        ...(params.remoteElement !== undefined && {
-          remoteElement: params.remoteElement,
-        }),
-        ...(params.localElement !== undefined && {
-          localElement: params.localElement,
-        }),
-      };
+    // Apply only supported, explicit per-call overrides before media capture.
+    // Keep false values and leave session defaults and other calls untouched.
+    const overrideKeys = [
+      'micId',
+      'micLabel',
+      'speakerId',
+      'camId',
+      'camLabel',
+      'audio',
+      'video',
+      'remoteElement',
+      'localElement',
+    ] as const;
+    for (const key of overrideKeys) {
+      if (params[key] !== undefined) {
+        this.options = { ...this.options, [key]: params[key] };
+      }
     }
 
     if (this.options.trickleIce) {
@@ -1025,16 +1032,28 @@ export default abstract class BaseCall implements IWebRTCCall {
    * @param muted Whether the audio track should be muted. Defaults to the current desired mute state.
    * @returns Promise that resolves if the audio input device has been updated
    */
-  async setAudioInDevice(
+  async setAudioInDevice(deviceId: string, muted?: boolean): Promise<void> {
+    return this._setAudioInDevice(deviceId, muted);
+  }
+
+  private async _setAudioInDevice(
     deviceId: string,
-    muted = this._desiredAudioMuted
+    muted?: boolean,
+    recovering = false
   ): Promise<void> {
-    const newDesiredMuted = Boolean(muted);
+    if (this._isTerminatingOrTerminated() || !this.peer?.instance) return;
+    const newDesiredMuted =
+      muted === undefined ? this._desiredAudioMuted : Boolean(muted);
+    const generation = this._mediaDeviceGeneration;
 
     const { instance } = this.peer;
+    const cancelled = () =>
+      this._isTerminatingOrTerminated() ||
+      generation !== this._mediaDeviceGeneration ||
+      this.peer?.instance !== instance;
     const sender = instance
       .getSenders()
-      .find(({ track: { kind } }: RTCRtpSender) => kind === 'audio');
+      .find(({ track }: RTCRtpSender) => track?.kind === 'audio');
 
     if (!sender) {
       // No audio sender — nothing to replace. Keep the current desired state.
@@ -1069,26 +1088,37 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     let newStream: MediaStream;
     try {
-      newStream = await getUserMedia({
+      newStream = await getUserMediaWithFallback({
         audio: { deviceId: { exact: deviceId } },
       });
     } catch (error) {
       // getUserMedia failed (missing device / permission error).
+      if (cancelled()) return;
       // Don't change the desired mute state — the old track is still active.
       const telnyxError = createTelnyxError(
         classifyMediaErrorCode(error),
         error
       );
+      if (recovering) this._audioDeviceRecoveryErrors.add(telnyxError);
       trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
       return;
     }
 
+    if (cancelled()) {
+      newStream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     const audioTrack = newStream.getAudioTracks()[0];
-    audioTrack.enabled = !newDesiredMuted;
 
     try {
+      if (!audioTrack) throw new Error('No audio track acquired');
+      audioTrack.enabled = !(muted === undefined
+        ? this._desiredAudioMuted
+        : newDesiredMuted);
       await sender.replaceTrack(audioTrack);
     } catch (error) {
+      newStream.getTracks().forEach((t) => t.stop());
+      if (cancelled()) return;
       // replaceTrack rejected — the RTP sender did not switch tracks.
       // Don't commit any state changes. Keep the old stream and desired
       // mute state. Surface the failure as a media error.
@@ -1096,8 +1126,12 @@ export default abstract class BaseCall implements IWebRTCCall {
         classifyMediaErrorCode(error),
         error
       );
+      if (recovering) this._audioDeviceRecoveryErrors.add(telnyxError);
       trigger(SwEvent.MediaError, telnyxError, this.options?.id || this.id);
-      // Stop the new stream we acquired but didn't use
+      return;
+    }
+
+    if (cancelled()) {
       newStream.getTracks().forEach((t) => t.stop());
       return;
     }
@@ -1105,8 +1139,25 @@ export default abstract class BaseCall implements IWebRTCCall {
     // Only commit the new desired mute state after getUserMedia + sender
     // replacement succeeds. This prevents isAudioMuted from flipping on
     // failure while the actual audio track stays unchanged.
-    this._desiredAudioMuted = newDesiredMuted;
-    this.options.micId = deviceId;
+    if (muted !== undefined) this._desiredAudioMuted = newDesiredMuted;
+    audioTrack.enabled = !this._desiredAudioMuted;
+    // Capture may have fallen back to the default microphone. Never record
+    // the requested device as active unless the acquired track confirms it.
+    try {
+      this.options.micId = audioTrack.getSettings?.()?.deviceId || 'default';
+    } catch (error) {
+      this.options.micId = 'default';
+      // Media already switched successfully; metadata failure must not trigger
+      // the MediaError handler, which can terminate the call.
+      const telnyxError = createTelnyxError(
+        UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
+        error
+      );
+      logger.warn('Unable to read audio input settings after device change', {
+        callId: this.id,
+        error: telnyxError,
+      });
+    }
 
     const { localStream } = this.options;
     localStream.getAudioTracks().forEach((t) => t.stop());
@@ -1206,7 +1257,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .getSenders()
       .find(({ track: { kind } }: RTCRtpSender) => kind === 'video');
     if (sender) {
-      const newStream = await getUserMedia({
+      const newStream = await getUserMediaWithFallback({
         video: { deviceId: { exact: deviceId } },
       });
       const videoTrack = newStream.getVideoTracks()[0];
@@ -1328,7 +1379,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     this.setBandwidthEncodingsMaxBps(max, 'video');
   }
 
-  private _isTerminatingOrTerminated(): boolean {
+  protected _isTerminatingOrTerminated(): boolean {
     return [State.Hangup, State.Destroy, State.Purge].includes(this._state);
   }
 
@@ -1440,9 +1491,13 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._callRecorder.start(localAudioTrack, remoteAudioTrack);
         }
 
-        // Start logging media devices for debugging
-        this._mediaDeviceCollector = new MediaDeviceCollector();
-        this._mediaDeviceCollector.logDevicesAtStart();
+        // One call-local listener, including across hold/unhold transitions.
+        if (!this._mediaDeviceCollector) {
+          this._mediaDeviceCollector = new MediaDeviceCollector(this, () =>
+            this._setAudioInDevice('default', undefined, true)
+          );
+          void this._mediaDeviceCollector.logDevicesAtStart();
+        }
         break;
       }
       case State.Held: {
@@ -2353,7 +2408,11 @@ export default abstract class BaseCall implements IWebRTCCall {
       this.session.uuid
     );
 
-    void this.hangup({ initiator: 'sdk:media-error' }, false);
+    // Only the exact hotplug replacement error is nonterminal. Unrelated media
+    // failures must still hang up, even while recovery is awaiting capture.
+    if (!this._audioDeviceRecoveryErrors.has(error)) {
+      void this.hangup({ initiator: 'sdk:media-error' }, false);
+    }
   }
 
   private _onPeerConnectionFailureError(data: {
@@ -2654,6 +2713,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    this._mediaDeviceGeneration++;
     this._stopStats();
     this._mediaDeviceCollector?.stop();
     this._mediaDeviceCollector = null;

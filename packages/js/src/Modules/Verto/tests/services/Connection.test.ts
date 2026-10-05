@@ -13,12 +13,17 @@ import { trigger } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
 import { Region } from '../../../../index';
 import logger from '../../util/logger';
-import { getReconnectToken, setReconnectToken } from '../../util/reconnect';
+import {
+  getReconnectToken,
+  getReconnectTokenCanaryRtcServer,
+  setReconnectToken,
+} from '../../util/reconnect';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
 jest.mock('../../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
+  getReconnectTokenCanaryRtcServer: jest.fn(() => undefined),
   setReconnectToken: jest.fn(),
 }));
 
@@ -115,9 +120,9 @@ describe('Connection - region selection', () => {
 
   it('preserves default, custom-host, and unknown-region behavior', () => {
     expect(hostFor()).toBe('wss://rtc.telnyx.com');
-    expect(
-      hostFor({ host: 'wss://rtc.example.com', region: Region.EU })
-    ).toBe('wss://eu.rtc.example.com');
+    expect(hostFor({ host: 'wss://rtc.example.com', region: Region.EU })).toBe(
+      'wss://eu.rtc.example.com'
+    );
     expect(hostFor({ region: 'future-region' })).toBe(
       'wss://future-region.rtc.telnyx.com'
     );
@@ -149,6 +154,7 @@ describe('Connection - Safety Timeout', () => {
     };
 
     connection = new Connection(mockSession);
+    mockSession.connection = connection;
   });
 
   afterEach(() => {
@@ -222,6 +228,261 @@ describe('Connection - Safety Timeout', () => {
         'stored-voice-sdk-id'
       );
       expect(wsUrl.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
+    });
+
+    describe('canary routing toggle', () => {
+      const currentWebSocketUrl = (): URL => {
+        const ws = (connection as any)._wsClient as MockWebSocket;
+        expect(ws).not.toBeNull();
+        return new URL(ws.url);
+      };
+
+      beforeEach(() => {
+        (getReconnectToken as jest.Mock).mockReturnValue('stored-voice-sdk-id');
+        (getReconnectTokenCanaryRtcServer as jest.Mock).mockReturnValue(
+          undefined
+        );
+      });
+
+      it.each([
+        { value: true, expected: 'true' },
+        { value: false, expected: 'false' },
+      ])(
+        'sends canary=$expected for explicit $value',
+        ({ value, expected }) => {
+          mockSession.options.useCanaryRtcServer = value;
+
+          connection.connect();
+
+          expect(currentWebSocketUrl().searchParams.get('canary')).toBe(
+            expected
+          );
+        }
+      );
+
+      it('omits canary when useCanaryRtcServer is omitted', () => {
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.has('canary')).toBe(false);
+      });
+
+      it.each([true, false])(
+        'omits an explicit %s route token when switching to unset, then reuses the default-route replacement',
+        (previousRoute) => {
+          mockSession.options.useCanaryRtcServer = previousRoute;
+          connection.connect();
+          let ws = (connection as any)._wsClient as MockWebSocket;
+          ws.simulateMessage({ voice_sdk_id: 'explicit-route-voice-sdk-id' });
+          (getReconnectToken as jest.Mock).mockReturnValue(
+            'explicit-route-voice-sdk-id'
+          );
+
+          delete mockSession.options.useCanaryRtcServer;
+          connection.connect();
+          let url = currentWebSocketUrl();
+          expect(url.searchParams.has('canary')).toBe(false);
+          expect(url.searchParams.has('voice_sdk_id')).toBe(false);
+
+          ws = (connection as any)._wsClient as MockWebSocket;
+          ws.simulateMessage({ voice_sdk_id: 'default-voice-sdk-id' });
+          (getReconnectToken as jest.Mock).mockReturnValue(
+            'default-voice-sdk-id'
+          );
+
+          connection.connect();
+          url = currentWebSocketUrl();
+          expect(url.searchParams.has('canary')).toBe(false);
+          expect(url.searchParams.get('voice_sdk_id')).toBe(
+            'default-voice-sdk-id'
+          );
+        }
+      );
+
+      it.each([true, false])(
+        'omits a stored voice_sdk_id on the first explicit %s connection, then reuses the replacement while unchanged',
+        (value) => {
+          mockSession.options.useCanaryRtcServer = value;
+
+          connection.connect();
+          expect(currentWebSocketUrl().searchParams.has('voice_sdk_id')).toBe(
+            false
+          );
+
+          const ws = (connection as any)._wsClient as MockWebSocket;
+          ws.simulateMessage({ voice_sdk_id: 'replacement-voice-sdk-id' });
+          (getReconnectToken as jest.Mock).mockReturnValue(
+            'replacement-voice-sdk-id'
+          );
+
+          connection.connect();
+          expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+            'replacement-voice-sdk-id'
+          );
+        }
+      );
+
+      it('uses the persisted canary association for the current stored voice_sdk_id instead of stale session state', () => {
+        mockSession.reconnectTokenCanaryRtcServer = true;
+        mockSession.options.useCanaryRtcServer = false;
+        (getReconnectTokenCanaryRtcServer as jest.Mock).mockReturnValue(false);
+
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+          'stored-voice-sdk-id'
+        );
+      });
+
+      it('keeps the replacement voice_sdk_id when Connection is recreated within the same session', () => {
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+        const ws = (connection as any)._wsClient as MockWebSocket;
+        ws.simulateMessage({ voice_sdk_id: 'replacement-voice-sdk-id' });
+        (getReconnectToken as jest.Mock).mockReturnValue(
+          'replacement-voice-sdk-id'
+        );
+
+        connection = new Connection(mockSession);
+        mockSession.connection = connection;
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+          'replacement-voice-sdk-id'
+        );
+      });
+
+      it('stores the canary routing association on the session with the replacement voice_sdk_id', () => {
+        mockSession.options.useCanaryRtcServer = false;
+        connection.connect();
+        const ws = (connection as any)._wsClient as MockWebSocket;
+
+        ws.simulateMessage({ voice_sdk_id: 'replacement-voice-sdk-id' });
+
+        expect(mockSession.reconnectTokenCanaryRtcServer).toBe(false);
+        expect(setReconnectToken).toHaveBeenCalledWith(
+          'replacement-voice-sdk-id',
+          false
+        );
+      });
+
+      it('ignores a late voice_sdk_id response from a superseded socket route', () => {
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+        const oldWs = (connection as any)._wsClient as MockWebSocket;
+
+        mockSession.options.useCanaryRtcServer = false;
+        connection.connect();
+        const currentWs = (connection as any)._wsClient as MockWebSocket;
+        currentWs.simulateMessage({ voice_sdk_id: 'current-voice-sdk-id' });
+        (setReconnectToken as jest.Mock).mockClear();
+
+        oldWs.simulateMessage({ voice_sdk_id: 'stale-voice-sdk-id' });
+
+        expect(mockSession.reconnectTokenCanaryRtcServer).toBe(false);
+        expect(setReconnectToken).not.toHaveBeenCalledWith(
+          'stale-voice-sdk-id',
+          true
+        );
+      });
+
+      it('ignores a late voice_sdk_id response from a replaced Connection', () => {
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+        const replacedConnectionWs = (connection as any)
+          ._wsClient as MockWebSocket;
+
+        mockSession.options.useCanaryRtcServer = false;
+        connection = new Connection(mockSession);
+        mockSession.connection = connection;
+        connection.connect();
+        const currentWs = (connection as any)._wsClient as MockWebSocket;
+        currentWs.simulateMessage({ voice_sdk_id: 'current-voice-sdk-id' });
+        (setReconnectToken as jest.Mock).mockClear();
+
+        replacedConnectionWs.simulateMessage({
+          voice_sdk_id: 'stale-voice-sdk-id',
+        });
+
+        expect(mockSession.reconnectTokenCanaryRtcServer).toBe(false);
+        expect(setReconnectToken).not.toHaveBeenCalledWith(
+          'stale-voice-sdk-id',
+          true
+        );
+      });
+
+      it('keeps omitting the old voice_sdk_id after a canary switch until the new route returns a replacement', () => {
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+        const initialWs = (connection as any)._wsClient as MockWebSocket;
+        initialWs.simulateMessage({ voice_sdk_id: 'canary-voice-sdk-id' });
+        (getReconnectToken as jest.Mock).mockReturnValue('canary-voice-sdk-id');
+
+        mockSession.options.useCanaryRtcServer = false;
+        connection.connect();
+        const switchedWs = (connection as any)._wsClient as MockWebSocket;
+        expect(currentWebSocketUrl().searchParams.has('voice_sdk_id')).toBe(
+          false
+        );
+
+        switchedWs.simulateError({ type: 'error' });
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('canary')).toBe('false');
+        expect(currentWebSocketUrl().searchParams.has('voice_sdk_id')).toBe(
+          false
+        );
+      });
+
+      it.each([
+        { previous: true, next: false },
+        { previous: false, next: true },
+      ])(
+        'omits a stored voice_sdk_id when canary changes from $previous to $next',
+        ({ previous, next }) => {
+          mockSession.options.useCanaryRtcServer = previous;
+          connection.connect();
+          const ws = (connection as any)._wsClient as MockWebSocket;
+          ws.simulateMessage({ voice_sdk_id: 'previous-voice-sdk-id' });
+          (getReconnectToken as jest.Mock).mockReturnValue(
+            'previous-voice-sdk-id'
+          );
+
+          mockSession.options.useCanaryRtcServer = next;
+          connection.connect();
+
+          const url = currentWebSocketUrl();
+          expect(url.searchParams.get('canary')).toBe(String(next));
+          expect(url.searchParams.has('voice_sdk_id')).toBe(false);
+        }
+      );
+
+      it('does not add skip_last_voice_sdk_id when a canary change removes voice_sdk_id', () => {
+        mockSession.options.skipLastVoiceSdkId = true;
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+
+        mockSession.options.useCanaryRtcServer = false;
+        connection.connect();
+
+        const url = currentWebSocketUrl();
+        expect(url.searchParams.has('voice_sdk_id')).toBe(false);
+        expect(url.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
+      });
+
+      it('preserves skip_last_voice_sdk_id when canary is unchanged and voice_sdk_id is reused', () => {
+        mockSession.options.skipLastVoiceSdkId = true;
+        mockSession.options.useCanaryRtcServer = true;
+        connection.connect();
+        const ws = (connection as any)._wsClient as MockWebSocket;
+        ws.simulateMessage({ voice_sdk_id: 'stored-voice-sdk-id' });
+        connection.connect();
+
+        const url = currentWebSocketUrl();
+        expect(url.searchParams.get('voice_sdk_id')).toBe(
+          'stored-voice-sdk-id'
+        );
+        expect(url.searchParams.get('skip_last_voice_sdk_id')).toBe('true');
+      });
     });
   });
 
@@ -505,7 +766,7 @@ describe('Connection - Safety Timeout', () => {
       ws.simulateMessage({ id: 'message-id', voice_sdk_id: 'voice-sdk-id' });
 
       expect(mockSession.callReportVoiceSdkId).toBe('voice-sdk-id');
-      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id');
+      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id', undefined);
     });
   });
 
@@ -736,8 +997,6 @@ describe('Connection - Safety Timeout', () => {
       mockSession.options.skipTrailing = true;
       mockSession.options.useCanaryRtcServer = true;
 
-      // Re-create connection since useCanaryRtcServer is read in constructor
-      connection = new Connection(mockSession);
       connection.connect();
 
       const ws = (connection as any)._wsClient as MockWebSocket;

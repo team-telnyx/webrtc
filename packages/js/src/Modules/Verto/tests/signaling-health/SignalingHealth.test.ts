@@ -29,6 +29,7 @@ jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
 jest.mock('../../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
+  getReconnectTokenCanaryRtcServer: jest.fn(() => undefined),
   setReconnectToken: jest.fn(),
 }));
 
