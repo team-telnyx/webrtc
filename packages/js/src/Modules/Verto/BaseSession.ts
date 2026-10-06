@@ -59,7 +59,9 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
-import TelemetryClient from './telemetry/TelemetryClient';
+import TelemetryClient, {
+  TELEMETRY_PROD_URL,
+} from './telemetry/TelemetryClient';
 import SessionTelemetry, {
   B2BUA_RTC_FIELDS,
   readServerNames,
@@ -167,10 +169,10 @@ export default abstract class BaseSession {
       // Per instance, +1 for each new signaling socket; never reset when the
       // Connection object is replaced (contract: socket_generation).
       getSocketGeneration: () => this.telemetryEvents?.socketGeneration ?? 0,
+      // The telemetry VSP has its own domain (owner, 2026-10-06). No default
+      // for development yet: set options.telemetry.url there.
       getDefaultUrl: () =>
-        this.connection
-          ? `${this.connection.host.replace(/\/+$/, '')}/telemetry`
-          : null,
+        this.options.env === 'development' ? null : TELEMETRY_PROD_URL,
     });
 
     if (!this.validateOptions()) {

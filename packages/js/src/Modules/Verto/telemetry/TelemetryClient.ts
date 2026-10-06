@@ -28,6 +28,8 @@ import type {
 import { sanitizeDetails, sanitizeMessage, toErrorInfo } from './sanitize';
 
 export const TELEMETRY_METHOD = 'telnyx_rtc.telemetry';
+/** The telemetry VSP: its own domain, any path (owner, 2026-10-06). */
+export const TELEMETRY_PROD_URL = 'wss://rtc-telemetry.telnyx.com';
 export const TELEMETRY_CONTROL_METHOD = 'telnyx_rtc.telemetry_control';
 export const TELEMETRY_LOGIN_METHOD = 'telnyx_rtc.telemetry_login';
 
@@ -51,9 +53,9 @@ export interface ITelemetryOptions {
   /** false = the SDK records and sends nothing. */
   enabled?: boolean;
   /**
-   * The telemetry socket's URL. Defaults to the signaling host's /telemetry
-   * path (e.g. wss://rtc.telnyx.com/telemetry). Telemetry is on when this is
-   * set or `enabled` is true.
+   * The telemetry socket's URL. Defaults to the telemetry VSP,
+   * wss://rtc-telemetry.telnyx.com (production; with env "development" there
+   * is no default yet). Telemetry is on when this is set or `enabled` is true.
    */
   url?: string;
   metricsIntervalMs?: number;
