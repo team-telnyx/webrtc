@@ -61,6 +61,71 @@ export interface ITelemetryOptions {
   metricsIntervalMs?: number;
   maxPendingEvents?: number;
   maxSendBacklogBytes?: number;
+  /**
+   * Local capture, for checking what the SDK collects: nothing goes over the
+   * network. Each frame the SDK would send on the telemetry socket (the login
+   * with its credentials redacted, then one per event) is kept in memory, in
+   * send order, and passed to `onFrame`. Read them with
+   * `client.telemetry.capturedFrames()` or save them with
+   * `client.telemetry.downloadCapture()`.
+   */
+  capture?: boolean;
+  /** Capture mode: called with each frame's JSON text as it is "sent". */
+  onFrame?: (frame: string) => void;
+}
+
+/** Credentials never kept in a captured login frame. */
+const CAPTURE_REDACTED_KEYS = ['passwd', 'password', 'login_token', 'login'];
+
+/** Most frames a capture keeps in memory (oldest dropped first). */
+const MAX_CAPTURED_FRAMES = 200000;
+
+/**
+ * Stands in for the telemetry socket in capture mode: records each frame and
+ * answers the login itself, so the sender runs exactly as it would online.
+ */
+class CaptureSocket {
+  readyState = 0;
+  bufferedAmount = 0;
+  onopen: (() => void) | null = null;
+  onmessage: ((message: { data: string }) => void) | null = null;
+  onclose: ((event: { code?: number; reason?: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
+
+  constructor(private _record: (frame: string) => void) {
+    setTimeout(() => {
+      if (this.readyState !== 0) return;
+      this.readyState = 1;
+      this.onopen?.();
+    }, 0);
+  }
+
+  send(text: string): void {
+    const frame = JSON.parse(text);
+    if (frame.method === TELEMETRY_LOGIN_METHOD) {
+      for (const key of CAPTURE_REDACTED_KEYS) {
+        if (key in frame.params) frame.params[key] = '[REDACTED]';
+      }
+      this._record(JSON.stringify(frame));
+      setTimeout(() => {
+        this.onmessage?.({
+          data: JSON.stringify({
+            jsonrpc: '2.0',
+            id: frame.id,
+            result: { message: 'logged in' },
+          }),
+        });
+      }, 0);
+      return;
+    }
+    this._record(text);
+  }
+
+  close(code = 1000): void {
+    if (this.readyState === 3) return;
+    this.readyState = 3;
+    this.onclose?.({ code });
+  }
 }
 
 /** What the session tells the telemetry client about itself. */
@@ -166,6 +231,10 @@ export default class TelemetryClient {
   public readonly maxPendingEvents: number;
   public readonly maxSendBacklogBytes: number;
   public readonly url: string | undefined;
+  /** Local capture mode: frames are kept, nothing is sent (see ITelemetryOptions). */
+  public readonly capture: boolean;
+  private _onFrame: ((frame: string) => void) | null;
+  private _captured: string[] = [];
 
   private _sequence = 0;
   private _host: ITelemetryHost | null = null;
@@ -205,7 +274,7 @@ export default class TelemetryClient {
     if (
       !telemetry ||
       telemetry.enabled === false ||
-      (!telemetry.url && telemetry.enabled !== true)
+      (!telemetry.url && telemetry.enabled !== true && !telemetry.capture)
     ) {
       return null;
     }
@@ -230,6 +299,8 @@ export default class TelemetryClient {
 
   constructor(options: ITelemetryOptions, env?: string) {
     this.url = options.url;
+    this.capture = !!options.capture;
+    this._onFrame = options.onFrame ?? null;
     this.client = buildClientInfo(env);
     this.metricsIntervalMs =
       options.metricsIntervalMs ?? DEFAULT_METRICS_INTERVAL_MS;
@@ -247,6 +318,44 @@ export default class TelemetryClient {
       this._authenticated &&
       this._remoteEnabled
     );
+  }
+
+  /** Capture mode: every frame "sent" so far, as JSON text, in send order. */
+  capturedFrames(): string[] {
+    return this._captured.slice();
+  }
+
+  /**
+   * Capture mode, in a browser: saves the captured frames as a JSON Lines
+   * file (one frame per line) through the browser's download.
+   */
+  downloadCapture(filename?: string): void {
+    if (typeof document === 'undefined' || typeof Blob === 'undefined') return;
+    const name =
+      filename ||
+      `telemetry-${this.sdkInstanceId}-${new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')}.jsonl`;
+    const blob = new Blob([this._captured.join('\n') + '\n'], {
+      type: 'application/x-ndjson',
+    });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  private _recordFrame(frame: string): void {
+    this._captured.push(frame);
+    if (this._captured.length > MAX_CAPTURED_FRAMES) this._captured.shift();
+    try {
+      this._onFrame?.(frame);
+    } catch {
+      // the app's callback never breaks the sender
+    }
   }
 
   get pendingCount(): number {
@@ -500,13 +609,15 @@ export default class TelemetryClient {
    * call again once it has new ones.
    */
   connect(): void {
-    if (this._closed || !WebSocketImpl) return;
+    if (this._closed || (!WebSocketImpl && !this.capture)) return;
     if (this._ws && (this._ws.readyState === 0 || this._ws.readyState === 1)) {
       return;
     }
     const params = this._host?.getLoginParams();
     if (!params || fingerprint(params) === this._rejectedFingerprint) return;
-    const url = this.url || this._host.getDefaultUrl?.();
+    const url = this.capture
+      ? 'capture:'
+      : this.url || this._host.getDefaultUrl?.();
     if (!url) return;
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
@@ -514,7 +625,11 @@ export default class TelemetryClient {
     }
     let ws: WebSocket;
     try {
-      ws = new WebSocketImpl(url);
+      ws = this.capture
+        ? (new CaptureSocket((frame) =>
+            this._recordFrame(frame)
+          ) as unknown as WebSocket)
+        : new WebSocketImpl(url);
     } catch (error) {
       this.log('warn', 'telemetry', 'Telemetry socket could not be created', {
         error: toErrorInfo(error),

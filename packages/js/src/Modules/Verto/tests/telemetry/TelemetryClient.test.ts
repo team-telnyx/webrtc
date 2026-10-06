@@ -515,3 +515,38 @@ describe('TelemetryClient when telemetry is unavailable', () => {
     jest.useRealTimers();
   });
 });
+
+describe('TelemetryClient capture mode', () => {
+  it('sends nothing, keeps every frame in order, and redacts the login credentials', () => {
+    jest.useFakeTimers();
+    FakeSocket.instances = [];
+    setTelemetryWebSocket(FakeSocket as unknown as typeof WebSocket);
+    const frames: string[] = [];
+    const client = TelemetryClient.create({
+      telemetry: { capture: true, onFrame: (frame) => frames.push(frame) },
+    });
+    client.attach({
+      ...host,
+      getLoginParams: () => ({ login: 'user', passwd: 'secret' }),
+    });
+    logEvent(client, 'before login');
+    client.connect();
+    jest.runAllTimers();
+    logEvent(client, 'after login');
+
+    expect(FakeSocket.instances).toHaveLength(0);
+    expect(client.capturedFrames()).toEqual(frames);
+    const parsed = frames.map((frame) => JSON.parse(frame));
+    expect(parsed[0].method).toBe(TELEMETRY_LOGIN_METHOD);
+    expect(parsed[0].params.passwd).toBe('[REDACTED]');
+    expect(parsed[0].params.login).toBe('[REDACTED]');
+    expect(frames.join('\n')).not.toContain('secret');
+    const messages = parsed
+      .filter((f) => f.method === TELEMETRY_METHOD)
+      .map((f) => f.params.payload.message);
+    expect(messages).toContain('before login');
+    expect(messages).toContain('after login');
+    client.close();
+    jest.useRealTimers();
+  });
+});
