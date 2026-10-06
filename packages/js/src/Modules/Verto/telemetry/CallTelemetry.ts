@@ -176,26 +176,13 @@ export function parseCandidateLine(line: string): ParsedCandidate | null {
   if (address) candidate.address = address;
   const portNumber = Number(port);
   if (Number.isFinite(portNumber)) candidate.port = portNumber;
-  // raddr/rport: the address the candidate was derived from. Browsers that
-  // hide the host address put "0.0.0.0 0" there: that says nothing, so it
-  // is left out.
-  if (extras.raddr && !isHiddenAddress(extras.raddr)) {
-    candidate.related_address = extras.raddr;
-    const rport = Number(extras.rport);
-    if (extras.rport !== undefined && Number.isFinite(rport)) {
-      candidate.related_port = rport;
-    }
-  }
+  // raddr/rport (related_address / related_port) are not sent: not needed
+  // (owner, 2026-10-06). The raw candidate line in the logs still has them.
   if (extras.tcptype && TCP_TYPES.includes(extras.tcptype)) {
     candidate.tcp_type = extras.tcptype as IceCandidate['tcp_type'];
   }
   if (extras.ufrag) candidate.ufrag = extras.ufrag;
   return candidate;
-}
-
-/** The placeholder a browser puts in raddr when it hides the real address. */
-function isHiddenAddress(address: string): boolean {
-  return address === '0.0.0.0' || address === '::' || address === '[::]';
 }
 
 /** One side of the selected pair, from a local-candidate / remote-candidate stats report. */
@@ -224,11 +211,6 @@ export function candidateFromStats(report: any): IceCandidate | undefined {
   if (str(report.foundation)) candidate.foundation = report.foundation;
   if (num(report.priority) !== undefined) candidate.priority = report.priority;
   if (TCP_TYPES.includes(report.tcpType)) candidate.tcp_type = report.tcpType;
-  if (str(report.relatedAddress) && !isHiddenAddress(report.relatedAddress)) {
-    candidate.related_address = report.relatedAddress;
-    if (num(report.relatedPort) !== undefined)
-      candidate.related_port = report.relatedPort;
-  }
   const address = str(report.address) ?? str(report.ip);
   if (address) candidate.address = address;
   if (num(report.port) !== undefined) candidate.port = report.port;

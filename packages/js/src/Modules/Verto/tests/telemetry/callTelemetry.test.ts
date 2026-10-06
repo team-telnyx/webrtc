@@ -271,13 +271,11 @@ describe('ICE candidate parsing', () => {
       priority: 41885695,
       address: '198.51.100.112',
       port: 57816,
-      related_address: '203.0.113.5',
-      related_port: 58889,
       ufrag: 'Ab12',
     });
   });
 
-  it('leaves out the 0.0.0.0 placeholder a browser puts in raddr', () => {
+  it('never sends the related address and port (raddr/rport)', () => {
     const parsed = parseCandidateLine(
       'candidate:1126654006 1 udp 1677729535 203.0.113.9 61087 typ srflx raddr 0.0.0.0 rport 0 generation 0'
     );
