@@ -20,6 +20,7 @@ import Peer from '../../webrtc/Peer';
 import { PeerType } from '../../webrtc/constants';
 import { IVertoCallOptions } from '../../webrtc/interfaces';
 import { REMOTE_AUDIO_ELEMENT_UNRESOLVED } from '../../util/constants/errorCodes';
+import logger from '../../util/logger';
 
 jest.mock('../../services/Handler', () => ({
   trigger: jest.fn(),
@@ -98,6 +99,8 @@ const unresolvedWarnings = () =>
     ([, payload]) => payload?.warning?.code === REMOTE_AUDIO_ELEMENT_UNRESOLVED
   );
 
+const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 const appendElement = <K extends 'audio' | 'div'>(tag: K, id?: string) => {
   const element = document.createElement(tag);
   if (id) {
@@ -110,9 +113,13 @@ const appendElement = <K extends 'audio' | 'div'>(tag: K, id?: string) => {
 describe('Peer.handleTrackEvent — REMOTE_AUDIO_ELEMENT_UNRESOLVED', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // attachMediaStream logs every unresolved element; keep test output clean.
+    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
     document.body.innerHTML = '';
   });
 
@@ -140,6 +147,16 @@ describe('Peer.handleTrackEvent — REMOTE_AUDIO_ELEMENT_UNRESOLVED', () => {
       expect(
         (peer as unknown as { options: IVertoCallOptions }).options.remoteStream
       ).toBe(stream);
+    });
+
+    it.each<[string, () => Promise<HTMLMediaElement | null>]>([
+      ['resolves to null', async () => null],
+      ['rejects', () => Promise.reject(new Error('not rendered yet'))],
+    ])('an async resolver that %s', async (_, resolver) => {
+      dispatchTrack(createPeer(resolver));
+      await flushPromises();
+
+      expect(unresolvedWarnings()).toHaveLength(1);
     });
 
     it('a session-level string ID that did not resolve when set', () => {
@@ -236,6 +253,21 @@ describe('Peer.handleTrackEvent — REMOTE_AUDIO_ELEMENT_UNRESOLVED', () => {
       dispatchTrack(createPeer(resolver), 'audio', stream);
 
       expect(resolver).toHaveBeenCalledTimes(1);
+      expect(audio.srcObject).toBe(stream);
+      expect(unresolvedWarnings()).toHaveLength(0);
+    });
+
+    it('waits for a resolver that returns a promise', async () => {
+      const audio = appendElement('audio');
+      const stream = new MediaStream();
+
+      dispatchTrack(
+        createPeer(async () => audio),
+        'audio',
+        stream
+      );
+      await flushPromises();
+
       expect(audio.srcObject).toBe(stream);
       expect(unresolvedWarnings()).toHaveLength(0);
     });

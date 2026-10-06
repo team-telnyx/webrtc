@@ -62,12 +62,17 @@ describe('Helpers browser functions', () => {
       expect(findElementByType(jest.fn().mockReturnValue(fake))).toEqual(fake);
     });
 
-    it('should accept a media element owned by another window', () => {
+    it('should accept and log a media element owned by another window', () => {
+      const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
       const iframe = document.createElement('iframe');
       document.body.appendChild(iframe);
       const audio = iframe.contentDocument.createElement('audio');
       expect(findElementByType(audio)).toBe(audio);
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/owned by another window/)
+      );
       iframe.remove();
+      infoSpy.mockRestore();
     });
   });
 
@@ -898,6 +903,58 @@ describe('Helpers browser functions', () => {
       const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
       expect(() => attachMediaStream(null, stream)).not.toThrow();
       expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should return the element the stream was attached to', () => {
+      expect(attachMediaStream(mockElement, new MediaStream())).toBe(
+        mockElement
+      );
+    });
+
+    it.each([null, undefined])(
+      'should warn and return null when a resolver returns %s',
+      (resolved) => {
+        const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+        expect(attachMediaStream(() => resolved, new MediaStream())).toBeNull();
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.stringMatching(`element resolver returned ${resolved}`)
+        );
+      }
+    );
+
+    it('should warn and return null when an id does not resolve', () => {
+      const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      expect(attachMediaStream('missing-id', new MediaStream())).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/id "missing-id"/)
+      );
+    });
+
+    it('should not attach to an element that is not <audio> or <video>', () => {
+      jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      const div = document.createElement('div');
+      expect(attachMediaStream(() => div, new MediaStream())).toBeNull();
+      expect('srcObject' in div).toBe(false);
+    });
+
+    it('should wait for a resolver that returns a promise', async () => {
+      const stream = new MediaStream();
+      const attached = attachMediaStream(async () => mockElement, stream);
+      expect(attached).toBeInstanceOf(Promise);
+      await expect(attached).resolves.toBe(mockElement);
+      expect(mockElement.srcObject).toBe(stream);
+    });
+
+    it('should log and resolve null when a resolver promise rejects', async () => {
+      const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+      const error = new Error('not rendered yet');
+      await expect(
+        attachMediaStream(() => Promise.reject(error), new MediaStream())
+      ).resolves.toBeNull();
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/resolver rejected/),
+        error
+      );
     });
 
     it('should set autoplay and playsinline attributes when missing', () => {

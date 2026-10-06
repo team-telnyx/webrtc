@@ -66,12 +66,23 @@ export const isMediaElement = (
   ) {
     return true;
   }
-  const view = (element as Node | null)?.ownerDocument?.defaultView as
-    | (Window & typeof globalThis)
-    | null
-    | undefined;
-  return !!view?.HTMLMediaElement && element instanceof view.HTMLMediaElement;
+  const ownerWindow = isNode(element)
+    ? element.ownerDocument?.defaultView
+    : null;
+  if (
+    ownerWindow?.HTMLMediaElement &&
+    element instanceof ownerWindow.HTMLMediaElement
+  ) {
+    logger.info(
+      'Using a media element owned by another window (iframe, popout or Picture-in-Picture)'
+    );
+    return true;
+  }
+  return false;
 };
+
+const isNode = (value: unknown): value is Node =>
+  typeof value === 'object' && value !== null && 'ownerDocument' in value;
 
 export const findElementByType = (
   tag: HTMLMediaElement | string | Function

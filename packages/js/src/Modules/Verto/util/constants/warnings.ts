@@ -461,7 +461,7 @@ export const SDK_WARNINGS = {
     causes: [
       'remoteElement is a string ID with no matching element in the DOM',
       'client.remoteElement was set to a string ID before that element existed (session-level IDs are resolved when set)',
-      'A remoteElement resolver function returned null or undefined',
+      'A remoteElement resolver function returned null or undefined (or its promise did, or rejected)',
       'remoteElement resolved to an element that is not <audio> or <video>',
     ],
     solutions: [
