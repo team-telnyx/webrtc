@@ -204,25 +204,114 @@ const liveClients: TelemetryClient[] = [];
  */
 const orphanEvents: ClientEvent[] = [];
 
-function detectOs(userAgent: string): Pick<ClientInfo, 'os' | 'os_version'> {
+/**
+ * The OS and version in a browser's user agent. Browsers freeze the OS version
+ * there (user-agent reduction): every macOS since 11 reports 10.15(.7), Windows
+ * 10 and 11 both say "Windows NT 10.0", and Chrome on Android says
+ * "Android 10; K". A frozen value is left out rather than sent wrong; the real
+ * one comes from User-Agent Client Hints where the browser has them
+ * (refineOsVersion).
+ */
+export function detectOs(
+  userAgent: string
+): Pick<ClientInfo, 'os' | 'os_version'> {
   const ua = userAgent || '';
   let match: RegExpMatchArray | null;
-  if ((match = ua.match(/Android\s([\d.]+)/))) {
-    return { os: 'android', os_version: match[1] };
+  if ((match = ua.match(/Android\s([\d.]+)(;\s*K\))?/))) {
+    return match[2]
+      ? { os: 'android' }
+      : { os: 'android', os_version: match[1] };
   }
   if ((match = ua.match(/(?:iPhone|iPad|iPod).*?OS\s([\d_]+)/))) {
     return { os: 'ios', os_version: match[1].replace(/_/g, '.') };
   }
   if (/CrOS/.test(ua)) return { os: 'chromeos' };
   if ((match = ua.match(/Windows NT\s([\d.]+)/))) {
-    return { os: 'windows', os_version: match[1] };
+    return match[1] === '10.0'
+      ? { os: 'windows' }
+      : { os: 'windows', os_version: match[1] };
   }
   if ((match = ua.match(/Mac OS X\s([\d_.]+)/))) {
-    return { os: 'macos', os_version: match[1].replace(/_/g, '.') };
+    const version = match[1].replace(/_/g, '.');
+    // Chrome and Safari say 10.15.7, Firefox 10.15, on every macOS since 11.
+    return version.startsWith('10.15')
+      ? { os: 'macos' }
+      : { os: 'macos', os_version: version };
   }
   if (/Linux/.test(ua)) return { os: 'linux' };
   return { os: 'unknown' };
 }
+
+/**
+ * The real OS version from User-Agent Client Hints' platformVersion
+ * (Chromium browsers): macOS "26.6.2", Android "14", ChromeOS as given;
+ * Windows "11" (platformVersion 13 and up) or "10" (1 to 12). Undefined when
+ * it doesn't tell.
+ */
+export function osVersionFromHints(
+  os: ClientInfo['os'],
+  platformVersion: string | undefined
+): string | undefined {
+  if (!platformVersion) return undefined;
+  const parts = platformVersion.split('.').map((part) => Number(part));
+  const major = parts[0];
+  if (!Number.isFinite(major)) return undefined;
+  switch (os) {
+    case 'windows':
+      if (major >= 13) return '11';
+      if (major >= 1) return '10';
+      return undefined;
+    case 'android':
+      return String(major);
+    case 'macos': {
+      // Drop trailing ".0" parts: "26.0.0" -> "26", "15.6.1" stays.
+      const trimmed = platformVersion.replace(/(\.0)+$/, '');
+      return trimmed || undefined;
+    }
+    case 'chromeos':
+    case 'linux':
+      return platformVersion;
+    default:
+      return undefined;
+  }
+}
+
+type UserAgentData = {
+  getHighEntropyValues?: (
+    hints: string[]
+  ) => Promise<{ platformVersion?: string }>;
+};
+
+/** Resolved once per page: every client on it shares the answer. */
+let hintedOsVersion: Promise<string | undefined> | null = null;
+
+/**
+ * Asks the browser for the real OS version and sets it on `info` when it
+ * answers (a few ms). Events built before that share the same `client`
+ * object and are serialized only when sent, so they carry it too.
+ */
+export function refineOsVersion(info: ClientInfo): Promise<void> {
+  const data =
+    typeof navigator !== 'undefined'
+      ? ((navigator as unknown as { userAgentData?: UserAgentData })
+          .userAgentData ?? null)
+      : null;
+  if (!data?.getHighEntropyValues) return Promise.resolve();
+  if (!hintedOsVersion) {
+    hintedOsVersion = data
+      .getHighEntropyValues(['platformVersion'])
+      .then((values) => osVersionFromHints(info.os, values?.platformVersion))
+      .catch(() => undefined);
+  }
+  return hintedOsVersion.then((version) => {
+    if (version) info.os_version = version;
+  });
+}
+
+/** Tests only: forget the page's cached client-hints answer. */
+export const resetOsVersionHints = (): void => {
+  hintedOsVersion = null;
+};
 
 export function buildClientInfo(env?: string): ClientInfo {
   const userAgent =
@@ -236,6 +325,7 @@ export function buildClientInfo(env?: string): ClientInfo {
     user_agent: userAgent,
   };
   if (os.os_version) info.os_version = os.os_version;
+  void refineOsVersion(info);
   return info;
 }
 

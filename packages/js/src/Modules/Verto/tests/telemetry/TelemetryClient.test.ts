@@ -7,6 +7,10 @@ import { BYE_SEND_FAILED } from '../../util/constants';
 
 import CallTelemetry from '../../telemetry/CallTelemetry';
 import TelemetryClient, {
+  buildClientInfo,
+  detectOs,
+  osVersionFromHints,
+  resetOsVersionHints,
   setTelemetryWebSocket,
   TELEMETRY_CONTROL_METHOD,
   TELEMETRY_LOGIN_METHOD,
@@ -607,5 +611,79 @@ describe('TelemetryClient capture output', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('"jwt"');
     log.mockRestore();
     jest.useRealTimers();
+  });
+});
+
+describe('client OS version', () => {
+  it('leaves out the frozen user-agent versions and keeps real ones', () => {
+    const mac =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36';
+    expect(detectOs(mac)).toEqual({ os: 'macos' });
+    expect(
+      detectOs(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:150.0) Gecko/20100101 Firefox/150.0'
+      )
+    ).toEqual({ os: 'macos' });
+    expect(
+      detectOs(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36'
+      )
+    ).toEqual({ os: 'windows' });
+    expect(
+      detectOs(
+        'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/141.0.0.0 Mobile Safari/537.36'
+      )
+    ).toEqual({ os: 'android' });
+    expect(
+      detectOs(
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/141.0.0.0 Mobile Safari/537.36'
+      )
+    ).toEqual({ os: 'android', os_version: '14' });
+    expect(
+      detectOs(
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'
+      )
+    ).toEqual({ os: 'ios', os_version: '18.6' });
+  });
+
+  it('maps client-hints platform versions', () => {
+    expect(osVersionFromHints('macos', '26.6.2')).toBe('26.6.2');
+    expect(osVersionFromHints('macos', '15.0.0')).toBe('15');
+    expect(osVersionFromHints('windows', '19.0.0')).toBe('11');
+    expect(osVersionFromHints('windows', '10.0.0')).toBe('10');
+    expect(osVersionFromHints('windows', '0.3.0')).toBeUndefined();
+    expect(osVersionFromHints('android', '14.0.0')).toBe('14');
+    expect(osVersionFromHints('macos', '')).toBeUndefined();
+  });
+
+  it('sets the real version from client hints when the browser has them', async () => {
+    resetOsVersionHints();
+    const nav = navigator as unknown as { userAgentData?: unknown };
+    const before = nav.userAgentData;
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: {
+        getHighEntropyValues: () =>
+          Promise.resolve({ platformVersion: '26.6.2' }),
+      },
+    });
+    const userAgent = jest
+      .spyOn(navigator, 'userAgent', 'get')
+      .mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36'
+      );
+    const info = buildClientInfo();
+    expect(info.os).toBe('macos');
+    expect(info.os_version).toBeUndefined();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(info.os_version).toBe('26.6.2');
+    userAgent.mockRestore();
+    Object.defineProperty(navigator, 'userAgentData', {
+      configurable: true,
+      value: before,
+    });
+    resetOsVersionHints();
   });
 });
