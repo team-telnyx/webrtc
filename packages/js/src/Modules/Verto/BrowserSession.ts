@@ -674,7 +674,7 @@ export default abstract class BrowserSession extends BaseSession {
     );
     this.micId = micId;
     this.micLabel = micLabel;
-    this.telemetryEvents?.inputDeviceChanged('app');
+    this.telemetryEvents?.inputDeviceChanged('app', micId);
     return this._audioConstraints;
   }
 
@@ -761,7 +761,7 @@ export default abstract class BrowserSession extends BaseSession {
    */
   set speaker(deviceId: string) {
     this._speaker = deviceId;
-    this.telemetryEvents?.outputDeviceChanged('app');
+    this.telemetryEvents?.outputDeviceChanged('app', deviceId);
   }
 
   /**

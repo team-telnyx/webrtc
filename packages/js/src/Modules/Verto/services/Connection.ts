@@ -441,7 +441,8 @@ export default class Connection {
         sessionId: this.session.sessionid,
       });
       this.session.telemetryEvents?.socketOpened(
-        this._socketTelemetry.get(ws) ?? null
+        this._socketTelemetry.get(ws) ?? null,
+        ws
       );
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
@@ -468,7 +469,7 @@ export default class Connection {
       // After the session decided whether to reconnect.
       this.session.telemetryEvents?.socketEnded(
         this._socketTelemetry.get(ws) ?? null,
-        { code: event?.code, reason: event?.reason }
+        { code: event?.code, reason: event?.reason, wasClean: event?.wasClean }
       );
       return handled;
     };
@@ -584,7 +585,10 @@ export default class Connection {
       // If there is not an handler for this message, dispatch an incoming!
       const gateWayState = getGatewayState(msg);
       if (gateWayState) {
-        this.session.telemetryEvents?.gatewayState(gateWayState);
+        this.session.telemetryEvents?.gatewayState(
+          gateWayState,
+          msg?.result?.params?.state ? 'result' : 'notification'
+        );
       }
 
       trigger(SwEvent.SocketMessage, msg, this.session.uuid);
@@ -641,7 +645,11 @@ export default class Connection {
       );
       this.session.telemetryEvents?.socketEnded(
         this._socketTelemetry.get(closingSocket) ?? null,
-        { code: WS_CLOSE_CODES.ABNORMAL_CLOSURE, reason: 'STUCK_WS_TIMEOUT' }
+        {
+          code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
+          reason: 'STUCK_WS_TIMEOUT',
+          wasClean: false,
+        }
       );
     } else {
       logger.debug(

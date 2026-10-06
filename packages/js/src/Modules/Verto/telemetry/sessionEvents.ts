@@ -14,18 +14,34 @@ import {
 } from '../util/constants';
 import TelemetryClient, { readClientHints } from './TelemetryClient';
 import type {
+  AppStateChangedPayload,
+  DeviceListChangedPayload,
   ErrorInfo,
   ErrorPayload,
   GatewayState,
   KnownIds,
   LoginMethod,
+  MediaDeviceEntry,
   NetworkChangedPayload,
+  SdkCreatedPayload,
   SdkOptions,
   EventBody,
   SignalingMessagePayload,
   SignalingVsp,
   SocketTarget,
 } from './contract';
+import {
+  assignDefined,
+  attempt,
+  hasFocusNow,
+  onlineNow,
+  readBrowserSupport,
+  readDeviceList,
+  readPageInfo,
+  readPermission,
+  readRtpCapabilities,
+  visibilityNow,
+} from './browserInfo';
 import {
   sanitizeDetails,
   toCodedErrorInfo,
@@ -214,8 +230,14 @@ type NetworkInformationLike = {
   type?: string;
   effectiveType?: string;
   downlink?: number;
-  addEventListener?: (type: string, listener: () => void) => void;
-  removeEventListener?: (type: string, listener: () => void) => void;
+  downlinkMax?: number;
+  rtt?: number;
+  saveData?: boolean;
+  addEventListener?: (type: string, listener: (event: Event) => void) => void;
+  removeEventListener?: (
+    type: string,
+    listener: (event: Event) => void
+  ) => void;
 };
 
 const getConnectionInfo = (): NetworkInformationLike | undefined =>
@@ -233,7 +255,10 @@ const NETWORK_TYPES: Record<string, NetworkChangedPayload['network_type']> = {
 
 const EFFECTIVE_TYPES = new Set(['slow-2g', '2g', '3g', '4g', '5g']);
 
-export function networkSnapshot(initial: boolean): NetworkChangedPayload {
+export function networkSnapshot(
+  initial: boolean,
+  trigger?: NetworkChangedPayload['trigger']
+): NetworkChangedPayload {
   const online =
     typeof navigator !== 'undefined' && navigator.onLine !== undefined
       ? !!navigator.onLine
@@ -256,7 +281,31 @@ export function networkSnapshot(initial: boolean): NetworkChangedPayload {
   if (typeof connection?.downlink === 'number') {
     payload.downlink_mbps = connection.downlink;
   }
+  if (trigger) payload.trigger = trigger;
+  if (typeof connection?.type === 'string' && connection.type) {
+    payload.connection_type = connection.type;
+  }
+  // Infinity = unknown (the spec's value when the browser can't tell).
+  if (
+    typeof connection?.downlinkMax === 'number' &&
+    Number.isFinite(connection.downlinkMax)
+  ) {
+    payload.downlink_max_mbps = connection.downlinkMax;
+  }
+  if (typeof connection?.rtt === 'number') payload.rtt_ms = connection.rtt;
+  if (typeof connection?.saveData === 'boolean') {
+    payload.save_data = connection.saveData;
+  }
   return payload;
+}
+
+/** A server answer, whole, credentials removed, as { server_result }; {} when there is none. */
+function serverResult(result: unknown): {
+  server_result?: Record<string, unknown>;
+} {
+  if (!result || typeof result !== 'object') return {};
+  const clean = sanitizeDetails(result);
+  return clean && Object.keys(clean).length ? { server_result: clean } : {};
 }
 
 // ── Gateway ────────────────────────────────────────────────────────────────
@@ -301,6 +350,14 @@ export type SocketTelemetry = {
   openedAt?: number;
   closeRequested: boolean;
   ended: boolean;
+  /** Socket attempt number within its connect chain. */
+  attempt?: number;
+  /** The WebSocket itself, for its protocol, extensions and bufferedAmount. */
+  ws?: WebSocket;
+  framesSent: number;
+  framesReceived: number;
+  lastSentAt?: number;
+  lastReceivedAt?: number;
 };
 
 type PendingFrame = { method: string; at: number; callId?: string };
@@ -313,12 +370,22 @@ export type ReceivedFrame = {
   ids?: Partial<KnownIds>;
 };
 
-type DeviceSnapshot = { keys: Set<string>; inputs: number; outputs: number };
+type DeviceSnapshot = {
+  keys: Set<string>;
+  inputs: number;
+  outputs: number;
+  videoInputs: number;
+  entries: MediaDeviceEntry[];
+};
+
+const deviceKey = (device: MediaDeviceEntry) =>
+  `${device.kind}:${device.device_id}:${device.group_id}`;
 
 type LoginState = {
   method: LoginMethod;
   isReconnect: boolean;
   startedAt: number;
+  attempt: number;
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -338,6 +405,7 @@ export default class SessionTelemetry {
   private _readyPending = false;
   private _reattachedCallIds: string[] = [];
   private _lastGatewayRaw: string | null = null;
+  private _lastGatewayAt: number | null = null;
   private _gatewayCheckNumber = 0;
   private _gatewayChecks = new Map<string, { number: number; at: number }>();
   private _sentRequests = new Map<string, PendingFrame>();
@@ -385,6 +453,10 @@ export default class SessionTelemetry {
         options: buildSdkOptions(options, this._client),
         raw_client_options: rawClientOptions(options),
       };
+      const page = attempt(readPageInfo);
+      if (page && Object.keys(page).length) payload.page = page;
+      const support = attempt(readBrowserSupport);
+      if (support) payload.browser_support = support;
       this._client.emit('sdk_creation_started', payload);
       // Client Hints answer in a few ms; the event is serialized only when
       // sent (after the telemetry login), so it goes out with them.
@@ -399,6 +471,7 @@ export default class SessionTelemetry {
     this._safe(() => {
       this._client.emit('sdk_creation_failed', {
         error: toCodedErrorInfo(error, CODE_INVALID_CREDENTIALS),
+        duration_ms: Date.now() - this.creationStartedAt,
       });
     });
     this._safe(() => this._client.orphan());
@@ -408,66 +481,133 @@ export default class SessionTelemetry {
   created(): void {
     this._safe(() => {
       this._createdAt = Date.now();
-      this._client.emit('sdk_created', {
+      const payload: SdkCreatedPayload = {
         creation_duration_ms: this._createdAt - this.creationStartedAt,
         sdk_instances: TelemetryClient.liveInstanceIds(),
-      });
+      };
+      const capabilities = attempt(readRtpCapabilities);
+      if (capabilities) payload.rtp_capabilities = capabilities;
+      this._client.emit('sdk_created', payload);
+      // The device list and permissions answer in a few ms; the event is
+      // serialized only when sent (after the telemetry login), so it goes
+      // out with them. They are also the baseline for device_list_changed.
+      void this._completeCreated(payload);
       this.networkChanged(true);
       this._attachListeners();
     });
   }
 
-  networkChanged(initial = false): void {
+  private async _completeCreated(payload: SdkCreatedPayload): Promise<void> {
+    try {
+      const [devices, microphone, camera] = await Promise.all([
+        this._readDevices().catch((): null => null),
+        readPermission('microphone'),
+        readPermission('camera'),
+      ]);
+      if (devices) {
+        if (!this._devices) this._devices = devices;
+        payload.devices = devices.entries;
+      }
+      if (microphone) payload.microphone_permission = microphone;
+      if (camera) payload.camera_permission = camera;
+    } catch {
+      // ignore
+    }
+  }
+
+  networkChanged(
+    initial = false,
+    trigger?: NetworkChangedPayload['trigger']
+  ): void {
     this._safe(() => {
-      const payload = networkSnapshot(initial);
-      const key = JSON.stringify({ ...payload, initial: false });
+      const payload = networkSnapshot(initial, initial ? 'initial' : trigger);
+      const key = JSON.stringify({
+        ...payload,
+        initial: false,
+        trigger: undefined,
+      });
       if (!initial && key === this._lastNetwork) return;
       this._lastNetwork = key;
       this._client.emit('network_changed', payload);
     });
   }
 
-  appStateChanged(): void {
+  appStateChanged(
+    trigger: AppStateChangedPayload['trigger'] = 'visibilitychange',
+    event?: unknown
+  ): void {
     this._safe(() => {
       if (typeof document === 'undefined') return;
-      this._client.emit('app_state_changed', {
+      const payload: AppStateChangedPayload = {
         state: document.visibilityState === 'hidden' ? 'hidden' : 'visible',
+        trigger,
+      };
+      const persisted = (event as { persisted?: unknown })?.persisted;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wasDiscarded = (document as any).wasDiscarded;
+      assignDefined(payload, {
+        has_focus: hasFocusNow(),
+        persisted: typeof persisted === 'boolean' ? persisted : undefined,
+        was_discarded:
+          typeof wasDiscarded === 'boolean' ? wasDiscarded : undefined,
       });
+      this._client.emit('app_state_changed', payload);
     });
   }
 
+  /** The device with this ID in the last device list, as the payload's device fields. */
+  private _deviceFields(
+    kind: 'audioinput' | 'audiooutput',
+    deviceId?: string | null
+  ): { device_id?: string; label?: string; group_id?: string } {
+    const id = typeof deviceId === 'string' && deviceId ? deviceId : 'default';
+    const found = this._devices?.entries.find(
+      (device) => device.kind === kind && device.device_id === id
+    );
+    return {
+      device_id: id,
+      ...(found?.label ? { label: found.label } : {}),
+      ...(found?.group_id ? { group_id: found.group_id } : {}),
+    };
+  }
+
   /** The app (or the SDK, by: "sdk") chose a microphone. */
-  inputDeviceChanged(by: 'app' | 'sdk'): void {
+  inputDeviceChanged(by: 'app' | 'sdk', deviceId?: string | null): void {
     this._safe(() => {
       this._client.emit('input_device_changed', {
         by,
         ...(this._devices ? { device_count: this._devices.inputs } : {}),
+        ...this._deviceFields('audioinput', deviceId),
       });
     });
   }
 
   /** The app (or the SDK, by: "sdk") chose a speaker. */
-  outputDeviceChanged(by: 'app' | 'sdk'): void {
+  outputDeviceChanged(by: 'app' | 'sdk', deviceId?: string | null): void {
     this._safe(() => {
       this._client.emit('output_device_changed', {
         by,
         ...(this._devices ? { device_count: this._devices.outputs } : {}),
+        ...this._deviceFields('audiooutput', deviceId),
       });
     });
   }
 
   private async _readDevices(): Promise<DeviceSnapshot | null> {
-    const mediaDevices =
-      typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
-    if (!mediaDevices?.enumerateDevices) return null;
-    const devices = await mediaDevices.enumerateDevices();
-    const snapshot: DeviceSnapshot = { keys: new Set(), inputs: 0, outputs: 0 };
-    for (const device of devices || []) {
+    const entries = await readDeviceList();
+    if (!entries) return null;
+    const snapshot: DeviceSnapshot = {
+      keys: new Set(),
+      inputs: 0,
+      outputs: 0,
+      videoInputs: 0,
+      entries,
+    };
+    for (const device of entries) {
       if (device.kind === 'audioinput') snapshot.inputs += 1;
       else if (device.kind === 'audiooutput') snapshot.outputs += 1;
-      else continue;
-      // In memory only, to count added/removed; never sent.
-      snapshot.keys.add(`${device.kind}:${device.deviceId}:${device.groupId}`);
+      else if (device.kind === 'videoinput') snapshot.videoInputs += 1;
+      snapshot.keys.add(deviceKey(device));
     }
     return snapshot;
   }
@@ -480,13 +620,20 @@ export default class SessionTelemetry {
       this._devices = next;
       let added = 0;
       let removed = 0;
+      const isAudio = (device: MediaDeviceEntry) =>
+        device.kind === 'audioinput' || device.kind === 'audiooutput';
+      let addedDevices: MediaDeviceEntry[] = [];
+      let removedDevices: MediaDeviceEntry[] = [];
       if (previous) {
-        next.keys.forEach((key) => {
-          if (!previous.keys.has(key)) added += 1;
-        });
-        previous.keys.forEach((key) => {
-          if (!next.keys.has(key)) removed += 1;
-        });
+        addedDevices = next.entries.filter(
+          (device) => !previous.keys.has(deviceKey(device))
+        );
+        removedDevices = previous.entries.filter(
+          (device) => !next.keys.has(deviceKey(device))
+        );
+        // added/removed count audio devices only (as before); the lists have every kind.
+        added = addedDevices.filter(isAudio).length;
+        removed = removedDevices.filter(isAudio).length;
         // Before a media permission, browsers hide device IDs: fall back to counts.
         if (added === 0 && removed === 0) {
           const diff =
@@ -495,40 +642,63 @@ export default class SessionTelemetry {
           else removed = -diff;
         }
       }
-      this._client.emit('device_list_changed', {
+      const payload: DeviceListChangedPayload = {
         input_count: next.inputs,
         output_count: next.outputs,
         added,
         removed,
-      });
+        video_input_count: next.videoInputs,
+        devices: next.entries,
+      };
+      if (addedDevices.length) payload.added_devices = addedDevices;
+      if (removedDevices.length) payload.removed_devices = removedDevices;
+      this._client.emit('device_list_changed', payload);
     } catch {
       // ignore
     }
   }
 
   private _attachListeners(): void {
+    const listen = (
+      target: {
+        addEventListener?: (type: string, listener: (e: Event) => void) => void;
+        removeEventListener?: (
+          type: string,
+          listener: (e: Event) => void
+        ) => void;
+      },
+      type: string,
+      listener: (event: Event) => void
+    ) => {
+      if (!target?.addEventListener) return;
+      target.addEventListener(type, listener);
+      this._cleanups.push(() => target.removeEventListener?.(type, listener));
+    };
     if (typeof window !== 'undefined' && window.addEventListener) {
-      const onNetwork = () => this.networkChanged(false);
-      window.addEventListener('online', onNetwork);
-      window.addEventListener('offline', onNetwork);
-      this._cleanups.push(() => {
-        window.removeEventListener('online', onNetwork);
-        window.removeEventListener('offline', onNetwork);
-      });
+      listen(window, 'online', () => this.networkChanged(false, 'online'));
+      listen(window, 'offline', () => this.networkChanged(false, 'offline'));
       const connection = getConnectionInfo();
-      if (connection?.addEventListener) {
-        connection.addEventListener('change', onNetwork);
-        this._cleanups.push(() =>
-          connection.removeEventListener?.('change', onNetwork)
+      if (connection) {
+        listen(connection, 'change', () =>
+          this.networkChanged(false, 'connection_change')
         );
       }
+      listen(window, 'focus', () => this.appStateChanged('focus'));
+      listen(window, 'blur', () => this.appStateChanged('blur'));
+      listen(window, 'pagehide', (event) =>
+        this.appStateChanged('pagehide', event)
+      );
+      listen(window, 'pageshow', (event) =>
+        this.appStateChanged('pageshow', event)
+      );
     }
     if (typeof document !== 'undefined' && document.addEventListener) {
-      const onVisibility = () => this.appStateChanged();
-      document.addEventListener('visibilitychange', onVisibility);
-      this._cleanups.push(() =>
-        document.removeEventListener('visibilitychange', onVisibility)
+      listen(document, 'visibilitychange', () =>
+        this.appStateChanged('visibilitychange')
       );
+      // Page Lifecycle API (Chromium only).
+      listen(document, 'freeze', () => this.appStateChanged('freeze'));
+      listen(document, 'resume', () => this.appStateChanged('resume'));
     }
     const mediaDevices =
       typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined;
@@ -541,12 +711,7 @@ export default class SessionTelemetry {
         mediaDevices.removeEventListener?.('devicechange', onDeviceChange)
       );
     }
-    // Baseline for added/removed and device_count.
-    this._readDevices()
-      .then((snapshot) => {
-        if (snapshot && !this._devices) this._devices = snapshot;
-      })
-      .catch(() => undefined);
+    // The baseline for added/removed and device_count is read by created().
   }
 
   /** The SDK instance is going away (disconnect). */
@@ -602,29 +767,42 @@ export default class SessionTelemetry {
         startedAt: now,
         closeRequested: false,
         ended: false,
+        attempt: chain.socketAttempts,
+        framesSent: 0,
+        framesReceived: 0,
       };
       this._socket = socket;
       this._lastGatewayRaw = null;
+      this._lastGatewayAt = null;
+      const online = onlineNow();
       this._client.emit('socket_connect_started', {
         target,
         is_reconnect: this.socketGeneration > 1,
+        attempt: chain.socketAttempts,
+        ...(online !== undefined ? { online } : {}),
       });
     });
     return socket;
   }
 
-  socketOpened(socket: SocketTelemetry | null): void {
+  socketOpened(socket: SocketTelemetry | null, ws?: WebSocket): void {
     this._safe(() => {
       if (!socket) return;
       const now = Date.now();
       socket.openedAt = now;
+      if (ws) socket.ws = ws;
       if (this._chain) this._chain.socketConnectedAt = now;
       const vsp = this._vsp();
+      const protocol = attempt(() => socket.ws?.protocol);
+      const extensions = attempt(() => socket.ws?.extensions);
       this._client.emit('socket_connected', {
         connect_duration_ms: now - socket.startedAt,
         ...(vsp.signaling_region ? { region: vsp.signaling_region } : {}),
         ...(vsp.signaling_dc ? { dc: vsp.signaling_dc } : {}),
         ...(vsp.signaling_node ? { node: vsp.signaling_node } : {}),
+        ...(socket.attempt !== undefined ? { attempt: socket.attempt } : {}),
+        ...(typeof protocol === 'string' ? { protocol } : {}),
+        ...(typeof extensions === 'string' ? { extensions } : {}),
       });
     });
   }
@@ -646,12 +824,17 @@ export default class SessionTelemetry {
    */
   socketEnded(
     socket: SocketTelemetry | null,
-    close: { code?: number; reason?: string } = {}
+    close: { code?: number; reason?: string; wasClean?: boolean } = {}
   ): void {
     this._safe(() => {
       if (!socket || socket.ended) return;
       socket.ended = true;
       const willRetry = this._session.hasAutoReconnect();
+      const now = Date.now();
+      const online = onlineNow();
+      const wasClean =
+        typeof close.wasClean === 'boolean' ? close.wasClean : undefined;
+      const buffered = attempt(() => socket.ws?.bufferedAmount);
       if (socket.openedAt === undefined) {
         this._client.emit('socket_failed', {
           error: toCodedErrorInfo(
@@ -664,8 +847,12 @@ export default class SessionTelemetry {
             CODE_WEBSOCKET_CONNECTION_FAILED
           ),
           ...(close.code !== undefined ? { close_code: close.code } : {}),
-          attempt: this._chain?.socketAttempts || 1,
+          attempt: socket.attempt || this._chain?.socketAttempts || 1,
           will_retry: willRetry,
+          ...(close.reason ? { close_reason: close.reason } : {}),
+          ...(wasClean !== undefined ? { was_clean: wasClean } : {}),
+          elapsed_ms: now - socket.startedAt,
+          ...(online !== undefined ? { online } : {}),
         });
       } else {
         const code = close.code;
@@ -680,11 +867,24 @@ export default class SessionTelemetry {
           ...(code !== undefined ? { close_code: code } : {}),
           ...(close.reason ? { reason: close.reason } : {}),
           closed_by: closedBy,
-          open_duration_ms: Date.now() - socket.openedAt,
+          open_duration_ms: now - socket.openedAt,
           will_reconnect: willRetry,
           ...(typeof document !== 'undefined'
             ? { in_background: document.visibilityState === 'hidden' }
             : {}),
+          ...(wasClean !== undefined ? { was_clean: wasClean } : {}),
+          frames_sent: socket.framesSent,
+          frames_received: socket.framesReceived,
+          ...(socket.lastReceivedAt !== undefined
+            ? { since_last_received_ms: now - socket.lastReceivedAt }
+            : {}),
+          ...(socket.lastSentAt !== undefined
+            ? { since_last_sent_ms: now - socket.lastSentAt }
+            : {}),
+          ...(typeof buffered === 'number'
+            ? { buffered_amount: buffered }
+            : {}),
+          ...(online !== undefined ? { online } : {}),
         });
       }
       if (this._socket === socket) {
@@ -726,7 +926,8 @@ export default class SessionTelemetry {
 
   loginStarted(
     type: 'login' | 'anonymous_login',
-    resumeSessionId?: string
+    resumeSessionId?: string,
+    rpcId?: unknown
   ): void {
     this._safe(() => {
       const chain = this._ensureChain();
@@ -737,11 +938,16 @@ export default class SessionTelemetry {
         method: this.loginMethod(type),
         isReconnect: this._hasLoggedIn,
         startedAt: now,
+        attempt: chain.loginAttempts,
       };
+      const id =
+        rpcId !== undefined && rpcId !== null ? rpcIdString(rpcId) : '';
       this._client.emit('login_started', {
         method: this._login.method,
         is_reconnect: this._login.isReconnect,
         ...(resumeSessionId ? { resume_session_id: resumeSessionId } : {}),
+        attempt: chain.loginAttempts,
+        ...(id ? { rpc_id: id } : {}),
       });
     });
   }
@@ -756,11 +962,14 @@ export default class SessionTelemetry {
         is_reconnect: login.isReconnect,
         error: toCodedErrorInfo(error, CODE_LOGIN_FAILED),
         will_retry: willRetry,
+        attempt: login.attempt,
+        duration_ms: Date.now() - login.startedAt,
       });
     });
   }
 
-  loginSucceeded(): void {
+  /** The login answer: `result` is the server's whole login result. */
+  loginSucceeded(result?: unknown): void {
     this._safe(() => {
       const login = this._login;
       if (!login) return;
@@ -775,6 +984,8 @@ export default class SessionTelemetry {
         method: login.method,
         is_reconnect: login.isReconnect,
         login_duration_ms: now - login.startedAt,
+        attempt: login.attempt,
+        ...serverResult(result),
       });
     });
   }
@@ -787,8 +998,12 @@ export default class SessionTelemetry {
     );
   }
 
-  /** The client can make and take calls (JS: REGED). Once per (re)login. */
-  clientReady(): void {
+  /**
+   * The client can make and take calls (JS: REGED). Once per (re)login.
+   * `params` = the server answer's params (JS REGED: call_report_id, dc, region, state).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  clientReady(params?: any): void {
     this._safe(() => {
       if (!this._readyPending) return;
       this._readyPending = false;
@@ -830,6 +1045,13 @@ export default class SessionTelemetry {
         mic_id_provided: !!session.micId,
         speaker_id_provided: 'speaker' in session ? !!session.speaker : null,
         reattached_call_ids: this._reattachedCallIds,
+        ...(typeof params?.call_report_id === 'string' && params.call_report_id
+          ? { call_report_id: params.call_report_id }
+          : {}),
+        ...(typeof params?.state === 'string' && params.state
+          ? { gateway_state: params.state }
+          : {}),
+        ...serverResult(params),
       });
       this._reattachedCallIds = [];
       this._chain = null;
@@ -838,16 +1060,26 @@ export default class SessionTelemetry {
 
   // ── Gateway ────────────────────────────────────────────────────────────
 
-  /** A gateway state reported by the server (result or notification). */
-  gatewayState(raw: string): void {
+  /**
+   * A gateway state reported by the server: in the answer to a request
+   * (source "result") or pushed by it ("notification").
+   */
+  gatewayState(raw: string, source?: 'result' | 'notification'): void {
     this._safe(() => {
       if (!raw || raw === this._lastGatewayRaw) return;
       const previous = this._lastGatewayRaw;
+      const previousAt = this._lastGatewayAt;
+      const now = Date.now();
       this._lastGatewayRaw = raw;
+      this._lastGatewayAt = now;
       this._client.emit('gateway_state', {
         state: toGatewayState(raw),
         raw_state: raw,
         ...(previous ? { previous_state: toGatewayState(previous) } : {}),
+        ...(previous && previousAt !== null
+          ? { since_previous_ms: now - previousAt }
+          : {}),
+        ...(source ? { source } : {}),
       });
     });
   }
@@ -863,6 +1095,7 @@ export default class SessionTelemetry {
       });
       this._client.emit('gateway_check_started', {
         check_number: this._gatewayCheckNumber,
+        ...(id ? { rpc_id: id } : {}),
       });
     });
   }
@@ -877,6 +1110,8 @@ export default class SessionTelemetry {
         check_number: check.number,
         error: toErrorInfo(error),
         will_retry: willRetry,
+        ...(id ? { rpc_id: id } : {}),
+        response_time_ms: Date.now() - check.at,
       });
     });
   }
@@ -896,6 +1131,8 @@ export default class SessionTelemetry {
       state: toGatewayState(raw),
       raw_state: raw,
       response_time_ms: Date.now() - check.at,
+      ...(id ? { rpc_id: id } : {}),
+      ...serverResult(msg.result?.params ?? msg.result),
     });
   }
 
@@ -911,6 +1148,11 @@ export default class SessionTelemetry {
   ): void {
     this._safe(() => {
       const clean = details ? sanitizeDetails(details) : undefined;
+      const context: { online?: boolean; visibility_state?: string } = {};
+      assignDefined(context, {
+        online: onlineNow(),
+        visibility_state: visibilityNow(),
+      });
       let payload: ErrorPayload;
       if (stage === 'call' || stage === 'media') {
         payload = {
@@ -918,6 +1160,7 @@ export default class SessionTelemetry {
           error: toCodedErrorInfo(error, 49001),
           is_fatal: isFatal,
           ...(clean ? { details: clean } : {}),
+          ...context,
         };
       } else {
         const info: ErrorInfo = toErrorInfo(error);
@@ -926,6 +1169,7 @@ export default class SessionTelemetry {
           error: info,
           is_fatal: isFatal,
           ...(clean ? { details: clean } : {}),
+          ...context,
         };
       }
       this._client.emit('error', payload, ids ? { ids } : {});
@@ -953,6 +1197,10 @@ export default class SessionTelemetry {
     this._safe(() => {
       if (!frame || typeof frame !== 'object') return;
       const now = Date.now();
+      if (this._socket) {
+        this._socket.framesSent += 1;
+        this._socket.lastSentAt = now;
+      }
       const id = rpcIdString(frame.id);
       const isResponse = 'result' in frame || 'error' in frame;
       // The request's method and call are remembered only to leave out
@@ -989,6 +1237,10 @@ export default class SessionTelemetry {
     this._safe(() => {
       if (!msg || typeof msg !== 'object') return;
       const now = Date.now();
+      if (this._socket) {
+        this._socket.framesReceived += 1;
+        this._socket.lastReceivedAt = now;
+      }
       const id = rpcIdString(msg.id);
       const isRequest = typeof msg.method === 'string';
       let method = isRequest ? msg.method : '';

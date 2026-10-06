@@ -1201,16 +1201,16 @@ export default abstract class BaseCall implements IWebRTCCall {
       const events = (
         this.session as unknown as {
           telemetryEvents?: {
-            inputDeviceChanged(by: 'app' | 'sdk'): void;
-            outputDeviceChanged(by: 'app' | 'sdk'): void;
+            inputDeviceChanged(by: 'app' | 'sdk', deviceId?: string): void;
+            outputDeviceChanged(by: 'app' | 'sdk', deviceId?: string): void;
           } | null;
         }
       ).telemetryEvents;
       if (!events) return;
       if (kind === 'input') {
-        events.inputDeviceChanged(by);
+        events.inputDeviceChanged(by, this.options.micId);
       } else {
-        events.outputDeviceChanged(by);
+        events.outputDeviceChanged(by, this.options.speakerId);
       }
     } catch {
       // Telemetry never throws into the call flow.

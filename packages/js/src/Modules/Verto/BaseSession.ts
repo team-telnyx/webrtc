@@ -856,7 +856,11 @@ export default abstract class BaseSession {
       });
     }
 
-    this.telemetryEvents?.loginStarted(type, reconnectSessionId || undefined);
+    this.telemetryEvents?.loginStarted(
+      type,
+      reconnectSessionId || undefined,
+      msg?.request?.id
+    );
     const response = await this.execute(msg).catch((error) => {
       // execute() already retried the login itself on "authentication required".
       this.telemetryEvents?.loginFailed(
@@ -873,7 +877,7 @@ export default abstract class BaseSession {
         setReconnectSessionId(this.sessionid);
       }
       this._storeLoginResultNames(response);
-      this.telemetryEvents?.loginSucceeded();
+      this.telemetryEvents?.loginSucceeded(response);
       // The credentials may be new (client.login({ creds })): a telemetry
       // socket that was rejected or never opened tries again with them.
       this.telemetry?.connect();

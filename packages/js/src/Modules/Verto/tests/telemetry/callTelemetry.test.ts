@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import CallTelemetry, {
+  addTrackStats,
   buildMetrics,
   buildTotals,
   extractStats,
@@ -9,6 +10,11 @@ import CallTelemetry, {
   type CallTelemetrySink,
   type StatsSnapshot,
 } from '../../telemetry/CallTelemetry';
+import {
+  readPeerConfiguration,
+  readPeerStates,
+  readRtpParameters,
+} from '../../telemetry/browserInfo';
 
 type Stat = Record<string, unknown> & { id: string; type: string };
 
@@ -272,6 +278,8 @@ describe('ICE candidate parsing', () => {
       address: '198.51.100.112',
       port: 57816,
       ufrag: 'Ab12',
+      candidate_generation: 0,
+      network_id: 1,
     });
   });
 
@@ -399,7 +407,10 @@ describe('CallTelemetry', () => {
       telnyxSessionId: undefined as string | undefined,
       trickleIce: true,
       iceServers: [{ urls: 'stun:stun.telnyx.com:3478' }],
-      customHeaders: [{ name: 'X-secret', value: 'do-not-send' }],
+      customHeaders: [
+        { name: 'X-Account', value: 'acct-42' },
+        { name: 'X-Auth-Token', value: 'do-not-send' },
+      ],
     },
     cause: undefined as string | undefined,
     causeCode: undefined as number | undefined,
@@ -434,7 +445,7 @@ describe('CallTelemetry', () => {
       expect.objectContaining({
         direction: 'outbound',
         destination_number: '18004377950',
-        custom_header_names: ['X-secret'],
+        custom_header_names: ['X-Account', 'X-Auth-Token'],
         custom_ice_servers: true,
         ice_servers_count: 1,
         signaling_region: 'us-central',
@@ -443,6 +454,14 @@ describe('CallTelemetry', () => {
         is_reattach: false,
       })
     );
+    // Owner 2026-10-06: every option goes out; only credentials are removed.
+    expect(started.payload.raw_call_options.customHeaders).toEqual([
+      { name: 'X-Account', value: 'acct-42' },
+      { name: 'X-Auth-Token', value: '[REDACTED]' },
+    ]);
+    expect(started.payload.ice_servers).toEqual([
+      { url: 'stun:stun.telnyx.com:3478', has_credential: false },
+    ]);
     expect(JSON.stringify(started.payload)).not.toContain('do-not-send');
 
     telemetry.onState('requesting', 'new');
@@ -455,6 +474,8 @@ describe('CallTelemetry', () => {
     expect(ringing.payload).toEqual({
       state: 'ringing',
       previous_state: 'trying',
+      since_call_started_ms: expect.any(Number),
+      since_previous_state_ms: expect.any(Number),
     });
     expect(ringing.options.ids).toEqual({
       call_id: 'call-1',
@@ -646,10 +667,14 @@ describe('CallTelemetry', () => {
       metric: 'rtt_ms',
       value: 620,
       threshold: 400,
+      sdk_name: 'HIGH_RTT',
+      since_call_started_ms: expect.any(Number),
     });
     expect(sink.events[1].payload).toEqual({
       code: 31002,
       name: 'high_jitter',
+      sdk_name: 'HIGH_JITTER',
+      since_call_started_ms: expect.any(Number),
     });
   });
 
@@ -673,5 +698,426 @@ describe('CallTelemetry', () => {
     ).toEqual({
       b2bua_rtc_dc: 'da1',
     });
+  });
+});
+
+/** Chromium-only and newer getStats() fields on top of audioStats(t). */
+const fullStats = (t: number, extra: Record<string, Stat> = {}) => {
+  const stats = audioStats(t, {
+    transport: {
+      bytesSent: 10000 * t,
+      bytesReceived: 12000 * t,
+      packetsSent: 60 * t,
+      packetsReceived: 61 * t,
+      iceRole: 'controlling',
+      dtlsRole: 'client',
+      dtlsCipher: 'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+      localCertificateId: 'CERT-L',
+      remoteCertificateId: 'CERT-R',
+    },
+    pair: {
+      state: 'succeeded',
+      nominated: true,
+      bytesSent: 9000 * t,
+      bytesReceived: 11000 * t,
+      packetsSent: 55 * t,
+      packetsReceived: 56 * t,
+      consentRequestsSent: t,
+      availableOutgoingBitrate: 300000,
+      timestamp: 1000 * t,
+      lastPacketReceivedTimestamp: 1000 * t - 20,
+    },
+    inbound: {
+      ssrc: 1111,
+      headerBytesReceived: 600 * t,
+      fecBytesReceived: 100 * t,
+      nackCount: 0,
+      silentConcealedSamples: 10 * t,
+      insertedSamplesForDeceleration: 5 * t,
+      removedSamplesForAcceleration: 3 * t,
+      interruptionCount: t,
+      totalInterruptionDuration: 0.25 * t,
+      jitterBufferMinimumDelay: 0.02 * 50 * t,
+      totalProcessingDelay: 0.04 * 50 * t,
+      timestamp: 1000 * t,
+      lastPacketReceivedTimestamp: 1000 * t - 15,
+    },
+    outbound: {
+      ssrc: 2222,
+      mid: '0',
+      headerBytesSent: 600 * t,
+      retransmittedBytesSent: 0,
+    },
+    remoteInbound: { fractionLost: 0.0156, reportsReceived: t },
+  });
+  stats.set('CERT-L', {
+    id: 'CERT-L',
+    type: 'certificate',
+    fingerprintAlgorithm: 'sha-256',
+  });
+  stats.set('CERT-R', {
+    id: 'CERT-R',
+    type: 'certificate',
+    fingerprintAlgorithm: 'sha-256',
+  });
+  stats.set('L1', {
+    ...(stats.get('L1') as Stat),
+    vpn: false,
+    networkAdapterType: 'ethernet',
+  });
+  for (const [id, stat] of Object.entries(extra)) stats.set(id, stat);
+  return stats;
+};
+
+describe('added getStats fields (2026-10-06)', () => {
+  it('sends deltas for the new counters and computes the new gauges', () => {
+    const metrics = buildMetrics(snap(fullStats(1)), snap(fullStats(2)), 1000);
+    expect(metrics).toEqual(
+      expect.objectContaining({
+        in_header_bytes: 600,
+        in_fec_bytes: 100,
+        in_silent_concealed_samples: 10,
+        in_inserted_samples: 5,
+        in_removed_samples: 3,
+        in_jitter_buffer_emitted: 50,
+        in_interruptions: 1,
+        in_interruption_ms: 250,
+        out_header_bytes: 600,
+        pair_bytes_sent: 9000,
+        pair_bytes_received: 11000,
+        pair_packets_sent: 55,
+        pair_packets_received: 56,
+        ice_consent_requests: 1,
+        transport_bytes_sent: 10000,
+        transport_bytes_received: 12000,
+        transport_packets_sent: 60,
+        transport_packets_received: 61,
+        remote_reports: 1,
+        rtcp_rtt_measurements: 1,
+        jitter_buffer_minimum_ms: 20,
+        processing_delay_ms: 40,
+        remote_fraction_lost: 0.0156,
+        available_outgoing_bitrate_bps: 300000,
+        in_last_packet_age_ms: 15,
+        pair_last_received_age_ms: 20,
+      })
+    );
+    // Counters that did not move are still omitted
+    expect(metrics).not.toHaveProperty('in_nacks_sent');
+    expect(metrics).not.toHaveProperty('out_retransmitted_bytes');
+    // Not in these stats: not measured, so not sent
+    expect(metrics).not.toHaveProperty('remote_rtt_ms');
+    expect(metrics).not.toHaveProperty('mic_latency_ms');
+  });
+
+  it('reads the static media fields and the Chromium candidate details', () => {
+    const snapshot = snap(fullStats(1));
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        iceRole: 'controlling',
+        dtlsRole: 'client',
+        dtlsCipher: 'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+        localCertificateAlgorithm: 'sha-256',
+        remoteCertificateAlgorithm: 'sha-256',
+        pairState: 'succeeded',
+        pairNominated: true,
+        ssrcIn: 1111,
+        ssrcOut: 2222,
+        mid: '0',
+      })
+    );
+    expect(snapshot.localCandidate).toEqual(
+      expect.objectContaining({ vpn: false, network_adapter_type: 'ethernet' })
+    );
+  });
+
+  it('totals every counter, ICE traffic over every pair, and whole-call averages', () => {
+    const stats = fullStats(10, {
+      CP0: {
+        id: 'CP0',
+        type: 'candidate-pair',
+        requestsSent: 4,
+        responsesReceived: 2,
+        bytesSent: 500,
+        bytesReceived: 300,
+      },
+    });
+    const totals = buildTotals(snap(stats), { 'in.headerBytesReceived': 60 });
+    expect(totals).toEqual(
+      expect.objectContaining({
+        in_header_bytes: 6060, // 600 x 10 + 60 from a replaced connection
+        in_interruption_ms: 2500,
+        in_jitter_buffer_emitted: 500,
+        // the selected pair (10) plus the earlier pair (4)
+        ice_requests: 14,
+        ice_responses: 12,
+        pair_bytes_sent: 90500,
+        pair_bytes_received: 110300,
+        transport_bytes_sent: 100000,
+        jitter_buffer_avg_ms: 30,
+        jitter_buffer_minimum_avg_ms: 20,
+        processing_delay_avg_ms: 40,
+        in_level_avg: 0.002,
+      })
+    );
+    // Gauges are never totalled
+    expect(totals).not.toHaveProperty('remote_fraction_lost');
+  });
+
+  it('adds the microphone track stats where the browser has them', () => {
+    const prev = snap(fullStats(1));
+    addTrackStats(prev, {
+      stats: {
+        totalFramesDuration: 1,
+        deliveredFramesDuration: 1,
+        latency: 0.01,
+      },
+    } as any);
+    const cur = snap(fullStats(2));
+    addTrackStats(cur, {
+      stats: {
+        totalFramesDuration: 2,
+        deliveredFramesDuration: 1.95,
+        latency: 0.012,
+      },
+    } as any);
+    const metrics = buildMetrics(prev, cur, 1000);
+    expect(metrics.mic_dropped_ms).toBe(50);
+    expect(metrics.mic_latency_ms).toBe(12);
+    // A browser without track.stats: nothing added, nothing thrown
+    const none = snap(fullStats(1));
+    expect(() => addTrackStats(none, {} as any)).not.toThrow();
+    expect(none.n['mic.latency']).toBeUndefined();
+  });
+});
+
+describe('peer connection details (browserInfo)', () => {
+  it('sends the ICE servers of getConfiguration() without any credential', () => {
+    const config = readPeerConfiguration({
+      getConfiguration: () => ({
+        iceServers: [
+          {
+            urls: ['turn:turn.telnyx.com:3478?transport=udp'],
+            username: 'turn-user',
+            credential: 'turn-secret',
+          },
+          { urls: 'stun:stun.telnyx.com:3478' },
+        ],
+        iceTransportPolicy: 'relay',
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require',
+        iceCandidatePoolSize: 0,
+        certificates: [{ expires: Date.UTC(2026, 10, 6) }],
+      }),
+    });
+    expect(config).toEqual({
+      ice_servers: [
+        {
+          url: 'turn:turn.telnyx.com:3478?transport=udp',
+          has_credential: true,
+        },
+        { url: 'stun:stun.telnyx.com:3478', has_credential: false },
+      ],
+      ice_transport_policy: 'relay',
+      bundle_policy: 'max-bundle',
+      rtcp_mux_policy: 'require',
+      ice_candidate_pool_size: 0,
+      certificate_expires: ['2026-11-06T00:00:00.000Z'],
+    });
+    expect(JSON.stringify(config)).not.toContain('turn-secret');
+    expect(readPeerConfiguration(null)).toBeUndefined();
+    expect(
+      readPeerConfiguration({
+        getConfiguration: () => {
+          throw new Error('closed');
+        },
+      })
+    ).toBeUndefined();
+  });
+
+  it('reads negotiated RTP parameters and peer states defensively', () => {
+    expect(
+      readRtpParameters({
+        getParameters: () => ({
+          codecs: [
+            {
+              mimeType: 'audio/opus',
+              clockRate: 48000,
+              channels: 2,
+              payloadType: 111,
+              sdpFmtpLine: 'minptime=10;useinbandfec=1',
+            },
+            { mimeType: 'audio/PCMU', clockRate: 8000, payloadType: 0 },
+          ],
+          headerExtensions: [
+            { uri: 'urn:ietf:params:rtp-hdrext:ssrc-audio-level', id: 1 },
+          ],
+          rtcp: { reducedSize: false, cname: 'x' },
+          encodings: [{ active: true, maxBitrate: 64000, priority: 'high' }],
+        }),
+      })
+    ).toEqual({
+      codecs: [
+        {
+          mime_type: 'audio/opus',
+          clock_rate: 48000,
+          channels: 2,
+          payload_type: 111,
+          sdp_fmtp_line: 'minptime=10;useinbandfec=1',
+        },
+        { mime_type: 'audio/PCMU', clock_rate: 8000, payload_type: 0 },
+      ],
+      header_extensions: ['urn:ietf:params:rtp-hdrext:ssrc-audio-level'],
+      rtcp_reduced_size: false,
+      encodings: [{ active: true, max_bitrate_bps: 64000, priority: 'high' }],
+    });
+    expect(readRtpParameters(undefined)).toBeUndefined();
+    expect(
+      readPeerStates({
+        signalingState: 'stable',
+        iceGatheringState: 'complete',
+        iceConnectionState: 'connected',
+        connectionState: 'connected',
+      })
+    ).toEqual({
+      signaling_state: 'stable',
+      ice_gathering_state: 'complete',
+      ice_connection_state: 'connected',
+      connection_state: 'connected',
+    });
+  });
+});
+
+describe('CallTelemetry added fields', () => {
+  const makeSink = () => {
+    const events: Array<{ name: string; payload: any; options: any }> = [];
+    const sink: CallTelemetrySink & { events: typeof events } = {
+      events,
+      metricsIntervalMs: 1000,
+      emit: jest.fn((name: string, payload: any, options: any) => {
+        events.push({ name, payload, options });
+        return {} as any;
+      }) as any,
+      callStarted: jest.fn(),
+      callEnded: jest.fn(),
+    };
+    return sink;
+  };
+
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('puts peer, transceiver, track and playback details in the media snapshot, and call details in call_ended', async () => {
+    const sink = makeSink();
+    const element = document.createElement('audio');
+    element.id = 'remote-audio';
+    document.body.appendChild(element);
+    const remoteTrack = {
+      kind: 'audio',
+      enabled: true,
+      muted: true,
+      readyState: 'live',
+    };
+    const call = {
+      id: 'call-x',
+      options: { remoteElement: 'remote-audio', speakerId: 'spk-1' } as any,
+      sipCallId: 'sip-call-1',
+    };
+    const telemetry = CallTelemetry.create(call as any, { telemetry: sink })!;
+    telemetry.start();
+    telemetry.onState('active', 'new');
+    const pc = {
+      connectionState: 'connected',
+      signalingState: 'stable',
+      iceConnectionState: 'connected',
+      iceGatheringState: 'complete',
+      getStats: jest.fn(() => Promise.resolve(fullStats(1))),
+      getConfiguration: () => ({
+        iceServers: [
+          {
+            urls: 'turns:turn.telnyx.com:443',
+            username: 'u',
+            credential: 'c-secret',
+          },
+        ],
+      }),
+      getTransceivers: () => [
+        {
+          mid: '0',
+          direction: 'sendrecv',
+          currentDirection: 'sendrecv',
+          receiver: {
+            track: remoteTrack,
+            getParameters: () => ({
+              codecs: [
+                { mimeType: 'audio/PCMU', clockRate: 8000, payloadType: 0 },
+              ],
+            }),
+          },
+          sender: {
+            track: null,
+            getParameters: () => ({ encodings: [{ active: true }] }),
+          },
+        },
+      ],
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    };
+    telemetry.attachPeer(pc as any);
+    await telemetry._tick();
+
+    const media = sink.events.find((e) => e.name === 'call_media_changed')!;
+    expect(media.payload).toEqual(
+      expect.objectContaining({
+        peer: expect.objectContaining({ connection_state: 'connected' }),
+        peer_configuration: {
+          ice_servers: [
+            { url: 'turns:turn.telnyx.com:443', has_credential: true },
+          ],
+        },
+        receive_parameters: {
+          codecs: [
+            { mime_type: 'audio/PCMU', clock_rate: 8000, payload_type: 0 },
+          ],
+        },
+        send_parameters: { encodings: [{ active: true }] },
+        transceiver_direction: 'sendrecv',
+        transceiver_current_direction: 'sendrecv',
+        mid: '0',
+        ssrc_in: 1111,
+        output_device_id: 'spk-1',
+        remote_track: { enabled: true, muted: true, ready_state: 'live' },
+        playback: expect.objectContaining({
+          paused: true,
+          muted: false,
+          has_stream: false,
+        }),
+        dtls_role: 'client',
+      })
+    );
+    expect(JSON.stringify(media.payload)).not.toContain('c-secret');
+
+    // The far end's track unmutes: one call_media_changed for it
+    remoteTrack.muted = false;
+    await telemetry._tick();
+    const changes = sink.events.filter((e) => e.name === 'call_media_changed');
+    expect(changes[1].payload.changed).toEqual(['remote_track']);
+
+    telemetry.noteHangup('app:call.hangup', true, false);
+    await telemetry.end();
+    const ended = sink.events.find((e) => e.name === 'call_ended')!;
+    expect(ended.payload).toEqual(
+      expect.objectContaining({
+        hangup_initiator: 'app:call.hangup',
+        sip_call_id: 'sip-call-1',
+        peer: expect.objectContaining({ signaling_state: 'stable' }),
+        peer_connections: 1,
+        ice_restarts: 0,
+        stats_failures: 0,
+        final_stats: true,
+      })
+    );
+    expect(ended.payload.totals.transport_bytes_sent).toBe(10000);
+    element.remove();
   });
 });

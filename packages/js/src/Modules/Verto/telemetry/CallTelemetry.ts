@@ -28,8 +28,27 @@ import {
   type InputDevice,
   type KnownIds,
   type MediaChange,
+  type PeerStates,
+  type PlaybackInfo,
+  type RemoteTrackInfo,
 } from './contract';
-import { stripDeviceLabel, toCodedErrorInfo } from './sanitize';
+import {
+  sanitizeDetails,
+  stripDeviceLabel,
+  toCodedErrorInfo,
+  toIceServerInfo,
+} from './sanitize';
+import {
+  assignDefined,
+  attempt,
+  hasFocusNow,
+  onlineNow,
+  readPeerConfiguration,
+  readPeerStates,
+  readRtpParameters,
+  resolveMediaElement,
+  visibilityNow,
+} from './browserInfo';
 import {
   observeCallMarks,
   readCallMarks,
@@ -50,6 +69,7 @@ export interface ICallTelemetryCall {
   causeCode?: number;
   sipCode?: number;
   sipReason?: string;
+  sipCallId?: string;
 }
 
 /** What CallTelemetry reads from the session. Everything is optional: read defensively. */
@@ -69,6 +89,13 @@ export interface ICallWarningDetails {
   value?: number;
   threshold?: number;
 }
+
+/** Call options left out of call_started.raw_call_options: SDP already whole in signaling_message. */
+const RAW_CALL_OPTIONS_SKIPPED = ['remoteSdp', 'localSdp'];
+
+/** Custom SIP header names whose value is a credential. */
+const CREDENTIAL_HEADER =
+  /auth|token|secret|passw|api[-_]?key|credential|cookie|session[-_]?key/i;
 
 const FINAL_STATS_TIMEOUT_MS = 1000;
 
@@ -182,6 +209,17 @@ export function parseCandidateLine(line: string): ParsedCandidate | null {
     candidate.tcp_type = extras.tcptype as IceCandidate['tcp_type'];
   }
   if (extras.ufrag) candidate.ufrag = extras.ufrag;
+  const extraNumber = (key: string) => {
+    const value = Number(extras[key]);
+    return extras[key] !== undefined && Number.isFinite(value)
+      ? value
+      : undefined;
+  };
+  assignDefined(candidate, {
+    candidate_generation: extraNumber('generation'),
+    network_id: extraNumber('network-id'),
+    network_cost: extraNumber('network-cost'),
+  });
   return candidate;
 }
 
@@ -215,6 +253,10 @@ export function candidateFromStats(report: any): IceCandidate | undefined {
   if (address) candidate.address = address;
   if (num(report.port) !== undefined) candidate.port = report.port;
   if (str(report.url)) candidate.url = report.url;
+  if (typeof report.vpn === 'boolean') candidate.vpn = report.vpn;
+  if (str(report.networkAdapterType)) {
+    candidate.network_adapter_type = report.networkAdapterType;
+  }
   return candidate;
 }
 
@@ -238,6 +280,16 @@ export type StatsSnapshot = {
   sending?: boolean;
   echoReturnLoss?: number;
   echoReturnLossEnhancement?: number;
+  iceRole?: string;
+  dtlsRole?: string;
+  dtlsCipher?: string;
+  localCertificateAlgorithm?: string;
+  remoteCertificateAlgorithm?: string;
+  pairState?: string;
+  pairNominated?: boolean;
+  ssrcIn?: number;
+  ssrcOut?: number;
+  mid?: string;
 };
 
 const FIELDS: Record<string, string[]> = {
@@ -257,11 +309,32 @@ const FIELDS: Record<string, string[]> = {
     'totalAudioEnergy',
     'totalSamplesDuration',
     'audioLevel',
+    // Added 2026-10-06: everything else inbound-rtp has (several Chromium only)
+    'headerBytesReceived',
+    'fecBytesReceived',
+    'fecPacketsDiscarded',
+    'packetsDuplicated',
+    'nackCount',
+    'retransmittedPacketsReceived',
+    'retransmittedBytesReceived',
+    'silentConcealedSamples',
+    'insertedSamplesForDeceleration',
+    'removedSamplesForAcceleration',
+    'jitterBufferFlushes',
+    'delayedPacketOutageSamples',
+    'interruptionCount',
+    'totalInterruptionDuration',
+    'packetsReceivedWithEct1',
+    'packetsReceivedWithCe',
+    'jitterBufferMinimumDelay',
+    'totalProcessingDelay',
+    'relativePacketArrivalDelay',
   ],
   play: [
     'totalSamplesCount',
     'synthesizedSamplesDuration',
     'totalPlayoutDelay',
+    'synthesizedSamplesEvents',
   ],
   out: [
     'packetsSent',
@@ -269,6 +342,8 @@ const FIELDS: Record<string, string[]> = {
     'retransmittedPacketsSent',
     'nackCount',
     'totalPacketSendDelay',
+    'headerBytesSent',
+    'retransmittedBytesSent',
   ],
   src: ['totalAudioEnergy', 'totalSamplesDuration', 'audioLevel'],
   rin: [
@@ -277,15 +352,68 @@ const FIELDS: Record<string, string[]> = {
     'packetsLost',
     'totalRoundTripTime',
     'roundTripTimeMeasurements',
+    'fractionLost',
+    'reportsReceived',
+    'packetsReceived',
   ],
-  rout: ['packetsSent'],
+  rout: [
+    'packetsSent',
+    'bytesSent',
+    'reportsSent',
+    'roundTripTime',
+    'totalRoundTripTime',
+    'roundTripTimeMeasurements',
+  ],
   pair: [
     'currentRoundTripTime',
     'totalRoundTripTime',
     'requestsSent',
     'responsesReceived',
+    'requestsReceived',
+    'responsesSent',
+    'consentRequestsSent',
+    'bytesSent',
+    'bytesReceived',
+    'packetsSent',
+    'packetsReceived',
+    'packetsDiscardedOnSend',
+    'bytesDiscardedOnSend',
+    'availableOutgoingBitrate',
+    'availableIncomingBitrate',
   ],
+  tr: ['bytesSent', 'bytesReceived', 'packetsSent', 'packetsReceived'],
 };
+
+/**
+ * Candidate-pair counters summed over every pair in the report ("pairs."):
+ * the whole call's ICE traffic for call_ended, even after the pair changed.
+ */
+const ALL_PAIR_FIELDS = [
+  'requestsSent',
+  'responsesReceived',
+  'requestsReceived',
+  'responsesSent',
+  'consentRequestsSent',
+  'bytesSent',
+  'bytesReceived',
+  'packetsSent',
+  'packetsReceived',
+  'packetsDiscardedOnSend',
+  'bytesDiscardedOnSend',
+];
+
+/** Raw values that are gauges, not cumulative counters: never carried or totalled. */
+const GAUGE_KEYS = new Set([
+  'in.jitter',
+  'in.audioLevel',
+  'in.lastPacketAge',
+  'src.audioLevel',
+  'rin.roundTripTime',
+  'rin.jitter',
+  'rin.fractionLost',
+  'rout.roundTripTime',
+  'mic.latency',
+]);
 
 const ICE_STATES = [
   'new',
@@ -350,6 +478,7 @@ export function extractStats(report: {
     rin: find('remote-inbound-rtp'),
     rout: find('remote-outbound-rtp'),
     pair,
+    tr: transport,
   };
 
   const snapshot: StatsSnapshot = { n: {} };
@@ -361,11 +490,37 @@ export function extractStats(report: {
       if (value !== undefined) snapshot.n[`${prefix}.${field}`] = value;
     }
   }
+  for (const stat of all) {
+    if (stat.type !== 'candidate-pair') continue;
+    for (const field of ALL_PAIR_FIELDS) {
+      const value = num(stat[field]);
+      if (value !== undefined) {
+        snapshot.n[`pairs.${field}`] =
+          (snapshot.n[`pairs.${field}`] ?? 0) + value;
+      }
+    }
+  }
+  // How long since the last packet (ms), from the report's own clock.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const age = (stat: any, field: string, key: string) => {
+    const at = num(stat?.[field]);
+    const now = num(stat?.timestamp);
+    if (at !== undefined && now !== undefined && at > 0) {
+      snapshot.n[key] = Math.max(0, now - at);
+    }
+  };
+  age(sources.in, 'lastPacketReceivedTimestamp', 'in.lastPacketAge');
+  age(pair, 'lastPacketReceivedTimestamp', 'pair.lastReceivedAge');
+  age(pair, 'lastPacketSentTimestamp', 'pair.lastSentAge');
 
   if (pair) {
     snapshot.pairId = pair.id;
     snapshot.localCandidate = candidateFromStats(byId[pair.localCandidateId]);
     snapshot.remoteCandidate = candidateFromStats(byId[pair.remoteCandidateId]);
+    if (str(pair.state)) snapshot.pairState = pair.state;
+    if (typeof pair.nominated === 'boolean') {
+      snapshot.pairNominated = pair.nominated;
+    }
   }
   if (transport) {
     if (ICE_STATES.includes(transport.iceState)) {
@@ -379,8 +534,21 @@ export function extractStats(report: {
     if (num(transport.selectedCandidatePairChanges) !== undefined) {
       snapshot.pairChanges = transport.selectedCandidatePairChanges;
     }
+    if (str(transport.iceRole)) snapshot.iceRole = transport.iceRole;
+    if (str(transport.dtlsRole)) snapshot.dtlsRole = transport.dtlsRole;
+    if (str(transport.dtlsCipher)) snapshot.dtlsCipher = transport.dtlsCipher;
+    const algorithm = (id: unknown) =>
+      typeof id === 'string' ? str(byId[id]?.fingerprintAlgorithm) : undefined;
+    const local = algorithm(transport.localCertificateId);
+    const remote = algorithm(transport.remoteCertificateId);
+    if (local) snapshot.localCertificateAlgorithm = local;
+    if (remote) snapshot.remoteCertificateAlgorithm = remote;
   }
-  if (sources.in) snapshot.codecIn = codecFromStats(byId[sources.in.codecId]);
+  if (sources.in) {
+    snapshot.codecIn = codecFromStats(byId[sources.in.codecId]);
+    if (num(sources.in.ssrc) !== undefined) snapshot.ssrcIn = sources.in.ssrc;
+    if (str(sources.in.mid)) snapshot.mid = sources.in.mid;
+  }
   if (sources.out) {
     snapshot.codecOut = codecFromStats(byId[sources.out.codecId]);
     if (num(sources.out.targetBitrate) !== undefined) {
@@ -389,6 +557,9 @@ export function extractStats(report: {
     if (typeof sources.out.active === 'boolean') {
       snapshot.sending = sources.out.active;
     }
+    if (num(sources.out.ssrc) !== undefined)
+      snapshot.ssrcOut = sources.out.ssrc;
+    if (!snapshot.mid && str(sources.out.mid)) snapshot.mid = sources.out.mid;
   }
   if (sources.src) {
     if (num(sources.src.echoReturnLoss) !== undefined) {
@@ -404,12 +575,40 @@ export function extractStats(report: {
   return snapshot;
 }
 
+/**
+ * The microphone track's own stats (MediaStreamTrack.stats, Chromium 125+):
+ * capture drops and latency, added to the snapshot as "mic." values.
+ */
+export function addTrackStats(
+  snapshot: StatsSnapshot,
+  track: MediaStreamTrack | undefined | null
+): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const stats = (track as any)?.stats;
+    if (!stats) return;
+    const total = num(stats.totalFramesDuration);
+    const delivered = num(stats.deliveredFramesDuration);
+    if (total !== undefined && delivered !== undefined) {
+      snapshot.n['mic.dropped'] = Math.max(0, total - delivered);
+    }
+    const latency = num(stats.latency);
+    if (latency !== undefined) snapshot.n['mic.latency'] = latency;
+  } catch {
+    // not every browser has it
+  }
+}
+
 // ─── call_metrics ────────────────────────────────────────────────────────
 
 type MetricKey = Exclude<keyof CallMetricsPayload, 'counters_reset'>;
 
-/** Counters sent as per-interval deltas; a delta of 0 is omitted. */
-const COUNTERS: Array<[MetricKey, string]> = [
+/**
+ * Counters sent as per-interval deltas; a delta of 0 is omitted. The third
+ * value scales the raw counter (seconds -> ms). call_ended.totals has each
+ * one under the same name.
+ */
+const COUNTERS: Array<[MetricKey, string, number?]> = [
   ['in_packets', 'in.packetsReceived'],
   ['in_bytes', 'in.bytesReceived'],
   ['in_lost', 'in.packetsLost'],
@@ -426,6 +625,46 @@ const COUNTERS: Array<[MetricKey, string]> = [
   ['remote_sent_packets', 'rout.packetsSent'],
   ['ice_requests', 'pair.requestsSent'],
   ['ice_responses', 'pair.responsesReceived'],
+  // Added 2026-10-06
+  ['in_header_bytes', 'in.headerBytesReceived'],
+  ['in_fec_bytes', 'in.fecBytesReceived'],
+  ['in_fec_packets_discarded', 'in.fecPacketsDiscarded'],
+  ['in_packets_duplicated', 'in.packetsDuplicated'],
+  ['in_nacks_sent', 'in.nackCount'],
+  ['in_retransmitted_packets', 'in.retransmittedPacketsReceived'],
+  ['in_retransmitted_bytes', 'in.retransmittedBytesReceived'],
+  ['in_silent_concealed_samples', 'in.silentConcealedSamples'],
+  ['in_inserted_samples', 'in.insertedSamplesForDeceleration'],
+  ['in_removed_samples', 'in.removedSamplesForAcceleration'],
+  ['in_jitter_buffer_emitted', 'in.jitterBufferEmittedCount'],
+  ['in_jitter_buffer_flushes', 'in.jitterBufferFlushes'],
+  ['in_delayed_packet_outage_samples', 'in.delayedPacketOutageSamples'],
+  ['in_interruptions', 'in.interruptionCount'],
+  ['in_interruption_ms', 'in.totalInterruptionDuration', 1000],
+  ['in_ect1_packets', 'in.packetsReceivedWithEct1'],
+  ['in_ce_packets', 'in.packetsReceivedWithCe'],
+  ['synthesized_events', 'play.synthesizedSamplesEvents'],
+  ['out_header_bytes', 'out.headerBytesSent'],
+  ['out_retransmitted_bytes', 'out.retransmittedBytesSent'],
+  ['mic_dropped_ms', 'mic.dropped', 1000],
+  ['remote_reports', 'rin.reportsReceived'],
+  ['rtcp_rtt_measurements', 'rin.roundTripTimeMeasurements'],
+  ['remote_received_packets', 'rin.packetsReceived'],
+  ['remote_sent_bytes', 'rout.bytesSent'],
+  ['remote_reports_sent', 'rout.reportsSent'],
+  ['pair_bytes_sent', 'pair.bytesSent'],
+  ['pair_bytes_received', 'pair.bytesReceived'],
+  ['pair_packets_sent', 'pair.packetsSent'],
+  ['pair_packets_received', 'pair.packetsReceived'],
+  ['pair_packets_discarded_on_send', 'pair.packetsDiscardedOnSend'],
+  ['pair_bytes_discarded_on_send', 'pair.bytesDiscardedOnSend'],
+  ['ice_requests_received', 'pair.requestsReceived'],
+  ['ice_responses_sent', 'pair.responsesSent'],
+  ['ice_consent_requests', 'pair.consentRequestsSent'],
+  ['transport_bytes_sent', 'tr.bytesSent'],
+  ['transport_bytes_received', 'tr.bytesReceived'],
+  ['transport_packets_sent', 'tr.packetsSent'],
+  ['transport_packets_received', 'tr.packetsReceived'],
 ];
 
 /**
@@ -488,9 +727,10 @@ export function buildMetrics(
   set('remote_jitter_ms', gauge('rin.jitter', 1000, 1));
 
   // Counters: a delta of 0 is omitted
-  for (const [name, key] of COUNTERS) {
+  for (const [name, key, scale] of COUNTERS) {
     const value = delta(key);
-    if (value) set(name, Math.round(value));
+    const scaled = value !== undefined ? Math.round(value * (scale ?? 1)) : 0;
+    if (scaled) set(name, scaled);
   }
 
   // Playout: sent even when 0, whenever the stat exists
@@ -520,25 +760,53 @@ export function buildMetrics(
   );
   set('out_level', level('src'));
 
+  // Added 2026-10-06
+  set(
+    'jitter_buffer_minimum_ms',
+    ratio('in.jitterBufferMinimumDelay', 'in.jitterBufferEmittedCount', 1000, 1)
+  );
+  set(
+    'processing_delay_ms',
+    ratio('in.totalProcessingDelay', 'in.jitterBufferEmittedCount', 1000, 1)
+  );
+  set(
+    'in_arrival_delay_ms',
+    ratio('in.relativePacketArrivalDelay', 'in.packetsReceived', 1000, 1)
+  );
+  set('in_last_packet_age_ms', gauge('in.lastPacketAge', 1, 0));
+  set('mic_latency_ms', gauge('mic.latency', 1000, 1));
+  set('remote_fraction_lost', gauge('rin.fractionLost', 1, 4));
+  set('remote_rtt_ms', gauge('rout.roundTripTime', 1000, 0));
+  set(
+    'available_outgoing_bitrate_bps',
+    gauge('pair.availableOutgoingBitrate', 1, 0)
+  );
+  set(
+    'available_incoming_bitrate_bps',
+    gauge('pair.availableIncomingBitrate', 1, 0)
+  );
+  set('pair_last_received_age_ms', gauge('pair.lastReceivedAge', 1, 0));
+  set('pair_last_sent_age_ms', gauge('pair.lastSentAge', 1, 0));
+
   if (countersReset) metrics.counters_reset = true;
   return metrics;
 }
 
-/** Keys summed across replaced peer connections for call_ended.totals. */
-const TOTAL_KEYS = [
-  'in.packetsReceived',
-  'in.bytesReceived',
-  'in.packetsLost',
-  'in.packetsDiscarded',
-  'in.totalSamplesReceived',
-  'in.concealedSamples',
-  'in.concealmentEvents',
-  'out.packetsSent',
-  'out.bytesSent',
-  'out.retransmittedPacketsSent',
-  'out.nackCount',
-  'rin.packetsLost',
-];
+/**
+ * Keys summed across replaced peer connections for call_ended.totals: every
+ * cumulative counter. The selected pair's own ("pair.") counters restart with
+ * each pair; the "pairs." sums cover the whole connection instead.
+ */
+export const isCarriedKey = (key: string): boolean =>
+  !key.startsWith('pair.') &&
+  // The microphone track outlives a replaced peer connection: its counters
+  // already include what came before.
+  !key.startsWith('mic.') &&
+  !GAUGE_KEYS.has(key);
+
+/** The total of a call_metrics counter: "pair." counters total over every pair. */
+const totalKeyOf = (key: string) =>
+  key.startsWith('pair.') ? `pairs.${key.slice(5)}` : key;
 
 /**
  * call_ended.totals from the final cumulative counters.
@@ -551,11 +819,15 @@ export function buildTotals(
   observedPairChanges = 0
 ): CallTotals {
   const n = last?.n ?? {};
-  const total = (key: string): number | undefined => {
+  const raw = (key: string): number | undefined => {
     const value = n[key];
     const before = carried[key];
     if (value === undefined && before === undefined) return undefined;
-    return Math.round((value ?? 0) + (before ?? 0));
+    return (value ?? 0) + (before ?? 0);
+  };
+  const total = (key: string): number | undefined => {
+    const value = raw(key);
+    return value === undefined ? undefined : Math.round(value);
   };
   const totals: CallTotals = {
     in_packets: total('in.packetsReceived') ?? 0,
@@ -577,6 +849,92 @@ export function buildTotals(
   for (const [name, key] of optional) {
     const value = total(key);
     if (value !== undefined) (totals as Record<string, number>)[name] = value;
+  }
+  // Every other call_metrics counter, under its call_metrics name.
+  for (const [name, key, scale] of COUNTERS) {
+    if (name in totals) continue;
+    const value = raw(totalKeyOf(key));
+    if (value !== undefined) {
+      (totals as Record<string, number>)[name] = Math.round(
+        value * (scale ?? 1)
+      );
+    }
+  }
+  const played = total('play.totalSamplesCount');
+  if (played !== undefined) totals.played_samples = played;
+  const synthesized = raw('play.synthesizedSamplesDuration');
+  if (synthesized !== undefined) {
+    totals.synthesized_ms = Math.round(synthesized * 1000);
+  }
+  const average = (
+    name: keyof CallTotals,
+    top: string,
+    bottom: string,
+    scale: number,
+    decimals: number
+  ) => {
+    const t = raw(top);
+    const b = raw(bottom);
+    if (t !== undefined && b) {
+      (totals as Record<string, number>)[name] = round(
+        (t / b) * scale,
+        decimals
+      );
+    }
+  };
+  const emitted = 'in.jitterBufferEmittedCount';
+  average('jitter_buffer_avg_ms', 'in.jitterBufferDelay', emitted, 1000, 1);
+  average(
+    'jitter_buffer_target_avg_ms',
+    'in.jitterBufferTargetDelay',
+    emitted,
+    1000,
+    1
+  );
+  average(
+    'jitter_buffer_minimum_avg_ms',
+    'in.jitterBufferMinimumDelay',
+    emitted,
+    1000,
+    1
+  );
+  average(
+    'processing_delay_avg_ms',
+    'in.totalProcessingDelay',
+    emitted,
+    1000,
+    1
+  );
+  average(
+    'playout_delay_avg_ms',
+    'play.totalPlayoutDelay',
+    'play.totalSamplesCount',
+    1000,
+    1
+  );
+  average(
+    'out_send_delay_avg_ms',
+    'out.totalPacketSendDelay',
+    'out.packetsSent',
+    1000,
+    1
+  );
+  average(
+    'remote_rtt_avg_ms',
+    'rout.totalRoundTripTime',
+    'rout.roundTripTimeMeasurements',
+    1000,
+    0
+  );
+  for (const [name, prefix] of [
+    ['in_level_avg', 'in'],
+    ['out_level_avg', 'src'],
+  ] as const) {
+    const energy = raw(`${prefix}.totalAudioEnergy`);
+    const duration = raw(`${prefix}.totalSamplesDuration`);
+    if (energy !== undefined && duration) {
+      totals[name] = round(Math.sqrt(Math.max(0, energy) / duration), 4);
+    }
   }
 
   const responses = n['pair.responsesReceived'];
@@ -627,6 +985,9 @@ const TIMING_MARKS: Array<[string, keyof CallTimingsPayload]> = [
   ['call-active', 'call_active_ms'],
   ['ice-connected', 'ice_connected_ms'],
   ['dtls-connected', 'dtls_connected_ms'],
+  // Telemetry's own marks (its peer connection listeners), not performance marks
+  ['cr2-ice-checking', 'ice_checking_ms'],
+  ['cr2-peer-connecting', 'peer_connecting_ms'],
 ];
 
 // ─── End reason ──────────────────────────────────────────────────────────
@@ -701,12 +1062,42 @@ const MEDIA_GROUPS: Array<[MediaChange, Array<keyof MediaSnapshot>]> = [
   ['codec', ['codec_in', 'codec_out', 'target_bitrate_bps']],
   // pair_changes is compared on its own (see _pairChanged).
   ['candidate_pair', ['local_candidate', 'remote_candidate']],
-  ['ice_state', ['ice_state']],
-  ['dtls_state', ['dtls_state', 'srtp_cipher', 'dtls_version']],
+  ['ice_state', ['ice_state', 'ice_role']],
+  [
+    'dtls_state',
+    [
+      'dtls_state',
+      'srtp_cipher',
+      'dtls_version',
+      'dtls_role',
+      'dtls_cipher',
+      'local_certificate_algorithm',
+      'remote_certificate_algorithm',
+    ],
+  ],
   ['sending', ['sending']],
   ['input_device', ['input_device', 'input_device_count']],
-  ['output_device', ['output_device_label', 'output_device_count']],
+  [
+    'output_device',
+    ['output_device_label', 'output_device_id', 'output_device_count'],
+  ],
   ['echo', ['echo_return_loss_db', 'echo_return_loss_enhancement_db']],
+  ['peer_state', ['peer', 'pair_state', 'pair_nominated']],
+  ['configuration', ['peer_configuration']],
+  [
+    'rtp_parameters',
+    [
+      'send_parameters',
+      'receive_parameters',
+      'transceiver_direction',
+      'transceiver_current_direction',
+      'mid',
+      'ssrc_in',
+      'ssrc_out',
+    ],
+  ],
+  ['remote_track', ['remote_track']],
+  ['playback', ['playback']],
 ];
 
 export default class CallTelemetry {
@@ -720,6 +1111,7 @@ export default class CallTelemetry {
     {};
   private _b2buaSent = false;
   private _lastState: CallState = 'new';
+  private _lastStatePerf: number | null = null;
   /** The state of the last call_state built (fallback for previous_state). */
   private _lastEmittedState: CallState | null = null;
   private _frozenLastState: CallState | null = null;
@@ -749,6 +1141,11 @@ export default class CallTelemetry {
   private _metricsSamples = 0;
   private _rttSamples: number[] = [];
   private _pairIds = new Set<string>();
+  private _peerConnections = 0;
+  private _statsFailures = 0;
+  private _hangupPeer: PeerStates | undefined;
+  private _localCandidates = 0;
+  private _remoteCandidates = 0;
 
   // Media snapshot
   private _lastMedia: MediaSnapshot | null = null;
@@ -771,6 +1168,7 @@ export default class CallTelemetry {
   private _dtlsConnected = false;
   private _timingsSent = false;
   private _firstPacketPerf: number | null = null;
+  private _firstPacketSentPerf: number | null = null;
 
   /** null when telemetry is off: then the call does nothing for telemetry. */
   static create(
@@ -876,6 +1274,27 @@ export default class CallTelemetry {
       ...readSignalingVsp(session),
       ...b2bua,
     };
+    const raw: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(options)) {
+      if (!RAW_CALL_OPTIONS_SKIPPED.includes(key)) raw[key] = value;
+    }
+    // A custom header that carries a credential (by its name) keeps its name only.
+    if (Array.isArray(options.customHeaders)) {
+      raw.customHeaders = options.customHeaders.map((header) =>
+        header && CREDENTIAL_HEADER.test(String(header.name ?? ''))
+          ? { ...header, value: '[REDACTED]' }
+          : header
+      );
+    }
+    const rawOptions = attempt(() => sanitizeDetails(raw));
+    if (rawOptions) payload.raw_call_options = rawOptions;
+    const servers = attempt(() => toIceServerInfo(iceServers));
+    if (servers?.length) payload.ice_servers = servers;
+    assignDefined(payload, {
+      online: onlineNow(),
+      visibility_state: visibilityNow(),
+      has_focus: hasFocusNow(),
+    });
     const callerNumber = inbound
       ? options.remoteCallerNumber
       : options.callerNumber;
@@ -930,6 +1349,20 @@ export default class CallTelemetry {
         this._telnyxIds.telnyx_session_id = options.telnyxSessionId;
       }
       const payload: CallStatePayload = { state: state as CallState };
+      const now = nowPerf();
+      payload.since_call_started_ms = round(
+        Math.max(0, now - this._startedPerf),
+        1
+      );
+      if (this._lastStatePerf !== null) {
+        payload.since_previous_state_ms = round(
+          Math.max(0, now - this._lastStatePerf),
+          1
+        );
+      }
+      this._lastStatePerf = now;
+      const peer = readPeerStates(this._pc);
+      if (peer) payload.peer = peer;
       // Always when known, also for a repeated state: the call report rebuilds
       // the state machine from transitions and finds a lost call_state where
       // previous_state differs from the state before it.
@@ -997,6 +1430,7 @@ export default class CallTelemetry {
         this._countersReset = true;
       }
       this._detachPeer();
+      if (this._pc !== pc) this._peerConnections += 1;
       this._pc = pc;
       this._dtlsConnected = pc.connectionState === 'connected';
 
@@ -1013,9 +1447,17 @@ export default class CallTelemetry {
         }
       });
       listen('connectionstatechange', () => {
+        if (pc.connectionState === 'connecting') {
+          this._mark('cr2-peer-connecting');
+        }
         if (pc.connectionState === 'connected') {
           this._dtlsConnected = true;
           this._maybeSendTimings();
+        }
+      });
+      listen('iceconnectionstatechange', () => {
+        if (pc.iceConnectionState === 'checking') {
+          this._mark('cr2-ice-checking');
         }
       });
 
@@ -1044,10 +1486,10 @@ export default class CallTelemetry {
 
   private _carry(snapshot: StatsSnapshot | null): void {
     if (!snapshot) return;
-    for (const key of TOTAL_KEYS) {
-      const value = snapshot.n[key];
-      if (value !== undefined)
+    for (const [key, value] of Object.entries(snapshot.n)) {
+      if (isCarriedKey(key)) {
         this._carried[key] = (this._carried[key] ?? 0) + value;
+      }
     }
   }
 
@@ -1078,13 +1520,18 @@ export default class CallTelemetry {
         ice_generation: this._iceGeneration,
         signaled: this._safeSignaled(),
       };
+      assignDefined(payload, {
+        sdp_mid: str(extra.sdpMid),
+        sdp_m_line_index: num(extra.sdpMLineIndex),
+        ice_gathering_state: attempt(() => str(this._pc?.iceGatheringState)),
+      });
       if (this._gatheringStartedPerf !== null) {
         payload.since_gathering_started_ms = round(
           nowPerf() - this._gatheringStartedPerf,
           1
         );
       }
-      this._emit('ice_candidate', payload);
+      if (this._emit('ice_candidate', payload)) this._localCandidates += 1;
     } catch {
       // never throw into the SDK
     }
@@ -1122,13 +1569,18 @@ export default class CallTelemetry {
         this._remoteDescriptionPerf !== null
           ? round(nowPerf() - this._remoteDescriptionPerf, 1)
           : undefined;
-      this._emitRemote(line, since);
+      this._emitRemote(line, since, params);
     } catch {
       // never throw into the SDK
     }
   }
 
-  private _emitRemote(line: string, since?: number): void {
+  private _emitRemote(
+    line: string,
+    since?: number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    params?: any
+  ): void {
     const parsed = parseCandidateLine(line);
     if (!parsed) return;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1139,7 +1591,11 @@ export default class CallTelemetry {
       ice_generation: this._iceGeneration,
     };
     if (since !== undefined) payload.since_gathering_started_ms = since;
-    this._emit('ice_candidate', payload);
+    assignDefined(payload, {
+      sdp_mid: str(params?.sdpMid),
+      sdp_m_line_index: num(params?.sdpMLineIndex),
+    });
+    if (this._emit('ice_candidate', payload)) this._remoteCandidates += 1;
   }
 
   // ── Devices (for the media snapshot) ────────────────────────────────
@@ -1208,7 +1664,81 @@ export default class CallTelemetry {
     if (num(settings.latency) !== undefined) {
       device.latency_ms = round(settings.latency * 1000, 1);
     }
+    assignDefined(device, {
+      device_id: str(settings.deviceId),
+      group_id: str(settings.groupId),
+      voice_isolation:
+        typeof settings.voiceIsolation === 'boolean'
+          ? settings.voiceIsolation
+          : undefined,
+      content_hint: attempt(() =>
+        typeof track.contentHint === 'string' ? track.contentHint : undefined
+      ),
+    });
+    const plain = (read: () => unknown) => {
+      const value = attempt(read);
+      const clean =
+        value && typeof value === 'object'
+          ? attempt(() => sanitizeDetails(value))
+          : undefined;
+      return clean && Object.keys(clean).length ? clean : undefined;
+    };
+    assignDefined(device, {
+      settings: plain(() => settings),
+      constraints: plain(() => track.getConstraints?.()),
+      capabilities: plain(() => track.getCapabilities?.()),
+    });
     return device;
+  }
+
+  /** The audio transceiver: the one whose sender or receiver carries audio. */
+  private _audioTransceiver(): RTCRtpTransceiver | undefined {
+    return attempt(() => {
+      const transceivers = this._pc?.getTransceivers?.() ?? [];
+      return (
+        transceivers.find(
+          (t) =>
+            t.receiver?.track?.kind === 'audio' ||
+            t.sender?.track?.kind === 'audio'
+        ) ?? transceivers[0]
+      );
+    });
+  }
+
+  private _remoteTrack(
+    transceiver: RTCRtpTransceiver | undefined
+  ): RemoteTrackInfo | undefined {
+    return attempt(() => {
+      const track =
+        transceiver?.receiver?.track ??
+        this._call.options?.remoteStream?.getAudioTracks?.()[0];
+      if (!track) return undefined;
+      return {
+        enabled: track.enabled,
+        muted: track.muted,
+        ready_state: track.readyState === 'ended' ? 'ended' : 'live',
+      } as RemoteTrackInfo;
+    });
+  }
+
+  private _playback(): PlaybackInfo | undefined {
+    return attempt(() => {
+      const element = resolveMediaElement(this._call.options?.remoteElement);
+      if (!element) return undefined;
+      const info: PlaybackInfo = {
+        paused: !!element.paused,
+        muted: !!element.muted,
+        volume: num(element.volume) ?? 1,
+        has_stream: !!element.srcObject,
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sinkId = (element as any).sinkId;
+      if (typeof sinkId === 'string') info.sink_id = sinkId;
+      if (num(element.readyState) !== undefined) {
+        info.ready_state = element.readyState;
+      }
+      return info;
+    });
   }
 
   private _mediaSnapshot(snapshot: StatsSnapshot): MediaSnapshot {
@@ -1241,6 +1771,33 @@ export default class CallTelemetry {
     put('output_device_count', this._outputCount);
     put('echo_return_loss_db', snapshot.echoReturnLoss);
     put('echo_return_loss_enhancement_db', snapshot.echoReturnLossEnhancement);
+    // Added 2026-10-06
+    put('ice_role', snapshot.iceRole);
+    put('dtls_role', snapshot.dtlsRole);
+    put('dtls_cipher', snapshot.dtlsCipher);
+    put('local_certificate_algorithm', snapshot.localCertificateAlgorithm);
+    put('remote_certificate_algorithm', snapshot.remoteCertificateAlgorithm);
+    put('pair_state', snapshot.pairState);
+    put('pair_nominated', snapshot.pairNominated);
+    put('peer', readPeerStates(this._pc));
+    put('peer_configuration', readPeerConfiguration(this._pc));
+    const transceiver = this._audioTransceiver();
+    put('send_parameters', readRtpParameters(transceiver?.sender));
+    put('receive_parameters', readRtpParameters(transceiver?.receiver));
+    put(
+      'transceiver_direction',
+      attempt(() => str(transceiver?.direction))
+    );
+    put(
+      'transceiver_current_direction',
+      attempt(() => str(transceiver?.currentDirection))
+    );
+    put('mid', snapshot.mid ?? attempt(() => str(transceiver?.mid)));
+    put('ssrc_in', snapshot.ssrcIn);
+    put('ssrc_out', snapshot.ssrcOut);
+    put('output_device_id', speakerId);
+    put('remote_track', this._remoteTrack(transceiver));
+    put('playback', this._playback());
     return media;
   }
 
@@ -1299,6 +1856,7 @@ export default class CallTelemetry {
       const timestamp = Date.now();
       const perf = nowPerf();
       const snapshot = extractStats(report);
+      addTrackStats(snapshot, this._micTrack());
       const metrics = buildMetrics(
         this._prevSnapshot,
         snapshot,
@@ -1314,6 +1872,12 @@ export default class CallTelemetry {
       if (this._firstPacketPerf === null && (metrics.in_packets ?? 0) > 0) {
         this._firstPacketPerf = perf;
       }
+      if (
+        this._firstPacketSentPerf === null &&
+        (metrics.out_packets ?? 0) > 0
+      ) {
+        this._firstPacketSentPerf = perf;
+      }
 
       this._checkMedia(snapshot, timestamp);
       if (this._emit('call_metrics', metrics, timestamp)) {
@@ -1321,6 +1885,7 @@ export default class CallTelemetry {
       }
     } catch {
       // a failed getStats() loses this interval only
+      this._statsFailures += 1;
     } finally {
       this._inFlight = false;
     }
@@ -1329,7 +1894,7 @@ export default class CallTelemetry {
   // ── call_warning, error ─────────────────────────────────────────────
 
   onWarning(
-    warning: { code: number; name?: string },
+    warning: { code: number; name?: string; message?: string },
     details?: ICallWarningDetails
   ): void {
     if (this._ended || !warning) return;
@@ -1345,6 +1910,12 @@ export default class CallTelemetry {
         payload.value = round(details.value, 4);
       if (num(details?.threshold) !== undefined)
         payload.threshold = details.threshold;
+      if (str(warning.name)) payload.sdk_name = warning.name;
+      if (str(warning.message)) payload.message = warning.message;
+      payload.since_call_started_ms = round(
+        Math.max(0, nowPerf() - this._startedPerf),
+        1
+      );
       this._emit('call_warning', payload);
     } catch {
       // never throw into the SDK
@@ -1365,11 +1936,18 @@ export default class CallTelemetry {
       const stage = /^42\d{3}$/.test(info.code) ? 'media' : 'call';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fatal = (error as any)?.fatal;
+      const context: { online?: boolean; visibility_state?: string } = {};
+      assignDefined(context, {
+        online: onlineNow(),
+        visibility_state: visibilityNow(),
+      });
       this._emit('error', {
         stage,
         error: info,
         is_fatal: typeof fatal === 'boolean' ? fatal : false,
         ...(details ? { details } : {}),
+        ...context,
+        call_state: this._lastEmittedState ?? this._lastState,
       });
     } catch {
       // never throw into the SDK
@@ -1377,6 +1955,18 @@ export default class CallTelemetry {
   }
 
   // ── call_timings ─────────────────────────────────────────────────────
+
+  /** One of telemetry's own timing marks, at the first time only. */
+  private _mark(suffix: string): void {
+    if (this._marks[suffix] === undefined) this._marks[suffix] = nowPerf();
+  }
+
+  /** The microphone track (for its MediaStreamTrack.stats). */
+  private _micTrack(): MediaStreamTrack | undefined {
+    return attempt(
+      () => this._call.options?.localStream?.getAudioTracks?.()[0]
+    );
+  }
 
   private _mergeMarks(marks: Record<string, number>): void {
     for (const [suffix, time] of Object.entries(marks)) {
@@ -1413,6 +2003,12 @@ export default class CallTelemetry {
         1
       );
     }
+    if (this._firstPacketSentPerf !== null) {
+      payload.first_packet_sent_ms = round(
+        Math.max(0, this._firstPacketSentPerf - this._startedPerf),
+        1
+      );
+    }
     this._emit('call_timings', payload);
   }
 
@@ -1429,7 +2025,10 @@ export default class CallTelemetry {
   ): void {
     if (this._ended) return;
     try {
-      if (!this._hangup) this._hangup = { initiator, execute, recovering };
+      if (!this._hangup) {
+        this._hangup = { initiator, execute, recovering };
+        this._hangupPeer = readPeerStates(this._pc);
+      }
       this._freezeLastState();
       this._startFinalStats();
     } catch {
@@ -1451,8 +2050,13 @@ export default class CallTelemetry {
     // getStats() is called now, synchronously, before the SDK closes the connection.
     let stats: Promise<StatsSnapshot | null>;
     try {
+      const micTrack = this._micTrack();
       stats = Promise.resolve(pc.getStats())
-        .then((report) => extractStats(report))
+        .then((report) => {
+          const snapshot = extractStats(report);
+          addTrackStats(snapshot, micTrack);
+          return snapshot;
+        })
         .catch(() => null);
     } catch {
       stats = Promise.resolve(null);
@@ -1528,8 +2132,8 @@ export default class CallTelemetry {
     endedAt: number,
     endedPerf: number
   ): CallEndedPayload {
-    const last =
-      final && Object.keys(final.n).length ? final : this._lastSnapshot;
+    const finalUsed = !!final && Object.keys(final.n).length > 0;
+    const last = finalUsed ? final : this._lastSnapshot;
     const hangup = this._hangup ?? { execute: true, recovering: false };
     const call = this._call;
     const payload: CallEndedPayload = {
@@ -1574,6 +2178,15 @@ export default class CallTelemetry {
     if (this._activeAtPerf !== null) {
       payload.talk_ms = Math.max(0, Math.round(endedPerf - this._activeAtPerf));
     }
+    if (str(hangup.initiator)) payload.hangup_initiator = hangup.initiator;
+    if (str(call.sipCallId)) payload.sip_call_id = call.sipCallId;
+    if (this._hangupPeer) payload.peer = this._hangupPeer;
+    payload.peer_connections = this._peerConnections;
+    payload.ice_restarts = Math.max(0, this._iceGeneration - 1);
+    payload.local_candidates = this._localCandidates;
+    payload.remote_candidates = this._remoteCandidates;
+    payload.stats_failures = this._statsFailures;
+    payload.final_stats = finalUsed;
     return payload;
   }
 }

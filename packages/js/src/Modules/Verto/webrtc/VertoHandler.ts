@@ -635,7 +635,7 @@ class VertoHandler {
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
 
-                session.telemetryEvents?.clientReady();
+                session.telemetryEvents?.clientReady(msg?.result?.params);
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }

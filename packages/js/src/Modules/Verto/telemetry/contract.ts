@@ -174,10 +174,20 @@ export type EventBody =
          * replaced by "[REDACTED]". DOM elements and functions are described, not copied.
          */
         raw_client_options: Record<string, unknown>;
+        /** The page the SDK runs in (document, navigator, screen, performance), read at once. */
+        page?: PageInfo;
+        /** Which WebRTC and media APIs this browser has (feature detection). */
+        browser_support?: BrowserSupport;
       };
     }
   /** The constructor threw (e.g. invalid options). */
-  | { name: 'sdk_creation_failed'; payload: { error: CodedErrorInfo } }
+  | {
+      name: 'sdk_creation_failed';
+      payload: {
+        error: CodedErrorInfo;
+        duration_ms?: number; // sdk_creation_started -> the throw
+      };
+    }
   /** The constructor finished. */
   | { name: 'sdk_created'; payload: SdkCreatedPayload }
   /** Once right after sdk_created (initial: true), then on every network type or online/offline change. */
@@ -186,7 +196,7 @@ export type EventBody =
   | { name: 'app_state_changed'; payload: AppStateChangedPayload }
   /**
    * Devices, for the instance's whole life, in a call or not (during a call they carry its ID, like every record).
-   * No device names: a label can carry a person's name, and analytics needs counts. The call's media snapshot keeps its label.
+   * Since 2026-10-06 they carry the device's ID, label and group and the whole list (owner: send everything, filter later).
    */
   | { name: 'input_device_changed'; payload: DeviceChangedPayload }
   | { name: 'output_device_changed'; payload: DeviceChangedPayload }
@@ -198,7 +208,12 @@ export type EventBody =
   /** A new signaling socket starts opening. socket_generation has just gone up by one. */
   | {
       name: 'socket_connect_started';
-      payload: { target: SocketTarget; is_reconnect: boolean };
+      payload: {
+        target: SocketTarget;
+        is_reconnect: boolean;
+        attempt?: number; // socket attempts in this connect() or reconnect, this one included
+        online?: boolean; // navigator.onLine at that moment
+      };
     }
   /** The socket did not open. */
   | { name: 'socket_failed'; payload: SocketFailedPayload }
@@ -221,13 +236,25 @@ export type EventBody =
   /** The server reported a new gateway state. */
   | { name: 'gateway_state'; payload: GatewayStatePayload }
   /** JS polls the gateway state after the first login. */
-  | { name: 'gateway_check_started'; payload: { check_number: number } }
+  | {
+      name: 'gateway_check_started';
+      payload: {
+        check_number: number;
+        rpc_id?: string; // the poll's JSON-RPC id (joins its signaling_message)
+      };
+    }
   /** The poll got an answer. */
   | { name: 'gateway_check_succeeded'; payload: GatewayCheckSucceededPayload }
   /** The poll errored or timed out. */
   | {
       name: 'gateway_check_failed';
-      payload: { check_number: number; error: ErrorInfo; will_retry: boolean };
+      payload: {
+        check_number: number;
+        error: ErrorInfo;
+        will_retry: boolean;
+        rpc_id?: string; // the poll's JSON-RPC id
+        response_time_ms?: number; // poll sent -> the error or timeout
+      };
     }
 
   // ---- Signaling ----
@@ -321,6 +348,86 @@ export type IceServerInfo = { url: string; has_credential: boolean };
 export type SdkCreatedPayload = {
   creation_duration_ms: number;
   sdk_instances: string[]; // live SDK instance ids in the same app/page, this one included (owner's field, moved off the envelope)
+  // Read right after the constructor; filled in when the browser answers (a few ms), before the event is sent.
+  devices?: MediaDeviceEntry[]; // navigator.mediaDevices.enumerateDevices(), every kind (labels and IDs empty before a media permission)
+  microphone_permission?: PermissionStateName; // navigator.permissions.query({ name: "microphone" }) (Chromium, Firefox 131+, Safari 16+)
+  camera_permission?: PermissionStateName; // navigator.permissions.query({ name: "camera" })
+  rtp_capabilities?: RtpCapabilitiesSet; // RTCRtpSender/RTCRtpReceiver.getCapabilities(): what this browser can send and receive
+};
+
+/** The page the SDK runs in. All optional: omitted when the browser has no such API. */
+export type PageInfo = {
+  origin?: string; // location.origin only (no path or query)
+  secure_context?: boolean; // window.isSecureContext
+  cross_origin_isolated?: boolean; // window.crossOriginIsolated
+  in_iframe?: boolean; // window.top !== window
+  visibility_state?: string; // document.visibilityState
+  has_focus?: boolean; // document.hasFocus()
+  was_discarded?: boolean; // document.wasDiscarded: the tab was discarded by the browser and reloaded (Chromium only)
+  prerendering?: boolean; // document.prerendering (Chromium only)
+  navigation_type?: string; // PerformanceNavigationTiming.type: "navigate", "reload", "back_forward", "prerender"
+  page_age_ms?: number; // performance.now(): time since the page started loading
+  language?: string; // navigator.language
+  languages?: string[]; // navigator.languages
+  timezone?: string; // Intl.DateTimeFormat().resolvedOptions().timeZone, e.g. "Europe/Berlin"
+  timezone_offset_min?: number; // new Date().getTimezoneOffset()
+  screen_width?: number; // screen.width (CSS px)
+  screen_height?: number;
+  viewport_width?: number; // window.innerWidth
+  viewport_height?: number;
+  device_pixel_ratio?: number; // window.devicePixelRatio
+  color_depth?: number; // screen.colorDepth
+  max_touch_points?: number; // navigator.maxTouchPoints
+  cookie_enabled?: boolean; // navigator.cookieEnabled
+  webdriver?: boolean; // navigator.webdriver: the browser is driven by automation (tests, bots)
+  pdf_viewer_enabled?: boolean; // navigator.pdfViewerEnabled (a cheap headless-browser hint)
+};
+
+/** Feature detection: true = the API exists in this browser. */
+export type BrowserSupport = {
+  rtc_peer_connection: boolean;
+  get_user_media: boolean;
+  get_display_media: boolean;
+  enumerate_devices: boolean;
+  set_sink_id: boolean; // HTMLMediaElement.setSinkId (speaker choice); Firefox 116+, Chromium, not Safari
+  select_audio_output: boolean; // navigator.mediaDevices.selectAudioOutput (Firefox only)
+  encoded_transform: boolean; // RTCRtpScriptTransform (Safari, Firefox, Chromium 141+)
+  insertable_streams: boolean; // RTCRtpSender.prototype.createEncodedStreams (Chromium only)
+  permissions_api: boolean; // navigator.permissions.query
+  web_audio: boolean; // AudioContext
+  network_information: boolean; // navigator.connection (Chromium only)
+  user_agent_data: boolean; // navigator.userAgentData (Client Hints, Chromium only)
+};
+
+export type PermissionStateName = 'granted' | 'denied' | 'prompt';
+
+/** One device from enumerateDevices(). Labels and IDs are as the browser gives them (empty before a permission). */
+export type MediaDeviceEntry = {
+  kind: string; // "audioinput", "audiooutput", "videoinput"
+  label: string; // "" before a media permission
+  device_id: string; // per-origin ID; "default" / "communications" are Chromium's virtual devices
+  group_id: string; // devices of one physical product share it
+};
+
+/** One codec a browser can use: RTCRtpCodec (getCapabilities) or RTCRtpCodecParameters (getParameters). */
+export type RtpCodecInfo = {
+  mime_type: string; // "audio/opus"
+  clock_rate?: number;
+  channels?: number;
+  payload_type?: number; // negotiated codecs only (getParameters)
+  sdp_fmtp_line?: string;
+};
+
+export type RtpCapabilities = {
+  codecs: RtpCodecInfo[];
+  header_extensions: string[]; // header extension URIs
+};
+
+export type RtpCapabilitiesSet = {
+  audio_send?: RtpCapabilities; // RTCRtpSender.getCapabilities("audio")
+  audio_receive?: RtpCapabilities; // RTCRtpReceiver.getCapabilities("audio")
+  video_send?: RtpCapabilities;
+  video_receive?: RtpCapabilities;
 };
 
 export type NetworkChangedPayload = {
@@ -329,11 +436,28 @@ export type NetworkChangedPayload = {
   online: boolean;
   effective_type?: 'slow-2g' | '2g' | '3g' | '4g' | '5g'; // navigator.connection or the native radio
   downlink_mbps?: number;
+  trigger?: 'initial' | 'online' | 'offline' | 'connection_change'; // which browser event led to it
+  connection_type?: string; // navigator.connection.type as given ("wifi", "cellular", "ethernet", "bluetooth", "wimax", "other", "unknown", "none"); Chromium only, mostly Android and ChromeOS
+  downlink_max_mbps?: number; // navigator.connection.downlinkMax (Chromium only, Android and ChromeOS)
+  rtt_ms?: number; // navigator.connection.rtt: the browser's estimate, rounded to 25 ms (Chromium only)
+  save_data?: boolean; // navigator.connection.saveData: the user asked for reduced data use (Chromium only)
 };
 
 /** Mobile: foreground or background. Web: the tab's visibility (visibilitychange). */
 export type AppStateChangedPayload = {
   state: 'foreground' | 'background' | 'visible' | 'hidden';
+  // Web: the page lifecycle event that led to it; state stays the tab's visibility.
+  trigger?:
+    | 'visibilitychange'
+    | 'focus' // window focus
+    | 'blur' // window blur
+    | 'freeze' // the page was frozen in the background (Chromium only)
+    | 'resume' // a frozen page runs again (Chromium only)
+    | 'pagehide' // the page is being unloaded or put in the back/forward cache
+    | 'pageshow'; // the page is shown again (persisted: true = from the back/forward cache)
+  has_focus?: boolean; // document.hasFocus()
+  persisted?: boolean; // pagehide/pageshow: the page goes to / comes from the back/forward cache
+  was_discarded?: boolean; // document.wasDiscarded (Chromium only)
 };
 
 /**
@@ -343,6 +467,9 @@ export type AppStateChangedPayload = {
 export type DeviceChangedPayload = {
   by: 'app' | 'sdk';
   device_count?: number; // inputs (input_device_changed) or outputs (output_device_changed) available after the change
+  device_id?: string; // the device chosen, as the app or SDK gave it ("default" when none)
+  label?: string; // its label from the last enumerateDevices(), when the ID is in it
+  group_id?: string; // its groupId from the last enumerateDevices()
 };
 
 export type DeviceListChangedPayload = {
@@ -350,6 +477,10 @@ export type DeviceListChangedPayload = {
   output_count: number;
   added: number;
   removed: number;
+  video_input_count?: number; // cameras after the change
+  devices?: MediaDeviceEntry[]; // the whole list after the change (enumerateDevices)
+  added_devices?: MediaDeviceEntry[]; // in the list now, not before (omitted when none, or before a permission hides the IDs)
+  removed_devices?: MediaDeviceEntry[]; // in the list before, not now
 };
 
 // ---------------------------------------------------------------------------
@@ -383,6 +514,10 @@ export type SocketFailedPayload = {
   close_code?: number;
   attempt: number; // 1 for the first try
   will_retry: boolean;
+  close_reason?: string; // CloseEvent.reason, when the browser gave one
+  was_clean?: boolean; // CloseEvent.wasClean
+  elapsed_ms?: number; // socket_connect_started -> the failure
+  online?: boolean; // navigator.onLine at that moment
 };
 
 /** The signaling socket's region and DC: what a call's troubleshooting needs (vsp.vsp_region and vsp_dc are the telemetry socket's). */
@@ -391,6 +526,9 @@ export type SocketConnectedPayload = {
   region?: string; // resolved by the server, e.g. "us-central"
   dc?: string; // e.g. "da1-prod"
   node?: string; // the signaling VSP node's name, e.g. "vsp-da1-11" (needs the server to send it)
+  attempt?: number; // socket attempts in this connect() or reconnect, this one included
+  protocol?: string; // WebSocket.protocol: the subprotocol the server chose ("" = none)
+  extensions?: string; // WebSocket.extensions, e.g. "permessage-deflate; client_max_window_bits"
 };
 
 export type SocketClosedPayload = {
@@ -400,6 +538,13 @@ export type SocketClosedPayload = {
   open_duration_ms: number;
   will_reconnect: boolean;
   in_background?: boolean; // the app was in the background, or the tab hidden, when it closed (app_state_changed)
+  was_clean?: boolean; // CloseEvent.wasClean
+  frames_sent?: number; // JSON-RPC frames the SDK sent on this socket (keepalive included)
+  frames_received?: number; // JSON-RPC frames received on it (keepalive included)
+  since_last_received_ms?: number; // time since the last frame arrived on it: a long gap = a half-dead socket
+  since_last_sent_ms?: number; // time since the SDK last sent on it
+  buffered_amount?: number; // WebSocket.bufferedAmount when it closed: bytes the SDK queued that never left
+  online?: boolean; // navigator.onLine at that moment
 };
 
 // ---------------------------------------------------------------------------
@@ -423,6 +568,8 @@ export type LoginStartedPayload = {
   method: LoginMethod;
   is_reconnect: boolean;
   resume_session_id?: string; // sessid asked to resume: a reference, not this event's own ID
+  attempt?: number; // login attempts in this connect() or reconnect, this one included
+  rpc_id?: string; // the login request's JSON-RPC id (joins its signaling_message)
 };
 
 /**
@@ -434,12 +581,16 @@ export type LoginFailedPayload = SignalingVsp & {
   is_reconnect: boolean;
   error: CodedErrorInfo; // e.g. code "46002", server_code "-32001", server_message "Login Incorrect"
   will_retry: boolean;
+  attempt?: number; // login attempts in this connect() or reconnect, this one included
+  duration_ms?: number; // login_started -> the failure
 };
 
 export type LoginSucceededPayload = SignalingVsp & {
   method: LoginMethod;
   is_reconnect: boolean;
   login_duration_ms: number;
+  attempt?: number; // login attempts in this connect() or reconnect, this one included
+  server_result?: Record<string, unknown>; // the server's whole login result (e.g. { message: "logged in", sessid }), credentials removed
 };
 
 /**
@@ -464,6 +615,9 @@ export type ClientReadyPayload = SignalingVsp & {
   mic_id_provided: boolean; // JS client.setAudioSettings({ micId })
   speaker_id_provided: boolean | null; // JS client.speaker
   reattached_call_ids: string[]; // references to other calls; [] when none
+  call_report_id?: string; // JS: the server's call_report_id in the REGED answer
+  gateway_state?: string; // the gateway state that made the client ready, as received (JS: "REGED")
+  server_result?: Record<string, unknown>; // the server's whole answer params (JS REGED: call_report_id, dc, region, state), credentials removed
 };
 
 // ---------------------------------------------------------------------------
@@ -490,6 +644,8 @@ export type GatewayStatePayload = {
   state: GatewayState;
   raw_state: string; // exactly as received
   previous_state?: GatewayState;
+  since_previous_ms?: number; // how long the previous state lasted
+  source?: 'result' | 'notification'; // in the answer to a request (e.g. the gatewayState poll) or pushed by the server
 };
 
 export type GatewayCheckSucceededPayload = {
@@ -497,6 +653,8 @@ export type GatewayCheckSucceededPayload = {
   state: GatewayState;
   raw_state: string;
   response_time_ms: number;
+  rpc_id?: string; // the poll's JSON-RPC id (joins its signaling_message)
+  server_result?: Record<string, unknown>; // the answer's params as received, credentials removed
 };
 
 // ---------------------------------------------------------------------------
@@ -568,6 +726,54 @@ export type CallStartedPayload = B2buaRtc & {
   signaling_region?: string; // e.g. "us-central"
   signaling_dc?: string; // e.g. "da1-prod"
   signaling_node?: string; // e.g. "vsp-da1-11"
+  /**
+   * Every option the call was created with (newCall() / the inbound invite / answer()), whole: credentials become
+   * "[REDACTED]", DOM elements and streams are described, functions named. remoteSdp/localSdp are left out: they are
+   * the SDP of the invite or answer, already whole in signaling_message.
+   */
+  raw_call_options?: Record<string, unknown>;
+  ice_servers?: IceServerInfo[]; // the ICE servers the call uses (URLs only; credentials never)
+  online?: boolean; // navigator.onLine at call start
+  visibility_state?: string; // document.visibilityState at call start (an inbound call to a hidden tab)
+  has_focus?: boolean; // document.hasFocus() at call start
+};
+
+/** The RTCPeerConnection's own states (all browsers), as the SDK saw them at that moment. */
+export type PeerStates = {
+  signaling_state?: string; // "stable", "have-local-offer", ...
+  ice_gathering_state?: string; // "new", "gathering", "complete"
+  ice_connection_state?: string; // "new", "checking", "connected", ...
+  connection_state?: string; // "new", "connecting", "connected", "disconnected", "failed", "closed"
+};
+
+/** RTCPeerConnection.getConfiguration(), with every ICE credential removed. */
+export type PeerConfiguration = {
+  ice_servers?: IceServerInfo[];
+  ice_transport_policy?: string; // "all" or "relay"
+  bundle_policy?: string;
+  rtcp_mux_policy?: string;
+  ice_candidate_pool_size?: number;
+  sdp_semantics?: string; // Chromium only (legacy)
+  certificate_expires?: string[]; // ISO time each DTLS certificate expires
+};
+
+/** RTCRtpSender/RTCRtpReceiver.getParameters() of the audio transceiver: what was negotiated. */
+export type RtpParametersInfo = {
+  codecs?: RtpCodecInfo[]; // every negotiated codec, in preference order
+  header_extensions?: string[]; // negotiated header extension URIs
+  rtcp_reduced_size?: boolean;
+  encodings?: RtpEncodingInfo[]; // sender only
+  degradation_preference?: string; // sender only, where the browser has it
+};
+
+export type RtpEncodingInfo = {
+  active?: boolean;
+  max_bitrate_bps?: number;
+  priority?: string;
+  network_priority?: string;
+  dtx?: string; // "enabled" / "disabled" where the browser has it
+  ptime?: number;
+  rid?: string;
 };
 
 export type CallState =
@@ -591,6 +797,9 @@ export type CallState =
 export type CallStatePayload = B2buaRtc & {
   state: CallState;
   previous_state?: CallState;
+  since_call_started_ms?: number; // call_started -> this state
+  since_previous_state_ms?: number; // how long the call was in the previous state
+  peer?: PeerStates; // the peer connection's states at that moment, once there is one
 };
 
 export type MediaChange =
@@ -602,7 +811,12 @@ export type MediaChange =
   | 'sending'
   | 'input_device'
   | 'output_device'
-  | 'echo';
+  | 'echo'
+  | 'peer_state' // peer, pair_state, pair_nominated
+  | 'configuration' // peer_configuration
+  | 'rtp_parameters' // send_parameters, receive_parameters, ssrc_in, ssrc_out, mid, transceiver directions
+  | 'remote_track' // remote_track
+  | 'playback'; // playback
 
 /**
  * A full snapshot every time (the latest row is the current media state).
@@ -641,6 +855,44 @@ export type CallMediaChangedPayload = {
   output_device_count?: number;
   echo_return_loss_db?: number; // constant through every V1 sample, so here, not per second
   echo_return_loss_enhancement_db?: number;
+
+  // Added 2026-10-06 (owner: everything the browser knows). Grouped in `changed` as noted on MediaChange.
+  ice_role?: string; // transport.iceRole: "controlling" / "controlled" (Chromium only)
+  dtls_role?: string; // transport.dtlsRole: "client" / "server" (Chromium only)
+  dtls_cipher?: string; // transport.dtlsCipher, e.g. "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" (Chromium only)
+  local_certificate_algorithm?: string; // certificate.fingerprintAlgorithm of our DTLS certificate, e.g. "sha-256"
+  remote_certificate_algorithm?: string; // same for the far end's
+  pair_state?: string; // selected candidate-pair state ("succeeded", ...)
+  pair_nominated?: boolean; // selected candidate-pair nominated
+  peer?: PeerStates;
+  peer_configuration?: PeerConfiguration;
+  send_parameters?: RtpParametersInfo; // audio RTCRtpSender.getParameters()
+  receive_parameters?: RtpParametersInfo; // audio RTCRtpReceiver.getParameters()
+  transceiver_direction?: string; // audio RTCRtpTransceiver.direction ("sendrecv", "recvonly"... hold shows here)
+  transceiver_current_direction?: string; // .currentDirection: what was negotiated
+  mid?: string; // the audio transceiver's mid
+  ssrc_in?: number; // inbound-rtp ssrc
+  ssrc_out?: number; // outbound-rtp ssrc
+  output_device_id?: string; // the call's speakerId, "default" when the app chose none
+  remote_track?: RemoteTrackInfo; // the far end's audio track as the browser has it
+  playback?: PlaybackInfo; // the remote media element (call remoteElement)
+};
+
+/** The remote audio MediaStreamTrack. muted: true = no media arriving (all browsers). */
+export type RemoteTrackInfo = {
+  enabled: boolean;
+  muted: boolean;
+  ready_state: 'live' | 'ended';
+};
+
+/** The HTMLMediaElement the remote audio plays in, when the app gave the SDK one (an element or its id). */
+export type PlaybackInfo = {
+  paused: boolean; // true = not playing (e.g. autoplay was blocked)
+  muted: boolean; // the element is muted
+  volume: number; // 0..1
+  sink_id?: string; // HTMLMediaElement.sinkId: the speaker it plays to ("" = default); not Safari
+  ready_state?: number; // HTMLMediaElement.readyState (0..4)
+  has_stream: boolean; // srcObject is set
 };
 
 export type Codec = {
@@ -660,8 +912,13 @@ export type IceCandidate = {
   foundation?: string;
   priority?: number;
   tcp_type?: 'active' | 'passive' | 'so'; // TCP candidates only
-  related_address?: string; // raddr: for srflx/relay, the base it was derived from (masked like address)
-  related_port?: number;
+  related_address?: string; // raddr: for srflx/relay, the base it was derived from (masked like address). JS: not sent (owner, 2026-10-06)
+  related_port?: number; // JS: not sent (owner, 2026-10-06)
+  network_id?: number; // candidate line "network-id": which local network interface (Chromium only)
+  network_cost?: number; // candidate line "network-cost": 10 = ethernet/wifi, 900+ = cellular (Chromium only)
+  candidate_generation?: number; // candidate line "generation"
+  vpn?: boolean; // stats candidate.vpn: gathered on a VPN interface (Chromium only)
+  network_adapter_type?: string; // stats candidate.networkAdapterType: "ethernet", "wifi", "cellular", "vpn", "loopback", "unknown" (Chromium only)
   // Masked by the Telemetry Backend (V1 did not mask): private, CGNAT, link-local and ULA addresses -> "192.168.139.x" /
   // "fdxx:x:x:x:x:x:x:x"; mDNS host names ("<uuid>.local") -> "x.local"; public (srflx, prflx) -> /24 "203.0.113.x"
   // or /48 "2001:db8:1234:x:x:x:x:x" until the personal-data question is decided. Telnyx addresses are kept: media
@@ -689,9 +946,12 @@ export type IceCandidatePayload = IceCandidate & {
   // 5 s on a reattach), so the far end never saw this candidate. Sample A's third relay candidate came 111 ms before
   // that cutoff. Always true with trickle ICE, unless the candidate could not be sent.
   signaled?: boolean;
+  sdp_mid?: string; // RTCIceCandidate.sdpMid (local) or the trickle frame's sdpMid
+  sdp_m_line_index?: number; // RTCIceCandidate.sdpMLineIndex
+  ice_gathering_state?: string; // local: RTCPeerConnection.iceGatheringState when it arrived
 };
 
-/** The microphone. Track id, deviceId and groupId are not sent (random per-origin hashes). */
+/** The microphone. Since 2026-10-06 its deviceId and groupId are sent too (owner: everything). */
 export type InputDevice = {
   label: string; // "Headset Microphone (Yealink UH37)": the trailing USB "(vid:pid)" suffix is stripped (SDK and backend)
   enabled: boolean; // false = muted by the app
@@ -704,6 +964,14 @@ export type InputDevice = {
   sample_size?: number; // bits
   channel_count?: number;
   latency_ms?: number; // V1 latency 0.01 s -> 10
+  // Added 2026-10-06 (owner: everything, IDs and labels included).
+  device_id?: string; // getSettings().deviceId
+  group_id?: string; // getSettings().groupId
+  voice_isolation?: boolean; // getSettings().voiceIsolation (Chromium only)
+  content_hint?: string; // track.contentHint ("" = none, "speech", "music")
+  settings?: Record<string, unknown>; // track.getSettings() whole, every browser-specific field included
+  constraints?: Record<string, unknown>; // track.getConstraints(): what the SDK asked for
+  capabilities?: Record<string, unknown>; // track.getCapabilities(): what the device can do (Firefox 132+ has it)
 };
 
 /**
@@ -757,6 +1025,65 @@ export type CallMetricsPayload = {
   ice_requests?: number;
   ice_responses?: number;
 
+  // ---- Added 2026-10-06 (owner: everything getStats has). Same rules: deltas omit 0, gauges omit "not measured".
+  // Inbound RTP (deltas)
+  in_header_bytes?: number; // headerBytesReceived
+  in_fec_bytes?: number; // fecBytesReceived (Chromium only)
+  in_fec_packets_discarded?: number; // fecPacketsDiscarded (Chromium only)
+  in_packets_duplicated?: number; // packetsDuplicated (where the browser has it)
+  in_nacks_sent?: number; // inbound nackCount: NACKs we sent to the far end
+  in_retransmitted_packets?: number; // retransmittedPacketsReceived
+  in_retransmitted_bytes?: number; // retransmittedBytesReceived
+  in_silent_concealed_samples?: number; // silentConcealedSamples (Chromium only)
+  in_inserted_samples?: number; // insertedSamplesForDeceleration: the jitter buffer slowed playout (Chromium only)
+  in_removed_samples?: number; // removedSamplesForAcceleration: the jitter buffer sped playout up (Chromium only)
+  in_jitter_buffer_emitted?: number; // jitterBufferEmittedCount
+  in_jitter_buffer_flushes?: number; // jitterBufferFlushes (Chromium only, non-standard)
+  in_delayed_packet_outage_samples?: number; // delayedPacketOutageSamples (Chromium only, non-standard)
+  in_interruptions?: number; // interruptionCount: audio interruptions (Chromium only)
+  in_interruption_ms?: number; // totalInterruptionDuration (s) x 1000 (Chromium only)
+  in_ect1_packets?: number; // packetsReceivedWithEct1 (Chromium only, experimental)
+  in_ce_packets?: number; // packetsReceivedWithCe (Chromium only, experimental)
+  synthesized_events?: number; // media-playout synthesizedSamplesEvents (Chromium only)
+  // Inbound gauges
+  jitter_buffer_minimum_ms?: number; // delta jitterBufferMinimumDelay / delta jitterBufferEmittedCount x 1000 (Chromium only)
+  processing_delay_ms?: number; // delta totalProcessingDelay / delta jitterBufferEmittedCount x 1000 (Chromium only)
+  in_arrival_delay_ms?: number; // delta relativePacketArrivalDelay / delta packetsReceived x 1000 (Chromium only, non-standard)
+  in_last_packet_age_ms?: number; // report time - lastPacketReceivedTimestamp: how long since the last inbound packet
+  // Outbound RTP (deltas)
+  out_header_bytes?: number; // headerBytesSent
+  out_retransmitted_bytes?: number; // retransmittedBytesSent
+  // Microphone track (MediaStreamTrack.stats, Chromium 125+)
+  mic_dropped_ms?: number; // delta (totalFramesDuration - deliveredFramesDuration) x 1000: audio the capture lost
+  mic_latency_ms?: number; // gauge: track.stats.latency x 1000
+  // Far end's RTCP reports
+  remote_fraction_lost?: number; // gauge 0..1: remote-inbound-rtp fractionLost (last RTCP report)
+  remote_reports?: number; // delta remote-inbound-rtp reportsReceived
+  rtcp_rtt_measurements?: number; // delta remote-inbound-rtp roundTripTimeMeasurements
+  remote_received_packets?: number; // delta remote-inbound-rtp packetsReceived (where the browser has it)
+  remote_sent_bytes?: number; // delta remote-outbound-rtp bytesSent
+  remote_reports_sent?: number; // delta remote-outbound-rtp reportsSent
+  remote_rtt_ms?: number; // gauge: remote-outbound-rtp roundTripTime (s) x 1000 (needs RTCP XR DLRR; often absent)
+  // Selected candidate pair (deltas; restart from the pair's own counters when the pair changes)
+  pair_bytes_sent?: number; // bytesSent: every byte on the pair (RTP, RTCP, STUN)
+  pair_bytes_received?: number;
+  pair_packets_sent?: number; // packetsSent (Chromium only)
+  pair_packets_received?: number; // packetsReceived (Chromium only)
+  pair_packets_discarded_on_send?: number; // packetsDiscardedOnSend: the socket refused them (Chromium only)
+  pair_bytes_discarded_on_send?: number; // bytesDiscardedOnSend (Chromium only)
+  ice_requests_received?: number; // requestsReceived
+  ice_responses_sent?: number; // responsesSent
+  ice_consent_requests?: number; // consentRequestsSent (Chromium only)
+  available_outgoing_bitrate_bps?: number; // gauge: the congestion controller's estimate (Chromium only)
+  available_incoming_bitrate_bps?: number; // gauge (where the browser has it; usually absent for audio)
+  pair_last_received_age_ms?: number; // gauge: report time - lastPacketReceivedTimestamp (Chromium only)
+  pair_last_sent_age_ms?: number; // gauge: report time - lastPacketSentTimestamp (Chromium only)
+  // Transport (deltas, the whole DTLS transport)
+  transport_bytes_sent?: number; // transport bytesSent (Chromium only)
+  transport_bytes_received?: number;
+  transport_packets_sent?: number; // transport packetsSent (Chromium only)
+  transport_packets_received?: number;
+
   counters_reset?: true; // the peer connection was replaced; deltas start from a new baseline
 };
 
@@ -782,6 +1109,9 @@ export type CallWarningPayload = {
   metric?: string; // "rtt_ms"
   value?: number; // the measurement that tripped it, e.g. 620
   threshold?: number; // e.g. 400
+  sdk_name?: string; // the SDK's own name, e.g. "HIGH_RTT"
+  message?: string; // the SDK's short message for the app's UI
+  since_call_started_ms?: number;
 };
 
 /**
@@ -813,6 +1143,9 @@ export type CallTimingsPayload = {
   ice_connected_ms?: number;
   dtls_connected_ms?: number;
   first_packet_received_ms?: number; // new: first metrics interval with in_packets > 0
+  first_packet_sent_ms?: number; // first metrics interval with out_packets > 0
+  ice_checking_ms?: number; // iceConnectionState became "checking"
+  peer_connecting_ms?: number; // connectionState became "connecting"
 };
 
 export type CallEndReason =
@@ -838,6 +1171,15 @@ export type CallEndedPayload = {
   talk_ms?: number; // active -> ended
   metrics_samples: number; // call_metrics sent; the report compares with rows stored
   totals: CallTotals;
+  hangup_initiator?: string; // who ended it, as the SDK names it: "app:call.hangup", "remote:telnyx_rtc.bye", "sdk:..."
+  sip_call_id?: string; // the SIP Call-ID the server gave (JS: telnyx_rtc.bye / hangup params)
+  peer?: PeerStates; // the peer connection's states when the hangup started
+  peer_connections?: number; // RTCPeerConnections the call used (more than 1 = replaced)
+  ice_restarts?: number; // ICE generations - 1
+  local_candidates?: number; // ice_candidate local events sent
+  remote_candidates?: number; // ice_candidate remote events sent
+  stats_failures?: number; // metrics getStats() calls that failed (intervals lost)
+  final_stats?: boolean; // true = totals come from a getStats() taken at hangup; false = from the last tick
 };
 
 /** Final cumulative getStats() counters: exact even if some samples were lost. Same names as call_metrics. */
@@ -858,6 +1200,63 @@ export type CallTotals = {
   rtt_max_ms?: number;
   rtcp_rtt_avg_ms?: number; // totalRoundTripTime / roundTripTimeMeasurements
   pair_changes: number;
+  // Added 2026-10-06: the exact final value of every call_metrics counter (same names), summed over replaced
+  // peer connections; pair counters are summed over every candidate pair the browser still reports.
+  in_fec_packets?: number;
+  played_samples?: number;
+  synthesized_ms?: number;
+  out_send_delay_avg_ms?: number; // totalPacketSendDelay / packetsSent
+  remote_sent_packets?: number;
+  ice_requests?: number;
+  ice_responses?: number;
+  in_header_bytes?: number;
+  in_fec_bytes?: number;
+  in_fec_packets_discarded?: number;
+  in_packets_duplicated?: number;
+  in_nacks_sent?: number;
+  in_retransmitted_packets?: number;
+  in_retransmitted_bytes?: number;
+  in_silent_concealed_samples?: number;
+  in_inserted_samples?: number;
+  in_removed_samples?: number;
+  in_jitter_buffer_emitted?: number;
+  in_jitter_buffer_flushes?: number;
+  in_delayed_packet_outage_samples?: number;
+  in_interruptions?: number;
+  in_interruption_ms?: number;
+  in_ect1_packets?: number;
+  in_ce_packets?: number;
+  synthesized_events?: number;
+  out_header_bytes?: number;
+  out_retransmitted_bytes?: number;
+  mic_dropped_ms?: number; // the current microphone track's own total
+  remote_reports?: number;
+  rtcp_rtt_measurements?: number;
+  remote_received_packets?: number;
+  remote_sent_bytes?: number;
+  remote_reports_sent?: number;
+  pair_bytes_sent?: number;
+  pair_bytes_received?: number;
+  pair_packets_sent?: number;
+  pair_packets_received?: number;
+  pair_packets_discarded_on_send?: number;
+  pair_bytes_discarded_on_send?: number;
+  ice_requests_received?: number;
+  ice_responses_sent?: number;
+  ice_consent_requests?: number;
+  transport_bytes_sent?: number;
+  transport_bytes_received?: number;
+  transport_packets_sent?: number;
+  transport_packets_received?: number;
+  // Whole-call averages from the cumulative counters
+  jitter_buffer_avg_ms?: number; // jitterBufferDelay / jitterBufferEmittedCount
+  jitter_buffer_target_avg_ms?: number; // jitterBufferTargetDelay / jitterBufferEmittedCount
+  jitter_buffer_minimum_avg_ms?: number; // jitterBufferMinimumDelay / jitterBufferEmittedCount (Chromium only)
+  processing_delay_avg_ms?: number; // totalProcessingDelay / jitterBufferEmittedCount (Chromium only)
+  playout_delay_avg_ms?: number; // media-playout totalPlayoutDelay / totalSamplesCount (Chromium only)
+  in_level_avg?: number; // 0..1, sqrt(totalAudioEnergy / totalSamplesDuration)
+  out_level_avg?: number; // same, media-source (the microphone)
+  remote_rtt_avg_ms?: number; // remote-outbound-rtp totalRoundTripTime / roundTripTimeMeasurements
 };
 
 // ---------------------------------------------------------------------------
@@ -925,20 +1324,29 @@ export type LogEntry = {
   details?: Record<string, unknown>; // plain JSON only, sanitized, max 4 KB serialized
 };
 
+/** What the SDK knows around any error (added 2026-10-06). */
+export type ErrorContext = {
+  online?: boolean; // navigator.onLine
+  visibility_state?: string; // document.visibilityState
+  call_state?: CallState; // call and media errors: the call's state at that moment
+};
+
 /** A call error (stage call or media) must carry the SDK's code: analytics counts calls by it (CallErrorRate). */
-export type ErrorPayload =
-  | {
-      stage: 'call' | 'media';
-      error: CodedErrorInfo; // e.g. "42001" microphone permission denied, "40002" creating the SDP answer failed
-      is_fatal: boolean; // the SDK can no longer work
-      details?: Record<string, unknown>; // sanitized
-    }
-  | {
-      stage: 'sdk' | 'socket' | 'login' | 'gateway' | 'telemetry' | 'unknown';
-      error: ErrorInfo;
-      is_fatal: boolean;
-      details?: Record<string, unknown>;
-    };
+export type ErrorPayload = ErrorContext &
+  (
+    | {
+        stage: 'call' | 'media';
+        error: CodedErrorInfo; // e.g. "42001" microphone permission denied, "40002" creating the SDP answer failed
+        is_fatal: boolean; // the SDK can no longer work
+        details?: Record<string, unknown>; // sanitized
+      }
+    | {
+        stage: 'sdk' | 'socket' | 'login' | 'gateway' | 'telemetry' | 'unknown';
+        error: ErrorInfo;
+        is_fatal: boolean;
+        details?: Record<string, unknown>;
+      }
+  );
 
 /**
  * JSON.stringify(new Error()) gives "{}", so copy the fields.
