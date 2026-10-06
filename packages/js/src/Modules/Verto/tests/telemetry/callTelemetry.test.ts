@@ -277,6 +277,14 @@ describe('ICE candidate parsing', () => {
     });
   });
 
+  it('leaves out the 0.0.0.0 placeholder a browser puts in raddr', () => {
+    const parsed = parseCandidateLine(
+      'candidate:1126654006 1 udp 1677729535 203.0.113.9 61087 typ srflx raddr 0.0.0.0 rport 0 generation 0'
+    );
+    expect(parsed.related_address).toBeUndefined();
+    expect(parsed.related_port).toBeUndefined();
+  });
+
   it('parses an SDP a=candidate line with tcptype', () => {
     expect(
       parseCandidateLine(

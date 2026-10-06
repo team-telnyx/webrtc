@@ -70,6 +70,25 @@ const iceCandidateErrorDetails = (event: any): Record<string, unknown> => {
   return details;
 };
 
+/** The SDP line of an RTCIceCandidate (or its JSON form), if the value is one. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function candidateLine(value: any): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  return typeof value.candidate === 'string' && value.candidate
+    ? value.candidate
+    : undefined;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function candidateDetails(value: any): Record<string, unknown> | undefined {
+  const details: Record<string, unknown> = {};
+  if (typeof value.sdpMid === 'string') details.sdpMid = value.sdpMid;
+  if (typeof value.sdpMLineIndex === 'number') {
+    details.sdpMLineIndex = value.sdpMLineIndex;
+  }
+  return Object.keys(details).length ? details : undefined;
+}
+
 /** Called by the SDK logger for every line. Never throws. */
 export function forwardSdkLog(methodName: string, logArgs: unknown[]): void {
   try {
@@ -80,6 +99,19 @@ export function forwardSdkLog(methodName: string, logArgs: unknown[]): void {
     const message = toMessage(first);
     if (isFilteredLogLine(message)) return;
     const category = categorizeLog(level, message);
+    // "RTCPeer Candidate:" and the like: the candidate's own line goes into
+    // the message (owner, 2026-10-06), e.g. "RTCPeer Candidate: candidate:1
+    // 1 udp 2113937151 ... typ host ...".
+    const line = rest.length === 1 ? candidateLine(rest[0]) : undefined;
+    if (line !== undefined) {
+      TelemetryClient.forwardLog(
+        level,
+        category,
+        `${message} ${line}`,
+        candidateDetails(rest[0])
+      );
+      return;
+    }
     let details: unknown;
     if (category === 'ice_candidate_error') {
       details = iceCandidateErrorDetails(rest[0]);

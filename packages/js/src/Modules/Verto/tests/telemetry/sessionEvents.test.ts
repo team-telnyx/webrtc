@@ -106,7 +106,10 @@ describe('Call Report V2 session events', () => {
       jsonrpc: '2.0',
       id: 'r1',
       method: 'telnyx_rtc.invite',
-      params: { callID: 'call-1', sdp: 'v=0\r\n...' },
+      params: {
+        callID: 'call-1',
+        sdp: 'v=0\r\na=ice-ufrag:uf1\r\na=ice-pwd:secret\r\na=rtpmap:111 opus/48000/2\r\n',
+      },
     };
     events.frameSent(invite, JSON.stringify(invite));
     const answer = {
@@ -124,7 +127,11 @@ describe('Call Report V2 session events', () => {
       method: 'telnyx_rtc.invite',
       category: 'call',
     });
-    expect(JSON.stringify(sent)).not.toContain('v=0');
+    // The frame itself goes along (owner, 2026-10-06), minus the ICE password.
+    expect(sent.payload.raw.method).toBe('telnyx_rtc.invite');
+    expect(sent.payload.raw.params.sdp).toContain('a=rtpmap:111 opus/48000/2');
+    expect(sent.payload.raw.params.sdp).toContain('a=ice-ufrag:uf1');
+    expect(JSON.stringify(sent)).not.toContain('secret');
     expect(response.payload).toMatchObject({
       direction: 'received',
       kind: 'response',
@@ -138,6 +145,32 @@ describe('Call Report V2 session events', () => {
     expect(response.ids.call_id).toBe('call-1');
     // The sequence was taken when the frame arrived.
     expect(response.sequence).toBe(received.sequence);
+  });
+
+  it('sends the login frame without its password or token', () => {
+    const client = makeClient();
+    const events = new SessionTelemetry(fakeSession(), client);
+    const spy = jest.spyOn(client, 'emit');
+    const login = {
+      jsonrpc: '2.0',
+      id: 'l1',
+      method: 'login',
+      params: {
+        login: 'user',
+        passwd: 'hunter2',
+        login_token: 'eyJhbGciOi.payload.sig',
+        userVariables: { push_when_active: false },
+      },
+    };
+    events.frameSent(login, JSON.stringify(login));
+    const raw = emitted(spy)[0].payload.raw;
+    expect(raw.params).toEqual({
+      login: 'user',
+      passwd: '[REDACTED]',
+      login_token: '[REDACTED]',
+      userVariables: { push_when_active: false },
+    });
+    expect(JSON.stringify(emitted(spy))).not.toContain('hunter2');
   });
 
   it('marks a received frame the SDK had no handler for', () => {
@@ -183,6 +216,25 @@ describe('Call Report V2 session events', () => {
       'warning',
       'No ping/pong received, forcing PING ACK to keep alive',
       undefined
+    );
+    logger.disableAll();
+  });
+
+  it('puts the ICE candidate line into the log message', () => {
+    logger.setLevel('debug', false);
+    const client = makeClient();
+    const log = jest.spyOn(client, 'log');
+    logger.debug('RTCPeer Candidate:', {
+      candidate:
+        'candidate:842163049 1 udp 1677729535 203.0.113.7 61087 typ srflx raddr 0.0.0.0 rport 0 generation 0',
+      sdpMid: '0',
+      sdpMLineIndex: 0,
+    });
+    expect(log).toHaveBeenCalledWith(
+      'debug',
+      'ice',
+      'RTCPeer Candidate: candidate:842163049 1 udp 1677729535 203.0.113.7 61087 typ srflx raddr 0.0.0.0 rport 0 generation 0',
+      { sdpMid: '0', sdpMLineIndex: 0 }
     );
     logger.disableAll();
   });

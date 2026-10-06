@@ -40,6 +40,7 @@ import {
   rpcIdString,
   signalingCategory,
   utf8Length,
+  rawFrame,
 } from './signaling';
 
 /** SDK error codes used here (util/constants/errorCodes.ts). */
@@ -64,6 +65,14 @@ export const B2BUA_RTC_FIELDS = [
   'b2bua_rtc_dc',
   'b2bua_rtc_node',
 ] as const;
+
+/**
+ * signaling_message plus the frame itself (owner, 2026-10-06; proposed for
+ * the contract): secrets out, see rawFrame.
+ */
+export type SignalingMessageWithRaw = SignalingMessagePayload & {
+  raw?: unknown;
+};
 
 export type SignalingVspNames = {
   signaling_region?: string;
@@ -243,7 +252,7 @@ type PendingFrame = { method: string; at: number; callId?: string };
 export type ReceivedFrame = {
   sequence: number;
   timestamp: number;
-  payload: SignalingMessagePayload;
+  payload: SignalingMessageWithRaw;
   ids?: Partial<KnownIds>;
   unhandled: boolean;
 };
@@ -896,7 +905,7 @@ export default class SessionTelemetry {
         this._remember(this._sentRequests, id, { method, at: now, callId });
       }
       if (isFilteredFrameMethod(method)) return;
-      const payload: SignalingMessagePayload = {
+      const payload: SignalingMessageWithRaw = {
         direction: 'sent',
         kind: frame.error ? 'error' : isResponse ? 'response' : 'request',
         method,
@@ -913,6 +922,7 @@ export default class SessionTelemetry {
         if (frame.error.message)
           payload.error_message = String(frame.error.message);
       }
+      payload.raw = rawFrame(frame);
       this._client.emit(
         'signaling_message',
         payload,
@@ -953,7 +963,7 @@ export default class SessionTelemetry {
         }
       }
       if (isFilteredFrameMethod(method)) return;
-      const payload: SignalingMessagePayload = {
+      const payload: SignalingMessageWithRaw = {
         direction: 'received',
         kind: isRequest ? 'request' : msg.error ? 'error' : 'response',
         method,
@@ -970,6 +980,7 @@ export default class SessionTelemetry {
         if (msg.error.message)
           payload.error_message = String(msg.error.message);
       }
+      payload.raw = rawFrame(msg);
       received = {
         sequence: this._client.reserveSequence(),
         timestamp: now,

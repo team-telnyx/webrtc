@@ -67,6 +67,23 @@ function sanitizeValue(value: unknown, depth: number): unknown {
   if (typeof MediaStream !== 'undefined' && value instanceof MediaStream) {
     return '[MediaStream]';
   }
+  // Host objects (RTCIceCandidate, RTCSessionDescription...) keep their data
+  // in getters, which Object.entries can't see: use their own JSON form.
+  if (
+    type === 'object' &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) !== Object.prototype &&
+    typeof (value as { toJSON?: unknown }).toJSON === 'function'
+  ) {
+    try {
+      return sanitizeValue(
+        (value as { toJSON: () => unknown }).toJSON(),
+        depth + 1
+      );
+    } catch {
+      return '[unserializable]';
+    }
+  }
   if (depth >= MAX_DEPTH) return '[truncated]';
   if (Array.isArray(value)) {
     return value.slice(0, 50).map((item) => sanitizeValue(item, depth + 1));

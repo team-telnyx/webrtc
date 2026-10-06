@@ -1,6 +1,7 @@
 /**
- * Helpers for `signaling_message` (contract 1.4, 1.7). Never params or SDP:
- * only the method, IDs, sizes and the short result message.
+ * Helpers for `signaling_message` (contract 1.4, 1.7): the method, IDs, sizes,
+ * the short result message, and the frame itself (`raw`, owner 2026-10-06)
+ * with its secrets taken out (rawFrame).
  */
 import type { SignalingCategory } from './contract';
 
@@ -81,4 +82,42 @@ export function utf8Length(text: string): number {
     } else bytes += 3;
   }
   return bytes;
+}
+
+/** Keys whose values never leave the SDK, at any depth of a frame. */
+const SECRET_FRAME_KEYS = new Set([
+  'passwd',
+  'password',
+  'login_token',
+  'telemetry_token',
+]);
+
+/**
+ * The JSON-RPC frame as sent or received (owner, 2026-10-06), minus its
+ * secrets: login passwords and tokens become "[REDACTED]", and SDP keeps
+ * everything but its a=ice-pwd: lines (the media session's password).
+ * Customer values (numbers, userVariables, header values) stay: the
+ * Telemetry Backend's sanitizer handles them (contract 1.8).
+ */
+export function rawFrame(frame: unknown): unknown {
+  return clean(frame, 0);
+}
+
+function clean(value: unknown, depth: number): unknown {
+  if (typeof value === 'string') {
+    return value.includes('a=ice-pwd:')
+      ? value.replace(/a=ice-pwd:[^\r\n]*(\r?\n)?/g, '')
+      : value;
+  }
+  if (!value || typeof value !== 'object' || depth > 12) return value;
+  if (Array.isArray(value)) return value.map((item) => clean(item, depth + 1));
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    // An empty secret field (e.g. no login_token on a SIP login) stays empty.
+    result[key] =
+      SECRET_FRAME_KEYS.has(key.toLowerCase()) && item != null && item !== ''
+        ? '[REDACTED]'
+        : clean(item, depth + 1);
+  }
+  return result;
 }
