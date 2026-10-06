@@ -54,22 +54,6 @@ const toMessage = (value: unknown): string => {
   }
 };
 
-/**
- * "ICE candidate error:" lines carry the whole DOM event; keep its five
- * fields (contract 1.7) instead of the event object.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const iceCandidateErrorDetails = (event: any): Record<string, unknown> => {
-  if (!event || typeof event !== 'object') return undefined;
-  const details: Record<string, unknown> = {};
-  if (event.errorCode !== undefined) details.error_code = event.errorCode;
-  if (event.errorText !== undefined) details.error_text = event.errorText;
-  if (event.url !== undefined) details.url = event.url;
-  if (event.address !== undefined) details.address = event.address;
-  if (event.port !== undefined) details.port = event.port;
-  return details;
-};
-
 /** The SDP line of an RTCIceCandidate (or its JSON form), if the value is one. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function candidateLine(value: any): string | undefined {
@@ -97,7 +81,7 @@ export function forwardSdkLog(methodName: string, logArgs: unknown[]): void {
     if (!level || logArgs.length === 0) return;
     const [first, ...rest] = logArgs;
     const message = toMessage(first);
-    if (isFilteredLogLine(message)) return;
+    if (isFilteredLogLine(message, rest[0])) return;
     const category = categorizeLog(level, message);
     // "RTCPeer Candidate:" and the like: the candidate's own line goes into
     // the message (owner, 2026-10-06), e.g. "RTCPeer Candidate: candidate:1
@@ -113,14 +97,13 @@ export function forwardSdkLog(methodName: string, logArgs: unknown[]): void {
       return;
     }
     let details: unknown;
-    if (category === 'ice_candidate_error') {
-      details = iceCandidateErrorDetails(rest[0]);
-    } else if (rest.length === 1) {
+    if (rest.length === 1) {
       details = rest[0];
     } else if (rest.length > 1) {
       details = { args: rest };
     }
-    // TelemetryClient.log sanitizes details (no whole objects, no secrets).
+    // Whole, never cut (owner, 2026-10-06): TelemetryClient.log only takes
+    // credentials out of the details.
     TelemetryClient.forwardLog(level, category, message, details);
   } catch {
     // Telemetry must never break logging.

@@ -31,7 +31,6 @@ import type {
   ReceivedFrame,
   SocketTelemetry,
 } from '../telemetry/sessionEvents';
-import { utf8Length } from '../telemetry/signaling';
 import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
@@ -273,7 +272,7 @@ export default class Connection {
   private _recordRawFrame(request: string): void {
     try {
       if (typeof request !== 'string' || request.charAt(0) !== '{') return;
-      this.session.telemetryEvents?.frameSent(JSON.parse(request), request);
+      this.session.telemetryEvents?.frameSent(JSON.parse(request));
     } catch {
       // not JSON: speed-test frames and the like are not signaling messages
     }
@@ -381,7 +380,7 @@ export default class Connection {
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     const text = JSON.stringify(request);
-    if (this._wsClient) this.session.telemetryEvents?.frameSent(request, text);
+    if (this._wsClient) this.session.telemetryEvents?.frameSent(request);
     this._wsClient?.send(text);
 
     return promise;
@@ -536,10 +535,7 @@ export default class Connection {
       // out once the SDK handled it (so it knows whether a handler existed).
       let receivedFrame: ReceivedFrame | null = null;
       if (this.session.telemetryEvents) {
-        receivedFrame = this.session.telemetryEvents.frameReceived(
-          msg,
-          typeof event.data === 'string' ? utf8Length(event.data) : 0
-        );
+        receivedFrame = this.session.telemetryEvents.frameReceived(msg);
       }
       try {
         this._handleMessage(

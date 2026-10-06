@@ -142,6 +142,20 @@ export type ClientInfo = {
   // network_type is not here: it changes during an instance's life, so it is the network_changed event.
 };
 
+/** User-Agent Client Hints (navigator.userAgentData, Chromium browsers), as the browser gives them. */
+export type ClientHints = {
+  brands?: { brand: string; version: string }[];
+  full_version_list?: { brand: string; version: string }[];
+  mobile?: boolean;
+  platform?: string; // "macOS"
+  platform_version?: string; // "26.6.2"
+  architecture?: string; // "arm", "x86"
+  bitness?: string; // "64"
+  model?: string; // Android device model; "" on desktop
+  form_factors?: string[]; // ["Desktop"]
+  wow64?: boolean;
+};
+
 // ============================================================================
 // 3. EVENTS: name -> payload
 // ============================================================================
@@ -149,7 +163,19 @@ export type ClientInfo = {
 export type EventBody =
   // ---- SDK instance ----
   /** The SDK constructor was entered. The only event that carries the options. */
-  | { name: 'sdk_creation_started'; payload: { options: SdkOptions } }
+  | {
+      name: 'sdk_creation_started';
+      payload: {
+        options: SdkOptions;
+        /** What the browser's User-Agent Client Hints say (Chromium); omitted where the browser has none. */
+        client_hints?: ClientHints;
+        /**
+         * The options exactly as the app passed them to the constructor, with password and tokens
+         * replaced by "[REDACTED]". DOM elements and functions are described, not copied.
+         */
+        raw_client_options: Record<string, unknown>;
+      };
+    }
   /** The constructor threw (e.g. invalid options). */
   | { name: 'sdk_creation_failed'; payload: { error: CodedErrorInfo } }
   /** The constructor finished. */
@@ -252,16 +278,21 @@ export type EventPayload = EventBody['payload'];
 // SDK instance
 // ---------------------------------------------------------------------------
 
-/** Sanitized SDK options (V1 clientSummary). `null` = this SDK has no such option. */
+/**
+ * Only the well-structured, essential client options every SDK shares and that we know from the start.
+ * Everything else the app passed is in sdk_creation_started.raw_client_options.
+ */
 export type SdkOptions = {
+  login: string | null; // SIP username or gencred login; null for token and anonymous logins
+  debug: boolean;
+  login_type: 'sip_credential' | 'gencred' | 'token' | 'anonymous';
+  explicit_rtc_provided: boolean; // the app set rtcIp and rtcPort
+  use_canary: boolean | null; // useCanaryRtcServer; null when not set
+  skip_trailing: boolean;
+
   region: string | null; // requested, e.g. "auto", "us-central"
-  auto_reconnect: boolean;
-  max_reconnect_attempts: number | null;
-  reconnect_timeout_ms: number | null; // iOS reports seconds: multiply by 1000
   keep_connection_alive_on_socket_close: boolean | null; // JS
   hangup_on_before_unload: boolean | null; // JS
-  audio: boolean; // default for new calls
-  video: boolean;
   trickle_ice: boolean;
   prefetch_ice_candidates: boolean | null;
   force_relay_candidate: boolean | null;
@@ -476,21 +507,14 @@ export type GatewayCheckSucceededPayload = {
 export type SignalingCategory = Extract<Category, 'call' | 'connection'>;
 
 /**
- * One JSON-RPC frame. Never params, result bodies or SDP.
- * callID and sessid from the frame go to ids.call_id / ids.session_id.
+ * Every JSON-RPC frame sent or received on the signaling socket, resent as it is (owner, 2026-10-06): no
+ * structure of our own, only the direction. Passwords and tokens become "[REDACTED]" and SDP loses its
+ * a=ice-pwd: lines; everything else is the frame. Ping and debug_report_data frames and their answers are
+ * not sent. callID goes to ids.call_id.
  */
 export type SignalingMessagePayload = {
   direction: 'sent' | 'received';
-  kind: 'request' | 'response' | 'error';
-  method: string; // "telnyx_rtc.invite"...; a response carries its request's method
-  rpc_id: string; // JSON-RPC id as a string (server ids are numbers, SDK ids UUIDs)
-  response_time_ms?: number; // responses: time since the matching request
-  result_message?: string; // result.message only, max 100 chars: "CALL CREATED"
-  error_code?: number;
-  error_message?: string;
-  size_bytes: number; // raw frame size; shows SDP-bearing frames without keeping SDP
-  category: SignalingCategory;
-  unhandled?: boolean; // the SDK had no handler (V1 "Verto message unknown method")
+  raw: unknown; // the JSON-RPC frame
 };
 
 // ---------------------------------------------------------------------------

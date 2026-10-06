@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid';
 import pkg from '../../../../package.json';
 import type {
   ClientEvent,
+  ClientHints,
   ClientInfo,
   EventBody,
   EventName,
@@ -305,6 +306,10 @@ export type SdkClientInfo = ClientInfo & ClientDetails;
 type BrandVersion = { brand: string; version: string };
 
 type HighEntropyValues = {
+  brands?: BrandVersion[];
+  mobile?: boolean;
+  platform?: string;
+  wow64?: boolean;
   platformVersion?: string;
   architecture?: string;
   bitness?: string;
@@ -325,6 +330,7 @@ const HIGH_ENTROPY_HINTS = [
   'model',
   'fullVersionList',
   'formFactors',
+  'wow64',
 ];
 
 /** Brand names in Client Hints, most specific first. */
@@ -424,19 +430,51 @@ let highEntropyValues: Promise<HighEntropyValues | null> | null = null;
  * before that share the same `client` object and are serialized only when
  * sent, so they carry the answer too.
  */
-export function refineClientInfo(info: SdkClientInfo): Promise<void> {
+function requestHighEntropyValues(): Promise<HighEntropyValues | null> {
   const data =
     typeof navigator !== 'undefined'
       ? ((navigator as unknown as { userAgentData?: UserAgentData })
           .userAgentData ?? null)
       : null;
-  if (!data?.getHighEntropyValues) return Promise.resolve();
+  if (!data?.getHighEntropyValues) return Promise.resolve(null);
   if (!highEntropyValues) {
     highEntropyValues = data
       .getHighEntropyValues(HIGH_ENTROPY_HINTS)
       .catch(() => null);
   }
-  return highEntropyValues.then((values) => {
+  return highEntropyValues;
+}
+
+/**
+ * Everything the browser's Client Hints say, as sdk_creation_started's
+ * client_hints. null where the browser has none (Firefox, Safari).
+ */
+export function readClientHints(): Promise<ClientHints | null> {
+  return requestHighEntropyValues().then((values) => {
+    if (!values) return null;
+    const hints: ClientHints = {};
+    if (values.brands) hints.brands = values.brands;
+    if (values.fullVersionList) {
+      hints.full_version_list = values.fullVersionList;
+    }
+    if (typeof values.mobile === 'boolean') hints.mobile = values.mobile;
+    if (values.platform !== undefined) hints.platform = values.platform;
+    if (values.platformVersion !== undefined) {
+      hints.platform_version = values.platformVersion;
+    }
+    if (values.architecture !== undefined) {
+      hints.architecture = values.architecture;
+    }
+    if (values.bitness !== undefined) hints.bitness = values.bitness;
+    if (values.model !== undefined) hints.model = values.model;
+    if (values.formFactors) hints.form_factors = values.formFactors;
+    if (typeof values.wow64 === 'boolean') hints.wow64 = values.wow64;
+    return hints;
+  });
+}
+
+export function refineClientInfo(info: SdkClientInfo): Promise<void> {
+  return requestHighEntropyValues().then((values) => {
     if (!values) return;
     const osVersion = osVersionFromHints(info.os, values.platformVersion);
     if (osVersion) info.os_version = osVersion;

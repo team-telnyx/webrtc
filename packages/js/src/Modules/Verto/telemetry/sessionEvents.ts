@@ -12,7 +12,7 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
 } from '../util/constants';
-import TelemetryClient from './TelemetryClient';
+import TelemetryClient, { readClientHints } from './TelemetryClient';
 import type {
   ErrorInfo,
   ErrorPayload,
@@ -21,6 +21,7 @@ import type {
   LoginMethod,
   NetworkChangedPayload,
   SdkOptions,
+  EventBody,
   SignalingMessagePayload,
   SignalingVsp,
   SocketTarget,
@@ -36,10 +37,7 @@ import {
   frameCallId,
   frameMethod,
   GATEWAY_STATE_METHOD,
-  resultMessage,
   rpcIdString,
-  signalingCategory,
-  utf8Length,
   rawFrame,
 } from './signaling';
 
@@ -65,14 +63,6 @@ export const B2BUA_RTC_FIELDS = [
   'b2bua_rtc_dc',
   'b2bua_rtc_node',
 ] as const;
-
-/**
- * signaling_message plus the frame itself (owner, 2026-10-06; proposed for
- * the contract): secrets out, see rawFrame.
- */
-export type SignalingMessageWithRaw = SignalingMessagePayload & {
-  raw?: unknown;
-};
 
 export type SignalingVspNames = {
   signaling_region?: string;
@@ -118,16 +108,30 @@ export function buildSdkOptions(
   options: IVertoOptions,
   client: TelemetryClient
 ): SdkOptions {
+  const loginType: SdkOptions['login_type'] = options.login_token
+    ? 'token'
+    : options.login
+      ? /^gencred/i.test(options.login)
+        ? 'gencred'
+        : 'sip_credential'
+      : 'anonymous';
   return {
+    login:
+      loginType === 'sip_credential' || loginType === 'gencred'
+        ? options.login
+        : null,
+    debug: !!options.debug,
+    login_type: loginType,
+    explicit_rtc_provided: !!(options.rtcIp && options.rtcPort),
+    use_canary:
+      typeof options.useCanaryRtcServer === 'boolean'
+        ? options.useCanaryRtcServer
+        : null,
+    skip_trailing: !!options.skipTrailing,
     region: options.region || 'auto',
-    auto_reconnect: options.autoReconnect ?? true,
-    max_reconnect_attempts: options.maxReconnectAttempts ?? 10,
-    reconnect_timeout_ms: null,
     keep_connection_alive_on_socket_close:
       options.keepConnectionAliveOnSocketClose ?? false,
     hangup_on_before_unload: options.hangupOnBeforeUnload !== false,
-    audio: true,
-    video: !!options.video,
     trickle_ice: options.trickleIce ?? false,
     prefetch_ice_candidates: options.prefetchIceCandidates ?? false,
     force_relay_candidate: options.forceRelayCandidate ?? false,
@@ -149,6 +153,59 @@ export function buildSdkOptions(
       max_send_backlog_bytes: client.maxSendBacklogBytes,
     },
   };
+}
+
+/** Option values that never leave the SDK. */
+const SECRET_OPTION_KEYS = new Set([
+  'password',
+  'passwd',
+  'login_token',
+  'credential',
+]);
+
+/**
+ * The options as the app passed them (sdk_creation_started.raw_client_options):
+ * passwords, tokens and TURN credentials become "[REDACTED]"; DOM elements,
+ * streams and functions are described, since they can't be copied.
+ */
+export function rawClientOptions(options: unknown): Record<string, unknown> {
+  const raw = describeOption(options, 0, new WeakSet());
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
+
+function describeOption(
+  value: unknown,
+  depth: number,
+  seen: WeakSet<object>
+): unknown {
+  if (value === null || value === undefined) return value;
+  const type = typeof value;
+  if (type === 'function') return '[function]';
+  if (type !== 'object') return value;
+  if (typeof Node !== 'undefined' && value instanceof Node) {
+    const element = value as Element;
+    return `[${(element.nodeName || 'node').toLowerCase()}${
+      element.id ? `#${element.id}` : ''
+    }]`;
+  }
+  if (typeof MediaStream !== 'undefined' && value instanceof MediaStream) {
+    return `[MediaStream ${value.id}]`;
+  }
+  if (seen.has(value as object) || depth > 20) return '[circular]';
+  seen.add(value as object);
+  if (Array.isArray(value)) {
+    return value.map((item) => describeOption(item, depth + 1, seen));
+  }
+  const result: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    result[key] =
+      SECRET_OPTION_KEYS.has(key.toLowerCase()) && item != null && item !== ''
+        ? '[REDACTED]'
+        : describeOption(item, depth + 1, seen);
+  }
+  return result;
 }
 
 // ── Network ────────────────────────────────────────────────────────────────
@@ -252,9 +309,8 @@ type PendingFrame = { method: string; at: number; callId?: string };
 export type ReceivedFrame = {
   sequence: number;
   timestamp: number;
-  payload: SignalingMessageWithRaw;
+  payload: SignalingMessagePayload;
   ids?: Partial<KnownIds>;
-  unhandled: boolean;
 };
 
 type DeviceSnapshot = { keys: Set<string>; inputs: number; outputs: number };
@@ -286,7 +342,6 @@ export default class SessionTelemetry {
   private _gatewayChecks = new Map<string, { number: number; at: number }>();
   private _sentRequests = new Map<string, PendingFrame>();
   private _receivedRequests = new Map<string, PendingFrame>();
-  private _currentReceived: ReceivedFrame | null = null;
   private _devices: DeviceSnapshot | null = null;
   private _lastNetwork: string | null = null;
   private _cleanups: Array<() => void> = [];
@@ -323,8 +378,18 @@ export default class SessionTelemetry {
   /** First thing in the constructor: sequence 1. */
   creationStarted(options: IVertoOptions): void {
     this._safe(() => {
-      this._client.emit('sdk_creation_started', {
+      const payload: Extract<
+        EventBody,
+        { name: 'sdk_creation_started' }
+      >['payload'] = {
         options: buildSdkOptions(options, this._client),
+        raw_client_options: rawClientOptions(options),
+      };
+      this._client.emit('sdk_creation_started', payload);
+      // Client Hints answer in a few ms; the event is serialized only when
+      // sent (after the telemetry login), so it goes out with them.
+      void readClientHints().then((hints) => {
+        if (hints) payload.client_hints = hints;
       });
     });
   }
@@ -882,50 +947,32 @@ export default class SessionTelemetry {
     }
   }
 
-  /** A JSON-RPC frame sent on the signaling socket. `text` is exactly what went out. */
+  /** A JSON-RPC frame sent on the signaling socket. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  frameSent(frame: any, text: string): void {
+  frameSent(frame: any): void {
     this._safe(() => {
       if (!frame || typeof frame !== 'object') return;
       const now = Date.now();
       const id = rpcIdString(frame.id);
       const isResponse = 'result' in frame || 'error' in frame;
+      // The request's method and call are remembered only to leave out
+      // keepalive answers and to put the call's ID on its answer.
       let method = frameMethod(frame);
       let callId = frameCallId(frame);
-      let responseTime: number | undefined;
       if (isResponse) {
         const request = this._receivedRequests.get(id);
         if (request) {
           this._receivedRequests.delete(id);
           method = request.method || method;
           callId = callId ?? request.callId;
-          responseTime = now - request.at;
         }
       } else {
         this._remember(this._sentRequests, id, { method, at: now, callId });
       }
       if (isFilteredFrameMethod(method)) return;
-      const payload: SignalingMessageWithRaw = {
-        direction: 'sent',
-        kind: frame.error ? 'error' : isResponse ? 'response' : 'request',
-        method,
-        rpc_id: id,
-        size_bytes: utf8Length(text),
-        category: signalingCategory(method),
-      };
-      if (responseTime !== undefined) payload.response_time_ms = responseTime;
-      const message = resultMessage(frame);
-      if (message) payload.result_message = message;
-      if (frame.error) {
-        if (typeof frame.error.code === 'number')
-          payload.error_code = frame.error.code;
-        if (frame.error.message)
-          payload.error_message = String(frame.error.message);
-      }
-      payload.raw = rawFrame(frame);
       this._client.emit(
         'signaling_message',
-        payload,
+        { direction: 'sent', raw: rawFrame(frame) },
         callId ? { ids: { call_id: callId } } : {}
       );
     });
@@ -933,11 +980,11 @@ export default class SessionTelemetry {
 
   /**
    * A JSON-RPC frame received on the signaling socket, before the SDK handles
-   * it. Its sequence is taken now; the record goes out in receivedFrameDone()
-   * so it can say whether the SDK had a handler.
+   * it. Its sequence is taken now, so it comes before what handling it
+   * causes; the record goes out in receivedFrameDone().
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  frameReceived(msg: any, sizeBytes: number): ReceivedFrame | null {
+  frameReceived(msg: any): ReceivedFrame | null {
     let received: ReceivedFrame | null = null;
     this._safe(() => {
       if (!msg || typeof msg !== 'object') return;
@@ -946,7 +993,6 @@ export default class SessionTelemetry {
       const isRequest = typeof msg.method === 'string';
       let method = isRequest ? msg.method : '';
       let callId = frameCallId(msg);
-      let responseTime: number | undefined;
       if (isRequest) {
         this._remember(this._receivedRequests, id, { method, at: now, callId });
       } else {
@@ -955,7 +1001,6 @@ export default class SessionTelemetry {
           this._sentRequests.delete(id);
           method = request.method;
           callId = callId ?? request.callId;
-          responseTime = now - request.at;
           if (method === GATEWAY_STATE_METHOD)
             this._gatewayCheckAnswered(id, msg);
         } else {
@@ -963,46 +1008,19 @@ export default class SessionTelemetry {
         }
       }
       if (isFilteredFrameMethod(method)) return;
-      const payload: SignalingMessageWithRaw = {
-        direction: 'received',
-        kind: isRequest ? 'request' : msg.error ? 'error' : 'response',
-        method,
-        rpc_id: id,
-        size_bytes: sizeBytes,
-        category: signalingCategory(method),
-      };
-      if (responseTime !== undefined) payload.response_time_ms = responseTime;
-      const message = resultMessage(msg);
-      if (message) payload.result_message = message;
-      if (msg.error) {
-        if (typeof msg.error.code === 'number')
-          payload.error_code = msg.error.code;
-        if (msg.error.message)
-          payload.error_message = String(msg.error.message);
-      }
-      payload.raw = rawFrame(msg);
       received = {
         sequence: this._client.reserveSequence(),
         timestamp: now,
-        payload,
+        payload: { direction: 'received', raw: rawFrame(msg) },
         ids: callId ? { call_id: callId } : undefined,
-        unhandled: false,
       };
-      this._currentReceived = received;
     });
     return received;
   }
 
-  /** The SDK had no handler for the frame being handled. */
-  markUnhandled(): void {
-    if (this._currentReceived) this._currentReceived.unhandled = true;
-  }
-
   receivedFrameDone(received: ReceivedFrame | null): void {
-    if (this._currentReceived === received) this._currentReceived = null;
     this._safe(() => {
       if (!received) return;
-      if (received.unhandled) received.payload.unhandled = true;
       this._client.emit('signaling_message', received.payload, {
         sequence: received.sequence,
         timestamp: received.timestamp,

@@ -24,16 +24,24 @@ export function isFilteredFrameMethod(method: string | undefined): boolean {
 }
 
 /**
- * Log lines that are not sent as `logs`:
- * - the keepalive line (exact match on its one call site's message),
- * - the SEND:/RECV: frame dumps (they are `signaling_message` events),
- * - the [CallTimings] table (it is the `call_timings` event).
+ * Every SDK log line goes out (owner, 2026-10-06), except keepalive: the
+ * "Ping received" line, and SEND:/RECV: dumps of a keepalive or debug-report
+ * frame (frameDump is the dumped frame's JSON text).
  */
-export function isFilteredLogLine(message: string): boolean {
-  return (
-    message === PING_RECEIVED_LOG ||
-    message.startsWith('SEND:') ||
-    message.startsWith('RECV:') ||
-    message.startsWith('[CallTimings]')
-  );
+export function isFilteredLogLine(
+  message: string,
+  frameDump?: unknown
+): boolean {
+  if (message === PING_RECEIVED_LOG) return true;
+  if (!/^(SEND|RECV):/.test(message) || typeof frameDump !== 'string') {
+    return false;
+  }
+  try {
+    const frame = JSON.parse(frameDump);
+    const method =
+      frame?.method ?? frame?.type ?? frame?.result?.method ?? undefined;
+    return isFilteredFrameMethod(method);
+  } catch {
+    return false;
+  }
 }

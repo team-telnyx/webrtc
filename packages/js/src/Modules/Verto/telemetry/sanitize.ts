@@ -1,10 +1,12 @@
 /**
- * Client-side sanitizing for Call Report V2 telemetry (contract 1.8).
- * The Telemetry Backend is the authority; this only keeps obvious secrets,
- * SDP and whole host objects off the wire.
+ * Client-side sanitizing for Call Report V2 telemetry.
+ * Owner, 2026-10-06: every log goes out whole, with all its objects and data,
+ * never cut. Only credentials are taken out: passwords, tokens, the ICE
+ * password, TURN credentials. The Telemetry Backend handles personal data.
  */
 import type { CodedErrorInfo, ErrorInfo, IceServerInfo } from './contract';
 
+/** Keys whose values are credentials, at any depth. */
 const SECRET_KEYS = new Set([
   'password',
   'passwd',
@@ -12,133 +14,174 @@ const SECRET_KEYS = new Set([
   'secret',
   'token',
   'login_token',
+  'telemetry_token',
   'access_token',
   'jwt',
   'authorization',
   'ice_pwd',
-  'ice_ufrag',
-  'ufrag',
-  'fingerprint',
-  'sdp',
-  'username',
 ]);
 
-/** Customer values: only their key names are kept. */
-const NAMES_ONLY_KEYS = new Set(['uservariables', 'dialogparams']);
-
-const MAX_DEPTH = 4;
-const MAX_DETAILS_BYTES = 4096;
-const MAX_MESSAGE_BYTES = 2048;
-const MAX_STACK_FRAMES = 20;
-const MAX_STACK_BYTES = 4096;
+/** Deep enough for any SDK object; guards against runaway host-object graphs. */
+const MAX_DEPTH = 32;
 
 const normalizeKey = (key: string) => key.toLowerCase().replace(/-/g, '_');
 
-export function truncate(value: string, maxBytes: number): string {
-  if (value.length <= maxBytes) return value;
-  return `${value.slice(0, maxBytes - 3)}...`;
-}
-
+/** Credentials inside text: SDP ice-pwd lines, JWTs, bearer tokens, URL passwords, JSON secret fields. */
 export function scrubText(text: string): string {
   return text
-    .replace(/v=0\r?\n[\s\S]*?(?=("|$))/g, (sdp) => {
-      return `[SDP removed, ${sdp.length} bytes]`;
-    })
-    .replace(/a=(ice-pwd|ice-ufrag|fingerprint):[^\r\n"]*/g, '')
+    .replace(/a=ice-pwd:[^\r\n"]*/g, 'a=ice-pwd:[REDACTED]')
     .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[REDACTED]')
     .replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
-    .replace(/(\w+:\/\/)[^/@\s]+:[^/@\s]+@/g, '$1');
+    .replace(/(\w+:\/\/)[^/@\s]+:[^/@\s]+@/g, '$1')
+    .replace(
+      /("(?:passwd|password|login_token|telemetry_token|access_token|credential)"\s*:\s*)"[^"]*"/gi,
+      '$1"[REDACTED]"'
+    );
 }
 
-function sanitizeValue(value: unknown, depth: number): unknown {
+const isPlainObject = (value: object) => {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+/** A track's own data (its getters are invisible to Object.entries). */
+function describeTrack(track: MediaStreamTrack): Record<string, unknown> {
+  const info: Record<string, unknown> = {
+    kind: track.kind,
+    id: track.id,
+    label: track.label,
+    enabled: track.enabled,
+    muted: track.muted,
+    readyState: track.readyState,
+  };
+  try {
+    info.settings = track.getSettings?.();
+  } catch {
+    // not every browser has it
+  }
+  return info;
+}
+
+function sanitizeValue(
+  value: unknown,
+  depth: number,
+  seen: WeakSet<object>
+): unknown {
   if (value === null || value === undefined) return value;
   const type = typeof value;
   if (type === 'string') return scrubText(value as string);
   if (type === 'number' || type === 'boolean') return value;
   if (type === 'bigint') return String(value);
-  if (type === 'function' || type === 'symbol') return undefined;
-  if (value instanceof Error) return toErrorInfo(value);
-  if (typeof Event !== 'undefined' && value instanceof Event) {
-    return { type: value.type };
+  if (type === 'symbol') return String(value);
+  if (type === 'function') {
+    return `[function ${(value as { name?: string }).name || 'anonymous'}]`;
   }
-  if (typeof Node !== 'undefined' && value instanceof Node) {
-    return '[DOM node]';
-  }
-  if (typeof MediaStream !== 'undefined' && value instanceof MediaStream) {
-    return '[MediaStream]';
-  }
-  // Host objects (RTCIceCandidate, RTCSessionDescription...) keep their data
-  // in getters, which Object.entries can't see: use their own JSON form.
-  if (
-    type === 'object' &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) !== Object.prototype &&
-    typeof (value as { toJSON?: unknown }).toJSON === 'function'
-  ) {
+  const object = value as object;
+  if (seen.has(object)) return '[circular]';
+  if (object instanceof Error) {
+    // The error's fields plus everything else it carries (originalError,
+    // causes, constraint...), whole.
+    seen.add(object);
     try {
-      return sanitizeValue(
-        (value as { toJSON: () => unknown }).toJSON(),
-        depth + 1
-      );
-    } catch {
-      return '[unserializable]';
+      const extra: Record<string, unknown> = {};
+      for (const [key, item] of Object.entries(object)) {
+        extra[key] = SECRET_KEYS.has(normalizeKey(key))
+          ? redacted(item)
+          : sanitizeValue(item, depth + 1, seen);
+      }
+      return { ...extra, ...toErrorInfo(object) };
+    } finally {
+      seen.delete(object);
     }
   }
-  if (depth >= MAX_DEPTH) return '[truncated]';
-  if (Array.isArray(value)) {
-    return value.slice(0, 50).map((item) => sanitizeValue(item, depth + 1));
-  }
-  if (type === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value as object)) {
-      const normalized = normalizeKey(key);
-      if (SECRET_KEYS.has(normalized)) {
-        result[key] = '[REDACTED]';
-      } else if (NAMES_ONLY_KEYS.has(normalized.replace(/_/g, ''))) {
-        result[key] =
-          item && typeof item === 'object' ? Object.keys(item as object) : [];
-      } else {
-        const clean = sanitizeValue(item, depth + 1);
-        if (clean !== undefined) result[key] = clean;
+  if (depth >= MAX_DEPTH) return '[too deep]';
+  seen.add(object);
+  try {
+    if (typeof Node !== 'undefined' && object instanceof Node) {
+      const element = object as Element;
+      return `[${(element.nodeName || 'node').toLowerCase()}${
+        element.id ? `#${element.id}` : ''
+      }]`;
+    }
+    if (
+      typeof MediaStreamTrack !== 'undefined' &&
+      object instanceof MediaStreamTrack
+    ) {
+      return describeTrack(object);
+    }
+    if (typeof MediaStream !== 'undefined' && object instanceof MediaStream) {
+      return {
+        id: object.id,
+        active: object.active,
+        tracks: object.getTracks().map(describeTrack),
+      };
+    }
+    if (Array.isArray(object)) {
+      return object.map((item) => sanitizeValue(item, depth + 1, seen));
+    }
+    if (object instanceof Map) {
+      return sanitizeValue(Object.fromEntries(object), depth + 1, seen);
+    }
+    if (object instanceof Set) {
+      return sanitizeValue(Array.from(object), depth + 1, seen);
+    }
+    if (!isPlainObject(object)) {
+      // Host objects (RTCIceCandidate, RTCSessionDescription, DOM events...)
+      // keep their data in getters: their own JSON form, else every
+      // enumerable property, inherited ones included.
+      const toJSON = (object as { toJSON?: () => unknown }).toJSON;
+      if (typeof toJSON === 'function') {
+        try {
+          return sanitizeValue(toJSON.call(object), depth + 1, seen);
+        } catch {
+          // fall through to the properties
+        }
       }
+      const result: Record<string, unknown> = {};
+      for (const key in object) {
+        let item: unknown;
+        try {
+          item = (object as Record<string, unknown>)[key];
+        } catch {
+          continue;
+        }
+        if (typeof item === 'function') continue;
+        result[key] = SECRET_KEYS.has(normalizeKey(key))
+          ? redacted(item)
+          : sanitizeValue(item, depth + 1, seen);
+      }
+      return result;
+    }
+    const result: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(object)) {
+      result[key] = SECRET_KEYS.has(normalizeKey(key))
+        ? redacted(item)
+        : sanitizeValue(item, depth + 1, seen);
     }
     return result;
+  } finally {
+    seen.delete(object);
   }
-  return String(value);
 }
 
-/** Plain JSON, at most 4 levels deep and 4 KB serialized, secrets removed. */
+/** An empty credential field stays empty; a filled one becomes "[REDACTED]". */
+const redacted = (item: unknown) =>
+  item === null || item === undefined || item === '' ? item : '[REDACTED]';
+
+/** Plain JSON, whole: nothing cut, only credentials taken out. */
 export function sanitizeDetails(
   details: unknown
 ): Record<string, unknown> | undefined {
   if (details === null || details === undefined) return undefined;
-  let clean = sanitizeValue(details, 0);
+  let clean = sanitizeValue(details, 0, new WeakSet());
   if (!clean || typeof clean !== 'object' || Array.isArray(clean)) {
     clean = { value: clean };
-  }
-  let json: string;
-  try {
-    json = JSON.stringify(clean);
-  } catch {
-    return { value: '[unserializable]' };
-  }
-  if (json.length > MAX_DETAILS_BYTES) {
-    return { truncated: truncate(json, MAX_DETAILS_BYTES) };
   }
   return clean as Record<string, unknown>;
 }
 
 export function sanitizeMessage(message: string): string {
-  return truncate(scrubText(message), MAX_MESSAGE_BYTES);
-}
-
-function capStack(stack?: string): string | undefined {
-  if (!stack) return undefined;
-  const frames = stack
-    .split('\n')
-    .slice(0, MAX_STACK_FRAMES + 1)
-    .join('\n');
-  return truncate(frames, MAX_STACK_BYTES);
+  return scrubText(message);
 }
 
 /**
@@ -202,9 +245,8 @@ export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
     if (serverMessage)
       info.server_message = sanitizeMessage(String(serverMessage));
   }
-  const stack = capStack(
-    typeof error.stack === 'string' ? scrubText(error.stack) : undefined
-  );
+  const stack =
+    typeof error.stack === 'string' ? scrubText(error.stack) : undefined;
   if (stack) info.stack = stack;
   return info;
 }

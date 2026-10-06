@@ -1,34 +1,9 @@
 /**
- * Helpers for `signaling_message` (contract 1.4, 1.7): the method, IDs, sizes,
- * the short result message, and the frame itself (`raw`, owner 2026-10-06)
- * with its secrets taken out (rawFrame).
+ * Helpers for `signaling_message`: the frame itself, resent as it is with its
+ * secrets taken out (rawFrame, owner 2026-10-06), and what the SDK needs to
+ * leave out keepalive frames and put the call's ID on a frame.
  */
-import type { SignalingCategory } from './contract';
-
-/** Call frames; everything else (login, gateway, subscribe...) is "connection". */
-const CALL_METHODS = new Set<string>([
-  'telnyx_rtc.invite',
-  'telnyx_rtc.answer',
-  'telnyx_rtc.attach',
-  'telnyx_rtc.bye',
-  'telnyx_rtc.modify',
-  'telnyx_rtc.candidate',
-  'telnyx_rtc.endOfCandidates',
-  'telnyx_rtc.media',
-  'telnyx_rtc.ringing',
-  'telnyx_rtc.info',
-  'telnyx_rtc.display',
-  'debug_report_start',
-  'debug_report_stop',
-]);
-
 export const GATEWAY_STATE_METHOD = 'telnyx_rtc.gatewayState';
-
-const MAX_RESULT_MESSAGE = 100;
-
-export function signalingCategory(method: string): SignalingCategory {
-  return CALL_METHODS.has(method) ? 'call' : 'connection';
-}
 
 /**
  * The method of a frame the SDK sends: JSON-RPC `method`, or the `type` of a
@@ -56,32 +31,8 @@ export function frameCallId(frame: any): string | undefined {
   return typeof id === 'string' && id ? id : undefined;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function resultMessage(frame: any): string | undefined {
-  const message = frame?.result?.message;
-  if (typeof message !== 'string' || !message) return undefined;
-  return message.length > MAX_RESULT_MESSAGE
-    ? message.slice(0, MAX_RESULT_MESSAGE)
-    : message;
-}
-
 export function rpcIdString(id: unknown): string {
   return id === undefined || id === null ? '' : String(id);
-}
-
-/** UTF-8 byte length of a frame, without allocating a buffer. */
-export function utf8Length(text: string): number {
-  let bytes = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    if (code < 0x80) bytes += 1;
-    else if (code < 0x800) bytes += 2;
-    else if (code >= 0xd800 && code < 0xdc00) {
-      bytes += 4;
-      i++;
-    } else bytes += 3;
-  }
-  return bytes;
 }
 
 /** Keys whose values never leave the SDK, at any depth of a frame. */

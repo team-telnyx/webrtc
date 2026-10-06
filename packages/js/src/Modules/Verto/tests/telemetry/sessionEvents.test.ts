@@ -3,6 +3,7 @@ jest.unmock('uuid');
 import TelemetryClient from '../../telemetry/TelemetryClient';
 import SessionTelemetry from '../../telemetry/sessionEvents';
 import { PING_RECEIVED_LOG } from '../../telemetry/filter';
+import { sanitizeDetails } from '../../telemetry/sanitize';
 import logger from '../../util/logger';
 import TelnyxRTC from '../../../../TelnyxRTC';
 import type BaseSession from '../../BaseSession';
@@ -55,6 +56,18 @@ describe('Call Report V2 session events', () => {
     expect(events[0].payload.options.custom_ice_servers).toBe(false);
     expect(events[0].payload.options.ice_servers.length).toBeGreaterThan(0);
     expect(JSON.stringify(events[0])).not.toContain('jwt');
+    expect(events[0].payload.options).toMatchObject({
+      login: null,
+      login_type: 'token',
+      debug: false,
+      explicit_rtc_provided: false,
+      use_canary: null,
+      skip_trailing: false,
+    });
+    expect(events[0].payload.raw_client_options).toMatchObject({
+      login_token: '[REDACTED]',
+      telemetry: TELEMETRY,
+    });
     const names = events.map((e) => e.name);
     expect(names).toContain('sdk_created');
     expect(names.indexOf('network_changed')).toBeGreaterThan(
@@ -82,22 +95,22 @@ describe('Call Report V2 session events', () => {
     const before = client.lastSequence;
 
     const ping = { jsonrpc: '2.0', id: 'p1', method: 'telnyx_rtc.ping' };
-    events.frameSent(ping, JSON.stringify(ping));
+    events.frameSent(ping);
     const pong = { jsonrpc: '2.0', id: 'p1', result: { method: 'pong' } };
-    events.receivedFrameDone(events.frameReceived(pong, 40));
+    events.receivedFrameDone(events.frameReceived(pong));
     const serverPing = { jsonrpc: '2.0', id: 7, method: 'telnyx_rtc.ping' };
-    events.receivedFrameDone(events.frameReceived(serverPing, 40));
+    events.receivedFrameDone(events.frameReceived(serverPing));
     const debug = { jsonrpc: '2.0', id: 'd1', type: 'debug_report_data' };
-    events.frameSent(debug, JSON.stringify(debug));
+    events.frameSent(debug);
     events.receivedFrameDone(
-      events.frameReceived({ jsonrpc: '2.0', id: 'd1', result: {} }, 20)
+      events.frameReceived({ jsonrpc: '2.0', id: 'd1', result: {} })
     );
 
     expect(spy).not.toHaveBeenCalled();
     expect(client.lastSequence).toBe(before);
   });
 
-  it('a response carries its request method and call id', () => {
+  it('resends each frame as it is, with only its direction and the call ID', () => {
     const client = makeClient();
     const events = new SessionTelemetry(fakeSession(), client);
     const spy = jest.spyOn(client, 'emit');
@@ -111,37 +124,24 @@ describe('Call Report V2 session events', () => {
         sdp: 'v=0\r\na=ice-ufrag:uf1\r\na=ice-pwd:secret\r\na=rtpmap:111 opus/48000/2\r\n',
       },
     };
-    events.frameSent(invite, JSON.stringify(invite));
+    events.frameSent(invite);
     const answer = {
       jsonrpc: '2.0',
       id: 'r1',
       result: { message: 'CALL CREATED', callID: 'call-1' },
     };
-    const received = events.frameReceived(answer, 60);
+    const received = events.frameReceived(answer);
     events.receivedFrameDone(received);
 
     const [sent, response] = emitted(spy);
-    expect(sent.payload).toMatchObject({
-      direction: 'sent',
-      kind: 'request',
-      method: 'telnyx_rtc.invite',
-      category: 'call',
-    });
-    // The frame itself goes along (owner, 2026-10-06), minus the ICE password.
+    expect(Object.keys(sent.payload)).toEqual(['direction', 'raw']);
+    expect(sent.payload.direction).toBe('sent');
     expect(sent.payload.raw.method).toBe('telnyx_rtc.invite');
     expect(sent.payload.raw.params.sdp).toContain('a=rtpmap:111 opus/48000/2');
     expect(sent.payload.raw.params.sdp).toContain('a=ice-ufrag:uf1');
     expect(JSON.stringify(sent)).not.toContain('secret');
-    expect(response.payload).toMatchObject({
-      direction: 'received',
-      kind: 'response',
-      method: 'telnyx_rtc.invite',
-      rpc_id: 'r1',
-      result_message: 'CALL CREATED',
-      size_bytes: 60,
-      category: 'call',
-    });
-    expect(response.payload.response_time_ms).toBeGreaterThanOrEqual(0);
+    expect(sent.ids.call_id).toBe('call-1');
+    expect(response.payload).toEqual({ direction: 'received', raw: answer });
     expect(response.ids.call_id).toBe('call-1');
     // The sequence was taken when the frame arrived.
     expect(response.sequence).toBe(received.sequence);
@@ -162,7 +162,7 @@ describe('Call Report V2 session events', () => {
         userVariables: { push_when_active: false },
       },
     };
-    events.frameSent(login, JSON.stringify(login));
+    events.frameSent(login);
     const raw = emitted(spy)[0].payload.raw;
     expect(raw.params).toEqual({
       login: 'user',
@@ -173,51 +173,63 @@ describe('Call Report V2 session events', () => {
     expect(JSON.stringify(emitted(spy))).not.toContain('hunter2');
   });
 
-  it('marks a received frame the SDK had no handler for', () => {
-    const client = makeClient();
-    const events = new SessionTelemetry(fakeSession(), client);
-    const spy = jest.spyOn(client, 'emit');
-    const received = events.frameReceived(
-      { jsonrpc: '2.0', id: 3, method: 'telnyx_rtc.somethingNew' },
-      50
-    );
-    events.markUnhandled();
-    events.receivedFrameDone(received);
-    expect(emitted(spy)[0].payload).toMatchObject({
-      method: 'telnyx_rtc.somethingNew',
-      category: 'connection',
-      unhandled: true,
-    });
-  });
-
-  it('the logger forwards lines and drops "Ping received" and frame dumps', () => {
+  it('the logger forwards every line whole, except keepalive', () => {
     logger.setLevel('debug', false);
     const client = makeClient();
     const log = jest.spyOn(client, 'log');
 
     logger.debug(PING_RECEIVED_LOG);
-    logger.debug('SEND: \n', '{"jsonrpc":"2.0"}', '\n');
-    logger.debug('RECV: \n', '{"jsonrpc":"2.0"}', '\n');
+    logger.debug(
+      'SEND: \n',
+      JSON.stringify(
+        { jsonrpc: '2.0', id: 'p', method: 'telnyx_rtc.ping' },
+        null,
+        2
+      ),
+      '\n'
+    );
+    logger.debug(
+      'SEND: \n',
+      JSON.stringify(
+        {
+          jsonrpc: '2.0',
+          id: 'l',
+          method: 'login',
+          params: { login: 'u', passwd: 'hunter2' },
+        },
+        null,
+        2
+      ),
+      '\n'
+    );
     logger.info('[CallTimings][outbound][trickle] Call Start');
-    logger.info('Connected to Telnyx — region: us-central, dc: da1');
-    logger.warn('No ping/pong received, forcing PING ACK to keep alive');
+    const big = {
+      list: Array.from({ length: 200 }, (_, i) => ({
+        i,
+        deep: { a: { b: { c: { d: i } } } },
+      })),
+    };
+    logger.debug('Big object', big);
 
-    expect(log).toHaveBeenCalledTimes(2);
-    expect(log).toHaveBeenNthCalledWith(
-      1,
-      'info',
-      'connection',
-      'Connected to Telnyx — region: us-central, dc: da1',
-      undefined
+    const messages = log.mock.calls.map((call) => call[2]);
+    expect(messages).not.toContain(PING_RECEIVED_LOG);
+    expect(messages.filter((m) => String(m).startsWith('SEND:'))).toHaveLength(
+      1
     );
-    expect(log).toHaveBeenNthCalledWith(
-      2,
-      'warn',
-      'warning',
-      'No ping/pong received, forcing PING ACK to keep alive',
-      undefined
-    );
+    expect(messages).toContain('[CallTimings][outbound][trickle] Call Start');
+    expect(JSON.stringify(log.mock.calls)).toContain('hunter2'); // the raw arg; redacted when sanitized
     logger.disableAll();
+
+    // What leaves the SDK: the whole object, and no password.
+    const sent = JSON.stringify(
+      sanitizeDetails({ args: log.mock.calls[0][3] })
+    );
+    expect(sent).not.toContain('hunter2');
+    const whole = sanitizeDetails(big) as {
+      list: { deep: { a: { b: { c: { d: number } } } } }[];
+    };
+    expect(whole.list).toHaveLength(200);
+    expect(whole.list[199].deep.a.b.c.d).toBe(199);
   });
 
   it('puts the ICE candidate line into the log message', () => {

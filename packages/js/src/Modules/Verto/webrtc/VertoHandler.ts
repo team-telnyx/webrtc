@@ -362,7 +362,6 @@ class VertoHandler {
       case VertoMethod.Bye:
       case VertoMethod.Media:
         if (!callID || !existingCall) {
-          session.telemetryEvents?.markUnhandled();
           logger.error(`Received ${method} for non existing call:`, params);
           return;
         }
@@ -542,7 +541,6 @@ class VertoHandler {
       case VertoMethod.Event:
       case 'webrtc.event':
         if (!eventChannel) {
-          session.telemetryEvents?.markUnhandled();
           logger.error('Verto received an unknown event:', params);
           return;
         }
@@ -808,13 +806,11 @@ class VertoHandler {
               break;
             }
             default:
-              session.telemetryEvents?.markUnhandled();
               logger.warn('GatewayState message unknown method:', msg);
               break;
           }
           break;
         }
-        session.telemetryEvents?.markUnhandled();
         logger.debug('Verto message unknown method:', msg);
         break;
       }
