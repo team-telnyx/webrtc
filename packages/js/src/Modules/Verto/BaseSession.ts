@@ -152,11 +152,11 @@ export default abstract class BaseSession {
 
   constructor(public options: IVertoOptions) {
     // The telemetry socket takes no anonymous login in the beta, so an
-    // anonymous-only client records nothing rather than holding events it
-    // can never send.
-    this.telemetry = BaseSession._isAnonymousOnly(options)
-      ? null
-      : TelemetryClient.create(options);
+    // anonymous-only client only ever captures locally: it never holds
+    // events for a socket it can't log in to.
+    this.telemetry = TelemetryClient.create(options, {
+      allowSocket: !BaseSession._isAnonymousOnly(options),
+    });
     if (this.telemetry) {
       this.telemetryEvents = new SessionTelemetry(this, this.telemetry);
       // Sequence 1: the constructor was entered.

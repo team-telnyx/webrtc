@@ -96,11 +96,26 @@ describe('TelemetryClient', () => {
     setTelemetryWebSocket(FakeSocket as unknown as typeof WebSocket);
   });
 
-  it('is off without a URL or when disabled', () => {
-    expect(TelemetryClient.create({})).toBeNull();
+  it('captures locally by default, uses the socket with a URL, and is off when disabled', () => {
+    const byDefault = TelemetryClient.create({});
+    expect(byDefault.capture).toBe(true);
+    byDefault.close();
+    const withUrl = TelemetryClient.create({ telemetry: { url: 'ws://x' } });
+    expect(withUrl.capture).toBe(false);
+    withUrl.close();
     expect(
       TelemetryClient.create({ telemetry: { url: 'ws://x', enabled: false } })
     ).toBeNull();
+    // An anonymous-only client may not use the socket, but still captures.
+    expect(
+      TelemetryClient.create(
+        { telemetry: { url: 'ws://x' } },
+        { allowSocket: false }
+      )
+    ).toBeNull();
+    const anonymous = TelemetryClient.create({}, { allowSocket: false });
+    expect(anonymous.capture).toBe(true);
+    anonymous.close();
   });
 
   it('waits until logged in, then sends pending events in order with sent_at', () => {

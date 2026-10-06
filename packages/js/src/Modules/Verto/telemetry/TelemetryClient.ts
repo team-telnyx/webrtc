@@ -50,12 +50,16 @@ const LOGIN_TIMEOUT_MS = 10000;
 
 /** App-facing options (`options.telemetry`). */
 export interface ITelemetryOptions {
-  /** false = the SDK records and sends nothing. */
+  /**
+   * false = the SDK records and sends nothing. true = send to the telemetry
+   * socket. Unset = local capture (the default; see `capture`).
+   */
   enabled?: boolean;
   /**
-   * The telemetry socket's URL. Defaults to the telemetry VSP,
-   * wss://rtc-telemetry.telnyx.com (production; with env "development" there
-   * is no default yet). Telemetry is on when this is set or `enabled` is true.
+   * The telemetry socket's URL. Setting it (or `enabled: true`) sends to the
+   * telemetry socket instead of the default local capture. Defaults to the
+   * telemetry VSP, wss://rtc-telemetry.telnyx.com (production; with env
+   * "development" there is no default yet).
    */
   url?: string;
   metricsIntervalMs?: number;
@@ -295,17 +299,30 @@ export default class TelemetryClient {
 
   /** Returns null when the app switched telemetry off or gave no URL. */
   static create(
-    options: { telemetry?: ITelemetryOptions; env?: string } = {}
+    options: { telemetry?: ITelemetryOptions; env?: string } = {},
+    { allowSocket = true }: { allowSocket?: boolean } = {}
   ): TelemetryClient | null {
-    const telemetry = options.telemetry;
-    if (
-      !telemetry ||
-      telemetry.enabled === false ||
-      (!telemetry.url && telemetry.enabled !== true && !telemetry.capture)
-    ) {
-      return null;
-    }
+    const telemetry = TelemetryClient.resolveOptions(options.telemetry);
+    if (!telemetry) return null;
+    // A client that may not log in to the telemetry socket still captures.
+    if (!telemetry.capture && !allowSocket) return null;
     return new TelemetryClient(telemetry, options.env);
+  }
+
+  /**
+   * The telemetry settings in force (beta, owner 2026-10-06): on by default
+   * in local capture mode with the console printout, so nothing is sent.
+   * A `url`, or `enabled: true`, sends to the telemetry socket instead;
+   * `enabled: false` switches telemetry off. null = off.
+   */
+  static resolveOptions(
+    telemetry: ITelemetryOptions | undefined
+  ): ITelemetryOptions | null {
+    if (telemetry?.enabled === false) return null;
+    if (telemetry?.capture || telemetry?.url || telemetry?.enabled === true) {
+      return telemetry;
+    }
+    return { ...telemetry, capture: true };
   }
 
   static liveInstanceIds(): string[] {
@@ -694,7 +711,7 @@ export default class TelemetryClient {
     if (this._ws && (this._ws.readyState === 0 || this._ws.readyState === 1)) {
       return;
     }
-    const params = this._host?.getLoginParams();
+    const params = this._loginParams();
     if (!params || fingerprint(params) === this._rejectedFingerprint) return;
     const url = this.capture
       ? 'capture:'
@@ -752,8 +769,14 @@ export default class TelemetryClient {
     };
   }
 
+  /** Capture mode logs in to nothing: it needs no credentials (e.g. anonymous logins). */
+  private _loginParams(): Record<string, unknown> | null {
+    const params = this._host?.getLoginParams() ?? null;
+    return params ?? (this.capture ? {} : null);
+  }
+
   private _login(ws: WebSocket): void {
-    const params = this._host?.getLoginParams();
+    const params = this._loginParams();
     if (!params) {
       this.log('warn', 'telemetry', 'Telemetry login skipped: no credentials');
       ws.close(1000);
