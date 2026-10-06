@@ -1,5 +1,5 @@
 import { useContext, useEffect } from 'react';
-import { TelnyxRTC, INotification } from '@telnyx/webrtc';
+import { TelnyxRTC, INotification, ITelnyxWarningEvent } from '@telnyx/webrtc';
 import TelnyxRTCContext from './TelnyxRTCContext';
 
 interface IProps {
@@ -8,6 +8,7 @@ interface IProps {
   onSocketError?: (e?: any) => any;
   onSocketClose?: (e?: any) => any;
   onNotification?: (e: INotification) => any;
+  onWarning?: (e: ITelnyxWarningEvent) => any;
 }
 
 /**
@@ -30,30 +31,48 @@ interface IProps {
  */
 function useCallbacks(props?: IProps): null {
   const telnyxClient = useContext(TelnyxRTCContext);
+  const {
+    onReady,
+    onError,
+    onNotification,
+    onSocketError,
+    onSocketClose,
+    onWarning,
+  } = props || {};
 
   useEffect(() => {
-    if (telnyxClient) {
-      if (props?.onReady) {
-        telnyxClient.on('telnyx.ready', props.onReady);
-      }
+    if (!telnyxClient) return;
 
-      if (props?.onError) {
-        telnyxClient.on('telnyx.error', props.onError);
-      }
+    const callbacks: [string, ((event: any) => any) | undefined][] = [
+      ['telnyx.ready', onReady],
+      ['telnyx.error', onError],
+      ['telnyx.notification', onNotification],
+      ['telnyx.socket.error', onSocketError],
+      ['telnyx.socket.close', onSocketClose],
+      ['telnyx.warning', onWarning],
+    ];
+    const unsubscribe = callbacks.map(([event, callback]) => {
+      if (!callback) return () => {};
+      // Each hook owns a distinct handler, even if consumers share a callback.
+      const handler = (value: any) => callback(value);
+      telnyxClient.on(event, handler);
+      return () => {
+        telnyxClient.off(event, handler);
+      };
+    });
 
-      if (props?.onNotification) {
-        telnyxClient.on('telnyx.notification', props.onNotification);
-      }
-
-      if (props?.onSocketError) {
-        telnyxClient.on('telnyx.socket.error', props.onSocketError);
-      }
-
-      if (props?.onSocketClose) {
-        telnyxClient.on('telnyx.socket.close', props.onSocketClose);
-      }
-    }
-  }, [telnyxClient]);
+    return () => {
+      unsubscribe.forEach((off) => off());
+    };
+  }, [
+    telnyxClient,
+    onReady,
+    onError,
+    onNotification,
+    onSocketError,
+    onSocketClose,
+    onWarning,
+  ]);
 
   return null;
 }

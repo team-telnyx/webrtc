@@ -183,27 +183,28 @@ const getMediaConstraints = async (
 ): Promise<MediaStreamConstraints> => {
   let { audio = true, micId, video = false, camId } = options;
   const { micLabel = '', camLabel = '' } = options;
-  if (micId) {
+  if (audio !== false && micId) {
     micId = await assureDeviceId(micId, micLabel, DeviceType.AudioIn).catch(
       () => null
     );
     if (micId) {
-      if (typeof audio === 'boolean') {
-        audio = {};
-      }
-      audio.deviceId = { exact: micId };
+      // Replace only deviceId on a copy; constraints may be shared by calls.
+      audio = {
+        ...(typeof audio === 'object' ? audio : {}),
+        deviceId: { exact: micId },
+      };
     }
   }
 
-  if (camId) {
+  if (video !== false && camId) {
     camId = await assureDeviceId(camId, camLabel, DeviceType.Video).catch(
       () => null
     );
     if (camId) {
-      if (typeof video === 'boolean') {
-        video = {};
-      }
-      video.deviceId = { exact: camId };
+      video = {
+        ...(typeof video === 'object' ? video : {}),
+        deviceId: { exact: camId },
+      };
     }
   }
 

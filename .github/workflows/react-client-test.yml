@@ -1,0 +1,30 @@
+name: "@telnyx/react-client Compatibility"
+on:
+  pull_request:
+    paths:
+      - "packages/react-client/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".github/workflows/react-client-test.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    name: React wrapper tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.5.0"
+          cache: yarn
+      - run: yarn install --immutable
+      - run: yarn workspace @telnyx/react-client test --runInBand
+      - run: node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.json
+      - run: node node_modules/typescript/bin/tsc --noEmit -p packages/react-client/tsconfig.test.json
+      - run: yarn workspace @telnyx/react-client build
+      - name: Check package contents
+        working-directory: packages/react-client
+        run: npm pack --dry-run --ignore-scripts
