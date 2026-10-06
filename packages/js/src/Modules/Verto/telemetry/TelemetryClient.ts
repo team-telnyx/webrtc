@@ -62,17 +62,40 @@ export interface ITelemetryOptions {
   maxPendingEvents?: number;
   maxSendBacklogBytes?: number;
   /**
-   * Local capture, for checking what the SDK collects: nothing goes over the
-   * network. Each frame the SDK would send on the telemetry socket (the login
-   * with its credentials redacted, then one per event) is kept in memory, in
-   * send order, and passed to `onFrame`. Read them with
+   * Local capture, for checking what the SDK collects, as if the telemetry
+   * socket existed: nothing goes over the network. Each frame the SDK would
+   * send on the telemetry socket (the login with its credentials redacted,
+   * then one per event) is kept in memory in send order, printed to the
+   * console and passed to `onFrame`. Read them with
    * `client.telemetry.capturedFrames()` or save them with
-   * `client.telemetry.downloadCapture()`.
+   * `client.telemetry.downloadCapture()`; see ITelemetryCaptureOptions for
+   * the console and the periodic flush to a file.
    */
-  capture?: boolean;
+  capture?: boolean | ITelemetryCaptureOptions;
   /** Capture mode: called with each frame's JSON text as it is "sent". */
   onFrame?: (frame: string) => void;
 }
+
+/** Capture mode settings (`telemetry.capture`). */
+export interface ITelemetryCaptureOptions {
+  /** Print each frame to the console as it is "sent". Default true. */
+  console?: boolean;
+  /** What each console line starts with, to filter on. Default "[CR2 telemetry]". */
+  consoleMark?: string;
+  /**
+   * Save the frames captured since the last flush as a JSON Lines file (one
+   * frame per line) through the browser's download, every `flushIntervalMs`
+   * and when the client disconnects.
+   */
+  download?: boolean;
+  /** Same schedule as `download`: called with the frames since the last flush. */
+  onFlush?: (frames: string[]) => void;
+  /** How often to flush. Default 300000 (5 minutes). */
+  flushIntervalMs?: number;
+}
+
+export const DEFAULT_CAPTURE_MARK = '[CR2 telemetry]';
+export const DEFAULT_CAPTURE_FLUSH_MS = 5 * 60 * 1000;
 
 /** Credentials never kept in a captured login frame. */
 const CAPTURE_REDACTED_KEYS = ['passwd', 'password', 'login_token', 'login'];
@@ -235,6 +258,10 @@ export default class TelemetryClient {
   public readonly capture: boolean;
   private _onFrame: ((frame: string) => void) | null;
   private _captured: string[] = [];
+  private _captureOptions: ITelemetryCaptureOptions = {};
+  /** Frames captured since the last flush. */
+  private _unflushed: string[] = [];
+  private _flushTimer: ReturnType<typeof setInterval> | null = null;
 
   private _sequence = 0;
   private _host: ITelemetryHost | null = null;
@@ -301,6 +328,17 @@ export default class TelemetryClient {
     this.url = options.url;
     this.capture = !!options.capture;
     this._onFrame = options.onFrame ?? null;
+    if (options.capture) {
+      this._captureOptions =
+        typeof options.capture === 'object' ? options.capture : {};
+      const { download, onFlush, flushIntervalMs } = this._captureOptions;
+      if (download || onFlush) {
+        this._flushTimer = setInterval(
+          () => this.flushCapture(),
+          flushIntervalMs || DEFAULT_CAPTURE_FLUSH_MS
+        );
+      }
+    }
     this.client = buildClientInfo(env);
     this.metricsIntervalMs =
       options.metricsIntervalMs ?? DEFAULT_METRICS_INTERVAL_MS;
@@ -330,13 +368,35 @@ export default class TelemetryClient {
    * file (one frame per line) through the browser's download.
    */
   downloadCapture(filename?: string): void {
+    this._download(this._captured, filename);
+  }
+
+  /**
+   * Capture mode: hands the frames captured since the last flush to
+   * `onFlush` and, with `download`, saves them as a .jsonl file. Runs every
+   * `flushIntervalMs` and when the client disconnects; can be called any time.
+   */
+  flushCapture(): void {
+    if (!this._unflushed.length) return;
+    const frames = this._unflushed;
+    this._unflushed = [];
+    const { download, onFlush } = this._captureOptions;
+    try {
+      onFlush?.(frames);
+    } catch {
+      // the app's callback never breaks the sender
+    }
+    if (download) this._download(frames);
+  }
+
+  private _download(frames: string[], filename?: string): void {
     if (typeof document === 'undefined' || typeof Blob === 'undefined') return;
     const name =
       filename ||
       `telemetry-${this.sdkInstanceId}-${new Date()
         .toISOString()
         .replace(/[:.]/g, '-')}.jsonl`;
-    const blob = new Blob([this._captured.join('\n') + '\n'], {
+    const blob = new Blob([frames.join('\n') + '\n'], {
       type: 'application/x-ndjson',
     });
     const link = document.createElement('a');
@@ -351,10 +411,31 @@ export default class TelemetryClient {
   private _recordFrame(frame: string): void {
     this._captured.push(frame);
     if (this._captured.length > MAX_CAPTURED_FRAMES) this._captured.shift();
+    if (this._captureOptions.download || this._captureOptions.onFlush) {
+      this._unflushed.push(frame);
+    }
+    if (this._captureOptions.console !== false) this._printFrame(frame);
     try {
       this._onFrame?.(frame);
     } catch {
       // the app's callback never breaks the sender
+    }
+  }
+
+  /** Straight to the console, never through the SDK logger (that would loop). */
+  private _printFrame(frame: string): void {
+    if (typeof console === 'undefined') return;
+    const mark = this._captureOptions.consoleMark || DEFAULT_CAPTURE_MARK;
+    try {
+      const parsed = JSON.parse(frame);
+      if (parsed.method === TELEMETRY_METHOD) {
+        const event = parsed.params;
+        console.log(mark, `#${event.sequence} ${event.name}`, event);
+      } else {
+        console.log(mark, parsed.method, parsed.params);
+      }
+    } catch {
+      console.log(mark, frame);
     }
   }
 
@@ -806,6 +887,9 @@ export default class TelemetryClient {
     if (this._closed) return;
     this._flushPending();
     this._closed = true;
+    if (this._flushTimer) clearInterval(this._flushTimer);
+    this._flushTimer = null;
+    this.flushCapture();
     if (this._reconnectTimer) clearTimeout(this._reconnectTimer);
     this._reconnectTimer = null;
     this._clearLoginTimer();

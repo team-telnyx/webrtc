@@ -550,3 +550,41 @@ describe('TelemetryClient capture mode', () => {
     jest.useRealTimers();
   });
 });
+
+describe('TelemetryClient capture output', () => {
+  it('prints each frame with a mark and flushes to onFlush every interval and on close', () => {
+    jest.useFakeTimers();
+    FakeSocket.instances = [];
+    setTelemetryWebSocket(FakeSocket as unknown as typeof WebSocket);
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const flushes: string[][] = [];
+    const client = TelemetryClient.create({
+      telemetry: {
+        capture: {
+          consoleMark: '[test mark]',
+          flushIntervalMs: 60000,
+          onFlush: (frames) => flushes.push(frames),
+        },
+      },
+    });
+    client.attach({ ...host, getLoginParams: () => ({ login_token: 'jwt' }) });
+    client.connect();
+    jest.advanceTimersByTime(10);
+    logEvent(client, 'first');
+    jest.advanceTimersByTime(60000);
+    expect(flushes).toHaveLength(1);
+    // the login frame plus the events captured so far
+    expect(flushes[0].length).toBeGreaterThanOrEqual(2);
+    logEvent(client, 'second');
+    client.close();
+    expect(flushes).toHaveLength(2);
+    expect(flushes[1].some((f) => f.includes('second'))).toBe(true);
+
+    const marked = log.mock.calls.filter((call) => call[0] === '[test mark]');
+    expect(marked.length).toBeGreaterThanOrEqual(3);
+    expect(marked.some((call) => /#\d+ logs/.test(String(call[1])))).toBe(true);
+    expect(JSON.stringify(log.mock.calls)).not.toContain('"jwt"');
+    log.mockRestore();
+    jest.useRealTimers();
+  });
+});
