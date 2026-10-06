@@ -10,7 +10,10 @@ import TelemetryClient, {
   buildClientInfo,
   detectOs,
   osVersionFromHints,
-  resetOsVersionHints,
+  resetClientHints,
+  browserFromBrands,
+  browserFromUserAgent,
+  cpuArchFromHints,
   setTelemetryWebSocket,
   TELEMETRY_CONTROL_METHOD,
   TELEMETRY_LOGIN_METHOD,
@@ -657,14 +660,26 @@ describe('client OS version', () => {
   });
 
   it('sets the real version from client hints when the browser has them', async () => {
-    resetOsVersionHints();
+    resetClientHints();
     const nav = navigator as unknown as { userAgentData?: unknown };
     const before = nav.userAgentData;
     Object.defineProperty(navigator, 'userAgentData', {
       configurable: true,
       value: {
+        mobile: false,
         getHighEntropyValues: () =>
-          Promise.resolve({ platformVersion: '26.6.2' }),
+          Promise.resolve({
+            platformVersion: '26.6.2',
+            architecture: 'arm',
+            bitness: '64',
+            model: '',
+            formFactors: ['Desktop'],
+            fullVersionList: [
+              { brand: 'Not/A)Brand', version: '99.0.0.0' },
+              { brand: 'Chromium', version: '148.0.7778.96' },
+              { brand: 'Google Chrome', version: '148.0.7778.96' },
+            ],
+          }),
       },
     });
     const userAgent = jest
@@ -679,11 +694,64 @@ describe('client OS version', () => {
     await Promise.resolve();
     await Promise.resolve();
     expect(info.os_version).toBe('26.6.2');
+    expect(info.browser).toBe('chrome');
+    expect(info.browser_version).toBe('148.0.7778.96');
+    expect(info.cpu_arch).toBe('arm64');
+    expect(info.form_factor).toBe('desktop');
+    expect(info.device_model).toBeUndefined();
     userAgent.mockRestore();
     Object.defineProperty(navigator, 'userAgentData', {
       configurable: true,
       value: before,
     });
-    resetOsVersionHints();
+    resetClientHints();
+  });
+});
+
+describe('client browser and device details', () => {
+  it('reads the browser from the user agent, keeping a reduced Chrome version as its major', () => {
+    expect(
+      browserFromUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36'
+      )
+    ).toEqual({ browser: 'chrome', browser_version: '148' });
+    expect(
+      browserFromUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/148.0.0.0 Safari/537.36 Edg/148.0.3240.50'
+      )
+    ).toEqual({ browser: 'edge', browser_version: '148.0.3240.50' });
+    expect(
+      browserFromUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:150.0) Gecko/20100101 Firefox/150.0'
+      )
+    ).toEqual({ browser: 'firefox', browser_version: '150' });
+    expect(
+      browserFromUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15'
+      )
+    ).toEqual({ browser: 'safari', browser_version: '26' });
+  });
+
+  it('picks the real brand from Client Hints and skips GREASE', () => {
+    expect(
+      browserFromBrands([
+        { brand: 'Not A(Brand', version: '99.0.0.0' },
+        { brand: 'Brave', version: '1.83.112' },
+        { brand: 'Chromium', version: '148.0.7778.96' },
+      ])
+    ).toEqual({ browser: 'brave', browser_version: '1.83.112' });
+    expect(
+      browserFromBrands([{ brand: 'Chromium', version: '148.0.1.2' }])
+    ).toEqual({
+      browser: 'chromium',
+      browser_version: '148.0.1.2',
+    });
+  });
+
+  it('names the CPU architecture', () => {
+    expect(cpuArchFromHints('arm', '64')).toBe('arm64');
+    expect(cpuArchFromHints('x86', '64')).toBe('x86_64');
+    expect(cpuArchFromHints('x86', '32')).toBe('x86');
+    expect(cpuArchFromHints(undefined, '64')).toBeUndefined();
   });
 });

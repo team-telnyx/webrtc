@@ -210,7 +210,7 @@ const orphanEvents: ClientEvent[] = [];
  * 10 and 11 both say "Windows NT 10.0", and Chrome on Android says
  * "Android 10; K". A frozen value is left out rather than sent wrong; the real
  * one comes from User-Agent Client Hints where the browser has them
- * (refineOsVersion).
+ * (refineClientInfo).
  */
 export function detectOs(
   userAgent: string
@@ -276,48 +276,189 @@ export function osVersionFromHints(
   }
 }
 
-type UserAgentData = {
-  getHighEntropyValues?: (
-    hints: string[]
-  ) => Promise<{ platformVersion?: string }>;
+/**
+ * Browser and device details beyond the contract's ClientInfo (proposed for
+ * the contract on 2026-10-06; all optional, constant for the instance). The
+ * user agent can't give most of them: Chrome zeroes its minor versions
+ * ("148.0.0.0"), says "Intel" on Apple silicon and "K" for every Android
+ * model. Client Hints (Chromium browsers) and navigator fill them in.
+ */
+export type ClientDetails = {
+  /** chrome, edge, opera, brave, samsung, chromium, firefox, safari or other. */
+  browser?: string;
+  /** Full version, e.g. "148.0.7778.96". */
+  browser_version?: string;
+  /** "arm64", "x86_64", "x86" or "arm". */
+  cpu_arch?: string;
+  /** Logical cores (navigator.hardwareConcurrency). */
+  cpu_cores?: number;
+  /** RAM in GB as the browser rounds it (navigator.deviceMemory, Chromium). */
+  device_memory_gb?: number;
+  /** Phone or tablet model, e.g. "Pixel 8" (Android Chromium). */
+  device_model?: string;
+  /** "desktop", "mobile", "tablet", "xr", ... */
+  form_factor?: string;
 };
 
-/** Resolved once per page: every client on it shares the answer. */
-let hintedOsVersion: Promise<string | undefined> | null = null;
+export type SdkClientInfo = ClientInfo & ClientDetails;
+
+type BrandVersion = { brand: string; version: string };
+
+type HighEntropyValues = {
+  platformVersion?: string;
+  architecture?: string;
+  bitness?: string;
+  model?: string;
+  fullVersionList?: BrandVersion[];
+  formFactors?: string[];
+};
+
+type UserAgentData = {
+  mobile?: boolean;
+  getHighEntropyValues?: (hints: string[]) => Promise<HighEntropyValues>;
+};
+
+const HIGH_ENTROPY_HINTS = [
+  'platformVersion',
+  'architecture',
+  'bitness',
+  'model',
+  'fullVersionList',
+  'formFactors',
+];
+
+/** Brand names in Client Hints, most specific first. */
+const BRANDS: Array<[RegExp, string]> = [
+  [/^Microsoft Edge$/, 'edge'],
+  [/^Opera/, 'opera'],
+  [/^Brave/, 'brave'],
+  [/^Samsung Internet$/, 'samsung'],
+  [/^(Google Chrome|HeadlessChrome)$/, 'chrome'],
+  [/^Chromium$/, 'chromium'],
+];
+
+/** The browser from Client Hints' brand list; GREASE brands ("Not/A)Brand") are skipped. */
+export function browserFromBrands(
+  brands: BrandVersion[] | undefined
+): Pick<ClientDetails, 'browser' | 'browser_version'> {
+  for (const [pattern, browser] of BRANDS) {
+    const found = brands?.find((entry) => pattern.test(entry.brand));
+    if (found) return { browser, browser_version: found.version };
+  }
+  return {};
+}
 
 /**
- * Asks the browser for the real OS version and sets it on `info` when it
- * answers (a few ms). Events built before that share the same `client`
- * object and are serialized only when sent, so they carry it too.
+ * The browser from the user agent. A Chromium version reduced to
+ * "148.0.0.0" is kept as its major only.
  */
-export function refineOsVersion(info: ClientInfo): Promise<void> {
+export function browserFromUserAgent(
+  userAgent: string
+): Pick<ClientDetails, 'browser' | 'browser_version'> {
+  const ua = userAgent || '';
+  const patterns: Array<[RegExp, string]> = [
+    [/Edg(?:e|A|iOS)?\/([\d.]+)/, 'edge'],
+    [/OPR\/([\d.]+)/, 'opera'],
+    [/SamsungBrowser\/([\d.]+)/, 'samsung'],
+    [/(?:Firefox|FxiOS)\/([\d.]+)/, 'firefox'],
+    [/(?:Chrome|CriOS|HeadlessChrome)\/([\d.]+)/, 'chrome'],
+    [/Version\/([\d.]+).*Safari\//, 'safari'],
+  ];
+  for (const [pattern, browser] of patterns) {
+    const match = ua.match(pattern);
+    if (match) {
+      const version = match[1].replace(/^(\d+)(\.0)+$/, '$1');
+      return { browser, browser_version: version };
+    }
+  }
+  return ua ? { browser: 'other' } : {};
+}
+
+/** "arm" + "64" -> "arm64", "x86" + "64" -> "x86_64". */
+export function cpuArchFromHints(
+  architecture: string | undefined,
+  bitness: string | undefined
+): string | undefined {
+  if (!architecture) return undefined;
+  if (architecture === 'x86') return bitness === '64' ? 'x86_64' : 'x86';
+  if (architecture === 'arm') return bitness === '64' ? 'arm64' : 'arm';
+  return architecture;
+}
+
+/** What navigator and the user agent tell at once, without Client Hints. */
+export function readClientDetails(userAgent: string): ClientDetails {
+  const details: ClientDetails = browserFromUserAgent(userAgent);
+  const nav =
+    typeof navigator !== 'undefined'
+      ? (navigator as Navigator & {
+          deviceMemory?: number;
+          userAgentData?: UserAgentData;
+        })
+      : null;
+  if (nav && typeof nav.hardwareConcurrency === 'number') {
+    details.cpu_cores = nav.hardwareConcurrency;
+  }
+  if (nav && typeof nav.deviceMemory === 'number') {
+    details.device_memory_gb = nav.deviceMemory;
+  }
+  if (/iPad|Tablet/.test(userAgent)) {
+    details.form_factor = 'tablet';
+  } else if (
+    nav?.userAgentData?.mobile === true ||
+    /Mobi|iPhone|Android/.test(userAgent)
+  ) {
+    details.form_factor = 'mobile';
+  } else if (userAgent) {
+    details.form_factor = 'desktop';
+  }
+  return details;
+}
+
+/** Resolved once per page: every client on it shares the answer. */
+let highEntropyValues: Promise<HighEntropyValues | null> | null = null;
+
+/**
+ * Asks the browser (Client Hints, Chromium) for the real OS version, the full
+ * browser version, the CPU architecture, the device model and the form
+ * factor, and sets them on `info` when it answers (a few ms). Events built
+ * before that share the same `client` object and are serialized only when
+ * sent, so they carry the answer too.
+ */
+export function refineClientInfo(info: SdkClientInfo): Promise<void> {
   const data =
     typeof navigator !== 'undefined'
       ? ((navigator as unknown as { userAgentData?: UserAgentData })
           .userAgentData ?? null)
       : null;
   if (!data?.getHighEntropyValues) return Promise.resolve();
-  if (!hintedOsVersion) {
-    hintedOsVersion = data
-      .getHighEntropyValues(['platformVersion'])
-      .then((values) => osVersionFromHints(info.os, values?.platformVersion))
-      .catch(() => undefined);
+  if (!highEntropyValues) {
+    highEntropyValues = data
+      .getHighEntropyValues(HIGH_ENTROPY_HINTS)
+      .catch(() => null);
   }
-  return hintedOsVersion.then((version) => {
-    if (version) info.os_version = version;
+  return highEntropyValues.then((values) => {
+    if (!values) return;
+    const osVersion = osVersionFromHints(info.os, values.platformVersion);
+    if (osVersion) info.os_version = osVersion;
+    Object.assign(info, browserFromBrands(values.fullVersionList));
+    const cpuArch = cpuArchFromHints(values.architecture, values.bitness);
+    if (cpuArch) info.cpu_arch = cpuArch;
+    if (values.model) info.device_model = values.model;
+    const formFactor = values.formFactors?.[0];
+    if (formFactor) info.form_factor = formFactor.toLowerCase();
   });
 }
 
-/** Tests only: forget the page's cached client-hints answer. */
-export const resetOsVersionHints = (): void => {
-  hintedOsVersion = null;
+/** Tests only: forget the page's cached Client Hints answer. */
+export const resetClientHints = (): void => {
+  highEntropyValues = null;
 };
 
-export function buildClientInfo(env?: string): ClientInfo {
+export function buildClientInfo(env?: string): SdkClientInfo {
   const userAgent =
     typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
   const os = detectOs(userAgent);
-  const info: ClientInfo = {
+  const info: SdkClientInfo = {
     environment: env === 'development' ? 'development' : 'production',
     sdk: 'js',
     sdk_version: pkg.version,
@@ -325,7 +466,8 @@ export function buildClientInfo(env?: string): ClientInfo {
     user_agent: userAgent,
   };
   if (os.os_version) info.os_version = os.os_version;
-  void refineOsVersion(info);
+  Object.assign(info, readClientDetails(userAgent));
+  void refineClientInfo(info);
   return info;
 }
 
@@ -343,7 +485,7 @@ function fingerprint(params: Record<string, unknown>): string {
 
 export default class TelemetryClient {
   public readonly sdkInstanceId: string = uuidv4();
-  public readonly client: ClientInfo;
+  public readonly client: SdkClientInfo;
   public readonly metricsIntervalMs: number;
   public readonly maxPendingEvents: number;
   public readonly maxSendBacklogBytes: number;
