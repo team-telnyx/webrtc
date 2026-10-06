@@ -721,8 +721,17 @@ export default class SessionTelemetry {
       const now = Date.now();
       const chain = this._ensureChain();
       const session = this._anySession;
+      // Until VSP sends its names in the login result, the region and DC the
+      // server put in this REGED answer (session.region / dc, set just now).
+      const vsp = this._vsp();
+      if (!vsp.signaling_region && typeof session.region === 'string') {
+        vsp.signaling_region = session.region;
+      }
+      if (!vsp.signaling_dc && typeof session.dc === 'string') {
+        vsp.signaling_dc = session.dc;
+      }
       this._client.emit('client_ready', {
-        ...this._vsp(),
+        ...vsp,
         is_reconnect: chain.isReconnect,
         time_to_ready_ms: now - this.creationStartedAt,
         connect_to_ready_ms: now - chain.startedAt,

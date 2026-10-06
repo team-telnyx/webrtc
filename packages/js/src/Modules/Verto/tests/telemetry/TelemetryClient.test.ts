@@ -474,6 +474,12 @@ describe('toErrorInfo', () => {
     expect(info.server_message).toBe('CALL DOES NOT EXIST');
   });
 
+  it('names a bare JSON-RPC error ServerError, not Object', () => {
+    const info = toErrorInfo({ code: -32001, message: 'Login Incorrect' });
+    expect(info.name).toBe('ServerError');
+    expect(info.server_code).toBe('-32001');
+  });
+
   it('does not take a DOMException legacy code for an SDK or server code', () => {
     const domError = {
       name: 'NotFoundError',

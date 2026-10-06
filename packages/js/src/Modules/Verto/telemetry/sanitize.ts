@@ -146,7 +146,16 @@ export function toErrorInfo(error: any, code?: string | number): ErrorInfo {
     };
   }
   const info: ErrorInfo = {
-    name: String(error.name || error.constructor?.name || 'Error'),
+    // A plain object has no useful constructor name ("Object"): a server's
+    // JSON-RPC error (negative code) is a ServerError, anything else an Error.
+    name: String(
+      error.name ||
+        (error.constructor && error.constructor !== Object
+          ? error.constructor.name
+          : typeof error.code === 'number' && error.code < 0
+            ? 'ServerError'
+            : 'Error')
+    ),
     message: sanitizeMessage(String(error.message ?? error.description ?? '')),
   };
   // The SDK's own codes are 400xx-490xx; a DOMException's legacy code is not one.
