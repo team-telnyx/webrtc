@@ -269,6 +269,7 @@ export interface IClientOptions {
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, WebRTC stats are collected periodically during calls
    * and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+   * Reports also include the client's initial registration timing summary.
    *
    * @default true
    */
