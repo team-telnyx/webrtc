@@ -200,7 +200,10 @@ export type DeviceListChangedPayload = {
   removed: number;
 };
 
-/** The signaling VSP by name (never addresses). */
+/**
+ * A VSP by name (never addresses); used by VSP's own records. The SDK sends no VSP or B2BUA-RTC names: since
+ * option B′ (owner, 2026-10-07) the signaling VSP reports them itself (vsp_session).
+ */
 export type SignalingVsp = {
   signaling_region?: string;
   signaling_dc?: string;
@@ -228,9 +231,6 @@ export type SocketFailedPayload = {
 
 export type SocketConnectedPayload = {
   connect_duration_ms: number;
-  region?: string;
-  dc?: string;
-  node?: string;
 };
 
 export type SocketClosedPayload = {
@@ -257,21 +257,21 @@ export type LoginStartedPayload = {
   resume_session_id?: string;
 };
 
-export type LoginFailedPayload = SignalingVsp & {
+export type LoginFailedPayload = {
   method: LoginMethod;
   is_reconnect: boolean;
   error: CodedErrorInfo;
   will_retry: boolean;
 };
 
-export type LoginSucceededPayload = SignalingVsp & {
+export type LoginSucceededPayload = {
   method: LoginMethod;
   is_reconnect: boolean;
   login_duration_ms: number;
 };
 
 /** The connection's step times; "provided" flags never carry the value. */
-export type ClientReadyPayload = SignalingVsp & {
+export type ClientReadyPayload = {
   is_reconnect: boolean;
   time_to_ready_ms: number; // since sdk_creation_started
   connect_to_ready_ms: number; // since connect() or the reconnect
@@ -325,15 +325,8 @@ export type SignalingMessagePayload = {
   raw: unknown;
 };
 
-/** The B2BUA-RTC serving the call, by name. */
-export type B2buaRtc = {
-  b2bua_rtc_node?: string;
-  b2bua_rtc_region?: string;
-  b2bua_rtc_dc?: string;
-};
-
 /** The values the call ran with; null = this SDK has no such option. */
-export type CallStartedPayload = B2buaRtc & {
+export type CallStartedPayload = {
   direction: 'inbound' | 'outbound';
   caller_number?: string;
   caller_name?: string;
@@ -357,9 +350,6 @@ export type CallStartedPayload = B2buaRtc & {
   speaker_id_provided: boolean | null;
   camera_id_provided: boolean | null;
   is_reattach: boolean;
-  signaling_region?: string;
-  signaling_dc?: string;
-  signaling_node?: string;
 };
 
 export type CallState =
@@ -376,7 +366,7 @@ export type CallState =
   | 'destroy'
   | 'purge';
 
-export type CallStatePayload = B2buaRtc & {
+export type CallStatePayload = {
   state: CallState;
   previous_state?: CallState;
 };

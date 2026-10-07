@@ -397,7 +397,7 @@ describe('CallTelemetry', () => {
     ).toBeNull();
   });
 
-  it('call_started: names and provided flags; credentials out of the raw options', () => {
+  it('call_started: provided flags, no VSP names; credentials out of the raw options', () => {
     const { telemetry, ws } = setup();
     telemetry.start();
     const started = ws.payload('call_started');
@@ -408,17 +408,18 @@ describe('CallTelemetry', () => {
         custom_ice_servers: true,
         ice_servers_count: 1,
         custom_header_names: ['X-Account', 'X-Auth-Token'],
-        signaling_region: 'us-central',
-        b2bua_rtc_node: 'b2b-1',
       })
     );
+    // Option B′: the signaling VSP reports its and the B2BUA-RTC's names itself.
+    expect(started.signaling_region).toBeUndefined();
+    expect(started.b2bua_rtc_node).toBeUndefined();
     expect(started.extra.raw_call_options.customHeaders[1].value).toBe(
       '[REDACTED]'
     );
     expect(JSON.stringify(ws.events())).not.toContain('do-not-send');
   });
 
-  it('call_state: previous state always, Telnyx IDs once known, B2BUA names once', () => {
+  it('call_state: previous state always, Telnyx IDs once known, no B2BUA names', () => {
     const { telemetry, ws, call } = setup();
     telemetry.start();
     telemetry.onState('new', '');
@@ -437,7 +438,7 @@ describe('CallTelemetry', () => {
       ['ringing', 'new', 'leg-1'],
       ['ringing', 'ringing', 'leg-1'],
     ]);
-    expect(states.some((e) => e.payload.b2bua_rtc_node)).toBe(false); // already on call_started
+    expect(states.some((e) => e.payload.b2bua_rtc_node)).toBe(false);
   });
 
   it('runs the metrics loop: media snapshot, metrics without Telnyx IDs, totals and the record count in call_ended', async () => {

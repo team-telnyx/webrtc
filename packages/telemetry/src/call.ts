@@ -227,7 +227,6 @@ export default class CallTelemetry {
   private readonly _startedPerf = nowPerf();
   private readonly _direction: 'inbound' | 'outbound';
   private _telnyxIds: Partial<KnownIds> = {};
-  private _b2buaSent = false;
   private _lastState: CallState = 'new';
   private _lastStatePerf: number | null = null;
   private _lastEmittedState: CallState | null = null;
@@ -312,13 +311,6 @@ export default class CallTelemetry {
     );
   }
 
-  /** The B2BUA-RTC names, once: on call_started or the first call_state that knows them. */
-  private _b2bua(): Flat {
-    if (this._b2buaSent) return {};
-    this._b2buaSent = Object.keys(this._session.b2bua).length > 0;
-    return { ...this._session.b2bua };
-  }
-
   // ── call_started and call_state ──────────────────────────────────────
 
   start(): void {
@@ -346,7 +338,6 @@ export default class CallTelemetry {
       ? options.preferred_codecs
       : [];
     const useSdpAs = !!options.mediaSettings?.useSdpASBandwidthKbps;
-    const vsp = this._session.vsp;
     const raw: Flat = { ...options, remoteSdp: undefined, localSdp: undefined };
     // A header that carries a credential (by its name) keeps its name only.
     if (Array.isArray(options.customHeaders)) {
@@ -381,12 +372,6 @@ export default class CallTelemetry {
       speaker_id_provided: !!options.speakerId,
       camera_id_provided: !!options.camId,
       is_reattach: options.attach === true || !!options.recoveredCallId,
-      ...defined({
-        signaling_region: vsp.signaling_region ?? str(session.region),
-        signaling_dc: vsp.signaling_dc ?? str(session.dc),
-        signaling_node: vsp.signaling_node,
-      }),
-      ...this._b2bua(),
       ...defined({
         caller_number: str(
           inbound ? options.remoteCallerNumber : options.callerNumber
@@ -454,7 +439,6 @@ export default class CallTelemetry {
     this._emit('call_state', {
       state: state as CallState,
       ...(previous ? { previous_state: previous } : {}),
-      ...this._b2bua(),
       extra,
     });
   }

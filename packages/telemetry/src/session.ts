@@ -13,7 +13,6 @@ import type {
   NetworkChangedPayload,
   PayloadOf,
   SdkOptions,
-  SignalingVsp,
 } from './contract';
 import {
   hasFocusNow,
@@ -80,16 +79,6 @@ const GATEWAY_STATES = words(`UNREGED TRYING REGISTER REGED UNREGISTER FAILED
 
 export const toGatewayState = (raw: string) =>
   (GATEWAY_STATES.includes(raw) ? raw : 'UNKNOWN') as GatewayState;
-
-/** String fields of a server result (or its params); missing ones omitted. */
-function readNames(result: Any, fields: string): Record<string, string> {
-  const names: Record<string, string> = {};
-  for (const field of words(fields)) {
-    const value = str(result?.[field] ?? result?.params?.[field]);
-    if (value) names[field] = value;
-  }
-  return names;
-}
 
 /** The signaling credentials, for the telemetry login too (owner, 2026-10-04). */
 function loginParams(options: Any): Flat | null {
@@ -224,9 +213,6 @@ export default class SessionTelemetry {
   /** Signaling socket counter (envelope socket_generation). */
   socketGeneration = 0;
   readonly creationStartedAt = Date.now();
-  /** The signaling VSP and B2BUA-RTC names from the login result (reset per socket). */
-  vsp: SignalingVsp = {};
-  b2bua: Record<string, string> = {};
 
   private _createdAt: number | null = null;
   private _hasConnected = false;
@@ -573,8 +559,6 @@ export default class SessionTelemetry {
 
   /** A new signaling socket starts opening (one socket = one VSP and B2BUA-RTC). */
   socketConnectStarted(url: URL): void {
-    this.vsp = {};
-    this.b2bua = {};
     const chain = this._ensureChain();
     const now = Date.now();
     chain.socketAttempts += 1;
@@ -624,11 +608,6 @@ export default class SessionTelemetry {
     const extensions = attempt(() => ws.extensions);
     this.client.emit('socket_connected', {
       connect_duration_ms: now - socket.startedAt,
-      ...defined({
-        region: this.vsp.signaling_region,
-        dc: this.vsp.signaling_dc,
-        node: this.vsp.signaling_node,
-      }),
       extra: {
         attempt: socket.attempt,
         ...(typeof protocol === 'string' ? { protocol } : {}),
@@ -758,7 +737,6 @@ export default class SessionTelemetry {
     const login = this._login;
     if (!login) return;
     this.client.emit('login_failed', {
-      ...this.vsp,
       method: login.method,
       is_reconnect: login.isReconnect,
       error: toCodedErrorInfo(error, CODE_LOGIN_FAILED),
@@ -770,16 +748,8 @@ export default class SessionTelemetry {
     });
   }
 
-  /** The server's whole login result; it names the VSP and B2BUA-RTC. */
+  /** The server's whole login result goes under extra. */
   loginSucceeded(result?: unknown): void {
-    this.vsp = readNames(
-      result,
-      'signaling_region signaling_dc signaling_node'
-    );
-    this.b2bua = readNames(
-      result,
-      'b2bua_rtc_region b2bua_rtc_dc b2bua_rtc_node'
-    );
     const login = this._login;
     if (!login) return;
     const now = Date.now();
@@ -787,7 +757,6 @@ export default class SessionTelemetry {
     this._hasLoggedIn = this._readyPending = true;
     this._gatewayCheckNumber = 0;
     this.client.emit('login_succeeded', {
-      ...this.vsp,
       method: login.method,
       is_reconnect: login.isReconnect,
       login_duration_ms: now - login.startedAt,
@@ -808,16 +777,7 @@ export default class SessionTelemetry {
     const now = Date.now();
     const chain = this._ensureChain();
     const session = this.session as Any;
-    // Until VSP names itself, the region and DC of this REGED answer.
-    const vsp = { ...this.vsp };
-    if (!vsp.signaling_region && typeof session.region === 'string') {
-      vsp.signaling_region = session.region;
-    }
-    if (!vsp.signaling_dc && typeof session.dc === 'string') {
-      vsp.signaling_dc = session.dc;
-    }
     this.client.emit('client_ready', {
-      ...vsp,
       is_reconnect: chain.isReconnect,
       time_to_ready_ms: now - this.creationStartedAt,
       connect_to_ready_ms: now - chain.startedAt,

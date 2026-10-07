@@ -240,11 +240,6 @@ describe('SessionTelemetry', () => {
       bufferedAmount: 0,
     };
     events.socketCreated(signaling);
-    events.loginSucceeded({
-      signaling_region: 'us-central',
-      signaling_dc: 'da1',
-      signaling_node: 'vsp-1',
-    });
     events.socketOpened(signaling);
     events.frameSent({ jsonrpc: '2.0', id: 'x', method: 'telnyx_rtc.info' });
     events.socketEnded(signaling, { code: 1006, reason: '', wasClean: false });
@@ -268,9 +263,6 @@ describe('SessionTelemetry', () => {
     });
     expect(ws.payload('socket_connected')).toEqual({
       connect_duration_ms: expect.any(Number),
-      region: 'us-central',
-      dc: 'da1',
-      node: 'vsp-1',
       extra: { attempt: 1, protocol: '', extensions: 'permessage-deflate' },
     });
     expect(ws.payload('socket_closed')).toEqual(
@@ -294,11 +286,9 @@ describe('SessionTelemetry', () => {
         extra: expect.objectContaining({ close_reason: 'refused' }),
       })
     );
-    // A new socket forgets the previous VSP's names.
-    expect(events.vsp).toEqual({});
   });
 
-  it('login and client_ready: names, step times, server answers without credentials', () => {
+  it('login and client_ready: step times, server answers without credentials, no VSP names', () => {
     const { events, ws, session } = connectedSession(
       makeSession({ remoteElement: 'el', micId: '', speaker: 'spk' })
     );
@@ -325,12 +315,13 @@ describe('SessionTelemetry', () => {
       token: '[REDACTED]',
       b2bua_rtc_node: 'b2b-1',
     });
-    expect(events.b2bua).toEqual({ b2bua_rtc_node: 'b2b-1' });
     const ready = ws.events().filter((e) => e.name === 'client_ready');
     expect(ready).toHaveLength(1);
+    // Option B′: VSP reports its and the B2BUA-RTC's names itself.
+    expect(ready[0].payload.signaling_region).toBeUndefined();
+    expect(ws.payload('login_succeeded').signaling_region).toBeUndefined();
     expect(ready[0].payload).toEqual(
       expect.objectContaining({
-        signaling_region: 'us-central',
         is_reconnect: false,
         login_attempts: 1,
         remote_element_provided: true,
