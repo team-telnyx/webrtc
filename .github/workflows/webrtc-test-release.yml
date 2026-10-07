@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "packages/js/**"
+      - "packages/telemetry/**"
   workflow_dispatch:
     inputs:
       package:

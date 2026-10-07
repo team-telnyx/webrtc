@@ -2959,10 +2959,19 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@telnyx/webrtc-telemetry@workspace:packages/telemetry"
   dependencies:
+    "@eslint/js": "npm:^9.39.2"
     "@types/jest": "npm:^26.0.20"
     "@types/uuid": "npm:^7.0.0"
+    eslint: "npm:^9.39.2"
     jest: "npm:^26.6.3"
+    jest-environment-jsdom: "npm:^26.6.2"
+    prettier: "npm:^3.7.4"
+    release-it: "npm:^14.11.8"
+    rollup: "npm:^1.19.4"
+    rollup-plugin-typescript2: "npm:^0.24.0"
     ts-jest: "npm:^26.5.4"
+    typescript: "npm:4.7"
+    typescript-eslint: "npm:^8.50.0"
     uuid: "npm:^7.0.3"
   languageName: unknown
   linkType: soft
