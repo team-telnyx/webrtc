@@ -12,7 +12,6 @@
  * - Posts intermediate segments during active calls and a final segment on call end
  */
 
-import type { ICallWarningDetails } from '../telemetry/CallTelemetry';
 import logger from '../../../Modules/Verto/util/logger';
 import {
   LogCollector,
@@ -36,6 +35,13 @@ import {
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
+
+/** The measurement that tripped a quality warning (telemetry call_warning). */
+export type ICallWarningDetails = {
+  metric: string;
+  value: number;
+  threshold: number;
+};
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics

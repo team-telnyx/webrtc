@@ -1,6 +1,6 @@
 import log from 'loglevel';
 import { getGlobalLogCollector, LogLevel } from './LogCollector';
-import { forwardSdkLog } from '../telemetry/logSink';
+import { forwardSdkLog } from '@telnyx/webrtc-telemetry';
 
 const datetime = () =>
   new Date().toISOString().replace('T', ' ').replace('Z', '');

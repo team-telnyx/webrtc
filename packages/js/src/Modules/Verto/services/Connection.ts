@@ -26,11 +26,7 @@ import {
   setReconnectToken,
 } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
-import type { SocketTarget } from '../telemetry/payloads';
-import type {
-  ReceivedFrame,
-  SocketTelemetry,
-} from '../telemetry/sessionEvents';
+import { telemetryOf } from '../telemetry';
 import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
@@ -68,9 +64,6 @@ export default class Connection {
   private _timers: { [id: string]: ReturnType<typeof setTimeout> } = {};
 
   private _safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  /** Call Report V2: the telemetry handle of each signaling socket. */
-  private _socketTelemetry = new WeakMap<WebSocket, SocketTelemetry>();
 
   /**
    * Set of request IDs with pending one-shot handlers registered via
@@ -226,15 +219,9 @@ export default class Connection {
 
     try {
       const previousSocketGeneration = this.socketGeneration;
-      this.session.onNewSignalingSocket?.();
-      const socketTelemetry =
-        this.session.telemetryEvents?.socketConnectStarted(
-          this._socketTarget(websocketUrl)
-        ) ?? null;
+      telemetryOf(this.session)?.socketConnectStarted(websocketUrl);
       this._wsClient = new WebSocketClass(websocketUrl.toString());
-      if (socketTelemetry) {
-        this._socketTelemetry.set(this._wsClient, socketTelemetry);
-      }
+      telemetryOf(this.session)?.socketCreated(this._wsClient);
       this.socketGeneration += 1;
       logger.debug('WebSocket connection created', {
         sessionId: this.session.sessionid,
@@ -248,7 +235,7 @@ export default class Connection {
     } catch (error) {
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
-      this.session.telemetryEvents?.socketCreateFailed(telnyxError);
+      telemetryOf(this.session)?.socketCreateFailed(telnyxError);
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this.session.sessionid },
@@ -262,40 +249,12 @@ export default class Connection {
   }
 
   sendRawText(request: string): void {
-    if (this._wsClient && this.session.telemetryEvents) {
-      this._recordRawFrame(request);
+    const telemetry = this._wsClient && telemetryOf(this.session);
+    // Call Report V2: JSON-RPC text only (not speed-test frames and the like).
+    if (telemetry && typeof request === 'string' && request[0] === '{') {
+      telemetry.frameSent(safeParseJson(request));
     }
     this._wsClient?.send(request);
-  }
-
-  /** Call Report V2: a raw text frame, recorded only when it is JSON-RPC. */
-  private _recordRawFrame(request: string): void {
-    try {
-      if (typeof request !== 'string' || request.charAt(0) !== '{') return;
-      this.session.telemetryEvents?.frameSent(JSON.parse(request));
-    } catch {
-      // not JSON: speed-test frames and the like are not signaling messages
-    }
-  }
-
-  /** Call Report V2 socket target: no query string (it carries voice_sdk_id). */
-  private _socketTarget(url: URL): SocketTarget {
-    const { options } = this.session;
-    const params = url.searchParams;
-    const target: SocketTarget = {
-      url: `${url.protocol}//${url.host}${url.pathname === '/' ? '' : url.pathname}`,
-      use_canary_server: params.get('canary') === 'true',
-      skip_last_voice_sdk_id: params.get('skip_last_voice_sdk_id') === 'true',
-      skip_trailing: params.get('skip_trailing') === 'true',
-    };
-    if (options.region) target.region = options.region;
-    if (params.get('rtc_ip')) target.rtc_ip = params.get('rtc_ip');
-    const rtcPort = Number(params.get('rtc_port'));
-    if (rtcPort) target.rtc_port = rtcPort;
-    if (params.get('voice_sdk_id')) {
-      target.resume_voice_sdk_id = params.get('voice_sdk_id');
-    }
-    return target;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -380,7 +339,7 @@ export default class Connection {
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
     const text = JSON.stringify(request);
-    if (this._wsClient) this.session.telemetryEvents?.frameSent(request);
+    if (this._wsClient) telemetryOf(this.session)?.frameSent(request);
     this._wsClient?.send(text);
 
     return promise;
@@ -403,9 +362,7 @@ export default class Connection {
 
     // Capture socket reference for timeout handler (prevent race condition)
     const closingSocket = this._wsClient;
-    this.session.telemetryEvents?.socketCloseRequested(
-      this._socketTelemetry.get(closingSocket) ?? null
-    );
+    telemetryOf(this.session)?.socketCloseRequested(closingSocket);
 
     // Call close
     // @ts-expect-error polyfill
@@ -440,10 +397,7 @@ export default class Connection {
         socketGeneration: this.socketGeneration,
         sessionId: this.session.sessionid,
       });
-      this.session.telemetryEvents?.socketOpened(
-        this._socketTelemetry.get(ws) ?? null,
-        ws
-      );
+      telemetryOf(this.session)?.socketOpened(ws);
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
 
@@ -467,10 +421,11 @@ export default class Connection {
         this.session.uuid
       );
       // After the session decided whether to reconnect.
-      this.session.telemetryEvents?.socketEnded(
-        this._socketTelemetry.get(ws) ?? null,
-        { code: event?.code, reason: event?.reason, wasClean: event?.wasClean }
-      );
+      telemetryOf(this.session)?.socketEnded(ws, {
+        code: event?.code,
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+      });
       return handled;
     };
 
@@ -534,10 +489,7 @@ export default class Connection {
 
       // Call Report V2: the frame's record takes its sequence now and goes
       // out once the SDK handled it (so it knows whether a handler existed).
-      let receivedFrame: ReceivedFrame | null = null;
-      if (this.session.telemetryEvents) {
-        receivedFrame = this.session.telemetryEvents.frameReceived(msg);
-      }
+      const received = telemetryOf(this.session)?.frameReceived(msg);
       try {
         this._handleMessage(
           ws,
@@ -546,7 +498,7 @@ export default class Connection {
           canaryRtcServerForConnection
         );
       } finally {
-        this.session.telemetryEvents?.receivedFrameDone(receivedFrame);
+        telemetryOf(this.session)?.receivedFrameDone(received);
       }
     };
   }
@@ -585,7 +537,7 @@ export default class Connection {
       // If there is not an handler for this message, dispatch an incoming!
       const gateWayState = getGatewayState(msg);
       if (gateWayState) {
-        this.session.telemetryEvents?.gatewayState(
+        telemetryOf(this.session)?.gatewayState(
           gateWayState,
           msg?.result?.params?.state ? 'result' : 'notification'
         );
@@ -643,14 +595,11 @@ export default class Connection {
         },
         this.session.uuid
       );
-      this.session.telemetryEvents?.socketEnded(
-        this._socketTelemetry.get(closingSocket) ?? null,
-        {
-          code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
-          reason: 'STUCK_WS_TIMEOUT',
-          wasClean: false,
-        }
-      );
+      telemetryOf(this.session)?.socketEnded(closingSocket, {
+        code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
+        reason: 'STUCK_WS_TIMEOUT',
+        wasClean: false,
+      });
     } else {
       logger.debug(
         'Safety timeout: socket was replaced, not emitting SocketClose',

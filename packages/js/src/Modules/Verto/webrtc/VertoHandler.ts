@@ -28,6 +28,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
+import { telemetryOf } from '../telemetry';
 import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
@@ -63,7 +64,7 @@ class VertoHandler {
 
   /** Sends the gatewayState poll; telemetry records it as a gateway check. */
   private _checkGateway(message: Gateway): void {
-    const telemetry = this.session.telemetryEvents;
+    const telemetry = telemetryOf(this.session);
     telemetry?.gatewayCheckStarted(message.request?.id);
     const sent = this.session.execute(message);
     if (telemetry && sent && typeof sent.catch === 'function') {
@@ -88,7 +89,7 @@ class VertoHandler {
     const { id, method, params = {}, voice_sdk_id } = msg;
 
     if (Array.isArray(params?.reattached_sessions)) {
-      session.telemetryEvents?.reattachedSessions(params.reattached_sessions);
+      telemetryOf(session)?.reattachedSessions(params.reattached_sessions);
     }
 
     const callID = params?.callID;
@@ -126,7 +127,7 @@ class VertoHandler {
           );
 
           const error = createTelnyxError(SESSION_NOT_REATTACHED);
-          session.telemetryEvents?.error('call', error, true, undefined, {
+          telemetryOf(session)?.error('call', error, true, undefined, {
             call_id: callId,
           });
           trigger(
@@ -209,7 +210,7 @@ class VertoHandler {
                 `Recovery marker for call ${call.id} (sessid=${session.sessionid}) was not reattached — emitting SESSION_NOT_REATTACHED.`
               );
               const error = createTelnyxError(SESSION_NOT_REATTACHED);
-              session.telemetryEvents?.error(
+              telemetryOf(session)?.error(
                 'call',
                 error,
                 true,
@@ -635,7 +636,7 @@ class VertoHandler {
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
 
-                session.telemetryEvents?.clientReady(msg?.result?.params);
+                telemetryOf(session)?.clientReady(msg?.result?.params);
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
                 trigger(SwEvent.Ready, params, session.uuid);
               }
@@ -662,7 +663,7 @@ class VertoHandler {
                   LOGIN_FAILED,
                   originalError
                 );
-                session.telemetryEvents?.error('gateway', telnyxError, false, {
+                telemetryOf(session)?.error('gateway', telnyxError, false, {
                   gateway_state: gateWayState,
                   checks: RETRY_REGISTER_TIME,
                 });
@@ -696,7 +697,7 @@ class VertoHandler {
                   GATEWAY_FAILED,
                   new Error(`Gateway state: ${gateWayState}`)
                 );
-                session.telemetryEvents?.error('gateway', gatewayError, false, {
+                telemetryOf(session)?.error('gateway', gatewayError, false, {
                   gateway_state: gateWayState,
                 });
                 trigger(
@@ -730,7 +731,7 @@ class VertoHandler {
                     RECONNECTION_EXHAUSTED,
                     originalError
                   );
-                  session.telemetryEvents?.error('gateway', telnyxError, true, {
+                  telemetryOf(session)?.error('gateway', telnyxError, true, {
                     gateway_state: gateWayState,
                     auto_reconnect: false,
                   });
@@ -755,7 +756,7 @@ class VertoHandler {
                     RECONNECTION_EXHAUSTED,
                     new Error('Connection Retry Failed')
                   );
-                  session.telemetryEvents?.error('gateway', telnyxError, true, {
+                  telemetryOf(session)?.error('gateway', telnyxError, true, {
                     gateway_state: gateWayState,
                     retries: RETRY_CONNECT_TIME,
                   });
@@ -910,7 +911,7 @@ class VertoHandler {
         const result = await session.vertoSubscribe(tmp).catch((error) => {
           logger.error('liveArray subscription error:', error);
           const telnyxError = createTelnyxError(SUBSCRIBE_FAILED, error);
-          session.telemetryEvents?.error('call', telnyxError, false, {
+          telemetryOf(session)?.error('call', telnyxError, false, {
             action: 'liveArray subscribe',
           });
           trigger(

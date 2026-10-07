@@ -1,8 +1,8 @@
-import type { ITelemetryOptions } from '../Modules/Verto/telemetry/TelemetryClient';
 import Call from '../Modules/Verto/webrtc/Call';
 import {
   Environment,
   INotificationEventData,
+  ITelemetryOptions,
 } from '../Modules/Verto/util/interfaces';
 
 export interface ICredentials {

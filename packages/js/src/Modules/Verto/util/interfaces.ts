@@ -1,4 +1,3 @@
-import type { ITelemetryOptions } from '../telemetry/TelemetryClient';
 import { IWebRTCCall } from '../webrtc/interfaces';
 import { TargetParams } from '../../../utils/interfaces';
 
@@ -247,3 +246,43 @@ export interface IResponseRPC {
 }
 
 export interface IMessageRPC extends IRequestRPC, IResponseRPC {}
+
+/** Call Report V2 telemetry settings (`options.telemetry`, beta). */
+export interface ITelemetryOptions {
+  /** false = record and send nothing. true = send to the telemetry socket. Unset = local capture. */
+  enabled?: boolean;
+  /** The telemetry socket; setting it sends there. Default wss://rtc-telemetry.telnyx.com (production). */
+  url?: string;
+  metricsIntervalMs?: number;
+  maxPendingEvents?: number;
+  maxSendBacklogBytes?: number;
+  /**
+   * Local capture (the default): the frames the SDK would send, kept in
+   * memory, printed to the console and passed to `onFrame`; nothing goes
+   * over the network. Read them with `client.telemetry.capturedFrames()`.
+   */
+  capture?: boolean | ITelemetryCaptureOptions;
+  /** Capture mode: each frame's JSON text as it is "sent". */
+  onFrame?: (frame: string) => void;
+}
+
+export interface ITelemetryCaptureOptions {
+  /** Print each frame to the console. Default true. */
+  console?: boolean;
+  /** What each console line starts with. Default "[CR2 telemetry]". */
+  consoleMark?: string;
+  /** Save the frames since the last flush as a .jsonl download every `flushIntervalMs` and on disconnect. */
+  download?: boolean;
+  /** Same schedule as `download`: the frames since the last flush. */
+  onFlush?: (frames: string[]) => void;
+  /** Default 300000 (5 minutes). */
+  flushIntervalMs?: number;
+}
+
+/** `client.telemetry`: the capture-mode frames. */
+export interface ITelemetryCapture {
+  readonly sdkInstanceId: string;
+  capturedFrames(): string[];
+  downloadCapture(filename?: string): void;
+  flushCapture(): void;
+}

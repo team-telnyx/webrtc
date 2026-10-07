@@ -40,6 +40,7 @@ import {
 import {
   BroadcastParams,
   ILoginParams,
+  ITelemetryCapture,
   IVertoOptions,
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
@@ -59,19 +60,8 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
-import TelemetryClient, {
-  TELEMETRY_PROD_URL,
-} from './telemetry/TelemetryClient';
-import SessionTelemetry, {
-  B2BUA_RTC_FIELDS,
-  readServerNames,
-  SIGNALING_VSP_FIELDS,
-} from './telemetry/sessionEvents';
-import type {
-  B2buaRtcNames,
-  SignalingVspNames,
-} from './telemetry/sessionEvents';
-import { PING_RECEIVED_LOG } from './telemetry/filter';
+import { PING_RECEIVED_LOG } from '@telnyx/webrtc-telemetry';
+import { startTelemetry, telemetryOf } from './telemetry';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -104,14 +94,8 @@ export default abstract class BaseSession {
   public region: string | null = null;
 
   public connection: Connection = null;
-  /** Call Report V2 telemetry sender; null when telemetry is off. */
-  public telemetry: TelemetryClient | null = null;
-  /** Call Report V2 SDK-wide event hooks; null when telemetry is off. */
-  public telemetryEvents: SessionTelemetry | null = null;
-  /** The signaling VSP's names, from the login result (reset on each new socket). */
-  public signalingVsp: SignalingVspNames = {};
-  /** The B2BUA-RTC serving this socket, from the login result (reset on each new socket). */
-  public b2buaRtc: B2buaRtcNames = {};
+  /** Call Report V2 telemetry (capture mode frames); null when off. */
+  public telemetry: ITelemetryCapture | null = null;
   protected _jwtAuth: boolean = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
@@ -151,33 +135,11 @@ export default abstract class BaseSession {
   private registerAgent: RegisterAgent;
 
   constructor(public options: IVertoOptions) {
-    // The telemetry socket takes no anonymous login in the beta, so an
-    // anonymous-only client only ever captures locally: it never holds
-    // events for a socket it can't log in to.
-    this.telemetry = TelemetryClient.create(options, {
-      allowSocket: !BaseSession._isAnonymousOnly(options),
-    });
-    if (this.telemetry) {
-      this.telemetryEvents = new SessionTelemetry(this, this.telemetry);
-      // Sequence 1: the constructor was entered.
-      this.telemetryEvents.creationStarted(options);
-    }
-    this.telemetry?.attach({
-      getLoginParams: () => this._getTelemetryLoginParams(),
-      getVoiceSdkId: () => this.callReportVoiceSdkId,
-      getSessionId: () => this.sessionid,
-      // Per instance, +1 for each new signaling socket; never reset when the
-      // Connection object is replaced (contract: socket_generation).
-      getSocketGeneration: () => this.telemetryEvents?.socketGeneration ?? 0,
-      // The telemetry VSP has its own domain (owner, 2026-10-06). No default
-      // for development yet: set options.telemetry.url there.
-      getDefaultUrl: () =>
-        this.options.env === 'development' ? null : TELEMETRY_PROD_URL,
-    });
-
+    // Sequence 1: the constructor was entered.
+    this.telemetry = startTelemetry(this)?.client ?? null;
     if (!this.validateOptions()) {
       const error = new Error('Invalid init options');
-      this.telemetryEvents?.creationFailed(error);
+      telemetryOf(this)?.creationFailed(error);
       throw error;
     }
 
@@ -320,7 +282,7 @@ export default abstract class BaseSession {
             undefined,
             true // fatal: true (no recovery path — autoReconnect is disabled)
           );
-          this.telemetryEvents?.error('login', telnyxError, true, {
+          telemetryOf(this)?.error('login', telnyxError, true, {
             method: msg.request?.method,
           });
           trigger(
@@ -384,29 +346,6 @@ export default abstract class BaseSession {
   }
 
   /**
-   * Credentials for the telemetry socket's login: a full login with the same
-   * credentials as the signaling login, whatever their type; VSP checks them
-   * like a signaling login (owner, 2026-10-04). Never logged or sent as
-   * telemetry. If VSP rejects them, the telemetry client waits for new ones.
-   */
-  private _getTelemetryLoginParams(): Record<string, unknown> | null {
-    const { login, password, passwd, login_token } = this.options;
-    if (login_token) return { login_token };
-    if (login && (password || passwd)) {
-      return { login, passwd: password || passwd };
-    }
-    return null;
-  }
-
-  private static _isAnonymousOnly(options: IVertoOptions): boolean {
-    return (
-      !!options?.anonymous_login &&
-      !options.login_token &&
-      !(options.login && (options.password || options.passwd))
-    );
-  }
-
-  /**
    * Validates the options passed in.
    * TelnyxRTC requires (login and password) OR login_token
    * Verto requires host, login, passwd OR password
@@ -446,8 +385,8 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
-    this.telemetryEvents?.dispose();
-    this.telemetry?.close();
+    telemetryOf(this)?.dispose();
+    telemetryOf(this)?.client.close();
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
     );
@@ -576,8 +515,8 @@ export default abstract class BaseSession {
     }
 
     this._autoReconnect = true;
-    this.telemetryEvents?.connectCalled();
-    this.telemetry?.connect();
+    telemetryOf(this)?.connectCalled();
+    telemetryOf(this)?.client.connect();
     if (!this.connection.isAlive) {
       logger.debug(
         "Connection wasn't alive, initiating connection to the server..."
@@ -789,7 +728,7 @@ export default abstract class BaseSession {
         undefined,
         msg
       );
-      this.telemetryEvents?.error('login', telnyxError, false);
+      telemetryOf(this)?.error('login', telnyxError, false);
       trigger(
         SwEvent.Error,
         {
@@ -856,14 +795,14 @@ export default abstract class BaseSession {
       });
     }
 
-    this.telemetryEvents?.loginStarted(
+    telemetryOf(this)?.loginStarted(
       type,
       reconnectSessionId || undefined,
       msg?.request?.id
     );
     const response = await this.execute(msg).catch((error) => {
       // execute() already retried the login itself on "authentication required".
-      this.telemetryEvents?.loginFailed(
+      telemetryOf(this)?.loginFailed(
         error,
         error?.code === this.authenticationRequiredErrorCode
       );
@@ -876,36 +815,13 @@ export default abstract class BaseSession {
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
       }
-      this._storeLoginResultNames(response);
-      this.telemetryEvents?.loginSucceeded(response);
+      telemetryOf(this)?.loginSucceeded(response);
       // The credentials may be new (client.login({ creds })): a telemetry
       // socket that was rejected or never opened tries again with them.
-      this.telemetry?.connect();
+      telemetryOf(this)?.client.connect();
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }
-  }
-
-  /**
-   * Keeps the names VSP sends in the signaling login result (each optional).
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _storeLoginResultNames(result: any): void {
-    try {
-      this.signalingVsp = readServerNames(result, SIGNALING_VSP_FIELDS);
-      this.b2buaRtc = readServerNames(result, B2BUA_RTC_FIELDS);
-    } catch {
-      // never break the login on telemetry fields
-    }
-  }
-
-  /**
-   * Called by Connection when a new signaling socket is created: one socket
-   * talks to one VSP and one B2BUA-RTC, so their names are reset.
-   */
-  public onNewSignalingSocket(): void {
-    this.signalingVsp = {};
-    this.b2buaRtc = {};
   }
 
   /**
@@ -1098,7 +1014,7 @@ export default abstract class BaseSession {
         this._terminateActiveCallsLocally();
 
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
-        this.telemetryEvents?.error('socket', telnyxError, true, {
+        telemetryOf(this)?.error('socket', telnyxError, true, {
           max_reconnect_attempts: maxAttempts,
         });
         trigger(

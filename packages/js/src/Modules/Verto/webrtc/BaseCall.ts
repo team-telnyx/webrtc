@@ -16,7 +16,8 @@ import {
   type RecordingTrackKind,
 } from './CallRecorder';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
-import CallTelemetry from '../telemetry/CallTelemetry';
+import type { CallTelemetry } from '@telnyx/webrtc-telemetry';
+import { callTelemetry, telemetryOf } from '../telemetry';
 import {
   Answer,
   Attach,
@@ -1197,24 +1198,9 @@ export default abstract class BaseCall implements IWebRTCCall {
    * app or by the SDK's own fallback. No-op when telemetry is off.
    */
   protected _reportDeviceChanged(kind: 'input' | 'output', by: 'app' | 'sdk') {
-    try {
-      const events = (
-        this.session as unknown as {
-          telemetryEvents?: {
-            inputDeviceChanged(by: 'app' | 'sdk', deviceId?: string): void;
-            outputDeviceChanged(by: 'app' | 'sdk', deviceId?: string): void;
-          } | null;
-        }
-      ).telemetryEvents;
-      if (!events) return;
-      if (kind === 'input') {
-        events.inputDeviceChanged(by, this.options.micId);
-      } else {
-        events.outputDeviceChanged(by, this.options.speakerId);
-      }
-    } catch {
-      // Telemetry never throws into the call flow.
-    }
+    const events = telemetryOf(this.session);
+    if (kind === 'input') events?.inputDeviceChanged(by, this.options.micId);
+    else events?.outputDeviceChanged(by, this.options.speakerId);
   }
 
   /**
@@ -2748,7 +2734,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     }
 
     // Call Report V2 telemetry: call_started comes before the first call_state.
-    this._callTelemetry = CallTelemetry.create(this, this.session);
+    this._callTelemetry = callTelemetry(this, this.session);
     this._callTelemetry?.start();
 
     if (this._isRecovering) {
