@@ -338,12 +338,18 @@ BaseCall.\_applyDesiredAudioMuteState
 ▸ **answer**(`params?`): `Promise`\<`void`\>
 
 Starts the process to answer the incoming call.
+Media/device overrides apply only to this call before peer initialization.
+Omitted or undefined values retain its defaults; audio/video false stays
+disabled even with a stored device ID. A valid localStream is reused.
+Speaker selection needs a remote element and browser setSinkId support.
+Camera/video options use existing video negotiation; they do not add video
+to an audio-only offer or provide automatic device hot-plug recovery.
 
 #### Parameters
 
-| Name     | Type           |
-| :------- | :------------- |
-| `params` | `AnswerParams` |
+| Name     | Type                                                                                          |
+| :------- | :-------------------------------------------------------------------------------------------- |
+| `params` | [`AnswerParams`](https://developers.telnyx.com/development/webrtc/js-sdk/readme#answerparams) |
 
 #### Returns
 
@@ -352,7 +358,11 @@ Starts the process to answer the incoming call.
 **`Examples`**
 
 ```js
-call.answer();
+call.answer({
+  micId: selectedMicrophoneId,
+  speakerId: selectedSpeakerId,
+  remoteElement: document.getElementById('remoteMedia'),
+});
 ```
 
 #### Inherited from
@@ -638,7 +648,7 @@ Changes the audio input device (i.e. microphone) used for the call.
 | Name       | Type      | Description                                                                          |
 | :--------- | :-------- | :----------------------------------------------------------------------------------- |
 | `deviceId` | `string`  | The target audio input device ID                                                     |
-| `muted`    | `boolean` | Whether the audio track should be muted. Defaults to the current desired mute state. |
+| `muted?`   | `boolean` | Whether the audio track should be muted. Defaults to the current desired mute state. |
 
 #### Returns
 
