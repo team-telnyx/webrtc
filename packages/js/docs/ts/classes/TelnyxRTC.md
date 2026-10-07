@@ -47,10 +47,13 @@ client.off('telnyx.notification');
 ### Properties
 
 - [callReportVoiceSdkId](#callreportvoicesdkid)
+- [reconnectTokenCanaryRtcServer](#reconnecttokencanaryrtcserver)
+- [reconnectTokenVoiceSdkId](#reconnecttokenvoicesdkid)
 
 ### Accessors
 
 - [connected](#connected)
+- [iceServers](#iceservers)
 - [localElement](#localelement)
 - [localElementId](#localelementid)
 - [mediaConstraints](#mediaconstraints)
@@ -178,6 +181,30 @@ voice_sdk_id used when posting call report payloads for this session.
 
 TelnyxRTCClient.callReportVoiceSdkId
 
+---
+
+### reconnectTokenCanaryRtcServer
+
+• **reconnectTokenCanaryRtcServer**: `boolean`
+
+Canary routing override associated with the persisted voice_sdk_id.
+
+#### Inherited from
+
+TelnyxRTCClient.reconnectTokenCanaryRtcServer
+
+---
+
+### reconnectTokenVoiceSdkId
+
+• **reconnectTokenVoiceSdkId**: `string`
+
+Persisted voice_sdk_id whose routing association is owned by this session.
+
+#### Inherited from
+
+TelnyxRTCClient.reconnectTokenVoiceSdkId
+
 ## Accessors
 
 ### connected
@@ -200,6 +227,32 @@ console.log(client.connected); // => false
 #### Inherited from
 
 TelnyxRTCClient.connected
+
+---
+
+### iceServers
+
+• `set` **iceServers**(`servers`): `void`
+
+ICE servers used for every call unless `newCall()` overrides them.
+Explicit `iceServers` are taken as given. Otherwise the SDK defaults for
+the environment are used, with the TURN entries pointed at the pinned
+`region`'s TURN name (`<region>.turn.telnyx.com`) when one is set, so
+media relay stays in the same region as signaling.
+
+#### Parameters
+
+| Name      | Type             |
+| :-------- | :--------------- |
+| `servers` | `RTCIceServer`[] |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+TelnyxRTCClient.iceServers
 
 ---
 

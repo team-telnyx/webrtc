@@ -1,3 +1,16 @@
+## [2.27.11-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.11-beta.0...webrtc/v2.27.11-beta.1) (2026-10-07)
+
+- fix(react-client): use an npm-readable @telnyx/webrtc specifier
+- fix(js): pin jest-environment-jsdom 26 so packages/js tests run
+- chore: set 2.27.11-beta.0 as the prerelease base (VSDK-712)
+- feat(js): use the regional TURN servers when a region is pinned (VSDK-712)
+- feat(js): expose call reporting enabled state in VSP logs (#798)
+- fix(react-client): update React wrapper for WebRTC SDK 2.27.10 (#792)
+- fix: preserve call message handling after peer connection closes (#790)
+- fix(js): recover disconnected microphone and speaker devices (VSDK-645) (#795)
+- feat(js): accept per-call audio and video device options when answering (VSDK-646) (#794)
+- fix(js): fall back to default microphone when switching devices (VSDK-647) (#793)
+- chore(webrtc): log local track attachment path (#791)
 ## [2.27.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10) (2026-08-21)
 
 ### Features
