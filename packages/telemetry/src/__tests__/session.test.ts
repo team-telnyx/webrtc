@@ -92,6 +92,36 @@ describe('SessionTelemetry', () => {
     expect(off).toBeNull();
   });
 
+  it('opens the telemetry socket when the SDK is created and keeps it through disconnect() and connect()', async () => {
+    const onLoginRejected = jest.fn();
+    const events = SessionTelemetry.create(makeSession(), {
+      ...config,
+      onLoginRejected,
+    });
+    expect(FakeSocket.instances).toHaveLength(0);
+    events.created();
+    await flush();
+    expect(FakeSocket.instances).toHaveLength(1);
+    const ws = FakeSocket.last();
+    ws.open();
+    ws.answerLogin({ code: -32001, message: 'Login Incorrect' });
+    expect(onLoginRejected).toHaveBeenCalledTimes(1);
+    events.session.options.password = 'right';
+    events.credentialsChanged(); // client.login({ creds }): again on the same socket
+    ws.answerLogin();
+    expect(events.client.ready).toBe(true);
+    events.connectCalled(); // the app's connect() and the SDK's reconnects
+    events.disconnected();
+    events.connectCalled();
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(ws.readyState).toBe(1);
+    expect(
+      ws.sent.filter((m) => m.params?.passwd).map((m) => m.params.passwd)
+    ).toEqual(['hunter2', 'right']);
+    events.dispose();
+    events.client.close();
+  });
+
   it('created(): sdk_created with the device list (filled in before it is sent), then the network', async () => {
     const events = SessionTelemetry.create(makeSession(), config);
     events.created();

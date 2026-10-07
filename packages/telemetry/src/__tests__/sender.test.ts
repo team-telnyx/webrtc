@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import TelemetryClient, {
+  IDLE_CLOSE_MS,
   MAX_PENDING_EVENTS,
   TELEMETRY_CONTROL_METHOD,
   TELEMETRY_LOGIN_METHOD,
@@ -283,23 +284,74 @@ describe('TelemetryClient', () => {
     );
   });
 
-  it('logs in again only with new credentials after -32001', () => {
+  it('after -32001 keeps the socket, tells the host, and logs in again on it only with new credentials', () => {
     jest.useFakeTimers();
     let params: Record<string, unknown> = { login: 'u', passwd: 'p' };
+    const onLoginRejected = jest.fn();
     const client = makeClient();
-    client.attach({ ...host, getLoginParams: () => params });
+    client.attach({ ...host, getLoginParams: () => params, onLoginRejected });
     client.connect();
-    FakeSocket.last().open();
-    FakeSocket.last().answerLogin({ code: -32001, message: 'Login Incorrect' });
+    const ws = FakeSocket.last();
+    ws.open();
+    ws.answerLogin({ code: -32001, message: 'Login Incorrect' });
+    expect(onLoginRejected).toHaveBeenCalledTimes(1);
+    expect(onLoginRejected.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ message: 'Login Incorrect' })
+    );
+    expect(ws.readyState).toBe(1);
+    logEvent(client, 'kept');
     jest.advanceTimersByTime(60000);
-    client.connect();
-    expect(FakeSocket.instances).toHaveLength(1);
+    client.connect(); // same credentials: nothing
+    const logins = () =>
+      ws.sent.filter((m) => m.method === TELEMETRY_LOGIN_METHOD);
+    expect(logins()).toHaveLength(1);
     params = { login_token: 'new-jwt' };
     client.connect();
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(logins()).toHaveLength(2);
+    expect(logins()[1].params.login_token).toBe('new-jwt');
+    ws.answerLogin();
+    expect(client.ready).toBe(true);
+    expect(messages(ws)).toEqual(['kept']);
+    jest.useRealTimers();
+  });
+
+  it("after the app's disconnect() closes the socket once idle, and opens it again on connect()", () => {
+    jest.useFakeTimers();
+    const client = makeClient({}, true);
+    const ws = FakeSocket.last();
+    client.appDisconnected();
+    jest.advanceTimersByTime(IDLE_CLOSE_MS - 1000);
+    logEvent(client, 'late'); // still sending: the countdown starts again
+    jest.advanceTimersByTime(IDLE_CLOSE_MS - 1000);
+    expect(ws.readyState).toBe(1);
+    expect(messages(ws)).toEqual(['late']);
+    jest.advanceTimersByTime(1000);
+    expect(ws.readyState).toBe(3);
+    expect(TelemetryClient.liveInstanceIds()).not.toContain(
+      client.sdkInstanceId
+    );
+    jest.advanceTimersByTime(10 * 60000); // no reconnects while closed
+    expect(FakeSocket.instances).toHaveLength(1);
+    logEvent(client, 'queued');
+    client.appConnected();
     expect(FakeSocket.instances).toHaveLength(2);
     FakeSocket.last().open();
     FakeSocket.last().answerLogin();
-    expect(client.ready).toBe(true);
+    expect(messages(FakeSocket.last())).toEqual(['queued']);
+    expect(TelemetryClient.liveInstanceIds()).toContain(client.sdkInstanceId);
+    jest.useRealTimers();
+  });
+
+  it('keeps the socket through a disconnect() and connect() in a row', () => {
+    jest.useFakeTimers();
+    const client = makeClient({}, true);
+    client.appDisconnected();
+    jest.advanceTimersByTime(5000);
+    client.appConnected();
+    jest.advanceTimersByTime(IDLE_CLOSE_MS * 2);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(FakeSocket.last().readyState).toBe(1);
     jest.useRealTimers();
   });
 

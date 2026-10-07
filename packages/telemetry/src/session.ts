@@ -8,6 +8,7 @@ import TelemetryClient, { TELEMETRY_PROD_URL } from './sender';
 import type {
   AppState,
   DeviceKind,
+  ErrorInfo,
   ErrorPayload,
   GatewayState,
   KnownIds,
@@ -65,6 +66,8 @@ export interface SessionHost {
 /** What the SDK hands the package once. */
 export interface SdkConfig {
   sdkVersion: string;
+  /** The telemetry server rejected the credentials: tell the app (telnyx.warning). */
+  onLoginRejected?(error: ErrorInfo): void;
   defaultIceServers: Record<'production' | 'development', RTCIceServer[]>;
   readCallMarks(callId: string): Record<string, number>;
   observeCallMarks(
@@ -284,6 +287,7 @@ export default class SessionTelemetry {
         // No default for development yet: set options.telemetry.url there.
         getDefaultUrl: () =>
           session.options.env === 'development' ? null : TELEMETRY_PROD_URL,
+        onLoginRejected: (error) => config.onLoginRejected?.(error),
       });
       return events;
     };
@@ -398,6 +402,8 @@ export default class SessionTelemetry {
     this.networkChanged(true);
     this._appState = this._visibleState();
     this._attachListeners();
+    // The telemetry socket opens now, independent of the signaling socket.
+    this.client.connect();
   }
 
   networkChanged(initial = false, trigger?: string): void {
@@ -523,7 +529,18 @@ export default class SessionTelemetry {
     });
   }
 
-  /** The SDK instance is going away (disconnect). */
+  /** The app called disconnect(): listeners go; the socket closes once idle. */
+  disconnected(): void {
+    this.dispose();
+    this.client.appDisconnected();
+  }
+
+  /** New credentials (client.login({ creds })): a rejected login tries them. */
+  credentialsChanged(): void {
+    this.client.connect();
+  }
+
+  /** Stops listening to the browser. */
   dispose(): void {
     this._disposed = true;
     this._cleanups.splice(0).forEach((cleanup) => attempt(cleanup));
@@ -559,6 +576,11 @@ export default class SessionTelemetry {
   /** The app called connect(), or the SDK reconnects. */
   connectCalled(): void {
     this._ensureChain();
+    if (this._disposed) {
+      this._disposed = false; // connect() after disconnect(): listen again
+      this._attachListeners();
+    }
+    this.client.appConnected();
   }
 
   /** A new signaling socket starts opening (one socket = one VSP and B2BUA-RTC). */

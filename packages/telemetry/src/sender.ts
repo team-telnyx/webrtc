@@ -1,7 +1,12 @@
 /**
  * Call Report V2 telemetry sender (contract 1.6, schema 2.1).
  *
- * - Its own WebSocket, logged in with the signaling credentials.
+ * - Its own WebSocket, opened when the SDK instance is created and logged in
+ *   with the credentials given to it; independent of the signaling socket,
+ *   it stays open through every signaling reconnect. Rejected credentials
+ *   wait for new ones on the open socket.
+ * - After the app's disconnect() it closes once nothing new comes for
+ *   IDLE_CLOSE_MS; the app's next connect() opens it again.
  * - One JSON-RPC notification per event, sent the moment it happens; never
  *   batched, acknowledged or resent (a gap in `sequence` shows a loss).
  * - While not connected and logged in, events wait in memory (at most
@@ -16,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   ClientEvent,
   ClientInfo,
+  ErrorInfo,
   EventName,
   KnownIds,
   LogCategory,
@@ -42,6 +48,8 @@ const UNAVAILABLE_MS = [30000, 5 * 60 * 1000];
 const LOGIN_INCORRECT = -32001;
 const TELEMETRY_UNAVAILABLE = -32003;
 const LOGIN_TIMEOUT_MS = 10000;
+/** After the app's disconnect(): the socket closes once nothing new comes for this long. */
+export const IDLE_CLOSE_MS = 60000;
 const MAX_CAPTURED_FRAMES = 200000;
 const MAX_ENDED_CALLS = 100;
 
@@ -68,6 +76,8 @@ export interface TelemetryHost {
   getSessionId(): string | null | undefined;
   getSocketGeneration(): number;
   getDefaultUrl?(): string | null;
+  /** The server rejected the credentials (-32001): the app should provide new ones. */
+  onLoginRejected?(error: ErrorInfo): void;
 }
 
 export type EmitOptions = {
@@ -170,6 +180,10 @@ export default class TelemetryClient {
   private _authenticated = false;
   private _remoteEnabled = true;
   private _closed = false;
+  /** Closed after the app's disconnect() and idle: no reconnects until appConnected(). */
+  private _parked = false;
+  private _closeWhenIdle = false;
+  private _idleTimer: Any = null;
   private _reconnectAttempts = 0;
   private _reconnectTimer: Any = null;
   private _loginTimer: Any = null;
@@ -353,6 +367,7 @@ export default class TelemetryClient {
       this._enqueue(events);
       this._flushPending();
     }
+    if (this._closeWhenIdle) this._armIdleClose();
     return events[0];
   }
 
@@ -486,20 +501,34 @@ export default class TelemetryClient {
   }
 
   /**
-   * Opens the telemetry socket unless open or opening. A no-op without
-   * credentials, or with ones the server rejected: call again with new ones.
+   * Opens the telemetry socket unless open or opening; on an open socket whose
+   * login was rejected, logs in again if the credentials changed. A no-op
+   * without credentials, or with ones the server rejected.
    */
   connect(): void {
-    if (this._closed || (!WebSocketImpl && !this.capture)) return;
-    if (this._ws && this._ws.readyState <= 1) return;
+    if (this._closed || this._parked) return;
+    if (!WebSocketImpl && !this.capture) return;
     const params = this._loginParams();
-    if (!params || fingerprint(params) === this._rejectedFingerprint) return;
+    const usable =
+      !!params && fingerprint(params) !== this._rejectedFingerprint;
+    const ws = this._ws;
+    if (ws && ws.readyState <= 1) {
+      const idle =
+        ws.readyState === 1 && !this._authenticated && !this._loginId;
+      if (idle && usable) this._login(ws);
+      return;
+    }
+    if (!usable) return;
     const url = this.capture
       ? 'capture:'
       : this.url || this._host.getDefaultUrl?.();
     if (!url) return;
     clearTimeout(this._reconnectTimer);
     this._reconnectTimer = null;
+    this._open(url);
+  }
+
+  private _open(url: string): void {
     let ws: Any;
     try {
       ws = this.capture
@@ -581,16 +610,17 @@ export default class TelemetryClient {
       this._clearLoginTimer();
       this._loginId = null;
       if (msg.error) {
-        // Wrong credentials wait for new ones; anything else is temporary.
         const { code, message } = msg.error;
+        const error = toErrorInfo({ code, message });
+        this.log('warn', 'telemetry', 'Telemetry login failed', { error });
         if (code === LOGIN_INCORRECT) {
+          // The socket stays open; new credentials log in again on it.
           this._rejectedFingerprint = this._loginFingerprint;
-        } else if (code === TELEMETRY_UNAVAILABLE) {
-          this._unavailable = true;
+          callApp((e: ErrorInfo) => this._host?.onLoginRejected?.(e), error);
+          return;
         }
-        this.log('warn', 'telemetry', 'Telemetry login failed', {
-          error: toErrorInfo({ code, message }),
-        });
+        // Anything else is temporary: reconnect with backoff.
+        if (code === TELEMETRY_UNAVAILABLE) this._unavailable = true;
         ws.close(1000);
         return;
       }
@@ -618,7 +648,7 @@ export default class TelemetryClient {
   }
 
   private _scheduleReconnect(): void {
-    if (this._closed || this._reconnectTimer) return;
+    if (this._closed || this._parked || this._reconnectTimer) return;
     this._reconnectAttempts += 1;
     const [base, max] = this._unavailable ? UNAVAILABLE_MS : RECONNECT_MS;
     const backoff = Math.min(base * 2 ** (this._reconnectAttempts - 1), max);
@@ -628,6 +658,66 @@ export default class TelemetryClient {
       this._reconnectTimer = null;
       this.connect();
     }, delay);
+  }
+
+  // ── The app's connect() and disconnect() ─────────────────────────────
+
+  /** The app called connect(): keeps the socket, or opens it again after an idle close. */
+  appConnected(): void {
+    if (this._closed) return;
+    this._closeWhenIdle = false;
+    clearTimeout(this._idleTimer);
+    this._idleTimer = null;
+    if (this._parked) {
+      this._parked = false;
+      if (!liveClients.includes(this)) liveClients.push(this);
+    }
+    this.connect();
+  }
+
+  /** The app called disconnect(): the socket closes once nothing new comes for IDLE_CLOSE_MS. */
+  appDisconnected(): void {
+    if (this._closed || this._parked) return;
+    this._closeWhenIdle = true;
+    this._armIdleClose();
+  }
+
+  private _armIdleClose(): void {
+    clearTimeout(this._idleTimer);
+    this._idleTimer = setTimeout(() => {
+      this._idleTimer = null;
+      this._park();
+    }, IDLE_CLOSE_MS);
+  }
+
+  /** Closes the socket but keeps the instance; appConnected() opens it again. */
+  private _park(): void {
+    this._closeWhenIdle = false;
+    this.log(
+      'info',
+      'telemetry',
+      'Telemetry socket closed: idle after disconnect',
+      {
+        pending: this._pending.length,
+      }
+    );
+    this._parked = true;
+    const index = liveClients.indexOf(this);
+    if (index >= 0) liveClients.splice(index, 1);
+    clearTimeout(this._reconnectTimer);
+    this._reconnectTimer = null;
+    this._clearLoginTimer();
+    this._loginId = null;
+    const ws = this._ws;
+    this._ws = null;
+    this._authenticated = false;
+    if (!ws) return;
+    ws.onclose = ws.onmessage = null;
+    try {
+      ws.close(1000);
+    } catch {
+      // already closed
+    }
   }
 
   private _leave(): void {
@@ -641,6 +731,7 @@ export default class TelemetryClient {
     if (this._closed) return;
     this._flushPending();
     this._leave();
+    clearTimeout(this._idleTimer);
     clearInterval(this._flushTimer);
     this.flushCapture();
     clearTimeout(this._reconnectTimer);

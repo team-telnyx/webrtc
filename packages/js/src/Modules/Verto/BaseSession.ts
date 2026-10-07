@@ -385,8 +385,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
-    telemetryOf(this)?.dispose();
-    telemetryOf(this)?.client.close();
+    telemetryOf(this)?.disconnected();
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
     );
@@ -516,7 +515,6 @@ export default abstract class BaseSession {
 
     this._autoReconnect = true;
     telemetryOf(this)?.connectCalled();
-    telemetryOf(this)?.client.connect();
     if (!this.connection.isAlive) {
       logger.debug(
         "Connection wasn't alive, initiating connection to the server..."
@@ -714,6 +712,7 @@ export default abstract class BaseSession {
       if (creds.anonymous_login !== undefined) {
         this.options.anonymous_login = creds.anonymous_login;
       }
+      telemetryOf(this)?.credentialsChanged();
     }
 
     if (isValidLoginOptions(this.options)) {
@@ -816,9 +815,6 @@ export default abstract class BaseSession {
         setReconnectSessionId(this.sessionid);
       }
       telemetryOf(this)?.loginSucceeded(response);
-      // The credentials may be new (client.login({ creds })): a telemetry
-      // socket that was rejected or never opened tries again with them.
-      telemetryOf(this)?.client.connect();
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
     }

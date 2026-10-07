@@ -6,14 +6,15 @@
 
 ## What it sends
 
-- Its own WebSocket to the telemetry VSP (`wss://rtc-telemetry.telnyx.com` by default), logged in with the same credentials as signaling (`telnyx_rtc.telemetry_login`). Login answer -32001 waits for new credentials; -32003 retries from 30 s up to 5 min.
+- Its own WebSocket to the telemetry VSP (`wss://rtc-telemetry.telnyx.com` by default), independent of the signaling socket. It opens as soon as `new TelnyxRTC(...)` returns and logs in with the credentials given to it (`telnyx_rtc.telemetry_login`). It stays open through every signaling connect, drop and reconnect; if it drops itself, it reconnects and logs in again. It closes when the page does, or 60 s after the app's `disconnect()` once nothing new comes; the next `connect()` opens it again.
+- Rejected credentials (-32001): the app gets `telnyx.warning` 34002 `TELEMETRY_CREDENTIALS_REJECTED`, the socket stays open, and new credentials (`client.login({ creds })`) log in again on it. -32003 (telemetry unavailable) retries from 30 s up to 5 min.
 - One `telnyx_rtc.telemetry` JSON-RPC notification per event, sent when it happens; never batched, acknowledged or resent. `sequence` goes up by one on every record of an SDK instance, so a gap shows a lost record.
 - SDK-wide events (creation, network, app state, devices, socket, login, gateway, signaling messages, logs, errors) and per-call events (call_started, call_state, ICE candidates, media changes, metrics every second, warnings, timings, call_ended).
 - Credentials never: passwords, tokens and `a=ice-pwd` are removed. Everything else goes out whole, log lines and JSON-RPC frames included.
 
 [`src/contract.ts`](src/contract.ts) is the wire contract (schema 2.1). Typed fields are the ones every Telnyx SDK sends; anything else this SDK knows goes, untyped, under each payload's `extra`.
 
-While the SDK is not connected and logged in, events wait in memory (1,000 at most, oldest dropped). Above 64 KB of socket backlog an event is dropped. The VSP can switch telemetry off with `telnyx_rtc.telemetry_control`.
+While the telemetry socket is not logged in, events wait in memory (1,000 at most, oldest dropped). Above 64 KB of socket backlog an event is dropped. The VSP can switch telemetry off with `telnyx_rtc.telemetry_control`.
 
 ## In the SDK
 

@@ -10,10 +10,14 @@ import {
   type SessionHost,
 } from '@telnyx/webrtc-telemetry';
 import pkg from '../../../package.json';
+import { trigger } from './services/Handler';
 import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
+  SwEvent,
+  TELEMETRY_CREDENTIALS_REJECTED,
 } from './util/constants';
+import { createTelnyxWarning } from './util/errors';
 import {
   observeCallMarks,
   readCallMarks,
@@ -22,9 +26,19 @@ import {
 const sessions = new WeakMap<object, SessionTelemetry>();
 
 /** Telemetry of a new SDK instance (sdk_creation_started); null when off. */
-export function startTelemetry(session: SessionHost): SessionTelemetry | null {
+export function startTelemetry(
+  session: SessionHost & { uuid: string }
+): SessionTelemetry | null {
   const events = SessionTelemetry.create(session, {
     sdkVersion: pkg.version,
+    onLoginRejected: () => {
+      const warning = createTelnyxWarning(TELEMETRY_CREDENTIALS_REJECTED);
+      trigger(
+        SwEvent.Warning,
+        { warning, sessionId: session.sessionid },
+        session.uuid
+      );
+    },
     defaultIceServers: {
       production: DEFAULT_PROD_ICE_SERVERS,
       development: DEFAULT_DEV_ICE_SERVERS,
