@@ -13,7 +13,7 @@ import {
   osVersionFromHints,
   resetClientHints,
 } from '../browser';
-import { toErrorInfo } from '../sanitize';
+import { stripUrlCredentials, toErrorInfo } from '../sanitize';
 import { FakeSocket, host, logEvent, makeClient } from './fakes';
 
 const messages = (ws: FakeSocket) => ws.events().map((e) => e.payload.message);
@@ -533,5 +533,25 @@ describe('toErrorInfo', () => {
   ])('keeps %s', (_, error, expected) => {
     expect(toErrorInfo(error)).toEqual(expect.objectContaining(expected));
     if (!('code' in expected)) expect(toErrorInfo(error).code).toBeUndefined();
+  });
+});
+
+describe('stripUrlCredentials', () => {
+  it('removes user:password@ from URLs, leaves the rest', () => {
+    expect(
+      stripUrlCredentials(
+        'turn:x turns://u:p@turn.telnyx.com:443?transport=tcp ok'
+      )
+    ).toBe('turn:x turns://turn.telnyx.com:443?transport=tcp ok');
+    expect(
+      stripUrlCredentials('see https://example.com/a@b and wss://user@host')
+    ).toBe('see https://example.com/a@b and wss://user@host');
+  });
+
+  it('stays fast on crafted input', () => {
+    const crafted = 'a://' + '!:'.repeat(200000) + ' ' + 'a'.repeat(200000);
+    const started = Date.now();
+    stripUrlCredentials(crafted);
+    expect(Date.now() - started).toBeLessThan(500);
   });
 });
