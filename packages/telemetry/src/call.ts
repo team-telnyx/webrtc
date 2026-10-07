@@ -13,6 +13,7 @@ import {
   type KnownIds,
   type PayloadOf,
 } from './contract';
+import { METRICS_INTERVAL_MS } from './sender';
 import type SessionTelemetry from './session';
 import {
   hasFocusNow,
@@ -372,6 +373,8 @@ export default class CallTelemetry {
       speaker_id_provided: !!options.speakerId,
       camera_id_provided: !!options.camId,
       is_reattach: options.attach === true || !!options.recoveredCallId,
+      // The SDPs are whole in signaling_message.
+      raw_call_options: attempt(() => sanitizeDetails(raw)) ?? {},
       ...defined({
         caller_number: str(
           inbound ? options.remoteCallerNumber : options.callerNumber
@@ -400,8 +403,6 @@ export default class CallTelemetry {
           : undefined,
       }),
       extra: defined({
-        // The SDP is whole in signaling_message.
-        raw_call_options: attempt(() => sanitizeDetails(raw)),
         ice_servers: servers?.length ? servers : undefined,
         online: onlineNow(),
         visibility_state: visibilityNow(),
@@ -508,8 +509,7 @@ export default class CallTelemetry {
     });
     this._maybeSendTimings();
     this._lastTickPerf = nowPerf();
-    const interval = this._session.client.metricsIntervalMs || 1000;
-    this._timer = setInterval(() => void this._tick(), interval);
+    this._timer = setInterval(() => void this._tick(), METRICS_INTERVAL_MS);
     this._watchDevices();
   }
 

@@ -20,16 +20,8 @@ export type TelemetryControlNotification = {
 
 // 2. Envelope
 
-export type ClientEvent =
-  | (Envelope & Exclude<EventBody, { name: 'call_metrics' }>)
-  | (MetricsEnvelope & Extract<EventBody, { name: 'call_metrics' }>);
-
-/** call_metrics always has a socket, a login and a call. */
-export type MetricsEnvelope = Envelope & {
-  socket_generation: number;
-  call_sequence?: number;
-  ids: KnownIds & { voice_sdk_id: string; session_id: string; call_id: string };
-};
+/** call_metrics goes only with socket_generation, voice_sdk_id, session_id and call_id (checked by the SDK and the backend). */
+export type ClientEvent = Envelope & EventBody;
 
 /** Untyped extras of an event, kept whole. Never credentials. */
 export type Extra = Record<string, unknown>;
@@ -161,12 +153,7 @@ export type SdkOptions = {
   telemetry: TelemetryOptions;
 };
 
-export type TelemetryOptions = {
-  enabled: boolean;
-  metrics_interval_ms: number;
-  max_pending_events: number;
-  max_send_backlog_bytes: number;
-};
+export type TelemetryOptions = { enabled: boolean };
 
 export type IceServerInfo = { url: string; has_credential: boolean };
 
@@ -183,8 +170,11 @@ export type NetworkChangedPayload = {
   downlink_mbps?: number;
 };
 
+export type AppState = 'foreground' | 'background' | 'visible' | 'hidden';
+
 export type AppStateChangedPayload = {
-  state: 'foreground' | 'background' | 'visible' | 'hidden';
+  state: AppState;
+  previous_state?: AppState; // the state before; absent if unknown
 };
 
 /** by: "app" chose the device, or "sdk" switched by itself. */
@@ -198,16 +188,6 @@ export type DeviceListChangedPayload = {
   output_count: number;
   added: number;
   removed: number;
-};
-
-/**
- * A VSP by name (never addresses); used by VSP's own records. The SDK sends no VSP or B2BUA-RTC names: since
- * option B′ (owner, 2026-10-07) the signaling VSP reports them itself (vsp_session).
- */
-export type SignalingVsp = {
-  signaling_region?: string;
-  signaling_dc?: string;
-  signaling_node?: string;
 };
 
 /** Where the socket connects; no credentials or query in the url. */
@@ -350,6 +330,7 @@ export type CallStartedPayload = {
   speaker_id_provided: boolean | null;
   camera_id_provided: boolean | null;
   is_reattach: boolean;
+  raw_call_options: Record<string, unknown>; // the call's options as the app gave them; credentials and SDPs removed
 };
 
 export type CallState =
@@ -658,71 +639,3 @@ export type ErrorInfo = {
 };
 
 export type CodedErrorInfo = ErrorInfo & { code: string };
-
-// 5. Added on the server side (the client never sends these)
-
-export type VspContext = {
-  user_id: string;
-  credential_id?: string;
-  login_type: LoginType;
-  client_ip: string;
-  client_port: number;
-  vsp_region: string;
-  vsp_dc: string;
-  vsp_node: string;
-};
-
-export type VspForward = { vsp: VspContext; event: ClientEvent };
-
-export type VspLoginFailed = {
-  timestamp: string;
-  sdk_instance_id?: string;
-  voice_sdk_id: string;
-  sdk: ClientInfo['sdk'] | 'unknown';
-  sdk_version: string;
-  user_agent?: string;
-  vsp: VspContext;
-  method: { login_type: LoginType; target_type?: string };
-  is_reconnect?: boolean;
-  started_by_push?: boolean;
-  server_code: string;
-  server_message: string;
-};
-
-export type RecordCategory = Category;
-
-export type BackendFields = {
-  received_at: string;
-  backend_node: string;
-  browser?: 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera' | 'other';
-  client_country?: string;
-  clock_skew_ms: number;
-  category: RecordCategory;
-  contract_version: SchemaVersion;
-  redactions?: string[];
-};
-
-export type TelemetryRecord =
-  | (ClientEvent & { vsp: VspContext } & BackendFields)
-  | VspLoginFailedRecord;
-
-export type VspLoginFailedRecord = {
-  schema_version: SchemaVersion;
-  sequence: 0;
-  timestamp: string;
-  client: Omit<ClientInfo, 'sdk'> & { sdk: ClientInfo['sdk'] | 'unknown' };
-  ids: { sdk_instance_id: string; voice_sdk_id: string };
-  name: 'vsp_login_failed';
-  payload: {
-    method: VspLoginFailed['method'];
-    is_reconnect?: boolean;
-    started_by_push?: boolean;
-    error: {
-      name: 'LoginRejected';
-      message: string;
-      server_code: string;
-      server_message: string;
-    };
-  } & SignalingVsp;
-  vsp: VspContext;
-} & BackendFields;

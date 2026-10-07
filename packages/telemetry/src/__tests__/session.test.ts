@@ -46,12 +46,7 @@ describe('SessionTelemetry', () => {
         login_type: 'token',
         custom_ice_servers: true,
         ice_servers: [{ url: 'turn:t.example', has_credential: true }],
-        telemetry: {
-          enabled: true,
-          metrics_interval_ms: 1000,
-          max_pending_events: 1000,
-          max_send_backlog_bytes: 65536,
-        },
+        telemetry: { enabled: true },
       })
     );
     expect(started.payload.raw_client_options).toEqual({
@@ -114,6 +109,39 @@ describe('SessionTelemetry', () => {
     expect(network.payload).toEqual(
       expect.objectContaining({ initial: true, extra: { trigger: 'initial' } })
     );
+    events.dispose();
+    events.client.close();
+  });
+
+  it('app_state_changed carries the state before it', async () => {
+    const events = SessionTelemetry.create(makeSession(), config);
+    events.created();
+    await flush();
+    const visibility = jest.spyOn(document, 'visibilityState', 'get');
+    visibility.mockReturnValue('hidden');
+    document.dispatchEvent(new Event('visibilitychange'));
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('focus'));
+    visibility.mockRestore();
+    events.client.connect();
+    const ws = FakeSocket.last();
+    ws.open();
+    ws.answerLogin();
+    expect(
+      ws
+        .events()
+        .filter((e) => e.name === 'app_state_changed')
+        .map((e) => [
+          e.payload.state,
+          e.payload.previous_state,
+          e.payload.extra.trigger,
+        ])
+    ).toEqual([
+      ['hidden', 'visible', 'visibilitychange'],
+      ['visible', 'hidden', 'visibilitychange'],
+      ['visible', 'visible', 'focus'],
+    ]);
     events.dispose();
     events.client.close();
   });

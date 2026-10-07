@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import TelemetryClient, {
+  MAX_PENDING_EVENTS,
   TELEMETRY_CONTROL_METHOD,
   TELEMETRY_LOGIN_METHOD,
   TELEMETRY_METHOD,
@@ -103,14 +104,18 @@ describe('TelemetryClient', () => {
     jest.useRealTimers();
   });
 
-  it('keeps at most maxPendingEvents (oldest dropped) and reports the drops once', () => {
-    const client = makeClient({ maxPendingEvents: 3 });
-    for (let i = 0; i < 5; i += 1) logEvent(client, `m${i}`);
+  it('keeps at most 1,000 pending events (oldest dropped) and reports the drops once', () => {
+    const client = makeClient();
+    for (let i = 0; i < MAX_PENDING_EVENTS + 2; i += 1)
+      logEvent(client, `m${i}`);
     client.connect();
     FakeSocket.last().open();
     FakeSocket.last().answerLogin();
     const ws = FakeSocket.last();
-    expect(messages(ws)).toEqual(['m2', 'm3', 'm4']);
+    const sent = messages(ws);
+    expect(sent).toHaveLength(MAX_PENDING_EVENTS);
+    expect(sent[0]).toBe('m2');
+    expect(sent[sent.length - 1]).toBe(`m${MAX_PENDING_EVENTS + 1}`);
     const drops = ws
       .events(true)
       .filter((e) => e.payload.message === 'Telemetry events dropped');
@@ -118,8 +123,6 @@ describe('TelemetryClient', () => {
     expect(drops[0].payload.details).toEqual({
       dropped_backlog: 0,
       dropped_pending: 2,
-      max_pending_events: 3,
-      max_send_backlog_bytes: 65536,
     });
   });
 
@@ -211,12 +214,13 @@ describe('TelemetryClient', () => {
   });
 
   it('keeps the copies of an event together when queued and drops them together', () => {
-    const client = makeClient({ maxPendingEvents: 5 });
+    const client = makeClient();
     client.callStarted('call-a');
     client.callStarted('call-b');
     const reserved = client.reserveSequence();
-    logEvent(client, 'one');
-    logEvent(client, 'two');
+    // Two copies each: the queue is full, then the reserved (oldest) event's copies arrive.
+    for (let i = 0; i < MAX_PENDING_EVENTS / 2; i += 1)
+      logEvent(client, `m${i}`);
     client.emit(
       'logs',
       { level: 'info', category: 'general', message: 'reserved' },
@@ -225,16 +229,15 @@ describe('TelemetryClient', () => {
     client.connect();
     FakeSocket.last().open();
     FakeSocket.last().answerLogin();
-    expect(
-      FakeSocket.last()
-        .events()
-        .map((e) => [e.payload.message, e.ids.call_id])
-    ).toEqual([
-      ['one', 'call-a'],
-      ['one', 'call-b'],
-      ['two', 'call-a'],
-      ['two', 'call-b'],
+    const sent = FakeSocket.last()
+      .events()
+      .map((e) => [e.payload.message, e.ids.call_id]);
+    expect(sent).toHaveLength(MAX_PENDING_EVENTS);
+    expect(sent.slice(0, 2)).toEqual([
+      ['m0', 'call-a'],
+      ['m0', 'call-b'],
     ]);
+    expect(sent.some(([message]) => message === 'reserved')).toBe(false);
   });
 
   it("hands a failed instance's pending events to the next live one", () => {

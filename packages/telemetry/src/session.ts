@@ -6,6 +6,7 @@
  */
 import TelemetryClient, { TELEMETRY_PROD_URL } from './sender';
 import type {
+  AppState,
   ErrorPayload,
   GatewayState,
   KnownIds,
@@ -235,6 +236,7 @@ export default class SessionTelemetry {
   private _receivedRequests = new Map<string, Request>();
   private _devices: Devices | null = null;
   private _lastNetwork: string | null = null;
+  private _appState: AppState | undefined;
   private _cleanups: Array<() => void> = [];
   private _disposed = false;
 
@@ -320,12 +322,7 @@ export default class SessionTelemetry {
       custom_ice_servers: Array.isArray(options.iceServers),
       push_provider: 'none',
       log_level: options.debug ? 'debug' : 'info',
-      telemetry: {
-        enabled: true,
-        metrics_interval_ms: this.client.metricsIntervalMs,
-        max_pending_events: this.client.maxPendingEvents,
-        max_send_backlog_bytes: this.client.maxSendBacklogBytes,
-      },
+      telemetry: { enabled: true },
     };
     const page = attempt(readPageInfo);
     const extra: Flat = defined({
@@ -383,6 +380,7 @@ export default class SessionTelemetry {
       );
     });
     this.networkChanged(true);
+    this._appState = this._visibleState();
     this._attachListeners();
   }
 
@@ -396,9 +394,13 @@ export default class SessionTelemetry {
   }
 
   appStateChanged(trigger = 'visibilitychange', event?: Any): void {
-    if (typeof document === 'undefined') return;
+    const state = this._visibleState();
+    if (!state) return;
+    const previous_state = this._appState;
+    this._appState = state;
     this.client.emit('app_state_changed', {
-      state: document.visibilityState === 'hidden' ? 'hidden' : 'visible',
+      state,
+      ...defined({ previous_state }),
       extra: defined({
         trigger,
         has_focus: hasFocusNow(),
@@ -406,6 +408,11 @@ export default class SessionTelemetry {
         was_discarded: bool((document as Any).wasDiscarded),
       }),
     });
+  }
+
+  private _visibleState(): AppState | undefined {
+    if (typeof document === 'undefined') return undefined;
+    return document.visibilityState === 'hidden' ? 'hidden' : 'visible';
   }
 
   /** The app (or the SDK, by "sdk") chose a microphone. */

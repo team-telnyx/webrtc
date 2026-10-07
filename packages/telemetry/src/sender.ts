@@ -5,8 +5,8 @@
  * - One JSON-RPC notification per event, sent the moment it happens; never
  *   batched, acknowledged or resent (a gap in `sequence` shows a loss).
  * - While not connected and logged in, events wait in memory (at most
- *   maxPendingEvents, oldest dropped) and go out in order with `sent_at`.
- * - Above maxSendBacklogBytes of socket backlog an event is dropped.
+ *   MAX_PENDING_EVENTS, oldest dropped) and go out in order with `sent_at`.
+ * - Above MAX_SEND_BACKLOG_BYTES of socket backlog an event is dropped.
  * - telnyx_rtc.telemetry_control switches it off and on.
  * - An event without its own call ID goes out once per active call (same
  *   sequence and timestamp); every record with a call ID has call_sequence.
@@ -29,8 +29,9 @@ export const TELEMETRY_METHOD = 'telnyx_rtc.telemetry';
 export const TELEMETRY_PROD_URL = 'wss://rtc-telemetry.telnyx.com';
 export const TELEMETRY_CONTROL_METHOD = 'telnyx_rtc.telemetry_control';
 export const TELEMETRY_LOGIN_METHOD = 'telnyx_rtc.telemetry_login';
-export const DEFAULT_MAX_PENDING_EVENTS = 1000;
-export const DEFAULT_MAX_SEND_BACKLOG_BYTES = 64 * 1024;
+export const MAX_PENDING_EVENTS = 1000;
+export const MAX_SEND_BACKLOG_BYTES = 64 * 1024;
+export const METRICS_INTERVAL_MS = 1000;
 export const DEFAULT_CAPTURE_MARK = '[CR2 telemetry]';
 export const DEFAULT_CAPTURE_FLUSH_MS = 5 * 60 * 1000;
 export const SCHEMA_VERSION = '2.1';
@@ -48,9 +49,6 @@ const MAX_ENDED_CALLS = 100;
 export type TelemetrySettings = {
   enabled?: boolean;
   url?: string;
-  metricsIntervalMs?: number;
-  maxPendingEvents?: number;
-  maxSendBacklogBytes?: number;
   capture?: boolean | CaptureSettings;
   onFrame?: (frame: string) => void;
 };
@@ -157,9 +155,6 @@ export default class TelemetryClient {
   readonly client: ClientInfo;
   /** Every browser and device detail (sdk_creation_started's extra.client_details). */
   readonly clientDetails: Record<string, unknown>;
-  readonly metricsIntervalMs: number;
-  readonly maxPendingEvents: number;
-  readonly maxSendBacklogBytes: number;
   readonly url: string | undefined;
   readonly capture: boolean;
   private _capture: CaptureSettings;
@@ -241,11 +236,6 @@ export default class TelemetryClient {
     const info = buildClientInfo(sdkVersion, env);
     this.client = info.client;
     this.clientDetails = info.details;
-    this.metricsIntervalMs = settings.metricsIntervalMs ?? 1000;
-    this.maxPendingEvents =
-      settings.maxPendingEvents ?? DEFAULT_MAX_PENDING_EVENTS;
-    this.maxSendBacklogBytes =
-      settings.maxSendBacklogBytes ?? DEFAULT_MAX_SEND_BACKLOG_BYTES;
     liveClients.push(this);
   }
 
@@ -444,7 +434,7 @@ export default class TelemetryClient {
     let index = this._pending.length;
     while (index > 0 && this._pending[index - 1].sequence > sequence) index--;
     this._pending.splice(index, 0, ...events);
-    while (this._pending.length > this.maxPendingEvents) {
+    while (this._pending.length > MAX_PENDING_EVENTS) {
       const oldest = this._pending[0].sequence;
       while (this._pending[0]?.sequence === oldest) {
         this._pending.shift();
@@ -456,7 +446,7 @@ export default class TelemetryClient {
   private _send(event: ClientEvent, waited: boolean): void {
     const ws = this._ws;
     if (ws?.readyState !== 1) return;
-    if (ws.bufferedAmount > this.maxSendBacklogBytes) {
+    if (ws.bufferedAmount > MAX_SEND_BACKLOG_BYTES) {
       this._droppedBacklog += 1; // dropped, never queued
       return;
     }
@@ -489,8 +479,6 @@ export default class TelemetryClient {
     const details = {
       dropped_backlog: this._droppedBacklog,
       dropped_pending: this._droppedPending,
-      max_pending_events: this.maxPendingEvents,
-      max_send_backlog_bytes: this.maxSendBacklogBytes,
     };
     this._droppedBacklog = this._droppedPending = 0;
     this.log('warn', 'telemetry', 'Telemetry events dropped', details);
@@ -677,7 +665,7 @@ export default class TelemetryClient {
   /** The constructor threw: the next live client sends this one's pending events. */
   orphan(): void {
     orphanEvents.push(...this._pending);
-    orphanEvents.splice(0, orphanEvents.length - DEFAULT_MAX_PENDING_EVENTS);
+    orphanEvents.splice(0, orphanEvents.length - MAX_PENDING_EVENTS);
     this._pending = [];
     this._leave();
     for (const client of liveClients) client._flushPending();

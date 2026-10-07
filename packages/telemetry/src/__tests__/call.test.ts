@@ -413,9 +413,9 @@ describe('CallTelemetry', () => {
     // Option B′: the signaling VSP reports its and the B2BUA-RTC's names itself.
     expect(started.signaling_region).toBeUndefined();
     expect(started.b2bua_rtc_node).toBeUndefined();
-    expect(started.extra.raw_call_options.customHeaders[1].value).toBe(
-      '[REDACTED]'
-    );
+    expect(started.raw_call_options.customHeaders[1].value).toBe('[REDACTED]');
+    expect(started.raw_call_options.destinationNumber).toBe('18004377950');
+    expect(started.extra.raw_call_options).toBeUndefined();
     expect(JSON.stringify(ws.events())).not.toContain('do-not-send');
   });
 

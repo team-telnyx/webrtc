@@ -253,9 +253,6 @@ export interface ITelemetryOptions {
   enabled?: boolean;
   /** The telemetry socket; setting it sends there. Default wss://rtc-telemetry.telnyx.com (production). */
   url?: string;
-  metricsIntervalMs?: number;
-  maxPendingEvents?: number;
-  maxSendBacklogBytes?: number;
   /**
    * Local capture (the default): the frames the SDK would send, kept in
    * memory, printed to the console and passed to `onFrame`; nothing goes
