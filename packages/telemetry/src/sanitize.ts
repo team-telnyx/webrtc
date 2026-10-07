@@ -70,19 +70,47 @@ const SECRET_KEYS = words(`password passwd credential secret token login_token
 const SECRET_FRAME_KEYS = words('passwd password login_token telemetry_token');
 const MAX_DEPTH = 32;
 const REDACTED = '[REDACTED]';
-const URL_CREDENTIALS = /(\w+:\/\/)[^/@\s]+:[^/@\s]+@/g;
+
+/**
+ * Removes "user:password@" from every URL in the text, in one linear pass
+ * (a regular expression for this backtracks badly on crafted input, and
+ * telemetry scrubs whole log lines).
+ */
+export function stripUrlCredentials(text: string): string {
+  let out = '';
+  let from = 0;
+  let scheme = text.indexOf('://');
+  while (scheme !== -1) {
+    const start = scheme + 3;
+    let end = start;
+    let at = -1;
+    while (end < text.length) {
+      const c = text[end];
+      if (c === '/' || c === ' ' || c === '\n' || c === '\r' || c === '\t')
+        break;
+      if (c === '@') at = end;
+      end += 1;
+    }
+    if (at !== -1 && text.slice(start, at).includes(':')) {
+      out += text.slice(from, start);
+      from = at + 1;
+    }
+    scheme = text.indexOf('://', end);
+  }
+  return out + text.slice(from);
+}
 
 /** Credentials inside text: ice-pwd lines, JWTs, bearer tokens, URL passwords, JSON secret fields. */
 export const scrubText = (text: string): string =>
-  text
-    .replace(/a=ice-pwd:[^\r\n"]*/g, 'a=ice-pwd:[REDACTED]')
-    .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED)
-    .replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
-    .replace(URL_CREDENTIALS, '$1')
-    .replace(
-      /("(?:passwd|password|login_token|telemetry_token|access_token|credential)"\s*:\s*)"[^"]*"/gi,
-      '$1"[REDACTED]"'
-    );
+  stripUrlCredentials(
+    text
+      .replace(/a=ice-pwd:[^\r\n"]*/g, 'a=ice-pwd:[REDACTED]')
+      .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED)
+      .replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
+  ).replace(
+    /("(?:passwd|password|login_token|telemetry_token|access_token|credential)"\s*:\s*)"[^"]*"/gi,
+    '$1"[REDACTED]"'
+  );
 
 /** An empty credential stays empty; a filled one becomes "[REDACTED]". */
 const redacted = (item: unknown) =>
@@ -279,7 +307,7 @@ export function toIceServerInfo(servers: RTCIceServer[] = []): IceServerInfo[] {
     (Array.isArray(server.urls) ? server.urls : [server.urls])
       .filter(Boolean)
       .map((url) => ({
-        url: String(url).replace(URL_CREDENTIALS, '$1'),
+        url: stripUrlCredentials(String(url)),
         has_credential: !!server.credential,
       }))
   );
