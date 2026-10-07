@@ -25,13 +25,13 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 ## SwEvent Overview
 
-| **EVENT**             | **CATEGORY**      | **DESCRIPTION**                                                     | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                   |
-| --------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `telnyx.ready`        | Session readiness | SDK is authenticated and the gateway reports `REGED`                | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises               |
-| `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events |
-| `telnyx.ai.conversation` | AI Conversation | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent` | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
-| `telnyx.stats.frame`  | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter    | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                         |
-| `telnyx.stats.report` | Diagnostics       | Entire timeline returned when stats capture stops                   | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                 |
+| **EVENT**                | **CATEGORY**      | **DESCRIPTION**                                                         | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                              |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| `telnyx.ready`           | Session readiness | SDK is authenticated and the server sent `clientReady`                  | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises                          |
+| `telnyx.notification`    | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`)     | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events            |
+| `telnyx.ai.conversation` | AI Conversation   | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent`       | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
+| `telnyx.stats.frame`     | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter        | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                                    |
+| `telnyx.stats.report`    | Diagnostics       | Entire timeline returned when stats capture stops                       | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                            |
 
 ## Event Details
 
@@ -39,25 +39,23 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 #### `telnyx.ready`
 
-Emitted after the server reports `REGISTER` or `REGED` gateway states (see `VertoHandler`). Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners.
+Emitted as soon as the server sends `telnyx_rtc.clientReady` (see `VertoHandler`). The SDK then checks the gateway state in the background; registration failures are reported on `telnyx.error`. Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners.
 
 The signaling connection is established to a specific voice-sdk-proxy instance in one of Telnyx's datacenters (see [Network Connectivity Requirements](../../../docs/network-connectivity-requirements.md) for the full list of regions and IPs). The datacenter is selected via anycast DNS when connecting to `rtc.telnyx.com`, or can be pinned to a specific region using a regional endpoint (e.g., `apac.rtc.telnyx.com`). Once connected, all signaling and media for that session routes through the selected datacenter's infrastructure.
 
-After `telnyx.ready` fires, the connected datacenter and region are available on the client instance:
+Shortly after `telnyx.ready` fires, once the background gateway check returns, the connected datacenter and region are available on the client instance:
 
 ```ts
-client.on('telnyx.ready', () => {
-  console.log('Region:', client.region); // e.g. "apac", "eu", "us-east"
-  console.log('DC:', client.dc); // e.g. "cn1", "fr5", "at1"
-});
+console.log('Region:', client.region); // e.g. "apac", "eu", "us-east"
+console.log('DC:', client.dc); // e.g. "cn1", "fr5", "at1"
 ```
 
-| Property        | Type             | Description                                                                                                              |
-| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Property        | Type             | Description                                                                                                                              |
+| --------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"south-asia"`) |
-| `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
+| `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                                         |
 
-Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
+Both values are set from the gateway `REGED` response. They are `null` until that response arrives, so they may still be `null` inside a `telnyx.ready` handler.
 
 #### `telnyx.notification`
 
@@ -67,13 +65,13 @@ Only `callUpdate` is the recommended notification type for application use. The 
 
 **Notification Types:**
 
-| `type`                       | Description                           | Payload                       | Status |
-| ---------------------------- | ------------------------------------- | ----------------------------- | ------ |
-| `callUpdate`                 | A call has changed state              | `{ call }`                    | Active |
-| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   | Deprecated |
-| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          | Deprecated — use `telnyx.ready` |
+| `type`                       | Description                           | Payload                       | Status                            |
+| ---------------------------- | ------------------------------------- | ----------------------------- | --------------------------------- |
+| `callUpdate`                 | A call has changed state              | `{ call }`                    | Active                            |
+| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   | Deprecated                        |
+| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          | Deprecated — use `telnyx.ready`   |
 | `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   | Deprecated — use `telnyx.warning` |
-| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` | Deprecated |
+| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` | Deprecated                        |
 
 ### AI Conversation
 

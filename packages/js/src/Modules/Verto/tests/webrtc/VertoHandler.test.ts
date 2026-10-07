@@ -933,43 +933,50 @@ describe('VertoHandler', () => {
     });
   });
 
-  describe('telnyx_rtc.gatewayState', () => {
-    it('should dispatch a telnyx.ready notification', () => {
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":20342,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-        )
-      );
+  describe('telnyx_rtc.clientReady', () => {
+    const clientReadyMsg = JSON.parse(
+      '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+    );
 
+    it('should dispatch telnyx.ready before requesting the gateway state', () => {
+      Connection.mockSend.mockClear();
+
+      handler.handleMessage(clientReadyMsg);
+
+      expect(onNotification).toHaveBeenCalledTimes(1);
       expect(onNotification).toBeCalledWith({
-        state: 'REGED',
+        reattached_sessions: [],
         type: 'vertoClientReady',
       });
-
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
-        )
+      expect(Connection.mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: 'telnyx_rtc.gatewayState',
+          }),
+        })
       );
+      expect(onNotification.mock.invocationCallOrder[0]).toBeLessThan(
+        Connection.mockSend.mock.invocationCallOrder[0]
+      );
+    });
 
-      expect(onNotification).toBeCalledWith({
-        state: 'REGED',
-        type: 'vertoClientReady',
-      });
+    it('should dispatch telnyx.ready again on clientReady after reconnection', () => {
+      handler.handleMessage(clientReadyMsg);
+      handler.handleMessage(clientReadyMsg);
+
+      expect(onNotification).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Verto message unknown method:', () => {
-    it('if result.params.state is REGED should dispatch a telnyx.ready notification', () => {
+    it('if result.params.state is REGED should not dispatch telnyx.ready (already sent on clientReady)', () => {
       handler.handleMessage(
         JSON.parse(
           '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED"},"sessid":"fab032b1-9b27-43fc"}}'
         )
       );
 
-      expect(onNotification).toBeCalledWith({
-        type: 'vertoClientReady',
-      });
+      expect(onNotification).not.toHaveBeenCalled();
     });
 
     it('should store dc and region from REGED message params on the session', () => {
@@ -1040,49 +1047,6 @@ describe('VertoHandler', () => {
       );
       handler.handleMessage(regedMsg);
       expect((instance as any)._reconnectAttempts).toBe(0);
-    });
-  });
-
-  describe('should fire telnyx.ready again after socket reconnection', () => {
-    it('fires telnyx.ready again when previousGatewayState is reset after socket close', () => {
-      const regedMsg = JSON.parse(
-        '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-      );
-
-      // Step 1: First REGED — should fire telnyx.ready
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          state: 'REGED',
-          type: 'vertoClientReady',
-        })
-      );
-
-      const countAfterFirst = onNotification.mock.calls.length;
-
-      // Step 2: Simulate what Connection.onmessage does (line 152 of Connection.ts):
-      // it sets previousGatewayState = current state after processing
-      instance.connection.previousGatewayState = 'REGED';
-
-      // Step 3: Second REGED — duplicate guard should BLOCK it
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification.mock.calls.length).toBe(countAfterFirst);
-
-      // Step 4: Simulate socket close — onNetworkClose() resets previousGatewayState
-      instance.connection.previousGatewayState = '';
-
-      // Step 5: Third REGED — should fire again after reconnection
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification.mock.calls.length).toBe(countAfterFirst + 1);
-      expect(onNotification).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          state: 'REGED',
-          type: 'vertoClientReady',
-        })
-      );
     });
   });
 

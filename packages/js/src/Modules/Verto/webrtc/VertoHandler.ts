@@ -535,8 +535,11 @@ class VertoHandler {
         break;
 
       case VertoMethod.ClientReady:
-        // We need to send a GatewayState to make sure that the user is registered
-        // to avoid GATEWAY_DOWN when the user tries to make a new call
+        // Unblock the app as soon as the server reports the client is ready.
+        params.type = NOTIFICATION_TYPE.vertoClientReady;
+        trigger(SwEvent.Ready, params, session.uuid);
+        // Check the gateway state in the background to confirm registration
+        // and capture dc, region and call_report_id.
         this.session.execute(messageToCheckRegisterState);
         break;
 
@@ -561,7 +564,8 @@ class VertoHandler {
 
         if (gateWayState) {
           switch (gateWayState) {
-            // If the user is REGED tell the client that it is ready to make calls
+            // Registration confirmed. telnyx.ready was already emitted on
+            // clientReady, so only capture session metadata here.
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
               if (
@@ -605,9 +609,6 @@ class VertoHandler {
                 logger.info(
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
-
-                params.type = NOTIFICATION_TYPE.vertoClientReady;
-                trigger(SwEvent.Ready, params, session.uuid);
               }
               break;
             }

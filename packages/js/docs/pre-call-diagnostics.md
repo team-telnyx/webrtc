@@ -89,7 +89,7 @@ diagnostic calls and requires an authenticated client.
 - **`runPreCall()` and `runNetworkCheck()` require a connected,
   authenticated client.** Both methods place temporary diagnostic calls
   through `client.newCall()`, so the client must have reached
-  `telnyx.ready` (authenticated and registered) before you call them.
+  `telnyx.ready` (authenticated) before you call them.
   Calling them on an unconnected client will fail when they try to dial.
 - **`runMicrophoneCheck()` does not require a connected client.** It
   calls `getUserMedia({ audio: true })` directly and never touches SIP
