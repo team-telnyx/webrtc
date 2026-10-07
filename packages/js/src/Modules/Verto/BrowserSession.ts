@@ -13,8 +13,7 @@ import {
 } from './util/errors';
 import {
   SwEvent,
-  DEFAULT_PROD_ICE_SERVERS,
-  DEFAULT_DEV_ICE_SERVERS,
+  getDefaultIceServers,
   MULTIPLE_ACTIVE_CALLS_DETECTED,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
@@ -728,14 +727,21 @@ export default abstract class BrowserSession extends BaseSession {
     this._audioConstraints = this._previousAudioConstraints || true;
   }
 
+  /**
+   * ICE servers used for every call unless `newCall()` overrides them.
+   * Explicit `iceServers` are taken as given. Otherwise the SDK defaults for
+   * the environment are used, with the TURN entries pointed at the pinned
+   * `region`'s TURN name (`<region>.turn.telnyx.com`) when one is set, so
+   * media relay stays in the same region as signaling.
+   */
   set iceServers(servers: RTCIceServer[]) {
     if (servers && Array.isArray(servers)) {
       this._iceServers = servers;
     } else {
-      const isDev = this.options.env === 'development';
-      this._iceServers = isDev
-        ? DEFAULT_DEV_ICE_SERVERS
-        : DEFAULT_PROD_ICE_SERVERS;
+      this._iceServers = getDefaultIceServers(
+        this.options.env,
+        this.options.region
+      );
     }
   }
 

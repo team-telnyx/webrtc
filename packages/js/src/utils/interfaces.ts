@@ -158,6 +158,10 @@ export interface IClientOptions {
    * Region to use for the connection. Use {@link Region} for the supported
    * values, or omit this option to use automatic routing.
    *
+   * Pinning a region selects both the signaling host
+   * (`<region>.rtc.telnyx.com`) and, unless `iceServers` is set, the TURN
+   * servers used for media relay (`<region>.turn.telnyx.com`).
+   *
    * Arbitrary strings remain supported for backwards compatibility.
    */
   region?: string;

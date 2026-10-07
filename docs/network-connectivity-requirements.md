@@ -107,6 +107,22 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 
 > **Note:** TURN credentials are provisioned automatically by the SDK via the signaling connection. No manual TURN credential management is required.
 
+### Regional TURN endpoints
+
+When the client is created with a `region` (see [Region selection](#region-selection)) and no explicit `iceServers`, the SDK's default TURN entries use that region's TURN name, so media relay stays in the same region as signaling:
+
+| Regional TURN name | Region |
+|--------------------|--------|
+| `us-east.turn.telnyx.com` | US East |
+| `us-central.turn.telnyx.com` | US Central |
+| `us-west.turn.telnyx.com` | US West |
+| `ca-central.turn.telnyx.com` | Canada |
+| `eu.turn.telnyx.com` | Europe |
+| `apac.turn.telnyx.com` | Asia-Pacific |
+| `south-asia.turn.telnyx.com` | South Asia |
+
+The same ports apply (UDP/TCP 3478, TURNS 443). STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used as before.
+
 ## Media server connectivity
 
 Audio media (SRTP) flows directly between the browser and the B2BUA-RTC media server. Your firewall must allow outbound UDP to these IP ranges.
