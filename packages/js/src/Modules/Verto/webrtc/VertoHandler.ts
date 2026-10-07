@@ -535,9 +535,11 @@ class VertoHandler {
         break;
 
       case VertoMethod.ClientReady:
-        this._notifyReady(params);
-        // Confirm registration and collect metadata in the background, without
-        // delaying the app-facing readiness signal from ClientReady.
+        // Unblock the app as soon as the server reports the client is ready.
+        params.type = NOTIFICATION_TYPE.vertoClientReady;
+        trigger(SwEvent.Ready, params, session.uuid);
+        // Check the gateway state in the background to confirm registration
+        // and capture dc, region and call_report_id.
         this.session.execute(messageToCheckRegisterState);
         break;
 
@@ -561,52 +563,53 @@ class VertoHandler {
         const gateWayState = getGatewayState(msg);
 
         if (gateWayState) {
-          if (
-            gateWayState !== GatewayStateType.REGISTER &&
-            gateWayState !== GatewayStateType.REGED
-          ) {
-            session.connection.readyEmitted = false;
-          }
           switch (gateWayState) {
-            // If the user is REGED tell the client that it is ready to make calls
+            // Registration confirmed. telnyx.ready was already emitted on
+            // clientReady, so only capture session metadata here.
             case GatewayStateType.REGISTER:
             case GatewayStateType.REGED: {
-              this.retriedRegister = 0;
-              // ClientReady/REGISTER can notify the app first, but only REGED
-              // confirms a healthy registration and resets reconnect attempts.
-              if (gateWayState === GatewayStateType.REGED) {
-                this.session.resetReconnectAttempts();
-              }
+              if (
+                !this.isDuplicateGatewayState(gateWayState, [
+                  GatewayStateType.REGED,
+                  GatewayStateType.REGISTER,
+                ])
+              ) {
+                this.session._triggerKeepAliveTimeoutCheck();
+                this.retriedRegister = 0;
 
-              // Metadata can arrive after readiness (or in a duplicate REGED).
-              const callReportId = msg?.result?.params?.call_report_id;
-              if (callReportId) {
-                session.callReportId = callReportId;
-                Object.values(session.calls).forEach((call) => {
-                  if (call instanceof Call) call._refreshCallReportId();
-                });
-                logger.debug(
-                  'Captured call_report_id from REGED:',
-                  callReportId
-                );
-              }
+                // Only reset reconnect attempts on confirmed healthy
+                // registration (REGED). REGISTER alone does not guarantee
+                // the session is fully established — the socket could
+                // still close before REGED, masking an unhealthy
+                // reconnect loop if we reset too early.
+                if (gateWayState === GatewayStateType.REGED) {
+                  this.session.resetReconnectAttempts();
+                }
 
-              const dc = msg?.result?.params?.dc;
-              if (dc) {
-                session.dc = dc;
-              }
+                // Capture call_report_id for SDK call reporting
+                const callReportId = msg?.result?.params?.call_report_id;
+                if (callReportId) {
+                  session.callReportId = callReportId;
+                  logger.debug(
+                    'Captured call_report_id from REGED:',
+                    callReportId
+                  );
+                }
 
-              const region = msg?.result?.params?.region;
-              if (region) {
-                session.region = region;
-              }
+                const dc = msg?.result?.params?.dc;
+                if (dc) {
+                  session.dc = dc;
+                }
 
-              if (!session.connection.readyEmitted) {
+                const region = msg?.result?.params?.region;
+                if (region) {
+                  session.region = region;
+                }
+
                 logger.info(
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );
               }
-              this._notifyReady(params);
               break;
             }
 
@@ -768,16 +771,6 @@ class VertoHandler {
         break;
       }
     }
-  }
-
-  private _notifyReady(params: Record<string, unknown>): void {
-    const { session } = this;
-    if (session.connection.readyEmitted) return;
-
-    session.connection.readyEmitted = true;
-    session._triggerKeepAliveTimeoutCheck();
-    params.type = NOTIFICATION_TYPE.vertoClientReady;
-    trigger(SwEvent.Ready, params, session.uuid);
   }
 
   /**

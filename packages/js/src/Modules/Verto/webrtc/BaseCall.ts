@@ -1454,9 +1454,13 @@ export default abstract class BaseCall implements IWebRTCCall {
           }
         }, 0);
 
-        // Collect locally as soon as media is active, even if registration
-        // metadata is delayed. Uploads still require a call_report_id.
-        if (this._callReportCollector && this.peer?.instance) {
+        // Start collecting call stats when call becomes active
+        // Only start if call_report_id is available (returned from voice-sdk-proxy)
+        if (
+          this._callReportCollector &&
+          this.peer?.instance &&
+          this.session.callReportId
+        ) {
           this._callReportCollector.start(this.peer.instance);
         }
 
@@ -2759,13 +2763,6 @@ export default abstract class BaseCall implements IWebRTCCall {
       logger.error('Unexpected error in _postCallReport', { error });
     });
     this.session.trackCallReportUpload(callReportUpload);
-  }
-
-  /** @internal Refresh recorder correlation when registration metadata arrives. */
-  public _refreshCallReportId(): void {
-    if (!this._isTerminatingOrTerminated() && this.session.callReportId) {
-      this._callRecorder?._setCallReportId(this.session.callReportId);
-    }
   }
 
   private _getCallReportVoiceSdkId(): string | undefined {

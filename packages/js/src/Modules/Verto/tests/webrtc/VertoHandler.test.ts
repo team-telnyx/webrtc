@@ -933,310 +933,50 @@ describe('VertoHandler', () => {
     });
   });
 
-  describe('client readiness through socket routing', () => {
-    const realConnection = jest.requireActual('../../services/Connection');
-    const { clearQueue } = jest.requireActual('../../services/Handler');
-    let socket: any;
-    let onReady: jest.Mock;
-    let onError: jest.Mock;
+  describe('telnyx_rtc.clientReady', () => {
+    const clientReadyMsg = JSON.parse(
+      '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":[]}}'
+    );
 
-    // Only the transport is fake: exercise Connection, the session's listener,
-    // VertoHandler and the public app-facing readiness event together.
-    class TestSocket {
-      readyState = 1;
-      send = jest.fn();
-      close = jest.fn();
-      onmessage: (event: { data: string }) => void;
-      onclose: (event: { code: number; wasClean: boolean }) => void;
-    }
+    it('should dispatch telnyx.ready before requesting the gateway state', () => {
+      Connection.mockSend.mockClear();
 
-    const receive = (message: object) =>
-      socket.onmessage({
-        data: JSON.stringify({ jsonrpc: '2.0', ...message }),
-      });
-    const clientReady = () =>
-      receive({
-        id: 'client-ready',
-        method: 'telnyx_rtc.clientReady',
-        params: { reattached_sessions: [] },
-      });
-    const gatewayState = (state: string, metadata = {}) =>
-      receive({
-        id: 'mocked-uuid', // Matches the real Gateway request in this suite.
-        result: { params: { state, ...metadata } },
-      });
+      handler.handleMessage(clientReadyMsg);
 
-    beforeEach(() => {
-      jest.useFakeTimers();
-      clearQueue();
-      instance = new Verto({ login: 'login', password: 'password' });
-      realConnection.setWebSocket(TestSocket);
-      instance.connection = new realConnection.default(instance);
-      instance.connection.connect();
-      socket = (instance.connection as any)._wsClient;
-      onReady = jest.fn();
-      onError = jest.fn();
-      instance.on('telnyx.ready', onReady);
-      instance.on('telnyx.error', onError);
-    });
-
-    afterEach(() => {
-      instance.connection.close();
-      clearQueue();
-      jest.clearAllTimers();
-      jest.useRealTimers();
-      jest.restoreAllMocks();
-      realConnection.setWebSocket(WebSocket);
-    });
-
-    it('unblocks the app before execute even when gatewayState never replies', () => {
-      const execute = jest.spyOn(instance, 'execute');
-      const appReady = jest.fn(() => expect(execute).not.toHaveBeenCalled());
-      instance.on('telnyx.ready', appReady);
-
-      clientReady();
-
-      expect(appReady).toHaveBeenCalledTimes(1);
-      expect(onReady).toHaveBeenCalledWith({
+      expect(onNotification).toHaveBeenCalledTimes(1);
+      expect(onNotification).toBeCalledWith({
         reattached_sessions: [],
         type: 'vertoClientReady',
       });
-      expect(execute).toHaveBeenCalledWith(
+      expect(Connection.mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
             method: 'telnyx_rtc.gatewayState',
           }),
         })
       );
-      // No gateway response or promise settlement is needed to enable the UI.
-      jest.advanceTimersByTime(1000);
-      expect(onReady).toHaveBeenCalledTimes(1);
-    });
-
-    it.each(['clientReady', 'REGISTER'])(
-      'ingests delayed REGED metadata after %s without another Ready',
-      (initial) => {
-        (instance as any)._reconnectAttempts = 3;
-        const keepAlive = jest.spyOn(instance, '_triggerKeepAliveTimeoutCheck');
-        if (initial === 'clientReady') {
-          clientReady();
-          clientReady(); // Duplicate readiness must not notify twice.
-        } else {
-          gatewayState(initial);
-        }
-        expect(onReady).toHaveBeenCalledTimes(1);
-        expect((instance as any)._reconnectAttempts).toBe(3);
-        expect(instance.callReportId).toBeFalsy();
-
-        jest.advanceTimersByTime(1000);
-        gatewayState('REGED', {
-          call_report_id: 'report-id',
-          dc: 'ams3-prod',
-          region: 'eu-west',
-        });
-        expect(instance.callReportId).toBe('report-id');
-        expect(instance.dc).toBe('ams3-prod');
-        expect(instance.region).toBe('eu-west');
-        expect((instance as any)._reconnectAttempts).toBe(0);
-        gatewayState('REGED');
-        expect(instance.callReportId).toBe('report-id');
-        expect(onReady).toHaveBeenCalledTimes(1);
-        expect(keepAlive).toHaveBeenCalledTimes(1);
-      }
-    );
-
-    it.each([State.Active, State.Held])(
-      'collects before metadata and refreshes recorder correlation in state %s',
-      async (state) => {
-        instance.options.enableCallRecording = true;
-        clientReady();
-        _setupCall();
-        const collector = call['_callReportCollector'];
-        const recorder = call['_callRecorder'];
-        const start = jest.spyOn(collector, 'start');
-        jest.spyOn(recorder, 'start').mockImplementation(() => {});
-        const setReportId = jest.spyOn(recorder, '_setCallReportId');
-        const getStats = jest.fn().mockResolvedValue(new Map());
-        call.peer = {
-          instance: { getStats },
-          tryCollectTimings: jest.fn(),
-          close: jest.fn(),
-        } as any;
-        call.setState(State.Active);
-        if (state === State.Held) call.setState(state);
-        expect(instance.callReportId).toBeFalsy();
-        expect(start).toHaveBeenCalledTimes(1);
-        jest.advanceTimersByTime(1000);
-        await Promise.resolve();
-        expect(getStats).toHaveBeenCalled();
-
-        // The peer stub has no RTP samples; supply a payload to exercise the
-        // real BaseCall upload guard independently of stats aggregation.
-        const flush = jest
-          .spyOn(collector, 'flush')
-          .mockReturnValue({ segment: 0 } as any);
-        const send = jest.spyOn(collector, 'sendPayload').mockResolvedValue();
-        call.flushIntermediateCallReport();
-        expect(flush).not.toHaveBeenCalled();
-        expect(send).not.toHaveBeenCalled();
-
-        gatewayState('REGED', { call_report_id: 'late-report-id' });
-        gatewayState('REGED', { call_report_id: 'late-report-id' });
-        expect(setReportId).toHaveBeenCalledWith('late-report-id');
-        expect(recorder['_resolveCallReportId']()).toBe('late-report-id');
-        expect(start).toHaveBeenCalledTimes(1);
-        expect(onReady).toHaveBeenCalledTimes(1);
-        call.flushIntermediateCallReport();
-        expect(send).toHaveBeenCalledWith(
-          expect.any(Object),
-          'late-report-id',
-          instance.connection.host,
-          undefined,
-          false
-        );
-        jest.spyOn(collector, 'postReport').mockResolvedValue();
-        call.setState(State.Destroy);
-        await instance['_drainCallReportUploads']();
-        setReportId.mockClear();
-        gatewayState('REGED', { call_report_id: 'after-destroy' });
-        call._refreshCallReportId();
-        expect(setReportId).not.toHaveBeenCalled();
-        expect(start).toHaveBeenCalledTimes(1);
-      }
-    );
-
-    it('does not enable disabled call reports when metadata arrives', () => {
-      instance.options.enableCallReports = false;
-      clientReady();
-      _setupCall();
-      call.setState(State.Active);
-      gatewayState('REGED', { call_report_id: 'late-report-id' });
-      expect(call['_callReportCollector']).toBeNull();
-      expect(call['_callRecorder']).toBeNull();
-      call.setState(State.Destroy);
-    });
-
-    it.each(['EXPIRED', 'UNREGISTER', 'TRYING'])(
-      'emits recovered Ready after REGED -> %s -> REGED',
-      (state) => {
-        gatewayState('REGED');
-        gatewayState(state);
-        expect(onReady).toHaveBeenCalledTimes(1);
-        gatewayState('REGED');
-        gatewayState('REGED');
-        expect(onReady).toHaveBeenCalledTimes(2);
-      }
-    );
-
-    it('deduplicates clientReady -> REGISTER -> REGED', () => {
-      clientReady();
-      gatewayState('REGISTER');
-      gatewayState('REGED');
-      expect(onReady).toHaveBeenCalledTimes(1);
-    });
-
-    it('preserves REGED-only readiness and deduplicates a later clientReady', () => {
-      gatewayState('REGED');
-      gatewayState('REGED');
-      clientReady();
-      expect(onReady).toHaveBeenCalledTimes(1);
-      expect(onReady).toHaveBeenCalledWith({ type: 'vertoClientReady' });
-    });
-
-    it.each(['NOREG', 'UNREGED', 'FAILED', 'FAIL_WAIT', 'TIMEOUT'])(
-      'still handles %s after early readiness and notifies on recovery',
-      (state) => {
-        clientReady();
-        expect(onReady).toHaveBeenCalledTimes(1);
-        (instance as any)._autoReconnect = true;
-        (instance as any)._reconnectAttempts = 3;
-        const send = jest.spyOn(instance, 'execute');
-
-        gatewayState(state);
-        if (state === 'NOREG' || state === 'UNREGED') {
-          jest.advanceTimersByTime(6000);
-          expect(send).toHaveBeenCalled();
-          for (let i = 0; i < 4; i++) gatewayState(state);
-          expect(onError.mock.calls.map(([event]) => event.error.name)).toEqual(
-            ['LOGIN_FAILED']
-          );
-        } else {
-          expect(onError.mock.calls.map(([event]) => event.error.name)).toEqual(
-            ['GATEWAY_FAILED']
-          );
-          expect(instance.options.skipLastVoiceSdkId).toBe(true);
-          const disconnect = jest
-            .spyOn(instance, 'disconnect')
-            .mockResolvedValue();
-          jest.spyOn(instance, 'clearConnection').mockImplementation(() => {});
-          jest.spyOn(instance, 'connect').mockResolvedValue();
-          jest.advanceTimersByTime(6000);
-          expect(disconnect).toHaveBeenCalledTimes(1);
-        }
-        expect((instance as any)._reconnectAttempts).toBe(3);
-        expect(onReady).toHaveBeenCalledTimes(1);
-        gatewayState('REGED');
-        expect(onReady).toHaveBeenCalledTimes(2);
-        expect((instance as any)._reconnectAttempts).toBe(0);
-      }
-    );
-
-    it.each(['clientReady', 'REGED'])(
-      'emits fresh readiness after socket close (initial=%s)',
-      (initial) => {
-        if (initial === 'clientReady') clientReady();
-        else gatewayState(initial);
-        expect(onReady).toHaveBeenCalledTimes(1);
-        (instance as any)._autoReconnect = false;
-        socket.readyState = 3;
-        socket.onclose({ code: 1006, wasClean: false });
-        instance.connection.connect();
-        socket = (instance.connection as any)._wsClient;
-        clientReady();
-        expect(onReady).toHaveBeenCalledTimes(2);
-        gatewayState('REGED');
-        expect(onReady).toHaveBeenCalledTimes(2);
-      }
-    );
-  });
-
-  describe('telnyx_rtc.gatewayState', () => {
-    it('should dispatch a telnyx.ready notification', () => {
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":20342,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-        )
+      expect(onNotification.mock.invocationCallOrder[0]).toBeLessThan(
+        Connection.mockSend.mock.invocationCallOrder[0]
       );
+    });
 
-      expect(onNotification).toBeCalledWith({
-        state: 'REGED',
-        type: 'vertoClientReady',
-      });
+    it('should dispatch telnyx.ready again on clientReady after reconnection', () => {
+      handler.handleMessage(clientReadyMsg);
+      handler.handleMessage(clientReadyMsg);
 
-      handler.handleMessage(
-        JSON.parse(
-          '{"jsonrpc":"2.0","id":37,"method":"telnyx_rtc.clientReady","params":{"reattached_sessions":["test"], "state": "REGED"}}'
-        )
-      );
-
-      expect(onNotification).toBeCalledWith({
-        state: 'REGED',
-        type: 'vertoClientReady',
-      });
+      expect(onNotification).toHaveBeenCalledTimes(2);
     });
   });
 
   describe('Verto message unknown method:', () => {
-    it('if result.params.state is REGED should dispatch a telnyx.ready notification', () => {
+    it('if result.params.state is REGED should not dispatch telnyx.ready (already sent on clientReady)', () => {
       handler.handleMessage(
         JSON.parse(
           '{"jsonrpc":"2.0","id":"db971dc0-d571","result":{"params":{"state":"REGED"},"sessid":"fab032b1-9b27-43fc"}}'
         )
       );
 
-      expect(onNotification).toBeCalledWith({
-        type: 'vertoClientReady',
-      });
+      expect(onNotification).not.toHaveBeenCalled();
     });
 
     it('should store dc and region from REGED message params on the session', () => {
@@ -1307,50 +1047,6 @@ describe('VertoHandler', () => {
       );
       handler.handleMessage(regedMsg);
       expect((instance as any)._reconnectAttempts).toBe(0);
-    });
-  });
-
-  describe('should fire telnyx.ready again after socket reconnection', () => {
-    it('fires telnyx.ready again after network close resets readiness', () => {
-      const regedMsg = JSON.parse(
-        '{"jsonrpc":"2.0","id":1,"method":"telnyx_rtc.gatewayState","params":{"state":"REGED"}}'
-      );
-
-      // Step 1: First REGED — should fire telnyx.ready
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          state: 'REGED',
-          type: 'vertoClientReady',
-        })
-      );
-
-      const countAfterFirst = onNotification.mock.calls.length;
-
-      // Step 2: Simulate what Connection.onmessage does (line 152 of Connection.ts):
-      // it sets previousGatewayState = current state after processing
-      instance.connection.previousGatewayState = 'REGED';
-
-      // Step 3: Second REGED — duplicate guard should BLOCK it
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification.mock.calls.length).toBe(countAfterFirst);
-
-      // Step 4: Run the actual socket-close cleanup, not just one state reset.
-      (instance as any)._autoReconnect = false;
-      instance.onNetworkClose();
-
-      // Step 5: Third REGED — should fire again after reconnection
-      handler.handleMessage(regedMsg);
-
-      expect(onNotification.mock.calls.length).toBe(countAfterFirst + 1);
-      expect(onNotification).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          state: 'REGED',
-          type: 'vertoClientReady',
-        })
-      );
     });
   });
 

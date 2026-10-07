@@ -27,7 +27,7 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 | **EVENT**                | **CATEGORY**      | **DESCRIPTION**                                                         | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                              |
 | ------------------------ | ----------------- | ----------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
-| `telnyx.ready`           | Session readiness | Server sends `clientReady`, or gateway reports `REGISTER` / `REGED`     | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises                          |
+| `telnyx.ready`           | Session readiness | SDK is authenticated and the server sent `clientReady`                  | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises                          |
 | `telnyx.notification`    | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`)     | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events            |
 | `telnyx.ai.conversation` | AI Conversation   | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent`       | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
 | `telnyx.stats.frame`     | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter        | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                                    |
@@ -39,17 +39,15 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 #### `telnyx.ready`
 
-Emitted immediately when the server sends `telnyx_rtc.clientReady`, without waiting for the background gateway-state check. A `REGISTER` or `REGED` gateway state also emits readiness if it has not already been emitted. Later registration confirmation does not emit a duplicate Ready event. Treat `telnyx.ready` as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners. Gateway failures still emit `telnyx.error`, and readiness can fire again after recovery or reconnection.
+Emitted as soon as the server sends `telnyx_rtc.clientReady` (see `VertoHandler`). The SDK then checks the gateway state in the background; registration failures are reported on `telnyx.error`. Treat this as the canonical signal that the user can place or receive calls. Reset reconnection timers here and hide any "connecting" banners.
 
 The signaling connection is established to a specific voice-sdk-proxy instance in one of Telnyx's datacenters (see [Network Connectivity Requirements](../../../docs/network-connectivity-requirements.md) for the full list of regions and IPs). The datacenter is selected via anycast DNS when connecting to `rtc.telnyx.com`, or can be pinned to a specific region using a regional endpoint (e.g., `apac.rtc.telnyx.com`). Once connected, all signaling and media for that session routes through the selected datacenter's infrastructure.
 
-The connected datacenter and region are populated by the gateway response and may not yet be available when `telnyx.ready` fires:
+Shortly after `telnyx.ready` fires, once the background gateway check returns, the connected datacenter and region are available on the client instance:
 
 ```ts
-client.on('telnyx.ready', () => {
-  console.log('Region:', client.region); // e.g. "apac", "eu", "us-east"
-  console.log('DC:', client.dc); // e.g. "cn1", "fr5", "at1"
-});
+console.log('Region:', client.region); // e.g. "apac", "eu", "us-east"
+console.log('DC:', client.dc); // e.g. "cn1", "fr5", "at1"
 ```
 
 | Property        | Type             | Description                                                                                                                              |
@@ -57,7 +55,7 @@ client.on('telnyx.ready', () => {
 | `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"south-asia"`) |
 | `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                                         |
 
-Both values are set from the gateway `REGED` response. They are initially `null` and are updated when metadata arrives, even if readiness has already fired. Do not gate calling on these optional metadata values.
+Both values are set from the gateway `REGED` response. They are `null` until that response arrives, so they may still be `null` inside a `telnyx.ready` handler.
 
 #### `telnyx.notification`
 

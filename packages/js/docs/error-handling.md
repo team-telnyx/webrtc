@@ -8,7 +8,7 @@ The current SDK exposes error-related behavior through three main channels:
 - `telnyx.warning` for degraded but recoverable conditions.
 - `telnyx.notification` for call/session updates plus a small set of backward-compatible notifications.
 
-Use `telnyx.ready` to know when the client is authenticated and the gateway is ready. Do not treat readiness as a `telnyx.notification` case.
+Use `telnyx.ready` to know when the client is authenticated and ready to place or receive calls. Do not treat readiness as a `telnyx.notification` case.
 
 > **Version note:** The structured error and warning system (`TELNYX_ERROR_CODES`, `telnyx.warning`, `TelnyxError`) was introduced after v2.25.25. If you are on v2.25.25, see the [Error handling in v2.25.25](#error-handling-in-v22525) section below.
 
@@ -26,14 +26,14 @@ Use `telnyx.ready` to know when the client is authenticated and the gateway is r
 
 ## Event Overview
 
-| Event                 | Purpose                                                             | Recommended use                                                            |
-| --------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `telnyx.ready`        | Server sent `clientReady`, or gateway reached `REGISTER` or `REGED` | Enable calling UI and flush any reconnect state                            |
-| `telnyx.error`        | Fatal or blocking SDK errors                                        | Show actionable errors, retry, re-authenticate, or fail the current action |
-| `telnyx.warning`      | Non-fatal quality, connectivity, and token warnings                 | Show degraded-state UI and collect telemetry                               |
-| `telnyx.notification` | Call lifecycle updates and compatibility notifications              | Drive call UI and hangup handling                                          |
-| `telnyx.socket.close` | Raw WebSocket close event                                           | Log close codes and monitor reconnect behavior                             |
-| `telnyx.socket.error` | Raw WebSocket error wrapper                                         | Log opaque socket failures alongside `sessionId`                           |
+| Event                 | Purpose                                                           | Recommended use                                                            |
+| --------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `telnyx.ready`        | Client is authenticated, and server sent `telnyx_rtc.clientReady` | Enable calling UI and flush any reconnect state                            |
+| `telnyx.error`        | Fatal or blocking SDK errors                                      | Show actionable errors, retry, re-authenticate, or fail the current action |
+| `telnyx.warning`      | Non-fatal quality, connectivity, and token warnings               | Show degraded-state UI and collect telemetry                               |
+| `telnyx.notification` | Call lifecycle updates and compatibility notifications            | Drive call UI and hangup handling                                          |
+| `telnyx.socket.close` | Raw WebSocket close event                                         | Log close codes and monitor reconnect behavior                             |
+| `telnyx.socket.error` | Raw WebSocket error wrapper                                       | Log opaque socket failures alongside `sessionId`                           |
 
 ## Structured Errors (`telnyx.error`)
 
@@ -417,7 +417,7 @@ The previous version of this document described a generic exponential-backoff fl
 1. On `telnyx.socket.close` or `telnyx.socket.error`, the SDK clears subscriptions and resets gateway readiness state.
 2. If `autoReconnect` is enabled, the browser session schedules `connect()` after `client.reconnectDelay`.
 3. In the browser session, `reconnectDelay` is currently `1000` ms.
-4. When the server sends `clientReady` or the gateway reports `REGISTER` / `REGED` again, the SDK emits `telnyx.ready` again. `clientReady` does not wait for gateway confirmation; later confirmation updates metadata without emitting duplicate readiness.
+4. When the server sends `telnyx_rtc.clientReady` on the new connection, the SDK emits `telnyx.ready` again.
 
 ### Gateway retry behavior
 
