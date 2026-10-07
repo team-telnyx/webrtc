@@ -8,8 +8,8 @@
  *   MAX_PENDING_EVENTS, oldest dropped) and go out in order with `sent_at`.
  * - Above MAX_SEND_BACKLOG_BYTES of socket backlog an event is dropped.
  * - telnyx_rtc.telemetry_control switches it off and on.
- * - An event without its own call ID goes out once per active call (same
- *   sequence and timestamp); every record with a call ID has call_sequence.
+ * - An event without its own call ID goes out once per active call: same
+ *   timestamp, and each copy takes its own sequence like any other record.
  * - Capture mode (the default): the same frames, kept and printed locally.
  */
 import { v4 as uuidv4 } from 'uuid';
@@ -181,7 +181,6 @@ export default class TelemetryClient {
   private _droppedBacklog = 0;
   private _droppedPending = 0;
   private _activeCalls: string[] = [];
-  private _callSequences = new Map<string, number>();
   private _endedCalls: string[] = [];
   private _emittingLog = false;
 
@@ -331,7 +330,6 @@ export default class TelemetryClient {
   callEnded(callId: string): void {
     if (!callId) return;
     this._activeCalls = this._activeCalls.filter((id) => id !== callId);
-    this._callSequences.delete(callId);
     if (!this._endedCalls.includes(callId)) {
       this._endedCalls.push(callId);
       if (this._endedCalls.length > MAX_ENDED_CALLS) this._endedCalls.shift();
@@ -406,40 +404,36 @@ export default class TelemetryClient {
     ) {
       return []; // dead-lettered by the backend: no sequence spent on it
     }
-    const sequence = options.sequence ?? this.reserveSequence();
     const timestamp = iso(options.timestamp ?? Date.now());
-    return callIds.map((callId) => {
+    return callIds.map((callId, index) => {
       const event = {
         schema_version: SCHEMA_VERSION,
-        sequence,
+        // Every record its own number; only the first copy can use a reserved one.
+        sequence:
+          (index === 0 ? options.sequence : undefined) ??
+          this.reserveSequence(),
         timestamp,
         client: this.client,
         ids: callId ? { ...ids, call_id: callId } : ids,
         name,
         payload,
       } as ClientEvent;
-      if (callId) {
-        const callSequence = (this._callSequences.get(callId) ?? 0) + 1;
-        this._callSequences.set(callId, callSequence);
-        event.call_sequence = callSequence;
-      }
       if (generation > 0) event.socket_generation = generation;
       return event;
     });
   }
 
-  /** In sequence order; the copies of one event stay and drop together. */
+  /** In sequence order; above the cap the oldest go first. */
   private _enqueue(events: ClientEvent[]): void {
-    const { sequence } = events[0];
-    let index = this._pending.length;
-    while (index > 0 && this._pending[index - 1].sequence > sequence) index--;
-    this._pending.splice(index, 0, ...events);
+    for (const event of events) {
+      let index = this._pending.length;
+      while (index > 0 && this._pending[index - 1].sequence > event.sequence)
+        index--;
+      this._pending.splice(index, 0, event);
+    }
     while (this._pending.length > MAX_PENDING_EVENTS) {
-      const oldest = this._pending[0].sequence;
-      while (this._pending[0]?.sequence === oldest) {
-        this._pending.shift();
-        this._droppedPending += 1;
-      }
+      this._pending.shift();
+      this._droppedPending += 1;
     }
   }
 

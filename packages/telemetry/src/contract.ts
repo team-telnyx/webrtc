@@ -30,8 +30,7 @@ export type SchemaVersion = '2.0' | '2.1';
 
 export type Envelope = {
   schema_version: SchemaVersion;
-  sequence: number; // 1, 2, 3... per sdk_instance_id, never reused; the per-call copies of a shared event share it
-  call_sequence?: number; // 1, 2, 3... per (sdk_instance_id, call_id); call_ended carries the call's record count
+  sequence: number; // 1, 2, 3... per sdk_instance_id, one per record (each per-call copy too), never reused
   timestamp: string; // ISO 8601 with ms; call_metrics: end of the interval
   socket_generation?: number; // signaling socket attempt: absent before the first, then 1, 2...
   client: ClientInfo;
@@ -177,17 +176,24 @@ export type AppStateChangedPayload = {
   previous_state?: AppState; // the state before; absent if unknown
 };
 
-/** by: "app" chose the device, or "sdk" switched by itself. */
+export type DeviceKind = 'audioinput' | 'audiooutput' | 'videoinput';
+
+/** label: "" while the system hides it (a browser before a media permission). */
+export type DeviceInfo = { id: string; label: string };
+
+export type ListedDevice = DeviceInfo & { kind: DeviceKind };
+
+/** The microphone (input) or speaker (output) now in use, chosen by the app or the SDK. */
 export type DeviceChangedPayload = {
-  by: 'app' | 'sdk';
-  device_count?: number;
+  device: DeviceInfo;
+  device_count?: number; // devices of this kind
 };
 
+/** The system's devices changed: the whole list now, and what came and went. */
 export type DeviceListChangedPayload = {
-  input_count: number;
-  output_count: number;
-  added: number;
-  removed: number;
+  devices: ListedDevice[];
+  added: ListedDevice[];
+  removed: ListedDevice[];
 };
 
 /** Where the socket connects; no credentials or query in the url. */

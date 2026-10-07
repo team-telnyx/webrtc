@@ -1189,18 +1189,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       senderTrack: getTrackDebugInfo(sender.track),
       localTracks: getStreamTrackDebugInfo(this.options.localStream),
     });
-    // The disconnect recovery's fallback to the default mic is the SDK's choice.
-    this._reportDeviceChanged('input', recovering ? 'sdk' : 'app');
+    this._reportDeviceChanged('input');
   }
 
   /**
    * Call Report V2: the microphone or speaker in use changed, chosen by the
    * app or by the SDK's own fallback. No-op when telemetry is off.
    */
-  protected _reportDeviceChanged(kind: 'input' | 'output', by: 'app' | 'sdk') {
+  protected _reportDeviceChanged(kind: 'input' | 'output') {
     const events = telemetryOf(this.session);
-    if (kind === 'input') events?.inputDeviceChanged(by, this.options.micId);
-    else events?.outputDeviceChanged(by, this.options.speakerId);
+    if (kind === 'input') events?.inputDeviceChanged(this.options.micId);
+    else events?.outputDeviceChanged(this.options.speakerId);
   }
 
   /**

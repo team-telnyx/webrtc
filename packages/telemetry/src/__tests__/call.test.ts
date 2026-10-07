@@ -496,14 +496,12 @@ describe('CallTelemetry', () => {
 
     const metrics = ws.events().filter((e) => e.name === 'call_metrics');
     expect(metrics).toHaveLength(3);
-    expect(metrics.every((e) => !e.ids.telnyx_leg_id && e.call_sequence)).toBe(
-      true
-    );
+    expect(metrics.every((e) => !e.ids.telnyx_leg_id)).toBe(true);
 
     const ended = ofCall().pop();
     expect(ended.name).toBe('call_ended');
     expect(ended.ids.telnyx_leg_id).toBe('leg-1');
-    expect(ended.call_sequence).toBe(ofCall().length);
+    expect('call_sequence' in ended).toBe(false);
     expect(ended.payload).toEqual(
       expect.objectContaining({
         end_reason: 'local_hangup',

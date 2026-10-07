@@ -7,9 +7,11 @@
 import TelemetryClient, { TELEMETRY_PROD_URL } from './sender';
 import type {
   AppState,
+  DeviceKind,
   ErrorPayload,
   GatewayState,
   KnownIds,
+  ListedDevice,
   LoginMethod,
   NetworkChangedPayload,
   PayloadOf,
@@ -200,15 +202,29 @@ export type ReceivedFrame = {
   ids?: Partial<KnownIds>;
 };
 
-type Devices = {
-  keys: Set<string>;
-  inputs: number;
-  outputs: number;
-  videoInputs: number;
-  entries: DeviceEntry[];
-};
+const listed = (d: DeviceEntry): ListedDevice => ({
+  kind: d.kind as DeviceKind,
+  id: d.device_id,
+  label: d.label,
+});
 
-const deviceKey = (d: DeviceEntry) => `${d.kind}:${d.device_id}:${d.group_id}`;
+/** The devices `list` has beyond `other`, counted: hidden devices all look alike. */
+function devicesMissing(list: DeviceEntry[], other: DeviceEntry[]) {
+  const key = (d: DeviceEntry) => `${d.kind}\n${d.device_id}\n${d.label}`;
+  const left = new Map<string, number>();
+  for (const d of other) left.set(key(d), (left.get(key(d)) ?? 0) + 1);
+  return list.filter((d) => {
+    const count = left.get(key(d)) ?? 0;
+    left.set(key(d), count - 1);
+    return count <= 0;
+  });
+}
+
+/** extra for a device list: each device's group ID, by position; none without any. */
+const groupIds = (list: DeviceEntry[]) =>
+  list.some((d) => d.group_id)
+    ? list.map((d) => (d.group_id ? { group_id: d.group_id } : {}))
+    : undefined;
 
 export default class SessionTelemetry {
   /** Signaling socket counter (envelope socket_generation). */
@@ -234,7 +250,7 @@ export default class SessionTelemetry {
   private _gatewayChecks = new Map<string, { number: number; at: number }>();
   private _sentRequests = new Map<string, Request>();
   private _receivedRequests = new Map<string, Request>();
-  private _devices: Devices | null = null;
+  private _devices: DeviceEntry[] | null = null;
   private _lastNetwork: string | null = null;
   private _appState: AppState | undefined;
   private _cleanups: Array<() => void> = [];
@@ -366,13 +382,13 @@ export default class SessionTelemetry {
     });
     // Devices and permissions answer in a few ms, before the event is sent.
     void Promise.all([
-      this._readDevices().catch((): null => null),
+      readDeviceList(),
       readPermission('microphone'),
       readPermission('camera'),
     ]).then(([devices, microphone_permission, camera_permission]) => {
       if (devices) {
         this._devices ??= devices;
-        extra.devices = devices.entries;
+        extra.devices = devices;
       }
       Object.assign(
         extra,
@@ -415,85 +431,66 @@ export default class SessionTelemetry {
     return document.visibilityState === 'hidden' ? 'hidden' : 'visible';
   }
 
-  /** The app (or the SDK, by "sdk") chose a microphone. */
-  inputDeviceChanged(by: 'app' | 'sdk', deviceId?: string | null): void {
-    this._deviceChanged('input_device_changed', 'audioinput', by, deviceId);
+  /** The microphone in use changed: the app's choice or the SDK's fallback. */
+  inputDeviceChanged(deviceId?: string | null, label?: string): void {
+    this._deviceChanged('input_device_changed', 'audioinput', deviceId, label);
   }
 
-  /** The app (or the SDK, by "sdk") chose a speaker. */
-  outputDeviceChanged(by: 'app' | 'sdk', deviceId?: string | null): void {
-    this._deviceChanged('output_device_changed', 'audiooutput', by, deviceId);
+  /** The speaker in use changed: the app's choice or the SDK's fallback. */
+  outputDeviceChanged(deviceId?: string | null, label?: string): void {
+    this._deviceChanged(
+      'output_device_changed',
+      'audiooutput',
+      deviceId,
+      label
+    );
   }
 
   private _deviceChanged(
     name: 'input_device_changed' | 'output_device_changed',
-    kind: string,
-    by: 'app' | 'sdk',
-    deviceId?: string | null
+    kind: DeviceKind,
+    deviceId?: string | null,
+    label?: string
   ): void {
-    const devices = this._devices;
     const id = str(deviceId) ?? 'default';
-    const found = devices?.entries.find(
-      (d) => d.kind === kind && d.device_id === id
-    );
-    const count = kind === 'audioinput' ? devices?.inputs : devices?.outputs;
-    this.client.emit(name, {
-      by,
-      ...(devices ? { device_count: count } : {}),
-      extra: {
-        device_id: id,
-        ...(found?.label ? { label: found.label } : {}),
-        ...(found?.group_id ? { group_id: found.group_id } : {}),
-      },
-    });
-  }
-
-  private async _readDevices(): Promise<Devices | null> {
-    const entries = await readDeviceList();
-    if (!entries) return null;
-    const count = (kind: string) =>
-      entries.filter((d) => d.kind === kind).length;
-    return {
-      keys: new Set(entries.map(deviceKey)),
-      inputs: count('audioinput'),
-      outputs: count('audiooutput'),
-      videoInputs: count('videoinput'),
-      entries,
+    const timestamp = Date.now();
+    const find = (list: DeviceEntry[] | null) =>
+      list?.find((d) => d.kind === kind && d.device_id === id);
+    const emit = (list: DeviceEntry[] | null) => {
+      const found = find(list);
+      this.client.emit(
+        name,
+        {
+          device: { id, label: found?.label || str(label) || '' },
+          ...(list
+            ? { device_count: list.filter((d) => d.kind === kind).length }
+            : {}),
+          ...(found?.group_id ? { extra: { group_id: found.group_id } } : {}),
+        },
+        { timestamp }
+      );
     };
+    if (find(this._devices)) return emit(this._devices);
+    // Not listed yet (just plugged in?): read the list again first.
+    void readDeviceList().then((list) => emit(list ?? this._devices));
   }
 
   private async _onDeviceChange(): Promise<void> {
     const previous = this._devices;
-    const next = await this._readDevices();
+    const next = await readDeviceList();
     if (!next || this._disposed) return;
     this._devices = next;
-    const isAudio = (d: DeviceEntry) => /^audio(in|out)put$/.test(d.kind);
-    const added = previous
-      ? next.entries.filter((d) => !previous.keys.has(deviceKey(d)))
-      : [];
-    const removed = previous
-      ? previous.entries.filter((d) => !next.keys.has(deviceKey(d)))
-      : [];
-    // Audio devices only. Before a permission IDs are hidden: the counts tell.
-    let addedCount = added.filter(isAudio).length;
-    let removedCount = removed.filter(isAudio).length;
-    if (previous && !addedCount && !removedCount) {
-      const diff =
-        next.inputs + next.outputs - (previous.inputs + previous.outputs);
-      if (diff > 0) addedCount = diff;
-      else removedCount = -diff;
-    }
+    const added = previous ? devicesMissing(next, previous) : [];
+    const removed = previous ? devicesMissing(previous, next) : [];
     this.client.emit('device_list_changed', {
-      input_count: next.inputs,
-      output_count: next.outputs,
-      added: addedCount,
-      removed: removedCount,
-      extra: {
-        video_input_count: next.videoInputs,
-        devices: next.entries,
-        ...(added.length ? { added_devices: added } : {}),
-        ...(removed.length ? { removed_devices: removed } : {}),
-      },
+      devices: next.map(listed),
+      added: added.map(listed),
+      removed: removed.map(listed),
+      extra: defined({
+        devices: groupIds(next),
+        added: groupIds(added),
+        removed: groupIds(removed),
+      }),
     });
   }
 

@@ -210,11 +210,7 @@ export interface IWebRTCCall {
   // WEB
   startScreenShare?: (opts?: object) => Promise<IWebRTCCall>;
   stopScreenShare?: () => Promise<void>;
-  /** `by` is internal: "sdk" when the SDK falls back to the default speaker by itself. */
-  setAudioOutDevice?: (
-    deviceId: string,
-    by?: 'app' | 'sdk'
-  ) => Promise<boolean>;
+  setAudioOutDevice?: (deviceId: string) => Promise<boolean>;
   // AI Conversation
   sendConversationMessage?: (message: string, attachments?: string[]) => void;
   sendAIConversationMessage?: (

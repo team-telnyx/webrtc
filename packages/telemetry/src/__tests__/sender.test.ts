@@ -80,7 +80,7 @@ describe('TelemetryClient', () => {
       })
     );
     expect(live.sent_at).toBeUndefined();
-    expect(live.call_sequence).toBeUndefined();
+    expect('call_sequence' in live).toBe(false);
     // Notifications only: no JSON-RPC id after the login.
     expect(ws.sent.slice(1).every((m) => m.id === undefined)).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('TelemetryClient', () => {
     expect(messages(ws)).toEqual(['on']);
   });
 
-  it('copies a shared event to every active call: one sequence, per-call call_sequence (2.1)', () => {
+  it('copies a shared event to every active call, each copy with its own sequence', () => {
     const client = makeClient({}, true);
     const ws = FakeSocket.last();
     client.callStarted('call-a');
@@ -177,28 +177,42 @@ describe('TelemetryClient', () => {
     const base = ws.events()[0].sequence - 1;
     const rows = ws
       .events()
-      .map((e) => [e.name, e.ids.call_id, e.sequence - base, e.call_sequence]);
+      .map((e) => [e.name, e.ids.call_id, e.sequence - base]);
     expect(rows).toEqual([
-      ['call_state', 'call-a', 1, 1],
-      ['logs', 'call-a', 2, 2],
-      ['logs', 'call-b', 2, 1],
-      ['call_state', 'call-b', 3, 2],
-      ['logs', 'call-a', 4, 3],
-      ['logs', 'call-b', 4, 3],
-      ['logs', undefined, 5, undefined],
+      ['call_state', 'call-a', 1],
+      ['logs', 'call-a', 2],
+      ['logs', 'call-b', 3],
+      ['call_state', 'call-b', 4],
+      ['logs', 'call-a', 5],
+      ['logs', 'call-b', 6],
+      ['logs', undefined, 7],
     ]);
-    // An ended call's ID is dropped from later records and its counter reset.
+    expect(ws.events().every((e) => !('call_sequence' in e))).toBe(true);
+    // A reserved sequence goes to the first copy; the others take new ones.
+    const reserved = client.reserveSequence();
+    logEvent(client, 'between');
+    client.emit(
+      'logs',
+      { level: 'info', category: 'general', message: 'reserved' },
+      { sequence: reserved }
+    );
+    expect(
+      ws
+        .events()
+        .filter((e) => e.payload.message === 'reserved')
+        .map((e) => [e.ids.call_id, e.sequence - base])
+    ).toEqual([
+      ['call-a', 8],
+      ['call-b', 11],
+    ]);
+    // An ended call's ID is dropped from later records.
     client.callEnded('call-a');
     client.emit(
       'signaling_message',
       { direction: 'received', raw: {} },
       { ids: { call_id: 'call-a' } }
     );
-    const late = ws.find('signaling_message');
-    expect([late.ids.call_id, late.call_sequence]).toEqual([
-      undefined,
-      undefined,
-    ]);
+    expect(ws.find('signaling_message').ids.call_id).toBeUndefined();
   });
 
   it('never sends call_metrics without a socket, a login and a call, and spends no sequence on it', () => {
@@ -213,14 +227,11 @@ describe('TelemetryClient', () => {
     client.close();
   });
 
-  it('keeps the copies of an event together when queued and drops them together', () => {
+  it('queues records in sequence order and drops the oldest first', () => {
     const client = makeClient();
-    client.callStarted('call-a');
-    client.callStarted('call-b');
     const reserved = client.reserveSequence();
-    // Two copies each: the queue is full, then the reserved (oldest) event's copies arrive.
-    for (let i = 0; i < MAX_PENDING_EVENTS / 2; i += 1)
-      logEvent(client, `m${i}`);
+    for (let i = 0; i < MAX_PENDING_EVENTS; i += 1) logEvent(client, `m${i}`);
+    // Taken before the others: it goes first in the queue, so it is the one dropped.
     client.emit(
       'logs',
       { level: 'info', category: 'general', message: 'reserved' },
@@ -229,15 +240,12 @@ describe('TelemetryClient', () => {
     client.connect();
     FakeSocket.last().open();
     FakeSocket.last().answerLogin();
-    const sent = FakeSocket.last()
-      .events()
-      .map((e) => [e.payload.message, e.ids.call_id]);
+    const sent = FakeSocket.last().events();
     expect(sent).toHaveLength(MAX_PENDING_EVENTS);
-    expect(sent.slice(0, 2)).toEqual([
-      ['m0', 'call-a'],
-      ['m0', 'call-b'],
-    ]);
-    expect(sent.some(([message]) => message === 'reserved')).toBe(false);
+    expect(sent[0].payload.message).toBe('m0');
+    expect(sent.some((e) => e.payload.message === 'reserved')).toBe(false);
+    const sequences = sent.map((e) => e.sequence);
+    expect(sequences).toEqual([...sequences].sort((a, b) => a - b));
   });
 
   it("hands a failed instance's pending events to the next live one", () => {

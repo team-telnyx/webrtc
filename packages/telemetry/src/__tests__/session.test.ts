@@ -431,44 +431,66 @@ describe('SessionTelemetry', () => {
     ]);
   });
 
-  it('device events carry the list and the chosen device under extra', async () => {
+  it('device events: the device in use, and the whole list with what came and went', async () => {
     const { events, ws } = connectedSession();
     events.created();
     await flush();
-    events.inputDeviceChanged('app', 'mic-a');
-    events.outputDeviceChanged('sdk', null);
+    events.inputDeviceChanged('mic-a');
+    events.outputDeviceChanged(null);
+    events.inputDeviceChanged('mic-z', 'Mic Z'); // not listed: the SDK's label
     devices = [
       ...devices,
       { kind: 'audioinput', label: 'Mic B', deviceId: 'mic-b', groupId: 'g3' },
     ];
     onDeviceChange();
     await flush();
-    expect(ws.payload('input_device_changed')).toEqual({
-      by: 'app',
-      device_count: 1,
-      extra: { device_id: 'mic-a', label: 'Mic A', group_id: 'g1' },
-    });
-    expect(ws.payload('output_device_changed')).toEqual({
-      by: 'sdk',
-      device_count: 1,
-      extra: { device_id: 'default' },
-    });
-    expect(ws.payload('device_list_changed')).toEqual(
-      expect.objectContaining({
-        input_count: 2,
-        output_count: 1,
-        added: 1,
-        removed: 0,
-      })
-    );
-    expect(ws.payload('device_list_changed').extra.added_devices).toEqual([
+    const payloads = (name: string) =>
+      ws
+        .events()
+        .filter((e) => e.name === name)
+        .map((e) => e.payload);
+    expect(payloads('input_device_changed')).toEqual([
       {
-        kind: 'audioinput',
-        label: 'Mic B',
-        device_id: 'mic-b',
-        group_id: 'g3',
+        device: { id: 'mic-a', label: 'Mic A' },
+        device_count: 1,
+        extra: { group_id: 'g1' },
+      },
+      { device: { id: 'mic-z', label: 'Mic Z' }, device_count: 1 },
+    ]);
+    expect(payloads('output_device_changed')).toEqual([
+      { device: { id: 'default', label: '' }, device_count: 1 },
+    ]);
+    expect(payloads('device_list_changed')).toEqual([
+      {
+        devices: [
+          { kind: 'audioinput', id: 'mic-a', label: 'Mic A' },
+          { kind: 'audiooutput', id: 'spk-a', label: 'Spk A' },
+          { kind: 'audioinput', id: 'mic-b', label: 'Mic B' },
+        ],
+        added: [{ kind: 'audioinput', id: 'mic-b', label: 'Mic B' }],
+        removed: [],
+        extra: {
+          devices: [{ group_id: 'g1' }, { group_id: 'g1' }, { group_id: 'g3' }],
+          added: [{ group_id: 'g3' }],
+        },
       },
     ]);
+    // Before a media permission every device looks alike: they are counted.
+    const hidden = { kind: 'audioinput', label: '', deviceId: '', groupId: '' };
+    devices = [hidden];
+    onDeviceChange();
+    await flush();
+    devices = [hidden, hidden];
+    onDeviceChange();
+    await flush();
+    expect(payloads('device_list_changed').pop()).toEqual({
+      devices: [
+        { kind: 'audioinput', id: '', label: '' },
+        { kind: 'audioinput', id: '', label: '' },
+      ],
+      added: [{ kind: 'audioinput', id: '', label: '' }],
+      removed: [],
+    });
     events.dispose();
   });
 

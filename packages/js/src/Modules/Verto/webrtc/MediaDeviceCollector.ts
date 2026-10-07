@@ -189,7 +189,7 @@ export class MediaDeviceCollector {
     if (recoverOutput && this._output === output) {
       output.attempted = true;
       try {
-        const switched = await this._call.setAudioOutDevice?.('default', 'sdk');
+        const switched = await this._call.setAudioOutDevice?.('default');
         if (!this._stopped && !switched)
           logger.warn('Audio output disconnect recovery failed');
         if (switched) this._output = undefined;
