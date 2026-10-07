@@ -12,9 +12,14 @@
  * - The IDs of the event itself live in `ids` on the envelope. A payload may reference OTHER objects' IDs
  *   (sdk_instances, reattached_call_ids, resume_*, rpc_id), and names them *_id / *_ids.
  * - While a call is active, every record carries that call's ID in ids.call_id: socket, login, gateway and other
- *   SDK-wide events and log lines too (owner, 2026-09-30). Which ID when two calls are active is open (contract 1.13, q. 9).
+ *   SDK-wide events and log lines too (owner, 2026-09-30). With two or more calls active, an SDK-wide record is sent
+ *   once per active call: the copies share sequence and timestamp and differ only in ids.call_id and call_sequence
+ *   (contract 2.1, 1.3).
+ * - call_sequence: 1, 2, 3... per (sdk_instance_id, call_id) on every record with a call ID; call_ended is the call's
+ *   last record, so its call_sequence is the number of records the call has (contract 2.1).
  * - Timestamps: UTC ISO 8601 with ms (2026-09-25T18:10:02.709Z). Durations: *_ms numbers.
- * - Never send passwords, tokens, ICE credentials, SDP or JSON-RPC params. Errors are plain fields.
+ * - Never send passwords, tokens or ICE passwords (a=ice-pwd). Everything else goes out whole: log lines with their
+ *   objects, JSON-RPC frames with their params and SDP (owner, 2026-10-06). Errors are plain fields.
  * - `?` = the SDK may not know the value yet. Send it as soon as it is known.
  *
  * Rules added from the V1 samples:
@@ -30,7 +35,7 @@
  *   acknowledges or resends: it is not relied on to hold data (owner's decision, 2026-09-28).
  * - Telemetry has its own WebSocket, separate from the signaling socket (owner, 2026-09-30).
  *
- * Rules added from the analytics review (owner, 2026-10-01; notes/analytics-notes.md):
+ * Rules added from the analytics review (owner, 2026-10-01):
  * - Infrastructure names, never addresses: the signaling VSP tells the SDK its region, DC and node, and the B2BUA-RTC
  *   that serves a call; the SDK puts them on its socket, login and call events.
  * - Every failure carries the SDK's own code (one list for all SDKs) and, when a server refused, the server's code
@@ -103,6 +108,7 @@ export type ClientEvent =
  */
 export type MetricsEnvelope = Envelope & {
   socket_generation: number;
+  call_sequence?: number; // required from 2.1 on, like on every record with a call ID
   ids: KnownIds & { voice_sdk_id: string; session_id: string; call_id: string };
 };
 
@@ -112,11 +118,14 @@ export type MetricsEnvelope = Envelope & {
  */
 export type Extra = Record<string, unknown>;
 
+/** Contract versions (contract-versions.json lists each one's fields). 2.1 added call_sequence and the per-call copies of shared events. */
+export type SchemaVersion = '2.0' | '2.1';
+
 /** Who, where and when. Same shape for every event. */
 export type Envelope = {
-  schema_version: '2.1'; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution). 2.1: call_sequence, shared events copied per active call
-  sequence: number; // 1, 2, 3... per sdk_instance_id, across sockets and logins, never reset; never reused for a different event (the copies of one shared event share it): with sdk_instance_id it identifies the event (support links, DLQ, read-time dedupe); gaps = lost events
-  call_sequence?: number; // since 2.1. On every record with ids.call_id: 1, 2, 3... per (sdk_instance_id, call_id), counting the call's own events, its call_metrics and its copies of shared events. call_ended carries the last one (= the call's record count). Absent without call_id
+  schema_version: SchemaVersion; // "MAJOR.MINOR"; see contract section 1.10 (schema evolution)
+  sequence: number; // 1, 2, 3... per sdk_instance_id, across sockets and logins, never reset, never reused for another event: with sdk_instance_id it identifies the event (support links, DLQ, read-time dedupe); gaps = lost events. The per-call copies of one shared event share it (1.3)
+  call_sequence?: number; // since 2.1, on every record with ids.call_id: 1, 2, 3... per (sdk_instance_id, call_id), copies of shared events included; call_ended carries the last one = the call's record count. Absent without a call ID
   timestamp: string; // client time it happened. call_metrics: end of the interval
   socket_generation?: number; // the signaling socket attempt it happened on: absent before the first socket_connect_started, then 1, +1 for each new socket. A counter, not an ID
   client: ClientInfo; // repeated in every message; permessage-deflate removes the repetition on the wire
@@ -129,7 +138,7 @@ export type KnownIds = {
   sdk_instance_id: string; // created with the SDK, never changes; the Kafka key
   voice_sdk_id?: string; // from the server on connect; kept across socket reconnects and, in session storage, across page refreshes, so it can span several SDK instances
   session_id?: string; // server sessid, from login_succeeded on; kept across socket reconnects
-  call_id?: string; // SDK call id (verto callID); on every event of the call. Since 2.1 a shared event (socket, login, gateway, logs...) is sent once per active call, each copy with that call's id (same sequence and timestamp); none after the call's call_ended
+  call_id?: string; // SDK call id (verto callID); on every event of the call, and while the call is active on every other record too (socket, login, gateway, logs)
   /**
    * Telnyx call-control IDs, from the first call_state that knows them onward, on every call-scoped event
    * EXCEPT call_metrics: they are constant per call and would add ~119 B (+13%) to every 1 Hz sample,
@@ -187,7 +196,8 @@ export type EventBodyCore =
   | { name: 'app_state_changed'; payload: AppStateChangedPayload }
   /**
    * Devices, for the instance's whole life, in a call or not (during a call they carry its ID, like every record).
-   * No device names: a label can carry a person's name, and analytics needs counts. The call's media snapshot keeps its label.
+   * No device names in the structured fields: analytics needs counts. The call's media snapshot keeps its label. An SDK
+   * that knows the device's ID, label or the whole list sends them under extra (JS does, since 2026-10-06).
    */
   | { name: 'input_device_changed'; payload: DeviceChangedPayload }
   | { name: 'output_device_changed'; payload: DeviceChangedPayload }
@@ -670,8 +680,6 @@ export type IceCandidate = {
   foundation?: string;
   priority?: number;
   tcp_type?: 'active' | 'passive' | 'so'; // TCP candidates only
-  related_address?: string; // raddr: for srflx/relay, the base it was derived from (masked like address)
-  related_port?: number;
   // Masked by the Telemetry Backend (V1 did not mask): private, CGNAT, link-local and ULA addresses -> "192.168.139.x" /
   // "fdxx:x:x:x:x:x:x:x"; mDNS host names ("<uuid>.local") -> "x.local"; public (srflx, prflx) -> /24 "203.0.113.x"
   // or /48 "2001:db8:1234:x:x:x:x:x" until the personal-data question is decided. Telnyx addresses are kept: media
@@ -683,8 +691,9 @@ export type IceCandidate = {
 
 /**
  * One gathered (local) or received (remote) ICE candidate. The address rules of IceCandidate apply: private addresses
- * masked, public ones truncated, Telnyx media-server addresses kept. related_address (raddr) is masked the same way.
- * The raw candidate line is not sent: it only repeats these fields, plus the ICE ufrag.
+ * masked, public ones truncated, Telnyx media-server addresses kept. raddr and rport are not structured fields (owner,
+ * 2026-10-06). The raw candidate line is not a field of this event: it goes out whole in the log lines and in the
+ * signaling frames (SDP a=candidate lines, telnyx_rtc.candidate) that carry it.
  *
  * Local: sent from the icecandidate handler, for every candidate until gathering completes. Today the SDK removes that
  * handler once a non-trickle SDP has gone out, so the telemetry listener must be its own.
@@ -701,7 +710,7 @@ export type IceCandidatePayload = IceCandidate & {
   signaled?: boolean;
 };
 
-/** The microphone. Track id, deviceId and groupId are not sent (random per-origin hashes). */
+/** The microphone. Track id, deviceId and groupId are not structured fields; an SDK that has them sends them under extra. */
 export type InputDevice = {
   label: string; // "Headset Microphone (Yealink UH37)": the trailing USB "(vid:pid)" suffix is stripped (SDK and backend)
   enabled: boolean; // false = muted by the app
@@ -910,7 +919,7 @@ export type RouteHop = {
 export type Category =
   | 'connection' // SDK creation, network, app state, socket, login (VSP's failed-login records too), gateway; login/session signaling frames
   | 'call' // call state changes, hangup, new call; call signaling frames; call_* events
-  | 'media' // getUserMedia, tracks, mute, devices, RTCPeerConnection and SDP steps (never SDP text); call_media_changed, device events
+  | 'media' // getUserMedia, tracks, mute, devices, RTCPeerConnection and SDP steps; call_media_changed, device events
   | 'ice' // ice_candidate; gathering, connection state, "RTCPeer Candidate:" lines
   | 'warning' // quality warnings: the SDK's warning lines (31001...) and call_warning
   | 'metrics' // call_metrics
@@ -931,8 +940,8 @@ export type LogCategory = Exclude<
 export type LogEntry = {
   level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   category: LogCategory; // set at the call site; the backend re-derives it from the message for SDKs that do not
-  message: string; // max 2 KB
-  details?: Record<string, unknown>; // plain JSON only, sanitized, max 4 KB serialized
+  message: string; // the whole line, never cut (owner, 2026-10-06)
+  details?: Record<string, unknown>; // every object of the line, whole: no depth, size or array limit; only credentials removed
 };
 
 /** A call error (stage call or media) must carry the SDK's code: analytics counts calls by it (CallErrorRate). */
@@ -963,7 +972,7 @@ export type ErrorInfo = {
   code?: string; // the SDK's own code, as a string, e.g. "46002"
   server_code?: string; // e.g. "-32001"
   server_message?: string; // e.g. "Login Incorrect"
-  stack?: string; // max 20 frames / 4 KB
+  stack?: string; // whole
 };
 
 /** Required on sdk_creation_failed, socket_failed, login_failed and call errors. */
@@ -1019,7 +1028,8 @@ export type VspLoginFailed = {
 
 /**
  * Every record gets one, from the one Category list.
- * logs and signaling_message -> payload.category (re-derived if missing).
+ * logs -> payload.category (re-derived if missing). signaling_message -> from raw.method: login and session frames
+ * "connection", the rest "call".
  * sdk_*, network_changed, app_state_changed, socket_*, login_*, vsp_login_failed, client_ready, gateway_* -> "connection".
  * input_device_changed, output_device_changed, device_list_changed -> "media".
  * call_started, call_state, call_timings, call_ended -> "call". call_media_changed -> "media". call_warning -> "warning".
@@ -1036,6 +1046,7 @@ export type BackendFields = {
   client_country?: string; // ISO 3166-1 alpha-2 from vsp.client_ip, looked up before the IP is truncated; omitted when unknown
   clock_skew_ms: number; // received_at - (sent_at if present, else timestamp); includes one-way transit
   category: RecordCategory; // the read-time noise filter
+  contract_version: SchemaVersion; // since 2.1: the version the record has after the backend's mapping (1.10); schema_version stays what the SDK sent
   redactions?: string[]; // what the sanitizer removed, e.g. ["details.iceServers.credential", "message:jwt"]; omitted when nothing. Policy transforms (hashing, IP truncation) are not listed
 };
 
@@ -1051,7 +1062,7 @@ export type TelemetryRecord =
  * (the Kafka key is then voice_sdk_id). client.os is "unknown": VSP does not know it.
  */
 export type VspLoginFailedRecord = {
-  schema_version: '2.0';
+  schema_version: SchemaVersion;
   sequence: 0;
   timestamp: string;
   client: Omit<ClientInfo, 'sdk'> & { sdk: ClientInfo['sdk'] | 'unknown' };
