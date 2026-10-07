@@ -29,7 +29,7 @@ import type {
   SignalingMessagePayload,
   SignalingVsp,
   SocketTarget,
-} from './contract';
+} from './payloads';
 import {
   assignDefined,
   attempt,
@@ -463,6 +463,12 @@ export default class SessionTelemetry {
       void readClientHints().then((hints) => {
         if (hints) payload.client_hints = hints;
       });
+      // The browser and device details (constant for the instance) go once,
+      // here; every event's client carries only the structured fields.
+      payload.client_details = this._client.client as unknown as Record<
+        string,
+        unknown
+      >;
     });
   }
 

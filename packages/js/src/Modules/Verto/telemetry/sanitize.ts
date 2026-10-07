@@ -4,7 +4,7 @@
  * never cut. Only credentials are taken out: passwords, tokens, the ICE
  * password, TURN credentials. The Telemetry Backend handles personal data.
  */
-import type { CodedErrorInfo, ErrorInfo, IceServerInfo } from './contract';
+import type { CodedErrorInfo, ErrorInfo, IceServerInfo } from './payloads';
 
 /** Keys whose values are credentials, at any depth. */
 const SECRET_KEYS = new Set([

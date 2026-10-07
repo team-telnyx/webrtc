@@ -31,7 +31,7 @@ import {
   type PeerStates,
   type PlaybackInfo,
   type RemoteTrackInfo,
-} from './contract';
+} from './payloads';
 import {
   sanitizeDetails,
   stripDeviceLabel,

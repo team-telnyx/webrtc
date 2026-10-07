@@ -2,7 +2,7 @@
  * The SDK logger's telemetry sink: every SDK log line becomes one `logs` event
  * on every live telemetry client (contract 1.7, 1.8).
  */
-import type { LogCategory, LogEntry } from './contract';
+import type { LogCategory, LogEntry } from './payloads';
 import { isFilteredLogLine } from './filter';
 import TelemetryClient from './TelemetryClient';
 

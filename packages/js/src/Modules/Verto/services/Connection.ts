@@ -26,7 +26,7 @@ import {
   setReconnectToken,
 } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
-import type { SocketTarget } from '../telemetry/contract';
+import type { SocketTarget } from '../telemetry/payloads';
 import type {
   ReceivedFrame,
   SocketTelemetry,

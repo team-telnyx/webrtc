@@ -6,7 +6,10 @@ import { createTelnyxError } from '../../util/errors';
 import { BYE_SEND_FAILED } from '../../util/constants';
 
 import CallTelemetry from '../../telemetry/CallTelemetry';
+import { STRUCTURED_SHAPE } from '../../telemetry/structuredShape';
 import TelemetryClient, {
+  splitExtra,
+  toWire,
   buildClientInfo,
   detectOs,
   osVersionFromHints,
@@ -753,5 +756,75 @@ describe('client browser and device details', () => {
     expect(cpuArchFromHints('x86', '64')).toBe('x86_64');
     expect(cpuArchFromHints('x86', '32')).toBe('x86');
     expect(cpuArchFromHints(undefined, '64')).toBeUndefined();
+  });
+});
+
+describe('structured fields and extra on the wire', () => {
+  it('keeps the contract fields in place and moves everything else under extra', () => {
+    const event = {
+      schema_version: '2.0',
+      sequence: 5,
+      timestamp: '2026-10-07T00:00:00.000Z',
+      client: {
+        environment: 'production',
+        sdk: 'js',
+        sdk_version: '2.27.10',
+        os: 'macos',
+        user_agent: 'UA',
+        browser: 'chrome',
+        cpu_cores: 16,
+      },
+      ids: { sdk_instance_id: 'i' },
+      name: 'call_ended',
+      payload: {
+        end_reason: 'local_hangup',
+        answered: true,
+        duration_ms: 1000,
+        last_state: 'active',
+        metrics_samples: 1,
+        hangup_initiator: 'app:call.hangup',
+        totals: {
+          in_packets: 10,
+          pair_changes: 0,
+          in_jitter_buffer_emitted: 7,
+        },
+      },
+    } as unknown as Parameters<typeof toWire>[0];
+    const wire = toWire(event) as unknown as {
+      client: Record<string, unknown>;
+      payload: Record<string, unknown>;
+    };
+    expect(wire.client).toEqual({
+      environment: 'production',
+      sdk: 'js',
+      sdk_version: '2.27.10',
+      os: 'macos',
+      user_agent: 'UA',
+    });
+    expect(wire.payload.hangup_initiator).toBeUndefined();
+    expect(wire.payload.totals).toEqual({ in_packets: 10, pair_changes: 0 });
+    expect(wire.payload.extra).toEqual({
+      hangup_initiator: 'app:call.hangup',
+      totals: { in_jitter_buffer_emitted: 7 },
+    });
+  });
+
+  it('adds no extra when everything is structured, and keeps logs details whole', () => {
+    const [kept, extra] = splitExtra(
+      {
+        level: 'info',
+        category: 'general',
+        message: 'm',
+        details: { any: { thing: 1 } },
+      },
+      STRUCTURED_SHAPE.logs
+    );
+    expect(extra).toBeUndefined();
+    expect(kept).toEqual({
+      level: 'info',
+      category: 'general',
+      message: 'm',
+      details: { any: { thing: 1 } },
+    });
   });
 });

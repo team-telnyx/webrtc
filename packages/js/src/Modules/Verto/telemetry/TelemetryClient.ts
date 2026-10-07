@@ -25,8 +25,10 @@ import type {
   KnownIds,
   LogCategory,
   LogEntry,
-} from './contract';
+} from './payloads';
 import { sanitizeDetails, sanitizeMessage, toErrorInfo } from './sanitize';
+import { CLIENT_FIELDS, STRUCTURED_SHAPE } from './structuredShape';
+import type { Shape } from './structuredShape';
 
 export const TELEMETRY_METHOD = 'telnyx_rtc.telemetry';
 /** The telemetry VSP: its own domain, any path (owner, 2026-10-06). */
@@ -511,6 +513,72 @@ export function buildClientInfo(env?: string): SdkClientInfo {
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
+/**
+ * Splits a value by its structured shape: what the shape lists stays, the
+ * rest goes into the mirror-shaped extra (undefined when nothing is left).
+ */
+export function splitExtra(value: unknown, shape: Shape): [unknown, unknown] {
+  if (shape === true || value === null || typeof value !== 'object') {
+    return [value, undefined];
+  }
+  if (Array.isArray(value)) {
+    const element = shape['[]'];
+    if (!element) return [value, undefined];
+    let any = false;
+    const kept: unknown[] = [];
+    const extras: unknown[] = [];
+    for (const item of value) {
+      const [k, e] = splitExtra(item, element);
+      kept.push(k);
+      extras.push(e === undefined ? null : e);
+      if (e !== undefined) any = true;
+    }
+    return [kept, any ? extras : undefined];
+  }
+  const kept: Record<string, unknown> = {};
+  const extra: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (item === undefined) continue;
+    if (key === 'extra' && item && typeof item === 'object') {
+      Object.assign(extra, item);
+      continue;
+    }
+    const sub = shape[key];
+    if (sub === undefined) {
+      extra[key] = item;
+      continue;
+    }
+    const [k, e] = splitExtra(item, sub);
+    kept[key] = k;
+    if (e !== undefined) extra[key] = e;
+  }
+  return [kept, Object.keys(extra).length ? extra : undefined];
+}
+
+/**
+ * The event as it goes on the wire (owner, 2026-10-07): only the contract's
+ * structured fields stay in place; everything else the SDK collected goes
+ * under the payload's `extra`. The envelope's client keeps its structured
+ * fields only (the full details go once, in sdk_creation_started's extra).
+ * Done when the event is serialized, so details filled in after it was
+ * built (Client Hints, device lists) are split too.
+ */
+export function toWire(event: ClientEvent): ClientEvent {
+  const client: Record<string, unknown> = {};
+  for (const key of CLIENT_FIELDS) {
+    const value = (event.client as Record<string, unknown>)[key];
+    if (value !== undefined) client[key] = value;
+  }
+  const shape = STRUCTURED_SHAPE[event.name];
+  if (!shape) return { ...event, client } as ClientEvent;
+  const [payload, extra] = splitExtra(event.payload, shape);
+  return {
+    ...event,
+    client,
+    payload: extra === undefined ? payload : { ...(payload as object), extra },
+  } as ClientEvent;
+}
+
 /** A short, non-reversible tag of a credentials object (never sent or logged). */
 function fingerprint(params: Record<string, unknown>): string {
   const text = JSON.stringify(params);
@@ -932,7 +1000,8 @@ export default class TelemetryClient {
       this._droppedBacklog += 1;
       return true; // dropped, never queued
     }
-    const params = waited ? { ...event, sent_at: iso(Date.now()) } : event;
+    const wire = toWire(event);
+    const params = waited ? { ...wire, sent_at: iso(Date.now()) } : wire;
     try {
       ws.send(
         JSON.stringify({ jsonrpc: '2.0', method: TELEMETRY_METHOD, params })

@@ -17,7 +17,7 @@ import type {
   RtpCodecInfo,
   RtpEncodingInfo,
   RtpParametersInfo,
-} from './contract';
+} from './payloads';
 import { toIceServerInfo } from './sanitize';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
