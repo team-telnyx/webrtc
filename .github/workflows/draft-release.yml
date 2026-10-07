@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: "Package for draft release"
+        description: "Package for draft release (webrtc, react-client or telemetry)"
         required: true
         default: "webrtc"
       ref:
@@ -40,7 +40,7 @@ env:
 
 jobs:
   draft:
-    if: contains(fromJson('["webrtc", "react-client"]'), github.event.inputs.package)
+    if: contains(fromJson('["webrtc", "react-client", "telemetry"]'), github.event.inputs.package)
 
     name: "@telnyx/${{ github.event.inputs.package }} Draft release"
 

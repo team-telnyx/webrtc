@@ -57,4 +57,4 @@ The SDK's `build` and `test` scripts build this package first and bundle `lib/in
 
 ## Release
 
-Releases are tagged `telemetry/v<version>` (`yarn release`, configured in `package.json`), like `@telnyx/react-client`.
+Like `@telnyx/react-client`: run the **Draft release** workflow with package `telemetry`, merge its release PR, then publish the draft GitHub release (tag `telemetry/v<version>`); **Publish release** puts it on npm.

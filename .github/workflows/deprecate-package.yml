@@ -10,6 +10,7 @@ on:
         options:
           - "@telnyx/webrtc"
           - "@telnyx/react-client"
+          - "@telnyx/webrtc-telemetry"
       version_range:
         description: "Version or range to deprecate (e.g. 2.25.0-beta.1, >=2.25.0-beta.0 <2.25.0)"
         required: true
