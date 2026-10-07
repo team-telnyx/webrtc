@@ -1,11 +1,12 @@
 import React, { ReactNode, Fragment } from 'react';
+import { IClientOptions } from '@telnyx/webrtc';
 import TelnyxRTCContext from './TelnyxRTCContext';
 import useTelnyxRTC, { CredentialOptions } from './useTelnyxRTC';
 
 interface IProps {
   children: ReactNode;
   credential: CredentialOptions;
-  options?: any;
+  options?: Partial<IClientOptions>;
 }
 
 function TelnyxRTCProvider({ children, credential, options }: IProps) {

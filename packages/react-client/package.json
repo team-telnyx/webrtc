@@ -20,7 +20,7 @@
   "scripts": {
     "build": "yarn copy:dts && microbundle-crl --no-compress --format modern,cjs",
     "start": "microbundle-crl watch --no-compress --format modern,cjs",
-    "prepare": "install-peers && run-s build",
+    "prepare": "yarn build",
     "test": "jest",
     "test:watch": "jest --watch",
     "format": "prettier --write 'src/**/*.ts'",
@@ -39,19 +39,21 @@
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
   "peerDependencies": {
-    "@telnyx/webrtc": ">=2.25.17-rc.0 <3.0.0-rc.0",
-    "react": ">=16.8",
-    "react-dom": ">=16.8"
+    "@telnyx/webrtc": ">=2.27.10 <3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@babel/plugin-proposal-unicode-property-regex": "^7.18.6",
     "@babel/preset-env": "^7.22.20",
     "@babel/preset-react": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
-    "@telnyx/webrtc": ">=2.25.17-rc.0 <3.0.0-rc.0",
-    "@types/react": "^18.2.37",
+    "@telnyx/webrtc": "npm:2.27.10",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@typescript-eslint/eslint-plugin": "^6.11.0",
     "@typescript-eslint/parser": "^6.11.0",
+    "babel-jest": "^28.0.1",
     "copyfiles": "^2.4.1",
     "eslint": "^9.39.2",
     "eslint-import-resolver-node": "^0.3.9",
@@ -60,13 +62,12 @@
     "eslint-plugin-react": "^7.33.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.3",
-    "install-peers-cli": "^2.2.0",
     "jest": "^28.0.1",
+    "jest-environment-jsdom": "^28.0.1",
     "microbundle-crl": "^0.13.11",
-    "npm-run-all": "^4.1.5",
     "prettier": "^3.7.4",
-    "react": "^16.8",
-    "react-dom": "^16.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "release-it": "^14.14.2"
   },
   "files": [

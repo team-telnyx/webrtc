@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { TelnyxRTC, IClientOptions } from '@telnyx/webrtc';
 
 type TokenCredential = {
@@ -16,100 +15,71 @@ type UsernameCredential = {
 export type CredentialOptions = TokenCredential | UsernameCredential;
 
 /**
- * Constructs a Telnyx client, connects the client, and handles
- * disconnecting the client during cleanup.
+ * Creates and connects a client after mount. Initially returns undefined.
+ * Credential values replace the client; other options are captured at mount.
+ * Unmounting disconnects the client, including any active calls.
  *
- * ## Examples
+ * Subscribe in an effect, not during render:
  * ```jsx
- * import { useTelnyxRTC } from '@telnyx/react-client'
- *
- * // Login using On-Demand Credentials token
- * const client = useTelnyxRTC({ login_token })
- *
- * // Or, login using your SIP Connection username and password
- * // const client = useTelnyxRTC({ login, password })
- *
- * client.on('telnyx.notification', ({ call }) => {
- *   console.log(call)
- * })
+ * const client = useTelnyxRTC({ login_token });
+ * useEffect(() => {
+ *   if (!client) return;
+ *   const onReady = () => console.log('client ready');
+ *   client.on('telnyx.ready', onReady);
+ *   return () => { client.off('telnyx.ready', onReady); };
+ * }, [client]);
  * ```
  */
-
-const initTelnyxRTC = ({
-  credentialParam,
-  clientOptions,
-}: {
-  credentialParam: CredentialOptions;
-  clientOptions?: Partial<IClientOptions>;
-}) => {
-  const session = new TelnyxRTC({
-    login_token: '',
-    ...credentialParam,
-    ...clientOptions,
-  });
-
-  session.on('telnyx.error', () => {
-    session?.disconnect();
-  });
-
-  session.on('telnyx.socket.error', () => {
-    session?.disconnect();
-  });
-
-  // IDEA Allow caller to defer connect
-  session?.connect();
-
-  return session;
-};
-
 function useTelnyxRTC(
   credentialParam: CredentialOptions,
   clientOptions?: Partial<IClientOptions>
 ): TelnyxRTC | undefined {
-  const telnyxClient = useMemo(() => {
-    let client: TelnyxRTC | undefined;
+  const [owned, setOwned] = useState<{
+    client: TelnyxRTC;
+    disposed: boolean;
+  }>();
+  const [initialOptions] = useState(() => ({
+    debug: credentialParam.debug,
+    ...clientOptions,
+  }));
+  const login_token =
+    'login_token' in credentialParam ? credentialParam.login_token : undefined;
+  const login = 'login' in credentialParam ? credentialParam.login : undefined;
+  const password =
+    'password' in credentialParam ? credentialParam.password : undefined;
 
-    if (client?.connected) {
-      if (process.env.NODE_ENV === 'development' && client) {
-        console.warn(
-          'Instance of Telnyx Client already exists and will be disconnected.'
-        );
-      }
+  useEffect(() => {
+    // Never construct/connect in render: aborted renders and StrictMode must
+    // not leak sessions. Each effect owns and disposes its own SDK instance.
+    const session = new TelnyxRTC({
+      ...initialOptions,
+      login_token,
+      login,
+      password,
+    });
+    const owner = { client: session, disposed: false };
+    setOwned(owner);
 
-      // Create new client when credentials change,
-      // e.g. when refreshing token
-      // TODO reconnect without re-instantiating client
-      client?.disconnect();
-      client?.off('telnyx.ready');
-      client?.off('telnyx.error');
-      client?.off('telnyx.notification');
-      client?.off('telnyx.socket.close');
-      client?.off('telnyx.socket.error');
-      client = undefined;
+    // The SDK owns error recovery. Calling disconnect on errors disables its
+    // reconnect logic and hangs up active calls, so only lifecycle cleanup does it.
+    return () => {
+      owner.disposed = true;
+      // Disconnect is asynchronous; never reuse this instance while it drains.
+      void session.disconnect();
+    };
+  }, [login_token, login, password, initialOptions]);
 
-      client = initTelnyxRTC({
-        credentialParam,
-        clientOptions,
-      });
-    } else {
-      client = initTelnyxRTC({
-        credentialParam,
-        clientOptions,
-      });
-    }
+  useEffect(() => {
+    if (!owned || owned.disposed) return;
+    // Publish first, then let provider children and direct-hook callers attach
+    // their effect subscriptions before connect can emit synchronous errors.
+    const task = setTimeout(() => {
+      if (!owned.disposed) void owned.client.connect();
+    }, 0);
+    return () => clearTimeout(task);
+  }, [owned]);
 
-    return client;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    //@ts-ignore
-    credentialParam.login_token,
-    //@ts-ignore
-    credentialParam.login,
-    //@ts-ignore
-    credentialParam.password,
-  ]);
-
-  return telnyxClient;
+  return owned?.client;
 }
 
 export default useTelnyxRTC;
