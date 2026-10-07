@@ -8,7 +8,7 @@ interface IProps extends HTMLAttributes<HTMLMediaElement> {
 }
 
 function Media({ type, stream, ...props }: IProps) {
-  const mediaRef = useRef<HTMLMediaElement>();
+  const mediaRef = useRef<HTMLMediaElement>(null);
 
   useEffect(() => {
     if (mediaRef.current && stream) {
