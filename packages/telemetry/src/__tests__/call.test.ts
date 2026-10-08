@@ -197,6 +197,26 @@ describe('call_metrics (table-driven)', () => {
     expect(buildMetrics(snap(2), snap(1), 1000).in_packets).toBeUndefined();
   });
 
+  it('counts a pair selected again from where it was left', () => {
+    const pairOnly = (t: number) =>
+      Object.fromEntries(
+        Object.entries(snap(t).n).filter(([k]) => k.startsWith('pair.'))
+      );
+    const back = buildMetrics(
+      extractStats(stats(5, {}, 'CP2')),
+      snap(10),
+      1000,
+      false,
+      pairOnly(3)
+    );
+    expect(back.ice_requests).toBe(7);
+    // A pair never selected before counts from its start.
+    expect(
+      buildMetrics(extractStats(stats(5, {}, 'CP2')), snap(10), 1000)
+        .ice_requests
+    ).toBe(10);
+  });
+
   it('every row reads a getStats field the extractor keeps', () => {
     const keys = new Set(Object.keys(snap(1).n));
     for (const key of [

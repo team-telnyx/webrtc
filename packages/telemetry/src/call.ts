@@ -129,6 +129,17 @@ const nowPerf = (): number =>
     : Date.now();
 
 /** Milliseconds since `from` (performance clock), 0.1 ms precision. */
+/** The selected pair's counters in a snapshot. */
+const pairCounters = (snapshot: StatsSnapshot): Record<string, number> =>
+  Object.fromEntries(
+    Object.entries(snapshot.n).filter(([key]) => key.startsWith('pair.'))
+  );
+
+/** RTP packets received and sent so far: which of two snapshots is newer. */
+const packets = (snapshot: StatsSnapshot | null): number =>
+  (snapshot?.n['in.packetsReceived'] ?? 0) +
+  (snapshot?.n['out.packetsSent'] ?? 0);
+
 const since = (from: number, to = nowPerf()) =>
   round(Math.max(0, to - from), 1);
 
@@ -256,6 +267,8 @@ export default class CallTelemetry {
   private _metricsSamples = 0;
   private _rttSamples: number[] = [];
   private _pairIds = new Set<string>();
+  /** Each pair's counters when it was last selected (this peer connection). */
+  private _pairLast = new Map<string, Record<string, number>>();
   private _peerConnections = 0;
   private _statsFailures = 0;
   private _localCandidates = 0;
@@ -511,6 +524,7 @@ export default class CallTelemetry {
           this._carried[key] = (this._carried[key] ?? 0) + value;
       }
       this._prevSnapshot = null;
+      this._pairLast.clear();
       this._countersReset = true;
     }
     this._detachPeer();
@@ -823,12 +837,16 @@ export default class CallTelemetry {
         this._prevSnapshot,
         snapshot,
         perf - this._lastTickPerf,
-        this._countersReset
+        this._countersReset,
+        snapshot.pairId ? this._pairLast.get(snapshot.pairId) : undefined
       );
       this._lastTickPerf = perf;
       this._countersReset = false;
       this._prevSnapshot = snapshot;
-      if (snapshot.pairId) this._pairIds.add(snapshot.pairId);
+      if (snapshot.pairId) {
+        this._pairIds.add(snapshot.pairId);
+        this._pairLast.set(snapshot.pairId, pairCounters(snapshot));
+      }
       if (metrics.rtt_ms !== undefined) this._rttSamples.push(metrics.rtt_ms);
       if ((metrics.in_packets ?? 0) > 0) this._firstPacketPerf ??= perf;
       if ((metrics.out_packets ?? 0) > 0) this._firstPacketSentPerf ??= perf;
@@ -1033,7 +1051,11 @@ export default class CallTelemetry {
     endedAt: number,
     endedPerf: number
   ): PayloadOf<'call_ended'> {
-    const finalUsed = !!final && Object.keys(final.n).length > 0;
+    // The final getStats() ran before the BYE; a metrics tick after it can be newer.
+    const finalUsed =
+      !!final &&
+      Object.keys(final.n).length > 0 &&
+      packets(final) >= packets(this._prevSnapshot);
     const hangup = this._hangup ?? { execute: true, recovering: false };
     const call = this._call;
     const code = (value: unknown) =>

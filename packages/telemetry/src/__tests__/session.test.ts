@@ -356,6 +356,21 @@ describe('SessionTelemetry', () => {
     );
   });
 
+  it('names a gencred login gencred in login_started and the envelope', () => {
+    const { events, ws } = connectedSession(
+      makeSession({
+        options: { login: 'gencredAbc', password: 'p', telemetry: {} },
+      })
+    );
+    events.loginStarted('login', undefined, 'rpc-1');
+    const started = ws.find('login_started');
+    expect(started.payload.method).toEqual({
+      login_type: 'gencred',
+      username: 'gencredAbc',
+    });
+    expect(started.login_type).toBe('gencred');
+  });
+
   it('login and client_ready: step times, server answers without credentials, no VSP names', () => {
     const { events, ws, session } = connectedSession(
       makeSession({ remoteElement: 'el', micId: '', speaker: 'spk' })

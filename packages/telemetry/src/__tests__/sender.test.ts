@@ -16,7 +16,12 @@ import {
   osVersionFromHints,
   resetClientHints,
 } from '../browser';
-import { stripUrlCredentials, toErrorInfo } from '../sanitize';
+import {
+  rawFrame,
+  scrubText,
+  stripUrlCredentials,
+  toErrorInfo,
+} from '../sanitize';
 import { FakeSocket, host, logEvent, makeClient } from './fakes';
 
 const messages = (ws: FakeSocket) => ws.events().map((e) => e.payload.message);
@@ -60,6 +65,19 @@ describe('TelemetryClient', () => {
     expect(log.mock.calls.some((call) => call[0] === '[CR2 telemetry]')).toBe(
       true
     );
+    log.mockRestore();
+  });
+
+  it('keeps only the newest 1,000 frames in memory in the default mode', () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const client = makeClient({ console: true }, true);
+    for (let i = 1; i <= 1005; i += 1) logEvent(client, `line ${i}`);
+    const kept = client
+      .capturedFrames()
+      .map((f) => JSON.parse(f).params.payload.message);
+    expect(kept).toHaveLength(1000);
+    expect(kept[kept.length - 1]).toBe('line 1005');
+    client.close();
     log.mockRestore();
   });
 
@@ -160,6 +178,35 @@ describe('TelemetryClient', () => {
     expect(drops.map((e) => e.payload.details)).toEqual([
       { dropped_backlog: 1, dropped_pending: 0 },
     ]);
+  });
+
+  it('reports backlog drops when the next event is an SDK log line', () => {
+    const client = makeClient({}, true);
+    const ws = FakeSocket.last();
+    ws.bufferedAmount = MAX_SEND_BACKLOG_BYTES + 1;
+    client.log('info', 'general', 'dropped');
+    ws.bufferedAmount = 0;
+    client.log('info', 'general', 'sent');
+    const drops = ws
+      .events(true)
+      .filter((e) => e.payload.message === 'Telemetry events dropped');
+    expect(drops.map((e) => e.payload.details)).toEqual([
+      { dropped_backlog: 1, dropped_pending: 0 },
+    ]);
+  });
+
+  it('opens a new socket after an idle close even if the server had switched it off', () => {
+    jest.useFakeTimers();
+    const client = makeClient({}, true);
+    FakeSocket.last().receive({
+      jsonrpc: '2.0',
+      method: TELEMETRY_CONTROL_METHOD,
+      params: { enabled: false },
+    });
+    jest.advanceTimersByTime(IDLE_CLOSE_MS + 1);
+    client.emit('call_state', { state: 'new' });
+    expect(FakeSocket.instances).toHaveLength(2);
+    jest.useRealTimers();
   });
 
   it('obeys the kill switch until switched back on', () => {
@@ -384,6 +431,23 @@ describe('TelemetryClient', () => {
     expect(FakeSocket.instances.map((ws) => ws.readyState)).toEqual([3, 3]);
     expect(TelemetryClient.liveInstanceIds()).not.toContain(a.sdkInstanceId);
     expect(TelemetryClient.liveInstanceIds()).not.toContain(b.sdkInstanceId);
+  });
+
+  it('opens no socket between pagehide and pageshow, then sends the queued events', () => {
+    const client = makeClient({}, true);
+    window.dispatchEvent(new Event('pagehide'));
+    client.emit('app_state_changed', { state: 'hidden' });
+    expect(FakeSocket.instances).toHaveLength(1);
+    window.dispatchEvent(new Event('pageshow'));
+    client.emit('app_state_changed', { state: 'visible' });
+    expect(FakeSocket.instances).toHaveLength(2);
+    const ws = FakeSocket.last();
+    ws.open();
+    ws.answerLogin();
+    expect(ws.events().map((e) => e.payload.state)).toEqual([
+      'hidden',
+      'visible',
+    ]);
   });
 
   it('retries after -32003 Telemetry Unavailable, later than after a network drop', () => {
@@ -647,5 +711,43 @@ describe('stripUrlCredentials', () => {
     const started = Date.now();
     stripUrlCredentials(crafted);
     expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('scrubText', () => {
+  it('removes JWTs wherever they are, leaves the rest', () => {
+    expect(scrubText('t=eyJhbGc.eyJzdWI.c2ln end')).toBe('t=[REDACTED] end');
+    expect(scrubText('xeyJa.b.c.d')).toBe('x[REDACTED].d');
+    expect(scrubText('eyJa.b and eyJ.b.c')).toBe('eyJa.b and eyJ.b.c');
+    expect(scrubText('Bearer abc.def')).toBe('Bearer [REDACTED]');
+  });
+
+  it('stays fast on crafted input', () => {
+    const crafted = 'eyJ'.repeat(200000) + ' ' + 'eyJa.'.repeat(100000);
+    const started = Date.now();
+    scrubText(crafted);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
+describe('rawFrame', () => {
+  it('redacts secret keys at any depth and tokens inside any string, keeps TURN credentials and SDP', () => {
+    const jwt = 'eyJhbGc.eyJzdWI.c2ln';
+    const frame = {
+      params: {
+        'Login-Token': 'abc',
+        sdp: 'a=ice-pwd:secretpwd\r\n',
+        iceServers: [{ urls: 'turn:t.telnyx.com', credential: 'turnpass' }],
+        dialogParams: {
+          customHeaders: [{ name: 'Authorization', value: `Bearer ${jwt}` }],
+          userVariables: { note: `token ${jwt}` },
+        },
+      },
+    };
+    const text = JSON.stringify(rawFrame(frame));
+    expect(text).not.toContain('abc');
+    expect(text).not.toContain(jwt);
+    expect(text).toContain('a=ice-pwd:secretpwd');
+    expect(text).toContain('turnpass');
   });
 });

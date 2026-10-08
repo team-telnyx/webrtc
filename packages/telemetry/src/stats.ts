@@ -418,14 +418,16 @@ export function buildMetrics(
   prev: StatsSnapshot | null,
   cur: StatsSnapshot,
   intervalMs: number,
-  countersReset = false
+  countersReset = false,
+  pairBase?: Record<string, number>
 ): CallMetricsPayload & { extra?: Flat } {
   const c = cur.n;
   const samePair = !!prev && prev.pairId === cur.pairId;
+  // A pair selected again counts from where it was left, not from its start.
   const delta = (key: string): number | undefined => {
     if (c[key] === undefined) return undefined;
     const base =
-      key.startsWith('pair.') && !samePair ? undefined : prev?.n[key];
+      key.startsWith('pair.') && !samePair ? pairBase?.[key] : prev?.n[key];
     return base === undefined ? c[key] : Math.max(0, c[key] - base);
   };
   const flat: Flat = { interval_ms: Math.max(0, Math.round(intervalMs)) };
@@ -503,11 +505,12 @@ export function buildTotals(
       rttSamples.reduce((sum, v) => sum + v, 0) / rttSamples.length
     );
   }
-  const rtts = [...rttSamples];
+  const rtts = rttSamples.slice();
   if (n['pair.currentRoundTripTime'] !== undefined) {
     rtts.push(round(n['pair.currentRoundTripTime'] * 1000));
   }
-  if (rtts.length) flat.rtt_max_ms = Math.max(...rtts);
+  // Not Math.max(...rtts): one sample a second outgrows the argument limit on long calls.
+  if (rtts.length) flat.rtt_max_ms = rtts.reduce((a, b) => (b > a ? b : a));
   const measurements = n['rin.roundTripTimeMeasurements'];
   if (n['rin.totalRoundTripTime'] !== undefined && measurements) {
     flat.rtcp_rtt_avg_ms = round(

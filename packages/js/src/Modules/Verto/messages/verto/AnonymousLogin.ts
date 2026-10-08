@@ -45,7 +45,7 @@ class AnonymousLogin extends BaseRequest {
       params.sessid = sessionId;
     }
 
-    // Call Report V2: lets VSP's failed-login record join this SDK instance.
+    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK instance.
     if (sdkInstanceId) {
       params.sdk_instance_id = sdkInstanceId;
     }

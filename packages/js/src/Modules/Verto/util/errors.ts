@@ -169,18 +169,6 @@ export function classifyMediaErrorCode(
 }
 
 /**
- * Factory that creates a `TelnyxError` from a registered error code.
- *
- * @param code - One of the numeric keys from `SDK_ERRORS`
- * @param originalError - The underlying error, if available
- * @param message - Optional override for the default message
- * @param fatal - Optional override for the default `fatal` value from
- *   `SDK_ERRORS[code].fatal`. Pass this only when the emit site's context
- *   differs from the registry default (e.g. UNEXPECTED_ERROR sites, the
- *   non-recovery MEDIA_* path, login-after-retry-exhaustion, etc.). When
- *   omitted/null/undefined, the registry default is used.
- */
-/**
  * Wraps a non-Error value. A server's JSON-RPC error ({ code, message }) keeps
  * its message and code instead of becoming "[object Object]".
  */
@@ -198,6 +186,18 @@ function toError(value: unknown): Error {
   return new Error(String(value));
 }
 
+/**
+ * Factory that creates a `TelnyxError` from a registered error code.
+ *
+ * @param code - One of the numeric keys from `SDK_ERRORS`
+ * @param originalError - The underlying error, if available
+ * @param message - Optional override for the default message
+ * @param fatal - Optional override for the default `fatal` value from
+ *   `SDK_ERRORS[code].fatal`. Pass this only when the emit site's context
+ *   differs from the registry default (e.g. UNEXPECTED_ERROR sites, the
+ *   non-recovery MEDIA_* path, login-after-retry-exhaustion, etc.). When
+ *   omitted/null/undefined, the registry default is used.
+ */
 export function createTelnyxError(
   code: SdkErrorCode,
   originalError?: unknown,

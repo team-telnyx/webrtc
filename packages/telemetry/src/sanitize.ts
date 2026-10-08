@@ -67,7 +67,10 @@ export function guard<T extends object>(object: T): T {
 
 const SECRET_KEYS = words(`password passwd token login_token telemetry_token
   access_token refresh_token jwt authorization`);
-const SECRET_FRAME_KEYS = SECRET_KEYS;
+
+/** A password or token key, at any depth ("Login-Token" too). */
+export const isSecretKey = (key: string): boolean =>
+  SECRET_KEYS.includes(key.toLowerCase().replace(/-/g, '_'));
 const MAX_DEPTH = 32;
 const REDACTED = '[REDACTED]';
 
@@ -100,11 +103,32 @@ export function stripUrlCredentials(text: string): string {
   return out + text.slice(from);
 }
 
+/**
+ * Replaces each JWT ("eyJ<header>.<payload>.<signature>") in one run of
+ * [\w.-] characters. The runs come from a linear regular expression; a single
+ * JWT regular expression backtracks quadratically on a long "eyJeyJ..." run.
+ */
+function redactJwts(run: string): string {
+  if (!run.includes('eyJ')) return run;
+  const parts = run.split('.');
+  const out: string[] = [];
+  for (let i = 0; i < parts.length; i += 1) {
+    const at = parts[i].indexOf('eyJ');
+    if (at !== -1 && parts[i].length > at + 3 && parts[i + 1] && parts[i + 2]) {
+      out.push(parts[i].slice(0, at) + REDACTED);
+      i += 2;
+    } else {
+      out.push(parts[i]);
+    }
+  }
+  return out.join('.');
+}
+
 /** Passwords and tokens inside text: JWTs, bearer tokens, URL passwords, JSON password and token fields. */
 export const scrubText = (text: string): string =>
   stripUrlCredentials(
     text
-      .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED)
+      .replace(/[\w.-]+/g, redactJwts)
       .replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
   ).replace(
     /("(?:passwd|password|token|login_token|telemetry_token|access_token|refresh_token|jwt|authorization)"\s*:\s*)"[^"]*"/gi,
@@ -139,7 +163,7 @@ function cleanEntries(
 ): Flat {
   const result: Flat = {};
   for (const [key, item] of entries) {
-    result[key] = SECRET_KEYS.includes(key.toLowerCase().replace(/-/g, '_'))
+    result[key] = isSecretKey(key)
       ? redacted(item)
       : sanitizeValue(item, depth + 1, seen);
   }
@@ -342,15 +366,15 @@ export const frameCallId = (frame: Any): string | undefined =>
 export const rpcIdString = (id: unknown): string =>
   id === undefined || id === null ? '' : String(id);
 
-/** The frame as it is, minus passwords and tokens. */
+/** The frame as it is, minus passwords and tokens (by key, and inside every string). */
 export function rawFrame(value: unknown, depth = 0): unknown {
-  if (!value || typeof value !== 'object' || depth > 12) return value;
+  if (typeof value === 'string') return scrubText(value);
+  if (!value || typeof value !== 'object') return value;
+  if (depth >= MAX_DEPTH) return '[too deep]';
   if (Array.isArray(value)) return value.map((v) => rawFrame(v, depth + 1));
   const result: Flat = {};
   for (const [key, item] of Object.entries(value as Flat)) {
-    result[key] = SECRET_FRAME_KEYS.includes(key.toLowerCase())
-      ? redacted(item)
-      : rawFrame(item, depth + 1);
+    result[key] = isSecretKey(key) ? redacted(item) : rawFrame(item, depth + 1);
   }
   return result;
 }

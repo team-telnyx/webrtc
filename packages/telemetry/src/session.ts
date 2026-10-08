@@ -46,8 +46,10 @@ import {
   GATEWAY_STATE_METHOD,
   guard,
   isFilteredFrameMethod,
+  isSecretKey,
   rawFrame,
   rpcIdString,
+  scrubText,
   sanitizeDetails,
   str,
   stripUrlCredentials,
@@ -110,10 +112,10 @@ export function loginTypeOf(options: Any): LoginType {
 /** The options as the app passed them: secrets redacted, DOM nodes, streams and functions described. */
 export function rawClientOptions(options: unknown): Flat {
   const seen = new WeakSet<object>();
-  const secrets = words('password passwd login_token');
   const describe = (value: Any, depth: number): unknown => {
     if (value === null || value === undefined) return value;
     if (typeof value === 'function') return '[function]';
+    if (typeof value === 'string') return scrubText(value);
     if (typeof value !== 'object') return value;
     if (typeof Node !== 'undefined' && value instanceof Node) {
       return describeNode(value as Element);
@@ -126,7 +128,7 @@ export function rawClientOptions(options: unknown): Flat {
     if (Array.isArray(value)) return value.map((v) => describe(v, depth + 1));
     const result: Flat = {};
     for (const [key, item] of Object.entries(value)) {
-      const secret = secrets.includes(key.toLowerCase());
+      const secret = isSecretKey(key);
       result[key] =
         secret && item != null && item !== ''
           ? '[REDACTED]'
@@ -760,7 +762,9 @@ export default class SessionTelemetry {
       : options.login_token
         ? { login_type: 'token' }
         : {
-            login_type: 'sip_credentials',
+            login_type: /^gencred/i.test(options.login ?? '')
+              ? 'gencred'
+              : 'sip_credentials',
             username: String(options.login ?? ''),
           };
     const isReconnect = this._hasLoggedIn;

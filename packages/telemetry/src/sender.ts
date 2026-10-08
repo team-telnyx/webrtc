@@ -56,6 +56,8 @@ const LOGIN_TIMEOUT_MS = 10000;
 /** The socket closes once the client has had nothing to send for this long. */
 export const IDLE_CLOSE_MS = 5 * 60 * 1000;
 const MAX_CAPTURED_FRAMES = 200000;
+/** Socket mode (the default prints every frame): only the newest frames stay in memory. */
+const MAX_MIRRORED_FRAMES = 1000;
 const MAX_ENDED_CALLS = 100;
 
 /** The app's `options.telemetry` (documented in the SDK's ITelemetryOptions). */
@@ -107,12 +109,26 @@ export const setTelemetryWebSocket = (impl: unknown): void => {
 /** Live clients on this page, newest last. */
 const liveClients: TelemetryClient[] = [];
 
-// The page is going away: every client's socket closes (their next event reopens it).
+/** Between pagehide and pageshow: events queue, no socket opens. */
+let pageHidden = false;
+
+// The page is going away: every client's socket closes. Events until pageshow
+// (app_state_changed of this very pagehide included) wait in the queue; the
+// first event after it opens the socket again.
 if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('pagehide', () => {
+    pageHidden = true;
     for (const client of [...liveClients]) client.park('pagehide');
   });
+  window.addEventListener('pageshow', () => {
+    pageHidden = false;
+  });
 }
+
+/** For tests. */
+export const setPageHidden = (hidden: boolean): void => {
+  pageHidden = hidden;
+};
 /** Pending events of instances that failed in their constructor. */
 const orphanEvents: ClientEvent[] = [];
 
@@ -329,7 +345,8 @@ export default class TelemetryClient {
 
   private _recordFrame(frame: string): void {
     this._captured.push(frame);
-    if (this._captured.length > MAX_CAPTURED_FRAMES) this._captured.shift();
+    const max = this._mirror ? MAX_MIRRORED_FRAMES : MAX_CAPTURED_FRAMES;
+    if (this._captured.length > max) this._captured.shift();
     if (this._capture.download || this._capture.onFlush) {
       this._unflushed.push(frame);
     }
@@ -526,7 +543,14 @@ export default class TelemetryClient {
       dropped_pending: this._droppedPending,
     };
     this._droppedBacklog = this._droppedPending = 0;
-    this.log('warn', 'telemetry', 'Telemetry events dropped', details);
+    // Also when a log line flushed: the counters are already reset.
+    const emittingLog = this._emittingLog;
+    this._emittingLog = false;
+    try {
+      this.log('warn', 'telemetry', 'Telemetry events dropped', details);
+    } finally {
+      this._emittingLog = emittingLog;
+    }
   }
 
   // ── The telemetry socket ─────────────────────────────────────────────
@@ -702,6 +726,7 @@ export default class TelemetryClient {
   private _active(): void {
     if (this._closed || this.capture) return;
     if (this._parked) {
+      if (pageHidden) return;
       this._parked = false;
       if (!liveClients.includes(this)) liveClients.push(this);
       this.connect();
@@ -723,6 +748,9 @@ export default class TelemetryClient {
       pending: this._pending.length,
     });
     this._parked = true;
+    // A kill switch belongs to its socket: the next socket starts enabled
+    // (otherwise nothing could ever reopen it).
+    this._remoteEnabled = true;
     const index = liveClients.indexOf(this);
     if (index >= 0) liveClients.splice(index, 1);
     clearTimeout(this._reconnectTimer);
@@ -774,6 +802,8 @@ export default class TelemetryClient {
     orphanEvents.splice(0, orphanEvents.length - MAX_PENDING_EVENTS);
     this._pending = [];
     this._leave();
+    clearTimeout(this._idleTimer);
+    clearInterval(this._flushTimer);
     for (const client of liveClients) client._flushPending();
   }
 }

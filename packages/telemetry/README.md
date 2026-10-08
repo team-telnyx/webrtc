@@ -29,7 +29,7 @@ const client = new TelnyxRTC({
   // telemetry: { capture: true } sends nothing and only captures locally.
 });
 
-client.telemetry?.capturedFrames(); // the frames printed so far
+client.telemetry?.capturedFrames(); // the newest 1,000 frames printed (capture mode: all)
 ```
 
 ## API

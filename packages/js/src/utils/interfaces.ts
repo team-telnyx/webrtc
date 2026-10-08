@@ -267,10 +267,10 @@ export interface IClientOptions {
   maxReconnectAttempts?: number;
 
   /**
-   * Call Report V2 telemetry (beta): one message per event. On by default in
-   * local capture mode: each message is printed to the console after
-   * "[CR2 telemetry]" and nothing is sent. Set `url` (or `enabled: true`) to
-   * send to the telemetry socket instead; `enabled: false` switches it off.
+   * Call Report V2 telemetry (beta): one message per event. On by default: each
+   * message goes to the telemetry socket and is also printed to the console
+   * after "[CR2 telemetry]". `enabled: true` (or a `url`) sends without
+   * printing; `enabled: false` switches it off.
    */
   telemetry?: ITelemetryOptions;
   /**

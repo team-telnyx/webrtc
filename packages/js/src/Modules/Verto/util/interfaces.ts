@@ -78,10 +78,10 @@ export interface IVertoOptions {
   maxReconnectAttempts?: number;
 
   /**
-   * Call Report V2 telemetry (beta): one message per event. On by default in
-   * local capture mode: each message is printed to the console after
-   * "[CR2 telemetry]" and nothing is sent. Set `url` (or `enabled: true`) to
-   * send to the telemetry socket instead; `enabled: false` switches it off.
+   * Call Report V2 telemetry (beta): one message per event. On by default: each
+   * message goes to the telemetry socket and is also printed to the console
+   * after "[CR2 telemetry]". `enabled: true` (or a `url`) sends without
+   * printing; `enabled: false` switches it off.
    */
   telemetry?: ITelemetryOptions;
   /**
@@ -257,10 +257,10 @@ export interface ITelemetryOptions {
   enabled?: boolean;
   /** The telemetry socket. Default wss://rtc-telemetry.telnyx.com, or wss://rtc-telemetrydev.telnyx.com with env: 'development'. */
   url?: string;
-  /** With the socket: also print each frame to the console and keep it for `client.telemetry.capturedFrames()`. */
+  /** With the socket: also print each frame to the console and keep the newest 1,000 for `client.telemetry.capturedFrames()`. */
   console?: boolean;
   /**
-   * Local capture (the default): the frames the SDK would send, kept in
+   * Local capture (for debugging): the frames the SDK would send, kept in
    * memory, printed to the console and passed to `onFrame`; nothing goes
    * over the network. Read them with `client.telemetry.capturedFrames()`.
    */

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import SessionTelemetry, { type SessionHost } from '../session';
 import TelemetryClient, {
+  setPageHidden,
   setTelemetryWebSocket,
   TELEMETRY_LOGIN_METHOD,
   TELEMETRY_METHOD,
@@ -95,6 +96,7 @@ const live: Array<{ close(): void }> = [];
 beforeEach(() => {
   FakeSocket.instances = [];
   setTelemetryWebSocket(FakeSocket);
+  setPageHidden(false);
 });
 
 afterEach(() => {
