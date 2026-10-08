@@ -39,7 +39,8 @@ export const TELEMETRY_DEV_URL = 'wss://rtc-telemetrydev.telnyx.com';
 export const TELEMETRY_CONTROL_METHOD = 'telnyx_rtc.telemetry_control';
 export const TELEMETRY_LOGIN_METHOD = 'telnyx_rtc.telemetry_login';
 export const MAX_PENDING_EVENTS = 1000;
-export const MAX_SEND_BACKLOG_BYTES = 64 * 1024;
+/** At least one max-size record (4 MiB) fits (owner, 2026-10-08). */
+export const MAX_SEND_BACKLOG_BYTES = 8 * 1024 * 1024;
 export const METRICS_INTERVAL_MS = 1000;
 export const DEFAULT_CAPTURE_MARK = '[CR2 telemetry]';
 export const DEFAULT_CAPTURE_FLUSH_MS = 5 * 60 * 1000;
@@ -384,6 +385,12 @@ export default class TelemetryClient {
     if (!events.length) return null;
     if (this.ready && !this._pending.length) {
       for (const event of events) this._send(event, false);
+      // Backlog drops are reported once the backlog is back under the limit.
+      if (
+        this._droppedBacklog &&
+        this._ws.bufferedAmount <= MAX_SEND_BACKLOG_BYTES
+      )
+        this._flushPending();
     } else {
       this._enqueue(events);
       this._flushPending();

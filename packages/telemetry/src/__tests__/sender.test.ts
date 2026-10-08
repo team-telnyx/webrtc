@@ -2,6 +2,7 @@
 import TelemetryClient, {
   IDLE_CLOSE_MS,
   MAX_PENDING_EVENTS,
+  MAX_SEND_BACKLOG_BYTES,
   TELEMETRY_CONTROL_METHOD,
   TELEMETRY_LOGIN_METHOD,
   TELEMETRY_METHOD,
@@ -145,14 +146,20 @@ describe('TelemetryClient', () => {
     });
   });
 
-  it('drops events above a 64 KB socket backlog, never queues them', () => {
+  it('drops events above an 8 MiB socket backlog, never queues them, and reports the count', () => {
     const client = makeClient({}, true);
     const ws = FakeSocket.last();
-    ws.bufferedAmount = 64 * 1024 + 1;
+    ws.bufferedAmount = MAX_SEND_BACKLOG_BYTES + 1;
     logEvent(client, 'dropped');
     ws.bufferedAmount = 0;
     logEvent(client, 'sent');
     expect(messages(ws)).toEqual(['sent']);
+    const drops = ws
+      .events(true)
+      .filter((e) => e.payload.message === 'Telemetry events dropped');
+    expect(drops.map((e) => e.payload.details)).toEqual([
+      { dropped_backlog: 1, dropped_pending: 0 },
+    ]);
   });
 
   it('obeys the kill switch until switched back on', () => {
