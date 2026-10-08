@@ -534,10 +534,9 @@ export default class SessionTelemetry {
     });
   }
 
-  /** The app called disconnect(): listeners go; the socket closes once idle. */
+  /** The app called disconnect(): listeners go; the telemetry socket stays. */
   disconnected(): void {
     this.dispose();
-    this.client.appDisconnected();
   }
 
   /** New credentials (client.login({ creds })): a rejected login tries them. */
@@ -585,7 +584,6 @@ export default class SessionTelemetry {
       this._disposed = false; // connect() after disconnect(): listen again
       this._attachListeners();
     }
-    this.client.appConnected();
   }
 
   /** A new signaling socket starts opening (one socket = one VSP and B2BUA-RTC). */

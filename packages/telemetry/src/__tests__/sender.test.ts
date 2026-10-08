@@ -334,16 +334,21 @@ describe('TelemetryClient', () => {
     jest.useRealTimers();
   });
 
-  it("after the app's disconnect() closes the socket once idle, and opens it again on connect()", () => {
+  it('closes the socket after 5 min with nothing to send (log lines do not count); the next event opens it again', () => {
     jest.useFakeTimers();
     const client = makeClient({}, true);
     const ws = FakeSocket.last();
-    client.appDisconnected();
+    const network = () =>
+      client.emit('network_changed', {
+        initial: false,
+        network_type: 'wifi',
+        online: true,
+      });
     jest.advanceTimersByTime(IDLE_CLOSE_MS - 1000);
-    logEvent(client, 'late'); // still sending: the countdown starts again
+    network(); // something to send: the countdown starts again
     jest.advanceTimersByTime(IDLE_CLOSE_MS - 1000);
+    logEvent(client, 'log only');
     expect(ws.readyState).toBe(1);
-    expect(messages(ws)).toEqual(['late']);
     jest.advanceTimersByTime(1000);
     expect(ws.readyState).toBe(3);
     expect(TelemetryClient.liveInstanceIds()).not.toContain(
@@ -351,26 +356,26 @@ describe('TelemetryClient', () => {
     );
     jest.advanceTimersByTime(10 * 60000); // no reconnects while closed
     expect(FakeSocket.instances).toHaveLength(1);
-    logEvent(client, 'queued');
-    client.appConnected();
+    network();
     expect(FakeSocket.instances).toHaveLength(2);
     FakeSocket.last().open();
     FakeSocket.last().answerLogin();
-    expect(messages(FakeSocket.last())).toEqual(['queued']);
+    expect(
+      FakeSocket.last()
+        .events()
+        .map((e) => e.name)
+    ).toEqual(['network_changed']);
     expect(TelemetryClient.liveInstanceIds()).toContain(client.sdkInstanceId);
     jest.useRealTimers();
   });
 
-  it('keeps the socket through a disconnect() and connect() in a row', () => {
-    jest.useFakeTimers();
-    const client = makeClient({}, true);
-    client.appDisconnected();
-    jest.advanceTimersByTime(5000);
-    client.appConnected();
-    jest.advanceTimersByTime(IDLE_CLOSE_MS * 2);
-    expect(FakeSocket.instances).toHaveLength(1);
-    expect(FakeSocket.last().readyState).toBe(1);
-    jest.useRealTimers();
+  it('closes every socket on pagehide', () => {
+    const a = makeClient({}, true);
+    const b = makeClient({}, true);
+    window.dispatchEvent(new Event('pagehide'));
+    expect(FakeSocket.instances.map((ws) => ws.readyState)).toEqual([3, 3]);
+    expect(TelemetryClient.liveInstanceIds()).not.toContain(a.sdkInstanceId);
+    expect(TelemetryClient.liveInstanceIds()).not.toContain(b.sdkInstanceId);
   });
 
   it('retries after -32003 Telemetry Unavailable, later than after a network drop', () => {

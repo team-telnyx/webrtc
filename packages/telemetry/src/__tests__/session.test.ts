@@ -92,7 +92,7 @@ describe('SessionTelemetry', () => {
     expect(off).toBeNull();
   });
 
-  it('opens the telemetry socket when the SDK is created and keeps it through disconnect() and connect()', async () => {
+  it('opens the telemetry socket when the SDK is created and keeps it through connect() and disconnect()', async () => {
     const onLoginRejected = jest.fn();
     const events = SessionTelemetry.create(makeSession(), {
       ...config,

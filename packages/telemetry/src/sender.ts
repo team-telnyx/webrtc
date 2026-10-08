@@ -5,8 +5,10 @@
  *   with the credentials given to it; independent of the signaling socket,
  *   it stays open through every signaling reconnect. Rejected credentials
  *   wait for new ones on the open socket.
- * - After the app's disconnect() it closes once nothing new comes for
- *   IDLE_CLOSE_MS; the app's next connect() opens it again.
+ * - One socket per client (owner, 2026-10-08). It closes once the client has
+ *   had nothing to send for IDLE_CLOSE_MS (log lines don't count: they are
+ *   page-wide) and on pagehide; the client's next event opens it again.
+ *   connect() and disconnect() never open or close it.
  * - One JSON-RPC notification per event, sent the moment it happens; never
  *   batched, acknowledged or resent (a gap in `sequence` shows a loss).
  * - While not connected and logged in, events wait in memory (at most
@@ -49,8 +51,8 @@ const UNAVAILABLE_MS = [30000, 5 * 60 * 1000];
 const LOGIN_INCORRECT = -32001;
 const TELEMETRY_UNAVAILABLE = -32003;
 const LOGIN_TIMEOUT_MS = 10000;
-/** After the app's disconnect(): the socket closes once nothing new comes for this long. */
-export const IDLE_CLOSE_MS = 60000;
+/** The socket closes once the client has had nothing to send for this long. */
+export const IDLE_CLOSE_MS = 5 * 60 * 1000;
 const MAX_CAPTURED_FRAMES = 200000;
 const MAX_ENDED_CALLS = 100;
 
@@ -101,6 +103,13 @@ export const setTelemetryWebSocket = (impl: unknown): void => {
 
 /** Live clients on this page, newest last. */
 const liveClients: TelemetryClient[] = [];
+
+// The page is going away: every client's socket closes (their next event reopens it).
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('pagehide', () => {
+    for (const client of [...liveClients]) client.park('pagehide');
+  });
+}
 /** Pending events of instances that failed in their constructor. */
 const orphanEvents: ClientEvent[] = [];
 
@@ -185,9 +194,8 @@ export default class TelemetryClient {
   private _authenticated = false;
   private _remoteEnabled = true;
   private _closed = false;
-  /** Closed after the app's disconnect() and idle: no reconnects until appConnected(). */
+  /** Closed while idle: no reconnects until the client's next event. */
   private _parked = false;
-  private _closeWhenIdle = false;
   private _idleTimer: Any = null;
   private _reconnectAttempts = 0;
   private _reconnectTimer: Any = null;
@@ -262,6 +270,7 @@ export default class TelemetryClient {
     this.client = info.client;
     this.clientDetails = info.details;
     liveClients.push(this);
+    this._active();
   }
 
   get ready(): boolean {
@@ -379,7 +388,7 @@ export default class TelemetryClient {
       this._enqueue(events);
       this._flushPending();
     }
-    if (this._closeWhenIdle) this._armIdleClose();
+    if (name !== 'logs') this._active();
     return events[0];
   }
 
@@ -676,47 +685,32 @@ export default class TelemetryClient {
     }, delay);
   }
 
-  // ── The app's connect() and disconnect() ─────────────────────────────
+  // ── Idle close ───────────────────────────────────────────────────────
 
-  /** The app called connect(): keeps the socket, or opens it again after an idle close. */
-  appConnected(): void {
-    if (this._closed) return;
-    this._closeWhenIdle = false;
-    clearTimeout(this._idleTimer);
-    this._idleTimer = null;
+  /** The client has something to send: reopens a socket closed while idle; the idle countdown starts again. */
+  private _active(): void {
+    if (this._closed || this.capture) return;
     if (this._parked) {
       this._parked = false;
       if (!liveClients.includes(this)) liveClients.push(this);
+      this.connect();
     }
-    this.connect();
-  }
-
-  /** The app called disconnect(): the socket closes once nothing new comes for IDLE_CLOSE_MS. */
-  appDisconnected(): void {
-    if (this._closed || this._parked) return;
-    this._closeWhenIdle = true;
-    this._armIdleClose();
-  }
-
-  private _armIdleClose(): void {
     clearTimeout(this._idleTimer);
     this._idleTimer = setTimeout(() => {
       this._idleTimer = null;
-      this._park();
+      this.park('idle');
     }, IDLE_CLOSE_MS);
   }
 
-  /** Closes the socket but keeps the instance; appConnected() opens it again. */
-  private _park(): void {
-    this._closeWhenIdle = false;
-    this.log(
-      'info',
-      'telemetry',
-      'Telemetry socket closed: idle after disconnect',
-      {
-        pending: this._pending.length,
-      }
-    );
+  /** Closes the socket but keeps the client; its next event opens it again. */
+  park(reason: 'idle' | 'pagehide'): void {
+    if (this._closed || this._parked) return;
+    clearTimeout(this._idleTimer);
+    this._idleTimer = null;
+    this.log('info', 'telemetry', 'Telemetry socket closed', {
+      reason,
+      pending: this._pending.length,
+    });
     this._parked = true;
     const index = liveClients.indexOf(this);
     if (index >= 0) liveClients.splice(index, 1);
