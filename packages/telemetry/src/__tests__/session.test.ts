@@ -52,7 +52,7 @@ describe('SessionTelemetry', () => {
     expect(started.payload.raw_client_options).toEqual({
       login_token: '[REDACTED]',
       iceServers: [
-        { urls: 'turn:t.example', username: 'u', credential: '[REDACTED]' },
+        { urls: 'turn:t.example', username: 'u', credential: 'c' }, // TURN credentials stay
       ],
       telemetry: { url: 'ws://t' },
       onReady: '[function]',
@@ -231,7 +231,7 @@ describe('SessionTelemetry', () => {
     expect(ws.find('signaling_message')).toBeUndefined();
   });
 
-  it('signaling_message = { direction, raw } with credentials and a=ice-pwd removed', () => {
+  it('signaling_message = { direction, raw }: passwords and tokens removed, a=ice-pwd kept', () => {
     const { events, ws } = connectedSession();
     events.frameSent({
       jsonrpc: '2.0',
@@ -272,7 +272,7 @@ describe('SessionTelemetry', () => {
     });
     expect(sent.payload.direction).toBe('sent');
     expect(sent.payload.raw.params.sdp).toBe(
-      'v=0\r\na=ice-ufrag:uf1\r\na=rtpmap:0 PCMU/8000\r\n'
+      'v=0\r\na=ice-ufrag:uf1\r\na=ice-pwd:secret\r\na=rtpmap:0 PCMU/8000\r\n'
     );
     expect(sent.ids.call_id).toBe('call-1');
     // The answer carries its request's call ID and the sequence taken on arrival.
@@ -281,7 +281,7 @@ describe('SessionTelemetry', () => {
       'call-1',
       received.sequence,
     ]);
-    expect(JSON.stringify(ws.events(true))).not.toMatch(/hunter2|secret/);
+    expect(JSON.stringify(ws.events(true))).not.toMatch(/hunter2/);
   });
 
   it('socket events: target without its query, then connected, closed and failed with their extras', () => {

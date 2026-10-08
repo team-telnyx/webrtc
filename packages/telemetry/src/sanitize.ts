@@ -1,6 +1,6 @@
 /**
- * Everything goes out whole (owner, 2026-10-06); only credentials are taken
- * out: passwords, tokens, the ICE password, TURN credentials. Keepalive
+ * Everything goes out whole (owner, 2026-10-06); only passwords and tokens
+ * are taken out. TURN credentials and a=ice-pwd stay (owner, 2026-10-08). Keepalive
  * frames and the "Ping received" line are never recorded. Plus the small
  * helpers every module uses.
  */
@@ -65,9 +65,9 @@ export function guard<T extends object>(object: T): T {
   return object;
 }
 
-const SECRET_KEYS = words(`password passwd credential secret token login_token
-  telemetry_token access_token jwt authorization ice_pwd`);
-const SECRET_FRAME_KEYS = words('passwd password login_token telemetry_token');
+const SECRET_KEYS = words(`password passwd token login_token telemetry_token
+  access_token refresh_token jwt authorization`);
+const SECRET_FRAME_KEYS = SECRET_KEYS;
 const MAX_DEPTH = 32;
 const REDACTED = '[REDACTED]';
 
@@ -100,15 +100,14 @@ export function stripUrlCredentials(text: string): string {
   return out + text.slice(from);
 }
 
-/** Credentials inside text: ice-pwd lines, JWTs, bearer tokens, URL passwords, JSON secret fields. */
+/** Passwords and tokens inside text: JWTs, bearer tokens, URL passwords, JSON password and token fields. */
 export const scrubText = (text: string): string =>
   stripUrlCredentials(
     text
-      .replace(/a=ice-pwd:[^\r\n"]*/g, 'a=ice-pwd:[REDACTED]')
       .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, REDACTED)
       .replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
   ).replace(
-    /("(?:passwd|password|login_token|telemetry_token|access_token|credential)"\s*:\s*)"[^"]*"/gi,
+    /("(?:passwd|password|token|login_token|telemetry_token|access_token|refresh_token|jwt|authorization)"\s*:\s*)"[^"]*"/gi,
     '$1"[REDACTED]"'
   );
 
@@ -343,13 +342,8 @@ export const frameCallId = (frame: Any): string | undefined =>
 export const rpcIdString = (id: unknown): string =>
   id === undefined || id === null ? '' : String(id);
 
-/** The frame as it is, minus login secrets and SDP a=ice-pwd: lines. */
+/** The frame as it is, minus passwords and tokens. */
 export function rawFrame(value: unknown, depth = 0): unknown {
-  if (typeof value === 'string') {
-    return value.includes('a=ice-pwd:')
-      ? value.replace(/a=ice-pwd:[^\r\n]*(\r?\n)?/g, '')
-      : value;
-  }
   if (!value || typeof value !== 'object' || depth > 12) return value;
   if (Array.isArray(value)) return value.map((v) => rawFrame(v, depth + 1));
   const result: Flat = {};

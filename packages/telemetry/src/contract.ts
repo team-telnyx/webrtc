@@ -23,7 +23,7 @@ export type TelemetryControlNotification = {
 /** call_metrics goes only with socket_generation, voice_sdk_id, session_id and call_id (checked by the SDK and the backend). */
 export type ClientEvent = Envelope & EventBody;
 
-/** Untyped extras of an event, kept whole. Never credentials. */
+/** Untyped extras of an event, kept whole. Never passwords or tokens. */
 export type Extra = Record<string, unknown>;
 
 export type SchemaVersion = '2.0' | '2.1';
@@ -305,7 +305,7 @@ export type GatewayCheckSucceededPayload = {
 
 export type SignalingCategory = Extract<Category, 'call' | 'connection'>;
 
-/** The JSON-RPC frame as it is, credentials and a=ice-pwd removed. */
+/** The JSON-RPC frame as it is, passwords and tokens removed (TURN credentials and a=ice-pwd stay). */
 export type SignalingMessagePayload = {
   direction: 'sent' | 'received';
   raw: unknown;
@@ -336,7 +336,7 @@ export type CallStartedPayload = {
   speaker_id_provided: boolean | null;
   camera_id_provided: boolean | null;
   is_reattach: boolean;
-  raw_call_options: Record<string, unknown>; // the call's options as the app gave them; credentials and SDPs removed
+  raw_call_options: Record<string, unknown>; // the call's options as the app gave them; passwords, tokens and SDPs removed
 };
 
 export type CallState =
@@ -612,7 +612,7 @@ export type LogCategory = Exclude<
   'metrics' | 'diagnostics' | 'unknown'
 >;
 
-/** One SDK log line, whole; only credentials removed. */
+/** One SDK log line, whole; only passwords and tokens removed. */
 export type LogEntry = {
   level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
   category: LogCategory;

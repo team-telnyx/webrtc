@@ -100,7 +100,7 @@ function loginParams(options: Any): Flat | null {
 /** The options as the app passed them: secrets redacted, DOM nodes, streams and functions described. */
 export function rawClientOptions(options: unknown): Flat {
   const seen = new WeakSet<object>();
-  const secrets = words('password passwd login_token credential');
+  const secrets = words('password passwd login_token');
   const describe = (value: Any, depth: number): unknown => {
     if (value === null || value === undefined) return value;
     if (typeof value === 'function') return '[function]';
