@@ -38,6 +38,25 @@ export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
 
   /**
+   * Call IDs that already emitted REMOTE_AUDIO_ELEMENT_UNRESOLVED. Kept on the
+   * session rather than the Peer so attach recovery, which replaces the
+   * Call/Peer under the same call ID, does not re-emit it.
+   */
+  private _missingRemoteAudioElementWarnedCallIds: Set<string> = new Set();
+
+  /**
+   * Records `callId` as warned and returns whether it already was.
+   * @ignore
+   */
+  public markMissingRemoteAudioElementWarned(callId: string): boolean {
+    if (this._missingRemoteAudioElementWarnedCallIds.has(callId)) {
+      return true;
+    }
+    this._missingRemoteAudioElementWarnedCallIds.add(callId);
+    return false;
+  }
+
+  /**
    * Call states considered "active" (non-terminal) for the purpose of
    * detecting multiple active calls in the same session.
    * These are the lowercase string names matching `State[State.X]` values
@@ -319,6 +338,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }
@@ -340,6 +360,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }

@@ -25,11 +25,16 @@ type PeerWithConnectionStateHandler = {
   handleConnectionStateChange: () => Promise<void>;
 };
 
+type PeerWithNegotiationHandler = {
+  handleNegotiationNeededEvent: () => void;
+};
+
 type SessionDouble = {
   options: Record<string, never>;
   sessionid: string;
   connected: boolean;
   reportPeerFailure: jest.Mock;
+  markMissingRemoteAudioElementWarned: (callId: string) => boolean;
 };
 
 describe('Peer connection state recovery', () => {
@@ -39,6 +44,7 @@ describe('Peer connection state recovery', () => {
       sessionid: 'session-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: jest.fn(() => false),
     };
 
     const peer = new Peer(
@@ -122,6 +128,7 @@ describe('Peer negotiation during ICE restart', () => {
       sessionid: 'session-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: jest.fn(() => false),
     };
 
     const peer = new Peer(
@@ -148,7 +155,9 @@ describe('Peer negotiation during ICE restart', () => {
     const trickleSpy = jest.spyOn(peer, 'startTrickleIceNegotiation');
     const nonTrickleSpy = jest.spyOn(peer, 'startNegotiation');
 
-    (peer as any).handleNegotiationNeededEvent();
+    (
+      peer as unknown as PeerWithNegotiationHandler
+    ).handleNegotiationNeededEvent();
 
     expect(trickleSpy).toHaveBeenCalledTimes(1);
     expect(nonTrickleSpy).not.toHaveBeenCalled();
@@ -161,7 +170,9 @@ describe('Peer negotiation during ICE restart', () => {
     const trickleSpy = jest.spyOn(peer, 'startTrickleIceNegotiation');
     const nonTrickleSpy = jest.spyOn(peer, 'startNegotiation');
 
-    (peer as any).handleNegotiationNeededEvent();
+    (
+      peer as unknown as PeerWithNegotiationHandler
+    ).handleNegotiationNeededEvent();
 
     expect(nonTrickleSpy).toHaveBeenCalledTimes(1);
     expect(trickleSpy).not.toHaveBeenCalled();
@@ -243,6 +254,7 @@ describe('Peer relay policy', () => {
       sessionid: 'session-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: jest.fn(() => false),
     };
     const peer = new Peer(
       PeerType.Offer,
@@ -270,6 +282,7 @@ describe('Peer ICE candidate pool', () => {
       sessionid: 'session-1',
       connected: true,
       reportPeerFailure: jest.fn(),
+      markMissingRemoteAudioElementWarned: jest.fn(() => false),
     };
     const peer = new Peer(
       PeerType.Offer,
