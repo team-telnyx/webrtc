@@ -10,7 +10,7 @@
 - Rejected credentials (-32001): the app gets `telnyx.warning` 34002 `TELEMETRY_CREDENTIALS_REJECTED`, the socket stays open, and new credentials (`client.login({ creds })`) log in again on it. -32003 (telemetry unavailable) retries from 30 s up to 5 min.
 - One `telnyx_rtc.telemetry` JSON-RPC notification per event, sent when it happens; never batched, acknowledged or resent. `sequence` goes up by one on every record of an SDK instance, so a gap shows a lost record.
 - SDK-wide events (creation, network, app state, devices, socket, login, gateway, signaling messages, logs, errors) and per-call events (call_started, call_state, ICE candidates, media changes, metrics every second, warnings, timings, call_ended).
-- Credentials never: passwords, tokens and `a=ice-pwd` are removed. Everything else goes out whole, log lines and JSON-RPC frames included.
+- Only passwords and tokens are removed. Everything else goes out whole: log lines, JSON-RPC frames and SDPs, TURN credentials and `a=ice-pwd` included.
 
 [`src/contract.ts`](src/contract.ts) is the wire contract (schema 2.1). Typed fields are the ones every Telnyx SDK sends; anything else this SDK knows goes, untyped, under each payload's `extra`.
 
