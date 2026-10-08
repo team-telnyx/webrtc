@@ -371,6 +371,13 @@ describe('SessionTelemetry', () => {
     expect(started.login_type).toBe('gencred');
   });
 
+  it('names a SIP credential login sip_credentials in the SDK options too', () => {
+    const { ws } = connectedSession();
+    const created = ws.find('sdk_creation_started');
+    expect(created.payload.options.login_type).toBe('sip_credentials');
+    expect(created.login_type).toBe('sip_credentials');
+  });
+
   it('login and client_ready: step times, server answers without credentials, no VSP names', () => {
     const { events, ws, session } = connectedSession(
       makeSession({ remoteElement: 'el', micId: '', speaker: 'spk' })

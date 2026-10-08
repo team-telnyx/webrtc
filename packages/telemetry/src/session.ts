@@ -326,13 +326,7 @@ export default class SessionTelemetry {
   /** First thing in the constructor: sequence 1. */
   creationStarted(): void {
     const { options } = this.session;
-    const loginType = options.login_token
-      ? 'token'
-      : !options.login
-        ? 'anonymous'
-        : /^gencred/i.test(options.login)
-          ? 'gencred'
-          : 'sip_credential';
+    const loginType = loginTypeOf(options);
     const env = options.env === 'development' ? 'development' : 'production';
     const sdkOptions: SdkOptions = {
       login: ['token', 'anonymous'].includes(loginType) ? null : options.login,

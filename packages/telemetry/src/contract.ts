@@ -133,7 +133,7 @@ export type PayloadOf<N extends EventName> = Extract<
 export type SdkOptions = {
   login: string | null; // null for token and anonymous logins
   debug: boolean;
-  login_type: 'sip_credential' | 'gencred' | 'token' | 'anonymous';
+  login_type: 'sip_credentials' | 'gencred' | 'token' | 'anonymous';
   explicit_rtc_provided: boolean;
   use_canary: boolean | null;
   skip_trailing: boolean;
