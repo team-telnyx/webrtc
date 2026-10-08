@@ -21,6 +21,7 @@ import {
   setReconnectSessionId,
 } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
+import { telemetryOf } from './telemetry';
 
 export const VERTO_PROTOCOL = 'verto-protocol';
 
@@ -202,6 +203,10 @@ export default class Verto extends BrowserSession {
       );
       setReconnectSessionId(this.sessionid);
     });
+
+    // Call Report V2: the constructor finished (then the initial network
+    // snapshot and the instance-lifetime listeners).
+    telemetryOf(this)?.created();
   }
 
   validateOptions() {

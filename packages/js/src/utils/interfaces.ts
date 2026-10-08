@@ -2,6 +2,7 @@ import Call from '../Modules/Verto/webrtc/Call';
 import {
   Environment,
   INotificationEventData,
+  ITelemetryOptions,
 } from '../Modules/Verto/util/interfaces';
 
 export interface ICredentials {
@@ -265,6 +266,13 @@ export interface IClientOptions {
    */
   maxReconnectAttempts?: number;
 
+  /**
+   * Call Report V2 telemetry (beta): one message per event. On by default: each
+   * message goes to the telemetry socket and is also printed to the console
+   * after "[CR2 telemetry]". `enabled: true` (or a `url`) sends without
+   * printing; `enabled: false` switches it off.
+   */
+  telemetry?: ITelemetryOptions;
   /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, WebRTC stats are collected periodically during calls

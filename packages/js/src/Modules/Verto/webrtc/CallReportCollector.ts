@@ -36,6 +36,13 @@ import {
   ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
 
+/** The measurement that tripped a quality warning (telemetry call_warning). */
+export type ICallWarningDetails = {
+  metric: string;
+  value: number;
+  threshold: number;
+};
+
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
  * not yet in the standard TypeScript definitions
@@ -591,6 +598,14 @@ export class CallReportCollector {
 
   /** Callback invoked when a quality warning threshold is breached. */
   public onWarning: ((warning: ITelnyxWarning) => void) | null = null;
+
+  // What tripped each warning code last (telemetry call_warning).
+  private _warningDetails: Record<number, ICallWarningDetails> = {};
+
+  /** The measurement that last tripped (or was checked for) a warning code. */
+  public getWarningDetails(code: number): ICallWarningDetails | undefined {
+    return this._warningDetails[code];
+  }
 
   // ── Quality warning thresholds ────────────────────────────────────
   private static readonly CONSECUTIVE_BREACHES_REQUIRED = 3;
@@ -1510,6 +1525,28 @@ export class CallReportCollector {
       this._prevPacketsLost = currentLost;
     }
 
+    if (rtt !== undefined) {
+      this._warningDetails[HIGH_RTT] = {
+        metric: 'rtt_ms',
+        value: rtt * 1000,
+        threshold: CallReportCollector.THRESHOLD_RTT_MS * 1000,
+      };
+    }
+    if (jitter !== undefined) {
+      this._warningDetails[HIGH_JITTER] = {
+        metric: 'jitter_ms',
+        value: jitter,
+        threshold: CallReportCollector.THRESHOLD_JITTER_MS,
+      };
+    }
+    if (packetLossPct !== undefined) {
+      this._warningDetails[HIGH_PACKET_LOSS] = {
+        metric: 'in_loss_pct',
+        value: packetLossPct,
+        threshold: CallReportCollector.THRESHOLD_PACKET_LOSS_PCT,
+      };
+    }
+
     // RTT warning — RTT is in seconds from WebRTC API
     this._trackBreach(
       HIGH_RTT,
@@ -1561,6 +1598,11 @@ export class CallReportCollector {
         1,
         Math.min(4.5, 1 + 0.035 * R + R * (R - 60) * (100 - R) * 7e-6)
       );
+      this._warningDetails[LOW_MOS] = {
+        metric: 'mos',
+        value: mos,
+        threshold: CallReportCollector.THRESHOLD_MOS,
+      };
       this._trackBreach(LOW_MOS, mos < CallReportCollector.THRESHOLD_MOS);
     } else {
       this._trackBreach(LOW_MOS, false);
@@ -1607,6 +1649,11 @@ export class CallReportCollector {
     }
 
     const isLow = audioLevel <= CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL;
+    this._warningDetails[LOW_LOCAL_AUDIO] = {
+      metric: 'out_level',
+      value: audioLevel,
+      threshold: CallReportCollector.THRESHOLD_LOCAL_AUDIO_LEVEL,
+    };
 
     if (!isLow) {
       this._hasConfirmedLocalAudio = true;
@@ -1674,6 +1721,11 @@ export class CallReportCollector {
 
     const isLow =
       audioLevel <= CallReportCollector.THRESHOLD_INBOUND_AUDIO_LEVEL;
+    this._warningDetails[LOW_INBOUND_AUDIO] = {
+      metric: 'in_level',
+      value: audioLevel,
+      threshold: CallReportCollector.THRESHOLD_INBOUND_AUDIO_LEVEL,
+    };
     this._trackBreach(LOW_INBOUND_AUDIO, isLow);
   }
 

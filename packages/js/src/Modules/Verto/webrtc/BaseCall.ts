@@ -16,6 +16,8 @@ import {
   type RecordingTrackKind,
 } from './CallRecorder';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
+import type { CallTelemetry } from '@telnyx/webrtc-telemetry';
+import { callTelemetry, telemetryOf } from '../telemetry';
 import {
   Answer,
   Attach,
@@ -118,6 +120,8 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _callReportCollector: CallReportCollector | null = null;
   private _callRecorder: CallRecorder | null = null;
   private _mediaDeviceCollector: MediaDeviceCollector | null = null;
+  /** Call Report V2 telemetry for this call; null when telemetry is off. */
+  private _callTelemetry: CallTelemetry | null = null;
   private readonly _audioDeviceRecoveryErrors = new WeakSet<TelnyxError>();
   protected _mediaDeviceGeneration = 0;
 
@@ -493,6 +497,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this._registerPeerEvents
     );
+    this._bindPeerTelemetry();
     try {
       await this.peer.init();
     } catch (error) {
@@ -505,6 +510,7 @@ export default abstract class BaseCall implements IWebRTCCall {
               UNEXPECTED_ERROR,
               error instanceof Error ? error : undefined
             );
+      this._callTelemetry?.onError(telnyxError);
       trigger(
         SwEvent.Error,
         {
@@ -617,6 +623,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       this._onTrickleIceSdp,
       this._registerPeerEvents
     );
+    this._bindPeerTelemetry();
     try {
       await this.peer.init();
     } catch (error) {
@@ -629,6 +636,7 @@ export default abstract class BaseCall implements IWebRTCCall {
               UNEXPECTED_ERROR,
               error instanceof Error ? error : undefined
             );
+      this._callTelemetry?.onError(telnyxError);
       trigger(
         SwEvent.Error,
         {
@@ -727,6 +735,14 @@ export default abstract class BaseCall implements IWebRTCCall {
       callerStack,
     });
 
+    // A plain call.hangup() is the app's; a local-only hangup({}, false)
+    // without an initiator is the SDK dropping a call it lost.
+    this._callTelemetry?.noteHangup(
+      params.initiator ?? (execute ? initiator : undefined),
+      execute,
+      Boolean(params.isRecovering)
+    );
+
     // If recovering from attach, set Recovering state and skip Bye
     if (params.isRecovering) {
       this._isRecovering = true;
@@ -768,6 +784,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       } catch (error) {
         logger.error('telnyx_rtc.bye failed!', error);
         const telnyxError = createTelnyxError(BYE_SEND_FAILED, error);
+        this._callTelemetry?.onError(telnyxError);
         trigger(
           SwEvent.Error,
           {
@@ -1172,6 +1189,17 @@ export default abstract class BaseCall implements IWebRTCCall {
       senderTrack: getTrackDebugInfo(sender.track),
       localTracks: getStreamTrackDebugInfo(this.options.localStream),
     });
+    this._reportDeviceChanged('input');
+  }
+
+  /**
+   * Call Report V2: the microphone or speaker in use changed, chosen by the
+   * app or by the SDK's own fallback. No-op when telemetry is off.
+   */
+  protected _reportDeviceChanged(kind: 'input' | 'output') {
+    const events = telemetryOf(this.session);
+    if (kind === 'input') events?.inputDeviceChanged(this.options.micId);
+    else events?.outputDeviceChanged(this.options.speakerId);
   }
 
   /**
@@ -1420,6 +1448,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       type: NOTIFICATION_TYPE.callUpdate,
       call: this,
     });
+    this._callTelemetry?.onState(this.state, this.prevState);
 
     switch (state) {
       case State.Purge: {
@@ -1509,6 +1538,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._finalize();
         break;
     }
+    this._callTelemetry?.afterState(this.state);
   }
 
   // Handle messages from Server to Client
@@ -1581,6 +1611,7 @@ export default abstract class BaseCall implements IWebRTCCall {
         break;
       }
       case VertoMethod.Candidate: {
+        this._callTelemetry?.onRemoteCandidate(params);
         this._addIceCandidate(params);
         break;
       }
@@ -1826,6 +1857,7 @@ export default abstract class BaseCall implements IWebRTCCall {
   private _handleChangeHoldStateError(error) {
     logger.error(`Failed to ${error.action} on call ${this.id}`);
     const telnyxError = createTelnyxError(HOLD_FAILED, error);
+    this._callTelemetry?.onError(telnyxError);
     trigger(
       SwEvent.Error,
       {
@@ -1884,6 +1916,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     logger.error(message, error);
     this.peer?.finishIceRestart();
     const telnyxError = createTelnyxError(ICE_RESTART_FAILED, error);
+    this._callTelemetry?.onError(telnyxError);
     // fatal: false (registry default) — SignalingHealth will decide on recovery.
     trigger(
       SwEvent.Error,
@@ -1911,6 +1944,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .setRemoteDescription(sdp)
       .then(() => {
         performance.mark(callMarkName(this.id, 'set-remote-description'));
+        this._callTelemetry?.onRemoteSdp(remoteSdp);
         if (this.options.trickleIce) {
           this._isRemoteDescriptionSet = true;
           this._flushPendingTrickleIceCandidates();
@@ -1929,6 +1963,7 @@ export default abstract class BaseCall implements IWebRTCCall {
           SDP_SET_REMOTE_DESCRIPTION_FAILED,
           error
         );
+        this._callTelemetry?.onError(telnyxError);
         trigger(
           SwEvent.Error,
           {
@@ -2059,6 +2094,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(async (error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
+        this._callTelemetry?.onError(telnyxError);
         trigger(
           SwEvent.Error,
           {
@@ -2164,6 +2200,7 @@ export default abstract class BaseCall implements IWebRTCCall {
       .catch(async (error) => {
         logger.error(`${this.id} - Sending ${type} error:`, error);
         const telnyxError = createTelnyxError(SDP_SEND_FAILED, error);
+        this._callTelemetry?.onError(telnyxError);
         trigger(
           SwEvent.Error,
           {
@@ -2384,6 +2421,13 @@ export default abstract class BaseCall implements IWebRTCCall {
         });
       }
     });
+
+    // Telemetry's own listeners on this connection (ICE candidates, DTLS,
+    // metrics), after the SDK's: the SDK drops its icecandidate handler once
+    // a non-trickle SDP was sent, telemetry keeps listening.
+    this._callTelemetry?.attachPeer(instance, () =>
+      this.options.trickleIce ? true : !this.peer?.iceDone
+    );
   }
 
   private _checkConferenceSerno = (serno: number) => {
@@ -2412,6 +2456,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       errorMessage,
     });
     logger.error(`Media error (${errorName}): ${errorMessage}`, error);
+
+    this._callTelemetry?.onError(error);
 
     // Emit structured error event (error is a TelnyxError from Peer.ts)
     trigger(
@@ -2599,6 +2645,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
 
       this._callReportCollector.onWarning = (warning) => {
+        this._callTelemetry?.onWarning(
+          warning,
+          this._callReportCollector?.getWarningDetails(warning.code)
+        );
         trigger(
           SwEvent.Warning,
           {
@@ -2684,6 +2734,10 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
     }
 
+    // Call Report V2 telemetry: call_started comes before the first call_state.
+    this._callTelemetry = callTelemetry(this, this.session);
+    this._callTelemetry?.start();
+
     if (this._isRecovering) {
       this.setState(State.Recovering);
     } else {
@@ -2693,6 +2747,13 @@ export default abstract class BaseCall implements IWebRTCCall {
       `New Call — region: ${this.session.region ?? 'unknown'}, dc: ${this.session.dc ?? 'unknown'}`,
       this.options
     );
+  }
+
+  /** Lets the Peer report remote SDP and negotiation errors to telemetry. */
+  private _bindPeerTelemetry() {
+    if (this._callTelemetry && this.peer) {
+      this.peer.telemetryHooks = this._callTelemetry.peerHooks();
+    }
   }
 
   /**
@@ -2725,6 +2786,12 @@ export default abstract class BaseCall implements IWebRTCCall {
   }
 
   protected _finalize() {
+    // Telemetry first: it stops its loop and takes the final stats before
+    // the peer connection closes, then sends call_ended in the background.
+    if (this._callTelemetry) {
+      const callEnded = this._callTelemetry.end();
+      this.session.trackCallReportUpload?.(callEnded);
+    }
     this._mediaDeviceGeneration++;
     this._stopStats();
     this._mediaDeviceCollector?.stop();

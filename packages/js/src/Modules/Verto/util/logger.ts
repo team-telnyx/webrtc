@@ -1,5 +1,6 @@
 import log from 'loglevel';
 import { getGlobalLogCollector, LogLevel } from './LogCollector';
+import { forwardSdkLog } from '@telnyx/webrtc-telemetry';
 
 const datetime = () =>
   new Date().toISOString().replace('T', ' ').replace('Z', '');
@@ -123,6 +124,10 @@ logger.methodFactory = (methodName, logLevel, loggerName) => {
 
       collector.addEntry(methodName as LogLevel, message, context);
     }
+
+    // Call Report V2: every SDK line goes to the live telemetry clients
+    // (filtered and sanitized there; never throws).
+    forwardSdkLog(methodName, logArgs);
   };
 };
 

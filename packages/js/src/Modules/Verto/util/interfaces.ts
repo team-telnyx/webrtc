@@ -78,6 +78,13 @@ export interface IVertoOptions {
   maxReconnectAttempts?: number;
 
   /**
+   * Call Report V2 telemetry (beta): one message per event. On by default: each
+   * message goes to the telemetry socket and is also printed to the console
+   * after "[CR2 telemetry]". `enabled: true` (or a `url`) sends without
+   * printing; `enabled: false` switches it off.
+   */
+  telemetry?: ITelemetryOptions;
+  /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, collects WebRTC stats and debug logs during calls.
    * @default true
@@ -239,3 +246,46 @@ export interface IResponseRPC {
 }
 
 export interface IMessageRPC extends IRequestRPC, IResponseRPC {}
+
+/** Call Report V2 telemetry settings (`options.telemetry`, beta). */
+export interface ITelemetryOptions {
+  /**
+   * false = record and send nothing. true = send to the telemetry socket.
+   * Unset (the default) = send to the telemetry socket and print each frame
+   * to the console after "[CR2 telemetry]".
+   */
+  enabled?: boolean;
+  /** The telemetry socket. Default wss://rtc-telemetry.telnyx.com, or wss://rtc-telemetrydev.telnyx.com with env: 'development'. */
+  url?: string;
+  /** With the socket: also print each frame to the console and keep the newest 1,000 for `client.telemetry.capturedFrames()`. */
+  console?: boolean;
+  /**
+   * Local capture (for debugging): the frames the SDK would send, kept in
+   * memory, printed to the console and passed to `onFrame`; nothing goes
+   * over the network. Read them with `client.telemetry.capturedFrames()`.
+   */
+  capture?: boolean | ITelemetryCaptureOptions;
+  /** Capture mode: each frame's JSON text as it is "sent". */
+  onFrame?: (frame: string) => void;
+}
+
+export interface ITelemetryCaptureOptions {
+  /** Print each frame to the console. Default true. */
+  console?: boolean;
+  /** What each console line starts with. Default "[CR2 telemetry]". */
+  consoleMark?: string;
+  /** Save the frames since the last flush as a .jsonl download every `flushIntervalMs` and on disconnect. */
+  download?: boolean;
+  /** Same schedule as `download`: the frames since the last flush. */
+  onFlush?: (frames: string[]) => void;
+  /** Default 300000 (5 minutes). */
+  flushIntervalMs?: number;
+}
+
+/** `client.telemetry`: the capture-mode frames. */
+export interface ITelemetryCapture {
+  readonly sdkInstanceId: string;
+  capturedFrames(): string[];
+  downloadCapture(filename?: string): void;
+  flushCapture(): void;
+}

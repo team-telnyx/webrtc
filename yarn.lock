@@ -2955,6 +2955,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@telnyx/webrtc-telemetry@workspace:*, @telnyx/webrtc-telemetry@workspace:packages/telemetry":
+  version: 0.0.0-use.local
+  resolution: "@telnyx/webrtc-telemetry@workspace:packages/telemetry"
+  dependencies:
+    "@eslint/js": "npm:^9.39.2"
+    "@types/jest": "npm:^26.0.20"
+    "@types/uuid": "npm:^7.0.0"
+    eslint: "npm:^9.39.2"
+    jest: "npm:^26.6.3"
+    jest-environment-jsdom: "npm:^26.6.2"
+    prettier: "npm:^3.7.4"
+    release-it: "npm:^14.11.8"
+    rollup: "npm:^1.19.4"
+    rollup-plugin-typescript2: "npm:^0.24.0"
+    ts-jest: "npm:^26.5.4"
+    typescript: "npm:4.7"
+    typescript-eslint: "npm:^8.50.0"
+    uuid: "npm:^7.0.3"
+  languageName: unknown
+  linkType: soft
+
 "@telnyx/webrtc@npm:2.27.10":
   version: 2.27.10
   resolution: "@telnyx/webrtc@npm:2.27.10"
@@ -2976,6 +2997,7 @@ __metadata:
     "@peermetrics/webrtc-stats": "npm:^5.7.1"
     "@release-it/bumper": "npm:^2.0.0"
     "@rollup/plugin-json": "npm:^4.1.0"
+    "@telnyx/webrtc-telemetry": "workspace:*"
     "@types/jest": "npm:^26.0.20"
     "@types/node": "npm:20.9.2"
     "@types/uuid": "npm:^7.0.0"
@@ -2986,6 +3008,7 @@ __metadata:
     events: "npm:^3.0.0"
     husky: "npm:^7.0.0"
     jest: "npm:^26.6.3"
+    jest-environment-jsdom: "npm:^26.6.2"
     loglevel: "npm:^1.6.8"
     md-gum-polyfill: "npm:^1.0.0"
     pinst: "npm:^2.1.6"
