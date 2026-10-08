@@ -313,6 +313,8 @@ const BRANDS: Array<[RegExp, string]> = [
   [/^Chromium$/, 'chromium'],
 ];
 
+const CLIENT_BROWSERS = ['chrome', 'firefox', 'safari', 'edge', 'opera'];
+
 const UA_BROWSERS: Array<[RegExp, string]> = [
   [/Edg(?:e|A|iOS)?\/([\d.]+)/, 'edge'],
   [/OPR\/([\d.]+)/, 'opera'],
@@ -420,9 +422,17 @@ export function buildClientInfo(
       : ua
         ? 'desktop'
         : undefined;
+  const fromUa = browserFromUserAgent(ua);
+  // Structured: the contract's names only; details keep the exact one (brave, samsung...).
+  const browser = CLIENT_BROWSERS.includes(fromUa.browser as string)
+    ? (fromUa.browser as ClientInfo['browser'])
+    : fromUa.browser
+      ? 'other'
+      : undefined;
+  if (browser) client.browser = browser;
   const details: Flat = {
     ...defined(client),
-    ...browserFromUserAgent(ua),
+    ...fromUa,
     ...defined({
       cpu_cores: num(n?.hardwareConcurrency),
       device_memory_gb: num(n?.deviceMemory),

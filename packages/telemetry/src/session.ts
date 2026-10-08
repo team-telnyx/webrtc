@@ -17,9 +17,11 @@ import type {
   KnownIds,
   ListedDevice,
   LoginMethod,
+  LoginType,
   NetworkChangedPayload,
   PayloadOf,
   SdkOptions,
+  SocketTarget,
 } from './contract';
 import {
   hasFocusNow,
@@ -48,6 +50,7 @@ import {
   rpcIdString,
   sanitizeDetails,
   str,
+  stripUrlCredentials,
   toCodedErrorInfo,
   toErrorInfo,
   toIceServerInfo,
@@ -95,6 +98,13 @@ function loginParams(options: Any): Flat | null {
   const password = options.password || options.passwd;
   if (token) return { login_token: token };
   return login && password ? { login, passwd: password } : null;
+}
+
+/** The credentials the client logs in with now (envelope login_type). */
+export function loginTypeOf(options: Any): LoginType {
+  if (options.login_token) return 'token';
+  if (!options.login) return 'anonymous';
+  return /^gencred/i.test(options.login) ? 'gencred' : 'sip_credentials';
 }
 
 /** The options as the app passed them: secrets redacted, DOM nodes, streams and functions described. */
@@ -188,6 +198,7 @@ type ConnectChain = {
 type SocketState = {
   startedAt: number;
   attempt: number;
+  target: SocketTarget;
   openedAt?: number;
   closeRequested?: boolean;
   ended?: boolean;
@@ -281,12 +292,12 @@ export default class SessionTelemetry {
       );
       if (!client) return null;
       const events = new SessionTelemetry(session, client, config);
-      events.creationStarted();
       client.attach({
         getLoginParams: () => loginParams(session.options),
         getVoiceSdkId: () => session.callReportVoiceSdkId,
         getSessionId: () => session.sessionid,
         getSocketGeneration: () => events.socketGeneration,
+        getLoginType: () => loginTypeOf(session.options),
         // Picked like the signaling host: production or development.
         getDefaultUrl: () =>
           session.options.env === 'development'
@@ -294,6 +305,7 @@ export default class SessionTelemetry {
             : TELEMETRY_PROD_URL,
         onLoginRejected: (error) => config.onLoginRejected?.(error),
       });
+      events.creationStarted(); // after attach: the envelope's login_type comes from the host
       return events;
     };
     return attempt(create) ?? null;
@@ -347,7 +359,7 @@ export default class SessionTelemetry {
       custom_ice_servers: Array.isArray(options.iceServers),
       push_provider: 'none',
       log_level: options.debug ? 'debug' : 'info',
-      telemetry: { enabled: true },
+      telemetry_enabled: true,
     };
     const page = attempt(readPageInfo);
     const extra: Flat = defined({
@@ -594,29 +606,32 @@ export default class SessionTelemetry {
     chain.firstSocketAt ??= now;
     this.socketGeneration += 1;
     const attempt = chain.socketAttempts;
+    // url: without the query; final_url: the URL the socket opens, query included.
+    const query = (key: string) => url.searchParams.get(key) || undefined;
+    const path = url.pathname === '/' ? '' : url.pathname;
+    const target: SocketTarget = {
+      url: `${url.protocol}//${url.host}${path}`,
+      final_url: stripUrlCredentials(url.toString()),
+      use_canary_server: query('canary') === 'true',
+      skip_last_voice_sdk_id: query('skip_last_voice_sdk_id') === 'true',
+      skip_trailing: query('skip_trailing') === 'true',
+      ...defined({
+        region: this.session.options.region || undefined,
+        rtc_ip: query('rtc_ip'),
+        rtc_port: Number(query('rtc_port')) || undefined,
+        resume_voice_sdk_id: query('voice_sdk_id'),
+      }),
+    };
     this._socket = {
       startedAt: now,
       attempt,
+      target,
       framesSent: 0,
       framesReceived: 0,
     };
     this._lastGateway = null;
-    // No query string: it carries voice_sdk_id.
-    const query = (key: string) => url.searchParams.get(key) || undefined;
-    const path = url.pathname === '/' ? '' : url.pathname;
     this.client.emit('socket_connect_started', {
-      target: {
-        url: `${url.protocol}//${url.host}${path}`,
-        use_canary_server: query('canary') === 'true',
-        skip_last_voice_sdk_id: query('skip_last_voice_sdk_id') === 'true',
-        skip_trailing: query('skip_trailing') === 'true',
-        ...defined({
-          region: this.session.options.region || undefined,
-          rtc_ip: query('rtc_ip'),
-          rtc_port: Number(query('rtc_port')) || undefined,
-          resume_voice_sdk_id: query('voice_sdk_id'),
-        }),
-      },
+      ...target,
       is_reconnect: this.socketGeneration > 1,
       extra: defined({ attempt, online: onlineNow() }),
     });
@@ -636,6 +651,7 @@ export default class SessionTelemetry {
     const protocol = attempt(() => ws.protocol);
     const extensions = attempt(() => ws.extensions);
     this.client.emit('socket_connected', {
+      ...socket.target,
       connect_duration_ms: now - socket.startedAt,
       extra: {
         attempt: socket.attempt,
@@ -699,9 +715,6 @@ export default class SessionTelemetry {
               : 'server',
         open_duration_ms: now - socket.openedAt,
         will_reconnect: willRetry,
-        ...(typeof document !== 'undefined'
-          ? { in_background: document.visibilityState === 'hidden' }
-          : {}),
         extra: defined({
           was_clean: wasClean,
           frames_sent: socket.framesSent,
@@ -808,16 +821,6 @@ export default class SessionTelemetry {
     const session = this.session as Any;
     this.client.emit('client_ready', {
       is_reconnect: chain.isReconnect,
-      time_to_ready_ms: now - this.creationStartedAt,
-      connect_to_ready_ms: now - chain.startedAt,
-      ...defined({
-        app_wait_ms: chain.appWaitMs,
-        socket_connect_ms: since(chain.firstSocketAt, chain.socketConnectedAt),
-        login_ms: since(chain.firstLoginAt, chain.loginSucceededAt),
-        login_to_ready_ms: since(chain.loginSucceededAt, now),
-      }),
-      socket_attempts: chain.socketAttempts,
-      login_attempts: chain.loginAttempts,
       remote_element_provided:
         'remoteElement' in session ? !!session.remoteElement : null,
       mic_id_provided: !!session.micId,
@@ -828,6 +831,20 @@ export default class SessionTelemetry {
         gateway_state: str(params?.state),
         ...serverResult(params),
       }),
+    });
+    // Right after each client_ready: the step times (owner, 2026-10-08).
+    this.client.emit('session_timings', {
+      is_reconnect: chain.isReconnect,
+      time_to_ready_ms: now - this.creationStartedAt,
+      connect_to_ready_ms: now - chain.startedAt,
+      ...defined({
+        app_wait_ms: chain.appWaitMs,
+        socket_connect_ms: since(chain.firstSocketAt, chain.socketConnectedAt),
+        login_ms: since(chain.firstLoginAt, chain.loginSucceededAt),
+        login_to_ready_ms: since(chain.loginSucceededAt, now),
+      }),
+      socket_attempts: chain.socketAttempts,
+      login_attempts: chain.loginAttempts,
     });
     this._reattachedCallIds = [];
     this._chain = null;

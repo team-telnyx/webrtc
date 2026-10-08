@@ -46,7 +46,7 @@ describe('SessionTelemetry', () => {
         login_type: 'token',
         custom_ice_servers: true,
         ice_servers: [{ url: 'turn:t.example', has_credential: true }],
-        telemetry: { enabled: true },
+        telemetry_enabled: true,
       })
     );
     expect(started.payload.raw_client_options).toEqual({
@@ -306,20 +306,30 @@ describe('SessionTelemetry', () => {
     events.socketCreated(failing);
     events.socketEnded(failing, { code: 1006, reason: 'refused' });
     expect(ws.payload('socket_connect_started')).toEqual({
-      target: {
-        url: 'wss://rtc.telnyx.com',
-        use_canary_server: true,
-        skip_last_voice_sdk_id: false,
-        skip_trailing: false,
-        region: 'us-east',
-        rtc_ip: '1.2.3.4',
-        rtc_port: 5061,
-        resume_voice_sdk_id: 'VS0',
-      },
+      url: 'wss://rtc.telnyx.com',
+      final_url:
+        'wss://rtc.telnyx.com/?voice_sdk_id=VS0&rtc_ip=1.2.3.4&rtc_port=5061&canary=true',
+      use_canary_server: true,
+      skip_last_voice_sdk_id: false,
+      skip_trailing: false,
+      region: 'us-east',
+      rtc_ip: '1.2.3.4',
+      rtc_port: 5061,
+      resume_voice_sdk_id: 'VS0',
       is_reconnect: false,
       extra: { attempt: 1, online: true },
     });
     expect(ws.payload('socket_connected')).toEqual({
+      url: 'wss://rtc.telnyx.com',
+      final_url:
+        'wss://rtc.telnyx.com/?voice_sdk_id=VS0&rtc_ip=1.2.3.4&rtc_port=5061&canary=true',
+      use_canary_server: true,
+      skip_last_voice_sdk_id: false,
+      skip_trailing: false,
+      region: 'us-east',
+      rtc_ip: '1.2.3.4',
+      rtc_port: 5061,
+      resume_voice_sdk_id: 'VS0',
       connect_duration_ms: expect.any(Number),
       extra: { attempt: 1, protocol: '', extensions: 'permessage-deflate' },
     });
@@ -378,10 +388,22 @@ describe('SessionTelemetry', () => {
     // Option B′: VSP reports its and the B2BUA-RTC's names itself.
     expect(ready[0].payload.signaling_region).toBeUndefined();
     expect(ws.payload('login_succeeded').signaling_region).toBeUndefined();
-    expect(ready[0].payload).toEqual(
+    expect(ready[0].payload.time_to_ready_ms).toBeUndefined();
+    const timings = ws.events().filter((e) => e.name === 'session_timings');
+    expect(timings).toHaveLength(1);
+    expect(timings[0].sequence).toBe(ready[0].sequence + 1);
+    expect(timings[0].payload).toEqual(
       expect.objectContaining({
         is_reconnect: false,
         login_attempts: 1,
+        socket_attempts: expect.any(Number),
+        time_to_ready_ms: expect.any(Number),
+        connect_to_ready_ms: expect.any(Number),
+      })
+    );
+    expect(ready[0].payload).toEqual(
+      expect.objectContaining({
+        is_reconnect: false,
         remote_element_provided: true,
         mic_id_provided: false,
         speaker_id_provided: true,

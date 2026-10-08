@@ -33,6 +33,7 @@ export type Envelope = {
   sequence: number; // 1, 2, 3... per sdk_instance_id, one per record (each per-call copy too), never reused
   timestamp: string; // ISO 8601 with ms; call_metrics: end of the interval
   socket_generation?: number; // signaling socket attempt: absent before the first, then 1, 2...
+  login_type: LoginType; // the credentials the client logs in with now
   client: ClientInfo;
   ids: KnownIds;
   sent_at?: string; // only on an event that waited for the telemetry socket
@@ -61,6 +62,7 @@ export type ClientInfo = {
     | 'unknown';
   os_version?: string;
   user_agent: string;
+  browser?: 'chrome' | 'firefox' | 'safari' | 'edge' | 'opera' | 'other';
 };
 
 // 3. Events
@@ -82,7 +84,7 @@ export type EventBodyCore =
   | { name: 'device_list_changed'; payload: DeviceListChangedPayload }
   | {
       name: 'socket_connect_started';
-      payload: { target: SocketTarget; is_reconnect: boolean };
+      payload: SocketTarget & { is_reconnect: boolean };
     }
   | { name: 'socket_failed'; payload: SocketFailedPayload }
   | { name: 'socket_connected'; payload: SocketConnectedPayload }
@@ -91,6 +93,7 @@ export type EventBodyCore =
   | { name: 'login_failed'; payload: LoginFailedPayload }
   | { name: 'login_succeeded'; payload: LoginSucceededPayload }
   | { name: 'client_ready'; payload: ClientReadyPayload }
+  | { name: 'session_timings'; payload: SessionTimingsPayload }
   | { name: 'gateway_state'; payload: GatewayStatePayload }
   | { name: 'gateway_check_started'; payload: { check_number: number } }
   | { name: 'gateway_check_succeeded'; payload: GatewayCheckSucceededPayload }
@@ -107,7 +110,6 @@ export type EventBodyCore =
   | { name: 'call_warning'; payload: CallWarningPayload }
   | { name: 'call_timings'; payload: CallTimingsPayload }
   | { name: 'call_ended'; payload: CallEndedPayload }
-  | { name: 'network_route_measured'; payload: NetworkRouteMeasuredPayload }
   | { name: 'logs'; payload: LogEntry }
   | { name: 'error'; payload: ErrorPayload };
 
@@ -149,10 +151,8 @@ export type SdkOptions = {
   custom_ice_servers: boolean;
   push_provider: 'fcm' | 'apns' | 'none';
   log_level: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'off';
-  telemetry: TelemetryOptions;
+  telemetry_enabled: boolean;
 };
-
-export type TelemetryOptions = { enabled: boolean };
 
 export type IceServerInfo = { url: string; has_credential: boolean };
 
@@ -196,9 +196,10 @@ export type DeviceListChangedPayload = {
   removed: ListedDevice[];
 };
 
-/** Where the socket connects; no credentials or query in the url. */
+/** Where the socket connects (socket_connect_started, socket_connected); no credentials or query in the URLs. */
 export type SocketTarget = {
   url: string;
+  final_url: string; // the URL the socket opened, after region, rtc_ip/rtc_port, canary and voice_sdk_id
   region?: string;
   rtc_ip?: string;
   rtc_port?: number;
@@ -215,7 +216,7 @@ export type SocketFailedPayload = {
   will_retry: boolean;
 };
 
-export type SocketConnectedPayload = {
+export type SocketConnectedPayload = SocketTarget & {
   connect_duration_ms: number;
 };
 
@@ -224,8 +225,7 @@ export type SocketClosedPayload = {
   reason?: string;
   closed_by: 'client' | 'server' | 'network' | 'unknown';
   open_duration_ms: number;
-  will_reconnect: boolean;
-  in_background?: boolean;
+  will_reconnect?: boolean; // when the SDK knows it
 };
 
 /** Only the kind of login, never the secret. */
@@ -256,8 +256,17 @@ export type LoginSucceededPayload = {
   login_duration_ms: number;
 };
 
-/** The connection's step times; "provided" flags never carry the value. */
+/** "provided" flags never carry the value; the step times are in session_timings. */
 export type ClientReadyPayload = {
+  is_reconnect: boolean;
+  remote_element_provided: boolean | null;
+  mic_id_provided: boolean;
+  speaker_id_provided: boolean | null;
+  reattached_call_ids: string[];
+};
+
+/** Right after each client_ready: the connection's step times. */
+export type SessionTimingsPayload = {
   is_reconnect: boolean;
   time_to_ready_ms: number; // since sdk_creation_started
   connect_to_ready_ms: number; // since connect() or the reconnect
@@ -269,10 +278,6 @@ export type ClientReadyPayload = {
   login_attempts: number;
   started_by_push?: boolean;
   push_to_ready_ms?: number;
-  remote_element_provided: boolean | null;
-  mic_id_provided: boolean;
-  speaker_id_provided: boolean | null;
-  reattached_call_ids: string[];
 };
 
 export type GatewayState =
@@ -311,14 +316,19 @@ export type SignalingMessagePayload = {
   raw: unknown;
 };
 
-/** The values the call ran with; null = this SDK has no such option. */
 export type CallStartedPayload = {
+  options: CallOptions;
+  raw_call_options: Record<string, unknown>; // the call's options as the app gave them; passwords, tokens and SDPs removed
+};
+
+/** The values the call ran with; null = this SDK has no such option. */
+export type CallOptions = {
   direction: 'inbound' | 'outbound';
   caller_number?: string;
   caller_name?: string;
   destination_number?: string;
-  audio: boolean;
-  video: boolean;
+  audio: boolean | Record<string, unknown>; // true/false, or the MediaTrackConstraints given
+  video: boolean | Record<string, unknown>;
   trickle_ice: boolean;
   force_relay_candidate: boolean | null;
   prefetch_ice_candidates: boolean | null;
@@ -336,7 +346,6 @@ export type CallStartedPayload = {
   speaker_id_provided: boolean | null;
   camera_id_provided: boolean | null;
   is_reattach: boolean;
-  raw_call_options: Record<string, unknown>; // the call's options as the app gave them; passwords, tokens and SDPs removed
 };
 
 export type CallState =
@@ -568,30 +577,6 @@ export type CallTotals = {
   pair_changes: number;
 };
 
-export type NetworkRouteMeasuredPayload = {
-  tool: 'mtr' | 'traceroute' | 'other';
-  trigger: 'preflight' | 'app' | 'support' | 'quality_warning';
-  target: string;
-  protocol: 'icmp' | 'udp' | 'tcp';
-  port?: number;
-  packet_size_bytes?: number;
-  probes_per_hop: number;
-  duration_ms?: number;
-  hops: RouteHop[];
-};
-
-export type RouteHop = {
-  hop: number;
-  host: string | null;
-  loss_pct: number;
-  sent: number;
-  last_ms: number;
-  avg_ms: number;
-  best_ms: number;
-  worst_ms: number;
-  stdev_ms: number;
-};
-
 /** One category list for every record. */
 export type Category =
   | 'connection'
@@ -601,16 +586,12 @@ export type Category =
   | 'warning'
   | 'metrics'
   | 'error'
-  | 'diagnostics'
   | 'general'
   | 'ice_candidate_error'
   | 'telemetry'
   | 'unknown';
 
-export type LogCategory = Exclude<
-  Category,
-  'metrics' | 'diagnostics' | 'unknown'
->;
+export type LogCategory = Exclude<Category, 'metrics' | 'unknown'>;
 
 /** One SDK log line, whole; only passwords and tokens removed. */
 export type LogEntry = {

@@ -28,6 +28,7 @@ import type {
   KnownIds,
   LogCategory,
   LogEntry,
+  LoginType,
   PayloadOf,
 } from './contract';
 import { buildClientInfo } from './browser';
@@ -81,6 +82,7 @@ export interface TelemetryHost {
   getVoiceSdkId(): string | null | undefined;
   getSessionId(): string | null | undefined;
   getSocketGeneration(): number;
+  getLoginType?(): LoginType;
   getDefaultUrl?(): string | null;
   /** The server rejected the credentials (-32001): the app should provide new ones. */
   onLoginRejected?(error: ErrorInfo): void;
@@ -448,6 +450,7 @@ export default class TelemetryClient {
       return []; // dead-lettered by the backend: no sequence spent on it
     }
     const timestamp = iso(options.timestamp ?? Date.now());
+    const loginType = host?.getLoginType?.();
     return callIds.map((callId, index) => {
       const event = {
         schema_version: SCHEMA_VERSION,
@@ -456,6 +459,7 @@ export default class TelemetryClient {
           (index === 0 ? options.sequence : undefined) ??
           this.reserveSequence(),
         timestamp,
+        ...(loginType ? { login_type: loginType } : {}),
         client: this.client,
         ids: callId ? { ...ids, call_id: callId } : ids,
         name,

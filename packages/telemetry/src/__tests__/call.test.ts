@@ -401,8 +401,15 @@ describe('CallTelemetry', () => {
     const { telemetry, ws } = setup();
     telemetry.start();
     const started = ws.payload('call_started');
-    expect(started).toEqual(
+    expect(Object.keys(started).sort()).toEqual([
+      'extra',
+      'options',
+      'raw_call_options',
+    ]);
+    expect(started.options).toEqual(
       expect.objectContaining({
+        audio: true,
+        video: false,
         direction: 'outbound',
         destination_number: '18004377950',
         custom_ice_servers: true,

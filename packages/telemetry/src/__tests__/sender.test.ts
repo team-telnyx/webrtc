@@ -299,6 +299,7 @@ describe('TelemetryClient', () => {
     expect(second.payload).toEqual({ check_number: 2, extra: { rpc_id: 'g' } });
     expect(Object.keys(first.client).sort()).toEqual(
       [
+        'browser',
         'environment',
         'os',
         'os_version',

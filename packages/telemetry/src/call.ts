@@ -7,6 +7,7 @@
 import {
   WARNING_CODES,
   type CallEndReason,
+  type CallOptions,
   type CallState,
   type EventName,
   type IceCandidate,
@@ -349,10 +350,49 @@ export default class CallTelemetry {
       );
     }
     const servers = attempt(() => toIceServerInfo(iceServers));
+    // true/false, or the MediaTrackConstraints the app gave.
+    const media = (value: unknown, fallback: boolean) =>
+      value && typeof value === 'object'
+        ? (attempt(() => sanitizeDetails(value)) ?? true)
+        : fallback;
+    return {
+      options: this._startedOptions(
+        options,
+        session,
+        inbound,
+        iceServers,
+        appIceServers,
+        headers,
+        codecs,
+        useSdpAs,
+        media
+      ),
+      // The SDPs are whole in signaling_message.
+      raw_call_options: attempt(() => sanitizeDetails(raw)) ?? {},
+      extra: defined({
+        ice_servers: servers?.length ? servers : undefined,
+        online: onlineNow(),
+        visibility_state: visibilityNow(),
+        has_focus: hasFocusNow(),
+      }),
+    };
+  }
+
+  private _startedOptions(
+    options: Any,
+    session: Any,
+    inbound: boolean,
+    iceServers: RTCIceServer[],
+    appIceServers: unknown,
+    headers: Any[],
+    codecs: Any[],
+    useSdpAs: boolean,
+    media: (value: unknown, fallback: boolean) => boolean | Flat
+  ): CallOptions {
     return {
       direction: this._direction,
-      audio: options.audio !== false,
-      video: !!options.video,
+      audio: media(options.audio, options.audio !== false),
+      video: media(options.video, !!options.video),
       trickle_ice: !!options.trickleIce,
       force_relay_candidate: options.forceRelayCandidate ?? false,
       prefetch_ice_candidates: options.prefetchIceCandidates ?? false,
@@ -373,8 +413,6 @@ export default class CallTelemetry {
       speaker_id_provided: !!options.speakerId,
       camera_id_provided: !!options.camId,
       is_reattach: options.attach === true || !!options.recoveredCallId,
-      // The SDPs are whole in signaling_message.
-      raw_call_options: attempt(() => sanitizeDetails(raw)) ?? {},
       ...defined({
         caller_number: str(
           inbound ? options.remoteCallerNumber : options.callerNumber
@@ -401,12 +439,6 @@ export default class CallTelemetry {
         custom_header_names: headers.length
           ? headers.map((h) => h?.name).filter((name) => str(name))
           : undefined,
-      }),
-      extra: defined({
-        ice_servers: servers?.length ? servers : undefined,
-        online: onlineNow(),
-        visibility_state: visibilityNow(),
-        has_focus: hasFocusNow(),
       }),
     };
   }
