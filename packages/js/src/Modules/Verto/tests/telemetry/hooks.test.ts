@@ -23,11 +23,12 @@ describe('Call Report V2 hooks', () => {
     clients = [];
   });
 
-  it('is on by default in console capture mode, sdk_creation_started first', () => {
+  it('is on by default, sending to the socket and printing to the console, sdk_creation_started first', () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     const client = make({ login_token: 'jwt' });
     const telemetry = telemetryOf(client);
-    expect(telemetry.client.capture).toBe(true);
+    expect(telemetry.client.capture).toBe(false);
+    expect((telemetry.client as any)._mirror).toBe(true); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(client.telemetry).toBe(telemetry.client);
     const pending = (telemetry.client as any)._pending; // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(pending.map((e: { name: string }) => e.name).slice(0, 3)).toEqual([

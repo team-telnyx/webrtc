@@ -21,27 +21,45 @@ import { FakeSocket, host, logEvent, makeClient } from './fakes';
 const messages = (ws: FakeSocket) => ws.events().map((e) => e.payload.message);
 
 describe('TelemetryClient', () => {
-  it('captures by default, sends with a url or enabled: true, and is off with enabled: false', () => {
-    const cases: Array<[any, boolean, boolean | null]> = [
-      // settings, allowSocket, capture (null = off)
-      [undefined, true, true],
-      [{}, true, true],
-      [{ url: 'ws://x' }, true, false],
-      [{ enabled: true }, true, false],
+  it('sends and prints by default, captures only with capture, and is off with enabled: false', () => {
+    const cases: Array<[any, boolean, [boolean, boolean] | null]> = [
+      // settings, allowSocket, [capture, console mirror] (null = off)
+      [undefined, true, [false, true]],
+      [{}, true, [false, true]],
+      [{ url: 'ws://x' }, true, [false, false]],
+      [{ enabled: true }, true, [false, false]],
+      [{ enabled: true, console: true }, true, [false, true]],
+      [{ capture: true }, true, [true, false]],
       [{ url: 'ws://x', enabled: false }, true, null],
       [{ url: 'ws://x' }, false, null], // an anonymous-only client may not log in...
-      [{}, false, true], // ...but still captures
+      [{}, false, [true, false]], // ...but captures by default
     ];
-    for (const [settings, allowSocket, capture] of cases) {
+    for (const [settings, allowSocket, expected] of cases) {
       const client = TelemetryClient.create(
         settings,
         undefined,
         '',
         allowSocket
       );
-      expect(client?.capture ?? null).toBe(capture);
+      expect(client ? [client.capture, (client as any)._mirror] : null).toEqual(
+        expected
+      );
       client?.close();
     }
+  });
+
+  it('prints each sent frame to the console in the default mode', () => {
+    const log = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const client = makeClient({ console: true }, true);
+    logEvent(client, 'hello');
+    expect(messages(FakeSocket.last())).toEqual(['hello']);
+    expect(
+      client.capturedFrames().map((f) => JSON.parse(f).params.payload.message)
+    ).toContain('hello');
+    expect(log.mock.calls.some((call) => call[0] === '[CR2 telemetry]')).toBe(
+      true
+    );
+    log.mockRestore();
   });
 
   it('waits for the login, then sends pending events in order with sent_at', () => {

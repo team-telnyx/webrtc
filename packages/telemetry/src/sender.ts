@@ -33,6 +33,7 @@ import { sanitizeDetails, scrubText, toErrorInfo, type Any } from './sanitize';
 
 export const TELEMETRY_METHOD = 'telnyx_rtc.telemetry';
 export const TELEMETRY_PROD_URL = 'wss://rtc-telemetry.telnyx.com';
+export const TELEMETRY_DEV_URL = 'wss://rtc-telemetrydev.telnyx.com';
 export const TELEMETRY_CONTROL_METHOD = 'telnyx_rtc.telemetry_control';
 export const TELEMETRY_LOGIN_METHOD = 'telnyx_rtc.telemetry_login';
 export const MAX_PENDING_EVENTS = 1000;
@@ -57,6 +58,8 @@ const MAX_ENDED_CALLS = 100;
 export type TelemetrySettings = {
   enabled?: boolean;
   url?: string;
+  /** With the socket: also print each event frame to the console (marked) and keep it for capturedFrames(). */
+  console?: boolean;
   capture?: boolean | CaptureSettings;
   onFrame?: (frame: string) => void;
 };
@@ -170,6 +173,8 @@ export default class TelemetryClient {
   private _capture: CaptureSettings;
   private _onFrame: ((frame: string) => void) | undefined;
   private _captured: string[] = [];
+  /** Socket mode with console: true: each sent frame is also recorded locally. */
+  private _mirror: boolean;
   private _unflushed: string[] = [];
   private _flushTimer: Any = null;
 
@@ -199,9 +204,9 @@ export default class TelemetryClient {
   private _emittingLog = false;
 
   /**
-   * null = off. On by default in capture mode (beta, owner 2026-10-06); a
-   * `url` or `enabled: true` sends to the telemetry socket instead. A client
-   * that may not log in (allowSocket false) only captures.
+   * null = off. On by default (owner, 2026-10-08): sends to the telemetry
+   * socket and prints each frame to the console. `capture` sends nothing; a
+   * client that may not log in (allowSocket false) only captures by default.
    */
   static create(
     settings: TelemetrySettings | undefined,
@@ -210,10 +215,16 @@ export default class TelemetryClient {
     allowSocket = true
   ): TelemetryClient | null {
     if (settings?.enabled === false) return null;
-    const sends = settings?.url || settings?.enabled === true;
-    const resolved =
-      settings?.capture || sends ? settings : { ...settings, capture: true };
-    if (!resolved.capture && !allowSocket) return null;
+    const chosen = settings?.capture || settings?.url || settings?.enabled;
+    if (!chosen && !allowSocket) {
+      return new TelemetryClient(
+        { ...settings, capture: true },
+        env,
+        sdkVersion
+      );
+    }
+    if (!settings?.capture && !allowSocket) return null;
+    const resolved = chosen ? settings : { ...settings, console: true };
     return new TelemetryClient(resolved, env, sdkVersion);
   }
 
@@ -236,6 +247,7 @@ export default class TelemetryClient {
   constructor(settings: TelemetrySettings, env?: string, sdkVersion = '') {
     this.url = settings.url;
     this.capture = !!settings.capture;
+    this._mirror = !this.capture && !!settings.console;
     this._onFrame = settings.onFrame;
     this._capture =
       typeof settings.capture === 'object' ? settings.capture : {};
@@ -467,9 +479,13 @@ export default class TelemetryClient {
       ...(waited ? { sent_at: iso(Date.now()) } : {}),
     };
     try {
-      ws.send(
-        JSON.stringify({ jsonrpc: '2.0', method: TELEMETRY_METHOD, params })
-      );
+      const text = JSON.stringify({
+        jsonrpc: '2.0',
+        method: TELEMETRY_METHOD,
+        params,
+      });
+      ws.send(text);
+      if (this._mirror) this._recordFrame(text);
     } catch {
       this._droppedBacklog += 1;
     }

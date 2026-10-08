@@ -249,10 +249,16 @@ export interface IMessageRPC extends IRequestRPC, IResponseRPC {}
 
 /** Call Report V2 telemetry settings (`options.telemetry`, beta). */
 export interface ITelemetryOptions {
-  /** false = record and send nothing. true = send to the telemetry socket. Unset = local capture. */
+  /**
+   * false = record and send nothing. true = send to the telemetry socket.
+   * Unset (the default) = send to the telemetry socket and print each frame
+   * to the console after "[CR2 telemetry]".
+   */
   enabled?: boolean;
-  /** The telemetry socket; setting it sends there. Default wss://rtc-telemetry.telnyx.com (production). */
+  /** The telemetry socket. Default wss://rtc-telemetry.telnyx.com, or wss://rtc-telemetrydev.telnyx.com with env: 'development'. */
   url?: string;
+  /** With the socket: also print each frame to the console and keep it for `client.telemetry.capturedFrames()`. */
+  console?: boolean;
   /**
    * Local capture (the default): the frames the SDK would send, kept in
    * memory, printed to the console and passed to `onFrame`; nothing goes

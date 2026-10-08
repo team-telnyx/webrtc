@@ -21,17 +21,16 @@ While the telemetry socket is not logged in, events wait in memory (1,000 at mos
 ```js
 const client = new TelnyxRTC({
   login_token,
-  // Beta default (no option): local capture. Each frame is printed to the console
-  // after "[CR2 telemetry]" and nothing is sent.
-  telemetry: { enabled: true }, // send to the telemetry socket
+  // Default (no option): send to the telemetry socket and print each frame to
+  // the console after "[CR2 telemetry]". With env: 'development' the socket is
+  // wss://rtc-telemetrydev.telnyx.com.
   // telemetry: { enabled: false } turns it off.
-  // telemetry: { capture: { download: true } } saves a .jsonl file every 5 minutes.
+  // telemetry: { url } sends to another telemetry socket.
+  // telemetry: { capture: true } sends nothing and only captures locally.
 });
 
-client.telemetry?.capturedFrames(); // capture mode: the frames so far
+client.telemetry?.capturedFrames(); // the frames printed so far
 ```
-
-The capture default is for the beta only and has to be revisited before a release.
 
 ## API
 

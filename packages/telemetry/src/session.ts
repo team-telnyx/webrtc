@@ -4,7 +4,10 @@
  * client_ready, gateway, signaling_message and errors. Every public method is
  * a hook called from SDK code; none of them throws (guard).
  */
-import TelemetryClient, { TELEMETRY_PROD_URL } from './sender';
+import TelemetryClient, {
+  TELEMETRY_DEV_URL,
+  TELEMETRY_PROD_URL,
+} from './sender';
 import type {
   AppState,
   DeviceKind,
@@ -284,9 +287,11 @@ export default class SessionTelemetry {
         getVoiceSdkId: () => session.callReportVoiceSdkId,
         getSessionId: () => session.sessionid,
         getSocketGeneration: () => events.socketGeneration,
-        // No default for development yet: set options.telemetry.url there.
+        // Picked like the signaling host: production or development.
         getDefaultUrl: () =>
-          session.options.env === 'development' ? null : TELEMETRY_PROD_URL,
+          session.options.env === 'development'
+            ? TELEMETRY_DEV_URL
+            : TELEMETRY_PROD_URL,
         onLoginRejected: (error) => config.onLoginRejected?.(error),
       });
       return events;
