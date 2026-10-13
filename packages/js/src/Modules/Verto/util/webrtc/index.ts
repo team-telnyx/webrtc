@@ -1,4 +1,4 @@
-import { findElementByType } from '../helpers';
+import { findElementByType, isMediaElement } from '../helpers';
 import logger from '../logger';
 import { trigger } from '../../services/Handler';
 import { SwEvent, SHARED_REMOTE_ELEMENT_OVERWRITE } from '../constants';
@@ -65,14 +65,43 @@ export interface IAttachMediaStreamContext {
   eventTarget?: string;
 }
 
+/**
+ * Attaches `stream` to the media element `tag` resolves to and returns that
+ * element, or `null` when nothing was attached. When a resolver function
+ * returns a promise, attachment waits for it and a promise is returned.
+ */
 const attachMediaStream = (
   tag: any,
   stream: MediaStream,
   context?: IAttachMediaStreamContext
-) => {
-  const element = findElementByType(tag);
-  if (element === null) {
-    return;
+): HTMLMediaElement | null | Promise<HTMLMediaElement | null> => {
+  // Nothing configured: the application plays the stream itself.
+  if (tag === null || tag === undefined) {
+    return null;
+  }
+  const element: unknown = findElementByType(tag);
+  if (element instanceof Promise) {
+    return element.then(
+      (resolved) => attachMediaStream(resolved, stream, context),
+      (error) => {
+        logger.error('attachMediaStream: element resolver rejected', error);
+        return null;
+      }
+    );
+  }
+  if (!isMediaElement(element)) {
+    if (typeof tag === 'function') {
+      logger.warn(
+        `attachMediaStream: element resolver returned ${element} instead of an <audio> or <video> element`
+      );
+    } else if (typeof tag === 'string') {
+      logger.warn(
+        `attachMediaStream: id "${tag}" did not resolve to an <audio> or <video> element`
+      );
+    } else {
+      logger.warn('attachMediaStream: not an <audio> or <video> element:', tag);
+    }
+    return null;
   }
   if (!element.getAttribute('autoplay')) {
     element.setAttribute('autoplay', 'autoplay');
@@ -115,6 +144,7 @@ const attachMediaStream = (
     }
   }
   element.srcObject = stream;
+  return element;
 };
 
 const detachMediaStream = (tag: any, stream?: MediaStream) => {
