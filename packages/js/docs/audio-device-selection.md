@@ -2,16 +2,9 @@
 
 This guide explains how to select microphones and speakers with `@telnyx/webrtc`, what your application must manage, and how to diagnose device-related audio problems.
 
-> **Availability:** the SDK behavior below was checked against `main` at revision `68ea4c8a9d902395b929d1cf119e6c07349e1d66`. The device-management changes from #793, #794, and #795 are first published in `@telnyx/webrtc@2.27.11-beta.1` (npm `beta` tag); `2.27.10`, the current `latest` release, does not include them. The remote-element warning from #781 is on `main` but not yet in a published package. Check the installed version before adopting the examples.
+> **Availability:** this guide describes the SDK at `main` revision `68ea4c8a9d902395b929d1cf119e6c07349e1d66`. Answer-time device options, microphone-switch fallback, and automatic recovery from disconnected devices require `@telnyx/webrtc@2.27.11-beta.1` or later; `2.27.10`, the current `latest` release, does not include them. Warning `33012` is not yet in a published release. Check the installed version before adopting the examples.
 >
 > Browser behavior still depends on the user's browser, OS, permissions, and hardware; this guide does not claim real-hardware validation.
-
-## Recent behavior changes
-
-- [#793 — microphone-switch fallback](https://github.com/team-telnyx/webrtc/pull/793): active input switching now uses the same capture fallback helper as call setup.
-- [#794 — answer-time device options](https://github.com/team-telnyx/webrtc/pull/794): `answer()` can apply per-call input/output selection and audio/video constraints before media initialization, without changing client defaults or other calls.
-- [#795 — disconnected-device recovery](https://github.com/team-telnyx/webrtc/pull/795): calls now attempt default-device recovery after a proven removal of the microphone or SDK-managed output actually in use. Successful input switches record the acquired device ID, and speaker setters commit the choice only after routing succeeds. Recovery is best effort, not a guarantee of uninterrupted audio or automatic switching back on reconnect.
-- [#781 — unresolved remote element warning](https://github.com/team-telnyx/webrtc/pull/781) (unreleased): when remote audio arrives but a configured `remoteElement` does not resolve to an `<audio>` or `<video>` element, the SDK emits warning `33012` (`REMOTE_AUDIO_ELEMENT_UNRESOLVED`) once for that call. The call continues and `call.remoteStream` remains available. Media elements owned by another window, such as an iframe, popout, or Document Picture-in-Picture window, are now accepted.
 
 ## Contents
 
@@ -431,7 +424,7 @@ An element can remain in a playing state after its selected speaker disappears w
 
 ## Device removal, Bluetooth, and lifecycle changes
 
-### What the SDK now recovers
+### What the SDK recovers automatically
 
 When a call first becomes active, the SDK starts a call-local device-change listener. The same listener remains through hold/unhold and is removed during teardown. It compares usable inventories with the **actual audio sender track settings** and the **actual `sinkId` of the SDK `remoteElement`**, not simply requested `micId`/`speakerId` options.
 
