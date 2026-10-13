@@ -218,6 +218,9 @@ export default class Connection {
 
     try {
       const previousSocketGeneration = this.socketGeneration;
+      this.session._registrationTimings?.mark('create WebSocket', {
+        generation: previousSocketGeneration + 1,
+      });
       this._wsClient = new WebSocketClass(websocketUrl.toString());
       this.socketGeneration += 1;
       logger.debug('WebSocket connection created', {
@@ -230,6 +233,7 @@ export default class Connection {
       this._cleanupPendingRequests();
       this._registerSocketEvents(this._wsClient, canaryRtcServerForConnection);
     } catch (error) {
+      this.session._registrationTimings?.mark('WebSocket construction failed');
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
       trigger(
@@ -329,6 +333,9 @@ export default class Connection {
       }
     });
     logger.debug('SEND: \n', JSON.stringify(request, null, 2), '\n');
+    if (this.connected) {
+      this.session._registrationTimings?.requestSent(request.id, method);
+    }
     this._wsClient?.send(JSON.stringify(request));
 
     return promise;
@@ -379,8 +386,17 @@ export default class Connection {
     // generation, causing onNetworkClose to treat the stale event as a
     // new reconnect attempt.
     const registeredGeneration = this.socketGeneration;
+    const isCurrentRegistrationSocket = (): boolean =>
+      ws === this._wsClient &&
+      registeredGeneration === this.socketGeneration &&
+      this.session.connection === this;
 
     ws.onopen = (event): boolean => {
+      if (isCurrentRegistrationSocket()) {
+        this.session._registrationTimings?.mark('WebSocket open', {
+          generation: registeredGeneration,
+        });
+      }
       logger.debug('WebSocket onopen', {
         socketGeneration: this.socketGeneration,
         sessionId: this.session.sessionid,
@@ -389,6 +405,12 @@ export default class Connection {
     };
 
     ws.onclose = (event): boolean => {
+      if (isCurrentRegistrationSocket()) {
+        this.session._registrationTimings?.mark('WebSocket closed', {
+          generation: registeredGeneration,
+          code: event?.code,
+        });
+      }
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'close');
       logger.debug('WebSocket onclose', {
@@ -410,6 +432,11 @@ export default class Connection {
     };
 
     ws.onerror = (event): boolean => {
+      if (isCurrentRegistrationSocket()) {
+        this.session._registrationTimings?.mark('WebSocket error', {
+          generation: registeredGeneration,
+        });
+      }
       this._clearSafetyTimeout();
       this._safetyCleanupSocket(ws, 'error');
       logger.debug('WebSocket onerror', {
@@ -471,6 +498,9 @@ export default class Connection {
         ws === this._wsClient &&
         registeredGeneration === this.socketGeneration &&
         this.session.connection === this;
+      if (isCurrentSocket) {
+        this.session._registrationTimings?.responseReceived(msg);
+      }
       if (msg.voice_sdk_id && isCurrentSocket) {
         this.session.callReportVoiceSdkId = msg.voice_sdk_id;
         this.session.reconnectTokenVoiceSdkId = msg.voice_sdk_id;

@@ -59,6 +59,7 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import type RegistrationTimings from './util/RegistrationTimings';
 
 /**
  * b2bua-rtc ping interval is 30 seconds, timeout in VSP is 60 seconds.
@@ -67,6 +68,8 @@ import type { RestartIceResult } from './webrtc/Peer';
 const KEEPALIVE_INTERVAL = 35 * 1000;
 
 export default abstract class BaseSession {
+  /** @internal Bounded diagnostics for the initial registration flow. */
+  public _registrationTimings?: RegistrationTimings;
   public uuid: string = uuidv4();
   public sessionid: string = '';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -486,6 +489,7 @@ export default abstract class BaseSession {
    * @return void
    */
   async connect(): Promise<void> {
+    this._registrationTimings?.mark('client.connect() called');
     if (!this.connection) {
       logger.debug('No existing connection found, creating a new one.');
       this.connection = new Connection(this);
@@ -526,6 +530,7 @@ export default abstract class BaseSession {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _handleLoginError(error: any) {
+    this._registrationTimings?.mark('login failed');
     const telnyxError = createTelnyxError(LOGIN_FAILED, error);
     trigger(
       SwEvent.Error,
@@ -735,6 +740,7 @@ export default abstract class BaseSession {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError?: (error: any) => void;
   }): Promise<void> {
+    this._registrationTimings?.mark(`prepare ${type} request`);
     let msg: Login | AnonymousLogin;
     const reconnectToken = getReconnectToken();
     const isReconnection = !!reconnectToken;
@@ -782,12 +788,14 @@ export default abstract class BaseSession {
     });
 
     if (response) {
+      this._registrationTimings?.mark('login response processing started');
       this.sessionid = response.sessid;
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
       }
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
+      this._registrationTimings?.mark('login response processing complete');
     }
   }
 
@@ -993,12 +1001,17 @@ export default abstract class BaseSession {
       // actual setTimeout delay. reconnectDelay is a random getter
       // (randomInt(2,6)*1000) — reading it twice yields different values.
       const delayMs = this.reconnectDelay;
+      this._registrationTimings?.mark('schedule WebSocket reconnect', {
+        delayMs,
+        attempt: this._reconnectAttempts,
+      });
 
       logger.debug(
         `Reconnect attempt ${this._reconnectAttempts}${maxAttempts > 0 ? ` of ${maxAttempts}` : ''} (delay=${delayMs}ms)`
       );
 
       this._reconnectTimeout = setTimeout(() => {
+        this._registrationTimings?.mark('WebSocket reconnect timer fired');
         logger.debug(
           'Calling connect due to network close and auto-reconnect enabled.'
         );
