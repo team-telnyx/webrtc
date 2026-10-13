@@ -2,9 +2,9 @@
 
 This guide explains how to select microphones and speakers with `@telnyx/webrtc`, what your application must manage, and how to diagnose device-related audio problems.
 
-> **Availability:** this guide describes the SDK at `main` revision `68ea4c8a9d902395b929d1cf119e6c07349e1d66`. Answer-time device options, microphone-switch fallback, and automatic recovery from disconnected devices require `@telnyx/webrtc@2.27.11-beta.1` or later; `2.27.10`, the current `latest` release, does not include them. Warning `33012` is not yet in a published release. Check the installed version before adopting the examples.
->
-> Browser behavior still depends on the user's browser, OS, permissions, and hardware; this guide does not claim real-hardware validation.
+> **Availability:** this guide describes the SDK at `@telnyx/webrtc@2.27.11`.
+
+**About the code samples:** functions defined in the samples, such as `switchActiveMicrophone()`, are example application code that you write yourself; they are not part of the SDK. SDK APIs are the methods and properties of `client` (a [`TelnyxRTC`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html) instance) and `call` (a [`Call`](https://team-telnyx.github.io/webrtc/classes/Call.html) object), linked to the [API reference](https://team-telnyx.github.io/webrtc/) where they appear. `navigator.mediaDevices`, `MediaStreamTrack`, and media-element methods such as `setSinkId()` are browser APIs.
 
 ## Contents
 
@@ -28,7 +28,7 @@ For most calling applications:
 
 1. Provide an explicit **Audio settings** step before calling or becoming available for inbound calls. Request microphone access there, list available devices, and let the user test the microphone and speaker.
 2. Offer **System default** and explicit device choices. Remember the user's preference, but validate it against the current inventory rather than assuming a saved ID is still valid.
-3. Configure the SDK's defaults before calls are created; use per-call options on `newCall()` or `answer()` for the latest selection. Prefer normal SDK capture unless you need custom media, and review the automatic-fallback limitations before promising strict device privacy.
+3. Configure the SDK's defaults before calls are created; use per-call options on [`newCall()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#newCall) or [`answer()`](https://team-telnyx.github.io/webrtc/classes/Call.html#answer) for the latest selection. Prefer normal SDK capture unless you need custom media, and review the automatic-fallback limitations before promising strict device privacy.
 4. Give each concurrent call its own remote audio element. Use one owner for output routing and one owner for microphone changes.
 5. Allow deliberate mid-call switching, serialize the operations, preserve mute intent, and verify the result. The SDK already attempts recovery for proven device removal; do not add a competing switch on every device-change notification.
 6. Combine structured SDK events with browser-operation results and call-state updates. A connected call or fulfilled Promise alone does not prove that the right microphone is transmitting or that the user can hear the speaker.
@@ -37,18 +37,18 @@ Prefer pre-call selection over unnecessary mid-call replacement. A failed **manu
 
 ## Choose the integration that fits your application
 
-| Need                                                    | Available option                                                                         | Important limitation                                                                                          |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Use the browser/OS microphone choice                    | Leave microphone selection unset; use `audio: true` for a new outbound call              | Acquisition chooses a default; an existing track is not guaranteed to follow later OS changes                 |
-| Remember a microphone for future calls                  | `await client.setAudioSettings({ micId })`                                               | Configures future call objects, not an already ringing or active call; can perform device enumeration/capture |
-| Remember a speaker for future calls                     | `client.speaker = deviceId`                                                              | Stores a preference; does not validate or immediately route audio                                             |
-| Override an outbound call                               | `client.newCall({ micId, speakerId, remoteElement, ... })`                               | SDK capture may fall back to another microphone                                                               |
-| Select devices while answering                          | `call.answer({ micId, speakerId, audio, remoteElement, ... })`                           | Applies before media initialization; no `localStream` override; SDK capture may fall back                     |
-| Require a particular microphone at outbound acquisition | Native `getUserMedia()` with an exact ID, then `newCall({ localStream, ... })`           | Advanced stream ownership; not an `answer()` override and not a persistent guarantee after recovery           |
-| Change an active call's microphone                      | `await call.setAudioInDevice(deviceId)`                                                  | Can skip, fall back, or handle a failure without rejecting; observe events and actual media                   |
-| Change an active call's speaker                         | `await call.setAudioOutDevice(deviceId)`                                                 | Check its boolean result; requires an SDK-managed remote element and browser output-routing support           |
-| Own output permission/error handling                    | Native `selectAudioOutput()` where available, then `setSinkId()` on the playback element | An SDK `remoteElement` still participates in automatic output recovery                                        |
-| Own all remote playback                                 | Leave `remoteElement` unset; attach `call.remoteStream` yourself                         | Your application owns stream readiness/replacement, autoplay, output routing, and cleanup                     |
+| Need                                                                                      | Use                                                                                                                                                                                                                                  | Limitation                                                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Use whichever microphone the browser or OS picks                                          | Don't set a microphone; use [`audio: true`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#audio) for a new outbound call                                                                                         | The call may keep the microphone it started with if the OS default changes later                                                               |
+| Remember a microphone for future calls                                                    | [`await client.setAudioSettings({ micId })`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#setAudioSettings)                                                                                                           | Applies only to calls created afterwards, not to a ringing or active call. May briefly open the microphone to look up the device               |
+| Remember a speaker for future calls                                                       | [`client.speaker = deviceId`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#speaker)                                                                                                                                   | Only stores the choice; it doesn't check the device or change audio that is already playing                                                    |
+| Choose devices for one outbound call                                                      | [`client.newCall({ micId, speakerId, remoteElement, ... })`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#newCall)                                                                                                    | If the chosen microphone can't be opened, the SDK may use another one                                                                          |
+| Choose devices when answering an inbound call                                             | [`call.answer({ micId, speakerId, audio, remoteElement, ... })`](https://team-telnyx.github.io/webrtc/classes/Call.html#answer)                                                                                                      | Same microphone fallback. You can't pass your own `localStream` when answering                                                                 |
+| Start an outbound call only if one specific microphone is available                       | Open that microphone yourself with the browser's `getUserMedia()` and `deviceId: { exact: id }`, then pass the stream as [`newCall({ localStream })`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#localStream) | Outbound calls only. If that microphone is unplugged during the call, the SDK can still switch to the default microphone                       |
+| Change the microphone during a call                                                       | [`await call.setAudioInDevice(deviceId)`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioInDevice)                                                                                                                   | Some failures don't reject the Promise; check call events and the actual track                                                                 |
+| Change the speaker during a call                                                          | [`await call.setAudioOutDevice(deviceId)`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioOutDevice)                                                                                                                 | Check the returned boolean. Needs an SDK `remoteElement` and browser `setSinkId()` support                                                     |
+| Use the browser's own speaker picker, or get the browser's exact error when routing fails | Call the browser's `selectAudioOutput()`, then `setSinkId()` on the audio element yourself                                                                                                                                           | If that element is also the SDK's `remoteElement`, the SDK can still change its output, for example on unhold or when the speaker is unplugged |
+| Play the remote audio entirely yourself                                                   | Leave `remoteElement` unset and attach [`call.remoteStream`](https://team-telnyx.github.io/webrtc/classes/Call.html#remoteStream) to your own element                                                                                | You handle starting playback, stream changes, autoplay, speaker choice, and cleanup                                                            |
 
 Do not mix direct `RTCRtpSender.replaceTrack()` calls with SDK microphone switching. The SDK also manages local streams, mute state, cleanup, and recovery; replacing only the sender track can leave those states inconsistent.
 
@@ -57,6 +57,7 @@ Do not mix direct `RTCRtpSender.replaceTrack()` calls with SDK microphone switch
 Run the calling page over HTTPS. Detect capabilities in the browser rather than enabling controls from a browser-name check:
 
 ```js
+// Example app code, not an SDK API. Uses browser APIs only.
 function audioCapabilities(remoteAudio) {
   const media = navigator.mediaDevices;
   return {
@@ -79,6 +80,7 @@ API presence does not grant permission. Treat these as separate gates:
 If the application is embedded, the parent must permit the required features. For example:
 
 ```html
+<!-- Example markup for the parent page, not SDK code. -->
 <iframe
   src="https://calls.example"
   allow="microphone; speaker-selection; autoplay"
@@ -100,6 +102,7 @@ The browser can return an incomplete list or blank labels before access is grant
 The following helper requests microphone access for a settings screen, enumerates while the temporary stream is open, and then releases that stream. Call it from an explicit user action, before starting a call; it is not a live-call polling helper.
 
 ```js
+// Example app code, not an SDK API. Uses browser APIs only.
 async function requestAudioSetup() {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     throw new Error('Microphone access requires a supported secure context.');
@@ -125,11 +128,11 @@ Catch rejection in the UI and provide permission/device troubleshooting. A permi
 
 For a microphone level test, keep the temporary stream only for the duration of the test, then release it. Do not play local microphone audio back through speakers by default; it can cause feedback. A test tone should use the intended output, and the user should confirm hearing it.
 
-The SDK's [`client.runMicrophoneCheck()`](pre-call-diagnostics.md#runmicrophonecheck-microphone-only) reports permission state, the input inventory, and an audio level, but it captures with `audio: true` and takes no device ID. It tests the browser-selected input, not a saved or newly chosen microphone. With `record: true` it also plays the recording back automatically. Use your own level test when the user needs to check a specific device.
+The SDK's [`client.runMicrophoneCheck()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#runMicrophoneCheck) (see the [pre-call diagnostics guide](pre-call-diagnostics.md#runmicrophonecheck-microphone-only)) reports permission state, the input inventory, and an audio level, but it captures with `audio: true` and takes no device ID. It tests the browser-selected input, not a saved or newly chosen microphone. With [`record: true`](https://team-telnyx.github.io/webrtc/interfaces/RunMicrophoneCheckOptions.html#record) it also plays the recording back automatically. Use your own level test when the user needs to check a specific device.
 
 ### SDK enumeration helpers
 
-The SDK provides `client.getAudioInDevices()` and `client.getAudioOutDevices()`. Both acquire and stop a temporary **microphone** stream before enumerating. `client.getDevices()` requests both audio and video, so avoid it for an audio-only settings screen.
+The SDK provides [`client.getAudioInDevices()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#getAudioInDevices) and [`client.getAudioOutDevices()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#getAudioOutDevices). Both acquire and stop a temporary **microphone** stream before enumerating. [`client.getDevices()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#getDevices) requests both audio and video, so avoid it for an audio-only settings screen.
 
 Other differences from native enumeration:
 
@@ -144,20 +147,21 @@ Never assume a second list entry exists or choose devices by array position. Dis
 Store the user's **intent** separately from the browser's current IDs. For example:
 
 ```js
+// Example app data, not an SDK option object.
 const preference = {
   input: { mode: 'default' },
   output: { mode: 'device', deviceId: 'ID_RETURNED_BY_THIS_BROWSER' },
 };
 ```
 
-This is an application data model, not an SDK option object. Use the following rules when resolving it:
+Use the following rules when resolving it:
 
 - `deviceId` is origin-scoped, not a hardware serial number. Site-data clearing, privacy settings, a different origin/browser profile, or private browsing can invalidate it.
 - Re-enumerate and validate a remembered ID after permissions are available. Do not match solely by a device label: labels can repeat or change.
 - For application choices, do not hard-code `default` or `communications` as universal browser IDs. Use aliases exposed by the browser. The SDK's own disconnect recovery attempts `'default'`, but that route is still subject to browser support and can fail.
 - If an explicit device is missing, explain that to the user. Offer another device or System default before the call. During a call, the SDK can automatically recover to defaults without another confirmation; do not promise a confirmation-only fallback policy with the standard integration.
 - Keep a requested device separate from the **actual** acquired microphone and applied output. Persist a successful choice, not merely the last button click.
-- For output-picker restoration, pass a remembered ID to `selectAudioOutput({ deviceId })` when appropriate and use its returned ID. The returned ID may differ from the saved one.
+- For output-picker restoration, pass a remembered ID to the browser's `selectAudioOutput({ deviceId })` when appropriate and use its returned ID. The returned ID may differ from the saved one.
 
 ### Input constraints: preference versus requirement
 
@@ -169,9 +173,9 @@ Native browser constraints have different strengths:
 | `audio: { deviceId: { ideal: id } }`         | Prefer this input, but allow another              |
 | `audio: { deviceId: { exact: id } }`         | Require this input for this acquisition or reject |
 
-**The SDK adds fallback behavior on top of the browser.** Its capture helper can retry once without device-ID constraints after `NotReadableError`, `NotFoundError`, or `OverconstrainedError`, but not `NotAllowedError` (permission denial). This applies to SDK-managed call setup, including `answer()`, and `setAudioInDevice()`. An exact constraint inside SDK options therefore does not guarantee “this microphone or no capture.” A missing `micId` lookup can also leave capture unconstrained.
+**The SDK adds fallback behavior on top of the browser.** Its capture helper can retry once without device-ID constraints after `NotReadableError`, `NotFoundError`, or `OverconstrainedError`, but not `NotAllowedError` (permission denial). This applies to SDK-managed call setup, including [`answer()`](https://team-telnyx.github.io/webrtc/classes/Call.html#answer), and [`setAudioInDevice()`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioInDevice). An exact constraint inside SDK options therefore does not guarantee “this microphone or no capture.” A missing `micId` lookup can also leave capture unconstrained.
 
-For SDK-managed capture, inspect the local audio track's `getSettings().deviceId` where exposed, handling missing settings or exceptions. At setup, `call.options.micId` is a requested setting; after a successful input switch, the SDK updates it to the acquired track's device ID or `'default'` when unavailable. That fallback value is not proof of physical identity. Keep user preference and actual media separate.
+For SDK-managed capture, read the actual device from the local audio track's `getSettings().deviceId` where the browser exposes it, and handle missing settings or exceptions. The `micId` you pass is only a request. After a successful switch, the SDK records the acquired track's device ID, or `'default'` when the browser doesn't report one; that fallback value does not identify a physical device. Keep user preference and actual media separate.
 
 If allowing an unintended input would violate your product's privacy requirement, do not rely on a post-capture check as prevention. Native exact acquisition below controls only the initial outbound stream. **The SDK has no public opt-out for automatic input disconnect recovery**, including when an initial stream was supplied by the application. Agree on a supported end-to-end solution with Telnyx before promising “this microphone or no capture” throughout a call.
 
@@ -181,9 +185,10 @@ The snippets below assume an existing `client`, device IDs chosen from current b
 
 ### Client defaults
 
-Run this setup before calling `client.connect()` or otherwise allowing incoming calls to be created:
+Run this setup before calling [`client.connect()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#connect) or otherwise allowing incoming calls to be created:
 
 ```js
+// Example app helper, not an SDK API. SDK calls: client.setAudioSettings(), client.speaker.
 async function configureFutureCalls(client, microphoneId, speakerId) {
   // An empty settings object clears the stored mic ID/label and constraints.
   await client.setAudioSettings(microphoneId ? { micId: microphoneId } : {});
@@ -191,13 +196,14 @@ async function configureFutureCalls(client, microphoneId, speakerId) {
 }
 ```
 
-`setAudioSettings()` replaces the stored audio constraints rather than patching them. Include all constraints you intend to retain on each update. It does not change an existing call's microphone, and `client.speaker` does not change an existing call's output. Clearing the speaker preference does not reset a reused element that already has a non-default native `sinkId`; reset that element explicitly or create a new per-call element.
+[`setAudioSettings()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#setAudioSettings) replaces the stored audio constraints rather than patching them. Include all constraints you intend to retain on each update. It does not change an existing call's microphone, and [`client.speaker`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#speaker) does not change an existing call's output. Clearing the speaker preference does not reset a reused element that already has a non-default native `sinkId`; reset that element explicitly or create a new per-call element.
 
-Do not set both a conflicting `micId` and `audio.deviceId`: a successfully resolved `micId` takes precedence during SDK capture. When overriding an inherited microphone ID, also pass `micLabel: ''` to clear its old label. Device lookup uses the first ID-or-label match, so a stale label can select the old microphone before the requested ID is reached. The same rule applies to `camId`/`camLabel`; prefer current IDs over labels.
+Do not set both a conflicting `micId` and `audio.deviceId`: a successfully resolved `micId` takes precedence during SDK capture. Prefer device IDs to labels. If you pass `micLabel` to `setAudioSettings()`, every later call inherits that label. Device lookup uses the first device that matches either the ID or the label, so a stale label can select the old microphone even when a call passes a new `micId`. When the default changes, call `setAudioSettings()` again with the new `micId` and either its matching label or no label. The published `ICallOptions` type for `newCall()` has no `micLabel`, so update the stored label here rather than per call. The same applies to `camId`/`camLabel`.
 
 ### Per-call outbound selection
 
 ```js
+// Example app helper, not an SDK API. SDK call: client.newCall().
 function startOutboundCall(
   client,
   destinationNumber,
@@ -210,24 +216,24 @@ function startOutboundCall(
     audio: true,
     video: false,
     micId: microphoneId || '',
-    micLabel: '',
     speakerId: speakerId || '',
     remoteElement: remoteAudio,
   });
 }
 ```
 
-Here, an empty `micId` overrides an inherited microphone ID and `audio: true` requests browser-default input. An empty `speakerId` suppresses initial SDK sink selection, so use a fresh or explicitly reset audio element for default output. It does not disable automatic output recovery once the call is active.
+Here, an empty [`micId`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#micId) overrides an inherited microphone ID and `audio: true` requests browser-default input. An empty [`speakerId`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#speakerId) suppresses initial SDK sink selection, so use a fresh or explicitly reset audio element for default output. It does not disable automatic output recovery once the call is active.
 
-`newCall()` returns a call object synchronously. Catch synchronous validation errors, but use `telnyx.notification` call updates and `telnyx.error` to observe asynchronous setup. Do not treat the returned object as proof that capture succeeded.
+[`newCall()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#newCall) returns a call object synchronously. Catch synchronous validation errors, but use `telnyx.notification` call updates and `telnyx.error` (subscribe with [`client.on()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#on)) to observe asynchronous setup. Do not treat the returned object as proof that capture succeeded.
 
 For outgoing calls that need processing constraints, use `audio: { echoCancellation: true, noiseSuppression: true, ... }` instead of `audio: true`. Feature support and effective settings vary; inspect the track's `getSettings()`. Do not assume these preferences carry through the active-switch API.
 
-### Advanced: strict outbound acquisition or a custom stream
+### Advanced: require one specific microphone, or supply your own stream
 
-If the application must obtain a particular microphone before creating the outbound call, acquire it through the **native browser API**, validate it, and pass the stream to the SDK:
+If an outbound call must start only with one specific microphone, open it with the **browser's** `getUserMedia()` and an exact device ID, check it, and pass the stream to the SDK as [`localStream`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#localStream):
 
 ```js
+// Example app helper, not an SDK API. Uses the browser's getUserMedia() and the SDK's client.newCall().
 async function startWithExactMicrophone(
   client,
   destinationNumber,
@@ -267,13 +273,13 @@ This approach controls **initial outbound acquisition only**. It does not opt ou
 
 ## Inbound calls and recovery
 
-Inbound calls inherit client device defaults when their call objects are constructed, before your application receives the ringing notification. Configure sensible defaults before becoming available for calls, then pass the latest per-call selection to `answer()` if it changed while ringing.
+Inbound calls inherit client device defaults when their call objects are constructed, before your application receives the ringing notification. Configure sensible defaults before becoming available for calls, then pass the latest per-call selection to [`answer()`](https://team-telnyx.github.io/webrtc/classes/Call.html#answer) if it changed while ringing.
 
 ```js
+// Example app helper, not an SDK API. SDK call: call.answer().
 async function answerIncomingCall(call, microphoneId, speakerId, remoteAudio) {
   await call.answer({
     micId: microphoneId, // undefined retains this call's inherited choice.
-    micLabel: microphoneId === undefined ? undefined : '',
     speakerId: speakerId,
     audio: { echoCancellation: true, noiseSuppression: true },
     video: false,
@@ -285,12 +291,12 @@ async function answerIncomingCall(call, microphoneId, speakerId, remoteAudio) {
 
 How answer-time options behave:
 
-- Supported answer options are `micId`, `micLabel`, `speakerId`, `camId`, `camLabel`, `audio`, `video`, `localElement`, `remoteElement`, and `customHeaders`. Device/media overrides are applied before peer initialization and capture. They are call-local; they do not mutate session defaults or another call's constraints.
+- Supported answer options ([`AnswerParams`](https://team-telnyx.github.io/webrtc/types/AnswerParams.html)) are `micId`, `micLabel`, `speakerId`, `camId`, `camLabel`, `audio`, `video`, `localElement`, `remoteElement`, and `customHeaders`. Device/media overrides are applied before peer initialization and capture. They are call-local; they do not mutate session defaults or another call's constraints.
 - Omitted or explicitly `undefined` overrides retain that call's existing options. Explicit `audio: false` and `video: false` remain disabled for SDK acquisition even with inherited device IDs. Constraint objects replace the corresponding call option; include all constraints you need rather than assuming a deep merge.
 - Updating client defaults while a call is already ringing still does not update that call object. Use answer-time overrides, not private-field mutation or a needless post-answer switch. Answer only once; `answer()` is not an active-call device setter.
 - Inbound construction still sets `audio: true`. A client `micId` participates in selection, but client audio-processing constraints do not automatically carry into that path. Supply `audio` explicitly to `answer()` when you need those preferences, as above.
 - `localStream` is **not** an `AnswerParams` field. A valid stream already present on the call is reused without recapture; new device/constraint options do not replace that existing stream. Camera/video options use existing negotiation and do not add video to an audio-only offer.
-- SDK answer-time capture uses the same device lookup and fallback path as outbound setup. Resolving `micId` can open and stop a temporary default microphone stream for permission/discovery before acquiring the call stream, and call capture can fall back to another microphone. For a default input instead of an inherited ID, pass `micId: ''` with `audio: true`; `speakerId: ''` suppresses initial SDK sink selection but does not reset a reused element's sink or disable automatic recovery.
+- SDK answer-time capture uses the same device lookup and fallback path as outbound setup. Resolving `micId` can open and stop a temporary default microphone stream for permission/discovery before acquiring the call stream, and call capture can fall back to another microphone. For a default input instead of an inherited ID, pass `micId: ''` with `audio: true`; if you stored a `micLabel` with `setAudioSettings()`, also pass `micLabel: ''` or the new device's label. `speakerId: ''` suppresses initial SDK sink selection but does not reset a reused element's sink or disable automatic recovery.
 
 **Signaling reattachment is separate from device-disconnect recovery.** It can create a replacement call object. Do not assume per-call microphone, speaker, custom constraints, or a supplied stream survive unchanged. Keep application preferences, follow the current call object, and reconcile actual media after recovery.
 
@@ -298,13 +304,14 @@ Do not recreate the entire `TelnyxRTC` client simply to switch devices. Client r
 
 ## Switch microphones during an active call
 
-Use `call.setAudioInDevice(deviceId)` only after the call has established local audio media. Disable the selector while a manual switch is pending and while the call is ending or reattaching. Serialize manual device changes through one controller; use SDK mute/unmute methods to maintain mute intent.
+Use [`call.setAudioInDevice(deviceId)`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioInDevice) only after the call has established local audio media. Disable the selector while a manual switch is pending and while the call is ending or reattaching. Serialize manual device changes through one controller; use the SDK's [`muteAudio()`](https://team-telnyx.github.io/webrtc/classes/Call.html#muteAudio) and [`unmuteAudio()`](https://team-telnyx.github.io/webrtc/classes/Call.html#unmuteAudio) to maintain mute intent.
 
-Omitting the second argument preserves the **latest** SDK desired mute state, including changes made while capture or `replaceTrack()` is pending. An explicit boolean commits that requested mute state only after capture and replacement succeed. `call.isAudioMuted` is a boolean getter, not a method. Do not pass `false` unconditionally: that requests an unmuted replacement track even if the user muted while the switch was pending.
+Omitting the second argument preserves the **latest** SDK desired mute state, including changes made while capture or `replaceTrack()` is pending. An explicit boolean commits that requested mute state only after capture and replacement succeed. [`call.isAudioMuted`](https://team-telnyx.github.io/webrtc/classes/Call.html#isAudioMuted) is a boolean getter, not a method. Do not pass `false` unconditionally: that requests an unmuted replacement track even if the user muted while the switch was pending.
 
 The following helper detects some failed/skipped operations; the application still needs call-state/error handling and a single-operation guard:
 
 ```js
+// Example app helper, not an SDK API. SDK calls: call.setAudioInDevice(), call.state, call.localStream, call.isAudioMuted.
 async function switchActiveMicrophone(call, deviceId) {
   const previous = call.localStream?.getAudioTracks()[0];
   if (call.state !== 'active' || previous?.readyState !== 'live') {
@@ -348,20 +355,21 @@ Current limitations to account for:
 
 - The return type is `Promise<void>`, not a success boolean. A missing peer connection, terminating call, or missing audio sender can cause a skipped operation. For a missing sender, diagnostic warning `33009` (`AUDIO_INPUT_DEVICE_CHANGE_SKIPPED`) is emitted at call scope; do not make a session-level `client.on('telnyx.warning')` listener your only confirmation path.
 - Final capture failure (including a failed fallback) or `replaceTrack()` failure in a **manual** switch is handled through `telnyx.error` without necessarily rejecting this Promise, and initiates local call teardown. Do not assume the old microphone/call will remain usable. Automatic disconnect recovery has a narrower non-hangup exception, described below.
-- On success, `call.options.micId` becomes the acquired track's device ID or `'default'` if unavailable. If reading settings throws, diagnostic `42004` (`UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE`) is nonfatal and written through `logger.warn` only, not `telnyx.error` or `telnyx.warning`. The replacement remains applied.
+- On success, the SDK records the acquired track's device ID, or `'default'` if the browser doesn't report one. If reading the track settings throws, diagnostic `42004` (`UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE`) is nonfatal and only written to the SDK log as a warning; it is not sent as `telnyx.error` or `telnyx.warning`. The replacement remains applied.
 - The method requests the new device without merging the previous custom audio-processing constraints. Verify effective settings again after switching.
 - Concurrent manual switches can race; an explicit mute argument can also override a newer mute choice. Do not launch multiple operations from rapidly changing dropdowns or add competing recovery switches on every device notification.
 - Switching may cause a short interruption. Automatic recovery after a proven removal is best effort; do not promise gapless audio or successful recovery on all hardware.
 
 ## Select speakers and manage playback
 
-### SDK-managed output routing
+### Speaker routing through the SDK
 
-Pass a real, mounted remote element through `newCall()` or `answer()`. For overlapping calls, use a distinct element per call, including calls on hold or recovering. If two calls share one element, the SDK emits warning `33011` (`SHARED_REMOTE_ELEMENT_OVERWRITE`) and the most recently attached call takes over that element's playback.
+Pass a real, mounted [`remoteElement`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#remoteElement) through [`newCall()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#newCall) or [`answer()`](https://team-telnyx.github.io/webrtc/classes/Call.html#answer). For overlapping calls, use a distinct element per call, including calls on hold or recovering. If two calls share one element, the SDK emits warning `33011` (`SHARED_REMOTE_ELEMENT_OVERWRITE`) and the most recently attached call takes over that element's playback.
 
-Passing the element object avoids lookup timing problems. A string ID is looked up when it is used: a per-call ID when remote audio arrives and again by each speaker operation, and an ID assigned to `client.remoteElement` immediately, so that element must already exist when you set it. If remote audio arrives and a configured element does not resolve to an `<audio>` or `<video>` element, the SDK emits session-level warning `33012` (`REMOTE_AUDIO_ELEMENT_UNRESOLVED`) once for that call. The call continues without SDK playback, and `setAudioOutDevice()` and automatic output recovery have no element to route. Fix the element configuration, or play `call.remoteStream` yourself with `remoteElement` left unset. An unset `remoteElement` does not produce this warning.
+Passing the element object avoids lookup timing problems. A string ID is looked up when it is used: a per-call ID when remote audio arrives and again by each speaker operation, and an ID assigned to [`client.remoteElement`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#remoteElement) immediately, so that element must already exist when you set it. If remote audio arrives and a configured element does not resolve to an `<audio>` or `<video>` element, the SDK emits session-level warning `33012` (`REMOTE_AUDIO_ELEMENT_UNRESOLVED`) once for that call. The call continues without SDK playback, and [`setAudioOutDevice()`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioOutDevice) and automatic output recovery have no element to route. Fix the element configuration, or play [`call.remoteStream`](https://team-telnyx.github.io/webrtc/classes/Call.html#remoteStream) yourself with `remoteElement` left unset. An unset `remoteElement` does not produce this warning.
 
 ```js
+// Example app helper, not an SDK API. SDK call: call.setAudioOutDevice().
 async function switchCallSpeaker(call, deviceId) {
   const applied = await call.setAudioOutDevice(deviceId);
   if (!applied) {
@@ -372,21 +380,22 @@ async function switchCallSpeaker(call, deviceId) {
 }
 ```
 
-Use this with a nonempty ID obtained from the browser. The method updates `call.options.speakerId` only after routing succeeds; failure leaves that option unchanged. A construction/answer-time preference or a stored option alone is still not proof of current routing or audibility: check the result and the element's actual `sinkId` where available. Unsupported routing, missing elements, terminating calls, and native sink errors can return `false` without emitting a structured SDK error.
+Use this with a nonempty ID obtained from the browser. The SDK records the new speaker only after routing succeeds; a failed switch keeps the previous one. A speaker chosen at call creation or when answering is still not proof of current routing or audibility: check the result and the element's actual `sinkId` where available. Unsupported routing, missing elements, terminating calls, and native sink errors can return `false` without emitting a structured SDK error.
 
 A nonempty stored `speakerId` is applied asynchronously on transitions to active, including initial activation and unhold, and that routing result is not returned to the caller. For UI confirmation, explicitly await `setAudioOutDevice()` when the element/call is ready and check the boolean.
 
-**Reset-to-default caveat:** native `remoteAudio.setSinkId('')` requests default output, but `call.setAudioOutDevice('')` returns `false` without performing that reset. Do not present these operations as equivalent. If the browser exposes a nonempty default alias, it can be passed to the SDK; otherwise use an application-owned native routing policy for default/reset support.
+**Reset-to-default caveat:** native `remoteAudio.setSinkId('')` requests default output, but `call.setAudioOutDevice('')` returns `false` without performing that reset. Do not present these operations as equivalent. If the browser exposes a nonempty default alias, it can be passed to the SDK; otherwise, route the speaker yourself with browser APIs (below) when you need a reset to default.
 
-### Application-owned sink routing
+### Route the speaker yourself with browser APIs
 
-Use native routing when you need the browser output picker, the underlying error details, or native reset-to-default semantics. **Calling native `setSinkId()` on an element also configured as the SDK's `remoteElement` does not give exclusive routing control.** A nonempty stored SDK `speakerId` can overwrite the native choice on a later transition to active, such as unhold, even without device removal. The SDK also observes that element's actual `sinkId`, even without a nonempty SDK speaker preference, and may route it to `'default'` after a proven removal.
+Call the browser APIs directly when you need the browser's speaker picker, the browser's exact error when routing fails, or a reset to the default output. **Calling native `setSinkId()` on an element also configured as the SDK's `remoteElement` does not give exclusive routing control.** A nonempty stored SDK `speakerId` can overwrite the native choice on a later transition to active, such as unhold, even without device removal. The SDK also observes that element's actual `sinkId`, even without a nonempty SDK speaker preference, and may route it to `'default'` after a proven removal.
 
-To own output recovery completely, attach `call.remoteStream` to an application-owned element that is **not exposed as the call's SDK `remoteElement`**. Ensure no inherited client/call `remoteElement` remains configured; merely omitting an answer override retains the inherited value. Own stream attachment, autoplay, routing, and cleanup, and apply that policy to every new/reattached call. Do not concurrently use SDK sink setters for the same playback path.
+To control speaker recovery completely, attach `call.remoteStream` to an application-owned element that is **not exposed as the call's SDK `remoteElement`**. Ensure no inherited client/call `remoteElement` remains configured; merely omitting an answer override retains the inherited value. Own stream attachment, autoplay, routing, and cleanup, and apply that policy to every new/reattached call. Do not concurrently use SDK sink setters for the same playback path.
 
-This helper must be invoked directly by the user's output-selection click handler, with its rejection caught by the UI:
+These helpers must be invoked directly by the user's output-selection click handler, with their rejection caught by the UI:
 
 ```js
+// Example app helpers, not SDK APIs. Use browser APIs only.
 async function chooseOutput(remoteAudio) {
   if (typeof remoteAudio.setSinkId !== 'function') {
     throw new Error('Choose the speaker in your browser or OS audio settings.');
@@ -414,7 +423,7 @@ async function useDefaultOutput(remoteAudio) {
 
 Sink changes apply to that element only. Route ringtone, ringback, preview/test audio, and each call separately if your application requires them to use the same device. Do not assume changing call output changes every audio source.
 
-### Autoplay and application-owned streams
+### Autoplay and playing the remote stream yourself
 
 Regardless of routing, handle playback failure and offer an **Enable audio** button that calls `remoteAudio.play()` from a user gesture. Catch the rejected Promise. Inspect the element's `paused`, `muted`, and `volume` state as well as the OS output/volume.
 
@@ -429,7 +438,7 @@ An element can remain in a playing state after its selected speaker disappears w
 When a call first becomes active, the SDK starts a call-local device-change listener. The same listener remains through hold/unhold and is removed during teardown. It compares usable inventories with the **actual audio sender track settings** and the **actual `sinkId` of the SDK `remoteElement`**, not simply requested `micId`/`speakerId` options.
 
 - **Removed microphone:** it attempts an internal replacement using the default microphone, preserving the latest desired mute state and existing video tracks. This uses the shared capture fallback helper.
-- **Removed speaker:** it attempts `call.setAudioOutDevice('default')`. Output recovery does not recapture the microphone or video. It requires a discoverable SDK remote element and supported browser sink routing; the nonempty `'default'` route can still fail.
+- **Removed speaker:** it attempts [`call.setAudioOutDevice('default')`](https://team-telnyx.github.io/webrtc/classes/Call.html#setAudioOutDevice). Output recovery does not recapture the microphone or video. It requires a discoverable SDK remote element and supported browser sink routing; the nonempty `'default'` route can still fail.
 - **Conservative detection:** empty, redacted, alias-only, or missing-entire-kind inventories are not treated as proof of removal for that kind. For default/communications aliases, the SDK uses `groupId` to identify a unique physical device; ambiguous identity is left alone. Unavailable/throwing track settings can prevent input recovery.
 - **No preference chasing:** unrelated additions/removals, OS default changes without removal of the bound device, and reconnecting a headset do not trigger switching to a new preference or switching back. The browser/OS may independently change its own route.
 - **Bounded attempts:** bursts of `devicechange` are coalesced and stale scans discarded. A failed recovery is not retried on every event for the same track/sink binding; a new actual binding can establish a new recovery candidate.
@@ -452,9 +461,9 @@ Also test unplug/replug, Bluetooth reconnect, OS default changes, browser backgr
 
 ## Error handling and troubleshooting
 
-Use the [structured error-handling guide](https://developers.telnyx.com/docs/development/webrtc/js-sdk/how-to/error-handling) for the event contract. The [copy in this repository](error-handling.md) also lists warnings that are on `main` but not yet released, such as `33012`. Register listeners before starting operations and remove application listeners when their controller is disposed.
+Use the [structured error-handling guide](https://developers.telnyx.com/docs/development/webrtc/js-sdk/how-to/error-handling) for the event contract. The [error-handling guide in this repository](error-handling.md) also lists every warning code, including `33011` and `33012`. Register listeners with [`client.on()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#on) before starting operations and remove application listeners when their controller is disposed.
 
-For `telnyx.error`, inspect `event.error`, not an assumed top-level `code`. Check `isMediaRecoveryErrorEvent(event)` first: when configured with `mediaPermissionsRecovery.enabled`, the inbound-answer permission recovery flow provides `resume()`, `reject()`, and a deadline. Present a retry/cancel UI and use those callbacks; do not repeatedly call `answer()` or assume this flow covers outbound setup or mid-call switching. This permission flow is separate from automatic device-disconnect recovery. Otherwise use the error code, operation context, and the call's state together: `event.error.fatal` can remain true for an internal disconnect-recovery error that does not automatically hang up.
+For `telnyx.error`, inspect `event.error`, not an assumed top-level `code`. Check `isMediaRecoveryErrorEvent(event)` first. This helper is exported by `@telnyx/webrtc` but is not in the API reference; see [Structured errors](error-handling.md#structured-errors-telnyxerror) in the error-handling guide. When [`mediaPermissionsRecovery`](https://team-telnyx.github.io/webrtc/interfaces/IClientOptions.html#mediaPermissionsRecovery) is enabled, the inbound-answer permission recovery flow provides `resume()`, `reject()`, and a deadline. Present a retry/cancel UI and use those callbacks; do not repeatedly call `answer()` or assume this flow covers outbound setup or mid-call switching. This permission flow is separate from automatic device-disconnect recovery. Otherwise use the error code, operation context, and the call's state together: `event.error.fatal` can remain true for an internal disconnect-recovery error that does not automatically hang up.
 
 | Symptom or result                                           | Check                                                                                                                              | Recommended response                                                                                                             |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -474,14 +483,14 @@ Warnings are not all terminal failures. `telnyx.ready` means signaling is ready,
 
 ### Call reports and a useful support bundle
 
-Use the [Voice SDK call-report API](https://developers.telnyx.com/api-reference/voice-sdk-stats/retrieve-voice-sdk-call-reports-by-call-id) from your backend:
+Use the [Voice SDK call-report API](https://developers.telnyx.com/api-reference/voice-sdk-stats/retrieve-voice-sdk-call-reports-by-call-id) from your backend. It is a Telnyx REST API, not an SDK method:
 
 ```http
 GET https://api.telnyx.com/v2/voice_sdk_call_reports/{call_id}
 Authorization: Bearer <SERVER_SIDE_TELNYX_API_KEY>
 ```
 
-Use the SDK WebRTC call ID (`call.id`), not a phone number, SIP Call-ID, or call-control identifier. Authentication determines the owning user; there is no user-ID request parameter. Keep the Telnyx API key out of browser code and enforce your application's authorization before exposing reports.
+Use the SDK WebRTC call ID ([`call.id`](https://team-telnyx.github.io/webrtc/classes/Call.html#id)), not a phone number, SIP Call-ID, or call-control identifier. Authentication determines the owning user; there is no user-ID request parameter. Keep the Telnyx API key out of browser code and enforce your application's authorization before exposing reports.
 
 The endpoint returns an array of raw report payloads. Preserve multiple reports/segments and their session/timestamp provenance; fields vary by SDK/platform, and `stats`/`logs` can have compatibility shapes. A `404` means no report was found for that authenticated user and call ID, not that no call occurred. Device failures before call creation may have no call ID/report, so retain sanitized application-side setup errors too.
 
@@ -518,6 +527,10 @@ Test the exact SDK/browser/OS combinations you intend to support:
 Do not interpret a passing signaling test, mocked `replaceTrack()`, or a populated settings dropdown as hardware validation.
 
 ## Reference material
+
+### API reference
+
+- [`@telnyx/webrtc` API reference](https://team-telnyx.github.io/webrtc/): [`TelnyxRTC`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html), [`Call`](https://team-telnyx.github.io/webrtc/classes/Call.html), [`ICallOptions`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html), [`AnswerParams`](https://team-telnyx.github.io/webrtc/types/AnswerParams.html), and [`IClientOptions`](https://team-telnyx.github.io/webrtc/interfaces/IClientOptions.html).
 
 ### SDK source for the documented behavior
 
