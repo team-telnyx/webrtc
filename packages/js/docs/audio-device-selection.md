@@ -2,13 +2,16 @@
 
 This guide explains how to select microphones and speakers with `@telnyx/webrtc`, what your application must manage, and how to diagnose device-related audio problems.
 
-**Source scope:** the SDK behavior below was checked against `main` at revision `dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26`. This is not a release announcement: the package version at that revision remains `2.27.10`, which does not establish that a published npm package includes these changes. Verify that your installed build contains the changes before adopting the examples. Browser behavior still depends on the user's browser, OS, permissions, and hardware; this guide does not claim real-hardware validation.
+> **Availability:** the SDK behavior below was checked against `main` at revision `68ea4c8a9d902395b929d1cf119e6c07349e1d66`. The device-management changes from #793, #794, and #795 are first published in `@telnyx/webrtc@2.27.11-beta.1` (npm `beta` tag); `2.27.10`, the current `latest` release, does not include them. The remote-element warning from #781 is on `main` but not yet in a published package. Check the installed version before adopting the examples.
+>
+> Browser behavior still depends on the user's browser, OS, permissions, and hardware; this guide does not claim real-hardware validation.
 
 ## Recent behavior changes
 
 - [#793 — microphone-switch fallback](https://github.com/team-telnyx/webrtc/pull/793): active input switching now uses the same capture fallback helper as call setup.
 - [#794 — answer-time device options](https://github.com/team-telnyx/webrtc/pull/794): `answer()` can apply per-call input/output selection and audio/video constraints before media initialization, without changing client defaults or other calls.
 - [#795 — disconnected-device recovery](https://github.com/team-telnyx/webrtc/pull/795): calls now attempt default-device recovery after a proven removal of the microphone or SDK-managed output actually in use. Successful input switches record the acquired device ID, and speaker setters commit the choice only after routing succeeds. Recovery is best effort, not a guarantee of uninterrupted audio or automatic switching back on reconnect.
+- [#781 — unresolved remote element warning](https://github.com/team-telnyx/webrtc/pull/781) (unreleased): when remote audio arrives but a configured `remoteElement` does not resolve to an `<audio>` or `<video>` element, the SDK emits warning `33012` (`REMOTE_AUDIO_ELEMENT_UNRESOLVED`) once for that call. The call continues and `call.remoteStream` remains available. Media elements owned by another window, such as an iframe, popout, or Document Picture-in-Picture window, are now accepted.
 
 ## Contents
 
@@ -52,7 +55,7 @@ Prefer pre-call selection over unnecessary mid-call replacement. A failed **manu
 | Change an active call's microphone                      | `await call.setAudioInDevice(deviceId)`                                                  | Can skip, fall back, or handle a failure without rejecting; observe events and actual media                   |
 | Change an active call's speaker                         | `await call.setAudioOutDevice(deviceId)`                                                 | Check its boolean result; requires an SDK-managed remote element and browser output-routing support           |
 | Own output permission/error handling                    | Native `selectAudioOutput()` where available, then `setSinkId()` on the playback element | An SDK `remoteElement` still participates in automatic output recovery                                        |
-| Own all remote playback                                 | Read `call.remoteStream` and attach it yourself                                          | Your application owns stream readiness/replacement, autoplay, output routing, and cleanup                     |
+| Own all remote playback                                 | Leave `remoteElement` unset; attach `call.remoteStream` yourself                         | Your application owns stream readiness/replacement, autoplay, output routing, and cleanup                     |
 
 Do not mix direct `RTCRtpSender.replaceTrack()` calls with SDK microphone switching. The SDK also manages local streams, mute state, cleanup, and recovery; replacing only the sender track can leave those states inconsistent.
 
@@ -129,9 +132,11 @@ Catch rejection in the UI and provide permission/device troubleshooting. A permi
 
 For a microphone level test, keep the temporary stream only for the duration of the test, then release it. Do not play local microphone audio back through speakers by default; it can cause feedback. A test tone should use the intended output, and the user should confirm hearing it.
 
+The SDK's [`client.runMicrophoneCheck()`](pre-call-diagnostics.md#runmicrophonecheck-microphone-only) reports permission state, the input inventory, and an audio level, but it captures with `audio: true` and takes no device ID. It tests the browser-selected input, not a saved or newly chosen microphone. With `record: true` it also plays the recording back automatically. Use your own level test when the user needs to check a specific device.
+
 ### SDK enumeration helpers
 
-The SDK provides `client.getAudioInDevices()` and `client.getAudioOutDevices()`. In the reviewed source, both acquire and stop a temporary **microphone** stream before enumerating. `client.getDevices()` requests both audio and video, so avoid it for an audio-only settings screen.
+The SDK provides `client.getAudioInDevices()` and `client.getAudioOutDevices()`. Both acquire and stop a temporary **microphone** stream before enumerating. `client.getDevices()` requests both audio and video, so avoid it for an audio-only settings screen.
 
 Other differences from native enumeration:
 
@@ -175,7 +180,7 @@ Native browser constraints have different strengths:
 
 For SDK-managed capture, inspect the local audio track's `getSettings().deviceId` where exposed, handling missing settings or exceptions. At setup, `call.options.micId` is a requested setting; after a successful input switch, the SDK updates it to the acquired track's device ID or `'default'` when unavailable. That fallback value is not proof of physical identity. Keep user preference and actual media separate.
 
-If allowing an unintended input would violate your product's privacy requirement, do not rely on a post-capture check as prevention. Native exact acquisition below controls only the initial outbound stream. **There is no public opt-out for automatic input disconnect recovery in the reviewed source**, including when an initial stream was supplied by the application. Agree on a supported end-to-end solution with Telnyx before promising “this microphone or no capture” throughout a call.
+If allowing an unintended input would violate your product's privacy requirement, do not rely on a post-capture check as prevention. Native exact acquisition below controls only the initial outbound stream. **The SDK has no public opt-out for automatic input disconnect recovery**, including when an initial stream was supplied by the application. Agree on a supported end-to-end solution with Telnyx before promising “this microphone or no capture” throughout a call.
 
 ## Configure future calls and outbound calls
 
@@ -285,7 +290,7 @@ async function answerIncomingCall(call, microphoneId, speakerId, remoteAudio) {
 }
 ```
 
-In the reviewed source:
+How answer-time options behave:
 
 - Supported answer options are `micId`, `micLabel`, `speakerId`, `camId`, `camLabel`, `audio`, `video`, `localElement`, `remoteElement`, and `customHeaders`. Device/media overrides are applied before peer initialization and capture. They are call-local; they do not mutate session defaults or another call's constraints.
 - Omitted or explicitly `undefined` overrides retain that call's existing options. Explicit `audio: false` and `video: false` remain disabled for SDK acquisition even with inherited device IDs. Constraint objects replace the corresponding call option; include all constraints you need rather than assuming a deep merge.
@@ -359,7 +364,9 @@ Current limitations to account for:
 
 ### SDK-managed output routing
 
-Pass a real, mounted remote element through `newCall()` or `answer()`. For overlapping calls, use a distinct element per call, including calls on hold or recovering.
+Pass a real, mounted remote element through `newCall()` or `answer()`. For overlapping calls, use a distinct element per call, including calls on hold or recovering. If two calls share one element, the SDK emits warning `33011` (`SHARED_REMOTE_ELEMENT_OVERWRITE`) and the most recently attached call takes over that element's playback.
+
+Passing the element object avoids lookup timing problems. A string ID is looked up when it is used: a per-call ID when remote audio arrives and again by each speaker operation, and an ID assigned to `client.remoteElement` immediately, so that element must already exist when you set it. If remote audio arrives and a configured element does not resolve to an `<audio>` or `<video>` element, the SDK emits session-level warning `33012` (`REMOTE_AUDIO_ELEMENT_UNRESOLVED`) once for that call. The call continues without SDK playback, and `setAudioOutDevice()` and automatic output recovery have no element to route. Fix the element configuration, or play `call.remoteStream` yourself with `remoteElement` left unset. An unset `remoteElement` does not produce this warning.
 
 ```js
 async function switchCallSpeaker(call, deviceId) {
@@ -376,7 +383,7 @@ Use this with a nonempty ID obtained from the browser. The method updates `call.
 
 A nonempty stored `speakerId` is applied asynchronously on transitions to active, including initial activation and unhold, and that routing result is not returned to the caller. For UI confirmation, explicitly await `setAudioOutDevice()` when the element/call is ready and check the boolean.
 
-**Reset-to-default caveat:** native `remoteAudio.setSinkId('')` requests default output, but `call.setAudioOutDevice('')` returns `false` without performing that reset in the reviewed SDK. Do not present these operations as equivalent. If the browser exposes a nonempty default alias, it can be passed to the SDK; otherwise use an application-owned native routing policy for default/reset support.
+**Reset-to-default caveat:** native `remoteAudio.setSinkId('')` requests default output, but `call.setAudioOutDevice('')` returns `false` without performing that reset. Do not present these operations as equivalent. If the browser exposes a nonempty default alias, it can be passed to the SDK; otherwise use an application-owned native routing policy for default/reset support.
 
 ### Application-owned sink routing
 
@@ -418,7 +425,7 @@ Sink changes apply to that element only. Route ringtone, ringback, preview/test 
 
 Regardless of routing, handle playback failure and offer an **Enable audio** button that calls `remoteAudio.play()` from a user gesture. Catch the rejected Promise. Inspect the element's `paused`, `muted`, and `volume` state as well as the OS output/volume.
 
-If you attach `call.remoteStream` yourself, ensure SDK-managed attachment is not configured for that call, including through inherited defaults. Wait until the live call exposes a stream, update the element when that stream is replaced, and call `play()` with error handling. A stream might not exist at the first call notification. On teardown, clear only the stream owned by that call; do not clear another call's element or stop SDK-owned remote tracks indiscriminately.
+If you attach `call.remoteStream` yourself, ensure SDK-managed attachment is not configured for that call, including through inherited defaults. The SDK treats an unset `remoteElement` as application-owned playback and does not warn about it. Wait until the live call exposes a stream, update the element when that stream is replaced, and call `play()` with error handling. A stream might not exist at the first call notification. On teardown, clear only the stream owned by that call; do not clear another call's element or stop SDK-owned remote tracks indiscriminately.
 
 An element can remain in a playing state after its selected speaker disappears while producing no audible output. Successful sink selection or `paused === false` does not prove audibility.
 
@@ -441,7 +448,7 @@ Input recovery errors still reach `telnyx.error`, but errors originating specifi
 1. Listen for `devicechange` to **refresh the UI inventory**, not to launch a competing fallback. Also refresh when settings opens or the page becomes visible, debounce bursts, and retain a manual Refresh control.
 2. Display the confirmed input/output separately from the saved preference. If recovery selects a default, explain the change; do not silently overwrite the user's preferred headset or automatically switch back when it reconnects.
 3. If audio remains unavailable or identity cannot be determined, show a prompt such as “Your headset is unavailable. Check the current audio devices or choose another device.” Do not treat a limited enumeration result as proof of unplugging.
-4. Account for privacy **before** enabling this integration: automatic defaults can capture an unexpected microphone or move private audio to speakers without confirmation. The reviewed SDK exposes no public disconnect-recovery opt-out. Native exact initial input does not disable input recovery; native sink changes on an SDK remote element do not disable output recovery. Use application-owned playback for output-policy control and agree on a supported solution for strict input/custom-stream requirements.
+4. Account for privacy **before** enabling this integration: automatic defaults can capture an unexpected microphone or move private audio to speakers without confirmation. The SDK exposes no public disconnect-recovery opt-out. Native exact initial input does not disable input recovery; native sink changes on an SDK remote element do not disable output recovery. Use application-owned playback for output-policy control and agree on a supported solution for strict input/custom-stream requirements.
 5. Verify the current track, mute intent, actual sink, playback, and audio in both directions after a change. Do not retry failed manual switches in a loop or restart a call without user intent.
 
 Recovery is **best effort**: it depends on browser device-change delivery, usable device identity/inventories, capture permissions, and output-routing support. It is not hardware-guaranteed failover. Keep browser/OS routing instructions and user-driven troubleshooting available.
@@ -452,21 +459,23 @@ Also test unplug/replug, Bluetooth reconnect, OS default changes, browser backgr
 
 ## Error handling and troubleshooting
 
-Use the [structured error-handling guide](https://developers.telnyx.com/docs/development/webrtc/js-sdk/how-to/error-handling) for the event contract. Register listeners before starting operations and remove application listeners when their controller is disposed.
+Use the [structured error-handling guide](https://developers.telnyx.com/docs/development/webrtc/js-sdk/how-to/error-handling) for the event contract. The [copy in this repository](error-handling.md) also lists warnings that are on `main` but not yet released, such as `33012`. Register listeners before starting operations and remove application listeners when their controller is disposed.
 
 For `telnyx.error`, inspect `event.error`, not an assumed top-level `code`. Check `isMediaRecoveryErrorEvent(event)` first: when configured with `mediaPermissionsRecovery.enabled`, the inbound-answer permission recovery flow provides `resume()`, `reject()`, and a deadline. Present a retry/cancel UI and use those callbacks; do not repeatedly call `answer()` or assume this flow covers outbound setup or mid-call switching. This permission flow is separate from automatic device-disconnect recovery. Otherwise use the error code, operation context, and the call's state together: `event.error.fatal` can remain true for an internal disconnect-recovery error that does not automatically hang up.
 
-| Symptom or result                                           | Check                                                                            | Recommended response                                                                                                           |
-| ----------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `42001` / native `NotAllowedError`                          | Site permission, OS privacy, HTTPS and iframe policy                             | Explain the blocked access; retry only after the user resolves it                                                              |
-| `42002` / native `NotFoundError` or `OverconstrainedError`  | Current inventory and the failed constraint, if provided                         | Ask for an available device or relax the specific constraint under the chosen fallback policy                                  |
-| `42003` / other capture error, including `NotReadableError` | Underlying browser exception, OS/device availability and possible contention     | Show a capture failure; avoid assuming this is always permission denial                                                        |
-| `42004` in SDK logs after input replacement                 | Reading the new track's settings failed                                          | Nonfatal metadata diagnostic, not an error/warning event; show unknown device identity rather than assuming replacement failed |
-| Microphone switch resolves but nothing changes              | Local track identity/settings, call state and errors                             | Do not mark it successful; it may have skipped or failed                                                                       |
-| Speaker switch returns `false`                              | Actual remote element, API support, output permission, current device ID         | Keep the last confirmed UI state, explain failure, and offer OS routing when needed                                            |
-| `play()` rejects with `NotAllowedError`                     | Autoplay policy and user activation                                              | Show an Enable audio button; do not re-register or recreate the call                                                           |
-| Far end cannot hear the user                                | Desired mute, current microphone track/settings and level, outbound RTP progress | Separate capture problems from transmission/network problems                                                                   |
-| User cannot hear the far end                                | Inbound RTP progress, remote stream attachment, playback and selected output     | Separate missing remote media from local speaker/playback problems                                                             |
+| Symptom or result                                           | Check                                                                                                                              | Recommended response                                                                                                             |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `42001` / native `NotAllowedError`                          | Site permission, OS privacy, HTTPS and iframe policy                                                                               | Explain the blocked access; retry only after the user resolves it                                                                |
+| `42002` / native `NotFoundError` or `OverconstrainedError`  | Current inventory and the failed constraint, if provided                                                                           | Ask for an available device or relax the specific constraint under the chosen fallback policy                                    |
+| `42003` / other capture error, including `NotReadableError` | Underlying browser exception, OS/device availability and possible contention                                                       | Show a capture failure; avoid assuming this is always permission denial                                                          |
+| `42004` in SDK logs after input replacement                 | Reading the new track's settings failed                                                                                            | Nonfatal metadata diagnostic, not an error/warning event; show unknown device identity rather than assuming replacement failed   |
+| Microphone switch resolves but nothing changes              | Local track identity/settings, call state, errors, and call-scoped warning `33009`                                                 | Do not mark it successful; it may have skipped or failed                                                                         |
+| Speaker switch returns `false`                              | Actual remote element, API support, output permission, current device ID                                                           | Keep the last confirmed UI state, explain failure, and offer OS routing when needed                                              |
+| `33012` warning; no SDK playback                            | Whether the configured `remoteElement` exists and is an `<audio>`/`<video>` element, including when `client.remoteElement` was set | Pass the element itself or the ID of a mounted element; leave `remoteElement` unset if the application plays `call.remoteStream` |
+| `33011` warning; another call's audio stops                 | Concurrent calls sharing one `remoteElement`                                                                                       | Give each call its own element through `newCall()` or `answer()`                                                                 |
+| `play()` rejects with `NotAllowedError`                     | Autoplay policy and user activation                                                                                                | Show an Enable audio button; do not re-register or recreate the call                                                             |
+| Far end cannot hear the user                                | Desired mute, current microphone track/settings and level, outbound RTP progress                                                   | Separate capture problems from transmission/network problems                                                                     |
+| User cannot hear the far end                                | Inbound RTP progress, remote stream attachment, playback and selected output                                                       | Separate missing remote media from local speaker/playback problems                                                               |
 
 Warnings are not all terminal failures. `telnyx.ready` means signaling is ready, not that devices were tested. Use `telnyx.notification` with `type: 'callUpdate'` to follow the current call object and terminal states, including failures that an individual method handled internally.
 
@@ -505,6 +514,7 @@ Test the exact SDK/browser/OS combinations you intend to support:
 - A successful mid-call microphone switch both muted and unmuted; mute/unmute during pending capture and replacement; explicit mute arguments; rapid repeated clicks; final acquisition/replacement failures and manual-switch teardown.
 - SDK fallback after `NotFoundError`, `NotReadableError`, or `OverconstrainedError`; no fallback after `NotAllowedError`; actual-device bookkeeping and missing/throwing settings (`42004` in logs only). Native exact outbound acquisition must reject a missing device, but does not prevent later automatic default-input recovery.
 - Speaker routing returning `false`, native routing rejection, default-output reset, unavailable picker/routing APIs, and blocked autoplay.
+- A `remoteElement` ID that does not exist yet when `client.remoteElement` is set or when remote audio arrives (`33012` once per call), concurrent calls sharing one element (`33011`), and fully application-owned playback producing neither warning.
 - Removal of the actual input, actual output, and both headset devices; muted recovery; no input recapture for output-only loss; failed automatic recovery without SDK hangup or endless retries. Verify sound, not just call state.
 - Default/communications aliases with clear and ambiguous identity; empty/redacted/alias-only inventories and a missing entire device kind; unrelated additions/removals; event bursts; and teardown during pending recovery.
 - Headset unplug/replug with no SDK switch-back, Bluetooth mode changes with the microphone active, OS default changes without removal, and background/foreground transitions.
@@ -516,17 +526,18 @@ Do not interpret a passing signaling test, mocked `replaceTrack()`, or a populat
 
 ## Reference material
 
-### SDK source for the reviewed behavior
+### SDK source for the documented behavior
 
 These links pin the implementation used for this guide rather than tracking a moving branch:
 
-- [Client defaults and enumeration APIs](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/BrowserSession.ts).
-- [Capture fallback, enumeration, and constraint resolution](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/helpers.ts).
-- [Call construction, answering, input switching, mute state, and media errors](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/BaseCall.ts).
-- [Supported answer options](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/interfaces.ts) and [automatic device-disconnect detection and recovery](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/MediaDeviceCollector.ts).
-- [Speaker-switch return value](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/Call.ts) and [native sink wrapper](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/util/webrtc/index.ts).
-- [Inbound and recovered call construction](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/VertoHandler.ts) and [supplied local-stream handling](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/webrtc/Peer.ts).
-- Regression tests for [answer-time options](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/tests/webrtc/AnswerMediaOptions.test.ts), [input-switch fallback](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/tests/webrtc/AudioInputDeviceFallback.test.ts), and [disconnect recovery](https://github.com/team-telnyx/webrtc/blob/dbdd73e5f676c6a2abeaf7b8b53d0d0a44085f26/packages/js/src/Modules/Verto/tests/webrtc/AudioDeviceDisconnect.test.ts). These use mocked browser/media boundaries, not physical headsets.
+- [Client defaults and enumeration APIs](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/BrowserSession.ts).
+- [Capture fallback, enumeration, and constraint resolution](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/helpers.ts).
+- [Call construction, answering, input switching, mute state, and media errors](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/BaseCall.ts).
+- [Supported answer options](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/interfaces.ts) and [automatic device-disconnect detection and recovery](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/MediaDeviceCollector.ts).
+- [Speaker-switch return value](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/Call.ts) and [native sink wrapper and remote-element attachment](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/util/webrtc/index.ts).
+- [Inbound and recovered call construction](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/VertoHandler.ts) and [supplied local-stream handling and the `33012` check](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/webrtc/Peer.ts).
+- [Warning registry](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/util/constants/warnings.ts), including `33009`, `33011`, and `33012`.
+- Regression tests for [answer-time options](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/tests/webrtc/AnswerMediaOptions.test.ts), [input-switch fallback](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/tests/webrtc/AudioInputDeviceFallback.test.ts), [disconnect recovery](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/tests/webrtc/AudioDeviceDisconnect.test.ts), and [remote-element resolution](https://github.com/team-telnyx/webrtc/blob/68ea4c8a9d902395b929d1cf119e6c07349e1d66/packages/js/src/Modules/Verto/tests/webrtc/Peer.track.test.ts). These use mocked browser/media boundaries, not physical headsets.
 
 ### Browser API contracts
 
