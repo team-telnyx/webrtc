@@ -453,6 +453,25 @@ export const SDK_WARNINGS = {
     ],
   },
 
+  33012: {
+    name: 'REMOTE_AUDIO_ELEMENT_UNRESOLVED',
+    message: 'Configured remote media element could not be resolved',
+    description:
+      'A remote audio track arrived, but the configured call-level or session-level remoteElement did not resolve to an <audio> or <video> element, so the SDK could not attach it for playout. The call is not affected and the remote MediaStream is still available on call.remoteStream. This warning is not emitted when remoteElement is left unset, since the application is then expected to play call.remoteStream itself.',
+    causes: [
+      'remoteElement is a string ID with no matching element in the DOM',
+      'client.remoteElement was set to a string ID before that element existed (session-level IDs are resolved when set)',
+      'A remoteElement resolver function returned null or undefined (or its promise did, or rejected)',
+      'remoteElement resolved to an element that is not <audio> or <video>',
+    ],
+    solutions: [
+      'Make sure the element exists before setting client.remoteElement or starting/answering the call',
+      'Pass a per-call remoteElement via client.newCall({ remoteElement }) or call.answer({ remoteElement })',
+      'Use an <audio> or <video> element as remoteElement',
+      'To play call.remoteStream in your own element instead, leave remoteElement unset',
+    ],
+  },
+
   // ── Session / reconnection warnings (350xx) ─────────────────────────
   35002: {
     name: 'UNKNOWN_REATTACHED_SESSION',

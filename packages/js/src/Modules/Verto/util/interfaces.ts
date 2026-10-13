@@ -80,6 +80,7 @@ export interface IVertoOptions {
   /**
    * Enable automatic call quality reporting to voice-sdk-proxy.
    * When enabled, collects WebRTC stats and debug logs during calls.
+   * Reports also include the client's initial registration timing summary.
    * @default true
    */
   enableCallReports?: boolean;

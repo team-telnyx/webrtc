@@ -543,6 +543,7 @@ export class CallReportCollector {
   private callStartTime: Date;
   private callEndTime: Date | null = null;
   private logCollector: LogCollector | null = null;
+  private registrationTimingIncluded = false;
 
   // Accumulated values for averaging within an interval
   private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
@@ -662,7 +663,8 @@ export class CallReportCollector {
 
   constructor(
     options: ICallReportOptions,
-    logCollectorOptions?: ILogCollectorOptions
+    logCollectorOptions?: ILogCollectorOptions,
+    private readonly getRegistrationTimingLog?: () => ILogEntry | undefined
   ) {
     this.options = options;
     this.logCollectorOptions = logCollectorOptions || {
@@ -749,12 +751,14 @@ export class CallReportCollector {
     summary: ICallSummary,
     flushReason?: ICallReportFlushReason
   ): ICallReportPayload | null {
+    const registrationLog = this._getRegistrationTimingLog();
     const statsCount = this.statsBuffer.length;
     const logCount = this.logCollector?.getLogCount() ?? 0;
     const isSocketFlush =
       flushReason?.type === 'socket-close' ||
       flushReason?.type === 'socket-error';
-    const hasFlushableData = statsCount > 0 || logCount > 0 || isSocketFlush;
+    const hasFlushableData =
+      statsCount > 0 || logCount > 0 || isSocketFlush || !!registrationLog;
 
     if (this._flushing || !hasFlushableData) {
       logger.debug('CallReportCollector: Skipping intermediate flush', {
@@ -773,7 +777,10 @@ export class CallReportCollector {
       this.statsBuffer = [];
 
       // Drain logs accumulated since last flush
-      const logs = this.logCollector?.drain() ?? [];
+      const logs = this._withRegistrationTiming(
+        this.logCollector?.drain() ?? [],
+        registrationLog
+      );
 
       const now = new Date();
       this._lastIntermediateFlushTime = now;
@@ -819,7 +826,10 @@ export class CallReportCollector {
     voiceSdkId?: string
   ): Promise<void> {
     // Get remaining logs (getLogs for final, drain was used for intermediates)
-    const logs = this.logCollector?.getLogs();
+    const logs = this._withRegistrationTiming(
+      this.logCollector?.getLogs() ?? [],
+      this._getRegistrationTimingLog()
+    );
     const hasLogs = logs && logs.length > 0;
 
     if (!this.options.enabled) {
@@ -856,6 +866,41 @@ export class CallReportCollector {
     };
 
     await this._sendPayload(payload, callReportId, host, voiceSdkId, true);
+  }
+
+  private _getRegistrationTimingLog(): ILogEntry | undefined {
+    if (
+      this.registrationTimingIncluded ||
+      !this.options.enabled ||
+      !this.logCollectorOptions.enabled ||
+      ['warn', 'error'].includes(this.logCollectorOptions.level)
+    ) {
+      return undefined;
+    }
+    try {
+      return this.getRegistrationTimingLog?.();
+    } catch {
+      // A diagnostic provider must not prevent the call report from uploading.
+      return undefined;
+    }
+  }
+
+  private _withRegistrationTiming(
+    logs: ILogEntry[],
+    registrationLog?: ILogEntry
+  ): ILogEntry[] {
+    if (!this.getRegistrationTimingLog) return logs;
+    // The shared logger can capture another client's completion, or this
+    // client's completion after a call starts inside a ready callback. Always
+    // use the owning session's snapshot, once per call, with its original time.
+    const scopedLogs = logs.filter(
+      (entry) => entry.context?.event !== 'registration_timing'
+    );
+    if (registrationLog) {
+      this.registrationTimingIncluded = true;
+      scopedLogs.unshift(registrationLog);
+    }
+    return scopedLogs;
   }
 
   /**
