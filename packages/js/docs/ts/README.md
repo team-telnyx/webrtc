@@ -15,6 +15,7 @@
 ### Other Classes
 
 - [CallRecorder](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/CallRecorder.md)
+- [MediaDeviceCollector](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/MediaDeviceCollector.md)
 - [PreCallDiagnosis](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/PreCallDiagnosis.md)
 - [TimingsCollector](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/classes/TimingsCollector.md)
 
@@ -55,6 +56,7 @@
 - [AIConversationOutboundItem](#aiconversationoutbounditem)
 - [AIConversationOutboundParams](#aiconversationoutboundparams)
 - [AIConversationParams](#aiconversationparams)
+- [AnswerParams](#answerparams)
 - [FunctionCallItem](#functioncallitem)
 - [FunctionCallOutputItem](#functioncalloutputitem)
 - [IAIConversationMessageEvent](#iaiconversationmessageevent)
@@ -158,6 +160,30 @@ Contains any outbound item to send back to the backend.
 Generic params for any `ai_conversation` message.
 Can be a function_call (inbound) or outbound conversation item,
 as well as other `ai_conversation` message types (transcript, etc.).
+
+---
+
+### AnswerParams
+
+Ƭ **AnswerParams**: `Pick`\<`IVertoCallOptions`, `"micId"` \| `"micLabel"` \| `"speakerId"` \| `"camId"` \| `"camLabel"` \| `"audio"` \| `"video"` \| `"localElement"` \| `"remoteElement"` \| `"customHeaders"`\>
+
+Per-call media overrides applied before answering. Omitted or undefined
+values retain the call's defaults; explicit false disables media capture
+for that kind. A valid existing localStream is reused without recapture.
+Speaker selection requires browser setSinkId support and a remote element.
+
+localElement and remoteElement override the session-level elements for this
+call. Use distinct elements for concurrent calls to keep remote playback and
+local previews independent. Omitted elements retain the inherited defaults.
+
+**`Example`**
+
+```js
+call.answer({
+  remoteElement: remoteElementB,
+  customHeaders: [{ name: 'X-Header', value: 'value' }],
+});
+```
 
 ---
 

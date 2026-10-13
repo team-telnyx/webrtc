@@ -463,6 +463,10 @@ false;
 Region to use for the connection. Use [Region](https://developers.telnyx.com/development/webrtc/js-sdk/readme#region) for the supported
 values, or omit this option to use automatic routing.
 
+Pinning a region selects both the signaling host
+(`<region>.rtc.telnyx.com`) and, unless `iceServers` is set, the TURN
+servers used for media relay (`<region>.turn.telnyx.com`).
+
 Arbitrary strings remain supported for backwards compatibility.
 
 ---
@@ -554,6 +558,6 @@ Enable or disable Trickle ICE.
 
 • `Optional` **useCanaryRtcServer**: `boolean`
 
-Override VSP RTC routing for this connection. `true` forces the Canary RTC
-server, `false` forces the stable RTC server, and omission leaves routing to
-VSP's default load-based behavior.
+Override VSP RTC routing for this connection. `true` forces the Canary
+RTC server, `false` forces the stable RTC server, and omission leaves
+routing to VSP's default load-based behavior.
