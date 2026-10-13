@@ -48,6 +48,7 @@ enabling you to make outgoing calls and handle incoming calls.</p>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading">Accessors</h3>
 <div class="tsd-index-list"><a href="TelnyxRTC.html#connected" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><g id="icon-262144"><rect fill="var(--color-icon-background)" stroke="#FF4D4D" stroke-width="1.5" x="1" y="1" width="22" height="22" rx="12"></rect><path d="M8.85 16L11.13 7.24H12.582L14.85 16H13.758L13.182 13.672H10.53L9.954 16H8.85ZM10.746 12.76H12.954L12.282 10.06C12.154 9.548 12.054 9.12 11.982 8.776C11.91 8.432 11.866 8.208 11.85 8.104C11.834 8.208 11.79 8.432 11.718 8.776C11.646 9.12 11.546 9.544 11.418 10.048L10.746 12.76Z" fill="var(--color-text)"></path></g></svg><span>connected</span></a>
+<a href="TelnyxRTC.html#iceServers" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>ice<wbr/>Servers</span></a>
 <a href="TelnyxRTC.html#localElement" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a>
 <a href="TelnyxRTC.html#localElementId" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element<wbr/>Id</span></a>
 <a href="TelnyxRTC.html#mediaConstraints" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a>
@@ -179,6 +180,25 @@ configuration (Inbound tab.)</p>
 </code><button>Copy</button></pre>
 </div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient.connected</p></aside></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited"><a id="iceServers" class="tsd-anchor"></a>
+<h3 class="tsd-anchor-link"><span>ice<wbr/>Servers</span><a href="#iceServers" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-signature" id="iceServers.iceServers-1"><span class="tsd-signature-symbol">set</span> iceServers<span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">servers</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+<li class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>ICE servers used for every call unless <code>newCall()</code> overrides them.
+Explicit <code>iceServers</code> are taken as given. Otherwise the SDK defaults for
+the environment are used, with the TURN entries pointed at the pinned
+<code>region</code>&#39;s TURN name (<code>&lt;region&gt;.turn.telnyx.com</code>) when one is set, so
+media relay stays in the same region as signaling.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">servers</span>: <span class="tsd-signature-type ">RTCIceServer</span><span class="tsd-signature-symbol">[]</span></h5></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
+<p>Inherited from TelnyxRTCClient.iceServers</p></aside></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="localElement" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>local<wbr/>Element</span><a href="#localElement" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1286,6 +1306,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#reconnectTokenCanaryRtcServer" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>reconnect<wbr/>Token<wbr/>Canary<wbr/>Rtc<wbr/>Server</span></a></li>
 <li><a href="#reconnectTokenVoiceSdkId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-1024"></use></svg><span>reconnect<wbr/>Token<wbr/>Voice<wbr/>Sdk<wbr/>Id</span></a></li>
 <li><a href="#connected" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>connected</span></a></li>
+<li><a href="#iceServers" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>ice<wbr/>Servers</span></a></li>
 <li><a href="#localElement" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element</span></a></li>
 <li><a href="#localElementId" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>local<wbr/>Element<wbr/>Id</span></a></li>
 <li><a href="#mediaConstraints" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24"><use href="#icon-262144"></use></svg><span>media<wbr/>Constraints</span></a></li>

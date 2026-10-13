@@ -417,6 +417,9 @@ credential, allowing browser and mobile clients to ring simultaneously.</p>
 <div class="tsd-signature"><span class="tsd-kind-property">region</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Region to use for the connection. Use <a href="../variables/Region.html" class="tsd-kind-variable">Region</a> for the supported
 values, or omit this option to use automatic routing.</p>
+<p>Pinning a region selects both the signaling host
+(<code>&lt;region&gt;.rtc.telnyx.com</code>) and, unless <code>iceServers</code> is set, the TURN
+servers used for media relay (<code>&lt;region&gt;.turn.telnyx.com</code>).</p>
 <p>Arbitrary strings remain supported for backwards compatibility.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
