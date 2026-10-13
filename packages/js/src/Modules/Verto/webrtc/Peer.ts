@@ -20,6 +20,7 @@ import {
 import {
   MEDIA_GET_USER_MEDIA_FAILED,
   PEER_CLOSED_DURING_INIT,
+  REMOTE_AUDIO_ELEMENT_UNRESOLVED,
 } from '../util/constants/errorCodes';
 import {
   callMarkName,
@@ -369,11 +370,56 @@ export default class Peer {
     this.options.remoteStream = first;
 
     if (screenShare === false) {
-      attachMediaStream(remoteElement, this.options.remoteStream, {
-        callId: this.options.id,
-        sessionId: this._session.sessionid,
-        eventTarget: this._session.uuid,
-      });
+      // attachMediaStream resolves remoteElement once and returns what it
+      // attached to, so the warning check never re-invokes a resolver.
+      const attached = attachMediaStream(
+        remoteElement,
+        this.options.remoteStream,
+        {
+          callId: this.options.id,
+          sessionId: this._session.sessionid,
+          eventTarget: this._session.uuid,
+        }
+      );
+
+      if (event.track?.kind === 'audio') {
+        if (attached instanceof Promise) {
+          void attached.then((element) =>
+            this._warnIfRemoteElementUnresolved(element)
+          );
+        } else {
+          this._warnIfRemoteElementUnresolved(attached);
+        }
+      }
+    }
+  }
+
+  /**
+   * Emits REMOTE_AUDIO_ELEMENT_UNRESOLVED once per call when a configured
+   * remoteElement was not attached. An absent remoteElement means the app plays
+   * call.remoteStream itself. The session setter resolves string ids eagerly,
+   * so an unresolved session id reaches the call as null. Deduped per call ID
+   * on the session so attach recovery does not re-emit.
+   */
+  private _warnIfRemoteElementUnresolved(attached: HTMLMediaElement | null) {
+    const sessionElementUnresolved =
+      this._session.remoteElementId != null &&
+      this._session.remoteElement == null;
+    if (
+      attached === null &&
+      (this.options.remoteElement != null || sessionElementUnresolved) &&
+      !this._session.markMissingRemoteAudioElementWarned(this.options.id)
+    ) {
+      const warning = createTelnyxWarning(REMOTE_AUDIO_ELEMENT_UNRESOLVED);
+      trigger(
+        SwEvent.Warning,
+        {
+          warning,
+          callId: this.options.id,
+          sessionId: this._session.sessionid,
+        },
+        this._session.uuid
+      );
     }
   }
 

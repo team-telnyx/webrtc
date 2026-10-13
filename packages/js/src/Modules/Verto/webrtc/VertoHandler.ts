@@ -607,6 +607,7 @@ class VertoHandler {
                 );
 
                 params.type = NOTIFICATION_TYPE.vertoClientReady;
+                session._registrationTimings?.finish(session.sessionid);
                 trigger(SwEvent.Ready, params, session.uuid);
               }
               break;
@@ -642,9 +643,21 @@ class VertoHandler {
                 );
                 break;
               } else {
+                const delayMs = this.reconnectDelay();
+                session._registrationTimings?.mark(
+                  'schedule gateway state retry',
+                  {
+                    state: gateWayState,
+                    attempt: this.retriedRegister,
+                    delayMs,
+                  }
+                );
                 setTimeout(() => {
+                  session._registrationTimings?.mark(
+                    'gateway state retry timer fired'
+                  );
                   this.session.execute(messageToCheckRegisterState);
-                }, this.reconnectDelay());
+                }, delayMs);
                 break;
               }
             case GatewayStateType.FAILED:
@@ -724,7 +737,19 @@ class VertoHandler {
                   );
                   break;
                 } else {
+                  const delayMs = this.reconnectDelay();
+                  session._registrationTimings?.mark(
+                    'schedule gateway reconnect',
+                    {
+                      state: gateWayState,
+                      attempt: this.retriedConnect,
+                      delayMs,
+                    }
+                  );
                   setTimeout(() => {
+                    session._registrationTimings?.mark(
+                      'gateway reconnect timer fired'
+                    );
                     logger.debug(
                       `Reconnecting... Retry ${this.retriedConnect} of ${RETRY_CONNECT_TIME}`
                     );
@@ -755,7 +780,7 @@ class VertoHandler {
                       this.session.clearConnection();
                       this.session.connect();
                     });
-                  }, this.reconnectDelay());
+                  }, delayMs);
                 }
               }
               break;
