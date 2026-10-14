@@ -519,6 +519,24 @@ describe('CallTelemetry', () => {
       })
     );
     expect(media[1].previous_local_candidate).toEqual(media[0].local_candidate);
+    // Later events carry only the groups that changed.
+    expect(Object.keys(media[1]).sort()).toEqual(
+      [
+        'changed',
+        'extra',
+        'local_candidate',
+        'pair_changes',
+        'previous_local_candidate',
+        'previous_remote_candidate',
+        'remote_candidate',
+      ].filter((key) => key in media[1])
+    );
+    expect(media[1].codec_in).toBeUndefined();
+    expect(media[1].ice_state).toBeUndefined();
+    expect(Object.keys(media[1].extra ?? {})).not.toContain(
+      'peer_configuration'
+    );
+    expect(Object.keys(media[1].extra ?? {})).not.toContain('input_device');
     expect(JSON.stringify(media)).not.toContain('c-secret');
 
     const metrics = ws.events().filter((e) => e.name === 'call_metrics');

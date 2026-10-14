@@ -123,6 +123,21 @@ const MEDIA_GROUPS = table(`
   playback        playback
 `);
 
+/** Groups that move on most ticks: sent in the first snapshot, never a reason for another. */
+const QUIET_GROUPS = ['echo'];
+
+/** The snapshot's fields that belong to the given groups. */
+const pickGroups = (media: Flat, groups: string[]): Flat => {
+  const keys = MEDIA_GROUPS.filter(([group]) => groups.includes(group)).flatMap(
+    ([, ...groupKeys]) => groupKeys
+  );
+  return Object.fromEntries(
+    keys
+      .filter((key) => media[key] !== undefined)
+      .map((key) => [key, media[key]])
+  );
+};
+
 const nowPerf = (): number =>
   typeof performance !== 'undefined' && performance.now
     ? performance.now()
@@ -782,9 +797,10 @@ export default class CallTelemetry {
     if (previous) {
       const differs = (key: string) =>
         JSON.stringify(media[key]) !== JSON.stringify(previous[key]);
-      changed = MEDIA_GROUPS.filter(([, ...keys]) => keys.some(differs)).map(
-        ([group]) => group
-      );
+      changed = MEDIA_GROUPS.filter(
+        ([group, ...keys]) =>
+          !QUIET_GROUPS.includes(group) && keys.some(differs)
+      ).map(([group]) => group);
       // The pair can change and change back within one tick: the counter still went up.
       const [before, after] = [previous.pair_changes, media.pair_changes];
       if (
@@ -798,9 +814,14 @@ export default class CallTelemetry {
       if (!changed.length) return;
     }
     const pairChanged = !!previous && changed.includes('candidate_pair');
+    // After the first snapshot, only the groups that changed go out.
+    const fields = previous ? pickGroups(media, changed) : media;
+    if (pairChanged && media.pair_changes !== undefined) {
+      fields.pair_changes = media.pair_changes;
+    }
     const [payload, extra] = splitMedia({
       changed,
-      ...media,
+      ...fields,
       ...(pairChanged
         ? defined({
             previous_local_candidate: previous.local_candidate,
