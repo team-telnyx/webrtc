@@ -614,6 +614,20 @@ describe('the SDK log sink', () => {
       '\n',
     ]);
     forwardSdkLog('debug', [
+      'RECV: \n',
+      JSON.stringify(
+        {
+          id: 'p',
+          jsonrpc: '2.0',
+          result: { message: 'PONG', sessid: 's' },
+          voice_sdk_id: 'VSDK1',
+        },
+        null,
+        2
+      ),
+      '\n',
+    ]);
+    forwardSdkLog('debug', [
       'SEND: \n',
       JSON.stringify({
         id: 'l',
