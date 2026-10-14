@@ -379,7 +379,12 @@ export function rawFrame(value: unknown, depth = 0): unknown {
   return result;
 }
 
-/** Every SDK log line goes out except keepalive: "Ping received" and SEND:/RECV: dumps of filtered frames. */
+/** The server's answer to the SDK's own telnyx_rtc.ping: `result.message` "PONG", no method. */
+const isPongResult = (frame: Any): boolean =>
+  typeof frame?.result?.message === 'string' &&
+  frame.result.message.toUpperCase() === 'PONG';
+
+/** Every SDK log line goes out except keepalive: "Ping received" and SEND:/RECV: dumps of filtered frames and PONG answers. */
 export function isFilteredLogLine(
   message: string,
   frameDump?: unknown
@@ -389,7 +394,8 @@ export function isFilteredLogLine(
     return false;
   }
   const frame = attempt(() => JSON.parse(frameDump));
-  return isFilteredFrameMethod(
-    frame?.method ?? frame?.type ?? frame?.result?.method
+  return (
+    isPongResult(frame) ||
+    isFilteredFrameMethod(frame?.method ?? frame?.type ?? frame?.result?.method)
   );
 }
