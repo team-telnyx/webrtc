@@ -571,16 +571,16 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * application needs to pin to a specific region for compliance or
    * latency reasons.
    *
-   * Active calls are **not** automatically terminated — the caller should
-   * hang up active calls before switching if graceful teardown is desired.
-   * If active calls exist, a `telnyx.warning` event (code `36008`) is
-   * emitted but the switch proceeds.
+   * The region is only switched while no call is active: switching closes
+   * the WebSocket, which an active call would not survive. With a call up
+   * this throws and nothing changes — hang up first, then switch.
    *
    * @param region - One of: `'us-east'`, `'us-central'`, `'us-west'`,
-   *   `'ca-central'`, `'eu'`, `'apac'`.
+   *   `'ca-central'`, `'eu'`, `'apac'`, `'south-asia'`.
    *   Pass `null` to revert to the default anycast endpoint.
    *
-   * @throws {Error} if `region` is not a supported region.
+   * @throws {Error} if `region` is not a supported region, or if a call is
+   *   active.
    *
    * @examples
    *
@@ -611,10 +611,11 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * | `us-west`    | `us-west.rtc.telnyx.com`  | LV1 (Las Vegas)                |
    * | `ca-central` | `ca-central.rtc.telnyx.com`| MT1 (Montreal), TR1 (Toronto) |
    * | `eu`         | `eu.rtc.telnyx.com`       | AMS3, FR5, LD6                 |
-   * | `apac`       | `apac.rtc.telnyx.com`     | CN1 (Chennai), SY1 (Sydney)   |
+   * | `apac`       | `apac.rtc.telnyx.com`     | SY1 (Sydney), ML1 (Melbourne) |
+   * | `south-asia` | `south-asia.rtc.telnyx.com` | CN1 (Chennai), MB2 (Mumbai) |
    */
-  switchRegion(region: Region | null, options?: { force?: boolean }): void {
-    super.switchRegion(region, options);
+  switchRegion(region: Region | null): void {
+    super.switchRegion(region);
   }
 
   /**

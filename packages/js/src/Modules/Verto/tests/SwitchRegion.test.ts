@@ -201,31 +201,32 @@ describe('switchRegion', () => {
       expect(Connection.mockConnect).not.toHaveBeenCalled();
     });
 
-    it('emits a telnyx.warning (36008) when forced past an active call', () => {
+    it('has no way to switch past an active call', () => {
       jest.spyOn(instance, 'hasActiveCall').mockReturnValue(true);
 
-      instance.switchRegion('eu' as any, { force: true });
-
-      const warningCalls = (trigger as jest.Mock).mock.calls.filter(
-        (c: any[]) => c[0] === 'telnyx.warning'
-      );
-      expect(warningCalls.length).toBeGreaterThanOrEqual(1);
-
-      const payload = warningCalls[0][1];
-      expect(payload.warning.code).toBe(36008);
-      expect(payload.warning.name).toBe('REGION_SWITCH_WITH_ACTIVE_CALLS');
-      expect(payload.region).toBe('eu');
+      // Any extra argument is ignored: there is no force option.
+      expect(() =>
+        (instance as any).switchRegion('eu', { force: true })
+      ).toThrow(/Cannot switch region while a call is active/);
+      expect(Connection.mockConnect).not.toHaveBeenCalled();
+      expect(
+        (trigger as jest.Mock).mock.calls.filter(
+          (c: any[]) => c[0] === 'telnyx.warning'
+        )
+      ).toHaveLength(0);
     });
 
-    it('does NOT emit a region-switch warning when no active calls', () => {
-      jest.spyOn(instance, 'hasActiveCall').mockReturnValue(false);
+    it('switches once the call is gone', () => {
+      const active = jest
+        .spyOn(instance, 'hasActiveCall')
+        .mockReturnValue(true);
+      expect(() => instance.switchRegion('eu' as any)).toThrow();
 
+      active.mockReturnValue(false);
       instance.switchRegion('eu' as any);
 
-      const warningCalls = (trigger as jest.Mock).mock.calls.filter(
-        (c: any[]) => c[0] === 'telnyx.warning' && c[1]?.warning?.code === 36008
-      );
-      expect(warningCalls).toHaveLength(0);
+      expect(instance.options.region).toBe('eu');
+      expect(Connection.mockConnect).toHaveBeenCalledTimes(1);
     });
   });
 

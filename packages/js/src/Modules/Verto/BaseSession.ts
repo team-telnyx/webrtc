@@ -522,16 +522,15 @@ export default abstract class BaseSession {
    * host to use the regional subdomain (e.g. `eu` → `wss://eu.rtc.telnyx.com`),
    * closes the current WebSocket, and re-establishes the connection.
    *
-   * Switching closes the WebSocket, so an active call does not survive it.
-   * This throws when a call is active. Pass `{ force: true }` to switch
-   * anyway; the call is dropped and a `telnyx.warning` with code `36008`
-   * (`REGION_SWITCH_WITH_ACTIVE_CALLS`) is emitted.
+   * Switching closes the WebSocket, so an active call would not survive it.
+   * The region is therefore only changed while no call is active: with a
+   * call up this throws and leaves the connection and `options.region` as
+   * they were. Hang up first, then switch.
    *
    * @param region - A {@link Region} value, or `null` to revert to the
    *   default anycast endpoint.
-   * @param options.force - Switch even with an active call. Default `false`.
    * @throws {Error} if `region` is not a supported region, or if a call is
-   *   active and `force` is not set.
+   *   active.
    *
    * @examples
    *
@@ -543,10 +542,7 @@ export default abstract class BaseSession {
    * client.switchRegion(null);
    * ```
    */
-  public switchRegion(
-    region: Region | null,
-    options: { force?: boolean } = {}
-  ): void {
+  public switchRegion(region: Region | null): void {
     const supported = Object.values(Region);
     if (region !== null && !supported.includes(region)) {
       throw new Error(
@@ -555,34 +551,17 @@ export default abstract class BaseSession {
     }
 
     // Switching tears the socket down, so an active call does not survive it.
-    // Refuse by default rather than dropping a call the caller may not know is
-    // up; `force: true` is the deliberate opt-in.
-    if (this.hasActiveCall() && !options.force) {
+    // The region only changes while no call is up; there is no way to switch
+    // past a call, so a caller can never drop one by accident.
+    if (this.hasActiveCall()) {
       throw new Error(
-        'Cannot switch region while a call is active. Hang up first, or pass ' +
-          '{ force: true } to switch anyway and drop the call.'
+        'Cannot switch region while a call is active. Hang up first, then switch.'
       );
     }
 
     logger.info(`Switching region to: ${region ?? 'default (anycast)'}`, {
       currentRegion: this.options.region ?? 'default',
-      activeCalls: this.hasActiveCall(),
     });
-
-    // Reaching here with an active call means force was set.
-    if (this.hasActiveCall()) {
-      const warning = createTelnyxWarning(36008);
-      trigger(
-        SwEvent.Warning,
-        {
-          warning,
-          region,
-          currentRegion: this.options.region ?? null,
-          sessionId: this.sessionid,
-        },
-        this.uuid
-      );
-    }
 
     // Tear down before changing anything. Mutating options.region while the
     // old socket is still open leaves the session describing a region it is
