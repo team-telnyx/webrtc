@@ -127,6 +127,18 @@ export default abstract class BaseSession {
     null;
   private static readonly SOCKET_CLOSE_REPORT_TIMEOUT_MS = 15_000;
 
+  /**
+   * How many times the watcher may defer itself while the browser reports no
+   * connectivity, before reporting anyway. Four deferrals is a minute of
+   * being offline, past which it is worth recording the outage even though
+   * the upload will probably fail — a persisted, retried report is better
+   * than none.
+   */
+  private static readonly SOCKET_CLOSE_REPORT_MAX_DEFERRALS = 4;
+
+  /** Deferrals spent on the current outage; reset when the socket reopens. */
+  private _socketCloseReportDeferrals = 0;
+
   // ── Signaling health monitor ──────────────────────────────────────────
   /** Handles liveness detection, health probing, and force-reconnect. */
   private _signalingHealthMonitor: SignalingHealthMonitor =
@@ -947,11 +959,38 @@ export default abstract class BaseSession {
       clearTimeout(this._socketCloseReportWatcher);
     }
 
+    // Note this does NOT go through _cancelSocketCloseReportWatcher: that
+    // resets the deferral budget, and the offline path re-arms through here.
     this._socketCloseReportWatcher = setTimeout(() => {
       this._socketCloseReportWatcher = null;
 
       // Socket reconnected before the timer fired — nothing to report.
       if (this.connection?.connected) return;
+
+      // A network outage longer than 15s is the ordinary case, not the
+      // interesting one: a tunnel, a Wi-Fi drop, a laptop waking up. The
+      // report is an HTTP POST, so while the network is down it cannot be
+      // delivered either — firing here would burn a synthetic
+      // callReportId and lose the payload. Defer instead, and let the
+      // reconnect cancel the watcher if connectivity returns first.
+      //
+      // navigator.onLine is only trustworthy when false, which is the
+      // direction needed here.
+      const browserOffline =
+        typeof navigator !== 'undefined' && navigator.onLine === false;
+      if (
+        browserOffline &&
+        this._socketCloseReportDeferrals <
+          BaseSession.SOCKET_CLOSE_REPORT_MAX_DEFERRALS
+      ) {
+        this._socketCloseReportDeferrals += 1;
+        logger.debug(
+          `Socket closed and the browser reports no connectivity — deferring the ` +
+            `socket-down report (${this._socketCloseReportDeferrals}/${BaseSession.SOCKET_CLOSE_REPORT_MAX_DEFERRALS})`
+        );
+        this._scheduleSocketCloseReportWatcher(flushReason);
+        return;
+      }
 
       // Generate callReportId if the server never assigned one.
       if (!this.callReportId) {
@@ -980,6 +1019,8 @@ export default abstract class BaseSession {
       clearTimeout(this._socketCloseReportWatcher);
       this._socketCloseReportWatcher = null;
     }
+    // The next outage gets its own deferral budget.
+    this._socketCloseReportDeferrals = 0;
   }
 
   /**

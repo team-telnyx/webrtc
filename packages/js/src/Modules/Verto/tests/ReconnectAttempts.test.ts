@@ -797,6 +797,74 @@ describe('BaseSession - Socket-Close Report Watcher (15s fallback)', () => {
     expect(endpoint).toContain('fallback.telnyx.com');
   });
 
+  describe('while the browser reports no connectivity', () => {
+    const setOnLine = (value: boolean) => {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => value,
+      });
+    };
+
+    afterEach(() => {
+      Object.defineProperty(navigator, 'onLine', {
+        configurable: true,
+        get: () => true,
+      });
+      // Leave no armed watcher behind, or a later test's timer advance fires
+      // it and sees an unexpected POST.
+      session._cancelSocketCloseReportWatcher();
+    });
+
+    // A >15s outage is the ordinary case — a tunnel, a Wi-Fi drop, a laptop
+    // waking up. The report is an HTTP POST, so it cannot be delivered while
+    // the network is down either.
+    it('defers the report instead of losing the POST', () => {
+      setOnLine(false);
+      simulateSocketFailure(session);
+
+      jest.advanceTimersByTime(15_000);
+
+      expect((global as any).fetch).not.toHaveBeenCalled();
+      expect(session.callReportId).toBeFalsy();
+    });
+
+    it('reports once connectivity returns', () => {
+      setOnLine(false);
+      simulateSocketFailure(session);
+      jest.advanceTimersByTime(15_000);
+      expect((global as any).fetch).not.toHaveBeenCalled();
+
+      setOnLine(true);
+      jest.advanceTimersByTime(15_000);
+
+      expect((global as any).fetch).toHaveBeenCalled();
+    });
+
+    it('gives up deferring after a minute and reports anyway', () => {
+      setOnLine(false);
+      simulateSocketFailure(session);
+
+      // Four deferrals, then the fifth firing reports regardless.
+      jest.advanceTimersByTime(15_000 * 5);
+
+      expect((global as any).fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives each outage its own deferral budget', () => {
+      setOnLine(false);
+      simulateSocketFailure(session);
+      jest.advanceTimersByTime(15_000 * 2);
+      expect((global as any).fetch).not.toHaveBeenCalled();
+
+      // Socket comes back, cancelling the watcher and resetting the budget.
+      session._cancelSocketCloseReportWatcher();
+      simulateSocketFailure(session);
+      jest.advanceTimersByTime(15_000 * 2);
+
+      expect((global as any).fetch).not.toHaveBeenCalled();
+    });
+  });
+
   it('should NOT submit if no host is available at all', () => {
     session.connection = null;
     session.options.host = undefined;
