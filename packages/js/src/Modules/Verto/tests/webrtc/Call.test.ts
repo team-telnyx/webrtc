@@ -24,7 +24,10 @@ import {
   ONLY_HOST_ICE_CANDIDATES,
   SwEvent,
 } from '../../util/constants';
-import { LOW_BYTES_RECEIVED } from '../../util/constants/errorCodes';
+import {
+  LOW_BYTES_RECEIVED,
+  SUSTAINED_RTT_ELEVATION,
+} from '../../util/constants/errorCodes';
 import logger from '../../util/logger';
 import Call from '../../webrtc/Call';
 import Peer from '../../webrtc/Peer';
@@ -772,6 +775,118 @@ describe('Call', () => {
         heldCall.id,
         expect.anything()
       );
+    });
+  });
+
+  // ── Sustained RTT elevation → ICE restart gating (VSDK-800) ──
+  // The 31007 warning is always emitted; acting on it is opt-in and guarded.
+  // These tests drive the real onWarning callback BaseCall wires, so they
+  // cover the collector → BaseCall → session handoff and not a stub of it.
+  describe('sustained RTT elevation handoff', () => {
+    type TestableCall = {
+      _callReportCollector: {
+        onWarning: ((w: { code: number; name: string }) => void) | null;
+        getSustainedRttState: () => { pathAliveAndResponsive: boolean };
+        describeSustainedRtt: () => string;
+      };
+    };
+
+    const makeCall = async (
+      options: Record<string, unknown>
+    ): Promise<{ s: Verto; c: Call }> => {
+      const s = new Verto({
+        host: 'example.fs.telnyx',
+        login: 'login',
+        passwd: 'passwd',
+        ...options,
+      });
+      await s.connect().catch(console.error);
+      const c = new Call(s, { ...defaultParams, onNotification: noop });
+      await c.invite().catch(() => {});
+      c.setState(State.Active);
+      return { s, c };
+    };
+
+    const stubDetectorState = (c: Call, pathAliveAndResponsive: boolean) => {
+      const collector = (c as unknown as TestableCall)._callReportCollector;
+      collector.getSustainedRttState = () => ({ pathAliveAndResponsive });
+      collector.describeSustainedRtt = () =>
+        'floor=151ms current=300ms lift=149ms ramp=1.99x';
+      return collector;
+    };
+
+    const fire = (collector: TestableCall['_callReportCollector']) =>
+      collector.onWarning!({
+        code: SUSTAINED_RTT_ELEVATION,
+        name: 'SUSTAINED_RTT_ELEVATION',
+      });
+
+    it('reports to the session when enabled and the path is alive', async () => {
+      const { s, c } = await makeCall({ enableSustainedRttIceRestart: true });
+      const spy = jest
+        .spyOn(s, 'reportSustainedRtt')
+        .mockImplementation(() => {});
+
+      fire(stubDetectorState(c, true));
+
+      expect(spy).toHaveBeenCalledWith(
+        c.id,
+        'floor=151ms current=300ms lift=149ms ramp=1.99x'
+      );
+    });
+
+    it('does nothing when the option is not set', async () => {
+      const { s, c } = await makeCall({});
+      const spy = jest
+        .spyOn(s, 'reportSustainedRtt')
+        .mockImplementation(() => {});
+
+      fire(stubDetectorState(c, true));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('does not act on a path that is not alive and responsive', async () => {
+      // The call that justifies this guard: a restart fired at a pair that was
+      // degrading left the replacement unusable for 25 s. Slow is actionable;
+      // failing belongs to the no-RTP path.
+      const { s, c } = await makeCall({ enableSustainedRttIceRestart: true });
+      const spy = jest
+        .spyOn(s, 'reportSustainedRtt')
+        .mockImplementation(() => {});
+
+      fire(stubDetectorState(c, false));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('does not act while the call is held', async () => {
+      const { s, c } = await makeCall({ enableSustainedRttIceRestart: true });
+      if (c.peer?.instance) {
+        jest
+          .spyOn(c.peer.instance, 'setRemoteDescription')
+          .mockResolvedValue(undefined as unknown as void);
+      }
+      c.setState(State.Held);
+      const spy = jest
+        .spyOn(s, 'reportSustainedRtt')
+        .mockImplementation(() => {});
+
+      fire(stubDetectorState(c, true));
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('does not route 31007 into the no-RTP path', async () => {
+      const { s, c } = await makeCall({ enableSustainedRttIceRestart: true });
+      const noRtpSpy = jest
+        .spyOn(s, 'reportNoRtp')
+        .mockImplementation(() => {});
+      jest.spyOn(s, 'reportSustainedRtt').mockImplementation(() => {});
+
+      fire(stubDetectorState(c, true));
+
+      expect(noRtpSpy).not.toHaveBeenCalled();
     });
   });
 

@@ -40,6 +40,7 @@ import {
   UNEXPECTED_ERROR,
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
+  SUSTAINED_RTT_ELEVATION,
   AUDIO_INPUT_DEVICE_CHANGE_SKIPPED,
   UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE,
 } from '../util/constants';
@@ -446,6 +447,45 @@ export default abstract class BaseCall implements IWebRTCCall {
 
   private _getLocalAudioTrackId(): string | undefined {
     return this.options.localStream?.getAudioTracks()[0]?.id;
+  }
+
+  /**
+   * Hand a sustained RTT elevation to the signaling health monitor, which
+   * owns the decision to restart ICE.
+   *
+   * Three gates before it gets there, each earned from a production call:
+   *
+   * - **Opt-in.** The warning is always emitted; the remedy is not. A restart
+   *   costs an audible gap, so whether that trade is worth making is the
+   *   integrator's call, not ours.
+   * - **Not held.** A held call has no media to be late.
+   * - **The path must be alive.** `pathAliveAndResponsive` requires the
+   *   selected pair to be `succeeded` with STUN responses still advancing. A
+   *   restart clears a queue on a path that is slow; on a path that is
+   *   failing, the existing no-RTP recovery owns the decision, and a restart
+   *   fired into that state once left the replacement pair unusable for 25 s.
+   */
+  private _reportSustainedRttForRecovery(): void {
+    if (this.session.options.enableSustainedRttIceRestart !== true) {
+      return;
+    }
+    if (this._state === State.Held) {
+      return;
+    }
+
+    const collector = this._callReportCollector;
+    const state = collector?.getSustainedRttState();
+    if (!state?.pathAliveAndResponsive) {
+      logger.debug(
+        `Call ${this.id}: sustained RTT elevation not acted on \u2014 candidate pair is not alive and responsive`
+      );
+      return;
+    }
+
+    this.session.reportSustainedRtt?.(
+      this.id,
+      collector.describeSustainedRtt()
+    );
   }
 
   private _hasActiveUnmutedLocalAudioTrack(): boolean {
@@ -2614,6 +2654,8 @@ export default abstract class BaseCall implements IWebRTCCall {
           this._hasActiveUnmutedLocalAudioTrack()
         ) {
           this.session.reportNoRtp?.(this.id, 'outbound');
+        } else if (warning.code === SUSTAINED_RTT_ELEVATION) {
+          this._reportSustainedRttForRecovery();
         }
       };
     }

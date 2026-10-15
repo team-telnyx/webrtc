@@ -54,6 +54,24 @@ const OUTBOUND_CONFIRM_THRESHOLD_MS = 45 * 1000;
  */
 const RECENT_ACTIVITY_THRESHOLD_MS = 3 * 1000;
 
+/**
+ * Minimum gap (ms) between two sustained-RTT ICE restarts on the same call.
+ *
+ * A restart costs an audible gap, and the condition it clears is a server-side
+ * queue that took an upstream arrival gap to create. Retrying it on a short
+ * cycle would trade a steady delay for repeated interruptions, which is worse
+ * for the caller than the delay.
+ */
+const SUSTAINED_RTT_RESTART_MIN_INTERVAL_MS = 2 * 60 * 1000;
+
+/**
+ * Hard cap on sustained-RTT ICE restarts per call.
+ *
+ * If two restarts have not cleared the elevation, the cause is not a drainable
+ * queue and further restarts are pure disruption.
+ */
+const SUSTAINED_RTT_MAX_RESTARTS_PER_CALL = 2;
+
 type PendingMediaRecovery = {
   callId: string;
   reason: string;
@@ -99,6 +117,12 @@ export default class SignalingHealthMonitor {
 
   /** Media recovery to execute only after a probe proves signaling is healthy. */
   private _pendingMediaRecovery: PendingMediaRecovery | null = null;
+
+  /** Per-call sustained-RTT restart budget, keyed by callId. */
+  private _sustainedRttRestarts = new Map<
+    string,
+    { count: number; lastAt: number }
+  >();
 
   /** True when the browser has reported going offline (navigator offline event). */
   private _browserWasOffline: boolean = false;
@@ -157,6 +181,7 @@ export default class SignalingHealthMonitor {
       this._lastProbeSentAt = 0;
     }
     this._pendingMediaRecovery = null;
+    this._sustainedRttRestarts.clear();
     this._cleanupBrowserListeners();
     logger.debug('Signaling health: monitor stopped');
   }
@@ -346,6 +371,94 @@ export default class SignalingHealthMonitor {
       `No RTP ${direction} while signaling is unhealthy`,
       'no_rtp'
     );
+  }
+
+  /**
+   * Called by BaseCall when the relative RTT detector reports a sustained
+   * elevation above the call's own floor, and only while the opt-in
+   * `enableSustainedRttIceRestart` option is set.
+   *
+   * This deliberately does NOT go through {@link _recoverMediaOrSignaling}.
+   * That path treats its input as evidence the media path is broken and falls
+   * back to a socket reconnect when signaling looks unhealthy. Sustained RTT
+   * elevation is not that: the call is connected, audible and losing almost no
+   * packets — it is merely late. Tearing down a working socket over it would
+   * cost far more than the delay, so when signaling is anything other than
+   * healthy this does nothing and waits.
+   *
+   * Why a restart helps at all: the elevation is a server-side output queue
+   * tied to one candidate pair. A new pair is a new queue. One production call
+   * dropped from 301 ms to 154 ms in a single interval on a pair change, and a
+   * second recovered four times out of four.
+   *
+   * Why it is capped: on a call whose path was degrading rather than slow, the
+   * first restart tore down a pair that was still answering STUN and left the
+   * replacement in-progress for 25 s. The caller gates on the pair being
+   * `succeeded` with STUN responses advancing; these limits are the second
+   * line of defence.
+   *
+   * @param callId The call reporting sustained elevation.
+   * @param detail Measured floor/current/lift/ramp, for diagnostics.
+   */
+  onSustainedRtt(callId: string, detail: string): void {
+    if (!this._session.hasActiveCall()) {
+      logger.debug(
+        'Signaling health: ignoring sustained RTT elevation without an active call'
+      );
+      return;
+    }
+
+    const healthState = this._getSignalingHealthState();
+    if (healthState !== 'healthy') {
+      logger.debug(
+        `Signaling health: signaling is ${healthState}, not acting on sustained RTT elevation for call ${callId}`
+      );
+      return;
+    }
+
+    const budget = this._sustainedRttRestarts.get(callId);
+    const now = Date.now();
+
+    if (budget) {
+      if (budget.count >= SUSTAINED_RTT_MAX_RESTARTS_PER_CALL) {
+        logger.debug(
+          `Signaling health: sustained RTT restart budget spent for call ${callId} (${budget.count} used)`
+        );
+        return;
+      }
+      const sinceLast = now - budget.lastAt;
+      if (sinceLast < SUSTAINED_RTT_RESTART_MIN_INTERVAL_MS) {
+        logger.debug(
+          `Signaling health: sustained RTT restart rate-limited for call ${callId} ` +
+            `(${Math.round(sinceLast / 1000)}s since last, need ${
+              SUSTAINED_RTT_RESTART_MIN_INTERVAL_MS / 1000
+            }s)`
+        );
+        return;
+      }
+    }
+
+    logger.warn(
+      `Signaling health: sustained RTT elevation on call ${callId} (${detail}) — triggering ICE restart`
+    );
+
+    this._sustainedRttRestarts.set(callId, {
+      count: (budget?.count ?? 0) + 1,
+      lastAt: now,
+    });
+
+    this._triggerIceRestart(
+      callId,
+      `Sustained RTT elevation above the call's own floor (${detail})`
+    );
+  }
+
+  /**
+   * How many sustained-RTT ICE restarts have been spent on a call.
+   * Exposed for tests and diagnostics.
+   */
+  sustainedRttRestartCount(callId: string): number {
+    return this._sustainedRttRestarts.get(callId)?.count ?? 0;
   }
 
   // ── Browser connectivity listener lifecycle ─────────────────────────

@@ -10,6 +10,7 @@ export interface IVertoOptions {
   passwd?: string;
   password?: string;
   login_token?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   userVariables?: Record<string, any>;
   pushWhenActive?: boolean;
   earlySdpAnswer?: boolean;
@@ -105,6 +106,14 @@ export interface IVertoOptions {
    */
   enableCallRecording?: boolean;
   /**
+   * Trigger an ICE restart on sustained RTT elevation above a call's own floor
+   * (the SUSTAINED_RTT_ELEVATION / 31007 warning). Off by default: the warning
+   * is emitted either way, but the restart costs an audible gap, so opting in
+   * is the integrator's decision. See `ITelnyxRTCOptions` for the rationale.
+   * @default false
+   */
+  enableSustainedRttIceRestart?: boolean;
+  /**
    * Interval in milliseconds between intermediate call-recording flushes.
    * @default 240000 (4 minutes)
    */
@@ -187,6 +196,7 @@ export interface ILoginParams {
   password?: string;
   passwd?: string;
   login_token?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   userVariables?: Record<string, any>;
   anonymous_login?: {
     target_type: string;
@@ -198,6 +208,7 @@ export interface ILoginParams {
 export interface SubscribeParams {
   channels?: string[];
   protocol?: string;
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- public API shape, predates this rule
   handler?: Function;
   nodeId?: string;
 }
@@ -227,14 +238,19 @@ export interface INotificationEventData {
 }
 
 export interface IRequestRPC {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   id: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   method?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   params?: any;
 }
 
 export interface IResponseRPC {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
   id: any;
   result?: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- public API shape, predates this rule
     params: any;
   };
 }

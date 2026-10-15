@@ -324,6 +324,29 @@ export interface IClientOptions {
   enableCallRecording?: boolean;
 
   /**
+   * Trigger an ICE restart when the SDK detects sustained RTT elevation above
+   * a call's own floor (the SUSTAINED_RTT_ELEVATION / 31007 warning).
+   *
+   * Off by default, and deliberately so. The elevation it reacts to is a
+   * server-side output queue tied to one candidate pair, and a new pair is a
+   * new queue — one call dropped from 301 ms to 154 ms in a single interval
+   * on a pair change. But a restart costs an audible gap, and on a call whose
+   * path was failing rather than merely slow the restart made things worse,
+   * leaving the replacement pair unusable for 25 s. The SDK therefore only
+   * acts when the selected pair is `succeeded` with STUN responses still
+   * advancing, at most twice per call and no more than once every two
+   * minutes.
+   *
+   * Leave this off unless you are carrying calls affected by a known
+   * media-server backlog and have measured that the restart helps. The 31007
+   * warning is emitted either way, so you can observe the condition without
+   * enabling the remedy.
+   *
+   * @default false
+   */
+  enableSustainedRttIceRestart?: boolean;
+
+  /**
    * Interval in milliseconds between intermediate call-recording flushes.
    * Every interval the recorder POSTs its buffered RTP packets to the
    * `/call_recording` endpoint and clears the buffer. A final flush at end of
@@ -518,6 +541,7 @@ export interface ICallOptions {
   /**
    * Overrides client's default `telnyx.notification` handler for this call.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type -- public API shape, predates this rule
   onNotification?: Function;
 
   /**

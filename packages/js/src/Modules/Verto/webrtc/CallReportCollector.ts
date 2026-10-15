@@ -1784,6 +1784,14 @@ export class CallReportCollector {
   }
 
   /**
+   * The measured floor/current/lift/ramp as one line, for the diagnostics
+   * that travel with a remediation decision.
+   */
+  public describeSustainedRtt(): string {
+    return this._sustainedRtt.describe();
+  }
+
+  /**
    * Track consecutive breaches for a warning code.
    * Emits the warning when the threshold is met, then re-emits
    * at most once every WARNING_THROTTLE_MS (15s) while the
