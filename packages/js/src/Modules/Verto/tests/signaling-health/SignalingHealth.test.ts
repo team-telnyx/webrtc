@@ -1096,3 +1096,174 @@ describe('SignalingHealthMonitor – Recovery decision logic', () => {
     expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
   });
 });
+
+// ─── Sustained RTT elevation → ICE restart (VSDK-800) ────────────────────
+
+describe('SignalingHealthMonitor – sustained RTT elevation', () => {
+  let connection: Connection;
+  let mockSession: any;
+  let monitor: SignalingHealthMonitor;
+
+  const DETAIL = 'floor=151ms current=300ms lift=149ms ramp=1.99x';
+
+  // The rate limit is wall-clock, and this suite's fake timers are the legacy
+  // kind, which leave Date.now() alone. Drive the clock explicitly.
+  let now: number;
+  const advance = (ms: number) => {
+    now += ms;
+    jest.advanceTimersByTime(ms);
+  };
+
+  beforeAll(() => {
+    setWebSocket(MockWebSocket as any);
+  });
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    now = 1_700_000_000_000;
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    mockSession = makeMockSession();
+    mockSession.hasActiveCall = jest.fn(() => true);
+    mockSession.triggerIceRestart = jest.fn(() => ({ started: true }));
+    mockSession.socketDisconnect = jest.fn();
+    connection = new Connection(mockSession);
+    connection.connect();
+    await Promise.resolve();
+    await Promise.resolve();
+    monitor = new SignalingHealthMonitor(mockSession);
+    mockSession.connection = connection;
+  });
+
+  afterEach(() => {
+    monitor.stop();
+    (Date.now as jest.Mock).mockRestore();
+    jest.useRealTimers();
+  });
+
+  it('triggers an ICE restart when signaling is healthy', () => {
+    monitor.onSocketActivity();
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(1);
+  });
+
+  it('never force-closes the socket, whatever the signaling state', () => {
+    // The call is connected and audible, just late. A socket reconnect would
+    // cost far more than the delay, so unhealthy signaling means wait, not
+    // escalate — the opposite of the no-RTP path.
+    (connection as any)._wsClient.readyState = WS_STATE.CLOSED;
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+  });
+
+  it('does nothing while a probe leaves signaling health unknown', () => {
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    (monitor as any)._probeInFlight = true;
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+    expect(mockSession.socketDisconnect).not.toHaveBeenCalled();
+  });
+
+  it('does not defer the restart the way no-RTP does', () => {
+    // no_rtp parks itself in _pendingMediaRecovery and fires after a probe.
+    // Sustained RTT must not queue up behind a probe and fire later, when the
+    // elevation may well be gone.
+    (connection as any)._wsClient.readyState = WS_STATE.OPEN;
+    (monitor as any)._probeInFlight = true;
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect((monitor as any)._pendingMediaRecovery).toBeNull();
+  });
+
+  it('ignores the report when no call is active', () => {
+    mockSession.hasActiveCall = jest.fn(() => false);
+    monitor.onSocketActivity();
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.triggerIceRestart).not.toHaveBeenCalled();
+  });
+
+  it('rate-limits a second restart on the same call', () => {
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledTimes(1);
+
+    // The warning re-arms as soon as the condition clears and returns, so the
+    // second report can arrive seconds later.
+    advance(30_000);
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledTimes(1);
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(1);
+  });
+
+  it('allows a second restart once the interval has passed', () => {
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    advance(2 * 60 * 1000 + 1);
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledTimes(2);
+  });
+
+  it('spends at most two restarts per call', () => {
+    for (let i = 0; i < 5; i += 1) {
+      advance(2 * 60 * 1000 + 1);
+      monitor.onSocketActivity();
+      monitor.onSustainedRtt('call-1', DETAIL);
+    }
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledTimes(2);
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(2);
+  });
+
+  it('budgets each call separately', () => {
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-2', DETAIL);
+
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-1');
+    expect(mockSession.triggerIceRestart).toHaveBeenCalledWith('call-2');
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(1);
+    expect(monitor.sustainedRttRestartCount('call-2')).toBe(1);
+  });
+
+  it('clears the budget when the monitor stops', () => {
+    monitor.onSocketActivity();
+    monitor.onSustainedRtt('call-1', DETAIL);
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(1);
+
+    monitor.stop();
+
+    expect(monitor.sustainedRttRestartCount('call-1')).toBe(0);
+  });
+
+  it('carries the measured numbers into the recovery warning', () => {
+    monitor.onSocketActivity();
+
+    monitor.onSustainedRtt('call-1', DETAIL);
+
+    expect(trigger).toHaveBeenCalledWith(
+      SwEvent.Warning,
+      expect.objectContaining({
+        callId: 'call-1',
+        reason: expect.stringContaining(DETAIL),
+      }),
+      mockSession.uuid
+    );
+  });
+});

@@ -1372,6 +1372,19 @@ export default abstract class BaseSession {
   }
 
   /**
+   * Report sustained RTT elevation to the health monitor.
+   * Called by BaseCall when CallReportCollector's relative RTT detector
+   * raises SUSTAINED_RTT_ELEVATION and the opt-in option is set.
+   *
+   * Unlike reportNoRtp, this never results in a socket reconnect: the call
+   * is working, just late. The monitor either triggers an ICE restart or
+   * does nothing.
+   */
+  reportSustainedRtt(callId: string, detail: string): void {
+    this._signalingHealthMonitor.onSustainedRtt(callId, detail);
+  }
+
+  /**
    * Report that an ICE restart attempt failed for the given call.
    * Called by BaseCall when the ICE restart Modify request could not be
    * sent or the server returned an error.
