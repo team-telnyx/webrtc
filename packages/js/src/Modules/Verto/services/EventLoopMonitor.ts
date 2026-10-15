@@ -18,6 +18,27 @@ export interface IEventLoopCongestionEpisode {
   taskDurationMs?: number;
   /** Source of detection: 'heartbeat' or 'longtask'. */
   source: 'heartbeat' | 'longtask';
+  /**
+   * `document.visibilityState` when the episode was detected, when the
+   * document is reachable. Absent in a worker or non-DOM host.
+   */
+  visibilityState?: 'visible' | 'hidden';
+  /**
+   * What the lag actually was.
+   *
+   * - `blocked` — the main thread could not run. This is congestion.
+   * - `throttled` — the document was hidden for the whole window, so the
+   *   browser deliberately delayed the timer. The main thread was fine.
+   *
+   * A hidden tab is subject to timer clamping, and after a few minutes to
+   * intensive throttling that can clamp a timer to once per minute. Reporting
+   * that as a blocked main thread is a misattribution: a 2 s heartbeat under
+   * intensive throttling yields a single episode claiming ~58 s of blocking
+   * when the user merely switched tabs. Exemptions for audio playback and an
+   * active WebRTC connection exist but are version- and condition-dependent,
+   * so the classification is measured rather than assumed.
+   */
+  kind: 'blocked' | 'throttled';
 }
 
 /**
@@ -31,6 +52,31 @@ export interface IEventLoopCongestionSummary {
   maxLagMs: number;
   /** All recorded episodes (capped to prevent unbounded growth). */
   episodes: IEventLoopCongestionEpisode[];
+  /** Episodes where the main thread was genuinely blocked. */
+  blockedEpisodes: number;
+  /** Episodes explained by a hidden document rather than by blocking. */
+  throttledEpisodes: number;
+  /** Worst lag among `blocked` episodes only. */
+  maxBlockedLagMs: number;
+  /** Total time the document was hidden while monitoring, ms. */
+  hiddenMs: number;
+}
+
+/**
+ * Event-loop activity attributable to a single stats interval, drained by
+ * `CallReportCollector` once per interval.
+ */
+export interface IEventLoopWindow {
+  /** Episodes recorded since the previous drain. */
+  episodes: number;
+  blockedEpisodes: number;
+  throttledEpisodes: number;
+  /** Worst lag since the previous drain, ms. Blocked episodes only. */
+  maxLagMs: number;
+  /** Milliseconds since the previous drain spent with the document hidden. */
+  hiddenMs: number;
+  /** `document.visibilityState` at drain time, when reachable. */
+  visibilityState?: 'visible' | 'hidden';
 }
 
 /**
@@ -53,6 +99,26 @@ export interface IEventLoopCongestionSummary {
  *   growth in pathological cases.
  */
 const HEARTBEAT_INTERVAL_MS = 2000;
+
+/**
+ * Minimum lag recorded as an episode.
+ *
+ * Separate from the warning threshold below, because recording and alerting
+ * answer different questions. The 1 s bar was chosen against a 9 s incident
+ * and is far too coarse for the condition measured since: on production call
+ * 568d1039 the client stalled its send path 367 times at 100-513 ms, and a
+ * 1 s bar fires **once** in 645 s. Across 27 production legs, no leg with a
+ * median RTT at or below 200 ms ever produced a 500 ms lag, while 8 of 15
+ * high-RTT legs did — so 500 ms records the useful cases without firing on
+ * healthy calls.
+ */
+const HEARTBEAT_RECORD_THRESHOLD_MS = 500;
+
+/**
+ * Minimum lag that emits a warning to the application. Left at 1 s so this
+ * change adds data without making 37001 noisier; recording is the part that
+ * was too coarse.
+ */
 const HEARTBEAT_LAG_THRESHOLD_MS = 1000;
 const LONGTASK_THRESHOLD_MS = 500;
 const MAX_EPISODES = 50;
@@ -117,6 +183,29 @@ export default class EventLoopMonitor {
     | ((episode: IEventLoopCongestionEpisode) => void)
     | null = null;
 
+  /** Total hidden time while monitoring, ms. */
+  private _hiddenMs = 0;
+  /** Date.now() when the document last became hidden, or null when visible. */
+  private _hiddenSince: number | null = null;
+  /** Bound visibilitychange listener, kept so stop() can remove it. */
+  private _onVisibilityChange: (() => void) | null = null;
+  /** Counters since the last drainWindow(). */
+  private _window: IEventLoopWindow = {
+    episodes: 0,
+    blockedEpisodes: 0,
+    throttledEpisodes: 0,
+    maxLagMs: 0,
+    hiddenMs: 0,
+  };
+
+  private _blockedEpisodes = 0;
+  private _throttledEpisodes = 0;
+  private _maxBlockedLagMs = 0;
+  /** Hidden spans that closed inside the current window, ms. */
+  private _windowHiddenMs = 0;
+  /** Date.now() at the last drainWindow()/start(). */
+  private _windowStartedAt = 0;
+
   /**
    * Start monitoring.
    *
@@ -133,6 +222,14 @@ export default class EventLoopMonitor {
     this._lastTick = Date.now();
     this._episodes = [];
     this._maxLagMs = 0;
+    this._blockedEpisodes = 0;
+    this._throttledEpisodes = 0;
+    this._maxBlockedLagMs = 0;
+    this._hiddenMs = 0;
+    this._hiddenSince =
+      this._visibilityState() === 'hidden' ? Date.now() : null;
+    this._resetWindow();
+    this._attachVisibilityListener();
 
     // ── Heartbeat: primary detection mechanism ──────────────────────
     // setInterval fires on the main thread. If the main thread is blocked,
@@ -180,10 +277,15 @@ export default class EventLoopMonitor {
       }
       this._observer = null;
     }
+    this._settleHiddenTime();
+    this._detachVisibilityListener();
     this._onCongestion = null;
     logger.debug('EventLoopMonitor: stopped', {
       totalEpisodes: this._episodes.length,
       maxLagMs: this._maxLagMs,
+      blockedEpisodes: this._blockedEpisodes,
+      throttledEpisodes: this._throttledEpisodes,
+      hiddenMs: Math.round(this._hiddenMs),
     });
   }
 
@@ -206,7 +308,27 @@ export default class EventLoopMonitor {
       totalEpisodes: this._episodes.length,
       maxLagMs: this._maxLagMs,
       episodes: [...this._episodes],
+      blockedEpisodes: this._blockedEpisodes,
+      throttledEpisodes: this._throttledEpisodes,
+      maxBlockedLagMs: this._maxBlockedLagMs,
+      hiddenMs: Math.round(this._hiddenMsSoFar()),
     };
+  }
+
+  /**
+   * Event-loop activity since the previous call, for the stats interval that
+   * is closing. Resets the counters, so each interval reports only its own
+   * share rather than a running total.
+   */
+  drainWindow(): IEventLoopWindow {
+    const visibilityState = this._visibilityState();
+    const drained: IEventLoopWindow = {
+      ...this._window,
+      hiddenMs: Math.round(this._windowHiddenMsSoFar()),
+      ...(visibilityState ? { visibilityState } : {}),
+    };
+    this._resetWindow();
+    return drained;
   }
 
   // ── Private ─────────────────────────────────────────────────────────
@@ -227,15 +349,25 @@ export default class EventLoopMonitor {
     // lag should measure new blocking, not the accumulated drift.
     this._lastTick = now;
 
-    if (lag >= HEARTBEAT_LAG_THRESHOLD_MS) {
-      const episode: IEventLoopCongestionEpisode = {
-        timestamp: new Date(now).toISOString(),
-        lagMs: Math.round(lag),
-        intervalMs: HEARTBEAT_INTERVAL_MS,
-        source: 'heartbeat',
-      };
-      this._recordEpisode(episode);
+    if (lag < HEARTBEAT_RECORD_THRESHOLD_MS) {
+      return;
     }
+
+    // The window the timer was meant to fire in. If the document was hidden
+    // for all of it, the delay is the browser's throttling, not our blocking.
+    const windowStart = expected - HEARTBEAT_INTERVAL_MS;
+    const kind = this._hiddenThroughout(windowStart) ? 'throttled' : 'blocked';
+    const visibilityState = this._visibilityState();
+
+    const episode: IEventLoopCongestionEpisode = {
+      timestamp: new Date(now).toISOString(),
+      lagMs: Math.round(lag),
+      intervalMs: HEARTBEAT_INTERVAL_MS,
+      source: 'heartbeat',
+      kind,
+      ...(visibilityState ? { visibilityState } : {}),
+    };
+    this._recordEpisode(episode);
   }
 
   /**
@@ -246,12 +378,15 @@ export default class EventLoopMonitor {
     for (const entry of list.getEntries()) {
       const duration = entry.duration;
       if (duration >= LONGTASK_THRESHOLD_MS) {
+        const visibilityState = this._visibilityState();
         const episode: IEventLoopCongestionEpisode = {
-          timestamp: new Date(
-            entry.startTime + (performance.timeOrigin || 0)
-          ).toISOString(),
+          timestamp: this._longTaskTimestamp(entry.startTime),
           taskDurationMs: Math.round(duration),
           source: 'longtask',
+          // A long task is measured main-thread occupancy. Throttling never
+          // produces one, so these are always genuine blocking.
+          kind: 'blocked',
+          ...(visibilityState ? { visibilityState } : {}),
         };
         this._recordEpisode(episode);
       }
@@ -275,13 +410,173 @@ export default class EventLoopMonitor {
       this._maxLagMs = lagValue;
     }
 
+    this._window.episodes += 1;
+
+    if (episode.kind === 'blocked') {
+      this._blockedEpisodes += 1;
+      this._window.blockedEpisodes += 1;
+      if (lagValue > this._maxBlockedLagMs) {
+        this._maxBlockedLagMs = lagValue;
+      }
+      if (lagValue > this._window.maxLagMs) {
+        this._window.maxLagMs = lagValue;
+      }
+    } else {
+      this._throttledEpisodes += 1;
+      this._window.throttledEpisodes += 1;
+    }
+
+    const detail =
+      episode.lagMs !== undefined
+        ? `lagMs=${episode.lagMs}`
+        : `taskDurationMs=${episode.taskDurationMs}`;
+
+    // A throttled episode is the browser doing its job on a hidden tab. It is
+    // worth recording and worth nobody being paged about, so it is logged at
+    // debug and never reaches the warning callback.
+    if (episode.kind === 'throttled') {
+      logger.debug(
+        `EventLoopMonitor: timer throttled on a hidden document (${detail})`,
+        episode
+      );
+      return;
+    }
+
     logger.warn(
-      `EventLoopMonitor: congestion detected ` +
-        `(source=${episode.source}, ` +
-        `${episode.lagMs !== undefined ? `lagMs=${episode.lagMs}` : `taskDurationMs=${episode.taskDurationMs}`})`,
+      `EventLoopMonitor: congestion detected (source=${episode.source}, ${detail})`,
       episode
     );
 
-    this._onCongestion?.(episode);
+    if (lagValue >= HEARTBEAT_LAG_THRESHOLD_MS) {
+      this._onCongestion?.(episode);
+    }
+  }
+
+  /**
+   * Wall-clock timestamp for a long task, whose `startTime` is relative to
+   * `performance.timeOrigin`.
+   *
+   * `timeOrigin` cannot be assumed to be a number. Under jsdom it is a
+   * function stub, so `startTime + (performance.timeOrigin || 0)` concatenates
+   * into a string, `new Date(...)` is invalid, and `toISOString()` throws a
+   * RangeError from inside the PerformanceObserver callback — taking the
+   * long-task mechanism down with it. When the origin is unusable, fall back
+   * to the moment the callback ran, which is within one task of the truth.
+   */
+  private _longTaskTimestamp(startTime: number): string {
+    const origin =
+      typeof performance !== 'undefined' &&
+      typeof performance.timeOrigin === 'number' &&
+      Number.isFinite(performance.timeOrigin)
+        ? performance.timeOrigin
+        : null;
+
+    const candidate =
+      origin === null || !Number.isFinite(startTime)
+        ? Date.now()
+        : origin + startTime;
+
+    const date = new Date(candidate);
+    return Number.isNaN(date.getTime())
+      ? new Date().toISOString()
+      : date.toISOString();
+  }
+
+  // ── Visibility ──────────────────────────────────────────────────────
+
+  private _visibilityState(): 'visible' | 'hidden' | undefined {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+    return document.visibilityState === 'hidden' ? 'hidden' : 'visible';
+  }
+
+  private _attachVisibilityListener(): void {
+    if (typeof document === 'undefined' || !document.addEventListener) {
+      return;
+    }
+
+    this._onVisibilityChange = () => {
+      if (this._visibilityState() === 'hidden') {
+        if (this._hiddenSince === null) {
+          this._hiddenSince = Date.now();
+        }
+      } else {
+        this._settleHiddenTime();
+      }
+    };
+
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  private _detachVisibilityListener(): void {
+    if (this._onVisibilityChange && typeof document !== 'undefined') {
+      document.removeEventListener(
+        'visibilitychange',
+        this._onVisibilityChange
+      );
+    }
+    this._onVisibilityChange = null;
+  }
+
+  /**
+   * Close an open hidden span, folding it into the session total and into the
+   * current window. The window only counts the part of the span that fell
+   * inside it, so a tab hidden across a drain boundary is not double counted.
+   */
+  private _settleHiddenTime(): void {
+    if (this._hiddenSince === null) {
+      return;
+    }
+    const now = Date.now();
+    this._hiddenMs += now - this._hiddenSince;
+    this._windowHiddenMs +=
+      now - Math.max(this._hiddenSince, this._windowStartedAt);
+    this._hiddenSince = null;
+  }
+
+  /** Session hidden time, including a span that is still open. */
+  private _hiddenMsSoFar(): number {
+    if (this._hiddenSince === null) {
+      return this._hiddenMs;
+    }
+    return this._hiddenMs + (Date.now() - this._hiddenSince);
+  }
+
+  /** Window hidden time, including the in-window part of an open span. */
+  private _windowHiddenMsSoFar(): number {
+    if (this._hiddenSince === null) {
+      return this._windowHiddenMs;
+    }
+    return (
+      this._windowHiddenMs +
+      (Date.now() - Math.max(this._hiddenSince, this._windowStartedAt))
+    );
+  }
+
+  /**
+   * True when the document was hidden for the entire window the timer should
+   * have fired in — the condition that distinguishes a throttled timer from a
+   * blocked one. A tab hidden for only part of the window cannot account for
+   * the whole delay, so that case stays `blocked`.
+   */
+  private _hiddenThroughout(windowStart: number): boolean {
+    return (
+      this._visibilityState() === 'hidden' &&
+      this._hiddenSince !== null &&
+      this._hiddenSince <= windowStart
+    );
+  }
+
+  private _resetWindow(): void {
+    this._windowHiddenMs = 0;
+    this._windowStartedAt = Date.now();
+    this._window = {
+      episodes: 0,
+      blockedEpisodes: 0,
+      throttledEpisodes: 0,
+      maxLagMs: 0,
+      hiddenMs: 0,
+    };
   }
 }
