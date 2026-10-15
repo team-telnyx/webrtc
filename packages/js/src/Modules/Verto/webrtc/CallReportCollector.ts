@@ -34,7 +34,11 @@ import {
   LOW_BYTES_RECEIVED,
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
+  SUSTAINED_RTT_ELEVATION,
 } from '../../../Modules/Verto/util/constants/errorCodes';
+import SustainedRttDetector, {
+  type ISustainedRttState,
+} from './SustainedRttDetector';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -631,6 +635,11 @@ export class CallReportCollector {
   // independent from statsBuffer because intermediate call-report flushes clear
   // statsBuffer while the active call and health monitoring continue.
   private _previousStatsEntryForWarnings: IStatsInterval | null = null;
+
+  // Detects a sustained step in RTT relative to this call's own floor. Kept
+  // separate from the fixed-threshold checks because it carries per-call state
+  // (the baseline) rather than comparing one interval against a constant.
+  private readonly _sustainedRtt = new SustainedRttDetector();
 
   // True while the owning call is held; suppresses 31006/32001 silence warnings.
   private _isHeld: boolean = false;
@@ -1561,6 +1570,12 @@ export class CallReportCollector {
       rtt !== undefined && rtt > CallReportCollector.THRESHOLD_RTT_MS
     );
 
+    // Sustained RTT elevation, measured against this call's own floor.
+    // Complements HIGH_RTT rather than replacing it: 31001 answers "is this
+    // call's latency high in absolute terms", 31007 answers "did this call
+    // get worse and stay worse". A call can raise either, both or neither.
+    this._checkSustainedRtt(statsEntry);
+
     // Jitter warning — jitter from our averaging is in ms
     this._trackBreach(
       HIGH_JITTER,
@@ -1723,6 +1738,52 @@ export class CallReportCollector {
   }
 
   /**
+   * Feed the interval to the relative RTT detector and emit once per episode.
+   *
+   * Suppressed while held: an interval with no outbound packets cannot reach
+   * the detector anyway, but being explicit keeps this consistent with the
+   * other media warnings.
+   */
+  private _checkSustainedRtt(statsEntry: IStatsInterval): void {
+    if (this._isHeld) {
+      return;
+    }
+
+    const state = this._sustainedRtt.observe({
+      rttSeconds: statsEntry.connection?.roundTripTimeAvg,
+      packetsSent: statsEntry.audio?.outbound?.packetsSent,
+      iceRequestsSent: statsEntry.ice?.requestsSent,
+      iceResponsesReceived: statsEntry.ice?.responsesReceived,
+      icePairState: statsEntry.ice?.state,
+      selectedCandidatePairChanges:
+        statsEntry.transport?.selectedCandidatePairChanges,
+    });
+
+    if (state.elevated) {
+      if (!this._activeWarnings.has(SUSTAINED_RTT_ELEVATION)) {
+        // The warning registry carries static text, so the measured numbers
+        // go in the log line — they are what makes the warning actionable.
+        logger.warn(
+          `CallReportCollector: sustained RTT elevation — ${this._sustainedRtt.describe()}`
+        );
+      }
+      this._emitWarningOncePerEpisode(SUSTAINED_RTT_ELEVATION);
+    } else {
+      this._clearWarningEpisode(SUSTAINED_RTT_ELEVATION);
+    }
+  }
+
+  /**
+   * Read the current relative-RTT state.
+   *
+   * Exposed so the call layer can consult `pathAliveAndResponsive` before
+   * acting on a 31007, and so diagnostics can report the baseline and lift.
+   */
+  public getSustainedRttState(): ISustainedRttState {
+    return this._sustainedRtt.state;
+  }
+
+  /**
    * Track consecutive breaches for a warning code.
    * Emits the warning when the threshold is met, then re-emits
    * at most once every WARNING_THROTTLE_MS (15s) while the
@@ -1758,6 +1819,18 @@ export class CallReportCollector {
     this._activeWarnings.add(code);
     this._lastWarningEmitted[code] = Date.now();
     this._emitWarning(code);
+  }
+
+  /**
+   * End an episode opened by {@link _emitWarningOncePerEpisode} so the warning
+   * can fire again if the condition returns. The once-per-episode emitters
+   * otherwise latch for the lifetime of the call.
+   */
+  private _clearWarningEpisode(code: SdkWarningCode): void {
+    if (!this._activeWarnings.has(code)) return;
+
+    this._activeWarnings.delete(code);
+    delete this._lastWarningEmitted[code];
   }
 
   private _emitWarning(code: SdkWarningCode): void {
