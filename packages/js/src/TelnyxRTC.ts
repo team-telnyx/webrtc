@@ -8,7 +8,7 @@ import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
-import type { SupportedRegion } from './Modules/Verto/util/constants';
+import { Region } from './Region';
 import logger from './Modules/Verto/util/logger';
 import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
@@ -613,8 +613,8 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * | `eu`         | `eu.rtc.telnyx.com`       | AMS3, FR5, LD6                 |
    * | `apac`       | `apac.rtc.telnyx.com`     | CN1 (Chennai), SY1 (Sydney)   |
    */
-  switchRegion(region: SupportedRegion | null): void {
-    super.switchRegion(region);
+  switchRegion(region: Region | null, options?: { force?: boolean }): void {
+    super.switchRegion(region, options);
   }
 
   /**

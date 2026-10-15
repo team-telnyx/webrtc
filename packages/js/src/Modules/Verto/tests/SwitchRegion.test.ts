@@ -9,6 +9,7 @@ jest.mock('../services/Connection');
 jest.mock('../util/logger');
 jest.mock('../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
+  getReconnectTokenCanaryRtcServer: jest.fn(() => undefined),
   setReconnectToken: jest.fn(),
   clearReconnectToken: jest.fn(),
   getReconnectSessionId: jest.fn(() => null),
@@ -22,7 +23,7 @@ jest.mock('../util/reconnect', () => ({
 
 import Verto from '..';
 import { IVertoOptions } from '../util/interfaces';
-import { SUPPORTED_REGIONS } from '../util/constants';
+import { Region } from '../../../Region';
 import { trigger } from '../services/Handler';
 
 jest.mock('../services/Handler', () => ({
@@ -71,9 +72,12 @@ describe('switchRegion', () => {
       expect(() => instance.switchRegion(null)).not.toThrow();
     });
 
-    it.each(SUPPORTED_REGIONS)('accepts supported region "%s"', (region) => {
-      expect(() => instance.switchRegion(region as any)).not.toThrow();
-    });
+    it.each(Object.values(Region))(
+      'accepts supported region "%s"',
+      (region) => {
+        expect(() => instance.switchRegion(region as any)).not.toThrow();
+      }
+    );
   });
 
   describe('option and host updates', () => {
@@ -90,16 +94,53 @@ describe('switchRegion', () => {
       expect(instance.options.region).toBeUndefined();
     });
 
-    it('calls connection.setRegion with the new region', () => {
+    // The region reaches the new host through the Connection constructor,
+    // which reads options.region, rather than through setRegion() on the
+    // connection we just closed.
+    it('builds a new Connection instead of re-pointing the old one', () => {
+      const built = Connection.default.mock.calls.length;
+
       instance.switchRegion('apac' as any);
 
-      expect(Connection.mockSetRegion).toHaveBeenCalledWith('apac');
+      expect(Connection.default.mock.calls.length).toBe(built + 1);
+      expect(Connection.mockSetRegion).not.toHaveBeenCalled();
+      expect(instance.options.region).toBe('apac');
     });
 
-    it('calls connection.setRegion with null when reverting', () => {
+    it('builds a new Connection when reverting to anycast', () => {
+      const built = Connection.default.mock.calls.length;
+
       instance.switchRegion(null);
 
-      expect(Connection.mockSetRegion).toHaveBeenCalledWith(null);
+      expect(Connection.default.mock.calls.length).toBe(built + 1);
+      expect(Connection.mockSetRegion).not.toHaveBeenCalled();
+      expect(instance.options.region).toBeUndefined();
+    });
+
+    // Order matters: options.region is read by the Connection constructor, so
+    // a close that happens after the mutation would leave the session
+    // describing a region its live socket is not on.
+    it('closes before it mutates options.region', () => {
+      const order: string[] = [];
+      Connection.mockClose.mockImplementation(() => {
+        order.push(`close:${instance.options.region ?? 'default'}`);
+      });
+      Connection.default.mockImplementation(() => {
+        order.push(`construct:${instance.options.region ?? 'default'}`);
+        return {
+          connect: Connection.mockConnect,
+          close: Connection.mockClose,
+          setRegion: Connection.mockSetRegion,
+          get host() {
+            return Connection.mockHost();
+          },
+        };
+      });
+      instance.options.region = 'eu';
+
+      instance.switchRegion('apac' as any);
+
+      expect(order).toEqual(['close:eu', 'construct:apac']);
     });
   });
 
@@ -139,12 +180,31 @@ describe('switchRegion', () => {
     });
   });
 
-  describe('active calls warning', () => {
-    it('emits a telnyx.warning (36008) when active calls exist', () => {
-      // Mock hasActiveCall to return true
+  describe('active calls', () => {
+    // Switching closes the socket, so the call does not survive it. Refusing
+    // is the default; dropping a live call silently was the earlier behaviour.
+    it('throws rather than dropping an active call', () => {
       jest.spyOn(instance, 'hasActiveCall').mockReturnValue(true);
 
-      instance.switchRegion('eu' as any);
+      expect(() => instance.switchRegion('eu' as any)).toThrow(
+        /Cannot switch region while a call is active/
+      );
+    });
+
+    it('does not touch the connection when it refuses', () => {
+      jest.spyOn(instance, 'hasActiveCall').mockReturnValue(true);
+      const before = instance.options.region;
+
+      expect(() => instance.switchRegion('eu' as any)).toThrow();
+
+      expect(instance.options.region).toBe(before);
+      expect(Connection.mockConnect).not.toHaveBeenCalled();
+    });
+
+    it('emits a telnyx.warning (36008) when forced past an active call', () => {
+      jest.spyOn(instance, 'hasActiveCall').mockReturnValue(true);
+
+      instance.switchRegion('eu' as any, { force: true });
 
       const warningCalls = (trigger as jest.Mock).mock.calls.filter(
         (c: any[]) => c[0] === 'telnyx.warning'
@@ -174,10 +234,12 @@ describe('switchRegion', () => {
       instance.options.region = 'eu';
       Connection.mockHost.mockImplementation(() => 'wss://eu.rtc.telnyx.com');
 
+      const built = Connection.default.mock.calls.length;
+
       instance.switchRegion('apac' as any);
 
       expect(instance.options.region).toBe('apac');
-      expect(Connection.mockSetRegion).toHaveBeenCalledWith('apac');
+      expect(Connection.default.mock.calls.length).toBe(built + 1);
       expect(Connection.mockConnect).toHaveBeenCalled();
     });
 
@@ -190,7 +252,7 @@ describe('switchRegion', () => {
       instance.switchRegion(null);
 
       expect(instance.options.region).toBeUndefined();
-      expect(Connection.mockSetRegion).toHaveBeenCalledWith(null);
+      expect(Connection.default.mock.calls.length).toBeGreaterThan(0);
       expect(Connection.mockConnect).toHaveBeenCalled();
     });
   });
