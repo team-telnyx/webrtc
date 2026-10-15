@@ -692,14 +692,52 @@ describe('BaseSession - Consecutive Timeout Rotation', () => {
     expect(session.options.skipLastVoiceSdkId).toBe(true);
   });
 
-  it('should set skipLastVoiceSdkId=true after 2 mixed timeouts (connect + login)', () => {
-    // Simulate connect timeout → handleConsecutiveTimeout
+  it('should set skipLastVoiceSdkId=true after 2 login timeouts', () => {
+    // Only login timeouts reach handleConsecutiveTimeout. A login timeout
+    // proves TCP, TLS and the WS upgrade all reached this instance and it
+    // still did not answer, so the instance is the thing to blame. Connect
+    // timeouts deliberately do not count — see the connect-timeout test
+    // below and the comment in Connection._startConnectTimeout.
     session.handleConsecutiveTimeout();
-    // Simulate login timeout → handleConsecutiveTimeout
     session.handleConsecutiveTimeout();
 
     expect(session._consecutiveTimeoutCount).toBe(2);
     expect(session.options.skipLastVoiceSdkId).toBe(true);
+  });
+
+  it('does not rotate the instance on a WebSocket connect timeout', () => {
+    // An offline device leaves the socket in CONNECTING past the deadline,
+    // so counting a connect timeout would rotate away from a healthy
+    // instance because the client has no network.
+    const ws = {
+      readyState: 0, // CONNECTING
+      close: jest.fn(),
+    };
+    // Connection is mocked in this suite, so reach for the real class.
+    const RealConnection = jest.requireActual('../services/Connection')
+      .default as { prototype: object };
+    const connection = Object.create(RealConnection.prototype) as {
+      _wsClient: unknown;
+      _connectTimeoutId: unknown;
+      session: unknown;
+      _startConnectTimeout: () => void;
+      _clearConnectTimeout: () => void;
+    };
+    connection._wsClient = ws;
+    connection._connectTimeoutId = null;
+    connection.session = session;
+
+    jest.useFakeTimers();
+    try {
+      connection._startConnectTimeout();
+      jest.advanceTimersByTime(60_000);
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(ws.close).toHaveBeenCalled();
+    expect(session._consecutiveTimeoutCount).toBe(0);
+    expect(session.options.skipLastVoiceSdkId).toBeFalsy();
   });
 
   it('should NOT set skipLastVoiceSdkId again if already set (idempotent)', () => {

@@ -579,13 +579,19 @@ export default class Connection {
         this.session.uuid
       );
 
-      // Increment the consecutive timeout counter — after 2 consecutive
-      // timeouts (connect or login), the SDK rotates to a different
-      // b2bua-rtc instance via skipLastVoiceSdkId.
-      this.session.handleConsecutiveTimeout();
-
+      // Deliberately NOT counted toward b2bua-rtc rotation. A connect
+      // timeout cannot tell "this instance is unreachable" from "this device
+      // has no network": with the radio off or on a slow link, Chrome leaves
+      // the socket in CONNECTING well past this deadline, so an offline
+      // client would rotate away from a perfectly healthy instance and set
+      // skipLastVoiceSdkId against it. A login timeout is the one that
+      // attributes — it proves TCP, TLS and the WS upgrade all reached the
+      // instance and it still did not answer — and that path still counts
+      // (see BaseSession's login error handler).
+      //
       // Force-close the socket. This triggers onclose → onNetworkClose →
-      // the existing reconnect-with-backoff path.
+      // the existing reconnect-with-backoff path, so an offline client still
+      // retries, just without blaming the instance.
       ws.close();
     }, CONNECT_TIMEOUT_MS);
   }
