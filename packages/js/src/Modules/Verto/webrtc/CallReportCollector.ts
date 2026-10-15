@@ -13,6 +13,7 @@
  */
 
 import logger from '../../../Modules/Verto/util/logger';
+import { IEventLoopWindow } from '../services/EventLoopMonitor';
 import {
   LogCollector,
   ILogEntry,
@@ -309,9 +310,53 @@ export interface ILogCollectorOptions {
   maxEntries: number;
 }
 
+/**
+ * SDK runtime health for one stats interval.
+ *
+ * Everything else in a stats interval describes the call. This describes the
+ * observer, which matters because a late observer and a degraded network are
+ * indistinguishable in the numbers the observer reports. On production call
+ * 568d1039 the collection timer ran up to 2351 ms against a requested 1000 ms,
+ * and nothing in the report said so.
+ */
+export interface ISdkRuntimeStats {
+  /**
+   * How late the collection **callback entered**, ms: the gap between when
+   * `setTimeout` should have run it and when it actually did, minus nothing
+   * else. This is the event loop, and only the event loop.
+   *
+   * Measured at the top of the callback, before `await getStats()`. Taking it
+   * after the await — as the interval timestamps do — folds the duration of
+   * the stats call into the figure, so a slow `getStats()` on a busy renderer
+   * would read as a blocked main thread.
+   */
+  collectionLatenessMs?: number;
+  /**
+   * How long the collection itself took, ms: `await getStats()` plus the
+   * processing that follows it. Asynchronous work, not main-thread blocking.
+   */
+  collectionDurationMs?: number;
+  /** The period the collector asked for, ms. */
+  collectionIntervalMs?: number;
+  /** `document.visibilityState` at collection time. */
+  visibilityState?: 'visible' | 'hidden';
+  /** Milliseconds of this interval the document spent hidden. */
+  hiddenMs?: number;
+  /** Worst event-loop lag attributed to this interval, ms. Blocking only. */
+  maxEventLoopLagMs?: number;
+  /** Congestion episodes recorded during this interval. */
+  eventLoopEpisodes?: number;
+  /** Of those, episodes where the main thread was genuinely blocked. */
+  eventLoopBlockedEpisodes?: number;
+  /** Of those, episodes explained by a hidden document being throttled. */
+  eventLoopThrottledEpisodes?: number;
+}
+
 export interface IStatsInterval {
   intervalStartUtc: string;
   intervalEndUtc: string;
+  /** Health of the SDK taking the measurement, not of the call. */
+  sdkRuntime?: ISdkRuntimeStats;
   audio?: {
     outbound?: {
       packetsSent?: number;
@@ -602,6 +647,14 @@ export class CallReportCollector {
   /** Callback invoked when a quality warning threshold is breached. */
   public onWarning: ((warning: ITelnyxWarning) => void) | null = null;
 
+  /**
+   * Supplied by the owning call so the collector can attribute event-loop
+   * activity to the interval that is closing. Left null when no monitor is
+   * running, in which case the runtime block carries only what the collector
+   * measures itself.
+   */
+  public onDrainEventLoopWindow: (() => IEventLoopWindow | null) | null = null;
+
   // ── Quality warning thresholds ────────────────────────────────────
   private static readonly CONSECUTIVE_BREACHES_REQUIRED = 3;
   private static readonly THRESHOLD_RTT_MS = 0.4; // 400ms (RTT is in seconds from WebRTC API)
@@ -662,6 +715,11 @@ export class CallReportCollector {
 
   /** Whether stop() has been requested (prevents timer re-scheduling). */
   private _stopped: boolean = false;
+
+  /** Date.now() at which the pending collection callback was due to run. */
+  private _collectionDueAt: number | null = null;
+  /** Lateness of the callback that is currently running, ms. */
+  private _pendingCallbackLatenessMs: number | null = null;
 
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
@@ -1085,6 +1143,85 @@ export class CallReportCollector {
     }
   }
 
+  /**
+   * Measure the health of the observer, not of the call.
+   *
+   * Two quantities, deliberately separate, because conflating them attributes
+   * an asynchronous stats call to a blocked main thread:
+   *
+   * - `collectionLatenessMs` — how late the timer callback entered. Stamped
+   *   at the top of the callback, before any await, so it is the event loop
+   *   and nothing else.
+   * - `collectionDurationMs` — how long `await getStats()` and the processing
+   *   after it took. Asynchronous work; a slow renderer inflates this while
+   *   the event loop stays responsive.
+   *
+   * Server-side derivation from the interval timestamps can only ever see
+   * their sum, since the collector stamps the interval end once the
+   * collection has resolved. That is why every production report shows a
+   * median period of 1001-1013 ms against a requested 1000.
+   *
+   * Returns undefined when there is nothing to report, so an absent block
+   * means "not measured" rather than "measured as zero".
+   */
+  private _collectSdkRuntime(startedAt: number): ISdkRuntimeStats | undefined {
+    const requested = this._collectionIntervalFor();
+    const lateness = this._pendingCallbackLatenessMs;
+    this._pendingCallbackLatenessMs = null;
+
+    const window = this._drainEventLoopWindow();
+    const visibilityState = this._visibilityState();
+
+    const duration = Math.max(0, Date.now() - startedAt);
+    const eventLoop = this._eventLoopFields(window);
+
+    if (lateness === null && !visibilityState && !window) {
+      return undefined;
+    }
+
+    return {
+      collectionIntervalMs: requested,
+      collectionDurationMs: duration,
+      ...(lateness === null ? {} : { collectionLatenessMs: lateness }),
+      ...(visibilityState ? { visibilityState } : {}),
+      ...eventLoop,
+    };
+  }
+
+  private _eventLoopFields(
+    window: IEventLoopWindow | null
+  ): Partial<ISdkRuntimeStats> {
+    if (!window) {
+      return {};
+    }
+    return {
+      hiddenMs: window.hiddenMs,
+      maxEventLoopLagMs: window.maxLagMs,
+      eventLoopEpisodes: window.episodes,
+      eventLoopBlockedEpisodes: window.blockedEpisodes,
+      eventLoopThrottledEpisodes: window.throttledEpisodes,
+    };
+  }
+
+  private _drainEventLoopWindow(): IEventLoopWindow | null {
+    if (!this.onDrainEventLoopWindow) {
+      return null;
+    }
+    try {
+      return this.onDrainEventLoopWindow();
+    } catch (error) {
+      logger.debug('CallReportCollector: event loop drain failed', { error });
+      return null;
+    }
+  }
+
+  private _visibilityState(): 'visible' | 'hidden' | undefined {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+    return document.visibilityState === 'hidden' ? 'hidden' : 'visible';
+  }
+
   private _scheduleNextCollection(): void {
     if (
       this._stopped ||
@@ -1096,8 +1233,13 @@ export class CallReportCollector {
     }
 
     const interval = this._collectionIntervalFor();
+    const dueAt = Date.now() + interval;
+    this._collectionDueAt = dueAt;
     this.intervalId = setTimeout(() => {
       this.intervalId = null;
+      // Stamped before any await, so this is callback-entry delay — the event
+      // loop alone, with none of the stats call folded in.
+      this._pendingCallbackLatenessMs = Math.max(0, Date.now() - dueAt);
       this._collectStats().finally(() => {
         if (!this._stopped && this.peerConnection) {
           this._scheduleNextCollection();
@@ -1137,8 +1279,10 @@ export class CallReportCollector {
     }
 
     try {
+      const collectionStartedAt = Date.now();
       const stats = await this.peerConnection.getStats();
       const now = new Date();
+      const sdkRuntime = this._collectSdkRuntime(collectionStartedAt);
 
       // Process stats reports
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;
@@ -1366,6 +1510,7 @@ export class CallReportCollector {
         const statsEntry = this._createStatsEntry(
           this.intervalStartTime,
           now,
+          sdkRuntime,
           outboundAudio,
           inboundAudio,
           candidatePair,
@@ -1718,6 +1863,7 @@ export class CallReportCollector {
   private _createStatsEntry(
     start: Date,
     end: Date,
+    sdkRuntime: ISdkRuntimeStats | undefined,
     outboundAudio: ExtendedOutboundRtpStreamStats | null,
     inboundAudio: ExtendedInboundRtpStreamStats | null,
     candidatePair: ExtendedCandidatePairStats | null,
@@ -1735,6 +1881,7 @@ export class CallReportCollector {
     const entry: IStatsInterval = {
       intervalStartUtc: start.toISOString(),
       intervalEndUtc: end.toISOString(),
+      ...(sdkRuntime ? { sdkRuntime } : {}),
     };
 
     // Audio stats

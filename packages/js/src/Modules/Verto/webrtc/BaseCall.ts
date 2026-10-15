@@ -2488,6 +2488,11 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._flushIntermediateReport();
       };
 
+      // Lets each stats interval carry the event-loop activity attributable
+      // to it, rather than only a session-level total in the final payload.
+      this._callReportCollector.onDrainEventLoopWindow = () =>
+        this.session?.drainEventLoopWindow?.() ?? null;
+
       this._callReportCollector.onWarning = (warning) => {
         trigger(
           SwEvent.Warning,

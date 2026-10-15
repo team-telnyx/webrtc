@@ -10,7 +10,9 @@ import {
 } from './services/Handler';
 import { RegisterAgent } from './services/RegisterAgent';
 import SignalingHealthMonitor from './services/SignalingHealthMonitor';
-import EventLoopMonitor from './services/EventLoopMonitor';
+import EventLoopMonitor, {
+  IEventLoopWindow,
+} from './services/EventLoopMonitor';
 import type {
   ISignalingHealthSession,
   PeerFailureEvidence,
@@ -1263,6 +1265,15 @@ export default abstract class BaseSession {
    */
   stopSignalingHealthMonitor(): void {
     this._signalingHealthMonitor.stop();
+  }
+
+  /**
+   * Event-loop activity since the previous call, for the stats interval that
+   * is closing. Lets a report align main-thread blocking with the RTT and
+   * jitter timeline instead of only carrying a session-level total.
+   */
+  drainEventLoopWindow(): IEventLoopWindow {
+    return this._eventLoopMonitor.drainWindow();
   }
 
   /**
