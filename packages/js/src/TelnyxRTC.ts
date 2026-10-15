@@ -8,6 +8,7 @@ import {
   IWebRTCInfo,
   IWebRTCSupportedBrowser,
 } from './Modules/Verto/webrtc/interfaces';
+import { Region } from './Region';
 import logger from './Modules/Verto/util/logger';
 import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
@@ -559,6 +560,62 @@ export class TelnyxRTC extends TelnyxRTCClient {
 
     const diagnostic = new PreCallDiagnostic(diagnosticOptions);
     return diagnostic.run();
+  }
+
+  /**
+   * Switch the signaling connection to a different regional endpoint.
+   *
+   * This closes the current WebSocket and reconnects to the specified
+   * regional `rtc.telnyx.com` subdomain. Useful when anycast DNS routes
+   * the initial connection to a suboptimal datacenter, or when the
+   * application needs to pin to a specific region for compliance or
+   * latency reasons.
+   *
+   * The region is only switched while no call is active: switching closes
+   * the WebSocket, which an active call would not survive. With a call up
+   * this throws and nothing changes — hang up first, then switch.
+   *
+   * @param region - One of: `'us-east'`, `'us-central'`, `'us-west'`,
+   *   `'ca-central'`, `'eu'`, `'apac'`, `'south-asia'`.
+   *   Pass `null` to revert to the default anycast endpoint.
+   *
+   * @throws {Error} if `region` is not a supported region, or if a call is
+   *   active.
+   *
+   * @examples
+   *
+   * Pin the connection to Europe after initial connect:
+   *
+   * ```js
+   * const client = new TelnyxRTC({ login_token });
+   * client.connect();
+   *
+   * client.on('telnyx.ready', () => {
+   *   // Once connected, switch to EU region
+   *   client.switchRegion('eu');
+   * });
+   * ```
+   *
+   * Revert to default anycast routing:
+   *
+   * ```js
+   * client.switchRegion(null);
+   * ```
+   *
+   * Available regions and their datacenters:
+   *
+   * | Region        | Endpoint                  | Datacenters                    |
+   * |--------------|---------------------------|--------------------------------|
+   * | `us-east`    | `us-east.rtc.telnyx.com`  | AT1 (Atlanta), NJ1 (New Jersey)|
+   * | `us-central` | `us-central.rtc.telnyx.com`| CH1 (Chicago)               |
+   * | `us-west`    | `us-west.rtc.telnyx.com`  | LV1 (Las Vegas)                |
+   * | `ca-central` | `ca-central.rtc.telnyx.com`| MT1 (Montreal), TR1 (Toronto) |
+   * | `eu`         | `eu.rtc.telnyx.com`       | AMS3, FR5, LD6                 |
+   * | `apac`       | `apac.rtc.telnyx.com`     | SY1 (Sydney), ML1 (Melbourne) |
+   * | `south-asia` | `south-asia.rtc.telnyx.com` | CN1 (Chennai), MB2 (Mumbai) |
+   */
+  switchRegion(region: Region | null): void {
+    super.switchRegion(region);
   }
 
   /**
