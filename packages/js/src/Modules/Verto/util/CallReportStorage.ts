@@ -9,13 +9,13 @@
  * persists the failed report payload to sessionStorage so it can be retried
  * after the socket re-establishes or on the next session startup.
  *
- * Follows the same safe-storage pattern as {@link ./reconnect.ts} — every
- * sessionStorage operation is wrapped in try/catch so a blocked or
- * unavailable storage (private mode, disabled storage) silently no-ops
- * instead of crashing the SDK.
+ * All storage access goes through {@link ./sessionStorage.ts}, so a blocked or
+ * unavailable storage (private mode, disabled storage) silently no-ops instead
+ * of crashing the SDK.
  */
 import type { ICallReportPayload } from '../webrtc/CallReportCollector';
 import logger from './logger';
+import { safeGetItem, safeRemoveItem, safeSetItem } from './sessionStorage';
 
 const STORAGE_KEY = 'telnyx-voice-sdk-pending-call-reports';
 
@@ -42,47 +42,6 @@ interface IPendingReportsBlob {
   entries: IPendingReportEntry[];
 }
 
-// ── Safe sessionStorage helpers (mirrors reconnect.ts pattern) ──────────────
-
-function safeGetItem(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key);
-  } catch (err) {
-    logger.debug(
-      `CallReportStorage: safeGetItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-    return null;
-  }
-}
-
-function safeSetItem(key: string, value: string): void {
-  try {
-    sessionStorage.setItem(key, value);
-  } catch (err) {
-    // Quota exceeded or storage unavailable (private mode). Drop the oldest
-    // half of the entries and retry once before giving up.
-    logger.info(
-      `CallReportStorage: safeSetItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-  }
-}
-
-function safeRemoveItem(key: string): void {
-  try {
-    sessionStorage.removeItem(key);
-  } catch (err) {
-    logger.debug(
-      `CallReportStorage: safeRemoveItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-  }
-}
-
 // ── Internal read/write ────────────────────────────────────────────────────
 
 function readBlob(): IPendingReportsBlob | null {
@@ -91,8 +50,14 @@ function readBlob(): IPendingReportsBlob | null {
 
   try {
     const parsed = JSON.parse(raw) as IPendingReportsBlob;
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.entries)) {
-      logger.debug('CallReportStorage: stored payload was malformed — discarded.');
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !Array.isArray(parsed.entries)
+    ) {
+      logger.debug(
+        'CallReportStorage: stored payload was malformed — discarded.'
+      );
       return null;
     }
     return parsed;
@@ -113,11 +78,17 @@ function writeBlob(blob: IPendingReportsBlob): boolean {
     // Drop oldest entries until we fit. Each drop removes one entry and we
     // re-check the size. If a single entry exceeds the limit, we drop it.
     const entries = [...blob.entries];
-    while (entries.length > 0 && JSON.stringify({ entries }).length > MAX_STORAGE_BYTES) {
+    while (
+      entries.length > 0 &&
+      JSON.stringify({ entries }).length > MAX_STORAGE_BYTES
+    ) {
       const dropped = entries.shift();
-      logger.info('CallReportStorage: dropping oldest entry to stay under size limit', {
-        callId: dropped?.payload?.summary?.callId,
-      });
+      logger.info(
+        'CallReportStorage: dropping oldest entry to stay under size limit',
+        {
+          callId: dropped?.payload?.summary?.callId,
+        }
+      );
     }
     blob.entries = entries;
   }
@@ -151,9 +122,12 @@ export function enqueuePendingReport(entry: IPendingReportEntry): boolean {
   // Enforce count limit — drop oldest first.
   while (blob.entries.length > MAX_PENDING_REPORTS) {
     const dropped = blob.entries.shift();
-    logger.info('CallReportStorage: dropping oldest pending report (count limit)', {
-      callId: dropped?.payload?.summary?.callId,
-    });
+    logger.info(
+      'CallReportStorage: dropping oldest pending report (count limit)',
+      {
+        callId: dropped?.payload?.summary?.callId,
+      }
+    );
   }
 
   return writeBlob(blob);

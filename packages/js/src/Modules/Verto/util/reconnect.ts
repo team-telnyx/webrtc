@@ -1,5 +1,6 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
 import logger from './logger';
+import { safeGetItem, safeRemoveItem, safeSetItem } from './sessionStorage';
 
 export interface IStoredActiveCall {
   id: IWebRTCCall['id'];
@@ -21,9 +22,7 @@ export const RECONNECT_SESSION_ID_MAX_AGE_MS = 90 * 1000;
 export const RECOVERY_MARKER_MAX_AGE_MS = 15 * 60 * 1000;
 
 function getReconnectSessionIdStoredAt(): number | null {
-  const storedAt = Number(
-    sessionStorage.getItem(SESSION_ID_STORED_AT_STORAGE_KEY)
-  );
+  const storedAt = Number(safeGetItem(SESSION_ID_STORED_AT_STORAGE_KEY));
   return Number.isFinite(storedAt) ? storedAt : null;
 }
 
@@ -33,21 +32,21 @@ export function isReconnectSessionIdFresh(now = Date.now()): boolean {
 }
 
 export function getReconnectToken(): string | null {
-  const token = sessionStorage.getItem(STORAGE_KEY);
+  const token = safeGetItem(STORAGE_KEY);
   return token;
 }
 
 export function setReconnectToken(token: string): void {
-  sessionStorage.setItem(STORAGE_KEY, token);
+  safeSetItem(STORAGE_KEY, token);
 }
 
 export function getReconnectSessionId(now = Date.now()): string | null {
-  const sessionId = sessionStorage.getItem(SESSION_ID_STORAGE_KEY);
+  const sessionId = safeGetItem(SESSION_ID_STORAGE_KEY);
   if (!sessionId) return null;
 
   if (!isReconnectSessionIdFresh(now)) {
-    sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
-    sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
+    safeRemoveItem(SESSION_ID_STORAGE_KEY);
+    safeRemoveItem(SESSION_ID_STORED_AT_STORAGE_KEY);
     return null;
   }
 
@@ -58,53 +57,14 @@ export function setReconnectSessionId(
   sessionId: string,
   storedAt = Date.now()
 ): void {
-  sessionStorage.setItem(SESSION_ID_STORAGE_KEY, sessionId);
-  sessionStorage.setItem(SESSION_ID_STORED_AT_STORAGE_KEY, String(storedAt));
+  safeSetItem(SESSION_ID_STORAGE_KEY, sessionId);
+  safeSetItem(SESSION_ID_STORED_AT_STORAGE_KEY, String(storedAt));
 }
 
 export function clearReconnectToken(): void {
-  sessionStorage.removeItem(STORAGE_KEY);
-  sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
-  sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
-}
-
-function safeGetItem(key: string): string | null {
-  try {
-    return sessionStorage.getItem(key);
-  } catch (err) {
-    logger.debug(
-      `safeGetItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-    return null;
-  }
-}
-
-function safeSetItem(key: string, value: string): void {
-  try {
-    sessionStorage.setItem(key, value);
-  } catch (err) {
-    // sessionStorage may be unavailable (private mode, disabled storage).
-    // Fail silently — recovery detection is a best-effort feature.
-    logger.info(
-      `safeSetItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-  }
-}
-
-function safeRemoveItem(key: string): void {
-  try {
-    sessionStorage.removeItem(key);
-  } catch (err) {
-    logger.debug(
-      `safeRemoveItem('${key}') failed: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
-  }
+  safeRemoveItem(STORAGE_KEY);
+  safeRemoveItem(SESSION_ID_STORAGE_KEY);
+  safeRemoveItem(SESSION_ID_STORED_AT_STORAGE_KEY);
 }
 
 // ── Active-calls recovery marker helpers ────────────────────────────────
