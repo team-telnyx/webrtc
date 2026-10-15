@@ -321,11 +321,21 @@ export interface ILogCollectorOptions {
  */
 export interface ISdkRuntimeStats {
   /**
-   * How late this interval's collection ran, ms: actual elapsed minus the
-   * period that was requested. Measured by the collector itself, so it needs
-   * no inference from the interval timestamps.
+   * How late the collection **callback entered**, ms: the gap between when
+   * `setTimeout` should have run it and when it actually did, minus nothing
+   * else. This is the event loop, and only the event loop.
+   *
+   * Measured at the top of the callback, before `await getStats()`. Taking it
+   * after the await — as the interval timestamps do — folds the duration of
+   * the stats call into the figure, so a slow `getStats()` on a busy renderer
+   * would read as a blocked main thread.
    */
   collectionLatenessMs?: number;
+  /**
+   * How long the collection itself took, ms: `await getStats()` plus the
+   * processing that follows it. Asynchronous work, not main-thread blocking.
+   */
+  collectionDurationMs?: number;
   /** The period the collector asked for, ms. */
   collectionIntervalMs?: number;
   /** `document.visibilityState` at collection time. */
@@ -706,8 +716,10 @@ export class CallReportCollector {
   /** Whether stop() has been requested (prevents timer re-scheduling). */
   private _stopped: boolean = false;
 
-  /** Date.now() of the previous collection, for measuring our own lateness. */
-  private _lastCollectionAt: number | null = null;
+  /** Date.now() at which the pending collection callback was due to run. */
+  private _collectionDueAt: number | null = null;
+  /** Lateness of the callback that is currently running, ms. */
+  private _pendingCallbackLatenessMs: number | null = null;
 
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
@@ -1134,45 +1146,45 @@ export class CallReportCollector {
   /**
    * Measure the health of the observer, not of the call.
    *
-   * Lateness is measured against the period we asked for, using the elapsed
-   * wall time since the previous collection. Deriving it from the interval
-   * timestamps server-side works but cannot separate our own cost — the
-   * collector stamps the interval end after awaiting `getStats()`, which is
-   * why every production report has a median period of 1001-1013 ms rather
-   * than 1000. Measuring here removes that guesswork.
+   * Two quantities, deliberately separate, because conflating them attributes
+   * an asynchronous stats call to a blocked main thread:
    *
-   * Returns undefined on the first collection, which has no predecessor to
-   * measure against, so an absent block means "not measured" rather than
-   * "measured as zero".
+   * - `collectionLatenessMs` — how late the timer callback entered. Stamped
+   *   at the top of the callback, before any await, so it is the event loop
+   *   and nothing else.
+   * - `collectionDurationMs` — how long `await getStats()` and the processing
+   *   after it took. Asynchronous work; a slow renderer inflates this while
+   *   the event loop stays responsive.
+   *
+   * Server-side derivation from the interval timestamps can only ever see
+   * their sum, since the collector stamps the interval end once the
+   * collection has resolved. That is why every production report shows a
+   * median period of 1001-1013 ms against a requested 1000.
+   *
+   * Returns undefined when there is nothing to report, so an absent block
+   * means "not measured" rather than "measured as zero".
    */
-  private _collectSdkRuntime(now: Date): ISdkRuntimeStats | undefined {
+  private _collectSdkRuntime(startedAt: number): ISdkRuntimeStats | undefined {
     const requested = this._collectionIntervalFor();
-    const previous = this._lastCollectionAt;
-    this._lastCollectionAt = now.getTime();
+    const lateness = this._pendingCallbackLatenessMs;
+    this._pendingCallbackLatenessMs = null;
 
     const window = this._drainEventLoopWindow();
     const visibilityState = this._visibilityState();
 
-    if (previous === null) {
-      // Nothing to measure lateness against yet, but visibility at call start
-      // is still worth recording: a call begun on a hidden tab is unusual.
-      if (!visibilityState && !window) {
-        return undefined;
-      }
-      return {
-        collectionIntervalMs: requested,
-        ...(visibilityState ? { visibilityState } : {}),
-        ...this._eventLoopFields(window),
-      };
-    }
+    const duration = Math.max(0, Date.now() - startedAt);
+    const eventLoop = this._eventLoopFields(window);
 
-    const elapsed = now.getTime() - previous;
+    if (lateness === null && !visibilityState && !window) {
+      return undefined;
+    }
 
     return {
       collectionIntervalMs: requested,
-      collectionLatenessMs: Math.max(0, Math.round(elapsed - requested)),
+      collectionDurationMs: duration,
+      ...(lateness === null ? {} : { collectionLatenessMs: lateness }),
       ...(visibilityState ? { visibilityState } : {}),
-      ...this._eventLoopFields(window),
+      ...eventLoop,
     };
   }
 
@@ -1221,8 +1233,13 @@ export class CallReportCollector {
     }
 
     const interval = this._collectionIntervalFor();
+    const dueAt = Date.now() + interval;
+    this._collectionDueAt = dueAt;
     this.intervalId = setTimeout(() => {
       this.intervalId = null;
+      // Stamped before any await, so this is callback-entry delay — the event
+      // loop alone, with none of the stats call folded in.
+      this._pendingCallbackLatenessMs = Math.max(0, Date.now() - dueAt);
       this._collectStats().finally(() => {
         if (!this._stopped && this.peerConnection) {
           this._scheduleNextCollection();
@@ -1262,9 +1279,10 @@ export class CallReportCollector {
     }
 
     try {
+      const collectionStartedAt = Date.now();
       const stats = await this.peerConnection.getStats();
       const now = new Date();
-      const sdkRuntime = this._collectSdkRuntime(now);
+      const sdkRuntime = this._collectSdkRuntime(collectionStartedAt);
 
       // Process stats reports
       let outboundAudio: ExtendedOutboundRtpStreamStats | null = null;

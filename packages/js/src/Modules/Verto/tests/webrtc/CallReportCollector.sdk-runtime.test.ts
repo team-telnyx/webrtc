@@ -6,16 +6,22 @@ import {
 import type { IEventLoopWindow } from '../../services/EventLoopMonitor';
 
 /**
- * The runtime block describes the observer rather than the call. These tests
- * drive the private collection step so the plumbing is asserted without
- * orchestrating a live timer.
+ * `sdkRuntime` describes the observer rather than the call, and keeps two
+ * quantities apart on purpose:
+ *
+ * - `collectionLatenessMs` — callback-entry delay, stamped before any await,
+ *   so it is the event loop alone.
+ * - `collectionDurationMs` — how long `await getStats()` took. Asynchronous
+ *   work, not blocking.
+ *
+ * Conflating them attributes a slow stats call to a blocked main thread, so
+ * these tests drive the real scheduler and make each one move independently.
  */
 type Testable = {
   start: (pc: unknown) => void;
   stop: () => Promise<void>;
   getStatsBuffer: () => IStatsInterval[];
   onDrainEventLoopWindow: (() => IEventLoopWindow | null) | null;
-  _collectStats: (isFinal?: boolean) => Promise<void>;
 };
 
 const statsReport = (entries: Array<Record<string, unknown>>) =>
@@ -23,10 +29,23 @@ const statsReport = (entries: Array<Record<string, unknown>>) =>
     forEach: (fn: (value: unknown) => void) => entries.forEach(fn),
   }) as unknown as RTCStatsReport;
 
-const createPeerConnection = () => ({
+/** Controlled clock. Jest's fake timers cannot express a late callback: a
+ * setSystemTime jump does not make a pending timer due, and
+ * advanceTimersByTime fires it with the clock set to its *due* time, so
+ * lateness always reads zero. Driving Date.now() separately from the timer
+ * queue is the only way to model a callback that entered late. */
+let clock = 0;
+const advanceClock = (ms: number) => {
+  clock += ms;
+};
+
+/** A peer connection whose getStats() takes `delayMs` of asynchronous time. */
+const createPeerConnection = (getDelay: () => number = () => 0) => ({
   getSenders: () => [{ track: { kind: 'audio', id: 't1' } }],
-  getStats: async () =>
-    statsReport([
+  getStats: async () => {
+    // Asynchronous elapsed time that did not block the event loop.
+    advanceClock(getDelay());
+    return statsReport([
       {
         type: 'outbound-rtp',
         kind: 'audio',
@@ -36,7 +55,8 @@ const createPeerConnection = () => ({
         bytesSent: 40_000,
         timestamp: 2_000_000,
       },
-    ]),
+    ]);
+  },
 });
 
 const createCollector = (options: Partial<ICallReportOptions> = {}) =>
@@ -62,83 +82,84 @@ const setVisibility = (state: 'visible' | 'hidden') =>
   });
 
 /**
- * The interval most recently pushed to the buffer.
- *
- * These tests deliberately never call `stop()`: it performs its own final
- * collection, which lands a second interval measured at zero elapsed time and
- * shadows the one under test.
+ * Let the scheduled collection fire, having spent `extraLagMs` more wall time
+ * than the period — i.e. the callback entered that late.
  */
-const lastEntry = (collector: Testable) => collector.getStatsBuffer().at(-1);
+async function runOneCollection(extraLagMs = 0): Promise<void> {
+  advanceClock(1000 + extraLagMs);
+  jest.advanceTimersByTime(1000);
+  // Flush the promise chain inside the timer callback.
+  for (let i = 0; i < 5; i += 1) {
+    await Promise.resolve();
+  }
+}
+
+const lastRuntime = (collector: Testable) =>
+  collector.getStatsBuffer().at(-1)?.sdkRuntime;
 
 describe('CallReportCollector sdkRuntime', () => {
-  let clock: number;
-
-  // The collector reads the clock with `new Date()`, which a Date.now spy does
-  // not affect. Fake timers move both.
-  const advance = (ms: number) => {
-    clock += ms;
-    jest.setSystemTime(clock);
-  };
+  let nowSpy: jest.SpyInstance;
 
   beforeEach(() => {
     clock = 1_700_000_000_000;
     jest.useFakeTimers('modern');
-    jest.setSystemTime(clock);
+    nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => clock);
     setVisibility('visible');
   });
 
   afterEach(() => {
+    nowSpy.mockRestore();
     jest.useRealTimers();
     setVisibility('visible');
   });
 
-  it('measures how late its own collection ran', async () => {
+  it('reports a punctual collection as not late', async () => {
     const collector = createCollector();
     collector.start(createPeerConnection());
 
-    // First collection establishes the reference point.
-    await collector._collectStats(true);
-    // Second runs 1350 ms after a 1000 ms request.
-    advance(2350);
-    await collector._collectStats(true);
+    await runOneCollection();
 
-    const runtime = lastEntry(collector)?.sdkRuntime;
-    expect(runtime?.collectionIntervalMs).toBe(1000);
-    expect(runtime?.collectionLatenessMs).toBe(1350);
+    expect(lastRuntime(collector)?.collectionIntervalMs).toBe(1000);
+    expect(lastRuntime(collector)?.collectionLatenessMs).toBe(0);
   });
 
-  it('reports no lateness for a punctual collection', async () => {
+  it('attributes a late callback entry to the event loop', async () => {
     const collector = createCollector();
     collector.start(createPeerConnection());
 
-    await collector._collectStats(true);
-    advance(1004);
-    await collector._collectStats(true);
+    await runOneCollection(1350);
 
-    expect(lastEntry(collector)?.sdkRuntime?.collectionLatenessMs).toBe(4);
+    expect(lastRuntime(collector)?.collectionLatenessMs).toBe(1350);
   });
 
-  it('never reports negative lateness when a collection runs early', async () => {
+  it('does not count a slow getStats() as event-loop lateness (review)', async () => {
+    // The interval timestamps fold the stats call into the period, which is
+    // why a 300ms getStats() could read as a blocked main thread. Callback
+    // entry was on time, so lateness must stay zero.
     const collector = createCollector();
-    collector.start(createPeerConnection());
+    collector.start(createPeerConnection(() => 300));
 
-    await collector._collectStats(true);
-    advance(400);
-    await collector._collectStats(true);
+    await runOneCollection();
 
-    expect(lastEntry(collector)?.sdkRuntime?.collectionLatenessMs).toBe(0);
+    const runtime = lastRuntime(collector);
+    expect(runtime?.collectionLatenessMs).toBe(0);
+    expect(runtime?.collectionDurationMs).toBeGreaterThanOrEqual(300);
   });
 
-  it('omits lateness on the very first collection', async () => {
+  it('separates the two when both are present', async () => {
     const collector = createCollector();
-    collector.start(createPeerConnection());
+    collector.start(createPeerConnection(() => 200));
 
-    await collector._collectStats(true);
+    await runOneCollection(800);
 
-    const runtime = collector.getStatsBuffer()[0]?.sdkRuntime;
-    // Absent means not measured, which is not the same as measured as zero.
-    expect(runtime?.collectionLatenessMs).toBeUndefined();
-    expect(runtime?.visibilityState).toBe('visible');
+    const runtime = lastRuntime(collector);
+    expect(runtime?.collectionLatenessMs).toBe(800);
+    expect(runtime?.collectionDurationMs).toBeGreaterThanOrEqual(200);
+    // Their sum is what a server-side derivation would have seen.
+    expect(
+      (runtime?.collectionLatenessMs ?? 0) +
+        (runtime?.collectionDurationMs ?? 0)
+    ).toBeGreaterThanOrEqual(1000);
   });
 
   it('records the document visibility with each interval', async () => {
@@ -146,9 +167,9 @@ describe('CallReportCollector sdkRuntime', () => {
     collector.start(createPeerConnection());
 
     setVisibility('hidden');
-    await collector._collectStats(true);
+    await runOneCollection();
 
-    expect(lastEntry(collector)?.sdkRuntime?.visibilityState).toBe('hidden');
+    expect(lastRuntime(collector)?.visibilityState).toBe('hidden');
   });
 
   it('attributes event-loop activity to the interval that is closing', async () => {
@@ -159,19 +180,16 @@ describe('CallReportCollector sdkRuntime', () => {
       .mockReturnValueOnce(
         window({ episodes: 2, blockedEpisodes: 2, maxLagMs: 1346 })
       )
-      .mockReturnValueOnce(window());
+      .mockReturnValue(window());
 
-    await collector._collectStats(true);
-    const first = lastEntry(collector)?.sdkRuntime;
+    await runOneCollection();
+    const first = lastRuntime(collector);
     expect(first?.maxEventLoopLagMs).toBe(1346);
     expect(first?.eventLoopEpisodes).toBe(2);
     expect(first?.eventLoopBlockedEpisodes).toBe(2);
 
-    advance(1000);
-    await collector._collectStats(true);
-
-    // A quiet interval reports its own emptiness, not the previous lag.
-    const second = lastEntry(collector)?.sdkRuntime;
+    await runOneCollection();
+    const second = lastRuntime(collector);
     expect(second?.maxEventLoopLagMs).toBe(0);
     expect(second?.eventLoopEpisodes).toBe(0);
   });
@@ -187,26 +205,23 @@ describe('CallReportCollector sdkRuntime', () => {
         hiddenMs: 58_000,
       });
 
-    await collector._collectStats(true);
+    await runOneCollection();
 
-    const runtime = lastEntry(collector)?.sdkRuntime;
+    const runtime = lastRuntime(collector);
     expect(runtime?.eventLoopThrottledEpisodes).toBe(1);
     expect(runtime?.eventLoopBlockedEpisodes).toBe(0);
-    // A hidden tab is not a blocked main thread, so the lag figure stays clear.
     expect(runtime?.maxEventLoopLagMs).toBe(0);
     expect(runtime?.hiddenMs).toBe(58_000);
   });
 
-  it('still reports its own lateness with no monitor attached', async () => {
+  it('still reports its own timing with no monitor attached', async () => {
     const collector = createCollector();
     collector.start(createPeerConnection());
     collector.onDrainEventLoopWindow = null;
 
-    await collector._collectStats(true);
-    advance(1800);
-    await collector._collectStats(true);
+    await runOneCollection(800);
 
-    const runtime = lastEntry(collector)?.sdkRuntime;
+    const runtime = lastRuntime(collector);
     expect(runtime?.collectionLatenessMs).toBe(800);
     expect(runtime?.eventLoopEpisodes).toBeUndefined();
   });
@@ -218,10 +233,8 @@ describe('CallReportCollector sdkRuntime', () => {
       throw new Error('monitor gone');
     };
 
-    await collector._collectStats(true);
-    advance(1500);
-    await expect(collector._collectStats(true)).resolves.toBeUndefined();
+    await runOneCollection(500);
 
-    expect(lastEntry(collector)?.sdkRuntime?.collectionLatenessMs).toBe(500);
+    expect(lastRuntime(collector)?.collectionLatenessMs).toBe(500);
   });
 });
