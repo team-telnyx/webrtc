@@ -1,3 +1,7 @@
+## [2.28.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.11-beta.1...webrtc/v2.28.0) (2026-10-19)
+
+- feat(js): use the regional TURN servers when a region is pinned (VSDK-712) (#796)
+- feat(js): add registration timing diagnostics (#786)
 ## [2.27.11-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.11-beta.0...webrtc/v2.27.11-beta.1) (2026-10-07)
 
 - fix(react-client): use an npm-readable @telnyx/webrtc specifier
