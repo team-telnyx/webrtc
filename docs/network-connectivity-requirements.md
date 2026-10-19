@@ -109,7 +109,7 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 
 ### Regional TURN endpoints
 
-When the client is created with a `region` (see [Region selection](#region-selection)) and no explicit `iceServers`, the SDK's default TURN entries use that region's TURN name, so media relay stays in the same region as signaling:
+When the client is created with a `region` (see [Region selection](#region-selection)) and no explicit `iceServers`, the SDK's default TURN entries over UDP/TCP 3478 use that region's TURN name, so media relay stays in the same region as signaling:
 
 | Regional TURN name | Region |
 |--------------------|--------|
@@ -121,7 +121,7 @@ When the client is created with a `region` (see [Region selection](#region-selec
 | `apac.turn.telnyx.com` | Asia-Pacific |
 | `south-asia.turn.telnyx.com` | South Asia |
 
-The same ports apply (UDP/TCP 3478, TURNS 443). STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used as before.
+The regional names serve UDP/TCP 3478. TURN over TLS on 443 always uses the flat `turn.telnyx.com`, and STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used for everything, as before.
 
 ## Media server connectivity
 

@@ -160,7 +160,8 @@ export interface IClientOptions {
    *
    * Pinning a region selects both the signaling host
    * (`<region>.rtc.telnyx.com`) and, unless `iceServers` is set, the TURN
-   * servers used for media relay (`<region>.turn.telnyx.com`).
+   * servers used for media relay over UDP/TCP (`<region>.turn.telnyx.com`).
+   * TURN over TLS on 443 keeps the flat `turn.telnyx.com` name.
    *
    * Arbitrary strings remain supported for backwards compatibility.
    */

@@ -16,12 +16,10 @@ describe('regionalTurnUrl', () => {
       'turn:turn.telnyx.com:3478?transport=tcp',
       'turn:eu.turn.telnyx.com:3478?transport=tcp',
     ],
-    ['turns:turn.telnyx.com:443', 'turns:eu.turn.telnyx.com:443'],
     [
       'turn:turndev.telnyx.com:3478?transport=udp',
       'turn:eu.turndev.telnyx.com:3478?transport=udp',
     ],
-    ['turns:turndev.telnyx.com:443', 'turns:eu.turndev.telnyx.com:443'],
   ])('rewrites %s', (url, expected) => {
     expect(regionalTurnUrl(url, 'eu')).toBe(expected);
   });
@@ -30,6 +28,9 @@ describe('regionalTurnUrl', () => {
     'stun:stun.telnyx.com:3478',
     'stun:stundev.telnyx.com:3478',
     'stun:stun.l.google.com:19302',
+    // TURNS stays on the flat name: the TURN certificate only covers it.
+    'turns:turn.telnyx.com:443',
+    'turns:turndev.telnyx.com:443',
     'turns:turn2.telnyx.com:443',
     'turn:turn.example.com:3478',
     'turn:turn.telnyx.company.com:3478',
@@ -50,7 +51,7 @@ describe('getDefaultIceServers', () => {
   });
 
   it.each(Object.values(Region))(
-    'regionalizes only the TURN entries for %s',
+    'regionalizes only the plain TURN entries for %s',
     (region) => {
       const servers = getDefaultIceServers(undefined, region);
 
@@ -60,7 +61,7 @@ describe('getDefaultIceServers', () => {
         'stun:stun.l.google.com:19302',
         `turn:${region}.turn.telnyx.com:3478?transport=udp`,
         `turn:${region}.turn.telnyx.com:3478?transport=tcp`,
-        `turns:${region}.turn.telnyx.com:443`,
+        'turns:turn.telnyx.com:443',
       ]);
     }
   );
