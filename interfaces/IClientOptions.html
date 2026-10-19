@@ -419,7 +419,8 @@ credential, allowing browser and mobile clients to ring simultaneously.</p>
 values, or omit this option to use automatic routing.</p>
 <p>Pinning a region selects both the signaling host
 (<code>&lt;region&gt;.rtc.telnyx.com</code>) and, unless <code>iceServers</code> is set, the TURN
-servers used for media relay (<code>&lt;region&gt;.turn.telnyx.com</code>).</p>
+servers used for media relay over UDP/TCP (<code>&lt;region&gt;.turn.telnyx.com</code>).
+TURN over TLS on 443 keeps the flat <code>turn.telnyx.com</code> name.</p>
 <p>Arbitrary strings remain supported for backwards compatibility.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>

@@ -187,9 +187,10 @@ configuration (Inbound tab.)</p>
 <li class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>ICE servers used for every call unless <code>newCall()</code> overrides them.
 Explicit <code>iceServers</code> are taken as given. Otherwise the SDK defaults for
-the environment are used, with the TURN entries pointed at the pinned
-<code>region</code>&#39;s TURN name (<code>&lt;region&gt;.turn.telnyx.com</code>) when one is set, so
-media relay stays in the same region as signaling.</p>
+the environment are used, with the plain TURN entries pointed at the
+pinned <code>region</code>&#39;s TURN name (<code>&lt;region&gt;.turn.telnyx.com</code>) when one is set,
+so media relay stays in the same region as signaling. TURNS/443 keeps the
+flat name.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
