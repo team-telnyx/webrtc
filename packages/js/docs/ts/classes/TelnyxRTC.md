@@ -46,7 +46,6 @@ client.off('telnyx.notification');
 
 ### Properties
 
-- [\_registrationTimings](#_registrationtimings)
 - [callReportVoiceSdkId](#callreportvoicesdkid)
 - [reconnectTokenCanaryRtcServer](#reconnecttokencanaryrtcserver)
 - [reconnectTokenVoiceSdkId](#reconnecttokenvoicesdkid)
@@ -171,18 +170,6 @@ The corresponding HTML:
 TelnyxRTCClient.constructor
 
 ## Properties
-
-### \_registrationTimings
-
-• `Optional` **\_registrationTimings**: `default`
-
-Bounded diagnostics for the initial registration flow.
-
-#### Inherited from
-
-TelnyxRTCClient.\_registrationTimings
-
----
 
 ### callReportVoiceSdkId
 
