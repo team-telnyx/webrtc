@@ -82,16 +82,23 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   TURN_TLS_443_DEV_SERVER,
 ];
 
-// Only the primary TURN names have regional variants: turn.telnyx.com and
-// turndev.telnyx.com become <region>.turn.telnyx.com and
+// Only the primary plain-TURN names have regional variants: turn.telnyx.com
+// and turndev.telnyx.com become <region>.turn.telnyx.com and
 // <region>.turndev.telnyx.com (published by rtc-dns-server next to
 // <region>.rtc). STUN and turn2.telnyx.com have none and are left alone.
-const REGIONAL_TURN_HOST = /^(turns?:)turn(dev)?\.telnyx\.com(?=[:/?]|$)/;
+//
+// TURNS (`turns:` on 443) is deliberately excluded: the browser validates the
+// TLS certificate against the hostname in the URL, and the TURN certificate
+// covers the flat names only. Rewriting it would make the TLS handshake fail
+// and the browser would silently drop the relay, which hurts exactly the
+// restrictive-firewall users TURNS exists for. Pinned clients keep
+// `turns:turn.telnyx.com:443`.
+const REGIONAL_TURN_HOST = /^(turn:)turn(dev)?\.telnyx\.com(?=[:/?]|$)/;
 
 /**
- * Rewrites a Telnyx TURN URL to its regional name. URLs that are not the
- * primary Telnyx TURN host (STUN, turn2, third-party servers) are returned
- * unchanged.
+ * Rewrites a plain Telnyx TURN URL to its regional name. URLs that are not the
+ * primary Telnyx TURN host over UDP/TCP (STUN, TURNS, turn2, third-party
+ * servers) are returned unchanged.
  */
 export function regionalTurnUrl(url: string, region: string): string {
   return url.replace(REGIONAL_TURN_HOST, `$1${region}.turn$2.telnyx.com`);
@@ -99,9 +106,10 @@ export function regionalTurnUrl(url: string, region: string): string {
 
 /**
  * The SDK's default ICE servers for an environment. When a region is pinned
- * the TURN entries point at that region's TURN name, so media relay follows
- * the same region as signaling (`<region>.rtc.telnyx.com`) instead of
- * whatever the flat `turn.telnyx.com` anycast answer happens to be.
+ * the plain TURN entries (UDP/TCP 3478) point at that region's TURN name, so
+ * media relay follows the same region as signaling (`<region>.rtc.telnyx.com`)
+ * instead of whatever the flat `turn.telnyx.com` anycast answer happens to be.
+ * The TURNS/443 entry stays on the flat name (see REGIONAL_TURN_HOST).
  *
  * Entries are copied, never mutated; credentials and ordering are kept.
  */
