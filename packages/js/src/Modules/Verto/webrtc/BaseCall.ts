@@ -2410,17 +2410,7 @@ export default abstract class BaseCall implements IWebRTCCall {
     instance.addEventListener('addstream', (event: MediaStreamEvent) => {
       this.options.remoteStream = event.stream;
     });
-    instance.addEventListener('track', (event: RTCTrackEvent) => {
-      this.options.remoteStream = event.streams[0];
-      const { remoteElement, remoteStream, screenShare } = this.options;
-      if (screenShare === false) {
-        attachMediaStream(remoteElement, remoteStream, {
-          callId: this.id,
-          sessionId: this.session.sessionid,
-          eventTarget: this.session.uuid,
-        });
-      }
-    });
+    // Remote `track` events are handled by `Peer.handleTrackEvent` (ontrack).
 
     // Telemetry's own listeners on this connection (ICE candidates, DTLS,
     // metrics), after the SDK's: the SDK drops its icecandidate handler once
@@ -2634,7 +2624,8 @@ export default abstract class BaseCall implements IWebRTCCall {
           enabled: true, // Debug logs enabled when call reports are enabled
           level: debugLogLevel,
           maxEntries: debugLogMaxEntries,
-        }
+        },
+        () => this.session._registrationTimings?.getLogEntry()
       );
 
       // Wire up size-aware early flush: when the payload approaches the

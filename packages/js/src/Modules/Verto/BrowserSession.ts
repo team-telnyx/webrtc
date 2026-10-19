@@ -13,8 +13,7 @@ import {
 } from './util/errors';
 import {
   SwEvent,
-  DEFAULT_PROD_ICE_SERVERS,
-  DEFAULT_DEV_ICE_SERVERS,
+  getDefaultIceServers,
   MULTIPLE_ACTIVE_CALLS_DETECTED,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
@@ -37,6 +36,25 @@ import { telemetryOf } from './telemetry';
 
 export default abstract class BrowserSession extends BaseSession {
   public calls: { [callId: string]: IWebRTCCall } = {};
+
+  /**
+   * Call IDs that already emitted REMOTE_AUDIO_ELEMENT_UNRESOLVED. Kept on the
+   * session rather than the Peer so attach recovery, which replaces the
+   * Call/Peer under the same call ID, does not re-emit it.
+   */
+  private _missingRemoteAudioElementWarnedCallIds: Set<string> = new Set();
+
+  /**
+   * Records `callId` as warned and returns whether it already was.
+   * @ignore
+   */
+  public markMissingRemoteAudioElementWarned(callId: string): boolean {
+    if (this._missingRemoteAudioElementWarnedCallIds.has(callId)) {
+      return true;
+    }
+    this._missingRemoteAudioElementWarnedCallIds.add(callId);
+    return false;
+  }
 
   /**
    * Call states considered "active" (non-terminal) for the purpose of
@@ -320,6 +338,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }
@@ -341,6 +360,7 @@ export default abstract class BrowserSession extends BaseSession {
     }
 
     this.calls = {};
+    this._missingRemoteAudioElementWarnedCallIds.clear();
 
     await super.disconnect();
   }
@@ -730,14 +750,21 @@ export default abstract class BrowserSession extends BaseSession {
     this._audioConstraints = this._previousAudioConstraints || true;
   }
 
+  /**
+   * ICE servers used for every call unless `newCall()` overrides them.
+   * Explicit `iceServers` are taken as given. Otherwise the SDK defaults for
+   * the environment are used, with the TURN entries pointed at the pinned
+   * `region`'s TURN name (`<region>.turn.telnyx.com`) when one is set, so
+   * media relay stays in the same region as signaling.
+   */
   set iceServers(servers: RTCIceServer[]) {
     if (servers && Array.isArray(servers)) {
       this._iceServers = servers;
     } else {
-      const isDev = this.options.env === 'development';
-      this._iceServers = isDev
-        ? DEFAULT_DEV_ICE_SERVERS
-        : DEFAULT_PROD_ICE_SERVERS;
+      this._iceServers = getDefaultIceServers(
+        this.options.env,
+        this.options.region
+      );
     }
   }
 

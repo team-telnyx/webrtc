@@ -52,6 +52,38 @@ export const isDefined = (variable: any): boolean =>
 export const isFunction = (variable: any): boolean =>
   variable instanceof Function || typeof variable === 'function';
 
+/**
+ * `instanceof HTMLMediaElement` alone is false for elements owned by another
+ * window (iframe, popout, Document Picture-in-Picture), so also check against
+ * the element's own realm.
+ */
+export const isMediaElement = (
+  element: unknown
+): element is HTMLMediaElement => {
+  if (
+    typeof HTMLMediaElement !== 'undefined' &&
+    element instanceof HTMLMediaElement
+  ) {
+    return true;
+  }
+  const ownerWindow = isNode(element)
+    ? element.ownerDocument?.defaultView
+    : null;
+  if (
+    ownerWindow?.HTMLMediaElement &&
+    element instanceof ownerWindow.HTMLMediaElement
+  ) {
+    logger.info(
+      'Using a media element owned by another window (iframe, popout or Picture-in-Picture)'
+    );
+    return true;
+  }
+  return false;
+};
+
+const isNode = (value: unknown): value is Node =>
+  typeof value === 'object' && value !== null && 'ownerDocument' in value;
+
 export const findElementByType = (
   tag: HTMLMediaElement | string | Function
 ): HTMLMediaElement => {
@@ -62,7 +94,7 @@ export const findElementByType = (
     return <HTMLMediaElement>document.getElementById(tag) || null;
   } else if (typeof tag === 'function') {
     return tag();
-  } else if (tag instanceof HTMLMediaElement) {
+  } else if (isMediaElement(tag)) {
     return tag;
   }
   return null;

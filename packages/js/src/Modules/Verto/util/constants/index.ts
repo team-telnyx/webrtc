@@ -82,6 +82,48 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
   TURN_TLS_443_DEV_SERVER,
 ];
 
+// Only the primary TURN names have regional variants: turn.telnyx.com and
+// turndev.telnyx.com become <region>.turn.telnyx.com and
+// <region>.turndev.telnyx.com (published by rtc-dns-server next to
+// <region>.rtc). STUN and turn2.telnyx.com have none and are left alone.
+const REGIONAL_TURN_HOST = /^(turns?:)turn(dev)?\.telnyx\.com(?=[:/?]|$)/;
+
+/**
+ * Rewrites a Telnyx TURN URL to its regional name. URLs that are not the
+ * primary Telnyx TURN host (STUN, turn2, third-party servers) are returned
+ * unchanged.
+ */
+export function regionalTurnUrl(url: string, region: string): string {
+  return url.replace(REGIONAL_TURN_HOST, `$1${region}.turn$2.telnyx.com`);
+}
+
+/**
+ * The SDK's default ICE servers for an environment. When a region is pinned
+ * the TURN entries point at that region's TURN name, so media relay follows
+ * the same region as signaling (`<region>.rtc.telnyx.com`) instead of
+ * whatever the flat `turn.telnyx.com` anycast answer happens to be.
+ *
+ * Entries are copied, never mutated; credentials and ordering are kept.
+ */
+export function getDefaultIceServers(
+  env?: string,
+  region?: string | null
+): RTCIceServer[] {
+  const defaults =
+    env === 'development' ? DEFAULT_DEV_ICE_SERVERS : DEFAULT_PROD_ICE_SERVERS;
+
+  if (!region) {
+    return defaults;
+  }
+
+  return defaults.map((server) => ({
+    ...server,
+    urls: Array.isArray(server.urls)
+      ? server.urls.map((url) => regionalTurnUrl(url, region))
+      : regionalTurnUrl(server.urls, region),
+  }));
+}
+
 /**
  * Public catalog of Telnyx-provided ICE servers. Each entry is a ready-to-use
  * `RTCIceServer`. Import this and compose any combination into the `iceServers`
