@@ -1,6 +1,6 @@
 {
   "name": "@telnyx/webrtc",
-  "version": "2.27.11-call-report-v2.1",
+  "version": "2.28.0",
   "description": "Telnyx WebRTC Client",
   "keywords": [
     "telnyx",

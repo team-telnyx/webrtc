@@ -1,16 +1,43 @@
-## [2.27.11-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.11-beta.0...webrtc/v2.27.11-beta.1) (2026-10-07)
+## [2.28.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10...webrtc/v2.28.0) (2026-10-19)
 
-- fix(react-client): use an npm-readable @telnyx/webrtc specifier
-- fix(js): pin jest-environment-jsdom 26 so packages/js tests run
-- chore: set 2.27.11-beta.0 as the prerelease base (VSDK-712)
-- feat(js): use the regional TURN servers when a region is pinned (VSDK-712)
-- feat(js): expose call reporting enabled state in VSP logs (#798)
-- fix(react-client): update React wrapper for WebRTC SDK 2.27.10 (#792)
-- fix: preserve call message handling after peer connection closes (#790)
-- fix(js): recover disconnected microphone and speaker devices (VSDK-645) (#795)
-- feat(js): accept per-call audio and video device options when answering (VSDK-646) (#794)
-- fix(js): fall back to default microphone when switching devices (VSDK-647) (#793)
-- chore(webrtc): log local track attachment path (#791)
+### Features
+
+- **use the regional TURN servers when a region is pinned** (VSDK-712) (#796, #807): When the client is created with a `region` and without explicit `iceServers`, the default TURN UDP/3478 and TCP/3478 entries now point at that region's TURN host (`<region>.turn.telnyx.com`, or `<region>.turndev.telnyx.com` in development) instead of the flat `turn.telnyx.com`. Media relay now follows the same region as signaling (`<region>.rtc.telnyx.com`); previously a client pinned to `apac` could register in APAC and still relay media through US TURN servers. The TURNS/443 entry stays on the flat `turn.telnyx.com` (`turndev.telnyx.com` in development): browsers validate the TLS certificate against the `turns:` hostname, and the regional names are not covered by it. STUN entries, third-party servers, ordering and credentials are unchanged. Explicit `iceServers` (client or per call) still take precedence, and clients without a `region` are unaffected. The network connectivity requirements guide lists the regional TURN endpoints.
+
+- **per-call audio and video device options when answering** (VSDK-646) (#794): `call.answer()` now accepts the same `micId`, `micLabel`, `speakerId`, `camId`, `camLabel`, `audio` and `video` options as `newCall()`, alongside the existing `customHeaders`, `remoteElement` and `localElement`. Omitted or `undefined` values keep the call's defaults, explicit `audio: false` / `video: false` disables capture for that kind, and a valid existing `localStream` is reused. The options apply to the initial media setup only, not to later device switches. Speaker selection requires browser `setSinkId` support and a remote media element. The README has an example.
+
+- **explicit canary routing toggle** (#756): `IClientOptions.useCanaryRtcServer` is now a routing override with three states: `true` sends `canary=true` on the WebSocket URL, `false` sends `canary=false`, and leaving it unset omits the parameter so VSP routes by its default load-based behavior. When an explicit value differs from the routing that the stored reconnect token was issued for, the stored `voice_sdk_id` is dropped so the client is not routed back to the previous server. Normal reconnect stickiness is kept when the option is omitted or unchanged.
+
+- **registration timing diagnostics** (#786): Each client now traces its initial registration from `new TelnyxRTC()` to the first `telnyx.ready`. It logs info-level milestones prefixed with `[TelnyxRTC registration <client UUID>]`, a final `COMPLETE` line and a console table; `debug: true` is not required. The summary separates constructor time, the time the application waited before calling `connect()`, and connect-to-ready time, and includes request durations, gateway states, retry delays and the longest interval. Timestamps are ISO 8601 UTC with milliseconds. When call reports are enabled, the summary is included once per call as a `Registration timing` info entry (`context.event: "registration_timing"`) in the first available `/call_report` segment; there is no new upload or signaling message. Collection is bounded to 128 milestones and 32 pending requests, and only the initial successful registration is summarized. See `docs/registration-timing.md`.
+
+- **call reporting state in signaling** (#798): `telnyx_rtc.invite`, `telnyx_rtc.answer` and `telnyx_rtc.attach` requests now always include `params.call_reports_enabled`, in both trickle and non-trickle ICE paths. It is `false` only when `enableCallReports` is explicitly `false`, so VSP logs show whether call reporting was configured for a call. The value describes configuration, not whether a report was delivered.
+
+- **warn when remote audio has no SDK-managed media element** (VSUP-215) (#781): Add the non-fatal warning `REMOTE_AUDIO_ELEMENT_UNRESOLVED` (33012), emitted through `telnyx.warning` when a remote audio track arrives and a configured call-level or session-level `remoteElement` does not resolve to an `<audio>` or `<video>` element: a string ID with no match, a resolver that returns `null`, `undefined` or a non-media element, or a session-level ID that did not exist when it was set. It is not emitted when `remoteElement` is unset, because the application is then expected to play `call.remoteStream` itself. The warning fires at most once per call, and the call and `call.remoteStream` are unaffected. Media elements owned by another window (iframe, popout, Document Picture-in-Picture) are now accepted as `remoteElement`. Documented in `docs/error-handling.md`.
+
+### Changes
+
+- **remove `turn2.telnyx.com` from the default ICE servers** (VSDK-601) (#785): The default production ICE server list no longer includes `turns:turn2.telnyx.com:443`. It now has five entries: Telnyx STUN, Google STUN, TURN UDP/3478, TURN TCP/3478 and TURNS/443 on `turn.telnyx.com`. In the public `TELNYX_ICE_SERVERS` catalog, `TELNYX_TURNS_TCP_443` now points at `turns:turn.telnyx.com:443`, and `TELNYX_TURNS_TCP_443_PRIMARY` has been removed (see Consumer-visible notes).
+
+### Bug Fixes
+
+- **recover disconnected microphone and speaker devices** (VSDK-645) (#795): When the microphone or speaker a call is using is unplugged, the call now switches that device to the system default instead of losing audio. Only the in-use device triggers recovery, matched by its actual track or sink identity (including default aliases). Mute state, video and call-local selection are preserved, and unrelated devices or a previously used device reconnecting do not cause a switch. Device-change events are serialized, stale decisions are discarded, repeated failures do not loop, and pending media is cleaned up when the call ends. If recovery fails, the working media is kept. Adds the non-fatal error `UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE` (42004) for the case where the replacement track was attached but its settings could not be read.
+
+- **fall back to the default microphone when switching devices** (VSDK-647) (#793): `call.setAudioInDevice()` now falls back to the default microphone when the requested device cannot be opened for a recoverable reason, instead of failing the switch. Mute state, video tracks and existing media are preserved on failure, and the call records the microphone that was actually acquired rather than the requested ID.
+
+- **keep handling call messages after the peer connection closes** (#790): `Peer.isConnectionHealthy()` threw once `close()` had cleared the native peer connection, which dropped every later call-scoped message such as BYE, ATTACH and PUNT. It now returns `false` for a closed peer, and message handling continues. Fixes #788.
+
+### CI / Chores
+
+- **log the local track attachment path** (#791): Debug-level logs show which local-media attachment path a call takes (`addTransceiver`, `addTrack` or legacy `addStream`), with track, transceiver, MID and direction details before and after each step. Media behavior is unchanged.
+- **remove release docs automation** (#780): The draft-release workflow no longer regenerates and commits `packages/js/docs`, and the publish-release workflow no longer dispatches snippet updates to the developer docs repository.
+
+### Consumer-visible notes
+
+- **ICE server catalog:** `TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443_PRIMARY` was removed, and `TELNYX_ICE_SERVERS.TELNYX_TURNS_TCP_443` now resolves to `turns:turn.telnyx.com:443` instead of `turn2.telnyx.com`. Code that references `TELNYX_TURNS_TCP_443_PRIMARY` no longer compiles in TypeScript and gets `undefined` in JavaScript; use `TELNYX_TURNS_TCP_443` instead.
+- **Regional relay:** clients that set `region` now gather TURN UDP/3478 and TCP/3478 relay candidates from `<region>.turn.telnyx.com`; TURNS/443 still uses `turn.telnyx.com`. Networks that allowlist TURN servers by hostname need to allow the regional names.
+- **Diagnostics:** new warning `REMOTE_AUDIO_ELEMENT_UNRESOLVED` (33012) and new non-fatal error `UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE` (42004). Registration timing lines are logged at info level, so they appear in the console with the default SDK logging level.
+- **Signaling:** invite, answer and attach requests include the new `call_reports_enabled` parameter.
+
 ## [2.27.10](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.9...webrtc/v2.27.10) (2026-08-21)
 
 ### Features

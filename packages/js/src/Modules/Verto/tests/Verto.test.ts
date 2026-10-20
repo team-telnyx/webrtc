@@ -1122,7 +1122,7 @@ describe('Verto', () => {
         credential: 'testpassword',
       },
       {
-        urls: 'turns:apac.turn.telnyx.com:443',
+        urls: 'turns:turn.telnyx.com:443',
         username: 'testuser',
         credential: 'testpassword',
       },
@@ -1149,7 +1149,7 @@ describe('Verto', () => {
       'stun:stun.l.google.com:19302',
       'turn:us-west.turndev.telnyx.com:3478?transport=udp',
       'turn:us-west.turndev.telnyx.com:3478?transport=tcp',
-      'turns:us-west.turndev.telnyx.com:443',
+      'turns:turndev.telnyx.com:443',
     ]);
   });
 
