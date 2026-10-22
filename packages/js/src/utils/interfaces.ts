@@ -444,6 +444,11 @@ export interface ICallOptions {
   destinationNumber?: string;
   /**
    * Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.
+   *
+   * On an emergency call (`911`, or the `933` test number) this is the caller's identity: the platform
+   * looks up the emergency address registered on this number and hands it to the emergency service as
+   * the callback number. Use a number on your account in `+E.164` form with emergency services enabled,
+   * and keep the connection's Caller ID Override off for emergency calls — an override replaces this value.
    */
   callerNumber?: string;
   /**
@@ -531,6 +536,12 @@ export interface ICallOptions {
 
   /**
    * Add custom headers to the INVITE and ANSWER request.
+   *
+   * Header names must start with `X-`; other names are not forwarded. For emergency calls the
+   * caller's coordinates can be sent as `X-Latitude` / `X-Longitude` (WGS 84, 6 to 8 decimals),
+   * for example from `navigator.geolocation`. Identity headers (`From`, `P-Asserted-Identity`)
+   * cannot be set here — the caller is identified by `callerNumber`. See `TelnyxRTC.newCall` for an
+   * emergency-call example.
    */
   customHeaders?: { name: string; value: string }[];
 

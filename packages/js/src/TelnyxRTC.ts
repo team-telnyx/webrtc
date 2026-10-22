@@ -271,6 +271,42 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
 
+   * ### Emergency Calls (911 / 933)
+   *
+   * An emergency call is an ordinary outbound call to an emergency number. Nothing in the client
+   * treats it specially: the platform classifies the destination, routes it to the emergency carrier
+   * and locates the caller. Two things on the call matter:
+   *
+   * - `callerNumber` identifies the caller. The platform uses it to find the emergency address
+   *   registered on that number and gives it to the emergency service as the callback number, so it
+   *   must be a number on your account with emergency services enabled, in `+E.164` form. A Caller ID
+   *   Override on the connection replaces it; leave the override off for emergency calls.
+   * - `customHeaders` can carry the caller's coordinates for callers whose location differs from the
+   *   registered address, as `X-Latitude` / `X-Longitude`.
+   *
+   * Never test with `911`. Dial `933`: it takes the same path and reads the location back without
+   * dispatching anyone. Emergency calls from a number without emergency services enabled are treated
+   * as unregistered and charged a penalty.
+   *
+   * ```js
+   * navigator.geolocation.getCurrentPosition(({ coords }) => {
+   *   client.newCall({
+   *     destinationNumber: '933',
+   *     callerNumber: '+13125550100',
+   *     customHeaders: [
+   *       { name: 'X-Latitude', value: coords.latitude.toFixed(6) },
+   *       { name: 'X-Longitude', value: coords.longitude.toFixed(6) },
+   *     ],
+   *   });
+   * });
+   * ```
+   *
+   * The emergency service calls back `callerNumber`, as an ordinary inbound call to that number —
+   * not to the browser session. Route it to something always answered. Keep `call.id` and
+   * `call.telnyxIDs` from the call: they match the `webrtc` detail record (`call_id`, `telnyx_leg_id`)
+   * and let Telnyx support confirm what reached the emergency carrier. The account notification
+   * "Emergency Number Dialed" can alert you per number.
+   *
    * ### Setting Preferred Codec
    *
    * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
