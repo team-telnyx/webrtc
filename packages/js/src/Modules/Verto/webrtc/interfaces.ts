@@ -26,6 +26,23 @@ export interface IHangupParams {
   initiator?: string;
 }
 
+/**
+ * Location of the caller on an emergency call (for example `911` or the
+ * `933` test number). Provide one or both:
+ *
+ * - `sipGeolocationId`: the `sip_geolocation_id` of an activated dynamic
+ *   emergency address, sent as the `Geolocation` SIP header.
+ * - `coordinates`: WGS 84 latitude/longitude, sent as the `X-Latitude` and
+ *   `X-Longitude` SIP headers.
+ *
+ * Emergency calling must be enabled for the account and the number used as
+ * `callerNumber`; see the emergency-calling guide in `docs/`.
+ */
+export interface IEmergencyCallOptions {
+  sipGeolocationId?: string;
+  coordinates?: { latitude: number; longitude: number };
+}
+
 export interface IVertoCallOptions {
   // Optional
   destinationNumber?: string;
@@ -68,6 +85,8 @@ export interface IVertoCallOptions {
   negotiateVideo?: boolean;
   mediaSettings?: IMediaSettings;
   customHeaders?: Array<{ name: string; value: string }>;
+  /** Caller location for emergency calls; mapped to SIP headers. */
+  emergency?: IEmergencyCallOptions;
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
   preferred_codecs?: RTCRtpCodecCapability[];

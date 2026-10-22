@@ -27,6 +27,8 @@ export default abstract class BaseRequest extends BaseMessage {
         camId,
         micId,
         speakerId,
+        // consumed client-side: already mapped to customHeaders
+        emergency,
         ...dialogParams
       } = params.dialogParams;
       /* eslint-enable @typescript-eslint/no-unused-vars */

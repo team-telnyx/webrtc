@@ -54,6 +54,7 @@ import { isFunction, mutateLiveArrayData, objEmpty } from '../util/helpers';
 import { INotificationEventData } from '../util/interfaces';
 import { getIceCandidateErrorDetails } from '../util/debug';
 import logger from '../util/logger';
+import { applyEmergencyOptions } from './emergency';
 import {
   attachMediaStream,
   detachMediaStream,
@@ -334,6 +335,9 @@ export default abstract class BaseCall implements IWebRTCCall {
       },
       opts
     );
+    // Turn `emergency` into the SIP headers the platform reads. Throws on
+    // invalid input, so a bad emergency call never leaves the application.
+    applyEmergencyOptions(this.options);
 
     this._onMediaError = this._onMediaError.bind(this);
     this._onPeerConnectionFailureError =

@@ -271,6 +271,23 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
 
+   * ### Emergency Calls
+   *
+   * Pass `emergency` to attach the caller's location to a 911/933 call.
+   * `sipGeolocationId` is sent as the `Geolocation` SIP header, `coordinates`
+   * as `X-Latitude`/`X-Longitude`. Invalid values throw before the call is placed.
+   *
+   * ```js
+   * client.newCall({
+   *  destinationNumber: '933',
+   *  callerNumber: '+13125550100',
+   *  emergency: {
+   *    sipGeolocationId: 'c1a8e59d00db5b1f',
+   *    coordinates: { latitude: 41.881, longitude: -87.674 },
+   *  },
+   * });
+   * ```
+   *
    * ### Setting Preferred Codec
    *
    * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
