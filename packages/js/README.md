@@ -314,6 +314,30 @@ PreCallDiagnosis.run({
 > The new family is not a drop-in replacement for the legacy API — their
 > report shapes are not structurally equivalent.
 
+### Emergency Calls (911 / 933)
+
+An emergency call is an ordinary outbound call whose `callerNumber` identifies
+the caller to the emergency service. To send the caller's location, pass an
+`emergency` object instead of hand-writing SIP headers:
+
+```js
+client.newCall({
+  destinationNumber: '933', // test number: reads the location back, no dispatch
+  callerNumber: '+13125550100', // a number with emergency services enabled
+  emergency: {
+    sipGeolocationId: 'c1a8e59d00db5b1f', // from a dynamic emergency address
+    // or / and WGS 84 coordinates, e.g. from navigator.geolocation
+    coordinates: { latitude: 41.881, longitude: -87.674 },
+  },
+});
+```
+
+`sipGeolocationId` is sent as the `Geolocation` SIP header and `coordinates`
+as `X-Latitude` / `X-Longitude`. Invalid values throw before the call is
+placed. Emergency calling must be provisioned for the account and the number;
+see [Emergency calling](docs/emergency-calling.md) for the full procedure and
+the approved 933 test.
+
 ### Setting Preferred Codec
 
 You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
