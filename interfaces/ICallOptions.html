@@ -79,6 +79,12 @@
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>caller<wbr/>Number</span><a href="#callerNumber" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">caller<wbr/>Number</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.</p>
+<p>On an emergency call (<code>911</code>, or the <code>933</code> test number) this is the caller&#39;s identity: the platform
+looks up the emergency address registered on this number and hands it to the emergency service as
+the callback number. Use a number on your account in <code>+E.164</code> form with emergency services enabled.
+A Caller ID Override on the connection can replace this value: an override that applies to emergency
+calls (<code>always</code>, <code>emergency</code>) always does, and a <code>normal</code> override is used as the fallback when this
+value is not a valid number — leave the override off on connections that place emergency calls.</p>
 </div>
 <div class="tsd-comment tsd-typography"></div></section>
 <section class="tsd-panel tsd-member"><a id="camId" class="tsd-anchor"></a>
@@ -98,6 +104,13 @@
 <h3 class="tsd-anchor-link"><code class="tsd-tag ts-flagOptional">Optional</code> <span>custom<wbr/>Headers</span><a href="#customHeaders" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">custom<wbr/>Headers</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{ </span><br/><span>    </span><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span>    </span><span class="tsd-kind-property">value</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">; </span><br/><span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">[]</span></div>
 <div class="tsd-comment tsd-typography"><p>Add custom headers to the INVITE and ANSWER request.</p>
+<p>Header names must start with <code>X-</code>; other names are not forwarded. For emergency calls the
+caller&#39;s coordinates can be sent as <code>X-Latitude</code> / <code>X-Longitude</code> (WGS 84, 6 to 8 decimals),
+for example from <code>navigator.geolocation</code>. This built-in geolocation is available for U.S.
+emergency calls and must be enabled by Telnyx support (PIDF-LO) on the number used as
+<code>callerNumber</code>; without that, the headers are forwarded but not used to locate the caller.
+Identity headers (<code>From</code>, <code>P-Asserted-Identity</code>) cannot be set here — the caller is identified by
+<code>callerNumber</code>. See <code>TelnyxRTC.newCall</code> for an emergency-call example.</p>
 </div>
 <div class="tsd-type-declaration">
 <h4>Type declaration</h4>

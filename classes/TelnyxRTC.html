@@ -758,6 +758,34 @@ and immediately re-authenticates without requiring a full socket reconnection. T
 </code><button>Copy</button></pre>
 <a id="md:setting-custom-headers" class="tsd-anchor"></a><h3><a href="#md:setting-custom-headers">Setting Custom Headers</a></h3><pre><code class="language-js"><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;18004377950&#39;</span><span class="hl-1">,</span><br/><br/><span class="hl-1"> </span><span class="hl-3">callerNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;155531234567&#39;</span><span class="hl-1">,</span><br/><br/><span class="hl-1"> </span><span class="hl-3">customHeaders:</span><span class="hl-1"> [ {</span><span class="hl-3">name:</span><span class="hl-1"> </span><span class="hl-6">&quot;X-Header&quot;</span><span class="hl-1">, </span><span class="hl-3">value:</span><span class="hl-1"> </span><span class="hl-6">&quot;value&quot;</span><span class="hl-1"> } ] </span><br/><span class="hl-1">});</span>
 </code><button>Copy</button></pre>
+<a id="md:emergency-calls-911--933" class="tsd-anchor"></a><h3><a href="#md:emergency-calls-911--933">Emergency Calls (911 / 933)</a></h3><p>An emergency call is an ordinary outbound call to an emergency number. Nothing in the client
+treats it specially: the platform classifies the destination, routes it to the emergency carrier
+and locates the caller. Two things on the call matter:</p>
+<ul>
+<li><code>callerNumber</code> identifies the caller. The platform uses it to find the emergency address
+registered on that number and gives it to the emergency service as the callback number, so it
+must be a number on your account with emergency services enabled, in <code>+E.164</code> form. A Caller ID
+Override on the connection can replace it: an override that applies to emergency calls
+(<code>always</code>, <code>emergency</code>) does so unconditionally, and a <code>normal</code> override is used as the fallback
+when <code>callerNumber</code> is not a valid number. Leave the override off on connections that place
+emergency calls.</li>
+<li><code>customHeaders</code> can carry the caller&#39;s coordinates as <code>X-Latitude</code> / <code>X-Longitude</code>, for callers
+whose location differs from the address registered on the number. This is Telnyx&#39;s built-in
+geolocation for emergency calls, available for U.S. destinations, and it has to be enabled by
+Telnyx support (PIDF-LO) on the number used as <code>callerNumber</code> before the coordinates are used to
+route the call. Forwarding the headers alone does not locate the caller; validate with a <code>933</code>
+test and listen for the location readback.</li>
+</ul>
+<p>Never test with <code>911</code>. Dial <code>933</code>: it takes the same path and reads the location back without
+dispatching anyone. Emergency calls from a number without emergency services enabled are treated
+as unregistered and charged a penalty.</p>
+<pre><code class="language-js"><span class="hl-3">navigator</span><span class="hl-1">.</span><span class="hl-3">geolocation</span><span class="hl-1">.</span><span class="hl-4">getCurrentPosition</span><span class="hl-1">(({ </span><span class="hl-3">coords</span><span class="hl-1"> }) </span><span class="hl-0">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1">    </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;933&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-3">callerNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;+13125550100&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-3">customHeaders:</span><span class="hl-1"> [</span><br/><span class="hl-1">      { </span><span class="hl-3">name:</span><span class="hl-1"> </span><span class="hl-6">&#39;X-Latitude&#39;</span><span class="hl-1">, </span><span class="hl-3">value:</span><span class="hl-1"> </span><span class="hl-3">coords</span><span class="hl-1">.</span><span class="hl-3">latitude</span><span class="hl-1">.</span><span class="hl-4">toFixed</span><span class="hl-1">(</span><span class="hl-8">6</span><span class="hl-1">) },</span><br/><span class="hl-1">      { </span><span class="hl-3">name:</span><span class="hl-1"> </span><span class="hl-6">&#39;X-Longitude&#39;</span><span class="hl-1">, </span><span class="hl-3">value:</span><span class="hl-1"> </span><span class="hl-3">coords</span><span class="hl-1">.</span><span class="hl-3">longitude</span><span class="hl-1">.</span><span class="hl-4">toFixed</span><span class="hl-1">(</span><span class="hl-8">6</span><span class="hl-1">) },</span><br/><span class="hl-1">    ],</span><br/><span class="hl-1">  });</span><br/><span class="hl-1">});</span>
+</code><button>Copy</button></pre>
+<p>The emergency service calls back <code>callerNumber</code>, as an ordinary inbound call to that number —
+not to the browser session. Route it to something always answered. Keep <code>call.id</code> and
+<code>call.telnyxIDs</code> from the call: they match the <code>webrtc</code> detail record (<code>call_id</code>, <code>telnyx_leg_id</code>)
+and let Telnyx support confirm what reached the emergency carrier. The account notification
+&quot;Emergency Number Dialed&quot; can alert you per number.</p>
 <a id="md:setting-preferred-codec" class="tsd-anchor"></a><h3><a href="#md:setting-preferred-codec">Setting Preferred Codec</a></h3><p>You can pass <code>preferred_codecs</code> to the <code>newCall</code> method to set codec preference during the call.</p>
 <p><code>preferred_codecs</code> is a sub-array of the codecs returned by <a href="https://developer.mozilla.org/en-US/docs/Web/API/RTCRtpReceiver/getCapabilities_static#codecs">RTCRtpReceiver.getCapabilities(&#39;audio&#39;)</a></p>
 <pre><code class="language-js"><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">allCodecs</span><span class="hl-1"> = </span><span class="hl-3">RTCRtpReceiver</span><span class="hl-1">.</span><span class="hl-4">getCapabilities</span><span class="hl-1">(</span><span class="hl-6">&#39;audio&#39;</span><span class="hl-1">).</span><span class="hl-3">codecs</span><span class="hl-1">;</span><br/><br/><span class="hl-0">const</span><span class="hl-1"> </span><span class="hl-2">PCMACodec</span><span class="hl-1"> = </span><span class="hl-3">allCodecs</span><span class="hl-1">.</span><span class="hl-4">find</span><span class="hl-1">((</span><span class="hl-3">c</span><span class="hl-1">) </span><span class="hl-0">=&gt;</span><span class="hl-1"> </span><span class="hl-3">c</span><span class="hl-1">.</span><span class="hl-3">mimeType</span><span class="hl-1">.</span><span class="hl-4">toLowerCase</span><span class="hl-1">().</span><span class="hl-4">includes</span><span class="hl-1">(</span><span class="hl-6">&#39;pcma&#39;</span><span class="hl-1">));</span><br/><br/><span class="hl-3">client</span><span class="hl-1">.</span><span class="hl-4">newCall</span><span class="hl-1">({</span><br/><span class="hl-1"> </span><span class="hl-3">destinationNumber:</span><span class="hl-1"> </span><span class="hl-6">&#39;xxx&#39;</span><span class="hl-1">,</span><br/><span class="hl-1"> </span><span class="hl-3">preferred_codecs:</span><span class="hl-1"> [</span><span class="hl-3">PCMACodec</span><span class="hl-1">],</span><br/><span class="hl-1">});</span>
@@ -1341,6 +1369,7 @@ We support the most recent (N) versions of these browsers unless otherwise indic
 <li><a href="#md:setting-custom-headers"><span>Setting <wbr/>Custom <wbr/>Headers</span></a></li>
 <li>
 <ul>
+<li><a href="#md:emergency-calls-911--933"><span>Emergency <wbr/>Calls (911 / 933)</span></a></li>
 <li><a href="#md:setting-preferred-codec"><span>Setting <wbr/>Preferred <wbr/>Codec</span></a></li>
 <li><a href="#md:ice-candidate-prefetching"><span>ICE <wbr/>Candidate <wbr/>Prefetching</span></a></li>
 <li><a href="#md:trickle-ice"><span>Trickle ICE</span></a></li>
