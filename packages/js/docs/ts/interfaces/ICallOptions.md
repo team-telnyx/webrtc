@@ -61,8 +61,10 @@ Number to use as the caller ID when dialing out to a destination. A valid phone 
 
 On an emergency call (`911`, or the `933` test number) this is the caller's identity: the platform
 looks up the emergency address registered on this number and hands it to the emergency service as
-the callback number. Use a number on your account in `+E.164` form with emergency services enabled,
-and keep the connection's Caller ID Override off for emergency calls — an override replaces this value.
+the callback number. Use a number on your account in `+E.164` form with emergency services enabled.
+A Caller ID Override on the connection can replace this value: an override that applies to emergency
+calls (`always`, `emergency`) always does, and a `normal` override is used as the fallback when this
+value is not a valid number — leave the override off on connections that place emergency calls.
 
 ---
 
@@ -91,9 +93,11 @@ Add custom headers to the INVITE and ANSWER request.
 
 Header names must start with `X-`; other names are not forwarded. For emergency calls the
 caller's coordinates can be sent as `X-Latitude` / `X-Longitude` (WGS 84, 6 to 8 decimals),
-for example from `navigator.geolocation`. Identity headers (`From`, `P-Asserted-Identity`)
-cannot be set here — the caller is identified by `callerNumber`. See `TelnyxRTC.newCall` for an
-emergency-call example.
+for example from `navigator.geolocation`. This built-in geolocation is available for U.S.
+emergency calls and must be enabled by Telnyx support (PIDF-LO) on the number used as
+`callerNumber`; without that, the headers are forwarded but not used to locate the caller.
+Identity headers (`From`, `P-Asserted-Identity`) cannot be set here — the caller is identified by
+`callerNumber`. See `TelnyxRTC.newCall` for an emergency-call example.
 
 ---
 
