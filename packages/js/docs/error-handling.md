@@ -138,6 +138,8 @@ Each error below is classified as **fatal** or **non-fatal** and includes guidan
 
 `42004` (`UNABLE_READ_AUDIO_INPUT_ON_DEVICE_CHANGE`) is a nonfatal, log-only diagnostic: **Unable to read audio input settings after device change**. It records a `getSettings()` failure after a successful audio track replacement. The call continues and the recorded microphone ID falls back to `default`; no `telnyx.error` or legacy media-error event is emitted for this diagnostic.
 
+For microphone fallback, device switching, and automatic recovery from disconnected devices, see the [audio device selection guide](audio-device-selection.md).
+
 #### Call-control errors
 
 | Code    | Name                      | Message                                           | Typical trigger                                    | Fatal?    | Customer action                               |

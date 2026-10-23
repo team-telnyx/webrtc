@@ -13,6 +13,7 @@ The Telnyx WebRTC Client provides all the functionality you need to start making
   - [React.js](#reactjs)
 - [Error Handling](docs/error-handling.md)
 - [Pre-Call Diagnostics](docs/pre-call-diagnostics.md)
+- [Audio Device Selection](docs/audio-device-selection.md)
 - [Registration Timing Logs](docs/registration-timing.md)
 - [Browser support](#Browser-support)
 - [Development](#Development)
@@ -140,7 +141,11 @@ Speaker routing requires browser `setSinkId` support, permission, and a remote
 media element. Device discovery may still request permission using a temporary
 default-device stream before the selected-device capture. Camera/video options
 use existing video negotiation and cannot add video to an audio-only offer.
-These options do not provide automatic hot-plug recovery.
+
+Answer-time options only choose the initial devices. Once a call is active, the
+SDK separately tries to switch to the default microphone or speaker if the
+device in use is unplugged. See the [Audio Device Selection guide](docs/audio-device-selection.md)
+for device switching, fallback, recovery limits, and troubleshooting.
 
 ### Events
 
