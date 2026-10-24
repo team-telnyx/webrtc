@@ -40,6 +40,7 @@ import {
 import {
   BroadcastParams,
   ILoginParams,
+  ITelemetryCapture,
   IVertoOptions,
 } from './util/interfaces';
 import type { INotification } from '../../utils/interfaces';
@@ -59,6 +60,8 @@ import { ERROR_TYPE } from './webrtc/constants';
 import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
+import { PING_RECEIVED_LOG } from '@telnyx/webrtc-telemetry';
+import { startTelemetry, telemetryOf } from './telemetry';
 import type RegistrationTimings from './util/RegistrationTimings';
 
 /**
@@ -94,6 +97,8 @@ export default abstract class BaseSession {
   public region: string | null = null;
 
   public connection: Connection = null;
+  /** Call Report V2 telemetry (capture mode frames); null when off. */
+  public telemetry: ITelemetryCapture | null = null;
   protected _jwtAuth: boolean = false;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   protected _keepAliveTimeout: any;
@@ -133,8 +138,12 @@ export default abstract class BaseSession {
   private registerAgent: RegisterAgent;
 
   constructor(public options: IVertoOptions) {
+    // Sequence 1: the constructor was entered.
+    this.telemetry = startTelemetry(this)?.client ?? null;
     if (!this.validateOptions()) {
-      throw new Error('Invalid init options');
+      const error = new Error('Invalid init options');
+      telemetryOf(this)?.creationFailed(error);
+      throw error;
     }
 
     setConsoleLoggerMinLevel(options.debug ? 'debug' : 'info');
@@ -276,6 +285,9 @@ export default abstract class BaseSession {
             undefined,
             true // fatal: true (no recovery path — autoReconnect is disabled)
           );
+          telemetryOf(this)?.error('login', telnyxError, true, {
+            method: msg.request?.method,
+          });
           trigger(
             SwEvent.Error,
             { error: telnyxError, sessionId: this.sessionid },
@@ -376,6 +388,7 @@ export default abstract class BaseSession {
     await sessionStorage.removeItem(this.signature);
     this._executeQueue = [];
     this._detachListeners();
+    telemetryOf(this)?.disconnected();
     logger.debug(
       'Session disconnected. Cleaned up all listeners and subscriptions, closed connection, disabled auto-reconnect.'
     );
@@ -505,6 +518,7 @@ export default abstract class BaseSession {
     }
 
     this._autoReconnect = true;
+    telemetryOf(this)?.connectCalled();
     if (!this.connection.isAlive) {
       logger.debug(
         "Connection wasn't alive, initiating connection to the server..."
@@ -703,6 +717,7 @@ export default abstract class BaseSession {
       if (creds.anonymous_login !== undefined) {
         this.options.anonymous_login = creds.anonymous_login;
       }
+      telemetryOf(this)?.credentialsChanged();
     }
 
     if (isValidLoginOptions(this.options)) {
@@ -717,6 +732,7 @@ export default abstract class BaseSession {
         undefined,
         msg
       );
+      telemetryOf(this)?.error('login', telnyxError, false);
       trigger(
         SwEvent.Error,
         {
@@ -768,7 +784,8 @@ export default abstract class BaseSession {
         reconnectSessionId,
         userVariables,
         isReconnection,
-        earlySdpAnswer
+        earlySdpAnswer,
+        this.telemetry?.sdkInstanceId
       );
     } else {
       msg = new AnonymousLogin({
@@ -779,10 +796,21 @@ export default abstract class BaseSession {
         sessionId: reconnectSessionId,
         userVariables: this.options.userVariables,
         reconnection: isReconnection,
+        sdkInstanceId: this.telemetry?.sdkInstanceId,
       });
     }
 
+    telemetryOf(this)?.loginStarted(
+      type,
+      reconnectSessionId || undefined,
+      msg?.request?.id
+    );
     const response = await this.execute(msg).catch((error) => {
+      // execute() already retried the login itself on "authentication required".
+      telemetryOf(this)?.loginFailed(
+        error,
+        error?.code === this.authenticationRequiredErrorCode
+      );
       this._handleLoginError(error);
       if (onError) onError(error);
     });
@@ -793,6 +821,7 @@ export default abstract class BaseSession {
       if (this.sessionid) {
         setReconnectSessionId(this.sessionid);
       }
+      telemetryOf(this)?.loginSucceeded(response);
       this._checkTokenExpiry();
       if (onSuccess) onSuccess();
       this._registrationTimings?.mark('login response processing complete');
@@ -989,6 +1018,9 @@ export default abstract class BaseSession {
         this._terminateActiveCallsLocally();
 
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
+        telemetryOf(this)?.error('socket', telnyxError, true, {
+          max_reconnect_attempts: maxAttempts,
+        });
         trigger(
           SwEvent.Error,
           { error: telnyxError, sessionId: this.sessionid },
@@ -1195,8 +1227,21 @@ export default abstract class BaseSession {
     );
   }
 
+  /**
+   * A server telnyx_rtc.ping arrived. Its log line is the keepalive line that
+   * telemetry drops by exact match (contract 1.7): log it only here.
+   */
   public setPingReceived() {
-    logger.debug('Ping received');
+    logger.debug(PING_RECEIVED_LOG);
+    this._pong = true;
+  }
+
+  /**
+   * Any inbound message proves the socket is alive: same keepalive effect as
+   * setPingReceived(), without the "Ping received" line (V1 printed it after
+   * every server request).
+   */
+  public markSocketAlive() {
     this._pong = true;
   }
 

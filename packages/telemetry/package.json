@@ -1,0 +1,76 @@
+{
+  "name": "@telnyx/webrtc-telemetry",
+  "version": "0.1.0",
+  "description": "Call Report V2 telemetry for the Telnyx WebRTC JS SDK",
+  "keywords": [
+    "telnyx",
+    "webrtc",
+    "telemetry",
+    "call report",
+    "voip"
+  ],
+  "main": "lib/index.js",
+  "module": "lib/index.mjs",
+  "source": "src/index.ts",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rm -rf lib && rollup -c",
+    "watch": "rollup -c --watch",
+    "prepare": "yarn build",
+    "test": "jest",
+    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint src",
+    "format": "prettier --write 'src/**/*.ts'",
+    "release": "release-it"
+  },
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "Telnyx <support@telnyx.com> (https://www.telnyx.com/)",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/team-telnyx/webrtc.git",
+    "directory": "packages/telemetry"
+  },
+  "bugs": "https://github.com/team-telnyx/webrtc/issues",
+  "license": "MIT",
+  "dependencies": {
+    "uuid": "^7.0.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/jest": "^26.0.20",
+    "@types/uuid": "^7.0.0",
+    "eslint": "^9.39.2",
+    "jest": "^26.6.3",
+    "jest-environment-jsdom": "^26.6.2",
+    "prettier": "^3.7.4",
+    "release-it": "^14.11.8",
+    "rollup": "^1.19.4",
+    "rollup-plugin-typescript2": "^0.24.0",
+    "ts-jest": "^26.5.4",
+    "typescript": "4.7",
+    "typescript-eslint": "^8.50.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "@telnyx:registry": "https://registry.npmjs.org"
+  },
+  "release-it": {
+    "git": {
+      "changelog": "git log --pretty=format:\"* %s (%h)\" ${from}...${to} .",
+      "commitMessage": "Release telemetry ${version}",
+      "tagAnnotation": "Release telemetry ${version}",
+      "tagName": "telemetry/v${version}"
+    },
+    "github": {
+      "release": true,
+      "releaseName": "webrtc-telemetry@${version}",
+      "releaseNotes": "git log --pretty=format:\"* %s (%h)\" --grep=\"^\\(feat\\|fix\\|docs\\|refactor\\)\" ${git.from}...${git.to} ."
+    }
+  }
+}

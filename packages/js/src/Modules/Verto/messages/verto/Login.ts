@@ -11,7 +11,8 @@ class Login extends BaseRequest {
     sessionid: string,
     userVariables: Record<string, any> = {},
     reconnection: boolean,
-    earlySdpAnswer: boolean = false
+    earlySdpAnswer: boolean = false,
+    sdkInstanceId?: string
   ) {
     super();
 
@@ -29,6 +30,10 @@ class Login extends BaseRequest {
     };
     if (sessionid) {
       params.sessid = sessionid;
+    }
+    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK instance.
+    if (sdkInstanceId) {
+      params.sdk_instance_id = sdkInstanceId;
     }
     this.buildRequest({ method: this.method, params });
   }

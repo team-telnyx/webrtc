@@ -350,6 +350,20 @@ export const SDK_WARNINGS = {
       'Reconnect with fresh credentials before the token expires',
     ],
   },
+  34002: {
+    name: 'TELEMETRY_CREDENTIALS_REJECTED',
+    message: 'Telemetry credentials rejected',
+    description:
+      'The telemetry service rejected the credentials passed to TelnyxRTC, so call quality telemetry is not being sent. Calls are not affected. The SDK keeps the telemetry events in memory and logs in again when it gets new credentials.',
+    causes: [
+      'Expired or invalid login token',
+      'Wrong SIP username or password',
+    ],
+    solutions: [
+      'Pass valid credentials when creating TelnyxRTC',
+      'Provide new credentials with client.login({ creds })',
+    ],
+  },
 
   // ── Signaling health warnings (360xx) ──────────────────────────────
   36003: {

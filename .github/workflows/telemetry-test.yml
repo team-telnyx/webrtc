@@ -1,0 +1,30 @@
+name: "@telnyx/webrtc-telemetry Test"
+on:
+  pull_request:
+    paths:
+      - "packages/telemetry/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".yarnrc.yml"
+      - ".github/workflows/telemetry-test.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Telemetry tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24.5.0"
+          cache: yarn
+      - run: yarn install --immutable
+      - run: yarn workspace @telnyx/webrtc-telemetry lint
+      - run: yarn workspace @telnyx/webrtc-telemetry typecheck
+      - run: yarn workspace @telnyx/webrtc-telemetry test --runInBand
+      - run: yarn workspace @telnyx/webrtc-telemetry build
+      - name: Check package contents
+        working-directory: packages/telemetry
+        run: npm pack --dry-run --ignore-scripts

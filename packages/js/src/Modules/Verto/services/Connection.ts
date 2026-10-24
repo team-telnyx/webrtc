@@ -26,6 +26,7 @@ import {
   setReconnectToken,
 } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
+import { telemetryOf } from '../telemetry';
 import { deRegister, registerOnce, trigger } from './Handler';
 
 let WebSocketClass: typeof WebSocket | null =
@@ -218,10 +219,12 @@ export default class Connection {
 
     try {
       const previousSocketGeneration = this.socketGeneration;
+      telemetryOf(this.session)?.socketConnectStarted(websocketUrl);
       this.session._registrationTimings?.mark('create WebSocket', {
         generation: previousSocketGeneration + 1,
       });
       this._wsClient = new WebSocketClass(websocketUrl.toString());
+      telemetryOf(this.session)?.socketCreated(this._wsClient);
       this.socketGeneration += 1;
       logger.debug('WebSocket connection created', {
         sessionId: this.session.sessionid,
@@ -236,6 +239,7 @@ export default class Connection {
       this.session._registrationTimings?.mark('WebSocket construction failed');
       logger.error('WebSocket connection failed:', error);
       const telnyxError = createTelnyxError(WEBSOCKET_CONNECTION_FAILED, error);
+      telemetryOf(this.session)?.socketCreateFailed(telnyxError);
       trigger(
         SwEvent.Error,
         { error: telnyxError, sessionId: this.session.sessionid },
@@ -249,6 +253,11 @@ export default class Connection {
   }
 
   sendRawText(request: string): void {
+    const telemetry = this._wsClient && telemetryOf(this.session);
+    // Call Report V2: JSON-RPC text only (not speed-test frames and the like).
+    if (telemetry && typeof request === 'string' && request[0] === '{') {
+      telemetry.frameSent(safeParseJson(request));
+    }
     this._wsClient?.send(request);
   }
 
@@ -336,7 +345,9 @@ export default class Connection {
     if (this.connected) {
       this.session._registrationTimings?.requestSent(request.id, method);
     }
-    this._wsClient?.send(JSON.stringify(request));
+    const text = JSON.stringify(request);
+    if (this._wsClient) telemetryOf(this.session)?.frameSent(request);
+    this._wsClient?.send(text);
 
     return promise;
   }
@@ -358,6 +369,7 @@ export default class Connection {
 
     // Capture socket reference for timeout handler (prevent race condition)
     const closingSocket = this._wsClient;
+    telemetryOf(this.session)?.socketCloseRequested(closingSocket);
 
     // Call close
     // @ts-expect-error polyfill
@@ -401,6 +413,7 @@ export default class Connection {
         socketGeneration: this.socketGeneration,
         sessionId: this.session.sessionid,
       });
+      telemetryOf(this.session)?.socketOpened(ws);
       return trigger(SwEvent.SocketOpen, event, this.session.uuid);
     };
 
@@ -421,7 +434,7 @@ export default class Connection {
         sessionId: this.session.sessionid,
       });
 
-      return trigger(
+      const handled = trigger(
         SwEvent.SocketClose,
         {
           event,
@@ -429,6 +442,13 @@ export default class Connection {
         },
         this.session.uuid
       );
+      // After the session decided whether to reconnect.
+      telemetryOf(this.session)?.socketEnded(ws, {
+        code: event?.code,
+        reason: event?.reason,
+        wasClean: event?.wasClean,
+      });
+      return handled;
     };
 
     ws.onerror = (event): boolean => {
@@ -494,45 +514,72 @@ export default class Connection {
         return;
       }
 
-      const isCurrentSocket =
-        ws === this._wsClient &&
-        registeredGeneration === this.socketGeneration &&
-        this.session.connection === this;
-      if (isCurrentSocket) {
-        this.session._registrationTimings?.responseReceived(msg);
-      }
-      if (msg.voice_sdk_id && isCurrentSocket) {
-        this.session.callReportVoiceSdkId = msg.voice_sdk_id;
-        this.session.reconnectTokenVoiceSdkId = msg.voice_sdk_id;
-        this.session.reconnectTokenCanaryRtcServer =
-          canaryRtcServerForConnection;
-        setReconnectToken(msg.voice_sdk_id, canaryRtcServerForConnection);
-      }
-      this._unsetTimer(msg.id);
-      logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
-
-      /**
-       * GatewayStateType
-       * It was necesary to dispatch the VertoHandler to check
-       * GatewayState messages with result prop inside the JSON-RPC
-       */
-      if (
-        GatewayStateType[
-          `${msg?.result?.params?.state as keyof typeof GatewayStateType}`
-        ] ||
-        !trigger(msg.id, msg)
-      ) {
-        // If there is not an handler for this message, dispatch an incoming!
-        const gateWayState = getGatewayState(msg);
-
-        trigger(SwEvent.SocketMessage, msg, this.session.uuid);
-
-        // save previous gate state
-        if (Boolean(gateWayState)) {
-          this.previousGatewayState = gateWayState;
-        }
+      // Call Report V2: the frame's record takes its sequence now and goes
+      // out once the SDK handled it (so it knows whether a handler existed).
+      const received = telemetryOf(this.session)?.frameReceived(msg);
+      try {
+        this._handleMessage(
+          ws,
+          msg,
+          registeredGeneration,
+          canaryRtcServerForConnection
+        );
+      } finally {
+        telemetryOf(this.session)?.receivedFrameDone(received);
       }
     };
+  }
+
+  private _handleMessage(
+    ws: WebSocket,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    msg: any,
+    registeredGeneration: number,
+    canaryRtcServerForConnection: boolean | undefined
+  ): void {
+    const isCurrentSocket =
+      ws === this._wsClient &&
+      registeredGeneration === this.socketGeneration &&
+      this.session.connection === this;
+    if (isCurrentSocket) {
+      this.session._registrationTimings?.responseReceived(msg);
+    }
+    if (msg.voice_sdk_id && isCurrentSocket) {
+      this.session.callReportVoiceSdkId = msg.voice_sdk_id;
+      this.session.reconnectTokenVoiceSdkId = msg.voice_sdk_id;
+      this.session.reconnectTokenCanaryRtcServer = canaryRtcServerForConnection;
+      setReconnectToken(msg.voice_sdk_id, canaryRtcServerForConnection);
+    }
+    this._unsetTimer(msg.id);
+    logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
+
+    /**
+     * GatewayStateType
+     * It was necesary to dispatch the VertoHandler to check
+     * GatewayState messages with result prop inside the JSON-RPC
+     */
+    if (
+      GatewayStateType[
+        `${msg?.result?.params?.state as keyof typeof GatewayStateType}`
+      ] ||
+      !trigger(msg.id, msg)
+    ) {
+      // If there is not an handler for this message, dispatch an incoming!
+      const gateWayState = getGatewayState(msg);
+      if (gateWayState) {
+        telemetryOf(this.session)?.gatewayState(
+          gateWayState,
+          msg?.result?.params?.state ? 'result' : 'notification'
+        );
+      }
+
+      trigger(SwEvent.SocketMessage, msg, this.session.uuid);
+
+      // save previous gate state
+      if (Boolean(gateWayState)) {
+        this.previousGatewayState = gateWayState;
+      }
+    }
   }
 
   private _deregisterSocketEvents(ws: WebSocket): void {
@@ -578,6 +625,11 @@ export default class Connection {
         },
         this.session.uuid
       );
+      telemetryOf(this.session)?.socketEnded(closingSocket, {
+        code: WS_CLOSE_CODES.ABNORMAL_CLOSURE,
+        reason: 'STUCK_WS_TIMEOUT',
+        wasClean: false,
+      });
     } else {
       logger.debug(
         'Safety timeout: socket was replaced, not emitting SocketClose',
