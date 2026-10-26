@@ -10,6 +10,7 @@ import {
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
 import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
+import { hostsToPrefetch, prefetchDns } from './Modules/Verto/util/dnsPrefetch';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
 import type {
   PreCallDiagnosticOptions,
@@ -211,6 +212,7 @@ export class TelnyxRTC extends TelnyxRTCClient {
     super(options);
     this._registrationTimings = registrationTimings;
     registrationTimings.clientId = this.uuid;
+    prefetchDns(hostsToPrefetch(options));
     logger.info(`SDK version: ${pkg.version}`);
     registrationTimings.mark('TelnyxRTC constructor complete');
   }
