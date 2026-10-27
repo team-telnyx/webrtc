@@ -11,6 +11,8 @@ export const Region = {
   CA_CENTRAL: 'ca-central',
   APAC: 'apac',
   SOUTH_ASIA: 'south-asia',
+  /** Middle East (Dubai). */
+  ME: 'me',
 } as const;
 
 export type Region = (typeof Region)[keyof typeof Region];
