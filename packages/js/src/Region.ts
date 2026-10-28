@@ -11,6 +11,8 @@ export const Region = {
   CA_CENTRAL: 'ca-central',
   APAC: 'apac',
   SOUTH_ASIA: 'south-asia',
+  /** India (Chennai, Mumbai). */
+  IN: 'in',
   /** Middle East (Dubai). */
   ME: 'me',
 } as const;

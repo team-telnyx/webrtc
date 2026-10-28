@@ -120,6 +120,7 @@ When the client is created with a `region` (see [Region selection](#region-selec
 | `eu.turn.telnyx.com` | Europe |
 | `apac.turn.telnyx.com` | Asia-Pacific |
 | `south-asia.turn.telnyx.com` | South Asia |
+| `in.turn.telnyx.com` | India |
 
 The regional names serve UDP/TCP 3478. TURN over TLS on 443 always uses the flat `turn.telnyx.com`, and STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used for everything, as before.
 
@@ -273,6 +274,7 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
 | `apac.rtc.telnyx.com` | Asia-Pacific | SY1 (Sydney) |
 | `south-asia.rtc.telnyx.com` | South Asia | CN1 (Chennai) |
+| `in.rtc.telnyx.com` | India | CN1 (Chennai), MB2 (Mumbai) |
 
 Use regional endpoints when:
 - Your users are concentrated in a known region

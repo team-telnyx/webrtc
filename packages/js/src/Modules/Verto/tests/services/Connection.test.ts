@@ -108,6 +108,7 @@ describe('Connection - region selection', () => {
       CA_CENTRAL: 'ca-central',
       APAC: 'apac',
       SOUTH_ASIA: 'south-asia',
+      IN: 'in',
       ME: 'me',
     });
   });
