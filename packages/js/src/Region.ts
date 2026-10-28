@@ -17,6 +17,8 @@ export const Region = {
    * hosts and keeps working, but new code should use `asia`.
    */
   SOUTH_ASIA: 'south-asia',
+  /** India (Chennai, Mumbai). */
+  IN: 'in',
   /** Middle East (Dubai). */
   ME: 'me',
 } as const;
