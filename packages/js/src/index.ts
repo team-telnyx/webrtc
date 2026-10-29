@@ -50,6 +50,9 @@ export type {
   ITelnyxWarningEvent,
 } from './Modules/Verto/util/constants/warnings';
 
+export { prepareConnection } from './Modules/Verto/util/prepareConnection';
+export type { IPrepareConnectionOptions } from './Modules/Verto/util/prepareConnection';
+
 export * from './PreCallDiagnosis';
 export * from './PreCallDiagnostic';
 

@@ -10,7 +10,10 @@ import {
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
 import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
-import { hostsToPrefetch, prefetchDns } from './Modules/Verto/util/dnsPrefetch';
+import {
+  prepareConnection,
+  IPrepareConnectionOptions,
+} from './Modules/Verto/util/prepareConnection';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
 import type {
   PreCallDiagnosticOptions,
@@ -212,7 +215,6 @@ export class TelnyxRTC extends TelnyxRTCClient {
     super(options);
     this._registrationTimings = registrationTimings;
     registrationTimings.clientId = this.uuid;
-    prefetchDns(hostsToPrefetch(options));
     logger.info(`SDK version: ${pkg.version}`);
     registrationTimings.mark('TelnyxRTC constructor complete');
   }
@@ -333,6 +335,24 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Warming up the connection
+   *
+   * `TelnyxRTC.prepareConnection()` is a static method: call it as soon as the page loads, before
+   * a client exists, when the user may place a call later. One `HEAD` request to the signaling host
+   * resolves its name, opens TCP and completes the TLS handshake, so `connect()` finds the address
+   * cached and a TLS session to resume. Pass the same `env`, `region` or `host` you will construct
+   * the client with; the defaults target the production anycast host. It never throws: the promise
+   * resolves `true` when the handshake completed and `false` otherwise.
+   *
+   * ```js
+   * // at page load
+   * TelnyxRTC.prepareConnection({ region: Region.EU });
+   *
+   * // later, when the user wants to call
+   * const client = new TelnyxRTC({ login_token, region: Region.EU });
+   * client.connect();
+   * ```
+   *
    * ### ICE Candidate Prefetching
    * 
    * ICE candidate prefetching is disabled by default. To opt in, pass
@@ -604,6 +624,31 @@ export class TelnyxRTC extends TelnyxRTCClient {
 
     const diagnostic = new PreCallDiagnostic(diagnosticOptions);
     return diagnostic.run();
+  }
+
+  /**
+   * Warms up the path to the signaling host before any client exists: resolves the name,
+   * opens TCP and completes the TLS handshake with one `HEAD` request, so a later `connect()`
+   * starts with the address cached and a TLS session to resume. Call it at page load when the
+   * user may place a call later; it needs no credentials and no `TelnyxRTC` instance.
+   *
+   * @param options The `host`, `env` and `region` the client will be constructed with. Optional;
+   * the defaults are the production anycast host.
+   * @return Resolves `true` when the handshake completed, `false` when the host could not be
+   * reached or `fetch` is unavailable. Never rejects.
+   *
+   * @examples
+   *
+   * ```js
+   * TelnyxRTC.prepareConnection();
+   * TelnyxRTC.prepareConnection({ region: Region.EU });
+   * TelnyxRTC.prepareConnection({ env: 'development' });
+   * ```
+   */
+  public static prepareConnection(
+    options: IPrepareConnectionOptions = {}
+  ): Promise<boolean> {
+    return prepareConnection(options);
   }
 
   /**
