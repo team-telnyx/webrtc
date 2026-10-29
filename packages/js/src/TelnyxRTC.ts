@@ -339,10 +339,12 @@ export class TelnyxRTC extends TelnyxRTCClient {
    *
    * `TelnyxRTC.prepareConnection()` is a static method: call it as soon as the page loads, before
    * a client exists, when the user may place a call later. One `HEAD` request to the signaling host
-   * resolves its name, opens TCP and completes the TLS handshake, so `connect()` finds the address
-   * cached and a TLS session to resume. Pass the same `env`, `region` or `host` you will construct
-   * the client with; the defaults target the production anycast host. It never throws: the promise
-   * resolves `true` when the handshake completed and `false` otherwise.
+   * resolves its name, opens TCP and completes the TLS handshake, so `connect()` starts with the
+   * address in the browser's DNS cache and the certificate already validated. Pass the same `env`,
+   * `region` or `host` you will construct the client with; the defaults target the production
+   * anycast host. It never throws: the promise resolves `true` when the handshake completed and
+   * `false` otherwise. Browsers keep a resolved address for about a minute, so call it again if
+   * the connect may come much later; repeating it is cheap.
    *
    * ```js
    * // at page load
@@ -629,8 +631,9 @@ export class TelnyxRTC extends TelnyxRTCClient {
   /**
    * Warms up the path to the signaling host before any client exists: resolves the name,
    * opens TCP and completes the TLS handshake with one `HEAD` request, so a later `connect()`
-   * starts with the address cached and a TLS session to resume. Call it at page load when the
-   * user may place a call later; it needs no credentials and no `TelnyxRTC` instance.
+   * starts with the address in the browser's DNS cache (about a minute) and the certificate
+   * validated. Call it at page load when the user may place a call later; it needs no
+   * credentials and no `TelnyxRTC` instance, and may be repeated.
    *
    * @param options The `host`, `env` and `region` the client will be constructed with. Optional;
    * the defaults are the production anycast host.

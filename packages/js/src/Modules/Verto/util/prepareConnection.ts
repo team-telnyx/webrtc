@@ -26,8 +26,14 @@ export function signalingHttpUrl(
 /**
  * Warms up the path to the signaling host before a client exists: one
  * `HEAD` request resolves the name, opens TCP and completes the TLS
- * handshake, so the browser has the address cached and a TLS session to
- * resume when `connect()` opens the WebSocket.
+ * handshake. When `connect()` opens the WebSocket the browser already has
+ * the address in its DNS cache, the certificate chain validated, and, where
+ * the host issues TLS session tickets, a session to resume.
+ *
+ * The browser keeps a resolved address for about a minute (Chrome and
+ * Firefox use their own 60 s cache; Safari follows the record TTL), so the
+ * warm-up pays off when `connect()` follows within that window. Calling it
+ * again later is cheap and harmless.
  *
  * The request is made in `no-cors` mode, so the status the host answers
  * with is irrelevant and never read; the resolved promise only means the
