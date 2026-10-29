@@ -119,7 +119,9 @@ When the client is created with a `region` (see [Region selection](#region-selec
 | `ca-central.turn.telnyx.com` | Canada |
 | `eu.turn.telnyx.com` | Europe |
 | `apac.turn.telnyx.com` | Asia-Pacific |
-| `south-asia.turn.telnyx.com` | South Asia |
+| `asia.turn.telnyx.com` | Asia |
+
+`south-asia.turn.telnyx.com` is the former name of `asia.turn.telnyx.com` and resolves to the same relays.
 
 The regional names serve UDP/TCP 3478. TURN over TLS on 443 always uses the flat `turn.telnyx.com`, and STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used for everything, as before.
 
@@ -272,7 +274,9 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
 | `apac.rtc.telnyx.com` | Asia-Pacific | SY1 (Sydney) |
-| `south-asia.rtc.telnyx.com` | South Asia | CN1 (Chennai) |
+| `asia.rtc.telnyx.com` | Asia | CN1 (Chennai), SG1 (Singapore), MB2 (Mumbai) |
+
+`south-asia.rtc.telnyx.com` is the former name of `asia.rtc.telnyx.com` and resolves to the same endpoints; `Region.SOUTH_ASIA` is deprecated in favour of `Region.ASIA`.
 
 Use regional endpoints when:
 - Your users are concentrated in a known region
