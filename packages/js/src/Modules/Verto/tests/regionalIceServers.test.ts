@@ -1,20 +1,47 @@
 import {
+  COUNTRY_TURN_HOSTS,
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
   getDefaultIceServers,
+  regionalTurnHost,
   regionalTurnUrl,
 } from '../util/constants';
 import { Region } from '../../../Region';
+
+describe('regionalTurnHost', () => {
+  it.each([
+    ['eu', 'turn.telnyx.eu'],
+    ['ca-central', 'turn.telnyx.ca'],
+    ['asia', 'turn.telnyx.asia'],
+    ['me', 'turn.telnyx.me'],
+    ['au', 'turn.telnyx.com.au'],
+  ])('uses the country host for %s', (region, host) => {
+    expect(regionalTurnHost(region)).toBe(host);
+    expect(COUNTRY_TURN_HOSTS[region]).toBe(host);
+  });
+
+  it.each(['us-east', 'us-central', 'us-west', 'apac', 'south-asia'])(
+    'falls back to <region>.turn.telnyx.com for %s',
+    (region) => {
+      expect(regionalTurnHost(region)).toBe(`${region}.turn.telnyx.com`);
+    }
+  );
+
+  it('never uses a country host in development', () => {
+    expect(regionalTurnHost('eu', true)).toBe('eu.turndev.telnyx.com');
+    expect(regionalTurnHost('apac', true)).toBe('apac.turndev.telnyx.com');
+  });
+});
 
 describe('regionalTurnUrl', () => {
   it.each([
     [
       'turn:turn.telnyx.com:3478?transport=udp',
-      'turn:eu.turn.telnyx.com:3478?transport=udp',
+      'turn:turn.telnyx.eu:3478?transport=udp',
     ],
     [
       'turn:turn.telnyx.com:3478?transport=tcp',
-      'turn:eu.turn.telnyx.com:3478?transport=tcp',
+      'turn:turn.telnyx.eu:3478?transport=tcp',
     ],
     [
       'turn:turndev.telnyx.com:3478?transport=udp',
@@ -22,6 +49,26 @@ describe('regionalTurnUrl', () => {
     ],
   ])('rewrites %s', (url, expected) => {
     expect(regionalTurnUrl(url, 'eu')).toBe(expected);
+  });
+
+  it.each([
+    [
+      'apac',
+      'turn:turn.telnyx.com:3478?transport=udp',
+      'turn:apac.turn.telnyx.com:3478?transport=udp',
+    ],
+    [
+      'me',
+      'turn:turn.telnyx.com:3478?transport=tcp',
+      'turn:turn.telnyx.me:3478?transport=tcp',
+    ],
+    [
+      'ca-central',
+      'turn:turn.telnyx.com:3478?transport=udp',
+      'turn:turn.telnyx.ca:3478?transport=udp',
+    ],
+  ])('for %s rewrites %s', (region, url, expected) => {
+    expect(regionalTurnUrl(url, region)).toBe(expected);
   });
 
   it.each([
@@ -56,11 +103,12 @@ describe('getDefaultIceServers', () => {
       const servers = getDefaultIceServers(undefined, region);
 
       expect(servers).toHaveLength(DEFAULT_PROD_ICE_SERVERS.length);
+      const host = regionalTurnHost(region);
       expect(servers.map((s) => s.urls)).toEqual([
         'stun:stun.telnyx.com:3478',
         'stun:stun.l.google.com:19302',
-        `turn:${region}.turn.telnyx.com:3478?transport=udp`,
-        `turn:${region}.turn.telnyx.com:3478?transport=tcp`,
+        `turn:${host}:3478?transport=udp`,
+        `turn:${host}:3478?transport=tcp`,
         'turns:turn.telnyx.com:443',
       ]);
     }
@@ -94,7 +142,7 @@ describe('getDefaultIceServers', () => {
         urls: s.urls.map((u) => regionalTurnUrl(u, 'eu')),
       }))[0].urls
     ).toEqual([
-      'turn:eu.turn.telnyx.com:3478?transport=udp',
+      'turn:turn.telnyx.eu:3478?transport=udp',
       'stun:stun.telnyx.com:3478',
     ]);
   });
