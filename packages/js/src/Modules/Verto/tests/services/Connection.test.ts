@@ -105,6 +105,7 @@ describe('Connection - region selection', () => {
       US_CENTRAL: 'us-central',
       US_EAST: 'us-east',
       US_WEST: 'us-west',
+      SV: 'sv',
       CA_CENTRAL: 'ca-central',
       APAC: 'apac',
       SOUTH_ASIA: 'south-asia',

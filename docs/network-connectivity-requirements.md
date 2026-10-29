@@ -116,6 +116,7 @@ When the client is created with a `region` (see [Region selection](#region-selec
 | `us-east.turn.telnyx.com` | US East |
 | `us-central.turn.telnyx.com` | US Central |
 | `us-west.turn.telnyx.com` | US West |
+| `sv.turn.telnyx.com` | US West, Silicon Valley only |
 | `ca-central.turn.telnyx.com` | Canada |
 | `eu.turn.telnyx.com` | Europe |
 | `apac.turn.telnyx.com` | Asia-Pacific |
@@ -269,6 +270,7 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `us-east.rtc.telnyx.com` | US East | AT1 (Atlanta), NJ1 (New Jersey) |
 | `us-central.rtc.telnyx.com` | US Central | CH1 (Chicago) |
 | `us-west.rtc.telnyx.com` | US West | LV1 (Las Vegas) |
+| `sv.rtc.telnyx.com` | US West, Silicon Valley only | SV1 (San Jose) |
 | `ca-central.rtc.telnyx.com` | Canada | MT1 (Montreal), TR1 (Toronto) |
 | `eu.rtc.telnyx.com` | Europe | AMS3 (Amsterdam), FR5 (Frankfurt), LD6 (London) |
 | `apac.rtc.telnyx.com` | Asia-Pacific | SY1 (Sydney) |
