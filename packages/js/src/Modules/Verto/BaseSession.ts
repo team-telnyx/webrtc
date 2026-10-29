@@ -26,6 +26,7 @@ import {
   RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT,
   WS_CLOSE_CODES,
 } from './util/constants';
+import { Region } from '../../Region';
 import {
   createTelnyxError,
   createTelnyxWarning,
@@ -512,6 +513,82 @@ export default abstract class BaseSession {
       this.connection.connect();
     }
     logger.debug('Connect method called. Connection initiated.');
+  }
+
+  /**
+   * Switch the signaling connection to a different regional endpoint.
+   *
+   * This updates the session's `region` option, recomputes the WebSocket
+   * host to use the regional subdomain (e.g. `eu` → `wss://eu.rtc.telnyx.com`),
+   * closes the current WebSocket, and re-establishes the connection.
+   *
+   * Switching closes the WebSocket, so an active call would not survive it.
+   * The region is therefore only changed while no call is active: with a
+   * call up this throws and leaves the connection and `options.region` as
+   * they were. Hang up first, then switch.
+   *
+   * @param region - A {@link Region} value, or `null` to revert to the
+   *   default anycast endpoint.
+   * @throws {Error} if `region` is not a supported region, or if a call is
+   *   active.
+   *
+   * @examples
+   *
+   * ```js
+   * // Pin connection to Europe
+   * client.switchRegion('eu');
+   *
+   * // Revert to default anycast routing
+   * client.switchRegion(null);
+   * ```
+   */
+  public switchRegion(region: Region | null): void {
+    const supported = Object.values(Region);
+    if (region !== null && !supported.includes(region)) {
+      throw new Error(
+        `Unsupported region "${region}". Supported regions: ${supported.join(', ')}`
+      );
+    }
+
+    // Switching tears the socket down, so an active call does not survive it.
+    // The region only changes while no call is up; there is no way to switch
+    // past a call, so a caller can never drop one by accident.
+    if (this.hasActiveCall()) {
+      throw new Error(
+        'Cannot switch region while a call is active. Hang up first, then switch.'
+      );
+    }
+
+    logger.info(`Switching region to: ${region ?? 'default (anycast)'}`, {
+      currentRegion: this.options.region ?? 'default',
+    });
+
+    // Tear down before changing anything. Mutating options.region while the
+    // old socket is still open leaves the session describing a region it is
+    // not connected to, and anything that reads it in between — a reconnect
+    // fired by the close itself, for instance — sees an inconsistent pair.
+    this._closeConnection();
+
+    this.options.region = region ?? undefined;
+
+    this._autoReconnect = true;
+    this._reconnectAttempts = 0;
+    this._reconnectCountedGeneration = -1;
+
+    this._attachListeners();
+
+    // Always a fresh Connection rather than setRegion() on the old one. The
+    // constructor derives the host from options.region, so the region is
+    // applied the same way it is on a first connect, and no socket
+    // generation, pending-request or probe state carries over from the
+    // connection we just closed.
+    this.connection = new Connection(this);
+    this.connection.connect();
+
+    logger.debug('Region switch initiated', {
+      newHost: this.connection.host,
+      region: region ?? 'default',
+    });
   }
 
   /**
