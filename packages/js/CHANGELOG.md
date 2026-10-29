@@ -1,3 +1,8 @@
+## [2.28.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.0...webrtc/v2.28.1-beta.0) (2026-10-29)
+
+- feat(js): TelnyxRTC.prepareConnection() warms up the signaling host before a client exists (VSDK-989) (#810)
+- feat(js): Region.ME for the Middle East signaling region (#811)
+- docs(js): emergency calling (911/933) in the API reference (VSDK-963) (#809)
 ## [2.28.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10...webrtc/v2.28.0) (2026-10-19)
 
 ### Features

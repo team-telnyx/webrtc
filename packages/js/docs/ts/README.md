@@ -421,15 +421,16 @@ Omit `IClientOptions.region` to use automatic routing.
 
 #### Type declaration
 
-| Name         | Type           |
-| :----------- | :------------- |
-| `APAC`       | `"apac"`       |
-| `CA_CENTRAL` | `"ca-central"` |
-| `EU`         | `"eu"`         |
-| `SOUTH_ASIA` | `"south-asia"` |
-| `US_CENTRAL` | `"us-central"` |
-| `US_EAST`    | `"us-east"`    |
-| `US_WEST`    | `"us-west"`    |
+| Name         | Type           | Description          |
+| :----------- | :------------- | :------------------- |
+| `APAC`       | `"apac"`       | -                    |
+| `CA_CENTRAL` | `"ca-central"` | -                    |
+| `EU`         | `"eu"`         | -                    |
+| `ME`         | `"me"`         | Middle East (Dubai). |
+| `SOUTH_ASIA` | `"south-asia"` | -                    |
+| `US_CENTRAL` | `"us-central"` | -                    |
+| `US_EAST`    | `"us-east"`    | -                    |
+| `US_WEST`    | `"us-west"`    | -                    |
 
 ## Functions
 

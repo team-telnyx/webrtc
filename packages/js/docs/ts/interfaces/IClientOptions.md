@@ -251,6 +251,7 @@ false;
 Enable automatic call quality reporting to voice-sdk-proxy.
 When enabled, WebRTC stats are collected periodically during calls
 and posted to the voice-sdk-proxy /call_report endpoint when the call ends.
+Reports also include the client's initial registration timing summary.
 
 **`Default`**
 
@@ -465,7 +466,8 @@ values, or omit this option to use automatic routing.
 
 Pinning a region selects both the signaling host
 (`<region>.rtc.telnyx.com`) and, unless `iceServers` is set, the TURN
-servers used for media relay (`<region>.turn.telnyx.com`).
+servers used for media relay over UDP/TCP (`<region>.turn.telnyx.com`).
+TURN over TLS on 443 keeps the flat `turn.telnyx.com` name.
 
 Arbitrary strings remain supported for backwards compatibility.
 
