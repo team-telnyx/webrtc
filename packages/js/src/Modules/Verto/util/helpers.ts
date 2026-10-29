@@ -1,6 +1,6 @@
 import { IMessageRPC, IVertoOptions } from './interfaces';
 import logger from './logger';
-import { STORAGE_PREFIX } from './constants';
+import { DEV_HOST, PROD_HOST, STORAGE_PREFIX } from './constants';
 import { GatewayStateType } from '../webrtc/constants';
 
 // hack to remove undefined values from the object
@@ -104,6 +104,35 @@ const PROTOCOL_PATTERN = /^(ws|wss):\/\//;
 export const checkWebSocketHost = (host: string): string => {
   const protocol = PROTOCOL_PATTERN.test(host) ? '' : 'wss://';
   return `${protocol}${host}`;
+};
+
+/**
+ * The signaling WebSocket URL a session with these options connects to:
+ * `rtc.telnyx.com` (or `rtcdev.telnyx.com` for `env: 'development'`), the
+ * `host` option when set, and `<region>.rtc` when a `region` is pinned.
+ * Single source of truth for `Connection` and for the DNS prefetch hint.
+ */
+export const resolveSignalingHost = (options: {
+  host?: string;
+  env?: string;
+  region?: string | null;
+}): string => {
+  const { host, env, region } = options;
+  let url = PROD_HOST;
+
+  if (env) {
+    url = env === 'development' ? DEV_HOST : PROD_HOST;
+  }
+
+  if (host) {
+    url = checkWebSocketHost(host);
+  }
+
+  if (region) {
+    url = url.replace(/rtc(dev)?/, `${region}.rtc$1`);
+  }
+
+  return url;
 };
 
 /**
