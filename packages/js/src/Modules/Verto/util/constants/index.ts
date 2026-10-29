@@ -83,8 +83,9 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
 ];
 
 // Only the primary plain-TURN names have regional variants: turn.telnyx.com
-// and turndev.telnyx.com become <region>.turn.telnyx.com and
-// <region>.turndev.telnyx.com (published by rtc-dns-server next to
+// and turndev.telnyx.com become the region's TURN host (a country name such as
+// turn.telnyx.eu where one exists, otherwise <region>.turn.telnyx.com /
+// <region>.turndev.telnyx.com, published by rtc-dns-server next to
 // <region>.rtc). STUN and turn2.telnyx.com have none and are left alone.
 //
 // TURNS (`turns:` on 443) is deliberately excluded: the browser validates the
@@ -96,12 +97,44 @@ export const DEFAULT_DEV_ICE_SERVERS: RTCIceServer[] = [
 const REGIONAL_TURN_HOST = /^(turn:)turn(dev)?\.telnyx\.com(?=[:/?]|$)/;
 
 /**
- * Rewrites a plain Telnyx TURN URL to its regional name. URLs that are not the
- * primary Telnyx TURN host over UDP/TCP (STUN, TURNS, turn2, third-party
- * servers) are returned unchanged.
+ * TURN hosts published under a country top-level domain, one per region that
+ * has one. Each is a CNAME to that region's `<region>.turn.lb.telnyx.tech`
+ * name, so it resolves to the same relays as `<region>.turn.telnyx.com` but
+ * under a name that reads as local to the customer. Regions without an entry
+ * (the US ones, `apac`, `south-asia`, …) keep `<region>.turn.telnyx.com`.
+ * Production only: the dev zone has no country names.
+ */
+export const COUNTRY_TURN_HOSTS: Readonly<Record<string, string>> = {
+  eu: 'turn.telnyx.eu',
+  'ca-central': 'turn.telnyx.ca',
+  asia: 'turn.telnyx.asia',
+  me: 'turn.telnyx.me',
+  au: 'turn.telnyx.com.au',
+};
+
+/**
+ * The plain-TURN (UDP/TCP 3478) hostname for a pinned region: the region's
+ * country host when there is one, otherwise `<region>.turn.telnyx.com`
+ * (`<region>.turndev.telnyx.com` in development).
+ */
+export function regionalTurnHost(region: string, dev = false): string {
+  if (!dev && COUNTRY_TURN_HOSTS[region]) {
+    return COUNTRY_TURN_HOSTS[region];
+  }
+  return `${region}.turn${dev ? 'dev' : ''}.telnyx.com`;
+}
+
+/**
+ * Rewrites a plain Telnyx TURN URL to its regional name (see
+ * `regionalTurnHost`). URLs that are not the primary Telnyx TURN host over
+ * UDP/TCP (STUN, TURNS, turn2, third-party servers) are returned unchanged.
  */
 export function regionalTurnUrl(url: string, region: string): string {
-  return url.replace(REGIONAL_TURN_HOST, `$1${region}.turn$2.telnyx.com`);
+  return url.replace(
+    REGIONAL_TURN_HOST,
+    (_match, scheme: string, dev?: string) =>
+      `${scheme}${regionalTurnHost(region, Boolean(dev))}`
+  );
 }
 
 /**

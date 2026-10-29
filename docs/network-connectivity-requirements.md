@@ -111,17 +111,18 @@ The JavaScript SDK's default production ICE server configuration uses the follow
 
 When the client is created with a `region` (see [Region selection](#region-selection)) and no explicit `iceServers`, the SDK's default TURN entries over UDP/TCP 3478 use that region's TURN name, so media relay stays in the same region as signaling:
 
-| Regional TURN name | Region |
-|--------------------|--------|
-| `us-east.turn.telnyx.com` | US East |
-| `us-central.turn.telnyx.com` | US Central |
-| `us-west.turn.telnyx.com` | US West |
-| `ca-central.turn.telnyx.com` | Canada |
-| `eu.turn.telnyx.com` | Europe |
-| `apac.turn.telnyx.com` | Asia-Pacific |
-| `south-asia.turn.telnyx.com` | South Asia |
+| Region | TURN name |
+|--------|-----------|
+| `us-east` | `us-east.turn.telnyx.com` |
+| `us-central` | `us-central.turn.telnyx.com` |
+| `us-west` | `us-west.turn.telnyx.com` |
+| `ca-central` | `turn.telnyx.ca` |
+| `eu` | `turn.telnyx.eu` |
+| `apac` | `apac.turn.telnyx.com` |
+| `south-asia` | `south-asia.turn.telnyx.com` |
+| `me` | `turn.telnyx.me` |
 
-The regional names serve UDP/TCP 3478. TURN over TLS on 443 always uses the flat `turn.telnyx.com`, and STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used for everything, as before.
+Where Telnyx publishes a TURN name under a country top-level domain (`turn.telnyx.eu`, `turn.telnyx.ca`, `turn.telnyx.me`, `turn.telnyx.asia`, `turn.telnyx.com.au`) the SDK uses it; it is a CNAME to the same regional relays as `<region>.turn.telnyx.com`. The regional names serve UDP/TCP 3478. TURN over TLS on 443 always uses the flat `turn.telnyx.com`, and STUN names are not regional. Without a `region` the flat `turn.telnyx.com` is used for everything, as before.
 
 ## Media server connectivity
 
