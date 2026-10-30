@@ -99,6 +99,7 @@ client.off('telnyx.notification');
 - [startSignalingHealthMonitor](#startsignalinghealthmonitor)
 - [stopSignalingHealthMonitor](#stopsignalinghealthmonitor)
 - [triggerIceRestart](#triggericerestart)
+- [keepConnectionWarm](#keepconnectionwarm)
 - [prepareConnection](#prepareconnection)
 - [webRTCInfo](#webrtcinfo)
 - [webRTCSupportedBrowserList](#webrtcsupportedbrowserlist)
@@ -1272,16 +1273,28 @@ resolves its name, opens TCP and completes the TLS handshake, so `connect()` sta
 address in the browser's DNS cache and the certificate already validated. Pass the same `env`,
 `region` or `host` you will construct the client with; the defaults target the production
 anycast host. It never throws: the promise resolves `true` when the handshake completed and
-`false` otherwise. Browsers keep a resolved address for about a minute, so call it again if
-the connect may come much later; repeating it is cheap.
+`false` otherwise. Browsers keep a resolved address for about a minute, so one call only
+helps a `connect()` that follows within that window.
+
+```js
+// right before connecting
+await TelnyxRTC.prepareConnection({ region: Region.EU });
+const client = new TelnyxRTC({ login_token, region: Region.EU });
+client.connect();
+```
+
+When the connect may come much later, for example an agent console that is open all day,
+`TelnyxRTC.keepConnectionWarm()` repeats the warm-up every 50 s (under the browser's DNS
+cache) until the function it returns is called:
 
 ```js
 // at page load
-TelnyxRTC.prepareConnection({ region: Region.EU });
+const stopWarming = TelnyxRTC.keepConnectionWarm({ region: Region.EU });
 
 // later, when the user wants to call
 const client = new TelnyxRTC({ login_token, region: Region.EU });
 client.connect();
+stopWarming();
 ```
 
 ### ICE Candidate Prefetching
@@ -1884,6 +1897,64 @@ signaling is healthy.
 #### Inherited from
 
 TelnyxRTCClient.triggerIceRestart
+
+---
+
+### keepConnectionWarm
+
+▸ `Static` **keepConnectionWarm**(`options?`): () => `void`
+
+Keeps the path to the signaling host warm while the page waits to connect: runs
+`prepareConnection()` now and again every `intervalMs` (default 50 s, under the minute a
+browser keeps a resolved name), with the same `host`, `env` and `region`. Call it at page
+load when the connect may come much later, and call the returned function to stop once the
+client has connected. One `HEAD` request per interval per open tab; never throws.
+
+#### Parameters
+
+| Name      | Type                         | Description                                                                                                                                               |
+| :-------- | :--------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | `IKeepConnectionWarmOptions` | The `host`, `env` and `region` the client will be constructed with, plus `intervalMs`. Optional; the defaults are the production anycast host every 50 s. |
+
+#### Returns
+
+`fn`
+
+A function that stops the repetition.
+
+▸ (): `void`
+
+Keeps the path to the signaling host warm while the page waits to connect: runs
+`prepareConnection()` now and again every `intervalMs` (default 50 s, under the minute a
+browser keeps a resolved name), with the same `host`, `env` and `region`. Call it at page
+load when the connect may come much later, and call the returned function to stop once the
+client has connected. One `HEAD` request per interval per open tab; never throws.
+
+##### Returns
+
+`void`
+
+A function that stops the repetition.
+
+**`Examples`**
+
+```js
+const stopWarming = TelnyxRTC.keepConnectionWarm({ region: Region.EU });
+// later
+const client = new TelnyxRTC({ login_token, region: Region.EU });
+client.connect();
+stopWarming();
+```
+
+**`Examples`**
+
+```js
+const stopWarming = TelnyxRTC.keepConnectionWarm({ region: Region.EU });
+// later
+const client = new TelnyxRTC({ login_token, region: Region.EU });
+client.connect();
+stopWarming();
+```
 
 ---
 
