@@ -63,3 +63,49 @@ export async function prepareConnection(
     return false;
   }
 }
+
+/**
+ * Options for `keepConnectionWarm`: where the connection will be made, and
+ * how often to warm the path up again.
+ */
+export interface IKeepConnectionWarmOptions extends IPrepareConnectionOptions {
+  /**
+   * Milliseconds between warm-ups. Defaults to 50 000, under the minute a
+   * browser keeps a resolved name; values below 1 000 are raised to 1 000.
+   */
+  intervalMs?: number;
+}
+
+/** Under the 60 s a browser keeps a resolved name, so a connect finds it in cache. */
+export const DEFAULT_KEEP_WARM_INTERVAL_MS = 50_000;
+
+/**
+ * Keeps the path to the signaling host warm while the page waits to connect:
+ * runs `prepareConnection` now and again every `intervalMs`, with the same
+ * `host`, `env` and `region`. One warm-up lasts about a minute (the browser's
+ * DNS cache; the signaling records themselves carry a TTL of seconds), so a
+ * single call at page load does nothing for a connect that comes later. This
+ * repeats it until stopped, at one `HEAD` request per interval per open tab.
+ *
+ * Returns a function that stops the repetition: call it once the client has
+ * connected, or leave the warm-up running for the next connect. Where `fetch`
+ * or timers are unavailable nothing is scheduled and the returned function is
+ * a no-op.
+ */
+export function keepConnectionWarm(
+  options: IKeepConnectionWarmOptions = {}
+): () => void {
+  const { intervalMs = DEFAULT_KEEP_WARM_INTERVAL_MS, ...target } = options;
+  if (typeof fetch !== 'function' || typeof setInterval !== 'function') {
+    return () => undefined;
+  }
+
+  void prepareConnection(target);
+  const timer = setInterval(
+    () => {
+      void prepareConnection(target);
+    },
+    Math.max(1_000, intervalMs)
+  );
+  return () => clearInterval(timer);
+}
