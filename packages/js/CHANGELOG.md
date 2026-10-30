@@ -1,3 +1,6 @@
+## [2.28.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.0...webrtc/v2.28.1-beta.1) (2026-10-30)
+
+- feat(js): TelnyxRTC.keepConnectionWarm() repeats prepareConnection while the page waits to connect (VSDK-1047) (#817)
 ## [2.28.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.0...webrtc/v2.28.1-beta.0) (2026-10-29)
 
 - feat(js): TelnyxRTC.prepareConnection() warms up the signaling host before a client exists (VSDK-989) (#810)
