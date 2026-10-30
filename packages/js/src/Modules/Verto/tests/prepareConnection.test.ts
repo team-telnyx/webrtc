@@ -1,6 +1,8 @@
 import {
   prepareConnection,
+  keepConnectionWarm,
   signalingHttpUrl,
+  DEFAULT_KEEP_WARM_INTERVAL_MS,
 } from '../util/prepareConnection';
 import { resolveSignalingHost } from '../util/helpers';
 import { TelnyxRTC } from '../../../TelnyxRTC';
@@ -103,5 +105,89 @@ describe('prepareConnection', () => {
       'https://eu.rtc.telnyx.com',
       expect.objectContaining({ method: 'HEAD', mode: 'no-cors' })
     );
+  });
+});
+
+describe('keepConnectionWarm', () => {
+  const originalFetch = env.fetch;
+  let fetchMock: jest.Mock;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    fetchMock = jest.fn().mockResolvedValue({ type: 'opaque', status: 0 });
+    env.fetch = fetchMock as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    env.fetch = originalFetch;
+  });
+
+  it('warms up now and again every interval until stopped', () => {
+    const stop = keepConnectionWarm({ region: 'eu', intervalMs: 50_000 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(50_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    jest.advanceTimersByTime(100_000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+
+    stop();
+    jest.advanceTimersByTime(500_000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+
+    expect(new Set(fetchMock.mock.calls.map((c) => c[0]))).toEqual(
+      new Set(['https://eu.rtc.telnyx.com'])
+    );
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'https://eu.rtc.telnyx.com',
+      expect.objectContaining({ method: 'HEAD', mode: 'no-cors' })
+    );
+  });
+
+  it('repeats every 50 s by default, under the browser DNS cache', () => {
+    expect(DEFAULT_KEEP_WARM_INTERVAL_MS).toBe(50_000);
+    const stop = keepConnectionWarm();
+    jest.advanceTimersByTime(49_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it('never repeats faster than once a second', () => {
+    const stop = keepConnectionWarm({ intervalMs: 1 });
+    jest.advanceTimersByTime(999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it('keeps going when a warm-up fails', () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const stop = keepConnectionWarm({ intervalMs: 1_000 });
+    jest.advanceTimersByTime(2_000);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    stop();
+  });
+
+  it('schedules nothing without fetch and returns a no-op', () => {
+    env.fetch = undefined;
+    const stop = keepConnectionWarm();
+    expect(jest.getTimerCount()).toBe(0);
+    expect(() => stop()).not.toThrow();
+  });
+
+  it('is reachable as a static on TelnyxRTC without constructing a client', () => {
+    const stop = TelnyxRTC.keepConnectionWarm({ env: 'development' });
+    jest.advanceTimersByTime(DEFAULT_KEEP_WARM_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://rtcdev.telnyx.com',
+      expect.objectContaining({ method: 'HEAD' })
+    );
+    stop();
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
