@@ -752,7 +752,7 @@ export default abstract class BrowserSession extends BaseSession {
    * ICE servers used for every call unless `newCall()` overrides them.
    * Explicit `iceServers` are taken as given. Otherwise the SDK defaults for
    * the environment are used, with the plain TURN entries pointed at the
-   * pinned `region`'s TURN name (`<region>.turn.telnyx.com`) when one is set,
+   * pinned `region`'s TURN name (`turn.telnyx.eu`, `<region>.turn.telnyx.com`, …) when one is set,
    * so media relay stays in the same region as signaling. TURNS/443 keeps the
    * flat name.
    */
