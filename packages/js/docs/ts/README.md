@@ -421,16 +421,18 @@ Omit `IClientOptions.region` to use automatic routing.
 
 #### Type declaration
 
-| Name         | Type           | Description          |
-| :----------- | :------------- | :------------------- |
-| `APAC`       | `"apac"`       | -                    |
-| `CA_CENTRAL` | `"ca-central"` | -                    |
-| `EU`         | `"eu"`         | -                    |
-| `ME`         | `"me"`         | Middle East (Dubai). |
-| `SOUTH_ASIA` | `"south-asia"` | -                    |
-| `US_CENTRAL` | `"us-central"` | -                    |
-| `US_EAST`    | `"us-east"`    | -                    |
-| `US_WEST`    | `"us-west"`    | -                    |
+| Name         | Type           | Description                                                                                                              |
+| :----------- | :------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `APAC`       | `"apac"`       | -                                                                                                                        |
+| `ASIA`       | `"asia"`       | Asia (Chennai, Singapore, Mumbai).                                                                                       |
+| `CA_CENTRAL` | `"ca-central"` | -                                                                                                                        |
+| `EU`         | `"eu"`         | -                                                                                                                        |
+| `IN`         | `"in"`         | India (Chennai, Mumbai).                                                                                                 |
+| `ME`         | `"me"`         | Middle East (Dubai).                                                                                                     |
+| `SOUTH_ASIA` | `"south-asia"` | **`Deprecated`** Use [ASIA](#asia). `south-asia` names the same hosts and keeps working, but new code should use `asia`. |
+| `US_CENTRAL` | `"us-central"` | -                                                                                                                        |
+| `US_EAST`    | `"us-east"`    | -                                                                                                                        |
+| `US_WEST`    | `"us-west"`    | -                                                                                                                        |
 
 ## Functions
 
