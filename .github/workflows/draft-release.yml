@@ -30,6 +30,10 @@ on:
           - patch
           - minor
           - major
+      version:
+        description: "Exact version to release, e.g. 3.0.0 (overrides increment; leave empty to use increment)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -49,7 +53,8 @@ jobs:
     env:
       TARGET_REF: ${{ github.event.inputs.ref || 'main' }}
       PRERELEASE_ARGS: ${{ github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && format(' --preRelease={0} --github.preRelease', github.event.inputs.prerelease) || '' }}
-      INCREMENT_ARG: ${{ github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && ' --increment=prerelease' || github.event.inputs.increment && format(' --increment={0}', github.event.inputs.increment) || '' }}
+      INCREMENT_ARG: ${{ github.event.inputs.version && format(' --increment={0}', github.event.inputs.version) || github.event.inputs.prerelease && github.event.inputs.prerelease != 'none' && ' --increment=prerelease' || github.event.inputs.increment && format(' --increment={0}', github.event.inputs.increment) || '' }}
+      VERSION_INPUT: ${{ github.event.inputs.version }}
 
     steps:
       - uses: actions/checkout@v6
@@ -87,7 +92,21 @@ jobs:
         id: version
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          NEXT=$(yarn release --ci --release-version${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }} 2>/dev/null)
+          if [ -n "$VERSION_INPUT" ] && ! [[ "$VERSION_INPUT" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::The version input must look like 3.0.0 or 3.0.0-beta.0"
+            exit 1
+          fi
+          # --no-npm.publish skips release-it's npm login check (npm publishing happens in publish-release.yml).
+          NEXT=$(yarn release --ci --release-version --no-npm.publish $INCREMENT_ARG $PRERELEASE_ARGS)
+          if [ -n "$VERSION_INPUT" ] && [ "$NEXT" != "$VERSION_INPUT" ]; then
+            echo "::error::release-it resolved ${NEXT} instead of ${VERSION_INPUT}; the version input must be higher than the current version"
+            exit 1
+          fi
+          TAG="${{ github.event.inputs.package }}/v${NEXT}"
+          if git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
+            echo "::error::Tag ${TAG} already exists; set the version input to an unused version"
+            exit 1
+          fi
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
           echo "branch=release/${{ github.event.inputs.package }}-v$NEXT" >> "$GITHUB_OUTPUT"
         env:
@@ -101,18 +120,34 @@ jobs:
           PACKAGE="${{ github.event.inputs.package }}"
           DATE=$(date +%Y-%m-%d)
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          LAST_TAG="${PACKAGE}/v${CURRENT_VERSION}"
-          if ! git rev-parse --verify --quiet "refs/tags/${LAST_TAG}^{commit}" >/dev/null; then
-            echo "::warning::Expected previous release tag ${LAST_TAG} was not found"
-            LAST_TAG=""
-          fi
-          echo "last_tag=$LAST_TAG" >> "$GITHUB_OUTPUT"
 
-          if [ -n "$LAST_TAG" ]; then
-            NOTES=$(git log "${LAST_TAG}..HEAD" --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' | grep -vi -E '^- chore: release ' || true)
-            COMPARE="[${VERSION}](https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${PACKAGE}/v${VERSION})"
+          # Only list commits that touch this package (paths are relative to the repo root).
+          # The webrtc notes also cover the root docs/ folder, which holds the SDK's network guide.
+          LOG_PATHS=(":(top)packages/${PACKAGE_DIR}")
+          if [ "$PACKAGE" = "webrtc" ]; then
+            LOG_PATHS+=(":(top)docs")
+          fi
+
+          # List changes since the tag of the current version. A release published without a tag
+          # (react-client 1.0.2) starts from the commit that set package.json to that version.
+          LAST_TAG="${PACKAGE}/v${CURRENT_VERSION}"
+          BASE="$LAST_TAG"
+          if ! git rev-parse --verify --quiet "refs/tags/${LAST_TAG}^{commit}" >/dev/null; then
+            BASE=$(git log -1 --format=%H -S"\"version\": \"${CURRENT_VERSION}\"" -- package.json)
+            if [ -n "$BASE" ]; then
+              echo "::warning::Expected previous release tag ${LAST_TAG} was not found; listing changes since ${BASE}, which set version ${CURRENT_VERSION}"
+            else
+              echo "::warning::Expected previous release tag ${LAST_TAG} was not found, nor the commit that set version ${CURRENT_VERSION}"
+            fi
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$BASE" ]; then
+            NOTES=$(git log "${BASE}..HEAD" --pretty=format:'- %s' -- "${LOG_PATHS[@]}" | grep -i -E '^- (feat|fix|docs|refactor|chore)' | grep -vi -E '^- chore: release ' || true)
+            COMPARE="[${VERSION}](https://github.com/${{ github.repository }}/compare/${BASE}...${PACKAGE}/v${VERSION})"
           else
-            NOTES=$(git log --pretty=format:'- %s' | grep -i -E '^- (feat|fix|docs|refactor|chore)' | grep -vi -E '^- chore: release ' || true)
+            # Nothing to start from: link to the package history instead of listing every commit.
+            NOTES="- See the [commit history](https://github.com/${{ github.repository }}/commits/${PACKAGE}/v${VERSION}/packages/${PACKAGE_DIR}) for the changes in this release."
             COMPARE="${VERSION}"
           fi
 
@@ -141,7 +176,7 @@ jobs:
       - name: Create draft release (bump + tag + draft)
         working-directory: packages/${{ env.PACKAGE_DIR }}
         run: |
-          yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream${{ env.INCREMENT_ARG }}${{ env.PRERELEASE_ARGS }}
+          yarn release --ci --github.draft --no-npm.publish --no-git.push --no-git.requireUpstream $INCREMENT_ARG $PRERELEASE_ARGS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -164,11 +199,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Append full changelog link to draft release
-        if: steps.changelog.outputs.last_tag != ''
+        if: steps.changelog.outputs.base != ''
         run: |
           TAG="${{ github.event.inputs.package }}/v${{ steps.version.outputs.next }}"
-          LAST_TAG="${{ steps.changelog.outputs.last_tag }}"
-          CHANGELOG_LINK="**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}"
+          BASE="${{ steps.changelog.outputs.base }}"
+          CHANGELOG_LINK="**Full Changelog**: https://github.com/${{ github.repository }}/compare/${BASE}...${TAG}"
           CURRENT_BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
           gh release edit "$TAG" --notes "${CURRENT_BODY}
 
