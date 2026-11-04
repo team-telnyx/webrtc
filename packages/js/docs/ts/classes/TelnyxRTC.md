@@ -532,16 +532,22 @@ TelnyxRTCClient.speaker
 
 ### \_terminateActiveCallsLocally
 
-▸ **\_terminateActiveCallsLocally**(): `void`
+▸ **\_terminateActiveCallsLocally**(`initiator`): `void`
 
 Tear down every active call LOCALLY without sending BYE on the wire.
 
 Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
 the signaling socket is already dead). Sending BYE over a dead socket
 would only generate `BYE_SEND_FAILED` noise, so each call is finalized
-via `hangup({}, false)` — which closes the RTCPeerConnection, stops
-media, fires the local hangup notification, and removes the call from
-`session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+via `hangup({ initiator }, false)` — which closes the RTCPeerConnection,
+stops media, fires the local hangup notification, and removes the call
+from `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+
+#### Parameters
+
+| Name        | Type     | Description                                                                                                                |
+| :---------- | :------- | :------------------------------------------------------------------------------------------------------------------------- |
+| `initiator` | `string` | Hangup initiator logged by `hangup()`, naming the code path that gave up on the calls (e.g. `sdk:reconnection-exhausted`). |
 
 #### Returns
 
