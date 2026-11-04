@@ -1,3 +1,11 @@
+## [2.28.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1...webrtc/v2.28.2) (2026-11-04)
+
+- fix(js): name the code path when the SDK ends calls locally after losing signaling (#825)
+- fix(js): handle rejections of the SDK's own ping requests (#824)
+- fix(js): hang up the pre-call diagnostic call with initiator sdk:precall-diagnostic (#827)
+- fix(js): hang up with initiator sdk:session-not-reattached when the server drops the session (#826)
+- fix(js): keep the server code and message on originalError (#823)
+- feat(region): add Region.AU and Region.SY for the Australian signaling and TURN names (VSDK-1063) (#822)
 ## [2.28.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.1...webrtc/v2.28.1) (2026-11-04)
 
 - feat(region): add Region.IN for the India signaling and TURN names (VSDK-1011) (#813)
