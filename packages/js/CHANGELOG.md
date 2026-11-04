@@ -1,3 +1,7 @@
+## [2.28.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.1...webrtc/v2.28.1) (2026-11-04)
+
+- feat(region): add Region.IN for the India signaling and TURN names (VSDK-1011) (#813)
+- feat(region): add Region.ASIA, deprecate Region.SOUTH_ASIA (VSDK-995) (#812)
 ## [2.28.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.0...webrtc/v2.28.1-beta.1) (2026-10-30)
 
 - feat(js): TelnyxRTC.keepConnectionWarm() repeats prepareConnection while the page waits to connect (VSDK-1047) (#817)
