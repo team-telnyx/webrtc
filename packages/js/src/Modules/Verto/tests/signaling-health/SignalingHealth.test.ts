@@ -24,6 +24,7 @@ import {
 } from '../../services/Handler';
 import { SwEvent } from '../../util/constants';
 import { VertoMethod } from '../../webrtc/constants';
+import logger from '../../util/logger';
 
 jest.mock('../../services/Handler');
 jest.mock('../../util/logger');
@@ -673,6 +674,47 @@ describe('BaseSession – request timeout selection', () => {
     expect(session.connection.send).not.toHaveBeenCalledWith(
       expect.any(Object),
       Connection.DEFAULT_REQUEST_TIMEOUT_MS
+    );
+  });
+});
+
+describe('BaseSession – keep-alive ping', () => {
+  let session: TestBaseSession;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    session = new TestBaseSession({
+      host: 'wss://test.telnyx.com',
+      login: 'test-login',
+      password: 'test-password',
+    } as any);
+  });
+
+  afterEach(() => {
+    clearTimeout((session as any)._keepAliveTimeout);
+  });
+
+  it.each([
+    ['StaleRequestError', new StaleRequestError('ping-1', 1, 2)],
+    [
+      'RequestTimeoutError',
+      new RequestTimeoutError('ping-1', 10000, VertoMethod.Ping),
+    ],
+  ])('handles a %s from the keep-alive ping', async (_name, error) => {
+    const execute = jest.spyOn(session, 'execute').mockRejectedValue(error);
+    (session as any)._pong = false;
+
+    (session as any)._resetKeepAlive();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({ method: VertoMethod.Ping }),
+      })
+    );
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Keep-alive ping was not acknowledged',
+      error
     );
   });
 });

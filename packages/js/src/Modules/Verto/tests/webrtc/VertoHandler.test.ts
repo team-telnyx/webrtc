@@ -27,6 +27,7 @@ import {
   type IStoredActiveCall,
 } from '../../util/reconnect';
 import logger from '../../util/logger';
+import { RequestTimeoutError, StaleRequestError } from '../../util/errors';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -226,6 +227,40 @@ describe('VertoHandler', () => {
       instance.serverDisconnect = jest.fn();
       handler.handleMessage(msg);
       expect(instance.serverDisconnect).toBeCalledTimes(1);
+    });
+  });
+
+  describe('telnyx_rtc.ping', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([
+      ['StaleRequestError', new StaleRequestError('ping-1', 1, 2)],
+      [
+        'RequestTimeoutError',
+        new RequestTimeoutError('ping-1', 10000, 'telnyx_rtc.ping'),
+      ],
+    ])('handles a %s from the ping reply', async (_name, error) => {
+      const execute = jest.spyOn(instance, 'execute').mockRejectedValue(error);
+      const debug = jest.spyOn(logger, 'debug').mockImplementation();
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":41,"method":"telnyx_rtc.ping","params":{}}'
+        )
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: 'telnyx_rtc.ping' }),
+        })
+      );
+      expect(debug).toHaveBeenCalledWith(
+        'Ping reply was not acknowledged',
+        error
+      );
     });
   });
 
