@@ -98,8 +98,10 @@ jobs:
           fi
           # --no-npm.publish skips release-it's npm login check (npm publishing happens in publish-release.yml).
           NEXT=$(yarn release --ci --release-version --no-npm.publish $INCREMENT_ARG $PRERELEASE_ARGS)
-          if [ -n "$VERSION_INPUT" ] && [ "$NEXT" != "$VERSION_INPUT" ]; then
-            echo "::error::release-it resolved ${NEXT} instead of ${VERSION_INPUT}; the version input must be higher than the current version"
+          # release-it returns the version input as-is when it is >= the current version (and null when lower).
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [ -n "$VERSION_INPUT" ] && { [ "$NEXT" != "$VERSION_INPUT" ] || [ "$NEXT" = "$CURRENT_VERSION" ]; }; then
+            echo "::error::The version input must be higher than the current version ${CURRENT_VERSION}"
             exit 1
           fi
           TAG="${{ github.event.inputs.package }}/v${NEXT}"
