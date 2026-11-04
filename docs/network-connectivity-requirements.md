@@ -121,6 +121,8 @@ When the client is created with a `region` (see [Region selection](#region-selec
 | `apac.turn.telnyx.com` | Asia-Pacific |
 | `asia.turn.telnyx.com` | Asia |
 | `in.turn.telnyx.com` | India |
+| `au.turn.telnyx.com` | Australia (Sydney + Melbourne) |
+| `sy.turn.telnyx.com` | Sydney alone |
 
 `south-asia.turn.telnyx.com` is the former name of `asia.turn.telnyx.com` and resolves to the same relays.
 
@@ -277,6 +279,8 @@ The SDK supports regional signaling endpoints for customers who need to pin conn
 | `apac.rtc.telnyx.com` | Asia-Pacific | SY1 (Sydney) |
 | `asia.rtc.telnyx.com` | Asia | CN1 (Chennai), SG1 (Singapore), MB2 (Mumbai) |
 | `in.rtc.telnyx.com` | India | CN1 (Chennai), MB2 (Mumbai) |
+| `au.rtc.telnyx.com` | Australia | SY1 (Sydney), ML1 (Melbourne) |
+| `sy.rtc.telnyx.com` | Sydney alone | SY1 (Sydney) |
 
 `south-asia.rtc.telnyx.com` is the former name of `asia.rtc.telnyx.com` and resolves to the same endpoints; `Region.SOUTH_ASIA` is deprecated in favour of `Region.ASIA`.
 
