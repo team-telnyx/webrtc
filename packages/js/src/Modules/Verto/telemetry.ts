@@ -18,6 +18,7 @@ import {
   TELEMETRY_CREDENTIALS_REJECTED,
 } from './util/constants';
 import { createTelnyxWarning } from './util/errors';
+import logger from './util/logger';
 import {
   observeCallMarks,
   readCallMarks,
@@ -37,6 +38,13 @@ export function startTelemetry(
         SwEvent.Warning,
         { warning, sessionId: session.sessionid },
         session.uuid
+      );
+    },
+    // The telemetry load let this instance through no telemetry: a log line,
+    // nothing else. Calls are not affected.
+    onDisabledByServer: () => {
+      logger.info(
+        'Call report telemetry is turned off by the server for this session'
       );
     },
     defaultIceServers: {

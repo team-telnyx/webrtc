@@ -14,7 +14,7 @@
 
 [`src/contract.ts`](src/contract.ts) is the wire contract (schema 2.1). Typed fields are the ones every Telnyx SDK sends; anything else this SDK knows goes, untyped, under each payload's `extra`.
 
-While the telemetry socket is not logged in, events wait in memory (1,000 at most, oldest dropped). Above 8 MiB of socket backlog (more than one max-size 4 MiB record) an event is dropped; drops are counted and reported in a `logs` warning, "Telemetry events dropped", with `dropped_backlog` and `dropped_pending`. The VSP can switch telemetry off with `telnyx_rtc.telemetry_control`.
+While the telemetry socket is not logged in, events wait in memory (1,000 at most, oldest dropped). Above 8 MiB of socket backlog (more than one max-size 4 MiB record) an event is dropped; drops are counted and reported in a `logs` warning, "Telemetry events dropped", with `dropped_backlog` and `dropped_pending`. The VSP can switch telemetry off with `telnyx_rtc.telemetry_control`. Sent before any login answer, `{"enabled": false}` means the VSP let this socket through no telemetry (the telemetry load, Consul KV `voice-sdk/webrtc_telemetry_load`): the SDK logs "Call report telemetry is turned off by the server for this session" once and stops telemetry for that SDK instance for good, with no reconnect. Calls are not affected.
 
 ## In the SDK
 

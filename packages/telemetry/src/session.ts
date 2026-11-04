@@ -76,6 +76,8 @@ export interface SdkConfig {
   sdkVersion: string;
   /** The telemetry server rejected the credentials: tell the app (telnyx.warning). */
   onLoginRejected?(error: ErrorInfo): void;
+  /** The telemetry server turned telemetry off for this SDK instance (telemetry load). */
+  onDisabledByServer?(): void;
   defaultIceServers: Record<'production' | 'development', RTCIceServer[]>;
   readCallMarks(callId: string): Record<string, number>;
   observeCallMarks(
@@ -306,6 +308,7 @@ export default class SessionTelemetry {
             ? TELEMETRY_DEV_URL
             : TELEMETRY_PROD_URL,
         onLoginRejected: (error) => config.onLoginRejected?.(error),
+        onDisabledByServer: () => config.onDisabledByServer?.(),
       });
       events.creationStarted(); // after attach: the envelope's login_type comes from the host
       return events;

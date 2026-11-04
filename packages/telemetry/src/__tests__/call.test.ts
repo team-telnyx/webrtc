@@ -417,6 +417,20 @@ describe('CallTelemetry', () => {
     ).toBeNull();
   });
 
+  it('is null, and a running call stops reading stats, once the server turned telemetry off', async () => {
+    const pc = makePc(() => stats(1));
+    const { telemetry, events } = setup();
+    telemetry.start();
+    telemetry.attachPeer(pc as any);
+    await telemetry._tick();
+    expect(pc.getStats).toHaveBeenCalledTimes(1);
+
+    (events.client as any)._disableByServer();
+    await telemetry._tick();
+    expect(pc.getStats).toHaveBeenCalledTimes(1);
+    expect(CallTelemetry.create({ id: 'x', options: {} }, events)).toBeNull();
+  });
+
   it('call_started: provided flags, no VSP names; credentials out of the raw options', () => {
     const { telemetry, ws } = setup();
     telemetry.start();

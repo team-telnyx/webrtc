@@ -14,7 +14,10 @@
  * - While not connected and logged in, events wait in memory (at most
  *   MAX_PENDING_EVENTS, oldest dropped) and go out in order with `sent_at`.
  * - Above MAX_SEND_BACKLOG_BYTES of socket backlog an event is dropped.
- * - telnyx_rtc.telemetry_control switches it off and on.
+ * - telnyx_rtc.telemetry_control switches it off and on. Received before any
+ *   login answer, it means the server let this socket through no telemetry
+ *   (the telemetry load, Consul KV voice-sdk/webrtc_telemetry_load): telemetry
+ *   is off for good for this SDK instance, with no reconnect.
  * - An event without its own call ID goes out once per active call: same
  *   timestamp, and each copy takes its own sequence like any other record.
  * - Capture mode (the default): the same frames, kept and printed locally.
@@ -88,6 +91,8 @@ export interface TelemetryHost {
   getDefaultUrl?(): string | null;
   /** The server rejected the credentials (-32001): the app should provide new ones. */
   onLoginRejected?(error: ErrorInfo): void;
+  /** The server turned telemetry off for this SDK instance (telemetry load): nothing more is sent. */
+  onDisabledByServer?(): void;
 }
 
 export type EmitOptions = {
@@ -213,6 +218,8 @@ export default class TelemetryClient {
   private _authenticated = false;
   private _remoteEnabled = true;
   private _closed = false;
+  /** The server turned telemetry off for good (telemetry load); _closed is set too. */
+  private _disabledByServer = false;
   /** Closed while idle: no reconnects until the client's next event. */
   private _parked = false;
   private _idleTimer: Any = null;
@@ -296,6 +303,11 @@ export default class TelemetryClient {
     return (
       this._ws?.readyState === 1 && this._authenticated && this._remoteEnabled
     );
+  }
+
+  /** The server turned telemetry off for this instance: nothing is collected or sent any more. */
+  get disabledByServer(): boolean {
+    return this._disabledByServer;
   }
 
   get lastSequence(): number {
@@ -692,6 +704,12 @@ export default class TelemetryClient {
       this._flushPending();
       this.log('info', 'telemetry', 'Telemetry socket connected', { pending });
     } else if (msg?.method === TELEMETRY_CONTROL_METHOD) {
+      // Before any login answer, "off" is the telemetry load: off for good.
+      // The kill switch only reaches logged-in sockets.
+      if (msg.params?.enabled === false && !this._authenticated) {
+        this._disableByServer();
+        return;
+      }
       this._remoteEnabled = msg.params?.enabled !== false;
       if (!this._remoteEnabled) {
         this._pending = [];
@@ -700,6 +718,18 @@ export default class TelemetryClient {
       this.log('info', 'telemetry', 'Telemetry switched back on by the server');
       this._flushPending();
     }
+  }
+
+  /**
+   * The server let this socket through no telemetry: drop what waits, close
+   * the socket, never reconnect or log in again, and tell the host once.
+   */
+  private _disableByServer(): void {
+    if (this._closed) return;
+    this._disabledByServer = true;
+    this._pending = [];
+    this.close();
+    callApp(() => this._host?.onDisabledByServer?.(), undefined);
   }
 
   private _clearLoginTimer(): void {

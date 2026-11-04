@@ -209,6 +209,52 @@ describe('TelemetryClient', () => {
     jest.useRealTimers();
   });
 
+  it('turns off for good when the server says off before the login answer (telemetry load)', () => {
+    jest.useFakeTimers();
+    const onDisabledByServer = jest.fn();
+    const client = makeClient();
+    client.attach({ ...host, onDisabledByServer });
+    client.connect();
+    const ws = FakeSocket.last();
+    ws.open();
+    logEvent(client, 'waiting for the login');
+    ws.receive({
+      jsonrpc: '2.0',
+      method: TELEMETRY_CONTROL_METHOD,
+      params: { enabled: false },
+    });
+    expect(onDisabledByServer).toHaveBeenCalledTimes(1);
+    expect(client.disabledByServer).toBe(true);
+    expect(ws.readyState).toBe(3);
+    expect(client.emit('call_state', { state: 'new' })).toBeNull();
+    // No reconnect, no reopen on activity or after an idle period, no login.
+    client.connect();
+    jest.advanceTimersByTime(IDLE_CLOSE_MS + 60 * 60 * 1000);
+    logEvent(client, 'later');
+    client.connect();
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(ws.events(true)).toEqual([]);
+    expect(
+      ws.sent.filter((m) => m.method === TELEMETRY_LOGIN_METHOD)
+    ).toHaveLength(1);
+    expect(onDisabledByServer).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  it('keeps the kill switch after the login apart from the telemetry load', () => {
+    const onDisabledByServer = jest.fn();
+    const client = makeClient({}, true);
+    client.attach({ ...host, onDisabledByServer });
+    FakeSocket.last().receive({
+      jsonrpc: '2.0',
+      method: TELEMETRY_CONTROL_METHOD,
+      params: { enabled: false },
+    });
+    expect(onDisabledByServer).not.toHaveBeenCalled();
+    expect(client.disabledByServer).toBe(false);
+    expect(FakeSocket.last().readyState).toBe(1);
+  });
+
   it('obeys the kill switch until switched back on', () => {
     const client = makeClient({}, true);
     const ws = FakeSocket.last();

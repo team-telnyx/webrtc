@@ -299,7 +299,9 @@ export default class CallTelemetry {
     call: CallHost,
     session: SessionTelemetry | null | undefined
   ): CallTelemetry | null {
-    return (session && attempt(() => new CallTelemetry(call, session))) || null;
+    // Telemetry turned off by the server: nothing to collect for new calls.
+    if (!session || session.client.disabledByServer) return null;
+    return attempt(() => new CallTelemetry(call, session)) || null;
   }
 
   constructor(
@@ -821,7 +823,11 @@ export default class CallTelemetry {
   async _tick(): Promise<void> {
     const pc = this._pc;
     if (this._ended || this._inFlight || !pc) return;
-    if (pc.connectionState === 'closed' || pc.signalingState === 'closed') {
+    if (
+      pc.connectionState === 'closed' ||
+      pc.signalingState === 'closed' ||
+      this._session.client.disabledByServer // nothing would be sent: stop getStats()
+    ) {
       return this._detachPeer();
     }
     this._inFlight = true;
