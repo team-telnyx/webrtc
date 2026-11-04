@@ -364,16 +364,25 @@ page reload (VSDK-408).</p>
 <section class="tsd-panel tsd-member tsd-is-inherited"><a id="_terminateActiveCallsLocally" class="tsd-anchor"></a>
 <h3 class="tsd-anchor-link"><span>_terminate<wbr/>Active<wbr/>Calls<wbr/>Locally</span><a href="#_terminateActiveCallsLocally" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
-<li class="tsd-signature tsd-anchor-link" id="_terminateActiveCallsLocally._terminateActiveCallsLocally-1"><span class="tsd-kind-call-signature">_terminate<wbr/>Active<wbr/>Calls<wbr/>Locally</span><span class="tsd-signature-symbol">(</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#_terminateActiveCallsLocally._terminateActiveCallsLocally-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
+<li class="tsd-signature tsd-anchor-link" id="_terminateActiveCallsLocally._terminateActiveCallsLocally-1"><span class="tsd-kind-call-signature">_terminate<wbr/>Active<wbr/>Calls<wbr/>Locally</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">initiator</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span><a href="#_terminateActiveCallsLocally._terminateActiveCallsLocally-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24"><use href="#icon-anchor"></use></svg></a></li>
 <li class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Tear down every active call LOCALLY without sending BYE on the wire.</p>
 <p>Used before emitting <code>RECONNECTION_EXHAUSTED</code> (and any other path where
 the signaling socket is already dead). Sending BYE over a dead socket
 would only generate <code>BYE_SEND_FAILED</code> noise, so each call is finalized
-via <code>hangup({}, false)</code> — which closes the RTCPeerConnection, stops
-media, fires the local hangup notification, and removes the call from
-<code>session.calls</code>, but skips the outbound BYE. (VSDK-318 Step 4.d)</p>
+via <code>hangup({ initiator }, false)</code> — which closes the RTCPeerConnection,
+stops media, fires the local hangup notification, and removes the call
+from <code>session.calls</code>, but skips the outbound BYE. (VSDK-318 Step 4.d)</p>
 </div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li>
+<h5><span class="tsd-kind-parameter">initiator</span>: <span class="tsd-signature-type">string</span></h5>
+<div class="tsd-comment tsd-typography"><p>Hangup initiator logged by <code>hangup()</code>, naming the
+code path that gave up on the calls (e.g. <code>sdk:reconnection-exhausted</code>).</p>
+</div>
+<div class="tsd-comment tsd-typography"></div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography"></div><aside class="tsd-sources">
 <p>Inherited from TelnyxRTCClient._terminateActiveCallsLocally</p></aside></li></ul></section>
