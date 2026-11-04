@@ -19,6 +19,10 @@ export const Region = {
   SOUTH_ASIA: 'south-asia',
   /** India (Chennai, Mumbai). */
   IN: 'in',
+  /** Australia (Sydney, Melbourne). */
+  AU: 'au',
+  /** Sydney alone, without the Melbourne hosts. */
+  SY: 'sy',
   /** Middle East (Dubai). */
   ME: 'me',
 } as const;

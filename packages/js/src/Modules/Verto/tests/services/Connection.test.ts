@@ -110,6 +110,8 @@ describe('Connection - region selection', () => {
       ASIA: 'asia',
       SOUTH_ASIA: 'south-asia',
       IN: 'in',
+      AU: 'au',
+      SY: 'sy',
       ME: 'me',
     });
   });
