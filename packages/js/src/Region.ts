@@ -10,6 +10,12 @@ export const Region = {
   US_WEST: 'us-west',
   CA_CENTRAL: 'ca-central',
   APAC: 'apac',
+  /** Asia (Chennai, Singapore, Mumbai). */
+  ASIA: 'asia',
+  /**
+   * @deprecated Use {@link Region.ASIA}. `south-asia` names the same
+   * hosts and keeps working, but new code should use `asia`.
+   */
   SOUTH_ASIA: 'south-asia',
   /** Middle East (Dubai). */
   ME: 'me',

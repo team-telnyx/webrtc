@@ -54,7 +54,7 @@ client.on('telnyx.ready', () => {
 
 | Property        | Type             | Description                                                                                                              |
 | --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"south-asia"`, `"me"`) |
+| `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"asia"`, `"me"`) |
 | `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
 
 Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
