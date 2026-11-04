@@ -1142,5 +1142,8 @@ describe('Connection - VSDK-318 WEBSOCKET_CONNECTION_FAILED teardown', () => {
 
     // The session's local-only teardown must have been invoked exactly once.
     expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledTimes(1);
+    expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledWith(
+      'sdk:websocket-connection-failed'
+    );
   });
 });

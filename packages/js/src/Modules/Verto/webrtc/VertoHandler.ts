@@ -701,7 +701,9 @@ class VertoHandler {
                   // reconnection exhausted. The socket is already dead, so
                   // sending BYE would only generate noise (BYE_SEND_FAILED).
                   // (VSDK-318 Step 4.d)
-                  this.session._terminateActiveCallsLocally();
+                  this.session._terminateActiveCallsLocally(
+                    'sdk:gateway-failed'
+                  );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     originalError
@@ -722,7 +724,9 @@ class VertoHandler {
                   this.retriedConnect = 0;
                   // Local-only teardown of active calls before declaring
                   // reconnection exhausted (see above). (VSDK-318 Step 4.d)
-                  this.session._terminateActiveCallsLocally();
+                  this.session._terminateActiveCallsLocally(
+                    'sdk:gateway-retry-exhausted'
+                  );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     new Error('Connection Retry Failed')

@@ -171,6 +171,23 @@ describe('BaseSession - Reconnection Attempt Limit', () => {
       );
     });
 
+    it('should hang up active calls locally with initiator sdk:reconnection-exhausted', () => {
+      session.options.maxReconnectAttempts = 1;
+      const hangup = jest.fn();
+      session.calls = { 'call-1': { hangup } };
+
+      simulateSocketFailure(session);
+      jest.runAllTimers();
+      expect(hangup).not.toHaveBeenCalled();
+      simulateSocketFailure(session);
+
+      expect(hangup).toHaveBeenCalledTimes(1);
+      expect(hangup).toHaveBeenCalledWith(
+        { initiator: 'sdk:reconnection-exhausted' },
+        false
+      );
+    });
+
     it('should reset _reconnectAttempts to 0 after exhaustion', () => {
       session.options.maxReconnectAttempts = 1;
 
