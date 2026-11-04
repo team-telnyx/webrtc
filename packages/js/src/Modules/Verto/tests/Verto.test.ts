@@ -1,5 +1,5 @@
 import behaveLikeBaseSession from './behaveLike/BaseSession.spec';
-import { isQueued } from '../services/Handler';
+import { isQueued, register, deRegister } from '../services/Handler';
 import Verto, { VERTO_PROTOCOL } from '..';
 import { IVertoOptions } from '../util/interfaces';
 import { IWebRTCCall } from '../webrtc/interfaces';
@@ -8,6 +8,7 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
   TELNYX_ICE_SERVERS,
+  SwEvent,
   getDefaultIceServers,
 } from '../util/constants';
 import {
@@ -23,6 +24,7 @@ import {
   type IStoredActiveCall,
 } from '../util/reconnect';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const Connection = require('../services/Connection');
 
 describe('Verto', () => {
@@ -1660,6 +1662,29 @@ describe('Verto', () => {
 
         // Credentials should NOT be updated because login returns early
         expect(instance.options.login).toEqual(originalLogin);
+      });
+    });
+
+    describe('when the server rejects the login', () => {
+      afterEach(() => {
+        deRegister(SwEvent.Error, undefined, instance.uuid);
+      });
+
+      it('keeps the server code and message on originalError', async () => {
+        const errorHandler = jest.fn();
+        register(SwEvent.Error, errorHandler, instance.uuid);
+        Connection.mockResponse.mockImplementationOnce(() => ({
+          error: { code: -32001, message: 'Login Incorrect' },
+        }));
+
+        await instance.login();
+
+        expect(errorHandler).toHaveBeenCalledTimes(1);
+        const { error } = errorHandler.mock.calls[0][0];
+        expect(error.code).toBe(46001);
+        expect(error.originalError).toBeInstanceOf(Error);
+        expect(error.originalError.message).toBe('Login Incorrect');
+        expect(error.originalError.code).toBe(-32001);
       });
     });
   });
