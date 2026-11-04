@@ -114,7 +114,7 @@ class VertoHandler {
           );
 
           // Local cleanup only — do not send BYE because the server no longer has the session.
-          void call.hangup({}, false);
+          void call.hangup({ initiator: 'sdk:session-not-reattached' }, false);
         }
       }
     }
