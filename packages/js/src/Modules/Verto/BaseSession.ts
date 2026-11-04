@@ -1177,7 +1177,11 @@ export default abstract class BaseSession {
   private _resetKeepAlive() {
     if (this._pong === false) {
       logger.warn('No ping/pong received, forcing PING ACK to keep alive');
-      this.execute(new Ping(getReconnectToken()));
+      // Nothing awaits this ping, so handle the StaleRequestError or
+      // RequestTimeoutError that execute() rethrows.
+      this.execute(new Ping(getReconnectToken())).catch((error) => {
+        logger.debug('Keep-alive ping was not acknowledged', error);
+      });
     }
 
     clearTimeout(this._keepAliveTimeout);

@@ -343,7 +343,12 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session.execute(messagePing);
+        // Nothing awaits this reply. A reconnect settles it with
+        // StaleRequestError, and execute() has already reported a
+        // RequestTimeoutError to signaling health before rethrowing.
+        this.session.execute(messagePing).catch((error) => {
+          logger.debug('Ping reply was not acknowledged', error);
+        });
         break;
       }
       case VertoMethod.Punt:
