@@ -209,6 +209,10 @@ export function createTelnyxError(
  * `{ code: -32001, message: 'Login Incorrect' }`. `String()` would turn it
  * into `[object Object]`, so use its `message` and copy its other fields
  * (e.g. `code`) onto the `Error`.
+ *
+ * Fields the `Error` already has (`message`, `name`, `stack`, `toString`,
+ * `__proto__`, ...) are skipped, so a server payload cannot replace its
+ * methods or its prototype.
  */
 function toError(value: unknown): Error | undefined {
   if (value === undefined || value instanceof Error) {
@@ -217,11 +221,16 @@ function toError(value: unknown): Error | undefined {
   if (value === null || typeof value !== 'object') {
     return new Error(String(value));
   }
-  const { message, ...fields } = value as Record<string, unknown>;
+  const fields = value as Record<string, unknown>;
   const error = new Error(
-    typeof message === 'string' ? message : stringify(value)
+    typeof fields.message === 'string' ? fields.message : stringify(value)
   );
-  return Object.assign(error, fields);
+  Object.keys(fields).forEach((key) => {
+    if (!(key in error)) {
+      (error as unknown as Record<string, unknown>)[key] = fields[key];
+    }
+  });
+  return error;
 }
 
 function stringify(value: object): string {

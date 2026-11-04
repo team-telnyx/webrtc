@@ -94,6 +94,31 @@ describe('createTelnyxError — originalError normalization', () => {
     expect((err.originalError as any).data).toEqual({ field: 'login_token' });
   });
 
+  it('does not let a __proto__ field replace the Error prototype', () => {
+    const payload = JSON.parse(
+      '{"code":-32001,"message":"Login Incorrect","__proto__":{"polluted":true}}'
+    );
+    const err = createTelnyxError(WEBSOCKET_ERROR, payload);
+    const original = err.originalError as any;
+    expect(original).toBeInstanceOf(Error);
+    expect(original.message).toBe('Login Incorrect');
+    expect(original.code).toBe(-32001);
+    expect(original.polluted).toBeUndefined();
+  });
+
+  it('does not let a field shadow an existing Error property', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, {
+      code: 1,
+      message: 'boom',
+      name: 'ServerName',
+      toString: 'not a function',
+    });
+    const original = err.originalError as Error;
+    expect(original.name).toBe('Error');
+    expect(String(original)).toBe('Error: boom');
+    expect((original as any).code).toBe(1);
+  });
+
   it('uses JSON for an object without a string message', () => {
     const err = createTelnyxError(WEBSOCKET_ERROR, { code: '403' });
     const original = err.originalError as any;
