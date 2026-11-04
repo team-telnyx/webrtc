@@ -1309,6 +1309,21 @@ describe('VertoHandler', () => {
         );
       });
 
+      it('should hang up the orphaned call with initiator sdk:session-not-reattached', async () => {
+        await instance.connect();
+        const callId = 'call-id-initiator';
+        _setupCall({ id: callId, telnyxSessionId: 'session-orphan' });
+        call.setState(State.Active);
+        const hangupSpy = jest.spyOn(call, 'hangup');
+
+        sendReattach([]);
+
+        expect(hangupSpy).toHaveBeenCalledWith(
+          { initiator: 'sdk:session-not-reattached' },
+          false
+        );
+      });
+
       it('should NOT send BYE when terminating an orphaned call', async () => {
         await instance.connect();
         const callId = 'call-id-nobye';
@@ -1350,8 +1365,14 @@ describe('VertoHandler', () => {
         _setupCall({ id: callId, telnyxSessionId: 'session-active' });
         call.setState(State.Active);
 
+        const hangupSpy = jest.spyOn(call, 'hangup');
+
         sendReattach(['different-call-id']);
 
+        expect(hangupSpy).toHaveBeenCalledWith(
+          { initiator: 'sdk:session-not-reattached' },
+          false
+        );
         expect(instance.calls[callId]).toBeUndefined();
         expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
