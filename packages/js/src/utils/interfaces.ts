@@ -3,6 +3,7 @@ import {
   Environment,
   INotificationEventData,
 } from '../Modules/Verto/util/interfaces';
+import { IPreferredCodec } from '../Modules/Verto/webrtc/interfaces';
 
 export interface ICredentials {
   username?: string;
@@ -560,9 +561,10 @@ export interface ICallOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
-   * Preferred codecs for the call.
+   * Preferred codecs for the call, as entries from
+   * `RTCRtpReceiver.getCapabilities('audio').codecs`.
    */
-  preferred_codecs?: RTCRtpCodecCapability[];
+  preferred_codecs?: IPreferredCodec[];
 
   /**
    * Enable or disable prefetching ICE candidates. Defaults to false.

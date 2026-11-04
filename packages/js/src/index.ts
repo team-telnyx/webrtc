@@ -27,6 +27,8 @@ export {
   ERROR_TYPE,
 };
 
+export type { IPreferredCodec } from './Modules/Verto/webrtc/interfaces';
+
 export {
   SDK_ERRORS,
   SDK_WARNINGS,

@@ -210,9 +210,10 @@ Overrides client's default `telnyx.notification` handler for this call.
 
 ### preferred_codecs
 
-• `Optional` **preferred_codecs**: `RTCRtpCodecCapability`[]
+• `Optional` **preferred_codecs**: [`IPreferredCodec`](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IPreferredCodec.md)[]
 
-Preferred codecs for the call.
+Preferred codecs for the call, as entries from
+`RTCRtpReceiver.getCapabilities('audio').codecs`.
 
 ---
 
