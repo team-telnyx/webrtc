@@ -2031,6 +2031,48 @@ describe('VertoHandler', () => {
       expect(byeCalls.length).toBe(0);
     });
 
+    it('hangs up with initiator sdk:gateway-failed when autoReconnect is disabled', async () => {
+      await instance.connect();
+      _setupCall({ id: 'call-gw-failed', telnyxSessionId: 'session-gw' });
+      call.setState(State.Active);
+      const hangupSpy = jest.spyOn(call, 'hangup');
+      (instance as any)._autoReconnect = false;
+      instance.connection.previousGatewayState = '';
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"gs-gw-failed","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+        )
+      );
+
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:gateway-failed' },
+        false
+      );
+    });
+
+    it('hangs up with initiator sdk:gateway-retry-exhausted after the last gateway retry', async () => {
+      await instance.connect();
+      _setupCall({ id: 'call-gw-retry', telnyxSessionId: 'session-gw' });
+      call.setState(State.Active);
+      const hangupSpy = jest.spyOn(call, 'hangup');
+      (instance as any)._autoReconnect = true;
+      (handler as any).retriedConnect = 4; // RETRY_CONNECT_TIME - 1
+      instance.connection.previousGatewayState = '';
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"gs-gw-retry","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+        )
+      );
+
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:gateway-retry-exhausted' },
+        false
+      );
+      expect(instance.calls['call-gw-retry']).toBeUndefined();
+    });
+
     it('emits RECONNECTION_EXHAUSTED with fatal: true (registry default)', async () => {
       await instance.connect();
       _setupCall({ id: 'call-fatal', telnyxSessionId: 'session-fatal' });
