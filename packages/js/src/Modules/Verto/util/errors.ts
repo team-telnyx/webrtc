@@ -42,7 +42,10 @@ export interface ITelnyxError {
   causes: string[];
   /** Suggested remediation steps */
   solutions: string[];
-  /** The original error that triggered this, if any */
+  /**
+   * The original error that triggered this, if any. A server rejection is
+   * wrapped in an `Error` that keeps the server's `message` and `code`.
+   */
   originalError?: unknown;
   /**
    * `true` when the situation is terminal — operation/call/session
@@ -187,12 +190,6 @@ export function createTelnyxError(
   fatal?: boolean
 ): TelnyxError {
   const entry = SDK_ERRORS[code];
-  const normalizedError =
-    originalError instanceof Error
-      ? originalError
-      : originalError !== undefined
-        ? new Error(String(originalError))
-        : undefined;
   return new TelnyxError({
     code,
     name: entry.name,
@@ -200,9 +197,48 @@ export function createTelnyxError(
     message: message || entry.message,
     causes: [...entry.causes],
     solutions: [...entry.solutions],
-    originalError: normalizedError,
+    originalError: toError(originalError),
     fatal: fatal ?? entry.fatal,
   });
+}
+
+/**
+ * Normalize `originalError` to an `Error`.
+ *
+ * A server rejection arrives as a plain JSON-RPC error object such as
+ * `{ code: -32001, message: 'Login Incorrect' }`. `String()` would turn it
+ * into `[object Object]`, so use its `message` and copy its other fields
+ * (e.g. `code`) onto the `Error`.
+ *
+ * Fields the `Error` already has (`message`, `name`, `stack`, `toString`,
+ * `__proto__`, ...) are skipped, so a server payload cannot replace its
+ * methods or its prototype.
+ */
+function toError(value: unknown): Error | undefined {
+  if (value === undefined || value instanceof Error) {
+    return value;
+  }
+  if (value === null || typeof value !== 'object') {
+    return new Error(String(value));
+  }
+  const fields = value as Record<string, unknown>;
+  const error = new Error(
+    typeof fields.message === 'string' ? fields.message : stringify(value)
+  );
+  Object.keys(fields).forEach((key) => {
+    if (!(key in error)) {
+      (error as unknown as Record<string, unknown>)[key] = fields[key];
+    }
+  });
+  return error;
+}
+
+function stringify(value: object): string {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
 }
 
 /**
