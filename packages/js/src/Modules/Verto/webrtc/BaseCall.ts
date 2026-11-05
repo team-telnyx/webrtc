@@ -2046,7 +2046,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
         if (type === PeerType.Offer) {
-          this.setState(State.Trying);
+          // telnyx_rtc.media or telnyx_rtc.answer may already have moved the
+          // call past Requesting; a late invite reply must not move it back.
+          if (this._state === State.Requesting) {
+            this.setState(State.Trying);
+          } else {
+            logger.debug(
+              `[${this.id}] Invite response arrived in ${this.state} state, not moving to trying`
+            );
+          }
         } else {
           // Preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
@@ -2151,7 +2159,15 @@ export default abstract class BaseCall implements IWebRTCCall {
         const { node_id = null } = response;
         this._targetNodeId = node_id;
         if (type === PeerType.Offer) {
-          this.setState(State.Trying);
+          // telnyx_rtc.media or telnyx_rtc.answer may already have moved the
+          // call past Requesting; a late invite reply must not move it back.
+          if (this._state === State.Requesting) {
+            this.setState(State.Trying);
+          } else {
+            logger.debug(
+              `[${this.id}] Invite response arrived in ${this.state} state, not moving to trying`
+            );
+          }
         } else {
           // Preserve held state across attach-recovery re-answer.
           if (this._wasHeldBeforeRecovery && this._isRecovering) {
