@@ -204,7 +204,10 @@ export class Call extends BaseCall {
         this.options.remoteElement !== remoteElement
       )
         return false;
-      if (switched) this.options.speakerId = deviceId;
+      if (switched) {
+        this.options.speakerId = deviceId;
+        this._reportDeviceChanged('output');
+      }
       return switched;
     }
     return false;

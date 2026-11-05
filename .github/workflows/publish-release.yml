@@ -127,3 +127,62 @@ jobs:
         run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
         env:
           CI: true
+
+  publish-telemetry:
+    if: startsWith(github.event.release.tag_name, 'telemetry/v')
+
+    name: "@telnyx/webrtc-telemetry Publish ${{ github.event.release.prerelease && 'prerelease' || 'release' }}"
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Use Node.js 24.5
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24.5.0"
+          cache: "yarn"
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install shared dependencies
+        run: yarn install --immutable
+
+      - name: Install package dependencies
+        working-directory: packages/telemetry
+        run: yarn install --immutable
+
+      - name: Determine npm dist-tag
+        id: dist-tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-alpha* ]]; then
+            echo "tag=alpha" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-beta* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-rc* ]]; then
+            echo "tag=rc" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-next* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          elif [[ "$VERSION" == *-* ]]; then
+            PRE="${VERSION#*-}"
+            echo "tag=${PRE%%.*}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+        working-directory: packages/telemetry
+
+      - name: Publish package
+        working-directory: packages/telemetry
+        run: npm publish --access public --provenance --tag ${{ steps.dist-tag.outputs.tag }}
+        env:
+          CI: true

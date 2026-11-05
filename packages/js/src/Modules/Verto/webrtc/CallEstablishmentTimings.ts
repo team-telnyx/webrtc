@@ -203,11 +203,52 @@ export function logCallEstablishmentTimings(
   logger.info(`${tag} ${separator}`);
 }
 
+/** Observers that read a call's marks before they are cleared (telemetry call_timings). */
+const markObservers = new Map<
+  string,
+  (marks: Record<string, number>) => void
+>();
+
+/**
+ * Every mark of the call that exists now, by suffix: its performance.now() time.
+ */
+export function readCallMarks(callId: string): Record<string, number> {
+  const marks: Record<string, number> = {};
+  for (const suffix of MARK_SUFFIXES) {
+    const time = getMarkTime(callMarkName(callId, suffix));
+    if (time !== undefined) marks[suffix] = time;
+  }
+  return marks;
+}
+
+/**
+ * Calls `observer` with the call's marks each time they are about to be
+ * cleared. Returns the function that stops observing. One observer per call
+ * ID: the newest wins (a reattached call reuses the ID).
+ */
+export function observeCallMarks(
+  callId: string,
+  observer: (marks: Record<string, number>) => void
+): () => void {
+  markObservers.set(callId, observer);
+  return () => {
+    if (markObservers.get(callId) === observer) markObservers.delete(callId);
+  };
+}
+
 /**
  * Clear all call establishment performance marks for a given call.
  * Marks are scoped by call_id, so only marks belonging to this call are removed.
  */
 export function clearCallMarks(callId: string): void {
+  const observer = markObservers.get(callId);
+  if (observer) {
+    try {
+      observer(readCallMarks(callId));
+    } catch {
+      // an observer never breaks the cleanup
+    }
+  }
   for (const suffix of MARK_SUFFIXES) {
     try {
       performance.clearMarks(callMarkName(callId, suffix));

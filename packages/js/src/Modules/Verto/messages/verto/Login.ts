@@ -11,7 +11,9 @@ class Login extends BaseRequest {
     sessionid: string,
     userVariables: Record<string, any> = {},
     reconnection: boolean,
-    earlySdpAnswer: boolean = false
+    earlySdpAnswer: boolean = false,
+    sdkInstanceId?: string,
+    telemetryEnabled: boolean = false
   ) {
     super();
 
@@ -29,6 +31,12 @@ class Login extends BaseRequest {
     };
     if (sessionid) {
       params.sessid = sessionid;
+    }
+    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK
+    // instance; the VSP sends that record only when telemetry_enabled is true.
+    if (sdkInstanceId) {
+      params.sdk_instance_id = sdkInstanceId;
+      params.telemetry_enabled = telemetryEnabled;
     }
     this.buildRequest({ method: this.method, params });
   }

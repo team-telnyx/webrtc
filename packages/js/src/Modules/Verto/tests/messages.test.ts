@@ -5,6 +5,7 @@ import {
   DebugReportStopMessage,
 } from '../messages/WebRTCStats';
 import { Ping } from '../messages/verto/Ping';
+import { AnonymousLogin } from '../messages/verto/AnonymousLogin';
 import { version } from '../../../../package.json';
 
 const userAgent = JSON.stringify({
@@ -83,6 +84,57 @@ describe('Messages', function () {
         expect(params.loginParams).toEqual({ early_sdp_answer: true });
         expect(params).not.toHaveProperty('early_sdp_answer');
         expect(params.userVariables).not.toHaveProperty('early_sdp_answer');
+      });
+
+      it('sends telemetry_enabled with sdk_instance_id, and neither without telemetry', () => {
+        const login = (...telemetry: [string?, boolean?]) =>
+          new Login(
+            'login',
+            'password',
+            'token',
+            'session',
+            {},
+            false,
+            false,
+            ...telemetry
+          ).request.params;
+
+        expect(login('instance-1', true)).toEqual(
+          expect.objectContaining({
+            sdk_instance_id: 'instance-1',
+            telemetry_enabled: true,
+          })
+        );
+        expect(login('instance-1', false).telemetry_enabled).toBe(false);
+        expect(login('instance-1').telemetry_enabled).toBe(false);
+        expect(login()).not.toHaveProperty('sdk_instance_id');
+        expect(login()).not.toHaveProperty('telemetry_enabled');
+      });
+    });
+
+    describe('AnonymousLogin', function () {
+      const target = { target_id: 'target', target_type: 'ai_assistant' };
+
+      it('sends telemetry_enabled with sdk_instance_id, and neither without telemetry', () => {
+        const login = (telemetry: {
+          sdkInstanceId?: string;
+          telemetryEnabled?: boolean;
+        }) => new AnonymousLogin({ ...target, ...telemetry }).request.params;
+
+        expect(
+          login({ sdkInstanceId: 'instance-1', telemetryEnabled: true })
+        ).toEqual(
+          expect.objectContaining({
+            sdk_instance_id: 'instance-1',
+            telemetry_enabled: true,
+          })
+        );
+        expect(login({ sdkInstanceId: 'instance-1' }).telemetry_enabled).toBe(
+          false
+        );
+        expect(login({ telemetryEnabled: true })).not.toHaveProperty(
+          'telemetry_enabled'
+        );
       });
     });
 

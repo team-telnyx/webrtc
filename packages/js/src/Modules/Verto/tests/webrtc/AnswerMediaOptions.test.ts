@@ -68,7 +68,13 @@ describe('answer media/device options', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
-    session = new Verto({ login: 'test', passwd: 'test' });
+    // Telemetry (on by default) reads the device list itself; these tests
+    // count the SDK's own device calls.
+    session = new Verto({
+      login: 'test',
+      passwd: 'test',
+      telemetry: { enabled: false },
+    });
     capture = jest
       .spyOn(navigator.mediaDevices, 'getUserMedia')
       .mockReset()
