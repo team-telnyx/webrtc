@@ -766,6 +766,10 @@ export default abstract class BaseSession {
           : getReconnectSessionId()) || ''
       : '';
 
+    // Call Report V2: tells the signaling VSP whether this instance sends
+    // telemetry, so it sends its vsp_session record only then.
+    const telemetryEnabled = telemetryOf(this)?.client.sendsToServer ?? false;
+
     if (type === 'login') {
       const pushWhenActive =
         this.options.pushWhenActive ??
@@ -785,7 +789,8 @@ export default abstract class BaseSession {
         userVariables,
         isReconnection,
         earlySdpAnswer,
-        this.telemetry?.sdkInstanceId
+        this.telemetry?.sdkInstanceId,
+        telemetryEnabled
       );
     } else {
       msg = new AnonymousLogin({
@@ -797,6 +802,7 @@ export default abstract class BaseSession {
         userVariables: this.options.userVariables,
         reconnection: isReconnection,
         sdkInstanceId: this.telemetry?.sdkInstanceId,
+        telemetryEnabled,
       });
     }
 

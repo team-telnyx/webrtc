@@ -18,6 +18,9 @@
  *   login answer, it means the server let this socket through no telemetry
  *   (the telemetry load, Consul KV voice-sdk/webrtc_telemetry_load): telemetry
  *   is off for good for this SDK instance, with no reconnect.
+ * - The signaling login says whether this instance sends telemetry
+ *   (telemetry_enabled, from sendsToServer), so the signaling VSP sends its
+ *   vsp_session record only for instances that do.
  * - An event without its own call ID goes out once per active call: same
  *   timestamp, and each copy takes its own sequence like any other record.
  * - Capture mode (the default): the same frames, kept and printed locally.
@@ -308,6 +311,17 @@ export default class TelemetryClient {
   /** The server turned telemetry off for this instance: nothing is collected or sent any more. */
   get disabledByServer(): boolean {
     return this._disabledByServer;
+  }
+
+  /**
+   * True while this instance's events go, or will go, to the telemetry
+   * server: socket mode, not closed and not turned off by the server. The
+   * signaling login sends it as telemetry_enabled, and the signaling VSP sends
+   * its vsp_session record only when it is true. Before the server's answer
+   * to a new socket it is true.
+   */
+  get sendsToServer(): boolean {
+    return !this.capture && !this._closed && !!WebSocketImpl;
   }
 
   get lastSequence(): number {

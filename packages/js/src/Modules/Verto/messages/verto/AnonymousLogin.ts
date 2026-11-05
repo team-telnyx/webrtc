@@ -11,6 +11,7 @@ type AnonymousLoginConstructorParams = {
   userVariables?: Record<string, any>;
   reconnection?: boolean;
   sdkInstanceId?: string;
+  telemetryEnabled?: boolean;
 };
 
 class AnonymousLogin extends BaseRequest {
@@ -28,6 +29,7 @@ class AnonymousLogin extends BaseRequest {
       sessionId,
       reconnection,
       sdkInstanceId,
+      telemetryEnabled = false,
     } = payload;
 
     const params: any = {
@@ -45,9 +47,11 @@ class AnonymousLogin extends BaseRequest {
       params.sessid = sessionId;
     }
 
-    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK instance.
+    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK
+    // instance; the VSP sends that record only when telemetry_enabled is true.
     if (sdkInstanceId) {
       params.sdk_instance_id = sdkInstanceId;
+      params.telemetry_enabled = telemetryEnabled;
     }
 
     if (target_version_id) {

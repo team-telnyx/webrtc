@@ -218,6 +218,7 @@ describe('TelemetryClient', () => {
     const ws = FakeSocket.last();
     ws.open();
     logEvent(client, 'waiting for the login');
+    expect(client.sendsToServer).toBe(true); // no answer yet: assumed on
     ws.receive({
       jsonrpc: '2.0',
       method: TELEMETRY_CONTROL_METHOD,
@@ -225,6 +226,7 @@ describe('TelemetryClient', () => {
     });
     expect(onDisabledByServer).toHaveBeenCalledTimes(1);
     expect(client.disabledByServer).toBe(true);
+    expect(client.sendsToServer).toBe(false);
     expect(ws.readyState).toBe(3);
     expect(client.emit('call_state', { state: 'new' })).toBeNull();
     // No reconnect, no reopen on activity or after an idle period, no login.
@@ -252,7 +254,16 @@ describe('TelemetryClient', () => {
     });
     expect(onDisabledByServer).not.toHaveBeenCalled();
     expect(client.disabledByServer).toBe(false);
+    expect(client.sendsToServer).toBe(true);
     expect(FakeSocket.last().readyState).toBe(1);
+  });
+
+  it('says it sends to the server in socket mode until closed, never in capture mode', () => {
+    const socket = makeClient();
+    expect(socket.sendsToServer).toBe(true);
+    socket.close();
+    expect(socket.sendsToServer).toBe(false);
+    expect(makeClient({ capture: true }).sendsToServer).toBe(false);
   });
 
   it('obeys the kill switch until switched back on', () => {
