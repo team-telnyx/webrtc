@@ -137,7 +137,7 @@ class VertoHandler {
           );
 
           // Local cleanup only — do not send BYE because the server no longer has the session.
-          void call.hangup({}, false);
+          void call.hangup({ initiator: 'sdk:session-not-reattached' }, false);
         }
       }
     }
@@ -373,7 +373,12 @@ class VertoHandler {
       // used to keep websocket connection opened when SDK is in an idle state
       case VertoMethod.Ping: {
         this.session.setPingReceived();
-        this.session.execute(messagePing);
+        // Nothing awaits this reply. A reconnect settles it with
+        // StaleRequestError, and execute() has already reported a
+        // RequestTimeoutError to signaling health before rethrowing.
+        this.session.execute(messagePing).catch((error) => {
+          logger.debug('Ping reply was not acknowledged', error);
+        });
         break;
       }
       case VertoMethod.Punt:
@@ -739,7 +744,9 @@ class VertoHandler {
                   // reconnection exhausted. The socket is already dead, so
                   // sending BYE would only generate noise (BYE_SEND_FAILED).
                   // (VSDK-318 Step 4.d)
-                  this.session._terminateActiveCallsLocally();
+                  this.session._terminateActiveCallsLocally(
+                    'sdk:gateway-failed'
+                  );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     originalError
@@ -764,7 +771,9 @@ class VertoHandler {
                   this.retriedConnect = 0;
                   // Local-only teardown of active calls before declaring
                   // reconnection exhausted (see above). (VSDK-318 Step 4.d)
-                  this.session._terminateActiveCallsLocally();
+                  this.session._terminateActiveCallsLocally(
+                    'sdk:gateway-retry-exhausted'
+                  );
                   const telnyxError = createTelnyxError(
                     RECONNECTION_EXHAUSTED,
                     new Error('Connection Retry Failed')

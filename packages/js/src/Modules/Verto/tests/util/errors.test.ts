@@ -38,9 +38,9 @@ describe('createTelnyxError — `fatal` default + override (VSDK-318)', () => {
   });
 
   it('MEDIA_* defaults to fatal: true (v4 flip from recovery flow)', () => {
-    expect(
-      createTelnyxError(MEDIA_MICROPHONE_PERMISSION_DENIED).fatal
-    ).toBe(true);
+    expect(createTelnyxError(MEDIA_MICROPHONE_PERMISSION_DENIED).fatal).toBe(
+      true
+    );
   });
 
   it('explicit `fatal: false` override wins (media-recovery flow)', () => {
@@ -59,7 +59,9 @@ describe('createTelnyxError — `fatal` default + override (VSDK-318)', () => {
   });
 
   it('returns a TelnyxError instance', () => {
-    expect(createTelnyxError(RECONNECTION_EXHAUSTED)).toBeInstanceOf(TelnyxError);
+    expect(createTelnyxError(RECONNECTION_EXHAUSTED)).toBeInstanceOf(
+      TelnyxError
+    );
   });
 
   it('preserves code, name, message, and originalError', () => {
@@ -68,6 +70,83 @@ describe('createTelnyxError — `fatal` default + override (VSDK-318)', () => {
     expect(err.code).toBe(SDP_CREATE_OFFER_FAILED);
     expect(err.name).toBe('SDP_CREATE_OFFER_FAILED');
     expect(err.originalError).toBe(original);
+  });
+});
+
+describe('createTelnyxError — originalError normalization', () => {
+  it('keeps the message and code of a JSON-RPC error object', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, {
+      code: -32001,
+      message: 'Login Incorrect',
+    });
+    const original = err.originalError as any;
+    expect(original).toBeInstanceOf(Error);
+    expect(original.message).toBe('Login Incorrect');
+    expect(original.code).toBe(-32001);
+  });
+
+  it('copies extra fields such as data', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, {
+      code: -32602,
+      message: 'Invalid params',
+      data: { field: 'login_token' },
+    });
+    expect((err.originalError as any).data).toEqual({ field: 'login_token' });
+  });
+
+  it('does not let a __proto__ field replace the Error prototype', () => {
+    const payload = JSON.parse(
+      '{"code":-32001,"message":"Login Incorrect","__proto__":{"polluted":true}}'
+    );
+    const err = createTelnyxError(WEBSOCKET_ERROR, payload);
+    const original = err.originalError as any;
+    expect(original).toBeInstanceOf(Error);
+    expect(original.message).toBe('Login Incorrect');
+    expect(original.code).toBe(-32001);
+    expect(original.polluted).toBeUndefined();
+  });
+
+  it('does not let a field shadow an existing Error property', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, {
+      code: 1,
+      message: 'boom',
+      name: 'ServerName',
+      toString: 'not a function',
+    });
+    const original = err.originalError as Error;
+    expect(original.name).toBe('Error');
+    expect(String(original)).toBe('Error: boom');
+    expect((original as any).code).toBe(1);
+  });
+
+  it('uses JSON for an object without a string message', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, { code: '403' });
+    const original = err.originalError as any;
+    expect(original.message).toBe('{"code":"403"}');
+    expect(original.code).toBe('403');
+  });
+
+  it('falls back to String() for an object JSON cannot serialize', () => {
+    const circular: any = { code: 1 };
+    circular.self = circular;
+    const err = createTelnyxError(WEBSOCKET_ERROR, circular);
+    expect((err.originalError as Error).message).toBe('[object Object]');
+    expect((err.originalError as any).code).toBe(1);
+  });
+
+  it('wraps a string in an Error', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, 'socket closed');
+    expect(err.originalError).toBeInstanceOf(Error);
+    expect((err.originalError as Error).message).toBe('socket closed');
+  });
+
+  it('wraps null in an Error', () => {
+    const err = createTelnyxError(WEBSOCKET_ERROR, null);
+    expect((err.originalError as Error).message).toBe('null');
+  });
+
+  it('leaves originalError undefined when none is given', () => {
+    expect(createTelnyxError(WEBSOCKET_ERROR).originalError).toBeUndefined();
   });
 });
 

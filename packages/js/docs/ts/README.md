@@ -34,6 +34,7 @@
 - [IICECandidatePair](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IICECandidatePair.md)
 - [ILocalAudioSourceStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioSourceStats.md)
 - [ILocalAudioTrackSnapshot](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ILocalAudioTrackSnapshot.md)
+- [IPreferredCodec](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IPreferredCodec.md)
 - [IRecordingPacket](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/IRecordingPacket.md)
 - [ITransportStats](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/ITransportStats.md)
 - [MinMaxAverage](https://github.com/team-telnyx/webrtc/tree/main/packages/js/docs/ts/interfaces/MinMaxAverage.md)
@@ -421,15 +422,20 @@ Omit `IClientOptions.region` to use automatic routing.
 
 #### Type declaration
 
-| Name         | Type           |
-| :----------- | :------------- |
-| `APAC`       | `"apac"`       |
-| `CA_CENTRAL` | `"ca-central"` |
-| `EU`         | `"eu"`         |
-| `SOUTH_ASIA` | `"south-asia"` |
-| `US_CENTRAL` | `"us-central"` |
-| `US_EAST`    | `"us-east"`    |
-| `US_WEST`    | `"us-west"`    |
+| Name         | Type           | Description                                                                                                              |
+| :----------- | :------------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `APAC`       | `"apac"`       | -                                                                                                                        |
+| `ASIA`       | `"asia"`       | Asia (Chennai, Singapore, Mumbai).                                                                                       |
+| `AU`         | `"au"`         | Australia (Sydney, Melbourne).                                                                                           |
+| `CA_CENTRAL` | `"ca-central"` | -                                                                                                                        |
+| `EU`         | `"eu"`         | -                                                                                                                        |
+| `IN`         | `"in"`         | India (Chennai, Mumbai).                                                                                                 |
+| `ME`         | `"me"`         | Middle East (Dubai).                                                                                                     |
+| `SOUTH_ASIA` | `"south-asia"` | **`Deprecated`** Use [ASIA](#asia). `south-asia` names the same hosts and keeps working, but new code should use `asia`. |
+| `SY`         | `"sy"`         | Sydney alone, without the Melbourne hosts.                                                                               |
+| `US_CENTRAL` | `"us-central"` | -                                                                                                                        |
+| `US_EAST`    | `"us-east"`    | -                                                                                                                        |
+| `US_WEST`    | `"us-west"`    | -                                                                                                                        |
 
 ## Functions
 

@@ -4,6 +4,7 @@ import {
   INotificationEventData,
   ITelemetryOptions,
 } from '../Modules/Verto/util/interfaces';
+import { IPreferredCodec } from '../Modules/Verto/webrtc/interfaces';
 
 export interface ICredentials {
   username?: string;
@@ -452,6 +453,13 @@ export interface ICallOptions {
   destinationNumber?: string;
   /**
    * Number to use as the caller ID when dialing out to a destination. A valid phone number is required for dials out to PSTN numbers.
+   *
+   * On an emergency call (`911`, or the `933` test number) this is the caller's identity: the platform
+   * looks up the emergency address registered on this number and hands it to the emergency service as
+   * the callback number. Use a number on your account in `+E.164` form with emergency services enabled.
+   * A Caller ID Override on the connection can replace this value: an override that applies to emergency
+   * calls (`always`, `emergency`) always does, and a `normal` override is used as the fallback when this
+   * value is not a valid number — leave the override off on connections that place emergency calls.
    */
   callerNumber?: string;
   /**
@@ -539,6 +547,14 @@ export interface ICallOptions {
 
   /**
    * Add custom headers to the INVITE and ANSWER request.
+   *
+   * Header names must start with `X-`; other names are not forwarded. For emergency calls the
+   * caller's coordinates can be sent as `X-Latitude` / `X-Longitude` (WGS 84, 6 to 8 decimals),
+   * for example from `navigator.geolocation`. This built-in geolocation is available for U.S.
+   * emergency calls and must be enabled by Telnyx support (PIDF-LO) on the number used as
+   * `callerNumber`; without that, the headers are forwarded but not used to locate the caller.
+   * Identity headers (`From`, `P-Asserted-Identity`) cannot be set here — the caller is identified by
+   * `callerNumber`. See `TelnyxRTC.newCall` for an emergency-call example.
    */
   customHeaders?: { name: string; value: string }[];
 
@@ -553,9 +569,10 @@ export interface ICallOptions {
   debugOutput?: 'socket' | 'file';
 
   /**
-   * Preferred codecs for the call.
+   * Preferred codecs for the call, as entries from
+   * `RTCRtpReceiver.getCapabilities('audio').codecs`.
    */
-  preferred_codecs?: RTCRtpCodecCapability[];
+  preferred_codecs?: IPreferredCodec[];
 
   /**
    * Enable or disable prefetching ICE candidates. Defaults to false.

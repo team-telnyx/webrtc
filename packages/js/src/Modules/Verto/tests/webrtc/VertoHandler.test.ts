@@ -27,6 +27,7 @@ import {
   type IStoredActiveCall,
 } from '../../util/reconnect';
 import logger from '../../util/logger';
+import { RequestTimeoutError, StaleRequestError } from '../../util/errors';
 
 const DEFAULT_PARAMS = {
   destinationNumber: 'x3599',
@@ -226,6 +227,40 @@ describe('VertoHandler', () => {
       instance.serverDisconnect = jest.fn();
       handler.handleMessage(msg);
       expect(instance.serverDisconnect).toBeCalledTimes(1);
+    });
+  });
+
+  describe('telnyx_rtc.ping', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it.each([
+      ['StaleRequestError', new StaleRequestError('ping-1', 1, 2)],
+      [
+        'RequestTimeoutError',
+        new RequestTimeoutError('ping-1', 10000, 'telnyx_rtc.ping'),
+      ],
+    ])('handles a %s from the ping reply', async (_name, error) => {
+      const execute = jest.spyOn(instance, 'execute').mockRejectedValue(error);
+      const debug = jest.spyOn(logger, 'debug').mockImplementation();
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":41,"method":"telnyx_rtc.ping","params":{}}'
+        )
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({ method: 'telnyx_rtc.ping' }),
+        })
+      );
+      expect(debug).toHaveBeenCalledWith(
+        'Ping reply was not acknowledged',
+        error
+      );
     });
   });
 
@@ -1309,6 +1344,21 @@ describe('VertoHandler', () => {
         );
       });
 
+      it('should hang up the orphaned call with initiator sdk:session-not-reattached', async () => {
+        await instance.connect();
+        const callId = 'call-id-initiator';
+        _setupCall({ id: callId, telnyxSessionId: 'session-orphan' });
+        call.setState(State.Active);
+        const hangupSpy = jest.spyOn(call, 'hangup');
+
+        sendReattach([]);
+
+        expect(hangupSpy).toHaveBeenCalledWith(
+          { initiator: 'sdk:session-not-reattached' },
+          false
+        );
+      });
+
       it('should NOT send BYE when terminating an orphaned call', async () => {
         await instance.connect();
         const callId = 'call-id-nobye';
@@ -1350,8 +1400,14 @@ describe('VertoHandler', () => {
         _setupCall({ id: callId, telnyxSessionId: 'session-active' });
         call.setState(State.Active);
 
+        const hangupSpy = jest.spyOn(call, 'hangup');
+
         sendReattach(['different-call-id']);
 
+        expect(hangupSpy).toHaveBeenCalledWith(
+          { initiator: 'sdk:session-not-reattached' },
+          false
+        );
         expect(instance.calls[callId]).toBeUndefined();
         expect(onError).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1973,6 +2029,48 @@ describe('VertoHandler', () => {
           c[0]?.request?.method === 'telnyx_rtc.bye'
       );
       expect(byeCalls.length).toBe(0);
+    });
+
+    it('hangs up with initiator sdk:gateway-failed when autoReconnect is disabled', async () => {
+      await instance.connect();
+      _setupCall({ id: 'call-gw-failed', telnyxSessionId: 'session-gw' });
+      call.setState(State.Active);
+      const hangupSpy = jest.spyOn(call, 'hangup');
+      (instance as any)._autoReconnect = false;
+      instance.connection.previousGatewayState = '';
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"gs-gw-failed","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+        )
+      );
+
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:gateway-failed' },
+        false
+      );
+    });
+
+    it('hangs up with initiator sdk:gateway-retry-exhausted after the last gateway retry', async () => {
+      await instance.connect();
+      _setupCall({ id: 'call-gw-retry', telnyxSessionId: 'session-gw' });
+      call.setState(State.Active);
+      const hangupSpy = jest.spyOn(call, 'hangup');
+      (instance as any)._autoReconnect = true;
+      (handler as any).retriedConnect = 4; // RETRY_CONNECT_TIME - 1
+      instance.connection.previousGatewayState = '';
+
+      handler.handleMessage(
+        JSON.parse(
+          '{"jsonrpc":"2.0","id":"gs-gw-retry","result":{"params":{"state":"TIMEOUT"},"sessid":"sess1"}}'
+        )
+      );
+
+      expect(hangupSpy).toHaveBeenCalledWith(
+        { initiator: 'sdk:gateway-retry-exhausted' },
+        false
+      );
+      expect(instance.calls['call-gw-retry']).toBeUndefined();
     });
 
     it('emits RECONNECTION_EXHAUSTED with fatal: true (registry default)', async () => {

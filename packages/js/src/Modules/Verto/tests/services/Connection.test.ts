@@ -107,7 +107,12 @@ describe('Connection - region selection', () => {
       US_WEST: 'us-west',
       CA_CENTRAL: 'ca-central',
       APAC: 'apac',
+      ASIA: 'asia',
       SOUTH_ASIA: 'south-asia',
+      IN: 'in',
+      AU: 'au',
+      SY: 'sy',
+      ME: 'me',
     });
   });
 
@@ -1137,5 +1142,8 @@ describe('Connection - VSDK-318 WEBSOCKET_CONNECTION_FAILED teardown', () => {
 
     // The session's local-only teardown must have been invoked exactly once.
     expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledTimes(1);
+    expect(mockSession._terminateActiveCallsLocally).toHaveBeenCalledWith(
+      'sdk:websocket-connection-failed'
+    );
   });
 });

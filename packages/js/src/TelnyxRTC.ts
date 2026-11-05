@@ -10,6 +10,12 @@ import {
 } from './Modules/Verto/webrtc/interfaces';
 import logger from './Modules/Verto/util/logger';
 import RegistrationTimings from './Modules/Verto/util/RegistrationTimings';
+import {
+  prepareConnection,
+  keepConnectionWarm,
+  IPrepareConnectionOptions,
+  IKeepConnectionWarmOptions,
+} from './Modules/Verto/util/prepareConnection';
 import { PreCallDiagnostic } from './PreCallDiagnostic';
 import type {
   PreCallDiagnosticOptions,
@@ -271,6 +277,49 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
 
+   * ### Emergency Calls (911 / 933)
+   *
+   * An emergency call is an ordinary outbound call to an emergency number. Nothing in the client
+   * treats it specially: the platform classifies the destination, routes it to the emergency carrier
+   * and locates the caller. Two things on the call matter:
+   *
+   * - `callerNumber` identifies the caller. The platform uses it to find the emergency address
+   *   registered on that number and gives it to the emergency service as the callback number, so it
+   *   must be a number on your account with emergency services enabled, in `+E.164` form. A Caller ID
+   *   Override on the connection can replace it: an override that applies to emergency calls
+   *   (`always`, `emergency`) does so unconditionally, and a `normal` override is used as the fallback
+   *   when `callerNumber` is not a valid number. Leave the override off on connections that place
+   *   emergency calls.
+   * - `customHeaders` can carry the caller's coordinates as `X-Latitude` / `X-Longitude`, for callers
+   *   whose location differs from the address registered on the number. This is Telnyx's built-in
+   *   geolocation for emergency calls, available for U.S. destinations, and it has to be enabled by
+   *   Telnyx support (PIDF-LO) on the number used as `callerNumber` before the coordinates are used to
+   *   route the call. Forwarding the headers alone does not locate the caller; validate with a `933`
+   *   test and listen for the location readback.
+   *
+   * Never test with `911`. Dial `933`: it takes the same path and reads the location back without
+   * dispatching anyone. Emergency calls from a number without emergency services enabled are treated
+   * as unregistered and charged a penalty.
+   *
+   * ```js
+   * navigator.geolocation.getCurrentPosition(({ coords }) => {
+   *   client.newCall({
+   *     destinationNumber: '933',
+   *     callerNumber: '+13125550100',
+   *     customHeaders: [
+   *       { name: 'X-Latitude', value: coords.latitude.toFixed(6) },
+   *       { name: 'X-Longitude', value: coords.longitude.toFixed(6) },
+   *     ],
+   *   });
+   * });
+   * ```
+   *
+   * The emergency service calls back `callerNumber`, as an ordinary inbound call to that number —
+   * not to the browser session. Route it to something always answered. Keep `call.id` and
+   * `call.telnyxIDs` from the call: they match the `webrtc` detail record (`call_id`, `telnyx_leg_id`)
+   * and let Telnyx support confirm what reached the emergency carrier. The account notification
+   * "Emergency Number Dialed" can alert you per number.
+   *
    * ### Setting Preferred Codec
    *
    * You can pass `preferred_codecs` to the `newCall` method to set codec preference during the call.
@@ -288,6 +337,38 @@ export class TelnyxRTC extends TelnyxRTCClient {
    * });
    * ```
    * 
+   * ### Warming up the connection
+   *
+   * `TelnyxRTC.prepareConnection()` is a static method: call it as soon as the page loads, before
+   * a client exists, when the user may place a call later. One `HEAD` request to the signaling host
+   * resolves its name, opens TCP and completes the TLS handshake, so `connect()` starts with the
+   * address in the browser's DNS cache and the certificate already validated. Pass the same `env`,
+   * `region` or `host` you will construct the client with; the defaults target the production
+   * anycast host. It never throws: the promise resolves `true` when the handshake completed and
+   * `false` otherwise. Browsers keep a resolved address for about a minute, so one call only
+   * helps a `connect()` that follows within that window.
+   *
+   * ```js
+   * // right before connecting
+   * await TelnyxRTC.prepareConnection({ region: Region.EU });
+   * const client = new TelnyxRTC({ login_token, region: Region.EU });
+   * client.connect();
+   * ```
+   *
+   * When the connect may come much later, for example an agent console that is open all day,
+   * `TelnyxRTC.keepConnectionWarm()` repeats the warm-up every 50 s (under the browser's DNS
+   * cache) until the function it returns is called:
+   *
+   * ```js
+   * // at page load
+   * const stopWarming = TelnyxRTC.keepConnectionWarm({ region: Region.EU });
+   *
+   * // later, when the user wants to call
+   * const client = new TelnyxRTC({ login_token, region: Region.EU });
+   * client.connect();
+   * stopWarming();
+   * ```
+   *
    * ### ICE Candidate Prefetching
    * 
    * ICE candidate prefetching is disabled by default. To opt in, pass
@@ -559,6 +640,59 @@ export class TelnyxRTC extends TelnyxRTCClient {
 
     const diagnostic = new PreCallDiagnostic(diagnosticOptions);
     return diagnostic.run();
+  }
+
+  /**
+   * Warms up the path to the signaling host before any client exists: resolves the name,
+   * opens TCP and completes the TLS handshake with one `HEAD` request, so a later `connect()`
+   * starts with the address in the browser's DNS cache (about a minute) and the certificate
+   * validated. Call it at page load when the user may place a call later; it needs no
+   * credentials and no `TelnyxRTC` instance, and may be repeated.
+   *
+   * @param options The `host`, `env` and `region` the client will be constructed with. Optional;
+   * the defaults are the production anycast host.
+   * @return Resolves `true` when the handshake completed, `false` when the host could not be
+   * reached or `fetch` is unavailable. Never rejects.
+   *
+   * @examples
+   *
+   * ```js
+   * TelnyxRTC.prepareConnection();
+   * TelnyxRTC.prepareConnection({ region: Region.EU });
+   * TelnyxRTC.prepareConnection({ env: 'development' });
+   * ```
+   */
+  public static prepareConnection(
+    options: IPrepareConnectionOptions = {}
+  ): Promise<boolean> {
+    return prepareConnection(options);
+  }
+
+  /**
+   * Keeps the path to the signaling host warm while the page waits to connect: runs
+   * `prepareConnection()` now and again every `intervalMs` (default 50 s, under the minute a
+   * browser keeps a resolved name), with the same `host`, `env` and `region`. Call it at page
+   * load when the connect may come much later, and call the returned function to stop once the
+   * client has connected. One `HEAD` request per interval per open tab; never throws.
+   *
+   * @param options The `host`, `env` and `region` the client will be constructed with, plus
+   * `intervalMs`. Optional; the defaults are the production anycast host every 50 s.
+   * @return A function that stops the repetition.
+   *
+   * @examples
+   *
+   * ```js
+   * const stopWarming = TelnyxRTC.keepConnectionWarm({ region: Region.EU });
+   * // later
+   * const client = new TelnyxRTC({ login_token, region: Region.EU });
+   * client.connect();
+   * stopWarming();
+   * ```
+   */
+  public static keepConnectionWarm(
+    options: IKeepConnectionWarmOptions = {}
+  ): () => void {
+    return keepConnectionWarm(options);
   }
 
   /**

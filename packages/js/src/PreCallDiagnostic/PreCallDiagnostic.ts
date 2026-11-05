@@ -252,7 +252,7 @@ export class PreCallDiagnostic implements PreCallDiagnosticRunner {
       options.diagnosticOptions.client.off('telnyx.error', onCallError);
       if (call && options.autoHangup) {
         try {
-          await call.hangup();
+          await call.hangup({ initiator: 'sdk:precall-diagnostic' });
         } catch {
           // The report should survive cleanup failures.
         }

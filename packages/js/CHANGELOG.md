@@ -1,3 +1,23 @@
+## [2.28.2](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1...webrtc/v2.28.2) (2026-11-04)
+
+- fix(js): name the code path when the SDK ends calls locally after losing signaling (#825)
+- fix(js): handle rejections of the SDK's own ping requests (#824)
+- fix(js): hang up the pre-call diagnostic call with initiator sdk:precall-diagnostic (#827)
+- fix(js): hang up with initiator sdk:session-not-reattached when the server drops the session (#826)
+- fix(js): keep the server code and message on originalError (#823)
+- feat(region): add Region.AU and Region.SY for the Australian signaling and TURN names (VSDK-1063) (#822)
+## [2.28.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.1...webrtc/v2.28.1) (2026-11-04)
+
+- feat(region): add Region.IN for the India signaling and TURN names (VSDK-1011) (#813)
+- feat(region): add Region.ASIA, deprecate Region.SOUTH_ASIA (VSDK-995) (#812)
+## [2.28.1-beta.1](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.1-beta.0...webrtc/v2.28.1-beta.1) (2026-10-30)
+
+- feat(js): TelnyxRTC.keepConnectionWarm() repeats prepareConnection while the page waits to connect (VSDK-1047) (#817)
+## [2.28.1-beta.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.28.0...webrtc/v2.28.1-beta.0) (2026-10-29)
+
+- feat(js): TelnyxRTC.prepareConnection() warms up the signaling host before a client exists (VSDK-989) (#810)
+- feat(js): Region.ME for the Middle East signaling region (#811)
+- docs(js): emergency calling (911/933) in the API reference (VSDK-963) (#809)
 ## [2.28.0](https://github.com/team-telnyx/webrtc/compare/webrtc/v2.27.10...webrtc/v2.28.0) (2026-10-19)
 
 ### Features

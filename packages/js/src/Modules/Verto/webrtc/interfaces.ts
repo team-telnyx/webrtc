@@ -5,6 +5,23 @@ export interface IMediaSettings {
   useSdpASBandwidthKbps?: boolean;
   sdpASBandwidthKbps?: number;
 }
+
+/**
+ * A codec to prefer for a call. Entries of `RTCRtpReceiver.getCapabilities('audio').codecs`
+ * have this shape and can be passed as they are, whether your TypeScript DOM library
+ * types them as `RTCRtpCodecCapability` or as `RTCRtpCodec`.
+ */
+export interface IPreferredCodec {
+  /** The codec's MIME type, for example `audio/opus` or `audio/PCMA`. */
+  mimeType: string;
+  /** The codec's clock rate in hertz. */
+  clockRate: number;
+  /** The number of audio channels, when the codec reports one. */
+  channels?: number;
+  /** The codec's SDP `a=fmtp` parameters, when it has any. */
+  sdpFmtpLine?: string;
+}
+
 export interface IHangupParams {
   /** Custom hangup cause string (e.g., 'NORMAL_CLEARING', 'PURGE', 'USER_BUSY') */
   cause?: string;
@@ -70,7 +87,7 @@ export interface IVertoCallOptions {
   customHeaders?: Array<{ name: string; value: string }>;
   debug?: boolean;
   debugOutput?: 'socket' | 'file';
-  preferred_codecs?: RTCRtpCodecCapability[];
+  preferred_codecs?: IPreferredCodec[];
   /**
    * When true and audio is false (no microphone), add a recvonly audio
    * transceiver so the SDP still includes an audio m-line capable of

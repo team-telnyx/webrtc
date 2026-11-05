@@ -27,6 +27,8 @@ export {
   ERROR_TYPE,
 };
 
+export type { IPreferredCodec } from './Modules/Verto/webrtc/interfaces';
+
 export {
   SDK_ERRORS,
   SDK_WARNINGS,
@@ -49,6 +51,16 @@ export type {
   ITelnyxWarning,
   ITelnyxWarningEvent,
 } from './Modules/Verto/util/constants/warnings';
+
+export {
+  prepareConnection,
+  keepConnectionWarm,
+  DEFAULT_KEEP_WARM_INTERVAL_MS,
+} from './Modules/Verto/util/prepareConnection';
+export type {
+  IPrepareConnectionOptions,
+  IKeepConnectionWarmOptions,
+} from './Modules/Verto/util/prepareConnection';
 
 export * from './PreCallDiagnosis';
 export * from './PreCallDiagnostic';

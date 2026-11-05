@@ -1021,7 +1021,7 @@ export default abstract class BaseSession {
         // Tear down any active calls LOCALLY before declaring reconnection
         // exhausted. The socket is already dead, so sending BYE would only
         // generate BYE_SEND_FAILED noise. (VSDK-318 Step 4.d)
-        this._terminateActiveCallsLocally();
+        this._terminateActiveCallsLocally('sdk:reconnection-exhausted');
 
         const telnyxError = createTelnyxError(RECONNECTION_EXHAUSTED);
         telemetryOf(this)?.error('socket', telnyxError, true, {
@@ -1215,7 +1215,11 @@ export default abstract class BaseSession {
   private _resetKeepAlive() {
     if (this._pong === false) {
       logger.warn('No ping/pong received, forcing PING ACK to keep alive');
-      this.execute(new Ping(getReconnectToken()));
+      // Nothing awaits this ping, so handle the StaleRequestError or
+      // RequestTimeoutError that execute() rethrows.
+      this.execute(new Ping(getReconnectToken())).catch((error) => {
+        logger.debug('Keep-alive ping was not acknowledged', error);
+      });
     }
 
     clearTimeout(this._keepAliveTimeout);
@@ -1299,23 +1303,26 @@ export default abstract class BaseSession {
    * Used before emitting `RECONNECTION_EXHAUSTED` (and any other path where
    * the signaling socket is already dead). Sending BYE over a dead socket
    * would only generate `BYE_SEND_FAILED` noise, so each call is finalized
-   * via `hangup({}, false)` — which closes the RTCPeerConnection, stops
-   * media, fires the local hangup notification, and removes the call from
-   * `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   * via `hangup({ initiator }, false)` — which closes the RTCPeerConnection,
+   * stops media, fires the local hangup notification, and removes the call
+   * from `session.calls`, but skips the outbound BYE. (VSDK-318 Step 4.d)
+   *
+   * @param initiator Hangup initiator logged by `hangup()`, naming the
+   * code path that gave up on the calls (e.g. `sdk:reconnection-exhausted`).
    */
-  public _terminateActiveCallsLocally(): void {
+  public _terminateActiveCallsLocally(initiator: string): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const calls = (this as any).calls;
     if (!calls) return;
     const callIds = Object.keys(calls);
     if (callIds.length === 0) return;
     logger.debug(
-      `Reconnection exhausted — locally terminating ${callIds.length} active call(s) (no BYE): ${callIds.join(', ')}`
+      `Locally terminating ${callIds.length} active call(s) (no BYE, initiator: ${initiator}): ${callIds.join(', ')}`
     );
     for (const callId of callIds) {
       const call = calls[callId];
       // Local-only teardown: execute=false skips the outbound BYE.
-      void call?.hangup({}, false);
+      void call?.hangup({ initiator }, false);
     }
   }
 
