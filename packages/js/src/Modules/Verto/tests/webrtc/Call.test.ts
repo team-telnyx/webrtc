@@ -1038,6 +1038,81 @@ describe('Call', () => {
       expect(call.state).toEqual('hangup');
     });
 
+    describe.each([['_onIceSdp'], ['_onTrickleIceSdp']])(
+      'when early media or answer arrives before the invite reply (%s)',
+      (handler) => {
+        const remoteSdp = 'v=0\no=- 3 4 IN IP4 127.0.0.1\ns=-';
+        let resolveInvite: (response: { node_id: string }) => void;
+
+        const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+        const receive = async (method: VertoMethod) => {
+          call.handleMessage({
+            method,
+            params: { callID: call.id, sdp: remoteSdp },
+          });
+          await flush();
+        };
+        const replyToInvite = async () => {
+          resolveInvite({ node_id: 'node' });
+          await flush();
+        };
+
+        beforeEach(() => {
+          Reflect.set(call, 'peer', {
+            instance: {
+              setRemoteDescription: jest.fn().mockResolvedValue(undefined),
+              removeEventListener: jest.fn(),
+            },
+            tryCollectTimings: jest.fn(),
+          });
+          jest.spyOn(session, 'execute').mockReturnValue(
+            new Promise<{ node_id: string }>((resolve) => {
+              resolveInvite = resolve;
+            })
+          );
+          const sendLocalSdp = (
+            Reflect.get(call, handler) as (
+              this: Call,
+              data: RTCSessionDescriptionInit
+            ) => void
+          ).bind(call);
+          sendLocalSdp(localOffer);
+          expect(call.state).toEqual('requesting');
+        });
+
+        it('moves to trying when the invite reply arrives first', async () => {
+          await replyToInvite();
+          expect(call.state).toEqual('trying');
+
+          await receive(VertoMethod.Media);
+          expect(call.state).toEqual('early');
+
+          await receive(VertoMethod.Answer);
+          expect(call.state).toEqual('active');
+        });
+
+        it('stays early when the invite reply arrives after early media', async () => {
+          await receive(VertoMethod.Media);
+          expect(call.state).toEqual('early');
+
+          await replyToInvite();
+          expect(call.state).toEqual('early');
+
+          await receive(VertoMethod.Answer);
+          expect(call.state).toEqual('active');
+        });
+
+        it('stays active when the invite reply arrives after answer', async () => {
+          await receive(VertoMethod.Media);
+          await receive(VertoMethod.Answer);
+          expect(call.state).toEqual('active');
+
+          await replyToInvite();
+          expect(call.state).toEqual('active');
+        });
+      }
+    );
+
     it('does not send deferred non-trickle local SDP after destroy', () => {
       const onIceSdp = (
         Reflect.get(call, '_onIceSdp') as (
