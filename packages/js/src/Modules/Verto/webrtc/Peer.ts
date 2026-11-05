@@ -51,7 +51,7 @@ import {
   getTrackDebugInfo,
   getUserMedia,
 } from './helpers';
-import { IVertoCallOptions } from './interfaces';
+import { IPreferredCodec, IVertoCallOptions } from './interfaces';
 
 export type RestartIceResult = {
   started: boolean;
@@ -1133,7 +1133,7 @@ export default class Peer {
 
   private _setCodecs = (
     transceiver: RTCRtpTransceiver,
-    codecs: RTCRtpCodecCapability[]
+    codecs: IPreferredCodec[]
   ) => {
     if (transceiver.setCodecPreferences) {
       return transceiver.setCodecPreferences(codecs);

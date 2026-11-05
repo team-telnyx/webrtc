@@ -7,6 +7,7 @@ import {
   IWebRTCSupportedBrowser,
   IWebRTCInfo,
   IAudio,
+  IPreferredCodec,
 } from './interfaces';
 
 /**
@@ -847,9 +848,9 @@ const hasOnlyHostIceCandidates = (sdp: string | null | undefined): boolean => {
   );
 };
 
-const getPreferredCodecs = (preferred_codecs?: RTCRtpCodecCapability[]) => {
-  const audioCodecs: RTCRtpCodecCapability[] = [];
-  const videoCodecs: RTCRtpCodecCapability[] = [];
+const getPreferredCodecs = (preferred_codecs?: IPreferredCodec[]) => {
+  const audioCodecs: IPreferredCodec[] = [];
+  const videoCodecs: IPreferredCodec[] = [];
 
   if (!preferred_codecs || preferred_codecs.length === 0) {
     return { audioCodecs, videoCodecs };
