@@ -35,6 +35,7 @@ import {
   LOW_BYTES_SENT,
   ICE_CANDIDATE_PAIR_CHANGED,
 } from '../../../Modules/Verto/util/constants/errorCodes';
+import { LocalAudioLevelMeter } from './LocalAudioLevelMeter';
 
 /**
  * Extended RTCInboundRtpStreamStats with additional audio quality metrics
@@ -319,6 +320,13 @@ export interface IStatsInterval {
       bytesSent?: number;
       audioLevelAvg?: number;
       bitrateAvg?: number;
+      /**
+       * Where `audioLevelAvg` came from: the browser's `media-source` stat
+       * (Chrome, peak-hold) or the SDK's own analyser on the sending track
+       * (browsers without a source level, e.g. Firefox). Absent when neither
+       * produced a level.
+       */
+      audioLevelSource?: 'media-source' | 'analyser';
       localTrack?: ILocalAudioTrackSnapshot;
       mediaSource?: ILocalAudioSourceStats;
       retransmittedPacketsSent?: number;
@@ -546,6 +554,12 @@ export class CallReportCollector {
   private registrationTimingIncluded = false;
 
   // Accumulated values for averaging within an interval
+  // Local-track meter for browsers whose media-source stat has no level
+  // (Firefox). Created lazily on the first stats sample that needs it,
+  // never on browsers that report the level themselves.
+  private localLevelMeter: LocalAudioLevelMeter | null = null;
+  private localLevelMeterUnavailable = false;
+  private outboundLevelSource: 'media-source' | 'analyser' | null = null;
   private intervalAudioLevels: { outbound: number[]; inbound: number[] } = {
     outbound: [],
     inbound: [],
@@ -726,6 +740,7 @@ export class CallReportCollector {
     if (this.peerConnection && this.intervalStartTime) {
       await this._collectStats(true);
     }
+    this._stopLocalLevelMeter();
 
     // Stop log collector
     const logCount = this.logCollector?.getLogCount() ?? 0;
@@ -1126,6 +1141,7 @@ export class CallReportCollector {
    */
   public cleanup(): void {
     this._lastLocalAudioTrackSnapshotJson = null;
+    this._stopLocalLevelMeter();
 
     if (this.logCollector) {
       this.logCollector.clear();
@@ -1807,9 +1823,15 @@ export class CallReportCollector {
         packetsSent: outboundAudio.packetsSent,
         bytesSent: outboundAudio.bytesSent,
         audioLevelAvg: this._average(this.intervalAudioLevels.outbound),
+        ...(this.outboundLevelSource
+          ? { audioLevelSource: this.outboundLevelSource }
+          : {}),
         bitrateAvg: this._average(this.intervalBitrates.outbound),
         ...(localAudioTrack ? { localTrack: localAudioTrack } : {}),
-        ...(localAudioSource ? { mediaSource: localAudioSource } : {}),
+        ...(() => {
+          const source = this._withLocalMeterEnergy(localAudioSource);
+          return source ? { mediaSource: source } : {};
+        })(),
         ...(outboundAudio.retransmittedPacketsSent !== undefined
           ? { retransmittedPacketsSent: outboundAudio.retransmittedPacketsSent }
           : {}),
@@ -2316,6 +2338,7 @@ export class CallReportCollector {
 
     // Try direct audioLevel on media-source
     if (mediaSource?.audioLevel !== undefined) {
+      this.outboundLevelSource = 'media-source';
       return mediaSource.audioLevel;
     }
 
@@ -2327,12 +2350,109 @@ export class CallReportCollector {
         'outbound'
       );
       if (level !== null) {
+        this.outboundLevelSource = 'media-source';
         return level;
       }
     }
 
     // 4. Deprecated track stat fallback (legacy browsers only)
-    return this._getTrackAudioLevel(stats, outboundAudio.trackId);
+    const trackLevel = this._getTrackAudioLevel(stats, outboundAudio.trackId);
+    if (trackLevel !== null) {
+      this.outboundLevelSource = 'media-source';
+      return trackLevel;
+    }
+    // 5. The browser exposes no level for the source at all (Firefox: the
+    // media-source stat has only id/kind/trackIdentifier). Measure the
+    // sending track ourselves, shaped like Chrome's peak-hold value.
+    if (
+      mediaSource?.totalAudioEnergy === undefined &&
+      mediaSource?.totalSamplesDuration === undefined
+    ) {
+      const meter = this._ensureLocalLevelMeter();
+      const level = meter?.level() ?? null;
+      if (level !== null) {
+        this.outboundLevelSource = 'analyser';
+        return level;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Start (or re-bind after a device switch) the local-track level meter.
+   * Returns null where Web Audio is unavailable or the sender has no track.
+   */
+  private _ensureLocalLevelMeter(): LocalAudioLevelMeter | null {
+    if (this._stopped || this.localLevelMeterUnavailable) {
+      return this.localLevelMeter;
+    }
+    let track: MediaStreamTrack | null | undefined;
+    try {
+      const sender = this.peerConnection
+        ?.getSenders?.()
+        .find((s) => s.track?.kind === 'audio');
+      track = sender?.track;
+    } catch {
+      track = null;
+    }
+    if (!track) {
+      return this.localLevelMeter;
+    }
+    if (this.localLevelMeter && this.localLevelMeter.track !== track) {
+      // Microphone switched: the old meter is bound to the old track.
+      this._stopLocalLevelMeter();
+    }
+    if (this.localLevelMeter) {
+      return this.localLevelMeter;
+    }
+    try {
+      this.localLevelMeter = LocalAudioLevelMeter.create(track);
+    } catch (error) {
+      this.localLevelMeter = null;
+      logger.warn(
+        'CallReportCollector: local audio level meter unavailable',
+        error
+      );
+    }
+    if (!this.localLevelMeter) {
+      this.localLevelMeterUnavailable = true;
+      return null;
+    }
+    logger.info(
+      'CallReportCollector: measuring outbound audio level with an analyser (browser reports no media-source level)'
+    );
+    return this.localLevelMeter;
+  }
+
+  private _stopLocalLevelMeter(): void {
+    if (this.localLevelMeter) {
+      this.localLevelMeter.stop();
+      this.localLevelMeter = null;
+    }
+  }
+
+  /**
+   * When the meter is the level source, carry its energy counters on the
+   * media-source snapshot so energy-based consumers (first-speech detection,
+   * RMS recovery in vscrs) work as they do with Chrome's counters.
+   */
+  private _withLocalMeterEnergy(
+    localAudioSource?: ILocalAudioSourceStats
+  ): ILocalAudioSourceStats | undefined {
+    const meter = this.localLevelMeter;
+    if (
+      !meter ||
+      meter.isStopped() ||
+      this.outboundLevelSource !== 'analyser' ||
+      localAudioSource?.totalAudioEnergy !== undefined
+    ) {
+      return localAudioSource;
+    }
+    return {
+      ...(localAudioSource ?? {}),
+      totalAudioEnergy: meter.totalAudioEnergy(),
+      totalSamplesDuration: meter.totalSamplesDuration(),
+    };
   }
 
   /**
@@ -2455,6 +2575,7 @@ export class CallReportCollector {
    * Reset interval accumulators for next collection period
    */
   private _resetIntervalAccumulators(): void {
+    this.outboundLevelSource = null;
     this.intervalAudioLevels = { outbound: [], inbound: [] };
     this.intervalJitters = [];
     this.intervalRTTs = [];
