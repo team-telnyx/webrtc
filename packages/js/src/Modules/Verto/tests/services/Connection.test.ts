@@ -16,6 +16,7 @@ import logger from '../../util/logger';
 import {
   getReconnectToken,
   getReconnectTokenCanaryRtcServer,
+  getReconnectTokenRegion,
   setReconnectToken,
 } from '../../util/reconnect';
 
@@ -24,6 +25,7 @@ jest.mock('../../util/logger');
 jest.mock('../../util/reconnect', () => ({
   getReconnectToken: jest.fn(() => null),
   getReconnectTokenCanaryRtcServer: jest.fn(() => undefined),
+  getReconnectTokenRegion: jest.fn(() => null),
   setReconnectToken: jest.fn(),
 }));
 
@@ -235,6 +237,101 @@ describe('Connection - Safety Timeout', () => {
       expect(wsUrl.searchParams.has('skip_last_voice_sdk_id')).toBe(false);
     });
 
+    describe('region pin change', () => {
+      const currentWebSocketUrl = (): URL => {
+        const ws = (connection as any)._wsClient as MockWebSocket;
+        expect(ws).not.toBeNull();
+        return new URL(ws.url);
+      };
+
+      beforeEach(() => {
+        (getReconnectToken as jest.Mock).mockReturnValue('stored-voice-sdk-id');
+        (getReconnectTokenCanaryRtcServer as jest.Mock).mockReturnValue(
+          undefined
+        );
+        (getReconnectTokenRegion as jest.Mock).mockReturnValue(null);
+      });
+
+      afterEach(() => {
+        // mockReturnValue survives jest.clearAllMocks(); leave the default.
+        (getReconnectTokenRegion as jest.Mock).mockReturnValue(null);
+      });
+
+      it('reuses the stored voice_sdk_id while the session stays unpinned', () => {
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+          'stored-voice-sdk-id'
+        );
+      });
+
+      it('reuses the stored voice_sdk_id while the pinned region is unchanged', () => {
+        (getReconnectTokenRegion as jest.Mock).mockReturnValue('us-central');
+        mockSession.options.region = 'us-central';
+
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+          'stored-voice-sdk-id'
+        );
+      });
+
+      it.each([
+        { stored: null, current: 'me', label: 'unpinned to a region' },
+        { stored: 'us-central', current: 'me', label: 'one region to another' },
+        {
+          stored: 'us-central',
+          current: undefined,
+          label: 'a region to unpinned',
+        },
+      ])(
+        'omits the stored voice_sdk_id when switching from $label, then stores the replacement under the new region',
+        ({ stored, current }) => {
+          (getReconnectTokenRegion as jest.Mock).mockReturnValue(stored);
+          if (current === undefined) {
+            delete mockSession.options.region;
+          } else {
+            mockSession.options.region = current;
+          }
+
+          connection.connect();
+
+          expect(currentWebSocketUrl().searchParams.has('voice_sdk_id')).toBe(
+            false
+          );
+          expect(logger.debug).toHaveBeenCalledWith(
+            'Region changed. Refreshing voice_sdk_id',
+            { previous: stored, current: current ?? null }
+          );
+
+          const ws = (connection as any)._wsClient as MockWebSocket;
+          ws.simulateMessage({ voice_sdk_id: 'replacement-voice-sdk-id' });
+
+          expect(setReconnectToken).toHaveBeenCalledWith(
+            'replacement-voice-sdk-id',
+            undefined,
+            current ?? null
+          );
+          expect(mockSession.reconnectTokenRegion).toBe(current ?? null);
+        }
+      );
+
+      it('presents the replacement again on the next connection to the same region', () => {
+        mockSession.options.region = 'me';
+        connection.connect();
+        const ws = (connection as any)._wsClient as MockWebSocket;
+        ws.simulateMessage({ voice_sdk_id: 'me-voice-sdk-id' });
+        (getReconnectToken as jest.Mock).mockReturnValue('me-voice-sdk-id');
+        (getReconnectTokenRegion as jest.Mock).mockReturnValue('me');
+
+        connection.connect();
+
+        expect(currentWebSocketUrl().searchParams.get('voice_sdk_id')).toBe(
+          'me-voice-sdk-id'
+        );
+      });
+    });
+
     describe('canary routing toggle', () => {
       const currentWebSocketUrl = (): URL => {
         const ws = (connection as any)._wsClient as MockWebSocket;
@@ -366,7 +463,8 @@ describe('Connection - Safety Timeout', () => {
         expect(mockSession.reconnectTokenCanaryRtcServer).toBe(false);
         expect(setReconnectToken).toHaveBeenCalledWith(
           'replacement-voice-sdk-id',
-          false
+          false,
+          null
         );
       });
 
@@ -771,7 +869,11 @@ describe('Connection - Safety Timeout', () => {
       ws.simulateMessage({ id: 'message-id', voice_sdk_id: 'voice-sdk-id' });
 
       expect(mockSession.callReportVoiceSdkId).toBe('voice-sdk-id');
-      expect(setReconnectToken).toHaveBeenCalledWith('voice-sdk-id', undefined);
+      expect(setReconnectToken).toHaveBeenCalledWith(
+        'voice-sdk-id',
+        undefined,
+        null
+      );
     });
   });
 
