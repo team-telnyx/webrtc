@@ -19,7 +19,7 @@
  *   (the telemetry load, Consul KV voice-sdk/webrtc_telemetry_load): telemetry
  *   is off for good for this SDK instance, with no reconnect.
  * - The signaling login says whether this instance sends telemetry
- *   (telemetry_enabled, from sendsToServer), so the signaling VSP sends its
+ *   (telemetry_enabled, from sendsToServer), so VSP sends its
  *   vsp_session record only for instances that do.
  * - An event without its own call ID goes out once per active call: same
  *   timestamp, and each copy takes its own sequence like any other record.
@@ -316,7 +316,7 @@ export default class TelemetryClient {
   /**
    * True while this instance's events go, or will go, to the telemetry
    * server: socket mode, not closed and not turned off by the server. The
-   * signaling login sends it as telemetry_enabled, and the signaling VSP sends
+   * signaling login sends it as telemetry_enabled, and VSP sends
    * its vsp_session record only when it is true. Before the server's answer
    * to a new socket it is true.
    */

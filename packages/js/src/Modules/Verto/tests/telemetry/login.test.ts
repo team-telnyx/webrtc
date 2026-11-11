@@ -50,7 +50,7 @@ class TelemetrySocket extends FakeSocket {
 
 /**
  * Call Report V2: the signaling login says whether this SDK instance sends
- * telemetry (telemetry_enabled), so the signaling VSP sends its vsp_session
+ * telemetry (telemetry_enabled), so VSP sends its vsp_session
  * record only for instances that do.
  */
 describe('Call Report V2 in the signaling login', () => {

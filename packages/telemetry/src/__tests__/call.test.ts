@@ -451,7 +451,7 @@ describe('CallTelemetry', () => {
         custom_header_names: ['X-Account', 'X-Auth-Token'],
       })
     );
-    // Option B′: the signaling VSP reports its and the B2BUA-RTC's names itself.
+    // Option B′: VSP reports its and the B2BUA-RTC's names itself.
     expect(started.signaling_region).toBeUndefined();
     expect(started.b2bua_rtc_node).toBeUndefined();
     expect(started.raw_call_options.customHeaders[1].value).toBe('[REDACTED]');

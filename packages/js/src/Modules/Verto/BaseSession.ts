@@ -766,7 +766,7 @@ export default abstract class BaseSession {
           : getReconnectSessionId()) || ''
       : '';
 
-    // Call Report V2: tells the signaling VSP whether this instance sends
+    // Call Report V2: tells VSP whether this instance sends
     // telemetry, so it sends its vsp_session record only then.
     const telemetryEnabled = telemetryOf(this)?.client.sendsToServer ?? false;
 

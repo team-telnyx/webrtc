@@ -32,7 +32,7 @@ class Login extends BaseRequest {
     if (sessionid) {
       params.sessid = sessionid;
     }
-    // Call Report V2: joins the signaling VSP's vsp_session record to this SDK
+    // Call Report V2: joins VSP's vsp_session record to this SDK
     // instance; the VSP sends that record only when telemetry_enabled is true.
     if (sdkInstanceId) {
       params.sdk_instance_id = sdkInstanceId;

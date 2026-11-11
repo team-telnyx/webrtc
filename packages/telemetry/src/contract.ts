@@ -11,7 +11,7 @@ export type TelemetryNotification = {
   params: ClientEvent;
 };
 
-/** VSP -> SDK kill switch: enabled false = stop sending and drop pending events. */
+/** webrtc-telemetry-proxy -> SDK kill switch: enabled false = stop sending and drop pending events. */
 export type TelemetryControlNotification = {
   jsonrpc: '2.0';
   method: 'telnyx_rtc.telemetry_control';
