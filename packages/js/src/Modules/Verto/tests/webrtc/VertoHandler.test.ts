@@ -1730,31 +1730,45 @@ describe('VertoHandler', () => {
         expectBothRecovered();
       });
 
-      it('does not recover any call when the marker was saved for a different session', () => {
-        (instance as any).sessionid = 'sess-after-reload';
+      it.each([
+        ['before', true],
+        ['after', false],
+      ])(
+        'does not recover any call when the marker was saved for a different session (reattached_sessions %s the Attaches)',
+        (_label, reattachedFirst) => {
+          (instance as any).sessionid = 'sess-after-reload';
 
-        sendAttach(heldCallId, 'telnyx-session-held');
-        sendAttach(activeCallId, 'telnyx-session-active');
+          if (reattachedFirst) {
+            sendReattach([heldCallId, activeCallId]);
+          }
+          sendAttach(heldCallId, 'telnyx-session-held');
+          sendAttach(activeCallId, 'telnyx-session-active');
+          if (!reattachedFirst) {
+            sendReattach([heldCallId, activeCallId]);
+          }
 
-        expect(instance.calls[heldCallId]).toBeUndefined();
-        expect(instance.calls[activeCallId]).toBeUndefined();
-        expect(answer).not.toHaveBeenCalled();
-        expect(onWarning).toHaveBeenCalledTimes(2);
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-            callId: heldCallId,
-            sessionId: 'sess-after-reload',
-          })
-        );
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-            callId: activeCallId,
-            sessionId: 'sess-after-reload',
-          })
-        );
-      });
+          expect(instance.calls[heldCallId]).toBeUndefined();
+          expect(instance.calls[activeCallId]).toBeUndefined();
+          expect(answer).not.toHaveBeenCalled();
+          expect(onWarning).toHaveBeenCalledTimes(2);
+          expect(onWarning).toHaveBeenCalledWith(
+            expect.objectContaining({
+              warning: expect.objectContaining({ code: 35002 }),
+              callId: heldCallId,
+              sessionId: 'sess-after-reload',
+            })
+          );
+          expect(onWarning).toHaveBeenCalledWith(
+            expect.objectContaining({
+              warning: expect.objectContaining({ code: 35002 }),
+              callId: activeCallId,
+              sessionId: 'sess-after-reload',
+            })
+          );
+          // Calls saved for another session are not reported as lost.
+          expect(onError).not.toHaveBeenCalled();
+        }
+      );
     });
 
     // ── Edge cases ────────────────────────────────────────────────────
@@ -1965,8 +1979,11 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // Storage is cleared: sessid mismatch drops the stale marker.
-        expect(getActiveCallsRecoveryMarker()).toBeNull();
+        // The marker is kept so a later Attach still sees the session
+        // mismatch; the next unload overwrites or clears it.
+        expect(getActiveCallsRecoveryMarker()?.sessionId).toBe(
+          'sess-different'
+        );
       });
 
       it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {

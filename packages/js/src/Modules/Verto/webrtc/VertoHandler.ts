@@ -31,7 +31,6 @@ import { Ping } from '../messages/verto/Ping';
 import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
-  clearActiveCallsRecoveryMarker,
   takeActiveCallRecoveryRecord,
 } from '../util/reconnect';
 
@@ -147,12 +146,15 @@ class VertoHandler {
 
       if (saved && saved.calls.length > 0) {
         if (saved.sessionId !== session.sessionid) {
-          // Different session context — drop silently, do not notify. Clear
-          // the stale marker so it cannot be re-consumed by a later event.
+          // Different session context — ignore silently, do not notify.
+          // Leave the marker in place: an Attach that arrives after this
+          // event must still see that the saved calls belong to another
+          // session, so it does not recover the call with session defaults.
+          // The next page unload overwrites or clears the marker, and it
+          // expires after RECOVERY_MARKER_MAX_AGE_MS.
           logger.debug(
             `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
           );
-          clearActiveCallsRecoveryMarker();
         } else {
           const reattachedIds = new Set(params.reattached_sessions as string[]);
           // Calls that remain in the marker after this pass — reattached
