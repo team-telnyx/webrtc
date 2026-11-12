@@ -93,6 +93,9 @@ describe('call-local audio device disconnect recovery (VSDK-645)', () => {
       host: 'example.fs.telnyx',
       login: 'login',
       passwd: 'passwd',
+      // Telemetry (on by default) has its own devicechange listener; these
+      // tests count the SDK's.
+      telemetry: { enabled: false },
     });
     jest
       .spyOn(session, 'startSignalingHealthMonitor')
