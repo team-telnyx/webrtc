@@ -165,10 +165,11 @@ export function clearActiveCallsRecoveryMarker(): void {
  *
  * This is a **peek** (non-consuming) read — the marker remains in storage so
  * that multiple consumers within the same reconnect/page-load cycle can read
- * it. In particular the page-reload recovery flow sends `reattached_sessions`
- * (clientReady) and then `telnyx_rtc.attach` as separate messages; the Attach
- * handler must still be able to read the marker to restore per-call media
- * elements after the `reattached_sessions` handler has already inspected it.
+ * it. In particular the page-reload recovery flow sends one
+ * `telnyx_rtc.attach` per call and a `reattached_sessions` list (clientReady)
+ * as separate messages, in either order; each Attach takes its own record via
+ * {@link takeActiveCallRecoveryRecord}, and the `reattached_sessions` handler
+ * reads whatever records are left.
  * The marker is kept in sessionStorage until it is explicitly cleared by
  * {@link clearActiveCallsRecoveryMarker}, overwritten by
  * {@link setActiveCallsRecoveryMarker}, or invalidated by staleness here.
@@ -225,6 +226,62 @@ export function getActiveCallsRecoveryMarker(
     clearActiveCallsRecoveryMarker();
     return null;
   }
+}
+
+/**
+ * Result of {@link takeActiveCallRecoveryRecord}:
+ * - `found`: the marker belongs to this session and lists the call.
+ * - `no-marker`: nothing usable is stored (never written, expired, malformed,
+ *   or every saved call was already taken).
+ * - `other-session`: the marker was saved for a different sessid.
+ * - `not-saved`: the marker belongs to this session but does not list the call.
+ */
+export type ActiveCallRecoveryLookup =
+  | { status: 'found'; call: IStoredActiveCall }
+  | { status: 'no-marker' }
+  | { status: 'other-session'; savedSessionId: string }
+  | { status: 'not-saved' };
+
+/**
+ * Look up the saved record for one call in the active-calls recovery marker
+ * and remove it from the marker when found.
+ *
+ * After a page reload the server sends one `telnyx_rtc.attach` per call that
+ * is still live on the session. Each Attach takes its own record, so every
+ * saved call is recovered once with the state it had before unload (held,
+ * media element ids, relay policy). The other records stay in the marker for
+ * their own Attach and for the `reattached_sessions` check. Once the last
+ * record is taken the marker is cleared.
+ */
+export function takeActiveCallRecoveryRecord(
+  callId: string,
+  sessionId: string,
+  now = Date.now()
+): ActiveCallRecoveryLookup {
+  const saved = getActiveCallsRecoveryMarker(now);
+
+  if (!saved) {
+    return { status: 'no-marker' };
+  }
+
+  if (saved.sessionId !== sessionId) {
+    return { status: 'other-session', savedSessionId: saved.sessionId };
+  }
+
+  const index = saved.calls.findIndex(
+    (call) => call !== null && typeof call === 'object' && call.id === callId
+  );
+  if (index === -1) {
+    return { status: 'not-saved' };
+  }
+
+  const call = saved.calls[index];
+  setActiveCallsRecoveryMarker(
+    saved.calls.filter((_, i) => i !== index),
+    saved.sessionId,
+    saved.storedAt
+  );
+  return { status: 'found', call };
 }
 
 /**

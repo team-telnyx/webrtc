@@ -9,6 +9,7 @@ import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
   clearActiveCallsRecoveryMarker,
+  takeActiveCallRecoveryRecord,
   RECOVERY_MARKER_MAX_AGE_MS,
   type IStoredActiveCall,
 } from '../util/reconnect';
@@ -403,5 +404,97 @@ describe('active-calls recovery marker storage', () => {
     // Storage is NOT cleared after a successful peek read.
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).not.toBeNull();
     clearActiveCallsRecoveryMarker();
+  });
+});
+
+describe('takeActiveCallRecoveryRecord', () => {
+  beforeEach(() => {
+    clearActiveCallsRecoveryMarker();
+  });
+
+  afterEach(() => {
+    clearActiveCallsRecoveryMarker();
+  });
+
+  const saveTwoCalls = (sessionId = 'sess-take', storedAt = Date.now()) =>
+    setActiveCallsRecoveryMarker(
+      [
+        asStoredCall({ id: 'call-held', wasHeld: true }),
+        asStoredCall({ id: 'call-active' }),
+      ],
+      sessionId,
+      storedAt
+    );
+
+  it('returns the saved record and removes only that call from the marker', () => {
+    const storedAt = Date.now();
+    saveTwoCalls('sess-take', storedAt);
+
+    const result = takeActiveCallRecoveryRecord('call-held', 'sess-take');
+
+    expect(result).toEqual({
+      status: 'found',
+      call: { id: 'call-held', wasHeld: true },
+    });
+    const left = getActiveCallsRecoveryMarker();
+    expect(left?.calls.map((c) => c.id)).toEqual(['call-active']);
+    expect(left?.sessionId).toBe('sess-take');
+    // The original timestamp is kept, so the 15-minute limit is not reset.
+    expect(left?.storedAt).toBe(storedAt);
+  });
+
+  it('clears the marker once the last saved call is taken', () => {
+    saveTwoCalls();
+
+    takeActiveCallRecoveryRecord('call-held', 'sess-take');
+    takeActiveCallRecoveryRecord('call-active', 'sess-take');
+
+    expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    expect(takeActiveCallRecoveryRecord('call-held', 'sess-take')).toEqual({
+      status: 'no-marker',
+    });
+  });
+
+  it('reports a marker saved for another session and leaves it in place', () => {
+    saveTwoCalls('sess-before-reload');
+
+    expect(takeActiveCallRecoveryRecord('call-held', 'sess-other')).toEqual({
+      status: 'other-session',
+      savedSessionId: 'sess-before-reload',
+    });
+    expect(getActiveCallsRecoveryMarker()?.calls).toHaveLength(2);
+  });
+
+  it('reports a call that is not in the marker and leaves the marker unchanged', () => {
+    saveTwoCalls();
+
+    expect(takeActiveCallRecoveryRecord('call-unknown', 'sess-take')).toEqual({
+      status: 'not-saved',
+    });
+    expect(getActiveCallsRecoveryMarker()?.calls).toHaveLength(2);
+  });
+
+  it('skips malformed records while looking up a call', () => {
+    sessionStorage.setItem(
+      ACTIVE_CALLS_KEY,
+      JSON.stringify({
+        sessionId: 'sess-take',
+        storedAt: Date.now(),
+        calls: [null, 'bad', { id: 'call-active' }],
+      })
+    );
+
+    expect(takeActiveCallRecoveryRecord('call-active', 'sess-take')).toEqual({
+      status: 'found',
+      call: { id: 'call-active' },
+    });
+  });
+
+  it('returns no-marker for a stale marker', () => {
+    saveTwoCalls('sess-take', Date.now() - RECOVERY_MARKER_MAX_AGE_MS - 1);
+
+    expect(takeActiveCallRecoveryRecord('call-held', 'sess-take')).toEqual({
+      status: 'no-marker',
+    });
   });
 });

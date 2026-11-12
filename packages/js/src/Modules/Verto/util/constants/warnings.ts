@@ -477,15 +477,15 @@ export const SDK_WARNINGS = {
     name: 'UNKNOWN_REATTACHED_SESSION',
     message: 'Unknown reattach session after reconnect',
     description:
-      "The WebSocket reconnected successfully and the server sent an Attach message for a session that does not match any active SDK call. The unknown Attach is ACK'd and ignored.",
+      "The WebSocket reconnected successfully and the server sent an Attach message for a call the SDK cannot match: it is not an active SDK call and was not saved for this session before a page reload. The unknown Attach is ACK'd and ignored, and the call is not recovered.",
     causes: [
       'Server sent an Attach for a call that no longer exists in the SDK',
-      'Multiple Attach messages arrived and only the first was recovered',
+      'The calls saved before a page reload belong to a different session than the one the client reconnected with',
       'Race condition between reconnection and new inbound call',
     ],
     solutions: [
-      'Check application logic for multiple simultaneous calls',
       'Inspect the Attach callID in the warning payload for details',
+      'The call may still be connected on the server; end it from the far end if it is not needed',
       'If a call should be active, start a new call manually',
     ],
   },
