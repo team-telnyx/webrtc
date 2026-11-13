@@ -878,7 +878,8 @@ describe('Call', () => {
         expect.objectContaining({ callId: call.id }),
         'call-report-id',
         'wss://rtc.telnyx.com',
-        'owning-session-voice-sdk-id'
+        'owning-session-voice-sdk-id',
+        undefined // eventLoopCongestion — null when no congestion detected
       );
       const submittedSummary = collector.postReport.mock.calls[0][0];
       expect(submittedSummary.clientSummary).toEqual(
