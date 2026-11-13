@@ -3,6 +3,7 @@ import {
   getReconnectSessionId,
   getReconnectToken,
   getReconnectTokenCanaryRtcServer,
+  getReconnectTokenRegion,
   RECONNECT_SESSION_ID_MAX_AGE_MS,
   setReconnectSessionId,
   setReconnectToken,
@@ -23,6 +24,20 @@ const asStoredCall = (obj: Record<string, unknown>) =>
   obj as unknown as IStoredActiveCall;
 
 describe('reconnect token storage', () => {
+  it('remembers the pinned region the voice_sdk_id was issued under and clears it with the token', () => {
+    setReconnectToken('voice-sdk-id', undefined, 'me');
+    expect(getReconnectTokenRegion()).toBe('me');
+
+    setReconnectToken('voice-sdk-id', true);
+    expect(getReconnectTokenRegion()).toBeNull();
+
+    setReconnectToken('voice-sdk-id', undefined, 'us-central');
+    expect(getReconnectTokenRegion()).toBe('us-central');
+
+    clearReconnectToken();
+    expect(getReconnectTokenRegion()).toBeNull();
+  });
+
   it('keeps the voice_sdk_id available across page unloads in the browser session', () => {
     setReconnectToken('voice-sdk-id');
 
