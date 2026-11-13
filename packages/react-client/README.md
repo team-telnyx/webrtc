@@ -7,11 +7,11 @@
 ## Install
 
 ```bash
-npm install --save @telnyx/react-client @telnyx/webrtc@2.27.10 react@^19.0.0 react-dom@^19.0.0
+npm install --save @telnyx/react-client @telnyx/webrtc@2.28.2 react@^19.0.0 react-dom@^19.0.0
 ```
 
-This wrapper targets the latest stable SDK baseline, `@telnyx/webrtc@2.27.10`,
-with a supported peer range of `>=2.27.10 <3`. Install both packages together.
+This wrapper targets the latest stable SDK, `@telnyx/webrtc@2.28.2`, with a
+supported peer range of `>=2.27.10 <3`. Install both packages together.
 
 React and React DOM 19 are required (`^19.0.0` peers); development and tests use
 19.3.0. This raises the minimum supported React version from 16.8 to 19, a breaking
@@ -203,6 +203,14 @@ function Phone({ activeCall }) {
 }
 ```
 
+`Audio` plays `call.remoteStream` itself, so you don't need the SDK's
+[`remoteElement`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#remoteElement)
+option when you use it. If you set `remoteElement` to an element ID instead, render
+that element before you set `client.remoteElement` or start or answer the call.
+When the SDK can't find it, the call continues but the SDK doesn't play its audio,
+and `onWarning` receives `REMOTE_AUDIO_ELEMENT_UNRESOLVED` (code `33012`, from
+`@telnyx/webrtc@2.28.0`).
+
 ### `Video`
 
 ```jsx
@@ -220,6 +228,35 @@ function VideoConference({ activeCall }) {
 
 ---
 
+## Warming up the connection
+
+`TelnyxRTCProvider` and `useTelnyxRTC` connect as soon as they mount. When they mount
+later than the page, for example after a sign-in screen, you can prepare the
+connection to Telnyx in the meantime so that connecting takes less time.
+[`TelnyxRTC.keepConnectionWarm()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#keepConnectionWarm)
+(from `@telnyx/webrtc@2.28.1`) does this and returns a function that stops it, which
+you can return from an effect:
+
+```jsx
+// Example app code, not part of the wrapper.
+// Uses TelnyxRTC.keepConnectionWarm() from @telnyx/webrtc.
+import { useEffect } from 'react';
+import { TelnyxRTC, Region } from '@telnyx/webrtc';
+
+function SignIn() {
+  useEffect(() => TelnyxRTC.keepConnectionWarm({ region: Region.EU }), []);
+
+  // ...
+}
+```
+
+Pass the same `region`, `env` or `host` that you pass in the provider `options`. Use
+it in a component that is shown before the provider mounts, so that it stops when
+that component unmounts; it does not need to keep running once the client is
+connected. If the provider mounts within a minute or so, a single
+[`TelnyxRTC.prepareConnection()`](https://team-telnyx.github.io/webrtc/classes/TelnyxRTC.html#prepareConnection)
+call is enough.
+
 ## Debugging
 
 Enabling debugging will help telnyx diagnose issues on the client side
@@ -233,7 +270,7 @@ to enable debugging you can set `debug=true` in the provider options
 
 ## Development
 
-The SDK dev dependency uses the exact npm registry version `npm:2.27.10`, not a
+The SDK dev dependency uses the exact npm registry version `npm:2.28.2`, not a
 tarball URL. The repository sets `enableTransparentWorkspaces: false` in
 `.yarnrc.yml`: Yarn 4 otherwise links even an explicit npm version to the matching
 in-repository SDK. Local workspace dependencies must opt in with `workspace:`.
