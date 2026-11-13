@@ -31,7 +31,7 @@ import { Ping } from '../messages/verto/Ping';
 import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
-  clearActiveCallsRecoveryMarker,
+  takeActiveCallRecoveryRecord,
 } from '../util/reconnect';
 
 /**
@@ -132,32 +132,35 @@ class VertoHandler {
     // does NOT hang up. The records represent calls from a prior page that
     // no longer have real Call instances here.
     //
-    // `getActiveCallsRecoveryMarker()` is a **peek** (non-consuming) read —
-    // the marker stays in storage so the Attach handler (which may arrive
-    // after this `reattached_sessions` notification, or before it) can still
-    // read per-call media elements. To preserve at-most-once notification
-    // semantics, calls that have been notified as lost are removed from the
-    // persisted marker and the remaining (reattached) calls are re-saved so
-    // the Attach handler can restore their per-call elements. A duplicate
-    // `reattached_sessions` event will see the drained marker and emit
-    // nothing.
+    // `getActiveCallsRecoveryMarker()` is a **peek** (non-consuming) read.
+    // The server usually sends every Attach before `reattached_sessions`, and
+    // each Attach takes its own record out of the marker, so by now only
+    // calls without an Attach are left. When `reattached_sessions` arrives
+    // first, the reattached calls are re-saved so their Attach can still
+    // restore held state and per-call media elements. To preserve at-most-once
+    // notification semantics, calls that have been notified as lost are
+    // removed from the persisted marker. A duplicate `reattached_sessions`
+    // event will see the drained marker and emit nothing.
     if (Array.isArray(params?.reattached_sessions) && session.sessionid) {
       const saved = getActiveCallsRecoveryMarker();
 
       if (saved && saved.calls.length > 0) {
         if (saved.sessionId !== session.sessionid) {
-          // Different session context — drop silently, do not notify. Clear
-          // the stale marker so it cannot be re-consumed by a later event.
+          // Different session context — ignore silently, do not notify.
+          // Leave the marker in place: an Attach that arrives after this
+          // event must still see that the saved calls belong to another
+          // session, so it does not recover the call with session defaults.
+          // The next page unload overwrites or clears the marker, and it
+          // expires after RECOVERY_MARKER_MAX_AGE_MS.
           logger.debug(
             `Recovery markers were saved for a different sessid (saved=${saved.sessionId}, current=${session.sessionid}) — ignoring all.`
           );
-          clearActiveCallsRecoveryMarker();
         } else {
           const reattachedIds = new Set(params.reattached_sessions as string[]);
           // Calls that remain in the marker after this pass — reattached
-          // calls are kept (the Attach handler reads them to restore per-call
-          // media elements); notified (lost) calls are drained so a duplicate
-          // event cannot re-notify.
+          // calls are kept (their Attach takes them to restore held state and
+          // per-call media elements); notified (lost) calls are drained so a
+          // duplicate event cannot re-notify.
           const remainingCalls: typeof saved.calls = [];
 
           for (const call of saved.calls) {
@@ -170,10 +173,10 @@ class VertoHandler {
               // `options.telnyxSessionId` / `options.telnyxCallControlId`), so
               // the correlation identifiers live nested under `call.options`.
               if (reattachedIds.has(call.id)) {
-                // Call was reattached — keep in marker so the Attach handler
-                // can restore per-call media elements. Do not notify.
+                // Call was reattached — keep in marker so its Attach can
+                // restore held state and per-call media elements. Do not notify.
                 logger.debug(
-                  `Recovery marker for call ${call.id} was reattached — keeping for Attach element restore.`
+                  `Recovery marker for call ${call.id} was reattached — keeping it for its Attach.`
                 );
                 remainingCalls.push(call);
                 continue;
@@ -383,81 +386,23 @@ class VertoHandler {
         break;
       }
       case VertoMethod.Attach: {
-        const matchedCall = existingCall || null;
-
-        if (Object.keys(session.calls).length === 0) {
-          // SDK doesn't have any active calls in cache, so we will recover first arrived. Normal situation for this is page reload/refresh/close-open.
-          logger.warn(
-            `[${new Date().toISOString()}][${callID}] Attach: SDK doens't have any active call therefore we recover first arrived attach session ${callID}`
-          );
-
-          // Restore per-call media elements from the recovery marker
-          // (VSUP-121 review round 3 — scenario 2: no calls in cache, page
-          // reload). The marker is written before unload when
-          // `hangupOnBeforeUnload === false` and only persists the serializable
-          // string form of remoteElement/localElement (VSDK-316: DOM elements
-          // and functions are not persisted).
-          // `getActiveCallsRecoveryMarker()` is a **peek** (non-consuming) read
-          // — the marker stays in storage so the `reattached_sessions`
-          // handler (which may arrive before or after this Attach) and this
-          // Attach handler can both read per-call media elements within the
-          // same reconnect/page-load cycle. The `reattached_sessions` handler
-          // drains only the calls it notifies as lost; reattached calls are
-          // re-saved so they survive until this Attach reads them. A sessid
-          // mismatch returns null here (the marker is for a different
-          // session) and we fall back to the session-level default.
-          let recoveredRemoteElement: string | undefined;
-          let recoveredLocalElement: string | undefined;
-          // Held intent from the page-reload recovery marker.
-          let wasHeldBeforeUnload = false;
-          let forceRelayCandidateForRecovery = false;
-          const savedMarker = getActiveCallsRecoveryMarker();
-          if (savedMarker && savedMarker.sessionId === session.sessionid) {
-            // Guard against null/non-object marker records (peek contract).
-            const savedCall = savedMarker.calls.find(
-              (c) => c !== null && typeof c === 'object' && c.id === callID
-            );
-            if (savedCall) {
-              recoveredRemoteElement = savedCall.remoteElement;
-              recoveredLocalElement = savedCall.localElement;
-              wasHeldBeforeUnload = savedCall.wasHeld === true;
-              if (typeof savedCall.forceRelayCandidate === 'boolean') {
-                forceRelayCandidateForRecovery = savedCall.forceRelayCandidate;
-              }
-              if (recoveredRemoteElement || recoveredLocalElement) {
-                logger.info(
-                  `[${callID}] Attach: restoring per-call media elements from recovery marker (remoteElement=${
-                    recoveredRemoteElement ?? '<none>'
-                  }, localElement=${recoveredLocalElement ?? '<none>'}).`
-                );
-              }
-              if (typeof savedCall.forceRelayCandidate === 'boolean') {
-                logger.info(
-                  `[${callID}] Attach: restoring forceRelayCandidate=${savedCall.forceRelayCandidate} from recovery marker.`
-                );
-              }
-            }
-          }
-
-          const call = _buildCall({
-            recoveredCallId: callID,
-            forceRelayCandidateForRecovery,
-            remoteElement: recoveredRemoteElement,
-            localElement: recoveredLocalElement,
-            // Carry held intent onto the replacement call.
-            wasHeldBeforeRecovery: wasHeldBeforeUnload,
-          });
+        // Build the replacement call, answer the Attach and ACK it.
+        const recoverAttachedCall = (
+          options: Parameters<typeof _buildCall>[0]
+        ) => {
+          const call = _buildCall(options);
           call.answer();
 
           // Emit warning if there are other active calls (recovered calls are active calls too)
           this.session.emitMultipleActiveCallsWarning(call.id);
 
           this._ack(id, method);
-          break;
-        }
+        };
 
-        if (matchedCall) {
-          // ── We have matching call by callID — recover it
+        if (existingCall) {
+          // ── Reconnect within the same page: the SDK still has this call in
+          // memory — rebuild it from the old call.
+          const matchedCall = existingCall;
           const recoveredCallId = matchedCall.id;
           // Capture held state BEFORE hangup() destroys it.
           const wasHeldBeforeRecovery = matchedCall.state === 'held';
@@ -478,7 +423,7 @@ class VertoHandler {
             false
           );
 
-          const call = _buildCall({
+          recoverAttachedCall({
             recoveredCallId,
             forceRelayCandidateForRecovery,
             mutedMicOnStart: matchedCall.isAudioMuted,
@@ -488,18 +433,69 @@ class VertoHandler {
             // Carry held intent captured BEFORE hangup().
             wasHeldBeforeRecovery: wasHeldBeforeRecovery,
           });
-          call.answer();
-
-          // Emit warning if there are other active calls (recovered calls are active calls too)
-          this.session.emitMultipleActiveCallsWarning(call.id);
-
-          this._ack(id, method);
           break;
         }
 
-        logger.warn(
-          `Attach: callID ${callID} does not match any active calls. `
-        );
+        // ── Page reload: the SDK starts with no calls in memory and the
+        // server sends one Attach per call that is still live on this session
+        // (usually before `reattached_sessions`). Each Attach is matched by
+        // callID against the recovery marker written before unload
+        // (`hangupOnBeforeUnload === false`), so every saved call is
+        // recovered, not only the first one to arrive. The marker carries
+        // what the Attach does not: held state, relay policy and the string
+        // ids of per-call media elements (VSDK-316: DOM elements and functions
+        // are not persisted). Taking the record removes it from the marker,
+        // so each saved call is recovered once.
+        const saved = takeActiveCallRecoveryRecord(callID, session.sessionid);
+
+        if (saved.status === 'found') {
+          const savedCall = saved.call;
+          const wasHeldBeforeUnload = savedCall.wasHeld === true;
+          const forceRelayCandidateForRecovery =
+            typeof savedCall.forceRelayCandidate === 'boolean'
+              ? savedCall.forceRelayCandidate
+              : false;
+
+          logger.info(
+            `[${callID}] Attach: recovering call ${callID} from the recovery marker of session ${session.sessionid} (held=${wasHeldBeforeUnload}, forceRelayCandidate=${forceRelayCandidateForRecovery}, remoteElement=${
+              savedCall.remoteElement ?? '<none>'
+            }, localElement=${savedCall.localElement ?? '<none>'}).`
+          );
+
+          recoverAttachedCall({
+            recoveredCallId: callID,
+            forceRelayCandidateForRecovery,
+            remoteElement: savedCall.remoteElement,
+            localElement: savedCall.localElement,
+            // Carry held intent onto the replacement call.
+            wasHeldBeforeRecovery: wasHeldBeforeUnload,
+          });
+          break;
+        }
+
+        if (saved.status === 'other-session') {
+          // The calls saved before unload belong to another session, so this
+          // Attach is not one of them. Do not recover it.
+          logger.warn(
+            `[${callID}] Attach: the recovery marker was saved for session ${saved.savedSessionId}, but the client is on session ${session.sessionid}. Not recovering call ${callID}.`
+          );
+        } else if (Object.keys(session.calls).length === 0) {
+          // No saved record for this call (for example the page unloaded
+          // without `beforeunload`, or sessionStorage is unavailable) and no
+          // call in memory: recover it with the session defaults.
+          logger.warn(
+            `[${new Date().toISOString()}][${callID}] Attach: no recovery marker record for call ${callID} and no active calls in the SDK, recovering it with session defaults.`
+          );
+          recoverAttachedCall({
+            recoveredCallId: callID,
+            forceRelayCandidateForRecovery: false,
+          });
+          break;
+        } else {
+          logger.warn(
+            `Attach: callID ${callID} does not match any active calls. `
+          );
+        }
 
         trigger(
           SwEvent.Warning,

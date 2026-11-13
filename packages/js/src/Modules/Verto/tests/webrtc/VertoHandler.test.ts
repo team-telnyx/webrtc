@@ -660,9 +660,12 @@ describe('VertoHandler', () => {
       clearActiveCallsRecoveryMarker();
     });
 
-    it('should NOT restore remoteElement when the marker was saved for a different sessid (scenario 2 mismatch)', async () => {
+    it('should NOT recover the call when the marker was saved for a different sessid (scenario 2 mismatch)', async () => {
       await instance.connect();
       const callId = 'reattach-scenario2-mismatch-call-id';
+      const onWarning = jest.fn();
+      instance.on('telnyx.warning', onWarning);
+      Connection.mockSend.mockClear();
 
       clearActiveCallsRecoveryMarker();
       // Marker saved under a different sessid — must be ignored.
@@ -685,12 +688,26 @@ describe('VertoHandler', () => {
       );
       handler.handleMessage(msg);
 
-      const newCall = instance.calls[callId];
-      expect(newCall).toBeDefined();
-      // Different sessid → element not restored, falls back to session default.
-      expect(newCall.options.remoteElement).toBeFalsy();
+      // Different sessid → the Attach is not one of the saved calls: it is
+      // warned about, ACK'd, and not recovered.
+      expect(instance.calls[callId]).toBeUndefined();
+      expect(Call.prototype.answer).not.toHaveBeenCalled();
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: 35002 }),
+          callId,
+        })
+      );
+      expect(Connection.mockSend).toHaveBeenLastCalledWith({
+        request: {
+          jsonrpc: '2.0',
+          id: 4506,
+          result: { method: 'telnyx_rtc.attach' },
+        },
+      });
 
       Call.prototype.answer = originalAnswer;
+      instance.off('telnyx.warning');
       clearActiveCallsRecoveryMarker();
     });
 
@@ -1540,8 +1557,8 @@ describe('VertoHandler', () => {
       });
     });
 
-    // ── No active call, multiple attaches ──────────────────────────────
-    describe('no active call, multiple attaches', () => {
+    // ── No active call and no recovery marker, multiple attaches ───────
+    describe('no active call and no recovery marker, multiple attaches', () => {
       it('should warn, ACK, and ignore second attach with a different callID', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
@@ -1579,6 +1596,179 @@ describe('VertoHandler', () => {
 
         Call.prototype.answer = originalAnswer;
       });
+    });
+
+    // ── Page reload with several saved calls ──────────────────────────
+    // A refresh with one held and one active call: the marker lists both,
+    // the server sends one Attach per call, and every call must be recovered.
+    describe('page reload with several saved calls', () => {
+      const sessId = 'sess-multi-call';
+      const heldCallId = 'held-call-id';
+      const activeCallId = 'active-call-id';
+      let answer: jest.SpyInstance;
+
+      const saveMarker = (calls: Partial<IStoredActiveCall>[]) => {
+        setActiveCallsRecoveryMarker(
+          calls.map((c) => ({
+            customHeaders: undefined,
+            forceRelayCandidate: false,
+            ...c,
+          })) as IStoredActiveCall[],
+          sessId
+        );
+      };
+
+      const savedIds = () =>
+        getActiveCallsRecoveryMarker()?.calls.map((c) => c.id) ?? null;
+
+      beforeEach(async () => {
+        await instance.connect();
+        (instance as any).sessionid = sessId;
+        clearActiveCallsRecoveryMarker();
+        saveMarker([
+          { id: heldCallId, wasHeld: true, remoteElement: 'remote-held' },
+          { id: activeCallId, remoteElement: 'remote-active' },
+        ]);
+        answer = jest.spyOn(Call.prototype, 'answer').mockImplementation();
+      });
+
+      afterEach(() => {
+        answer.mockRestore();
+        clearActiveCallsRecoveryMarker();
+      });
+
+      const expectBothRecovered = () => {
+        const held = instance.calls[heldCallId];
+        const active = instance.calls[activeCallId];
+
+        expect(held).toBeDefined();
+        expect(held.recoveredCallId).toBe(heldCallId);
+        expect((held as any)._wasHeldBeforeRecovery).toBe(true);
+        expect(held.options.remoteElement).toBe('remote-held');
+
+        expect(active).toBeDefined();
+        expect(active.recoveredCallId).toBe(activeCallId);
+        expect((active as any)._wasHeldBeforeRecovery).toBe(false);
+        expect(active.options.remoteElement).toBe('remote-active');
+
+        expect(answer).toHaveBeenCalledTimes(2);
+        expect(onWarning).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35002 }),
+          })
+        );
+      };
+
+      it('recovers every saved call when the Attaches arrive before reattached_sessions', () => {
+        sendAttach(heldCallId, 'telnyx-session-held');
+        // Each Attach takes its own record; the other call stays saved.
+        expect(savedIds()).toEqual([activeCallId]);
+
+        sendAttach(activeCallId, 'telnyx-session-active');
+        expect(savedIds()).toBeNull();
+        expectBothRecovered();
+
+        sendReattach([heldCallId, activeCallId]);
+
+        expect(instance.calls[heldCallId]).toBeDefined();
+        expect(instance.calls[activeCallId]).toBeDefined();
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it('recovers every saved call when reattached_sessions arrives before the Attaches', () => {
+        sendReattach([heldCallId, activeCallId]);
+        expect(onError).not.toHaveBeenCalled();
+        expect(savedIds()).toEqual([heldCallId, activeCallId]);
+
+        sendAttach(heldCallId, 'telnyx-session-held');
+        sendAttach(activeCallId, 'telnyx-session-active');
+
+        expectBothRecovered();
+        expect(savedIds()).toBeNull();
+      });
+
+      it('emits SESSION_NOT_REATTACHED only for the saved call that got no Attach', () => {
+        sendAttach(heldCallId, 'telnyx-session-held');
+        sendReattach([heldCallId]);
+
+        expect(instance.calls[heldCallId]).toBeDefined();
+        expect(instance.calls[activeCallId]).toBeUndefined();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId: activeCallId,
+          })
+        );
+        expect(savedIds()).toBeNull();
+      });
+
+      it('warns about an Attach for a call that was not saved, and still recovers the saved ones', () => {
+        sendAttach(heldCallId, 'telnyx-session-held');
+
+        Connection.mockSend.mockClear();
+        sendAttach('not-saved-call-id', 'telnyx-session-other');
+
+        expect(instance.calls['not-saved-call-id']).toBeUndefined();
+        expect(onWarning).toHaveBeenCalledWith(
+          expect.objectContaining({
+            warning: expect.objectContaining({ code: 35002 }),
+            callId: 'not-saved-call-id',
+          })
+        );
+        expect(Connection.mockSend).toHaveBeenLastCalledWith({
+          request: {
+            jsonrpc: '2.0',
+            id: 1000,
+            result: { method: 'telnyx_rtc.attach' },
+          },
+        });
+        expect(savedIds()).toEqual([activeCallId]);
+
+        onWarning.mockClear();
+        sendAttach(activeCallId, 'telnyx-session-active');
+        expectBothRecovered();
+      });
+
+      it.each([
+        ['before', true],
+        ['after', false],
+      ])(
+        'does not recover any call when the marker was saved for a different session (reattached_sessions %s the Attaches)',
+        (_label, reattachedFirst) => {
+          (instance as any).sessionid = 'sess-after-reload';
+
+          if (reattachedFirst) {
+            sendReattach([heldCallId, activeCallId]);
+          }
+          sendAttach(heldCallId, 'telnyx-session-held');
+          sendAttach(activeCallId, 'telnyx-session-active');
+          if (!reattachedFirst) {
+            sendReattach([heldCallId, activeCallId]);
+          }
+
+          expect(instance.calls[heldCallId]).toBeUndefined();
+          expect(instance.calls[activeCallId]).toBeUndefined();
+          expect(answer).not.toHaveBeenCalled();
+          expect(onWarning).toHaveBeenCalledTimes(2);
+          expect(onWarning).toHaveBeenCalledWith(
+            expect.objectContaining({
+              warning: expect.objectContaining({ code: 35002 }),
+              callId: heldCallId,
+              sessionId: 'sess-after-reload',
+            })
+          );
+          expect(onWarning).toHaveBeenCalledWith(
+            expect.objectContaining({
+              warning: expect.objectContaining({ code: 35002 }),
+              callId: activeCallId,
+              sessionId: 'sess-after-reload',
+            })
+          );
+          // Calls saved for another session are not reported as lost.
+          expect(onError).not.toHaveBeenCalled();
+        }
+      );
     });
 
     // ── Edge cases ────────────────────────────────────────────────────
@@ -1789,8 +1979,11 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // Storage is cleared: sessid mismatch drops the stale marker.
-        expect(getActiveCallsRecoveryMarker()).toBeNull();
+        // The marker is kept so a later Attach still sees the session
+        // mismatch; the next unload overwrites or clears it.
+        expect(getActiveCallsRecoveryMarker()?.sessionId).toBe(
+          'sess-different'
+        );
       });
 
       it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {
