@@ -605,6 +605,7 @@ class VertoHandler {
                 const region = msg?.result?.params?.region;
                 if (region) {
                   session.region = region;
+                  session.applyServerRegion(region);
                 }
 
                 logger.info(

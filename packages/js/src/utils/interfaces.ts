@@ -164,6 +164,10 @@ export interface IClientOptions {
    * servers used for media relay over UDP/TCP (`<region>.turn.telnyx.com`).
    * TURN over TLS on 443 keeps the flat `turn.telnyx.com` name.
    *
+   * When this option is omitted (and `iceServers` is not set), the TURN servers
+   * follow the region the server reports once the client registers, if that
+   * region has a published TURN name; otherwise the flat names are used.
+   *
    * Arbitrary strings remain supported for backwards compatibility.
    */
   region?: string;
@@ -527,6 +531,7 @@ export interface ICallOptions {
   /**
    * Overrides client's default `telnyx.notification` handler for this call.
    */
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   onNotification?: Function;
 
   /**

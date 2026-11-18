@@ -14,6 +14,7 @@ import {
 import {
   SwEvent,
   getDefaultIceServers,
+  isServerTurnRegion,
   MULTIPLE_ACTIVE_CALLS_DETECTED,
 } from './util/constants';
 import { State, DeviceType } from './webrtc/constants';
@@ -196,6 +197,12 @@ export default abstract class BrowserSession extends BaseSession {
   public ringbackFile?: string;
 
   private _iceServers: RTCIceServer[] = [];
+
+  /** The app passed `iceServers`, so the SDK never rewrites them. */
+  private _iceServersExplicit: boolean = false;
+
+  /** The server-reported region the default TURN entries follow, if any. */
+  private _serverTurnRegion: string | null = null;
 
   private _localElement: HTMLMediaElement = null;
 
@@ -758,8 +765,11 @@ export default abstract class BrowserSession extends BaseSession {
    */
   set iceServers(servers: RTCIceServer[]) {
     if (servers && Array.isArray(servers)) {
+      this._iceServersExplicit = true;
       this._iceServers = servers;
     } else {
+      this._iceServersExplicit = false;
+      this._serverTurnRegion = null;
       this._iceServers = getDefaultIceServers(
         this.options.env,
         this.options.region
@@ -769,6 +779,36 @@ export default abstract class BrowserSession extends BaseSession {
 
   get iceServers() {
     return this._iceServers;
+  }
+
+  /**
+   * Called with the region the server reports when the client registers.
+   * When the app set neither `region` nor `iceServers`, the default plain TURN
+   * entries follow that region (`<region>.turn.telnyx.com`), so relays sit
+   * near where the server anchored this client's media instead of where the
+   * client's DNS resolver happens to be. Only regions with a published TURN
+   * name are followed; any other value keeps (or restores) the flat name.
+   * Calls read `iceServers` when they are created, so this applies from the
+   * next call on. Returns whether the ICE servers changed.
+   */
+  applyServerRegion(region: string | null | undefined): boolean {
+    if (this._iceServersExplicit || this.options.region) {
+      return false;
+    }
+
+    const next = isServerTurnRegion(this.options.env, region) ? region : null;
+    if (next === this._serverTurnRegion) {
+      return false;
+    }
+
+    this._serverTurnRegion = next;
+    this._iceServers = getDefaultIceServers(this.options.env, next);
+    logger.info(
+      next
+        ? `TURN follows the server-reported region: ${next}.turn`
+        : 'TURN back on the default name: no published TURN name for the server-reported region'
+    );
+    return true;
   }
 
   /**

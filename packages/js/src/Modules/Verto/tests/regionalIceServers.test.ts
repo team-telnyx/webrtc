@@ -2,7 +2,9 @@ import {
   DEFAULT_DEV_ICE_SERVERS,
   DEFAULT_PROD_ICE_SERVERS,
   getDefaultIceServers,
+  isServerTurnRegion,
   regionalTurnUrl,
+  SERVER_TURN_REGIONS,
 } from '../util/constants';
 import { Region } from '../../../Region';
 
@@ -97,5 +99,37 @@ describe('getDefaultIceServers', () => {
       'turn:eu.turn.telnyx.com:3478?transport=udp',
       'stun:stun.telnyx.com:3478',
     ]);
+  });
+});
+
+describe('isServerTurnRegion', () => {
+  it.each(SERVER_TURN_REGIONS.production)(
+    'production publishes %s',
+    (region) => {
+      expect(isServerTurnRegion('production', region)).toBe(true);
+      expect(isServerTurnRegion(undefined, region)).toBe(true);
+    }
+  );
+
+  it.each(SERVER_TURN_REGIONS.development)(
+    'development publishes %s',
+    (region) => {
+      expect(isServerTurnRegion('development', region)).toBe(true);
+    }
+  );
+
+  it.each([
+    ['production', 'eu-west'],
+    ['production', 'in'],
+    ['production', 'au'],
+    ['development', 'eu'],
+    ['development', 'asia'],
+    ['production', ''],
+    ['production', null],
+    ['production', undefined],
+  ])('%s does not publish %s', (env, region) => {
+    expect(isServerTurnRegion(env, region as string | null | undefined)).toBe(
+      false
+    );
   });
 });
