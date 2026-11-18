@@ -46,7 +46,7 @@
   "bugs:": "https://github.com/team-telnyx/webrtc/issues",
   "license": "MIT",
   "dependencies": {
-    "@peermetrics/webrtc-stats": "^5.7.1",
+    "@peermetrics/webrtc-stats": "^5.9.0",
     "loglevel": "^1.6.8",
     "uuid": "^7.0.3"
   },

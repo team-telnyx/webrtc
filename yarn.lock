@@ -2632,6 +2632,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@peermetrics/webrtc-stats@npm:^5.9.0":
+  version: 5.9.0
+  resolution: "@peermetrics/webrtc-stats@npm:5.9.0"
+  dependencies:
+    events: "npm:^3.3.0"
+    uuid: "npm:^8.3.2"
+  checksum: 10c0/d550bc48835beff062f28fea0c5e9ebd1ecf3e4face062da408ff4889734cfc1b442a16a1d887133a336617f32f7db998dfe4632941d73b183bd8d2ac1b2422e
+  languageName: node
+  linkType: hard
+
 "@pkgjs/parseargs@npm:^0.11.0":
   version: 0.11.0
   resolution: "@pkgjs/parseargs@npm:0.11.0"
@@ -2973,7 +2983,7 @@ __metadata:
     "@babel/preset-env": "npm:^7.11.0"
     "@eslint/js": "npm:^9.39.2"
     "@eslint/markdown": "npm:^7.5.1"
-    "@peermetrics/webrtc-stats": "npm:^5.7.1"
+    "@peermetrics/webrtc-stats": "npm:^5.9.0"
     "@release-it/bumper": "npm:^2.0.0"
     "@rollup/plugin-json": "npm:^4.1.0"
     "@types/jest": "npm:^26.0.20"
@@ -6866,7 +6876,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"events@npm:^3.0.0":
+"events@npm:^3.0.0, events@npm:^3.3.0":
   version: 3.3.0
   resolution: "events@npm:3.3.0"
   checksum: 10c0/d6b6f2adbccbcda74ddbab52ed07db727ef52e31a61ed26db9feb7dc62af7fc8e060defa65e5f8af9449b86b52cc1a1f6a79f2eafcf4e62add2b7a1fa4a432f6
@@ -16546,7 +16556,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"uuid@npm:8.3.2, uuid@npm:^8.3.0":
+"uuid@npm:8.3.2, uuid@npm:^8.3.0, uuid@npm:^8.3.2":
   version: 8.3.2
   resolution: "uuid@npm:8.3.2"
   bin:
