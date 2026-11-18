@@ -165,7 +165,8 @@ export interface IClientOptions {
    * TURN over TLS on 443 keeps the flat `turn.telnyx.com` name.
    *
    * When this option is omitted (and `iceServers` is not set), the TURN servers
-   * follow the region the server reports once the client registers, if that
+   * follow the region the server reports once the client registers (the region
+   * of its media servers when reported, else the signaling region), if that
    * region has a published TURN name; otherwise the flat names are used.
    *
    * Arbitrary strings remain supported for backwards compatibility.

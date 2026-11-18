@@ -1045,6 +1045,28 @@ describe('VertoHandler', () => {
         ).toBe(true);
       });
 
+      it('prefers media_region over the signaling region', () => {
+        handler.handleMessage({
+          jsonrpc: '2.0',
+          id: '1',
+          result: {
+            params: {
+              state: 'REGED',
+              dc: 'fr5-prod',
+              region: 'eu',
+              media_dc: 'mb2-ora',
+              media_region: 'asia',
+            },
+          },
+        });
+
+        expect(instance.region).toBe('eu');
+        expect(plainTurn(instance)).toEqual([
+          'turn:asia.turn.telnyx.com:3478?transport=udp',
+          'turn:asia.turn.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+
       it('keeps the flat name for a region without a published TURN name', () => {
         reged('eu-west');
 

@@ -605,7 +605,14 @@ class VertoHandler {
                 const region = msg?.result?.params?.region;
                 if (region) {
                   session.region = region;
-                  session.applyServerRegion(region);
+                }
+
+                // TURN follows where the media is anchored (media_region,
+                // the region of the server's media datacenter), else the
+                // signaling region.
+                const mediaRegion = msg?.result?.params?.media_region;
+                if (mediaRegion || region) {
+                  session.applyServerRegion(mediaRegion || region);
                 }
 
                 logger.info(
