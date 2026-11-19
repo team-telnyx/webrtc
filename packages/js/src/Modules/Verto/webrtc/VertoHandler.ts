@@ -56,7 +56,23 @@ class VertoHandler {
 
   retriedRegister = 0;
 
+  /**
+   * Calls the server should list in `reattached_sessions` for the current
+   * connection: the calls in memory when it opened, plus calls rebuilt by an
+   * Attach on it. Calls created on the new connection (an Invite, newCall())
+   * are not in it. `null` once `reattached_sessions` has been handled.
+   */
+  private _callsAwaitingReattach: Set<string> | null = null;
+
   constructor(public session: BrowserSession) {}
+
+  /**
+   * Called when a new connection opens, before the login is sent: the calls
+   * in memory now are the ones the server should re-attach.
+   */
+  trackCallsAwaitingReattach() {
+    this._callsAwaitingReattach = new Set(Object.keys(this.session.calls));
+  }
 
   private _ack(id: number, method: string): void {
     const msg = new Result(id, method);
@@ -72,15 +88,20 @@ class VertoHandler {
 
   /**
    * `reattached_sessions` lists the calls the server re-attached to this
-   * session after a reconnect or page reload. Every call the SDK knows that is
-   * missing from the list was not re-attached and gets SESSION_NOT_REATTACHED:
-   * - a call in memory is ended locally (no BYE: the server no longer has it)
+   * session after a reconnect or page reload. Every call the SDK knew before
+   * the reconnect that is missing from the list was not re-attached and gets
+   * SESSION_NOT_REATTACHED:
+   * - a call in memory awaiting reattach is ended locally (no BYE: the server
+   *   no longer has it)
    * - a call saved before a page reload is removed from the recovery marker
-   * Listed calls the SDK does not know are left to their Attach.
+   * Calls created on the new connection are left alone, and so are listed
+   * calls the SDK does not know (their Attach warns).
    */
   private _endCallsNotReattached(reattachedIds: string[]) {
     const { session } = this;
     const reattached = new Set(reattachedIds);
+    const awaitingReattach = this._callsAwaitingReattach ?? new Set<string>();
+    this._callsAwaitingReattach = null;
 
     // An app listener that throws must not stop the other calls from being
     // handled, so each emit is guarded.
@@ -106,7 +127,7 @@ class VertoHandler {
     };
 
     for (const [callId, call] of Object.entries(session.calls)) {
-      if (reattached.has(callId)) continue;
+      if (!awaitingReattach.has(callId) || reattached.has(callId)) continue;
       logger.info(
         `[${callId}] Call was not re-attached after reconnect, ending it locally.`
       );
@@ -389,6 +410,9 @@ class VertoHandler {
 
         const call = _buildCall(recovery);
         call.answer();
+        // A rebuilt call was known before the reconnect, so the server must
+        // list it in `reattached_sessions`.
+        this._callsAwaitingReattach?.add(call.id);
 
         // Emit warning if there are other active calls (recovered calls are active calls too)
         this.session.emitMultipleActiveCallsWarning(call.id);

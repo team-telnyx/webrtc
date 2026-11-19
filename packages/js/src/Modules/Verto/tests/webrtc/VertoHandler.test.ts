@@ -166,6 +166,8 @@ describe('VertoHandler', () => {
         await closeRetainedPeer();
         const health = jest.spyOn(call.peer, 'isConnectionHealthy');
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         handler.handleMessage({
           id: 4603,
           method: 'telnyx_rtc.clientReady',
@@ -1403,6 +1405,8 @@ describe('VertoHandler', () => {
         );
         const originalAnswer = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendAttach('call-id-002', 'session-xyz');
         Call.prototype.answer = originalAnswer;
         expect(instance.calls['call-id-002']).toBeDefined();
@@ -1430,6 +1434,8 @@ describe('VertoHandler', () => {
 
         expect(instance.calls[callId]).toBeDefined();
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach([]);
 
         // Call should be cleaned up
@@ -1448,6 +1454,8 @@ describe('VertoHandler', () => {
         call.setState(State.Active);
         const hangupSpy = jest.spyOn(call, 'hangup');
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach([]);
 
         expect(hangupSpy).toHaveBeenCalledWith(
@@ -1464,6 +1472,8 @@ describe('VertoHandler', () => {
 
         Connection.mockSend.mockClear();
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach([]);
 
         expect(instance.calls[callId]).toBeUndefined();
@@ -1499,6 +1509,8 @@ describe('VertoHandler', () => {
 
         const hangupSpy = jest.spyOn(call, 'hangup');
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach(['different-call-id']);
 
         expect(hangupSpy).toHaveBeenCalledWith(
@@ -1912,6 +1924,8 @@ describe('VertoHandler', () => {
 
         expect(Object.keys(instance.calls).length).toBe(2);
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach(['unknown-call-id']);
 
         expect(instance.calls['call-a']).toBeUndefined();
@@ -1930,6 +1944,98 @@ describe('VertoHandler', () => {
         );
       });
 
+      describe('calls created on the new connection', () => {
+        const sendInvite = (callId: string) => {
+          handler.handleMessage(
+            JSON.parse(
+              `{"jsonrpc":"2.0","id":1001,"method":"telnyx_rtc.invite","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Caller","caller_id_number":"1004","callee_id_name":"Callee","callee_id_number":"1003"}}`
+            )
+          );
+        };
+
+        let answer: jest.SpyInstance;
+        beforeEach(async () => {
+          await instance.connect();
+          answer = jest.spyOn(Call.prototype, 'answer').mockImplementation();
+        });
+        afterEach(() => {
+          answer.mockRestore();
+          clearActiveCallsRecoveryMarker();
+        });
+
+        it('keeps an inbound call that arrives before a late reattached_sessions (reconnect within the page)', () => {
+          const callA = new Call(instance, {
+            ...DEFAULT_PARAMS,
+            id: 'call-a',
+          });
+          callA.setState(State.Active);
+          handler.trackCallsAwaitingReattach();
+
+          sendAttach('call-a', 'session-a');
+          sendInvite('call-b');
+          sendReattach(['call-a']);
+
+          expect(instance.calls['call-a']).toBeDefined();
+          expect(instance.calls['call-b']).toBeDefined();
+          expect(instance.calls['call-b'].state).toBe('ringing');
+          expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('keeps an inbound call that arrives before a late reattached_sessions (page reload)', () => {
+          setActiveCallsRecoveryMarker(
+            [
+              {
+                id: 'call-a',
+                customHeaders: undefined,
+                forceRelayCandidate: false,
+              },
+            ],
+            instance.sessionid
+          );
+          handler.trackCallsAwaitingReattach();
+
+          sendAttach('call-a', 'session-a');
+          sendInvite('call-b');
+          sendReattach(['call-a']);
+
+          expect(instance.calls['call-a']?.recoveredCallId).toBe('call-a');
+          expect(instance.calls['call-b']).toBeDefined();
+          expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('keeps a call created on the new connection when reattached_sessions is empty', () => {
+          handler.trackCallsAwaitingReattach();
+
+          sendInvite('call-b');
+          sendReattach([]);
+
+          expect(instance.calls['call-b']).toBeDefined();
+          expect(onError).not.toHaveBeenCalled();
+        });
+
+        it('still ends a call carried over the reconnect that is not listed', () => {
+          const callA = new Call(instance, {
+            ...DEFAULT_PARAMS,
+            id: 'call-a',
+          });
+          callA.setState(State.Active);
+          handler.trackCallsAwaitingReattach();
+
+          sendInvite('call-b');
+          sendReattach([]);
+
+          expect(instance.calls['call-a']).toBeUndefined();
+          expect(instance.calls['call-b']).toBeDefined();
+          expect(onError).toHaveBeenCalledTimes(1);
+          expect(onError).toHaveBeenCalledWith(
+            expect.objectContaining({
+              error: expect.objectContaining({ code: 48501 }),
+              callId: 'call-a',
+            })
+          );
+        });
+      });
+
       it('keeps handling the other calls when a SESSION_NOT_REATTACHED listener throws', async () => {
         await instance.connect();
         const callA = new Call(instance, { ...DEFAULT_PARAMS, id: 'call-a' });
@@ -1942,6 +2048,8 @@ describe('VertoHandler', () => {
           })),
           instance.sessionid
         );
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
 
         instance.off('telnyx.error');
         const reported: string[] = [];
@@ -1975,6 +2083,8 @@ describe('VertoHandler', () => {
         });
         callB.setState(State.Active);
 
+        // The connection reopened: the calls in memory await reattach.
+        handler.trackCallsAwaitingReattach();
         sendReattach(['call-b']);
 
         expect(instance.calls['call-a']).toBeUndefined();

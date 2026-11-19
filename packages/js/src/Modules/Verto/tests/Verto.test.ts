@@ -1005,6 +1005,35 @@ describe('Verto', () => {
     });
   });
 
+  describe('socket open', () => {
+    it('records the calls awaiting reattach before sending the login', async () => {
+      const order: string[] = [];
+      const handler = (
+        instance as unknown as {
+          _vertoHandler: { trackCallsAwaitingReattach: () => void };
+        }
+      )._vertoHandler;
+      const track = jest
+        .spyOn(handler, 'trackCallsAwaitingReattach')
+        .mockImplementation(() => {
+          order.push('track');
+        });
+      const login = jest
+        .spyOn(instance, 'login')
+        .mockImplementation(async () => {
+          order.push('login');
+        });
+
+      await (
+        instance as unknown as { _onSocketOpen: () => Promise<void> }
+      )._onSocketOpen();
+
+      expect(order).toEqual(['track', 'login']);
+      track.mockRestore();
+      login.mockRestore();
+    });
+  });
+
   describe('reconnect login', () => {
     it('should include the persisted sessid whenever a stored voice_sdk_id marks the login as a reconnect', async () => {
       setReconnectToken('voice-sdk-id');

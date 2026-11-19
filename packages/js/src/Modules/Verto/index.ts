@@ -262,6 +262,9 @@ export default class Verto extends BrowserSession {
     // before any microtask or macrotask can intercept.
     void super._onSocketOpen();
 
+    // Before the login: Attach and reattached_sessions follow it.
+    this._vertoHandler.trackCallsAwaitingReattach();
+
     if (isValidLoginOptions(this.options)) {
       return this.handleLoginOnSocketOpen();
     }
