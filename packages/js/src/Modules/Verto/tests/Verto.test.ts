@@ -81,7 +81,11 @@ describe('Verto', () => {
       });
       const hangup = jest.fn();
       telnyxRTC.calls = {
-        callA: { hangup } as unknown as IWebRTCCall,
+        callA: {
+          id: 'callA',
+          state: 'active',
+          hangup,
+        } as unknown as IWebRTCCall,
       };
 
       const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
@@ -116,7 +120,11 @@ describe('Verto', () => {
       });
       const hangup = jest.fn();
       telnyxRTC.calls = {
-        callA: { hangup } as unknown as IWebRTCCall,
+        callA: {
+          id: 'callA',
+          state: 'active',
+          hangup,
+        } as unknown as IWebRTCCall,
       };
 
       const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
@@ -709,6 +717,7 @@ describe('Verto', () => {
       instance.calls = {
         'call-1': {
           id: 'call-1',
+          state: 'active',
           hangup,
           flushIntermediateCallReport: flush,
         } as unknown as IWebRTCCall,
@@ -811,6 +820,7 @@ describe('Verto', () => {
 
       pagehide(new Event('pagehide'));
 
+      expect(instance.calls['call-1'].hangup).not.toHaveBeenCalled();
       const marker = getActiveCallsRecoveryMarker();
       expect(marker?.sessionId).toBe('session-abc');
       expect(marker?.calls).toEqual([
@@ -831,6 +841,41 @@ describe('Verto', () => {
       expect(getActiveCallsRecoveryMarker()).toBeNull();
       expect(call.shouldForceRelayCandidateForRecovery).not.toHaveBeenCalled();
       expect(call.hangup).not.toHaveBeenCalled();
+    });
+
+    it('hangs up the calls on pagehide when beforeunload did not fire (iOS Safari, default)', () => {
+      setReconnectToken('voice-sdk-id');
+      const { instance, pagehide } = buildWithUnloadHandlers({});
+      const call = fakeCall('call-1');
+      instance.calls = { 'call-1': call };
+
+      pagehide(new Event('pagehide'));
+
+      expect(call.hangup).toHaveBeenCalledTimes(1);
+      expect(call.hangup).toHaveBeenCalledWith(
+        { initiator: 'sdk:pagehide' },
+        true
+      );
+      expect(getReconnectToken()).toBeNull();
+    });
+
+    it('does not hang up a call again on pagehide after beforeunload hung it up (default)', () => {
+      const { instance, beforeunload, pagehide } = buildWithUnloadHandlers({});
+      const call = fakeCall('call-1');
+      // hangup() moves the call to the hangup state synchronously.
+      (call.hangup as jest.Mock).mockImplementation(() => {
+        (call as { state: string }).state = 'hangup';
+      });
+      instance.calls = { 'call-1': call };
+
+      beforeunload(new Event('beforeunload'));
+      pagehide(new Event('pagehide'));
+
+      expect(call.hangup).toHaveBeenCalledTimes(1);
+      expect(call.hangup).toHaveBeenCalledWith(
+        { initiator: 'sdk:beforeunload' },
+        true
+      );
     });
 
     it('does not save a marker on pagehide when calls are hung up on unload (default)', () => {
