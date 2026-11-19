@@ -481,6 +481,7 @@ export const SDK_WARNINGS = {
     causes: [
       'Server sent an Attach for a call that no longer exists in the SDK',
       'The calls saved before a page reload belong to a different session than the one the client reconnected with',
+      'The page reloaded without saving its calls (for example sessionStorage is unavailable)',
       'Race condition between reconnection and new inbound call',
     ],
     solutions: [

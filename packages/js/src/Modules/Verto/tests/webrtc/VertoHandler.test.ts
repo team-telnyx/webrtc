@@ -54,6 +54,9 @@ describe('VertoHandler', () => {
       project: 'project',
       token: 'token',
     });
+    // A logged-in client always has a session id when Attach and
+    // reattached_sessions arrive; recovery markers are matched against it.
+    instance.sessionid = 'test-sessid';
     onNotification.mockClear();
     instance.on('telnyx.notification', (notification) => {
       onNotification(notification);
@@ -470,6 +473,16 @@ describe('VertoHandler', () => {
     it('should set recoveredCallId when no existing call (recovered attach after SDK reload)', async () => {
       await instance.connect();
       const callId = 'fresh-call-id-1234';
+      setActiveCallsRecoveryMarker(
+        [
+          {
+            id: callId,
+            customHeaders: undefined,
+            forceRelayCandidate: false,
+          },
+        ],
+        instance.sessionid
+      );
 
       // Mock answer to prevent actual WebRTC peer creation
       const originalAnswer = Call.prototype.answer;
@@ -485,6 +498,7 @@ describe('VertoHandler', () => {
       expect(newCall.recoveredCallId).toEqual(callId);
 
       Call.prototype.answer = originalAnswer;
+      clearActiveCallsRecoveryMarker();
     });
 
     it('should not recover call by telnyx_session_id when callID differs', async () => {
@@ -711,9 +725,11 @@ describe('VertoHandler', () => {
       clearActiveCallsRecoveryMarker();
     });
 
-    it('should fall back to session-level default when no recovery marker exists on page-reload attach (scenario 2 no marker)', async () => {
+    it('should NOT recover a page-reload attach when no recovery marker exists (scenario 2 no marker)', async () => {
       await instance.connect();
       const callId = 'reattach-scenario2-nomarker-call-id';
+      const onWarning = jest.fn();
+      instance.on('telnyx.warning', onWarning);
 
       clearActiveCallsRecoveryMarker();
 
@@ -725,13 +741,18 @@ describe('VertoHandler', () => {
       );
       handler.handleMessage(msg);
 
-      const newCall = instance.calls[callId];
-      expect(newCall).toBeDefined();
-      expect(newCall.recoveredCallId).toEqual(callId);
-      // No marker → no per-call element restored.
-      expect(newCall.options.remoteElement).toBeFalsy();
+      // Neither in memory nor saved: the call is unknown.
+      expect(instance.calls[callId]).toBeUndefined();
+      expect(Call.prototype.answer).not.toHaveBeenCalled();
+      expect(onWarning).toHaveBeenCalledWith(
+        expect.objectContaining({
+          warning: expect.objectContaining({ code: 35002 }),
+          callId,
+        })
+      );
 
       Call.prototype.answer = originalAnswer;
+      instance.off('telnyx.warning');
     });
 
     // ── Reattach preserves held state ──
@@ -881,6 +902,55 @@ describe('VertoHandler', () => {
       Call.prototype.answer = originalAnswer;
       clearActiveCallsRecoveryMarker();
     });
+
+    // ── Reattach preserves mute state ──
+
+    it.each([
+      ['muted', true, false, true],
+      ['unmuted, overriding a muted session default', false, true, false],
+      [
+        'missing (older SDK), so the session default applies',
+        undefined,
+        true,
+        true,
+      ],
+    ])(
+      'should restore the mute state from the recovery marker on page-reload attach (%s)',
+      async (_label, audioMuted, sessionDefault, expected) => {
+        await instance.connect();
+        (instance.options as { mutedMicOnStart?: boolean }).mutedMicOnStart =
+          sessionDefault;
+        const callId = `reattach-mute-${String(audioMuted)}`;
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: callId,
+              customHeaders: undefined,
+              forceRelayCandidate: false,
+              audioMuted,
+            },
+          ],
+          instance.sessionid
+        );
+        const answer = jest
+          .spyOn(Call.prototype, 'answer')
+          .mockImplementation();
+
+        handler.handleMessage(
+          JSON.parse(
+            `{"jsonrpc":"2.0","id":4605,"method":"telnyx_rtc.attach","params":{"callID":"${callId}","sdp":"SDP","caller_id_name":"Extension 1004","caller_id_number":"1004","callee_id_name":"Outbound Call","callee_id_number":"1003"}}`
+          )
+        );
+
+        const newCall = instance.calls[callId];
+        expect(newCall.recoveredCallId).toBe(callId);
+        expect(newCall.options.mutedMicOnStart).toBe(expected);
+        expect(newCall.isAudioMuted).toBe(expected);
+
+        answer.mockRestore();
+        clearActiveCallsRecoveryMarker();
+      }
+    );
   });
 
   describe('relay policy on attach recovery', () => {
@@ -1320,7 +1390,17 @@ describe('VertoHandler', () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
 
-        // No active call — first attach recovers
+        // Page reload: the call was saved before unload, so its Attach recovers it.
+        setActiveCallsRecoveryMarker(
+          [
+            {
+              id: 'call-id-002',
+              customHeaders: undefined,
+              forceRelayCandidate: false,
+            },
+          ],
+          instance.sessionid
+        );
         const originalAnswer = Call.prototype.answer;
         Call.prototype.answer = jest.fn();
         sendAttach('call-id-002', 'session-xyz');
@@ -1559,42 +1639,37 @@ describe('VertoHandler', () => {
 
     // ── No active call and no recovery marker, multiple attaches ───────
     describe('no active call and no recovery marker, multiple attaches', () => {
-      it('should warn, ACK, and ignore second attach with a different callID', async () => {
+      it('should warn, ACK, and ignore every attach', async () => {
         await instance.connect();
         expect(Object.keys(instance.calls).length).toBe(0);
+        clearActiveCallsRecoveryMarker();
 
-        const originalAnswer = Call.prototype.answer;
-        Call.prototype.answer = jest.fn();
+        const answer = jest
+          .spyOn(Call.prototype, 'answer')
+          .mockImplementation();
 
-        // First attach — recovered
-        sendAttach('first-call-id', 'session-first');
-        expect(instance.calls['first-call-id']).toBeDefined();
-        expect(instance.calls['first-call-id'].recoveredCallId).toEqual(
-          'first-call-id'
-        );
+        for (const callId of ['first-call-id', 'second-call-id']) {
+          Connection.mockSend.mockClear();
+          sendAttach(callId, `session-${callId}`);
 
-        Connection.mockSend.mockClear();
+          expect(instance.calls[callId]).toBeUndefined();
+          expect(onWarning).toHaveBeenCalledWith(
+            expect.objectContaining({
+              warning: expect.objectContaining({ code: 35002 }),
+              callId,
+            })
+          );
+          expect(Connection.mockSend).toHaveBeenLastCalledWith({
+            request: {
+              jsonrpc: '2.0',
+              id: 1000,
+              result: { method: 'telnyx_rtc.attach' },
+            },
+          });
+        }
+        expect(answer).not.toHaveBeenCalled();
 
-        // Second attach with different callID is unknown while a call is active.
-        sendAttach('second-call-id', 'session-second');
-
-        expect(instance.calls['first-call-id']).toBeDefined();
-        expect(instance.calls['second-call-id']).toBeUndefined();
-        expect(onWarning).toHaveBeenCalledWith(
-          expect.objectContaining({
-            warning: expect.objectContaining({ code: 35002 }),
-            callId: 'second-call-id',
-          })
-        );
-        expect(Connection.mockSend).toHaveBeenLastCalledWith({
-          request: {
-            jsonrpc: '2.0',
-            id: 1000,
-            result: { method: 'telnyx_rtc.attach' },
-          },
-        });
-
-        Call.prototype.answer = originalAnswer;
+        answer.mockRestore();
       });
     });
 
@@ -1855,7 +1930,37 @@ describe('VertoHandler', () => {
         );
       });
 
-      it('should keep all active calls when reattached_sessions matches at least one active callID', async () => {
+      it('keeps handling the other calls when a SESSION_NOT_REATTACHED listener throws', async () => {
+        await instance.connect();
+        const callA = new Call(instance, { ...DEFAULT_PARAMS, id: 'call-a' });
+        callA.setState(State.Active);
+        setActiveCallsRecoveryMarker(
+          ['saved-1', 'saved-2'].map((id) => ({
+            id,
+            customHeaders: undefined,
+            forceRelayCandidate: false,
+          })),
+          instance.sessionid
+        );
+
+        instance.off('telnyx.error');
+        const reported: string[] = [];
+        instance.on('telnyx.error', (event: { callId: string }) => {
+          reported.push(event.callId);
+          throw new Error('listener failed');
+        });
+        const errorLog = jest.spyOn(logger, 'error').mockImplementation();
+
+        expect(() => sendReattach([])).not.toThrow();
+
+        expect(reported).toEqual(['call-a', 'saved-1', 'saved-2']);
+        expect(instance.calls['call-a']).toBeUndefined();
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
+        expect(errorLog).toHaveBeenCalledTimes(3);
+        errorLog.mockRestore();
+      });
+
+      it('should end only the active calls missing from a non-empty reattached_sessions', async () => {
         await instance.connect();
 
         const callA = new Call(instance, {
@@ -1872,18 +1977,23 @@ describe('VertoHandler', () => {
 
         sendReattach(['call-b']);
 
-        expect(instance.calls['call-a']).toBeDefined();
+        expect(instance.calls['call-a']).toBeUndefined();
         expect(instance.calls['call-b']).toBeDefined();
-        expect(onError).not.toHaveBeenCalled();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: expect.objectContaining({ code: 48501 }),
+            callId: 'call-a',
+          })
+        );
       });
     });
 
     // ── Page-reload recovery marker (sessionStorage-backed) ─────────────
-    // After a page reload the SDK has no in-memory calls, so the in-process
-    // reattach block above does not run. These tests verify the persisted
-    // recovery marker path: saved markers are compared against
-    // reattached_sessions for the current session id and SESSION_NOT_REATTACHED
-    // is emitted for missing calls. The marker is consumed exactly once.
+    // After a page reload the SDK has no in-memory calls; the calls it knows
+    // are the ones saved in the recovery marker. Each saved call missing from
+    // reattached_sessions emits SESSION_NOT_REATTACHED once and is removed
+    // from the marker.
     describe('page-reload recovery marker', () => {
       beforeEach(() => {
         clearActiveCallsRecoveryMarker();
@@ -1979,11 +2089,8 @@ describe('VertoHandler', () => {
         sendReattachForSession([]);
 
         expect(onError).not.toHaveBeenCalled();
-        // The marker is kept so a later Attach still sees the session
-        // mismatch; the next unload overwrites or clears it.
-        expect(getActiveCallsRecoveryMarker()?.sessionId).toBe(
-          'sess-different'
-        );
+        // The marker holds none of this session's calls, so it is dropped.
+        expect(getActiveCallsRecoveryMarker()).toBeNull();
       });
 
       it('does NOT emit an error when the saved call is present in reattached_sessions (recovered)', async () => {

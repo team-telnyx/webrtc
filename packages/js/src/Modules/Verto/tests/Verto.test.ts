@@ -204,12 +204,12 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
       )?.[1] as EventListener;
 
-      expect(beforeUnloadHandler).toBeDefined();
-      beforeUnloadHandler(new Event('beforeunload'));
+      expect(pageHideHandler).toBeDefined();
+      pageHideHandler(new Event('pagehide'));
 
       // No hangup is called in this branch.
       expect(hangup).not.toHaveBeenCalled();
@@ -289,10 +289,10 @@ describe('Verto', () => {
         'call-2': call2 as unknown as IWebRTCCall,
       };
 
-      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
       )?.[1] as EventListener;
-      beforeUnloadHandler(new Event('beforeunload'));
+      pageHideHandler(new Event('pagehide'));
 
       expect(order).toEqual([
         'evaluate-call-1',
@@ -377,10 +377,10 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
       )?.[1] as EventListener;
-      beforeUnloadHandler(new Event('beforeunload'));
+      pageHideHandler(new Event('pagehide'));
 
       const result = getActiveCallsRecoveryMarker();
       expect(result).not.toBeNull();
@@ -432,10 +432,10 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
       )?.[1] as EventListener;
-      beforeUnloadHandler(new Event('beforeunload'));
+      pageHideHandler(new Event('pagehide'));
 
       const result = getActiveCallsRecoveryMarker();
       expect(result).not.toBeNull();
@@ -482,10 +482,10 @@ describe('Verto', () => {
       telnyxRTC.sessionid = '';
       telnyxRTC.calls = {};
 
-      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
       )?.[1] as EventListener;
-      beforeUnloadHandler(new Event('beforeunload'));
+      pageHideHandler(new Event('pagehide'));
 
       // Stale marker should have been wiped.
       expect(getActiveCallsRecoveryMarker()).toBeNull();
@@ -521,6 +521,11 @@ describe('Verto', () => {
       beforeUnloadHandler(new Event('beforeunload'));
 
       // Default branch hangs up and clears the reconnect token — no marker.
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
+      const pageHideHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'pagehide'
+      )?.[1] as EventListener;
+      pageHideHandler(new Event('pagehide'));
       expect(getActiveCallsRecoveryMarker()).toBeNull();
 
       addEventListenerSpy.mockRestore();
@@ -632,8 +637,8 @@ describe('Verto', () => {
     });
   });
 
-  describe('beforeunload call-report flush', () => {
-    const buildWithUnloadHandler = (props: Partial<IVertoOptions>) => {
+  describe('call-report flush on page unload', () => {
+    const buildWithUnloadHandlers = (props: Partial<IVertoOptions>) => {
       const spy = jest.spyOn(window, 'addEventListener');
       spy.mockClear();
       const instance = _buildInstance({
@@ -642,17 +647,23 @@ describe('Verto', () => {
         password: 'password',
         ...props,
       } as IVertoOptions);
-      const handler = spy.mock.calls.find(
-        ([eventName]) => eventName === 'beforeunload'
-      )?.[1] as EventListener;
-      return { instance, handler, restore: () => spy.mockRestore() };
+      const handlerFor = (name: string) =>
+        spy.mock.calls.find(([eventName]) => eventName === name)?.[1] as (
+          event: Event
+        ) => void;
+      const handlers = {
+        beforeunload: handlerFor('beforeunload'),
+        pagehide: handlerFor('pagehide'),
+      };
+      spy.mockRestore();
+      return { instance, ...handlers };
     };
 
-    it('flushes a page-unload report for each active call on unload (hangupOnBeforeUnload=false)', () => {
-      const { instance, handler, restore } = buildWithUnloadHandler({
+    it('flushes a page-unload report for each active call on pagehide (hangupOnBeforeUnload=false)', () => {
+      const { instance, pagehide } = buildWithUnloadHandlers({
         hangupOnBeforeUnload: false,
       });
-      expect(handler).toBeDefined();
+      expect(pagehide).toBeDefined();
 
       const flush = jest.fn();
       instance.calls = {
@@ -665,15 +676,34 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      handler(new Event('beforeunload'));
+      pagehide(new Event('pagehide'));
 
       expect(flush).toHaveBeenCalledTimes(1);
       expect(flush).toHaveBeenCalledWith({ type: 'page-unload' });
-      restore();
+    });
+
+    it('does not flush on beforeunload, which also fires for navigations the user cancels', () => {
+      const { instance, beforeunload } = buildWithUnloadHandlers({
+        hangupOnBeforeUnload: false,
+      });
+      const flush = jest.fn();
+      instance.calls = {
+        'call-1': {
+          id: 'call-1',
+          state: 'active',
+          options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
+          flushIntermediateCallReport: flush,
+        } as unknown as IWebRTCCall,
+      };
+
+      beforeunload(new Event('beforeunload'));
+
+      expect(flush).not.toHaveBeenCalled();
     });
 
     it('does not flush when hangupOnBeforeUnload is not false (call is hung up on unload instead)', () => {
-      const { instance, handler, restore } = buildWithUnloadHandler({});
+      const { instance, beforeunload, pagehide } = buildWithUnloadHandlers({});
       const flush = jest.fn();
       const hangup = jest.fn();
       instance.calls = {
@@ -684,21 +714,133 @@ describe('Verto', () => {
         } as unknown as IWebRTCCall,
       };
 
-      handler(new Event('beforeunload'));
+      beforeunload(new Event('beforeunload'));
+      pagehide(new Event('pagehide'));
 
       expect(flush).not.toHaveBeenCalled();
       expect(hangup).toHaveBeenCalled();
-      restore();
     });
 
     it('does not throw when there are no active calls to flush', () => {
-      const { instance, handler, restore } = buildWithUnloadHandler({
+      const { instance, pagehide } = buildWithUnloadHandlers({
         hangupOnBeforeUnload: false,
       });
       instance.calls = {};
 
-      expect(() => handler(new Event('beforeunload'))).not.toThrow();
-      restore();
+      expect(() => pagehide(new Event('pagehide'))).not.toThrow();
+    });
+  });
+
+  describe('recovery marker on page unload', () => {
+    const buildWithUnloadHandlers = (props: Partial<IVertoOptions>) => {
+      const spy = jest.spyOn(window, 'addEventListener');
+      spy.mockClear();
+      const instance = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        ...props,
+      } as IVertoOptions);
+      const handlerFor = (name: string) =>
+        spy.mock.calls.find(([eventName]) => eventName === name)?.[1] as (
+          event: Event
+        ) => void;
+      const handlers = {
+        beforeunload: handlerFor('beforeunload'),
+        pagehide: handlerFor('pagehide'),
+      };
+      spy.mockRestore();
+      return { instance, ...handlers };
+    };
+
+    const fakeCall = (id: string, fields: Record<string, unknown> = {}) =>
+      ({
+        id,
+        state: 'active',
+        isAudioMuted: false,
+        options: {},
+        shouldForceRelayCandidateForRecovery: jest.fn(() => false),
+        flushIntermediateCallReport: jest.fn(),
+        hangup: jest.fn(),
+        ...fields,
+      }) as unknown as IWebRTCCall;
+
+    beforeEach(() => {
+      clearActiveCallsRecoveryMarker();
+    });
+
+    afterEach(() => {
+      clearActiveCallsRecoveryMarker();
+      clearReconnectToken();
+    });
+
+    it('saves whether each call was held and muted', () => {
+      const { instance, pagehide } = buildWithUnloadHandlers({
+        hangupOnBeforeUnload: false,
+      });
+      instance.sessionid = 'session-abc';
+      instance.calls = {
+        'call-held': fakeCall('call-held', {
+          state: 'held',
+          isAudioMuted: true,
+        }),
+        'call-active': fakeCall('call-active'),
+      };
+
+      pagehide(new Event('pagehide'));
+
+      expect(
+        getActiveCallsRecoveryMarker()?.calls.map(
+          ({ id, wasHeld, audioMuted }) => ({ id, wasHeld, audioMuted })
+        )
+      ).toEqual([
+        { id: 'call-held', wasHeld: true, audioMuted: true },
+        { id: 'call-active', wasHeld: false, audioMuted: false },
+      ]);
+    });
+
+    it('saves the marker on pagehide, which iOS Safari fires without beforeunload', () => {
+      const { instance, pagehide } = buildWithUnloadHandlers({
+        hangupOnBeforeUnload: false,
+      });
+      expect(pagehide).toBeDefined();
+      instance.sessionid = 'session-abc';
+      instance.calls = {
+        'call-1': fakeCall('call-1', { state: 'held' }),
+      };
+
+      pagehide(new Event('pagehide'));
+
+      const marker = getActiveCallsRecoveryMarker();
+      expect(marker?.sessionId).toBe('session-abc');
+      expect(marker?.calls).toEqual([
+        expect.objectContaining({ id: 'call-1', wasHeld: true }),
+      ]);
+    });
+
+    it('does not save a marker on beforeunload, which also fires for navigations the user cancels', () => {
+      const { instance, beforeunload } = buildWithUnloadHandlers({
+        hangupOnBeforeUnload: false,
+      });
+      instance.sessionid = 'session-abc';
+      const call = fakeCall('call-1');
+      instance.calls = { 'call-1': call };
+
+      beforeunload(new Event('beforeunload'));
+
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
+      expect(call.shouldForceRelayCandidateForRecovery).not.toHaveBeenCalled();
+      expect(call.hangup).not.toHaveBeenCalled();
+    });
+
+    it('does not save a marker on pagehide when calls are hung up on unload (default)', () => {
+      const { instance, pagehide } = buildWithUnloadHandlers({});
+      instance.sessionid = 'session-abc';
+      instance.calls = { 'call-1': fakeCall('call-1') };
+
+      pagehide(new Event('pagehide'));
+
+      expect(getActiveCallsRecoveryMarker()).toBeNull();
     });
   });
 

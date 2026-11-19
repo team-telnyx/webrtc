@@ -4,7 +4,7 @@ import {
   BroadcastParams,
   IVertoOptions,
 } from './util/interfaces';
-import { IVertoCallOptions } from './webrtc/interfaces';
+import { IVertoCallOptions, IWebRTCCall } from './webrtc/interfaces';
 import { callMarkName } from './webrtc/CallEstablishmentTimings';
 import Call from './webrtc/Call';
 import VertoHandler from './webrtc/VertoHandler';
@@ -19,6 +19,7 @@ import {
   clearActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
   setReconnectSessionId,
+  type IStoredActiveCall,
 } from './util/reconnect';
 import { INVALID_CALL_PARAMETERS } from './util/constants/errorCodes';
 
@@ -35,140 +36,31 @@ export default class Verto extends BrowserSession {
     super(options);
     this._vertoHandler = new VertoHandler(this);
 
-    // Single beforeunload handler for both hangup and recovery-marker paths.
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    window.addEventListener('beforeunload', (_e) => {
+    window.addEventListener('beforeunload', () => {
       logger.debug('Window beforeunload triggered.');
+      if (options.hangupOnBeforeUnload === false) return;
 
-      if (options.hangupOnBeforeUnload !== false) {
-        // Default / true: hang up current calls when the browser closes or
-        // refreshes, and clear the reconnect token. There is nothing to
-        // recover from, so no recovery marker is written.
-        clearReconnectToken();
-        if (this.calls) {
-          Object.keys(this.calls).forEach((callId) => {
-            if (this.calls[callId]) {
-              logger.info(`Hanging up call due to window unload: ${callId}`);
-              void this.calls[callId].hangup(
-                { initiator: 'sdk:beforeunload' },
-                true
-              );
-            }
-          });
-        }
-        return;
-      }
+      // Default: hang up the calls and forget the reconnect token, so there
+      // is nothing to recover after the reload.
+      clearReconnectToken();
+      Object.entries(this.calls ?? {}).forEach(([callId, call]) => {
+        logger.info(`Hanging up call due to window unload: ${callId}`);
+        void call.hangup({ initiator: 'sdk:beforeunload' }, true);
+      });
+    });
 
-      // hangupOnBeforeUnload === false: the SDK does NOT hang up active calls
-      // before unload, so the server may still know about them. After a page
-      // reload the SDK starts with a fresh in-memory cache and may not detect
-      // that those calls were lost. Persist a NARROW projection of each active
-      // call so that on the next SDK startup
-      // VertoHandler can compare the saved markers against the server's
-      // reattached_sessions and emit SESSION_NOT_REATTACHED for any call that
-      // was not reattached. Persisting only this projection — rather than the
-      // entire Call — keeps credentials, SDP, ICE/TURN secrets, custom header
-      // values, and non-serializable host objects out of sessionStorage
-      //
-      // No false-positive interaction with `keepConnectionAliveOnSocketClose`:
-      // that option only governs PUNT/server-initiated socket disconnects
-      // (see VertoHandler PUNT case → `socketDisconnect()`), which never fire
-      // `beforeunload`. This handler runs exclusively on a genuine browser
-      // page-unload (close/refresh/navigation), so recovery markers are only
-      // written when the page is truly going away, regardless of how the SDK
-      // handles transient socket drops.
-      try {
-        const storedActiveCalls = this.getActiveCalls().map((call) => {
-          const stored: {
-            id: typeof call.id;
-            customHeaders: typeof call.options.customHeaders;
-            remoteElement?: string;
-            localElement?: string;
-            wasHeld?: boolean;
-            forceRelayCandidate: boolean;
-          } = {
-            id: call.id,
-            customHeaders: call.options.customHeaders,
-            forceRelayCandidate: call.shouldForceRelayCandidateForRecovery(),
-          };
-          // Persist held state for page-reload attach-recovery.
-          if (call.state === 'held') {
-            stored.wasHeld = true;
-          }
-          // Persist per-call media elements ONLY in their serializable string
-          // form (element id). DOM elements and Function resolvers are not
-          // serializable and cannot survive a page reload, so we skip them
-          // (VSDK-316: keep host objects out of sessionStorage). On the next
-          // page the SDK restores the id and re-resolves the element via
-          // document.getElementById.
-          if (typeof call.options.remoteElement === 'string') {
-            stored.remoteElement = call.options.remoteElement;
-          } else if (
-            // VSDK-408: a call that relies on the session-level
-            // `client.remoteElement` default inherits the *resolved* DOM
-            // element (the session setter resolves string→HTML immediately),
-            // so `typeof === 'string'` is false and the session-level id was
-            // silently dropped. Fall back to the session-level string id
-            // when the call's element is the session default (same
-            // reference) and the session captured a string id. A call with
-            // a per-call DOM/Function element is NOT the session default, so
-            // it is intentionally skipped (no stable id to persist).
-            this.remoteElementId &&
-            call.options.remoteElement === this.remoteElement
-          ) {
-            stored.remoteElement = this.remoteElementId;
-          }
-          if (typeof call.options.localElement === 'string') {
-            stored.localElement = call.options.localElement;
-          } else if (
-            this.localElementId &&
-            call.options.localElement === this.localElement
-          ) {
-            stored.localElement = this.localElementId;
-          }
-          return stored;
-        });
+    // With `hangupOnBeforeUnload: false` the calls stay up on the server so
+    // they can be recovered after the reload. pagehide fires on every reload
+    // and close, including iOS Safari, which never fires beforeunload, and
+    // not when a navigation is cancelled.
+    window.addEventListener('pagehide', () => {
+      if (options.hangupOnBeforeUnload !== false) return;
+      logger.debug('Window pagehide triggered.');
 
-        // Snapshot policy before flushing clears collector evidence.
-        this.getActiveCalls().forEach((call) => {
-          if (!call.flushIntermediateCallReport) return;
-          try {
-            logger.debug(`beforeunload: flushing call report for ${call.id}.`);
-            call.flushIntermediateCallReport({ type: 'page-unload' });
-          } catch (err) {
-            logger.debug(
-              `beforeunload: failed to flush call report for ${call.id}: ${
-                err instanceof Error ? err.message : String(err)
-              }`
-            );
-          }
-        });
-
-        if (!this.sessionid || storedActiveCalls.length === 0) {
-          logger.debug(
-            `No sessionID ${this.sessionid} or activeCalls ${storedActiveCalls.length} during saving calls recover marker!`
-          );
-          // No active calls or no session context — wipe any stale marker
-          // left over from a previous page so it can't be re-consumed.
-          clearActiveCallsRecoveryMarker();
-          return;
-        }
-
-        logger.info(
-          `Saving recovery marker for ${storedActiveCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${storedActiveCalls
-            .map((c) => c.id)
-            .join(', ')}].`
-        );
-        setActiveCallsRecoveryMarker(storedActiveCalls, this.sessionid);
-      } catch (err) {
-        // Any failure here must not break unload or normal call setup.
-        const idsOnError = this.calls ? Object.keys(this.calls) : [];
-        logger.debug(
-          `Failed to save active-calls recovery marker before unload (active call ids: [${idsOnError.join(
-            ', '
-          )}]): ${err instanceof Error ? err.message : String(err)}`
-        );
-      }
+      // Save the calls before flushing call reports: the flush clears the
+      // evidence the relay policy is evaluated from.
+      this._saveRecoveryMarker();
+      this._flushCallReportsOnUnload();
     });
 
     // Re-stamp the reconnect session-id freshness at the last moment the page
@@ -201,6 +93,93 @@ export default class Verto extends BrowserSession {
         'visibilitychange → hidden: re-stamping reconnect session-id freshness.'
       );
       setReconnectSessionId(this.sessionid);
+    });
+  }
+
+  /**
+   * Save the active calls to the recovery marker so they can be recovered
+   * after a page reload, or remove the marker when there is nothing to
+   * recover. A failure is logged and ignored so it cannot break the unload.
+   */
+  private _saveRecoveryMarker() {
+    try {
+      const calls = this.getActiveCalls();
+      if (!this.sessionid || calls.length === 0) {
+        logger.debug(
+          `No sessionID ${this.sessionid} or activeCalls ${calls.length} during saving calls recover marker!`
+        );
+        clearActiveCallsRecoveryMarker();
+        return;
+      }
+
+      const storedCalls = calls.map((call) => this._toStoredCall(call));
+      logger.info(
+        `Saving recovery marker for ${storedCalls.length} active call(s) before unload (sessid=${this.sessionid}): [${storedCalls
+          .map((c) => c.id)
+          .join(', ')}].`
+      );
+      setActiveCallsRecoveryMarker(storedCalls, this.sessionid);
+    } catch (err) {
+      logger.debug(
+        `Failed to save active-calls recovery marker before unload: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+  }
+
+  /**
+   * The plain values the recovery marker keeps for a call. Credentials, SDP,
+   * streams and DOM elements are never stored (VSDK-316).
+   */
+  private _toStoredCall(call: IWebRTCCall): IStoredActiveCall {
+    // Media elements are stored by element id only. A call that uses the
+    // session-level element stores the session's element id (VSDK-408).
+    const elementId = (
+      callElement: unknown,
+      sessionElement: unknown,
+      sessionElementId: string | null
+    ) => {
+      if (typeof callElement === 'string') return callElement;
+      if (sessionElementId && callElement === sessionElement) {
+        return sessionElementId;
+      }
+      return undefined;
+    };
+
+    return {
+      id: call.id,
+      customHeaders: call.options.customHeaders,
+      wasHeld: call.state === 'held',
+      audioMuted: call.isAudioMuted === true,
+      forceRelayCandidate: call.shouldForceRelayCandidateForRecovery(),
+      remoteElement: elementId(
+        call.options.remoteElement,
+        this.remoteElement,
+        this.remoteElementId
+      ),
+      localElement: elementId(
+        call.options.localElement,
+        this.localElement,
+        this.localElementId
+      ),
+    };
+  }
+
+  /** Send each active call's report so far before the page goes away. */
+  private _flushCallReportsOnUnload() {
+    this.getActiveCalls().forEach((call) => {
+      if (!call.flushIntermediateCallReport) return;
+      try {
+        logger.debug(`pagehide: flushing call report for ${call.id}.`);
+        call.flushIntermediateCallReport({ type: 'page-unload' });
+      } catch (err) {
+        logger.debug(
+          `pagehide: failed to flush call report for ${call.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
     });
   }
 
