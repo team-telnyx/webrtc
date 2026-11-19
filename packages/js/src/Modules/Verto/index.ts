@@ -36,29 +36,23 @@ export default class Verto extends BrowserSession {
     super(options);
     this._vertoHandler = new VertoHandler(this);
 
-    const hangupOnUnload = options.hangupOnBeforeUnload !== false;
-
-    // Default: hang up the calls on unload, so nothing is recovered after the
-    // reload. beforeunload fires first on desktop browsers.
     window.addEventListener('beforeunload', () => {
       logger.debug('Window beforeunload triggered.');
-      if (hangupOnUnload) this._hangUpCallsOnUnload('sdk:beforeunload');
-    });
 
-    // pagehide fires on every reload and close, including iOS Safari, which
-    // never fires beforeunload, and not when a navigation is cancelled.
-    window.addEventListener('pagehide', () => {
-      logger.debug('Window pagehide triggered.');
-      if (hangupOnUnload) {
-        // Hangs up only the calls beforeunload did not reach (iOS Safari).
-        this._hangUpCallsOnUnload('sdk:pagehide');
+      if (options.hangupOnBeforeUnload !== false) {
+        // Default: hang up the calls and forget the reconnect token, so there
+        // is nothing to recover after the reload.
+        clearReconnectToken();
+        Object.entries(this.calls ?? {}).forEach(([callId, call]) => {
+          logger.info(`Hanging up call due to window unload: ${callId}`);
+          void call.hangup({ initiator: 'sdk:beforeunload' }, true);
+        });
         return;
       }
 
-      // `hangupOnBeforeUnload: false`: the calls stay up on the server so
-      // they can be recovered after the reload. Save them before flushing
-      // call reports: the flush clears the evidence the relay policy is
-      // evaluated from.
+      // The calls stay up on the server so they can be recovered after the
+      // reload. Save them before flushing call reports: the flush clears the
+      // evidence the relay policy is evaluated from.
       this._saveRecoveryMarker();
       this._flushCallReportsOnUnload();
     });
@@ -93,19 +87,6 @@ export default class Verto extends BrowserSession {
         'visibilitychange → hidden: re-stamping reconnect session-id freshness.'
       );
       setReconnectSessionId(this.sessionid);
-    });
-  }
-
-  /**
-   * Hang up the calls that are still up and forget the reconnect token, so
-   * nothing is recovered after the reload. Calls that are already ending are
-   * skipped: hanging up again would send a second BYE.
-   */
-  private _hangUpCallsOnUnload(initiator: 'sdk:beforeunload' | 'sdk:pagehide') {
-    clearReconnectToken();
-    this.getActiveCalls().forEach((call) => {
-      logger.info(`Hanging up call due to window unload: ${call.id}`);
-      void call.hangup({ initiator }, true);
     });
   }
 
@@ -184,11 +165,11 @@ export default class Verto extends BrowserSession {
     this.getActiveCalls().forEach((call) => {
       if (!call.flushIntermediateCallReport) return;
       try {
-        logger.debug(`pagehide: flushing call report for ${call.id}.`);
+        logger.debug(`beforeunload: flushing call report for ${call.id}.`);
         call.flushIntermediateCallReport({ type: 'page-unload' });
       } catch (err) {
         logger.debug(
-          `pagehide: failed to flush call report for ${call.id}: ${
+          `beforeunload: failed to flush call report for ${call.id}: ${
             err instanceof Error ? err.message : String(err)
           }`
         );
