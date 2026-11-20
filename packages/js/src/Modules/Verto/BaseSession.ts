@@ -48,6 +48,7 @@ import {
   getReconnectSessionId,
   getReconnectToken,
   getReconnectTokenCanaryRtcServer,
+  getReconnectTokenRegion,
   clearReconnectToken,
   isReconnectSessionIdFresh,
   setReconnectSessionId,
@@ -90,6 +91,8 @@ export default abstract class BaseSession {
   /** Canary routing override associated with the persisted voice_sdk_id. */
   public reconnectTokenCanaryRtcServer: boolean | undefined =
     getReconnectTokenCanaryRtcServer();
+  /** The pinned `region` the persisted voice_sdk_id was issued under (`null`: unpinned). */
+  public reconnectTokenRegion: string | null = getReconnectTokenRegion();
   public dc: string | null = null;
   public region: string | null = null;
 
@@ -548,6 +551,7 @@ export default abstract class BaseSession {
     clearReconnectToken();
     this.reconnectTokenVoiceSdkId = null;
     this.reconnectTokenCanaryRtcServer = undefined;
+    this.reconnectTokenRegion = null;
   }
 
   /**

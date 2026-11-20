@@ -34,6 +34,7 @@ export interface IStoredActiveCalls {
 
 const STORAGE_KEY = 'telnyx-voice-sdk-id';
 const CANARY_RTC_SERVER_STORAGE_KEY = 'telnyx-voice-sdk-id-canary-rtc-server';
+const REGION_STORAGE_KEY = 'telnyx-voice-sdk-id-region';
 const SESSION_ID_STORAGE_KEY = 'telnyx-voice-sdk-session-id';
 const SESSION_ID_STORED_AT_STORAGE_KEY =
   'telnyx-voice-sdk-session-id-stored-at';
@@ -66,9 +67,20 @@ export function getReconnectTokenCanaryRtcServer(): boolean | undefined {
   return undefined;
 }
 
+/**
+ * The `region` the session was pinned to when the stored voice_sdk_id was
+ * issued, or `null` when it was issued on the default (unpinned) host. The
+ * token identifies a media server chosen for that region, so a session pinned
+ * to another region must not present it.
+ */
+export function getReconnectTokenRegion(): string | null {
+  return safeGetItem(REGION_STORAGE_KEY) || null;
+}
+
 export function setReconnectToken(
   token: string,
-  useCanaryRtcServer?: boolean
+  useCanaryRtcServer?: boolean,
+  region?: string | null
 ): void {
   sessionStorage.setItem(STORAGE_KEY, token);
   if (typeof useCanaryRtcServer === 'boolean') {
@@ -78,6 +90,11 @@ export function setReconnectToken(
     );
   } else {
     sessionStorage.removeItem(CANARY_RTC_SERVER_STORAGE_KEY);
+  }
+  if (typeof region === 'string' && region !== '') {
+    sessionStorage.setItem(REGION_STORAGE_KEY, region);
+  } else {
+    sessionStorage.removeItem(REGION_STORAGE_KEY);
   }
 }
 
@@ -105,6 +122,7 @@ export function setReconnectSessionId(
 export function clearReconnectToken(): void {
   sessionStorage.removeItem(STORAGE_KEY);
   sessionStorage.removeItem(CANARY_RTC_SERVER_STORAGE_KEY);
+  sessionStorage.removeItem(REGION_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
   sessionStorage.removeItem(SESSION_ID_STORED_AT_STORAGE_KEY);
 }

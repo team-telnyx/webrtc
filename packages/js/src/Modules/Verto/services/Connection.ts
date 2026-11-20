@@ -22,6 +22,7 @@ import logger from '../util/logger';
 import {
   getReconnectToken,
   getReconnectTokenCanaryRtcServer,
+  getReconnectTokenRegion,
   setReconnectToken,
 } from '../util/reconnect';
 import { GatewayStateType } from '../webrtc/constants';
@@ -46,6 +47,10 @@ const WS_STATE = {
  * reasons including network changes, browser bugs, or system sleep.
  */
 const CLOSE_SAFETY_TIMEOUT_MS = 5000;
+
+/** The `region` option as a comparable value: a non-empty string, else `null`. */
+const pinnedRegion = (region: unknown): string | null =>
+  typeof region === 'string' && region.trim() !== '' ? region.trim() : null;
 
 export default class Connection {
   public previousGatewayState = '';
@@ -143,9 +148,14 @@ export default class Connection {
       this.session.reconnectTokenVoiceSdkId = storedReconnectToken;
       this.session.reconnectTokenCanaryRtcServer =
         getReconnectTokenCanaryRtcServer();
+      this.session.reconnectTokenRegion = getReconnectTokenRegion();
     }
     let reconnectToken = this.session.reconnectTokenVoiceSdkId;
     let canaryRtcServerForConnection: boolean | undefined;
+    // The region this connection is pinned to (`null` on the default host).
+    // A stored voice_sdk_id names a media server picked for the region it was
+    // issued under, so it is only presented again for that same region.
+    const regionForConnection = pinnedRegion(this.session.options.region);
 
     if (this.session.options.rtcIp && this.session.options.rtcPort) {
       reconnectToken = null;
@@ -181,6 +191,18 @@ export default class Connection {
           current: canaryRtcServerForConnection,
         });
       }
+    }
+
+    const reconnectTokenRegion = this.session.reconnectTokenRegion ?? null;
+    if (
+      websocketUrl.searchParams.has('voice_sdk_id') &&
+      regionForConnection !== reconnectTokenRegion
+    ) {
+      websocketUrl.searchParams.delete('voice_sdk_id');
+      logger.debug('Region changed. Refreshing voice_sdk_id', {
+        previous: reconnectTokenRegion,
+        current: regionForConnection,
+      });
     }
 
     // Snapshot the owning session's voice_sdk_id for call report uploads.
@@ -220,7 +242,11 @@ export default class Connection {
       });
       this.lastInboundAt = 0;
       this._cleanupPendingRequests();
-      this._registerSocketEvents(this._wsClient, canaryRtcServerForConnection);
+      this._registerSocketEvents(
+        this._wsClient,
+        canaryRtcServerForConnection,
+        regionForConnection
+      );
     } catch (error) {
       this.session._registrationTimings?.mark('WebSocket construction failed');
       logger.error('WebSocket connection failed:', error);
@@ -367,7 +393,8 @@ export default class Connection {
 
   private _registerSocketEvents(
     ws: WebSocket,
-    canaryRtcServerForConnection: boolean | undefined
+    canaryRtcServerForConnection: boolean | undefined,
+    regionForConnection: string | null
   ): void {
     // Capture the generation at registration time — when this socket's
     // event handlers are being attached — not at event-dispatch time.
@@ -497,7 +524,12 @@ export default class Connection {
         this.session.reconnectTokenVoiceSdkId = msg.voice_sdk_id;
         this.session.reconnectTokenCanaryRtcServer =
           canaryRtcServerForConnection;
-        setReconnectToken(msg.voice_sdk_id, canaryRtcServerForConnection);
+        this.session.reconnectTokenRegion = regionForConnection;
+        setReconnectToken(
+          msg.voice_sdk_id,
+          canaryRtcServerForConnection,
+          regionForConnection
+        );
       }
       this._unsetTimer(msg.id);
       logger.debug('RECV: \n', JSON.stringify(msg, null, 2), '\n');
