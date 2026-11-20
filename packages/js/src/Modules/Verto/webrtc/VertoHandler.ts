@@ -607,6 +607,14 @@ class VertoHandler {
                   session.region = region;
                 }
 
+                // TURN follows where the media is anchored (media_region,
+                // the region of the server's media datacenter), else the
+                // signaling region.
+                const mediaRegion = msg?.result?.params?.media_region;
+                if (mediaRegion || region) {
+                  session.applyServerRegion(mediaRegion || region);
+                }
+
                 logger.info(
                   `Connected to Telnyx — region: ${session.region ?? 'unknown'}, dc: ${session.dc ?? 'unknown'}`
                 );

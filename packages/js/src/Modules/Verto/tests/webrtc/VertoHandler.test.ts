@@ -1018,6 +1018,144 @@ describe('VertoHandler', () => {
       expect(instance.region).toBe('eu-west');
     });
 
+    describe('TURN follows the server-reported region', () => {
+      const reged = (region: string) =>
+        handler.handleMessage({
+          jsonrpc: '2.0',
+          id: 'db971dc0-d571',
+          result: { params: { state: 'REGED', dc: 'mb2-ora', region } },
+          sessid: 'fab032b1-9b27-43fc',
+        });
+      const plainTurn = (session: BrowserSession) =>
+        session.iceServers
+          .map((s) => s.urls)
+          .filter((u) => typeof u === 'string' && u.startsWith('turn:'));
+
+      it('points the plain TURN entries at a published regional name', () => {
+        reged('asia');
+
+        expect(plainTurn(instance)).toEqual([
+          'turn:asia.turn.telnyx.com:3478?transport=udp',
+          'turn:asia.turn.telnyx.com:3478?transport=tcp',
+        ]);
+        expect(
+          instance.iceServers.some(
+            (s) => s.urls === 'turns:turn.telnyx.com:443'
+          )
+        ).toBe(true);
+      });
+
+      it('prefers media_region over the signaling region', () => {
+        handler.handleMessage({
+          jsonrpc: '2.0',
+          id: '1',
+          result: {
+            params: {
+              state: 'REGED',
+              dc: 'fr5-prod',
+              region: 'eu',
+              media_dc: 'mb2-ora',
+              media_region: 'asia',
+            },
+          },
+        });
+
+        expect(instance.region).toBe('eu');
+        expect(plainTurn(instance)).toEqual([
+          'turn:asia.turn.telnyx.com:3478?transport=udp',
+          'turn:asia.turn.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+
+      it('keeps the flat name for a region without a published TURN name', () => {
+        reged('eu-west');
+
+        expect(plainTurn(instance)).toEqual([
+          'turn:turn.telnyx.com:3478?transport=udp',
+          'turn:turn.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+
+      it('goes back to the flat name when a later REGED reports an unpublished region', () => {
+        reged('asia');
+        reged('eu-west');
+
+        expect(plainTurn(instance)).toEqual([
+          'turn:turn.telnyx.com:3478?transport=udp',
+          'turn:turn.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+
+      it('leaves an app-pinned region alone', () => {
+        const pinned = new Verto({
+          host: 'example.telnyx.com',
+          login: 'l',
+          password: 'p',
+          region: 'eu',
+        });
+        new VertoHandler(pinned).handleMessage({
+          jsonrpc: '2.0',
+          id: '1',
+          result: { params: { state: 'REGED', region: 'asia' } },
+        });
+
+        expect(plainTurn(pinned)).toEqual([
+          'turn:eu.turn.telnyx.com:3478?transport=udp',
+          'turn:eu.turn.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+
+      it('leaves app-provided iceServers alone', () => {
+        const custom = [
+          {
+            urls: 'turn:turn.example.com:3478',
+            username: 'u',
+            credential: 'c',
+          },
+        ];
+        const explicit = new Verto({
+          host: 'example.telnyx.com',
+          login: 'l',
+          password: 'p',
+          iceServers: custom,
+        });
+        new VertoHandler(explicit).handleMessage({
+          jsonrpc: '2.0',
+          id: '1',
+          result: { params: { state: 'REGED', region: 'asia' } },
+        });
+
+        expect(explicit.iceServers).toBe(custom);
+      });
+
+      it('uses the development list in development', () => {
+        const dev = new Verto({
+          host: 'example.telnyx.com',
+          login: 'l',
+          password: 'p',
+          env: 'development',
+        });
+        const handle = (region: string) =>
+          new VertoHandler(dev).handleMessage({
+            jsonrpc: '2.0',
+            id: '1',
+            result: { params: { state: 'REGED', region } },
+          });
+
+        handle('eu');
+        expect(plainTurn(dev)).toEqual([
+          'turn:turndev.telnyx.com:3478?transport=udp',
+          'turn:turndev.telnyx.com:3478?transport=tcp',
+        ]);
+
+        handle('us-central');
+        expect(plainTurn(dev)).toEqual([
+          'turn:us-central.turndev.telnyx.com:3478?transport=udp',
+          'turn:us-central.turndev.telnyx.com:3478?transport=tcp',
+        ]);
+      });
+    });
+
     it('should store call_report_id from REGED message params on the session', () => {
       handler.handleMessage(
         JSON.parse(

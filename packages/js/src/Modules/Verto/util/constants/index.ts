@@ -105,6 +105,43 @@ export function regionalTurnUrl(url: string, region: string): string {
 }
 
 /**
+ * Regions whose regional TURN name is published, per environment
+ * (`<region>.turn.telnyx.com` in production, `<region>.turndev.telnyx.com` in
+ * development). The SDK follows a region reported by the server (REGED) only
+ * to one of these: an unpublished name would miss the relays the flat name
+ * reaches.
+ */
+export const SERVER_TURN_REGIONS: Readonly<
+  Record<'production' | 'development', readonly string[]>
+> = {
+  production: [
+    'us-east',
+    'us-central',
+    'us-west',
+    'ca-central',
+    'eu',
+    'apac',
+    'asia',
+    'south-asia',
+    'me',
+  ],
+  development: ['us-central', 'us-west', 'apac'],
+};
+
+/** True when `region` has a published regional TURN name for `env`. */
+export function isServerTurnRegion(
+  env: string | undefined,
+  region: string | null | undefined
+): boolean {
+  if (!region) return false;
+  const regions =
+    env === 'development'
+      ? SERVER_TURN_REGIONS.development
+      : SERVER_TURN_REGIONS.production;
+  return regions.includes(region);
+}
+
+/**
  * The SDK's default ICE servers for an environment. When a region is pinned
  * the plain TURN entries (UDP/TCP 3478) point at that region's TURN name, so
  * media relay follows the same region as signaling (`<region>.rtc.telnyx.com`)
