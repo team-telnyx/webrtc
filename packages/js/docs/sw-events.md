@@ -25,13 +25,13 @@ This document catalogs the remaining `SwEvent` constants exposed by the WebRTC J
 
 ## SwEvent Overview
 
-| **EVENT**             | **CATEGORY**      | **DESCRIPTION**                                                     | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                   |
-| --------------------- | ----------------- | ------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `telnyx.ready`        | Session readiness | SDK is authenticated and the gateway reports `REGED`                | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises               |
-| `telnyx.notification` | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`) | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events |
-| `telnyx.ai.conversation` | AI Conversation | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent` | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
-| `telnyx.stats.frame`  | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter    | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                         |
-| `telnyx.stats.report` | Diagnostics       | Entire timeline returned when stats capture stops                   | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                 |
+| **EVENT**                | **CATEGORY**      | **DESCRIPTION**                                                         | **PAYLOAD SHAPE**                   | **TYPICAL USE**                                                              |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| `telnyx.ready`           | Session readiness | SDK is authenticated and the gateway reports `REGED`                    | `{ type: 'vertoClientReady', ... }` | Enable dial-pad/UI, resolve "client ready" promises                          |
+| `telnyx.notification`    | Session readiness | Generic call/session updates (e.g., `callUpdate`, `userMediaError`)     | `params` from Verto RPC             | Drive call state machines, show call errors, react to chat events            |
+| `telnyx.ai.conversation` | AI Conversation   | Inbound `ai_conversation` message with client-side tool `function_call` | `IAIConversationMessageEvent`       | Execute client-side tools and respond via `call.sendAIConversationMessage()` |
+| `telnyx.stats.frame`     | Diagnostics       | One-second slices of WebRTC stats captured by the debug reporter        | `{ jitter, rtt, mos, ... }`         | Plot live charts or compute health scores                                    |
+| `telnyx.stats.report`    | Diagnostics       | Entire timeline returned when stats capture stops                       | `Array<WebRTCStatsTimelineEntry>`   | Persist logs, attach diagnostics to support cases                            |
 
 ## Event Details
 
@@ -52,10 +52,10 @@ client.on('telnyx.ready', () => {
 });
 ```
 
-| Property        | Type             | Description                                                                                                              |
-| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Property        | Type             | Description                                                                                                                                                        |
+| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `client.region` | `string \| null` | The region the client is connected to (e.g., `"apac"`, `"eu"`, `"us-east"`, `"us-west"`, `"us-central"`, `"ca-central"`, `"asia"`, `"in"`, `"me"`, `"au"`, `"sy"`) |
-| `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                         |
+| `client.dc`     | `string \| null` | The specific datacenter code (e.g., `"cn1"`, `"fr5"`, `"ch1"`, `"at1"`, `"lv1"`)                                                                                   |
 
 Both values are set from the gateway `REGED` response. They are `null` until the client is fully registered.
 
@@ -67,13 +67,13 @@ Only `callUpdate` is the recommended notification type for application use. The 
 
 **Notification Types:**
 
-| `type`                       | Description                           | Payload                       | Status |
-| ---------------------------- | ------------------------------------- | ----------------------------- | ------ |
-| `callUpdate`                 | A call has changed state              | `{ call }`                    | Active |
-| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   | Deprecated |
-| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          | Deprecated — use `telnyx.ready` |
+| `type`                       | Description                           | Payload                       | Status                            |
+| ---------------------------- | ------------------------------------- | ----------------------------- | --------------------------------- |
+| `callUpdate`                 | A call has changed state              | `{ call }`                    | Active                            |
+| `userMediaError`             | Browser cannot access media devices   | `{ error }`                   | Deprecated                        |
+| `vertoClientReady`           | Client is ready to make/receive calls | `{}`                          | Deprecated — use `telnyx.ready`   |
 | `peerConnectionFailureError` | Peer connection failed                | `{ error }`                   | Deprecated — use `telnyx.warning` |
-| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` | Deprecated |
+| `signalingStateClosed`       | Peer signaling state closed           | `{ previousConnectionState }` | Deprecated                        |
 
 ### AI Conversation
 
@@ -104,6 +104,27 @@ The event payload is an `IAIConversationMessageEvent` with `method: 'ai_conversa
 #### `telnyx.stats.frame`
 
 Generated once per second while a `WebRTCStatsReporter` is running. The payload includes jitter, RTT, MOS, and inbound/outbound audio stats already normalized for charting. Subscribe when you need live graphs or to flag quality degradations in real time.
+
+The reporter runs only for calls with debug mode on: set [`debug`](https://team-telnyx.github.io/webrtc/interfaces/IClientOptions.html#debug) on the client or [`debug`](https://team-telnyx.github.io/webrtc/interfaces/ICallOptions.html#debug) in `newCall()`.
+
+| **FIELD**             | **DESCRIPTION**                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `jitter`              | Jitter the far end measures on the audio you send, in seconds                           |
+| `rtt`                 | Round-trip time to the far end, in seconds                                              |
+| `mos`                 | Estimated call quality score from 1 to 5                                                |
+| `quality`             | `mos` as a rating: `'excellent'`, `'good'`, `'fair'`, `'poor'` or `'bad'`               |
+| `inboundAudio`        | The browser's `inbound-rtp` stats for the audio you receive, plus the rate fields below |
+| `outboundAudio`       | The browser's `outbound-rtp` stats for the audio you send, plus the rate fields below   |
+| `remoteInboundAudio`  | The browser's `remote-inbound-rtp` stats: how the far end receives your audio           |
+| `remoteOutboundAudio` | The browser's `remote-outbound-rtp` stats: what the far end reports sending to you      |
+
+`inboundAudio` and `outboundAudio` also carry these rate fields, computed from the change since the previous frame:
+
+- `bitrate`: bits per second.
+- `packetRate`: packets per second. Opus audio with 20 ms packets runs at about 50.
+- `packetLossRate` (`inboundAudio` only): share of packets lost since the previous frame, from 0 to 1.
+
+The rate fields are missing or `null` until two frames can be compared, and `null` after the browser resets its counters, for example after an ICE restart.
 
 #### `telnyx.stats.report`
 
