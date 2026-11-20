@@ -319,6 +319,49 @@ describe('Verto', () => {
       clearActiveCallsRecoveryMarker();
     });
 
+    it('saves whether each call was held and muted in the recovery marker', () => {
+      const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      addEventListenerSpy.mockClear();
+      clearActiveCallsRecoveryMarker();
+
+      const telnyxRTC = _buildInstance({
+        host: 'example.telnyx.com',
+        login: 'login',
+        password: 'password',
+        hangupOnBeforeUnload: false,
+      });
+      telnyxRTC.sessionid = 'session-abc';
+      const buildCall = (id: string, state: string, isAudioMuted: boolean) =>
+        ({
+          id,
+          state,
+          isAudioMuted,
+          options: {},
+          shouldForceRelayCandidateForRecovery: jest.fn(() => false),
+        }) as unknown as IWebRTCCall;
+      telnyxRTC.calls = {
+        'call-held': buildCall('call-held', 'held', true),
+        'call-active': buildCall('call-active', 'active', false),
+      };
+
+      const beforeUnloadHandler = addEventListenerSpy.mock.calls.find(
+        ([eventName]) => eventName === 'beforeunload'
+      )?.[1] as EventListener;
+      beforeUnloadHandler(new Event('beforeunload'));
+
+      expect(
+        getActiveCallsRecoveryMarker()?.calls.map(
+          ({ id, wasHeld, audioMuted }) => ({ id, wasHeld, audioMuted })
+        )
+      ).toEqual([
+        { id: 'call-held', wasHeld: true, audioMuted: true },
+        { id: 'call-active', wasHeld: false, audioMuted: false },
+      ]);
+
+      addEventListenerSpy.mockRestore();
+      clearActiveCallsRecoveryMarker();
+    });
+
     it('should persist the session-level remoteElement/localElement string id in the recovery marker when a call relies on the session default (VSDK-408)', () => {
       const addEventListenerSpy = jest.spyOn(window, 'addEventListener');
       addEventListenerSpy.mockClear();
@@ -959,6 +1002,35 @@ describe('Verto', () => {
       expect(request.params).not.toHaveProperty('early_sdp_answer');
       expect(request.params).not.toHaveProperty('loginParams');
       expect(request.params.userVariables?.early_sdp_answer).toBeUndefined();
+    });
+  });
+
+  describe('socket open', () => {
+    it('records the calls awaiting reattach before sending the login', async () => {
+      const order: string[] = [];
+      const handler = (
+        instance as unknown as {
+          _vertoHandler: { trackCallsAwaitingReattach: () => void };
+        }
+      )._vertoHandler;
+      const track = jest
+        .spyOn(handler, 'trackCallsAwaitingReattach')
+        .mockImplementation(() => {
+          order.push('track');
+        });
+      const login = jest
+        .spyOn(instance, 'login')
+        .mockImplementation(async () => {
+          order.push('login');
+        });
+
+      await (
+        instance as unknown as { _onSocketOpen: () => Promise<void> }
+      )._onSocketOpen();
+
+      expect(order).toEqual(['track', 'login']);
+      track.mockRestore();
+      login.mockRestore();
     });
   });
 

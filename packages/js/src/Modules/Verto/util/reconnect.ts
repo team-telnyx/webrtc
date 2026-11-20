@@ -1,31 +1,29 @@
 import { IWebRTCCall } from '../webrtc/interfaces';
 import logger from './logger';
 
+/**
+ * What the recovery marker keeps for one call. Only plain values are stored:
+ * no SDP, credentials, streams or DOM elements (VSDK-316).
+ */
 export interface IStoredActiveCall {
   id: IWebRTCCall['id'];
   customHeaders: IWebRTCCall['options']['customHeaders'];
   /**
-   * Per-call remote media element, persisted **only** when it was supplied as
-   * a `string` (element id — the form `findElementByType` resolves via
-   * `document.getElementById`). DOM `HTMLMediaElement` instances and `Function`
-   * resolvers are NOT serializable and cannot survive a page reload, so they
-   * are intentionally omitted (VSDK-316 security constraints keep host objects
-   * out of sessionStorage). On attach-recovery after a reload, the SDK restores
-   * this id onto the recovered call so the app's new page can re-resolve the
-   * element by id. When omitted, the call falls back to the session-level
-   * `client.remoteElement`.
+   * Id of the call's remote media element, saved only when the element was
+   * given as a string id. The recovered call looks it up again by id; without
+   * it the call uses the session-level `client.remoteElement`.
    */
   remoteElement?: string;
-  /**
-   * Per-call local media element — mirrors {@link remoteElement} but for the
-   * local stream preview. Same string-only persistence constraint.
-   */
+  /** Id of the call's local media element; same rules as `remoteElement`. */
   localElement?: string;
-  /** True when the call was held when the marker was written (page-reload recovery). */
+  /** True when the call was held. */
   wasHeld?: boolean;
-  /** Evaluated relay policy for page-refresh recovery. */
+  /** Whether the microphone was muted. Missing in markers from older SDK versions. */
+  audioMuted?: boolean;
+  /** Relay policy evaluated for recovery. */
   forceRelayCandidate: boolean;
 }
+
 export interface IStoredActiveCalls {
   sessionId: string;
   calls: IStoredActiveCall[];
@@ -148,98 +146,68 @@ function safeRemoveItem(key: string): void {
   }
 }
 
-// ── Active-calls recovery marker helpers ────────────────────────────────
+// ── Recovery marker ─────────────────────────────────────────────────────
+// With `hangupOnBeforeUnload: false` the SDK saves its active calls here when
+// the page unloads. After the reload, in whichever order the messages arrive:
+// - each `telnyx_rtc.attach` takes its call's record to recover the call
+//   ({@link takeSavedCall})
+// - `reattached_sessions` takes the records of the calls the server did not
+//   re-attach ({@link takeSavedCallsNotIn})
+// The marker is removed once its last record is taken.
 
-/**
- * Remove the persisted active-calls recovery marker (single key).
- */
+/** Remove the recovery marker. */
 export function clearActiveCallsRecoveryMarker(): void {
   safeRemoveItem(ACTIVE_CALLS_STORAGE_KEY);
 }
 
 /**
- * Read the persisted active-calls recovery marker. Returns the saved
- * {@link IStoredActiveCalls} record, or `null` when nothing is stored,
- * storage is unavailable, the payload is malformed, or the marker is
- * older than {@link RECOVERY_MARKER_MAX_AGE_MS}.
- *
- * This is a **peek** (non-consuming) read — the marker remains in storage so
- * that multiple consumers within the same reconnect/page-load cycle can read
- * it. In particular the page-reload recovery flow sends `reattached_sessions`
- * (clientReady) and then `telnyx_rtc.attach` as separate messages; the Attach
- * handler must still be able to read the marker to restore per-call media
- * elements after the `reattached_sessions` handler has already inspected it.
- * The marker is kept in sessionStorage until it is explicitly cleared by
- * {@link clearActiveCallsRecoveryMarker}, overwritten by
- * {@link setActiveCallsRecoveryMarker}, or invalidated by staleness here.
- * Callers that need at-most-once semantics (e.g. the `reattached_sessions`
- * notification handler) must clear explicitly after processing.
+ * Read the recovery marker without changing it. Returns `null`, and removes
+ * the marker, when it is malformed, has no calls, or is older than
+ * {@link RECOVERY_MARKER_MAX_AGE_MS}.
  */
 export function getActiveCallsRecoveryMarker(
   now = Date.now()
 ): IStoredActiveCalls | null {
   const raw = safeGetItem(ACTIVE_CALLS_STORAGE_KEY);
-
   if (!raw) {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(raw) as IStoredActiveCalls;
-
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.calls)) {
-      logger.debug(
-        'Active-calls recovery marker payload was malformed — discarded.'
-      );
-      clearActiveCallsRecoveryMarker();
-      return null;
-    }
-
-    const storedAt = Number(parsed.storedAt);
-    if (
-      !Number.isFinite(storedAt) ||
-      now - storedAt > RECOVERY_MARKER_MAX_AGE_MS
-    ) {
-      logger.debug(
-        'Active-calls recovery marker was stale or had an invalid timestamp — discarded.'
-      );
-      clearActiveCallsRecoveryMarker();
-      return null;
-    }
-
-    if (parsed.calls.length === 0) {
-      logger.debug(
-        'Active-calls recovery marker had no call records — discarded.'
-      );
-      clearActiveCallsRecoveryMarker();
-      return null;
-    }
-
-    return parsed;
-  } catch (err) {
-    logger.debug(
-      `Active-calls recovery marker JSON parse failed — discarded: ${
-        err instanceof Error ? err.message : String(err)
-      }`
-    );
+  const discard = (reason: string) => {
+    logger.debug(`Active-calls recovery marker ${reason} — discarded.`);
     clearActiveCallsRecoveryMarker();
     return null;
+  };
+
+  let parsed: IStoredActiveCalls;
+  try {
+    parsed = JSON.parse(raw) as IStoredActiveCalls;
+  } catch (err) {
+    return discard(
+      `JSON parse failed: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
+
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.calls)) {
+    return discard('payload was malformed');
+  }
+  const storedAt = Number(parsed.storedAt);
+  if (
+    !Number.isFinite(storedAt) ||
+    now - storedAt > RECOVERY_MARKER_MAX_AGE_MS
+  ) {
+    return discard('was stale or had an invalid timestamp');
+  }
+  if (parsed.calls.length === 0) {
+    return discard('had no call records');
+  }
+  return parsed;
 }
 
 /**
- * Persist the active-call recovery marker — a narrow projection of each
- * active Call (only `id` plus optional `options.telnyxSessionId` /
- * `options.telnyxCallControlId` correlation identifiers) — before page
- * unload, along with the sessid that was active at save time. Stored as a
- * single JSON blob under a single sessionStorage key. Writes are wrapped in
- * try/catch so a blocked/unavailable `sessionStorage` silently no-ops,
- * matching the safety pattern of the reconnect-token helpers.
- *
- * Persisting only the narrow projection (rather than the full `Call`) keeps
- * credentials, tokens, SDP, ICE/TURN secrets, custom header values, and
- * non-serializable host objects (`localStream`, `remoteStream`, `RTCPeerConnection`)
- * out of `sessionStorage` (VSDK-316 security constraints).
+ * Save the recovery marker under a single sessionStorage key. An empty list
+ * removes the marker instead. A blocked or unavailable sessionStorage is
+ * ignored.
  */
 export function setActiveCallsRecoveryMarker(
   calls: IStoredActiveCall[],
@@ -247,15 +215,66 @@ export function setActiveCallsRecoveryMarker(
   storedAt = Date.now()
 ): void {
   if (!Array.isArray(calls) || calls.length === 0) {
-    // Defensive: never persist an empty marker — a future reload would have
-    // nothing to compare and the entry would be dead state.
     clearActiveCallsRecoveryMarker();
     return;
   }
-  const payload: IStoredActiveCalls = {
-    sessionId,
-    calls,
-    storedAt,
-  };
+  const payload: IStoredActiveCalls = { sessionId, calls, storedAt };
   safeSetItem(ACTIVE_CALLS_STORAGE_KEY, JSON.stringify(payload));
+}
+
+/**
+ * Remove and return the saved calls of `sessionId` that match `shouldTake`.
+ * A marker saved for another session holds none of this session's calls: it
+ * is dropped and nothing is returned.
+ */
+function takeSavedCalls(
+  sessionId: string,
+  shouldTake: (call: IStoredActiveCall) => boolean
+): IStoredActiveCall[] {
+  const marker = getActiveCallsRecoveryMarker();
+  if (!marker || !sessionId) {
+    return [];
+  }
+
+  if (marker.sessionId !== sessionId) {
+    logger.info(
+      `Recovery marker was saved for session ${marker.sessionId}, not the current session ${sessionId} — dropping it.`
+    );
+    clearActiveCallsRecoveryMarker();
+    return [];
+  }
+
+  // Malformed records are skipped, and dropped when the marker is saved again.
+  const calls = marker.calls.filter(
+    (call) =>
+      call !== null && typeof call === 'object' && typeof call.id === 'string'
+  );
+  const taken = calls.filter(shouldTake);
+  if (taken.length > 0) {
+    setActiveCallsRecoveryMarker(
+      calls.filter((call) => !taken.includes(call)),
+      marker.sessionId,
+      marker.storedAt
+    );
+  }
+  return taken;
+}
+
+/**
+ * Remove and return the saved record of `callId`, or `null` when the call was
+ * not saved for `sessionId`.
+ */
+export function takeSavedCall(
+  callId: string,
+  sessionId: string
+): IStoredActiveCall | null {
+  return takeSavedCalls(sessionId, (call) => call.id === callId)[0] ?? null;
+}
+
+/** Remove and return the saved calls of `sessionId` whose id is not in `ids`. */
+export function takeSavedCallsNotIn(
+  ids: ReadonlySet<string>,
+  sessionId: string
+): IStoredActiveCall[] {
+  return takeSavedCalls(sessionId, (call) => !ids.has(call.id));
 }

@@ -9,6 +9,8 @@ import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
   clearActiveCallsRecoveryMarker,
+  takeSavedCall,
+  takeSavedCallsNotIn,
   RECOVERY_MARKER_MAX_AGE_MS,
   type IStoredActiveCall,
 } from '../util/reconnect';
@@ -403,5 +405,141 @@ describe('active-calls recovery marker storage', () => {
     // Storage is NOT cleared after a successful peek read.
     expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).not.toBeNull();
     clearActiveCallsRecoveryMarker();
+  });
+});
+
+describe('taking calls out of the recovery marker', () => {
+  beforeEach(() => {
+    clearActiveCallsRecoveryMarker();
+  });
+
+  afterEach(() => {
+    clearActiveCallsRecoveryMarker();
+  });
+
+  const saveCalls = (
+    ids: string[],
+    sessionId = 'sess-take',
+    storedAt = Date.now()
+  ) =>
+    setActiveCallsRecoveryMarker(
+      ids.map((id) => asStoredCall({ id, forceRelayCandidate: false })),
+      sessionId,
+      storedAt
+    );
+
+  const savedIds = () =>
+    getActiveCallsRecoveryMarker()?.calls.map((c) => c.id) ?? null;
+
+  describe('takeSavedCall', () => {
+    it('returns the saved record and removes only that call', () => {
+      const storedAt = Date.now();
+      saveCalls(['call-held', 'call-active'], 'sess-take', storedAt);
+
+      expect(takeSavedCall('call-held', 'sess-take')).toEqual({
+        id: 'call-held',
+        forceRelayCandidate: false,
+      });
+      expect(savedIds()).toEqual(['call-active']);
+      // The original timestamp is kept, so the 15-minute limit is not reset.
+      expect(getActiveCallsRecoveryMarker()?.storedAt).toBe(storedAt);
+    });
+
+    it('removes the marker once the last call is taken', () => {
+      saveCalls(['call-held', 'call-active']);
+
+      takeSavedCall('call-held', 'sess-take');
+      takeSavedCall('call-active', 'sess-take');
+
+      expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+      expect(takeSavedCall('call-held', 'sess-take')).toBeNull();
+    });
+
+    it('returns null for a call that was not saved and leaves the marker unchanged', () => {
+      saveCalls(['call-held', 'call-active']);
+
+      expect(takeSavedCall('call-unknown', 'sess-take')).toBeNull();
+      expect(savedIds()).toEqual(['call-held', 'call-active']);
+    });
+
+    it('returns null and drops a marker saved for another session', () => {
+      saveCalls(['call-held'], 'sess-before-reload');
+
+      expect(takeSavedCall('call-held', 'sess-other')).toBeNull();
+      expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    });
+
+    it('returns null and keeps the marker while the session id is unknown', () => {
+      saveCalls(['call-held']);
+
+      expect(takeSavedCall('call-held', '')).toBeNull();
+      expect(savedIds()).toEqual(['call-held']);
+    });
+
+    it('returns null for a stale marker', () => {
+      saveCalls(
+        ['call-held'],
+        'sess-take',
+        Date.now() - RECOVERY_MARKER_MAX_AGE_MS - 1
+      );
+
+      expect(takeSavedCall('call-held', 'sess-take')).toBeNull();
+    });
+
+    it('skips malformed records', () => {
+      sessionStorage.setItem(
+        ACTIVE_CALLS_KEY,
+        JSON.stringify({
+          sessionId: 'sess-take',
+          storedAt: Date.now(),
+          calls: [null, 'bad', { id: 123 }, { id: 'call-active' }],
+        })
+      );
+
+      expect(takeSavedCall('call-active', 'sess-take')).toEqual({
+        id: 'call-active',
+      });
+      // Nothing valid is left, so the marker is removed.
+      expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    });
+  });
+
+  describe('takeSavedCallsNotIn', () => {
+    it('returns and removes the saved calls missing from the list', () => {
+      saveCalls(['call-a', 'call-b', 'call-c']);
+
+      const taken = takeSavedCallsNotIn(new Set(['call-b']), 'sess-take');
+
+      expect(taken.map((c) => c.id)).toEqual(['call-a', 'call-c']);
+      expect(savedIds()).toEqual(['call-b']);
+    });
+
+    it('returns every saved call for an empty list and removes the marker', () => {
+      saveCalls(['call-a', 'call-b']);
+
+      const taken = takeSavedCallsNotIn(new Set(), 'sess-take');
+
+      expect(taken.map((c) => c.id)).toEqual(['call-a', 'call-b']);
+      expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    });
+
+    it('returns nothing when every saved call is listed', () => {
+      saveCalls(['call-a', 'call-b']);
+
+      expect(
+        takeSavedCallsNotIn(
+          new Set(['call-a', 'call-b', 'call-x']),
+          'sess-take'
+        )
+      ).toEqual([]);
+      expect(savedIds()).toEqual(['call-a', 'call-b']);
+    });
+
+    it('returns nothing and drops a marker saved for another session', () => {
+      saveCalls(['call-a'], 'sess-before-reload');
+
+      expect(takeSavedCallsNotIn(new Set(), 'sess-other')).toEqual([]);
+      expect(sessionStorage.getItem(ACTIVE_CALLS_KEY)).toBeNull();
+    });
   });
 });
