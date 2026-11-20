@@ -606,6 +606,114 @@ describe('Call Trickle ICE', () => {
       ).toBeUndefined();
     });
 
+    it('does not emit a second Invite for an established callID when the restart Modify succeeds', async () => {
+      // Regression test for VSDK-525.
+      //
+      // Applying the Modify answer triggers renegotiation, which fires
+      // onLocalSdpReady again with the post-restart (gen-1) offer. If
+      // isIceRestarting has already been cleared at that point, that offer
+      // takes the PeerType.Offer branch and the SDK sends a second Invite
+      // reusing this call's ID. The server answers an Invite for an existing
+      // dialog with DESTINATION_OUT_OF_ORDER and the call is torn down.
+      // Let the initial invite() from beforeEach settle first, so its Invite
+      // cannot land inside this test's await window and be mistaken for the
+      // duplicate one we are asserting against.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const sessionExecuteSpy = jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      // Applying the remote answer re-enters the local-SDP-ready path once,
+      // exactly as a real renegotiation does.
+      let renegotiated = false;
+      jest.spyOn(call as any, '_onRemoteSdp').mockImplementation(async () => {
+        if (renegotiated) {
+          return;
+        }
+        renegotiated = true;
+        (call as any)._onTrickleIceSdp({
+          type: 'offer' as RTCSdpType,
+          sdp: restartSdp,
+        });
+      });
+
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      // Let the Modify promise chain settle.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const methods = sessionExecuteSpy.mock.calls.map(
+        (c) => (c[0] as any)?.request?.method
+      );
+      expect(methods).toContain(VertoMethod.Modify);
+      expect(methods).not.toContain(VertoMethod.Invite);
+    });
+
+    it('clears isIceRestarting only after the remote answer has been applied', async () => {
+      jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      let restartingWhileApplyingAnswer: boolean | undefined;
+      jest.spyOn(call as any, '_onRemoteSdp').mockImplementation(async () => {
+        restartingWhileApplyingAnswer = call.peer.isIceRestarting;
+      });
+
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(restartingWhileApplyingAnswer).toBe(true);
+      expect(call.peer.isIceRestarting).toBe(false);
+    });
+
+    it('still reports failure when applying the remote answer throws', async () => {
+      // Awaiting _onRemoteSdp inside the .then() means its rejection has to
+      // travel through the try/finally to reach the .catch(). Assert the
+      // failure path is intact: the error is logged and emitted as
+      // telnyx.error (ICE_RESTART_FAILED) via _onIceRestartFailed, SignalingHealth
+      // is notified, and the restart gate is released so a later attempt is
+      // possible.
+      jest
+        .spyOn((call as any).session, 'execute')
+        .mockResolvedValue({ sdp: remoteSdp });
+
+      const applyError = new Error('setRemoteDescription failed');
+      jest.spyOn(call as any, '_onRemoteSdp').mockRejectedValue(applyError);
+
+      const failedSpy = jest.spyOn(call as any, '_onIceRestartFailed');
+      const reportSpy = jest.fn();
+      (call as any).session.reportIceRestartFailed = reportSpy;
+
+      call.peer.isIceRestarting = true;
+
+      (call as any)._onTrickleIceSdp({
+        type: 'offer' as RTCSdpType,
+        sdp: restartSdp,
+      });
+
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(failedSpy).toHaveBeenCalledWith(
+        'ICE restart Modify failed',
+        applyError
+      );
+      expect(reportSpy).toHaveBeenCalledWith(call.id);
+      // Otherwise the call could never restart ICE again.
+      expect(call.peer.isIceRestarting).toBe(false);
+    });
+
     it('reattached/recovered trickle call follows the trickle restart Modify flow', () => {
       const sessionExecuteSpy = jest
         .spyOn((call as any).session, 'execute')
