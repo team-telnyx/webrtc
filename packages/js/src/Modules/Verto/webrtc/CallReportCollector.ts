@@ -13,6 +13,7 @@
  */
 
 import logger from '../../../Modules/Verto/util/logger';
+import { SendCadenceSampler, ISendCadenceMetrics } from './SendCadenceSampler';
 import {
   LogCollector,
   ILogEntry,
@@ -302,6 +303,16 @@ export interface ICallReportOptions {
    * Set to 0 to disable time-based intermediate flushes.
    */
   intermediateReportInterval?: number;
+  /**
+   * Period in milliseconds at which the outbound packet counter is sampled to
+   * measure send cadence. Must be well below `interval` to be useful: a stall
+   * and the burst that flushes it cancel out inside a single sampling window,
+   * which is exactly why the 1 s `packetsSent` rate cannot see them.
+   *
+   * Set to 0 to disable. Defaults to
+   * {@link CallReportCollector.DEFAULT_SEND_CADENCE_INTERVAL_MS}.
+   */
+  sendCadenceInterval?: number;
 }
 
 export interface ILogCollectorOptions {
@@ -328,6 +339,11 @@ export interface IStatsInterval {
       targetBitrate?: number;
       totalPacketSendDelay?: number;
       active?: boolean;
+      /**
+       * Cadence of our own outbound RTP, sampled faster than this interval.
+       * Absent when cadence sampling is disabled or never produced a reading.
+       */
+      sendCadence?: ISendCadenceMetrics;
       codec?: {
         mimeType?: string;
         clockRate?: number;
@@ -587,6 +603,14 @@ export class CallReportCollector {
   private static readonly LOGS_FLUSH_THRESHOLD = 800; // flush before 1000 max
   private static readonly DEFAULT_INTERMEDIATE_REPORT_INTERVAL_MS = 180_000;
 
+  /**
+   * Default cadence sampling period. 250 ms resolves the 100–513 ms stalls
+   * measured in production while costing four `RTCRtpSender.getStats()` calls
+   * per second — a sender-scoped query, not the whole-connection graph that
+   * the 1 s collection uses.
+   */
+  private static readonly DEFAULT_SEND_CADENCE_INTERVAL_MS = 250;
+
   /** Callback invoked when buffered data should be posted as an intermediate report. */
   public onFlushNeeded: (() => void) | null = null;
 
@@ -657,6 +681,15 @@ export class CallReportCollector {
   /** Whether stop() has been requested (prevents timer re-scheduling). */
   private _stopped: boolean = false;
 
+  /**
+   * Measures whether our outbound RTP leaves on schedule. Null while cadence
+   * sampling is disabled, which keeps the `sendCadence` block out of the
+   * report entirely rather than reporting zeroes.
+   */
+  private _sendCadence: SendCadenceSampler | null = null;
+
+  private _sendCadenceTimerId: ReturnType<typeof setTimeout> | null = null;
+
   // ── Retry configuration ───────────────────────────────────────────
   private static readonly RETRY_DELAYS_MS = [500, 1000, 2000];
   private static readonly KEEPALIVE_BODY_LIMIT_BYTES = 60 * 1024;
@@ -702,6 +735,7 @@ export class CallReportCollector {
       logCollectorActive: this.logCollector?.isActive() ?? false,
     });
 
+    this._startSendCadenceSampling();
     this._scheduleNextCollection();
   }
 
@@ -718,6 +752,8 @@ export class CallReportCollector {
       clearTimeout(this.intervalId);
       this.intervalId = null;
     }
+
+    this._stopSendCadenceSampling();
 
     this.callEndTime = new Date();
 
@@ -1139,6 +1175,122 @@ export class CallReportCollector {
     this._isHeld = isHeld;
     this._trackBreach(LOW_INBOUND_AUDIO, false);
     this._trackBreach(LOW_BYTES_RECEIVED, false);
+  }
+
+  private _sendCadenceInterval(): number {
+    const configured = this.options.sendCadenceInterval;
+    if (configured === 0) {
+      return 0;
+    }
+    return this._positiveInterval(
+      configured,
+      CallReportCollector.DEFAULT_SEND_CADENCE_INTERVAL_MS
+    );
+  }
+
+  private _startSendCadenceSampling(): void {
+    const period = this._sendCadenceInterval();
+    if (period === 0) {
+      this._sendCadence = null;
+      return;
+    }
+
+    this._sendCadence = new SendCadenceSampler({ periodMs: period });
+    this._scheduleNextSendCadenceSample();
+  }
+
+  private _stopSendCadenceSampling(): void {
+    if (this._sendCadenceTimerId) {
+      clearTimeout(this._sendCadenceTimerId);
+      this._sendCadenceTimerId = null;
+    }
+  }
+
+  private _scheduleNextSendCadenceSample(): void {
+    if (
+      this._stopped ||
+      !this.peerConnection ||
+      !this._sendCadence ||
+      this._sendCadenceTimerId
+    ) {
+      return;
+    }
+
+    this._sendCadenceTimerId = setTimeout(() => {
+      this._sendCadenceTimerId = null;
+      this._sampleSendCadence().finally(() => {
+        if (!this._stopped && this.peerConnection) {
+          this._scheduleNextSendCadenceSample();
+        }
+      });
+    }, this._sendCadenceInterval());
+  }
+
+  /**
+   * Read the outbound packet counter once.
+   *
+   * Scoped to the audio sender rather than the whole connection:
+   * `RTCRtpSender.getStats()` resolves one stream's reports instead of walking
+   * the full stats graph, which is what makes a 250 ms period affordable.
+   */
+  private async _sampleSendCadence(): Promise<void> {
+    const sampler = this._sendCadence;
+    if (!sampler || !this.peerConnection) {
+      return;
+    }
+
+    try {
+      const sender = this._outboundAudioSender();
+      if (!sender || typeof sender.getStats !== 'function') {
+        return;
+      }
+
+      const stats = await sender.getStats();
+      let packetsSent: number | undefined;
+      let timestampMs: number | undefined;
+
+      stats.forEach((value) => {
+        const report = value as ExtendedOutboundRtpStreamStats;
+        if (report?.type !== 'outbound-rtp') {
+          return;
+        }
+        // A sender carries one media kind, but guard anyway so a future video
+        // sender cannot be read as audio cadence.
+        if (report.kind !== undefined && report.kind !== 'audio') {
+          return;
+        }
+        if (typeof report.packetsSent === 'number') {
+          packetsSent = report.packetsSent;
+        }
+        if (typeof report.timestamp === 'number') {
+          timestampMs = report.timestamp;
+        }
+      });
+
+      if (packetsSent === undefined || timestampMs === undefined) {
+        return;
+      }
+
+      sampler.addSample({ packetsSent, timestampMs });
+    } catch (error) {
+      // A cadence reading is diagnostic; failing to take one must never
+      // interfere with the report itself.
+      logger.debug('CallReportCollector: send cadence sample failed', {
+        error,
+      });
+    }
+  }
+
+  private _outboundAudioSender(): RTCRtpSender | null {
+    if (!this.peerConnection?.getSenders) {
+      return null;
+    }
+    const senders = this.peerConnection.getSenders() || [];
+    return (
+      senders.find((sender) => sender?.track?.kind === 'audio') ??
+      senders.find((sender) => !!sender) ??
+      null
+    );
   }
 
   private _scheduleNextCollection(): void {
@@ -1799,6 +1951,10 @@ export class CallReportCollector {
       intervalEndUtc: end.toISOString(),
     };
 
+    // Drained here rather than in _collectStats so the accumulators reset on
+    // exactly the intervals that reach the buffer.
+    const sendCadence = this._sendCadence?.drain() ?? null;
+
     // Audio stats
     entry.audio = {};
 
@@ -1831,6 +1987,7 @@ export class CallReportCollector {
         ...(outboundAudio.active !== undefined
           ? { active: outboundAudio.active }
           : {}),
+        ...(sendCadence ? { sendCadence } : {}),
         ...(outboundCodec
           ? {
               codec: this._buildCodecSnapshot(
