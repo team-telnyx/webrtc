@@ -139,6 +139,22 @@ export const SDK_WARNINGS = {
       'If the issue persists, report the call for server-side media investigation',
     ],
   },
+  31007: {
+    name: 'SUSTAINED_RTT_ELEVATION',
+    message: 'Round-trip time stepped up and stayed up',
+    description:
+      "Round-trip time rose sharply above this call's own established floor and held there for multiple consecutive stats intervals, rather than recovering. Unlike HIGH_RTT (31001), which compares against a fixed 400 ms threshold, this warning is relative: it fires on a call whose latency degraded mid-call even when the absolute value stays low, and stays quiet on a call that simply has a distant media server and a high but stable floor. The step-and-hold shape with little or no packet loss is characteristic of a server-side output queue that filled and did not drain, as opposed to network congestion, which varies.",
+    causes: [
+      'A media server output queue that filled after an arrival gap and did not drain',
+      'A route change mid-call onto a longer path',
+      'Sustained congestion on the access network that settled at a new level',
+    ],
+    solutions: [
+      'Report the call id for server-side media investigation — a step to a flat plateau is not usually a client-side condition',
+      'Check whether a network change (Wi-Fi to cellular, VPN connect) coincided with the step',
+      'Compare against the call report: a step with near-zero packet loss points at queueing rather than loss',
+    ],
+  },
 
   // ── Connection / data-flow warnings (320xx) ─────────────────────────
   32001: {

@@ -3,6 +3,7 @@ import {
   LOW_BYTES_RECEIVED,
   LOW_LOCAL_AUDIO,
   LOW_INBOUND_AUDIO,
+  SUSTAINED_RTT_ELEVATION,
 } from '../../util/constants/errorCodes';
 import type { ITelnyxWarning } from '../../util/constants/warnings';
 import {
@@ -12,6 +13,7 @@ import {
   type ILocalAudioTrackSnapshot,
   type IStatsInterval,
 } from '../../webrtc/CallReportCollector';
+import type { ISustainedRttState } from '../../webrtc/SustainedRttDetector';
 
 type SendPayload = (
   payload: unknown,
@@ -44,6 +46,7 @@ type TestableCallReportCollector = {
   ) => ICallReportPayload | null;
   onWarning: ((warning: ITelnyxWarning) => void) | null;
   setHeld: (isHeld: boolean) => void;
+  getSustainedRttState: () => ISustainedRttState;
   _withoutUndefined: <T extends Record<string, unknown>>(obj: T) => T;
   _checkQualityWarnings: (
     statsEntry: IStatsInterval,
@@ -1767,5 +1770,151 @@ describe('CallReportCollector codec identity collection', () => {
     expect(collector._getCodec(stats, 'not-a-codec')).toBeUndefined();
     expect(collector._getCodec(stats, undefined)).toBeUndefined();
     expect(collector._getCodec(stats, 'missing')).toBeUndefined();
+  });
+  describe('SUSTAINED_RTT_ELEVATION (31007)', () => {
+    /**
+     * Intervals shaped the way the collector hands them over, with the
+     * cumulative counters the relative detector reads.
+     */
+    const rttEntry = (
+      rttMs: number,
+      index: number,
+      options: { packets?: number; pairChanges?: number } = {}
+    ): IStatsInterval => ({
+      intervalStartUtc: `2026-07-22T00:00:${String(index).padStart(2, '0')}.000Z`,
+      intervalEndUtc: `2026-07-22T00:00:${String(index + 1).padStart(2, '0')}.000Z`,
+      connection: { roundTripTimeAvg: rttMs / 1000 },
+      audio: {
+        inbound: { bytesReceived: 5000 * (index + 1), audioLevelAvg: 0.3 },
+        outbound: {
+          bytesSent: 4000 * (index + 1),
+          packetsSent: options.packets ?? 50 * (index + 1),
+          audioLevelAvg: 0.3,
+        },
+      },
+      ice: {
+        state: 'succeeded',
+        requestsSent: index + 1,
+        responsesReceived: index + 1,
+      },
+      transport: { selectedCandidatePairChanges: options.pairChanges ?? 1 },
+    });
+
+    const push = (
+      collector: ReturnType<typeof createCollector>,
+      entries: IStatsInterval[]
+    ) => {
+      entries.forEach((entry) => {
+        (
+          collector as unknown as { statsBuffer: IStatsInterval[] }
+        ).statsBuffer.push(entry);
+        collector._checkQualityWarnings(entry, null);
+      });
+    };
+
+    const codes = (onWarning: jest.Mock) =>
+      onWarning.mock.calls.map((c) => c[0].code);
+
+    it('fires once per episode on a step that holds', () => {
+      const collector = createCollector();
+      const onWarning = jest.fn();
+      collector.onWarning = onWarning;
+
+      let i = 0;
+      const entries = [
+        ...Array.from({ length: 5 }, () => rttEntry(150, i++)),
+        ...Array.from({ length: 8 }, () => rttEntry(400, i++)),
+      ];
+      push(collector, entries);
+
+      const fired = codes(onWarning).filter(
+        (code) => code === SUSTAINED_RTT_ELEVATION
+      );
+      expect(fired).toHaveLength(1);
+    });
+
+    it('does not fire on a high but flat call, where HIGH_RTT does', () => {
+      const collector = createCollector();
+      const onWarning = jest.fn();
+      collector.onWarning = onWarning;
+
+      let i = 0;
+      push(
+        collector,
+        Array.from({ length: 12 }, () => rttEntry(460, i++))
+      );
+
+      // 31001 is exactly what a distant-but-healthy call looks like today.
+      expect(codes(onWarning)).toContain(31001);
+      expect(codes(onWarning)).not.toContain(SUSTAINED_RTT_ELEVATION);
+    });
+
+    it('fires on a step that never crosses the fixed 400 ms threshold', () => {
+      const collector = createCollector();
+      const onWarning = jest.fn();
+      collector.onWarning = onWarning;
+
+      // The Paris shape: 59 ms to 276 ms, a 4.7x degradation that 31001
+      // cannot see.
+      let i = 0;
+      push(collector, [
+        ...Array.from({ length: 5 }, () => rttEntry(59, i++)),
+        ...Array.from({ length: 8 }, () => rttEntry(276, i++)),
+      ]);
+
+      expect(codes(onWarning)).toContain(SUSTAINED_RTT_ELEVATION);
+      expect(codes(onWarning)).not.toContain(31001);
+    });
+
+    it('can fire again after the condition clears and returns', () => {
+      const collector = createCollector();
+      const onWarning = jest.fn();
+      collector.onWarning = onWarning;
+
+      let i = 0;
+      push(collector, [
+        ...Array.from({ length: 5 }, () => rttEntry(150, i++)),
+        ...Array.from({ length: 6 }, () => rttEntry(400, i++)),
+        ...Array.from({ length: 5 }, () => rttEntry(150, i++)),
+        ...Array.from({ length: 6 }, () => rttEntry(400, i++)),
+      ]);
+
+      const fired = codes(onWarning).filter(
+        (code) => code === SUSTAINED_RTT_ELEVATION
+      );
+      expect(fired).toHaveLength(2);
+    });
+
+    it('exposes the measured floor, lift and liveness', () => {
+      const collector = createCollector();
+      collector.onWarning = jest.fn();
+
+      let i = 0;
+      push(collector, [
+        ...Array.from({ length: 5 }, () => rttEntry(150, i++)),
+        ...Array.from({ length: 8 }, () => rttEntry(450, i++)),
+      ]);
+
+      const state = collector.getSustainedRttState();
+      expect(state.elevated).toBe(true);
+      expect(state.floorMs).toBe(150);
+      expect(state.liftMs).toBe(300);
+      expect(state.pathAliveAndResponsive).toBe(true);
+    });
+
+    it('is suppressed while held', () => {
+      const collector = createCollector();
+      const onWarning = jest.fn();
+      collector.onWarning = onWarning;
+      collector.setHeld(true);
+
+      let i = 0;
+      push(collector, [
+        ...Array.from({ length: 5 }, () => rttEntry(150, i++)),
+        ...Array.from({ length: 8 }, () => rttEntry(400, i++)),
+      ]);
+
+      expect(codes(onWarning)).not.toContain(SUSTAINED_RTT_ELEVATION);
+    });
   });
 });
