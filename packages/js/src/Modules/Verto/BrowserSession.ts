@@ -299,8 +299,10 @@ export default abstract class BrowserSession extends BaseSession {
     try {
       const stream = await getUserMedia({ audio, video });
       stopStream(stream);
+      if (stream) telemetryOf(this)?.mediaAccess({ audio, video });
       return true;
-    } catch {
+    } catch (error) {
+      telemetryOf(this)?.mediaAccess({ audio, video }, { error });
       return false;
     }
   }

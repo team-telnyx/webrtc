@@ -31,14 +31,24 @@ describe('Call Report V2 hooks', () => {
     expect((telemetry.client as any)._mirror).toBe(true); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(client.telemetry).toBe(telemetry.client);
     const pending = (telemetry.client as any)._pending; // eslint-disable-line @typescript-eslint/no-explicit-any
-    expect(pending.map((e: { name: string }) => e.name).slice(0, 3)).toEqual([
-      'sdk_creation_started',
-      'sdk_created',
-      'network_changed',
+    // Pending events are ClientEvent init objects: the name is the payload case.
+    expect(
+      pending
+        .map((e: { payload: { case: string } }) => e.payload.case)
+        .slice(0, 4)
+    ).toEqual([
+      'sdkCreationStarted',
+      'sdkCreated',
+      'audioPreferencesChanged',
+      'networkChanged',
     ]);
     expect(pending[0].sequence).toBe(1);
-    expect(pending[0].payload.options.login_type).toBe('token');
-    expect(JSON.stringify(pending)).not.toContain('"jwt"');
+    expect(pending[0].payload.value.options.loginType).toBe('token');
+    // Timestamps hold bigint seconds.
+    const text = JSON.stringify(pending, (_key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    );
+    expect(text).not.toContain('"jwt"');
     log.mockRestore();
   });
 
@@ -55,8 +65,8 @@ describe('Call Report V2 hooks', () => {
       'Invalid init options'
     );
     expect(emit.mock.calls.map((call) => call[0])).toEqual([
-      'sdk_creation_started',
-      'sdk_creation_failed',
+      'sdkCreationStarted',
+      'sdkCreationFailed',
     ]);
     expect(
       (emit.mock.calls[1][1] as { error: { code: string } }).error.code
@@ -122,6 +132,26 @@ describe('Call Report V2 hooks', () => {
         typeof WebSocket !== 'undefined' ? WebSocket : null
       );
     }
+  });
+
+  it('checkPermissions reports media_permission for each kind it asked for', async () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const access = jest.spyOn(telemetryOf(client), 'mediaAccess');
+    await expect(client.checkPermissions(true, false)).resolves.toBe(true);
+    expect(access).toHaveBeenLastCalledWith({ audio: true, video: false });
+    const denied = Object.assign(new Error('denied'), {
+      name: 'NotAllowedError',
+    });
+    const getUserMedia = jest
+      .spyOn(navigator.mediaDevices, 'getUserMedia')
+      .mockRejectedValueOnce(denied);
+    await expect(client.checkPermissions(true, true)).resolves.toBe(false);
+    expect(access).toHaveBeenLastCalledWith(
+      { audio: true, video: true },
+      { error: denied }
+    );
+    getUserMedia.mockRestore();
+    access.mockRestore();
   });
 
   it('forwards every SDK log line to the live telemetry clients', () => {

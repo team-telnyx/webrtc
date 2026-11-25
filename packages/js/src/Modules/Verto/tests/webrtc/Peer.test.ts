@@ -311,3 +311,52 @@ describe('Peer ICE candidate pool', () => {
     expect(poolSizeFor(false)).toBe(0);
   });
 });
+
+describe('Peer media access telemetry', () => {
+  type PeerWithLocalStream = {
+    _retrieveLocalStream: (afterRecovery?: boolean) => Promise<MediaStream>;
+  };
+
+  const createPeer = () => {
+    const peer = new Peer(
+      PeerType.Offer,
+      { id: 'call-1', audio: true, video: false } as IVertoCallOptions,
+      { options: {}, sessionid: 'session-1' } as unknown as BrowserSession,
+      jest.fn(),
+      jest.fn()
+    );
+    const onMediaAccess = jest.fn();
+    peer.telemetryHooks = { onMediaAccess };
+    return {
+      peer: peer as unknown as PeerWithLocalStream,
+      onMediaAccess,
+    };
+  };
+
+  it('reports a granted getUserMedia with its constraints', async () => {
+    const { peer, onMediaAccess } = createPeer();
+    await peer._retrieveLocalStream();
+    expect(onMediaAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ audio: expect.anything() }),
+      undefined,
+      false
+    );
+  });
+
+  it('reports a failed getUserMedia with its error, and the recovery retry', async () => {
+    const { peer, onMediaAccess } = createPeer();
+    const denied = Object.assign(new Error('denied'), {
+      name: 'NotAllowedError',
+    });
+    const getUserMedia = jest
+      .spyOn(navigator.mediaDevices, 'getUserMedia')
+      .mockRejectedValueOnce(denied);
+    await expect(peer._retrieveLocalStream(true)).rejects.toBe(denied);
+    expect(onMediaAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ audio: expect.anything() }),
+      denied,
+      true
+    );
+    getUserMedia.mockRestore();
+  });
+});

@@ -128,7 +128,7 @@ class VertoHandler {
 
           const error = createTelnyxError(SESSION_NOT_REATTACHED);
           telemetryOf(session)?.error('call', error, true, undefined, {
-            call_id: callId,
+            callId,
           });
           trigger(
             SwEvent.Error,
@@ -215,7 +215,7 @@ class VertoHandler {
                 error,
                 true,
                 { after_page_reload: true },
-                { call_id: call.id }
+                { callId: call.id }
               );
               trigger(
                 SwEvent.Error,

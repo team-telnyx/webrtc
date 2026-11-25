@@ -86,6 +86,12 @@ export default class Peer {
   public telemetryHooks: {
     onRemoteDescription?: (sdp: string) => void;
     onError?: (error: unknown) => void;
+    /** getUserMedia answered (error set: it failed); afterRecovery: the media-permission recovery retry. */
+    onMediaAccess?: (
+      constraints: MediaStreamConstraints,
+      error?: unknown,
+      afterRecovery?: boolean
+    ) => void;
   } | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -671,7 +677,7 @@ export default class Peer {
                 safetyTimeout = null;
               }
 
-              recoveredStream = await this._retrieveLocalStream();
+              recoveredStream = await this._retrieveLocalStream(true);
               recovery.onSuccess?.();
             })
             .catch((recoveryError) => {
@@ -1158,12 +1164,29 @@ export default class Peer {
       return transceiver.setCodecPreferences(codecs);
     }
   };
-  private async _retrieveLocalStream() {
+  private async _retrieveLocalStream(afterRecovery = false) {
     if (streamIsValid(this.options.localStream)) {
       return this.options.localStream;
     }
     const constraints = await getMediaConstraints(this.options);
-    return getUserMedia(constraints);
+    try {
+      const stream = await getUserMedia(constraints);
+      if (stream) {
+        this._notifyTelemetry(() =>
+          this.telemetryHooks?.onMediaAccess?.(
+            constraints,
+            undefined,
+            afterRecovery
+          )
+        );
+      }
+      return stream;
+    } catch (error) {
+      this._notifyTelemetry(() =>
+        this.telemetryHooks?.onMediaAccess?.(constraints, error, afterRecovery)
+      );
+      throw error;
+    }
   }
 
   private _isOffer(): boolean {
