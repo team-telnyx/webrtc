@@ -17,7 +17,7 @@ import {
 } from './CallRecorder';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
 import type { CallTelemetry } from '@telnyx/webrtc-telemetry';
-import { callTelemetry, telemetryOf } from '../telemetry';
+import { callTelemetry, callWarning, telemetryOf } from '../telemetry';
 import {
   Answer,
   Attach,
@@ -2636,7 +2636,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       };
 
       this._callReportCollector.onWarning = (warning) => {
-        this._callTelemetry?.onWarning(
+        callWarning(
+          this._callTelemetry,
           warning,
           this._callReportCollector?.getWarningDetails(warning.code)
         );

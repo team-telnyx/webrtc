@@ -1,5 +1,6 @@
 import { isFunction } from '../util/helpers';
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 type QueueMap = { [key: string]: Function[] };
 
 const GLOBAL = 'GLOBAL';
@@ -22,6 +23,7 @@ const queueLength = (event: string, uniqueId: string = GLOBAL): number => {
  */
 const register = (
   event: string,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   callback: Function,
   uniqueId: string = GLOBAL
 ) => {
@@ -37,6 +39,7 @@ const register = (
  */
 const registerOnce = (
   event: string,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   callback: Function,
   uniqueId: string = GLOBAL
 ) => {
@@ -54,6 +57,7 @@ const registerOnce = (
  */
 const deRegister = (
   event: string,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   callback?: Function | null,
   uniqueId: string = GLOBAL
 ) => {
@@ -82,15 +86,35 @@ const deRegister = (
   return true;
 };
 
+type TriggerObserver = (event: string, data: unknown, uniqueId: string) => void;
+const observers: TriggerObserver[] = [];
+
+/**
+ * Sees every trigger() with a uniqueId before its subscribers (not the global
+ * re-trigger), whatever the app registers or removes with on()/off(). For the
+ * SDK's own telemetry; an observer must not throw.
+ */
+const observeTriggers = (observer: TriggerObserver): (() => void) => {
+  observers.push(observer);
+  return () => {
+    const index = observers.indexOf(observer);
+    if (index >= 0) observers.splice(index, 1);
+  };
+};
+
 /**
  * Trigger the event, passing the data to it's subscribers. Use uniqueId to identify unique events.
  */
 const trigger = (
   event: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any,
   uniqueId: string = GLOBAL,
   globalPropagation: boolean = true
 ): boolean => {
+  if (uniqueId !== GLOBAL) {
+    observers.forEach((observer) => observer(event, data, uniqueId));
+  }
   const _propagate: boolean = globalPropagation && uniqueId !== GLOBAL;
   if (!isQueued(event, uniqueId)) {
     if (_propagate) {
@@ -130,6 +154,7 @@ const clearQueue = () =>
 
 export {
   trigger,
+  observeTriggers,
   register,
   registerOnce,
   deRegister,

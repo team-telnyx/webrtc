@@ -1,14 +1,26 @@
 jest.unmock('uuid');
 
 import {
+  LoginType,
   setTelemetryWebSocket,
   TelemetryClient,
 } from '@telnyx/webrtc-telemetry';
 import TelnyxRTC from '../../../../TelnyxRTC';
-import { register } from '../../services/Handler';
-import { telemetryOf } from '../../telemetry';
+import { register, trigger } from '../../services/Handler';
+import { callWarning, telemetryOf } from '../../telemetry';
+import { createTelnyxWarning } from '../../util/errors';
 import { SwEvent } from '../../util/constants';
 import logger from '../../util/logger';
+
+type PendingEvent = {
+  sequence: number;
+  loginType?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: { case: string; value: any };
+};
+const pendingOf = (client: TelnyxRTC): PendingEvent[] =>
+  (telemetryOf(client).client as unknown as { _pending: PendingEvent[] })
+    ._pending;
 
 /** The SDK's side of Call Report V2: telemetry starts with the client and its hooks reach the package. */
 describe('Call Report V2 hooks', () => {
@@ -31,14 +43,27 @@ describe('Call Report V2 hooks', () => {
     expect((telemetry.client as any)._mirror).toBe(true); // eslint-disable-line @typescript-eslint/no-explicit-any
     expect(client.telemetry).toBe(telemetry.client);
     const pending = (telemetry.client as any)._pending; // eslint-disable-line @typescript-eslint/no-explicit-any
-    expect(pending.map((e: { name: string }) => e.name).slice(0, 3)).toEqual([
-      'sdk_creation_started',
-      'sdk_created',
-      'network_changed',
+    expect(pending.map((e: PendingEvent) => e.payload.case)).toEqual([
+      'sdkCreationStarted',
+      'sdkCreated',
+      'audioPreferencesChanged',
+      'networkChanged',
     ]);
     expect(pending[0].sequence).toBe(1);
-    expect(pending[0].payload.options.login_type).toBe('token');
-    expect(JSON.stringify(pending)).not.toContain('"jwt"');
+    expect(pending[0].loginType).toBe(LoginType.TOKEN);
+    expect(pending[0].payload.value.options.loginType).toBe('token');
+    expect(pending[2].payload.value).toEqual(
+      expect.objectContaining({
+        initial: true,
+        remoteElementProvided: false,
+        micIdProvided: false,
+        speakerIdProvided: false,
+      })
+    );
+    const text = JSON.stringify(pending, (_key, value) =>
+      typeof value === 'bigint' ? String(value) : value
+    );
+    expect(text).not.toContain('"jwt"');
     log.mockRestore();
   });
 
@@ -55,8 +80,8 @@ describe('Call Report V2 hooks', () => {
       'Invalid init options'
     );
     expect(emit.mock.calls.map((call) => call[0])).toEqual([
-      'sdk_creation_started',
-      'sdk_creation_failed',
+      'sdkCreationStarted',
+      'sdkCreationFailed',
     ]);
     expect(
       (emit.mock.calls[1][1] as { error: { code: string } }).error.code
@@ -133,6 +158,83 @@ describe('Call Report V2 hooks', () => {
     logger.disableAll();
     expect(log.mock.calls.map((call) => call.slice(0, 3))).toEqual([
       ['info', 'general', 'Hello'],
+    ]);
+  });
+  it('sends every telnyx.warning of the session as a warning event, the event fields in extra', () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const warning = createTelnyxWarning(34001);
+    trigger(
+      SwEvent.Warning,
+      { warning, sessionId: 's', callId: 'call-1', activeCalls: 2 },
+      client.uuid
+    );
+    const sent = pendingOf(client).filter((e) => e.payload.case === 'warning');
+    expect(sent).toHaveLength(1);
+    expect(sent[0].payload.value).toEqual(
+      expect.objectContaining({ code: 34001, name: warning.name.toLowerCase() })
+    );
+    expect(sent[0].payload.value.extra).toEqual(
+      expect.objectContaining({ activeCalls: 2, message: warning.message })
+    );
+    expect(JSON.stringify(sent[0].payload.value.extra)).not.toContain(
+      'sessionId'
+    );
+  });
+
+  it("does not send a call's quality warning twice", () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const warning = createTelnyxWarning(31001);
+    const onWarning = jest.fn();
+    callWarning({ onWarning } as never, warning, { metric: 'rtt' });
+    expect(onWarning).toHaveBeenCalledWith(warning, { metric: 'rtt' });
+    trigger(
+      SwEvent.Warning,
+      { warning, sessionId: 's', callId: 'call-1' },
+      client.uuid
+    );
+    expect(
+      pendingOf(client).filter((e) => e.payload.case === 'warning')
+    ).toHaveLength(0);
+  });
+
+  it('ignores warnings of another session', () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const other = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    trigger(
+      SwEvent.Warning,
+      { warning: createTelnyxWarning(34001), sessionId: 's' },
+      other.uuid
+    );
+    expect(
+      pendingOf(client).filter((e) => e.payload.case === 'warning')
+    ).toHaveLength(0);
+    expect(
+      pendingOf(other).filter((e) => e.payload.case === 'warning')
+    ).toHaveLength(1);
+  });
+
+  it('sends audio_preferences_changed when the app sets a speaker or remote element, once per flip', () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const prefs = () =>
+      pendingOf(client)
+        .filter((e) => e.payload.case === 'audioPreferencesChanged')
+        .map((e) => e.payload.value);
+    client.speaker = 'speaker-1';
+    client.speaker = 'speaker-2'; // still provided: no flip
+    const element = document.createElement('audio');
+    client.remoteElement = element;
+    expect(prefs()).toEqual([
+      expect.objectContaining({ initial: true, speakerIdProvided: false }),
+      expect.objectContaining({
+        initial: false,
+        speakerIdProvided: true,
+        remoteElementProvided: false,
+      }),
+      expect.objectContaining({
+        initial: false,
+        speakerIdProvided: true,
+        remoteElementProvided: true,
+      }),
     ]);
   });
 });

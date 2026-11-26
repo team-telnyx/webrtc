@@ -86,6 +86,11 @@ export default class Peer {
   public telemetryHooks: {
     onRemoteDescription?: (sdp: string) => void;
     onError?: (error: unknown) => void;
+    onMediaAccess?: (
+      constraints: MediaStreamConstraints | null | undefined,
+      error?: unknown,
+      afterRecovery?: boolean
+    ) => void;
   } | null = null;
   private _constraints: {
     offerToReceiveAudio: boolean;
@@ -288,8 +293,12 @@ export default class Peer {
     if (!this.telemetryHooks) return;
     try {
       notify();
-    } catch {
-      // ignore
+    } catch (error) {
+      // Telemetry must not break the call flow: log it and go on.
+      logger.warn(
+        `[${this.options.id}] Call report telemetry hook failed`,
+        error
+      );
     }
   }
 
@@ -671,7 +680,7 @@ export default class Peer {
                 safetyTimeout = null;
               }
 
-              recoveredStream = await this._retrieveLocalStream();
+              recoveredStream = await this._retrieveLocalStream(true);
               recovery.onSuccess?.();
             })
             .catch((recoveryError) => {
@@ -1158,12 +1167,29 @@ export default class Peer {
       return transceiver.setCodecPreferences(codecs);
     }
   };
-  private async _retrieveLocalStream() {
+  /** afterRecovery: the media-permission recovery flow's retry. */
+  private async _retrieveLocalStream(afterRecovery = false) {
     if (streamIsValid(this.options.localStream)) {
       return this.options.localStream;
     }
     const constraints = await getMediaConstraints(this.options);
-    return getUserMedia(constraints);
+    let stream: MediaStream;
+    try {
+      stream = await getUserMedia(constraints);
+    } catch (error) {
+      this._notifyTelemetry(() =>
+        this.telemetryHooks?.onMediaAccess?.(constraints, error, afterRecovery)
+      );
+      throw error;
+    }
+    this._notifyTelemetry(() =>
+      this.telemetryHooks?.onMediaAccess?.(
+        constraints,
+        undefined,
+        afterRecovery
+      )
+    );
+    return stream;
   }
 
   private _isOffer(): boolean {
