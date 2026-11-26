@@ -61,7 +61,7 @@ import type { ICallReportFlushReason } from './webrtc/CallReportCollector';
 import type { ITelnyxWarningEvent } from './util/constants/warnings';
 import type { RestartIceResult } from './webrtc/Peer';
 import { PING_RECEIVED_LOG } from '@telnyx/webrtc-telemetry';
-import { startTelemetry, telemetryOf } from './telemetry';
+import { startTelemetry, telemetryOf, triggerWarning } from './telemetry';
 import type RegistrationTimings from './util/RegistrationTimings';
 
 /**
@@ -609,7 +609,7 @@ export default abstract class BaseSession {
 
   private _emitTokenExpiryWarning(): void {
     const warning = createTelnyxWarning(TOKEN_EXPIRING_SOON);
-    trigger(SwEvent.Warning, { warning, sessionId: this.sessionid }, this.uuid);
+    triggerWarning(this, { warning, sessionId: this.sessionid }, this.uuid);
   }
 
   private _clearTokenExpiryTimeout(): void {
@@ -1070,8 +1070,8 @@ export default abstract class BaseSession {
         const warning = createTelnyxWarning(
           RECONNECTION_FAILED_WITH_NO_AUTO_RECONNECT
         );
-        trigger(
-          SwEvent.Warning,
+        triggerWarning(
+          this,
           {
             warning,
             reason: 'auto_reconnect_disabled',

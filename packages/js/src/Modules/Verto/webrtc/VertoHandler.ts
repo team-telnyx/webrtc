@@ -28,7 +28,7 @@ import { Gateway } from '../messages/verto/Gateway';
 import { ErrorResponse } from './ErrorResponse';
 import { getGatewayState, randomInt } from '../util/helpers';
 import { Ping } from '../messages/verto/Ping';
-import { telemetryOf } from '../telemetry';
+import { telemetryOf, triggerWarning } from '../telemetry';
 import {
   getActiveCallsRecoveryMarker,
   setActiveCallsRecoveryMarker,
@@ -531,8 +531,8 @@ class VertoHandler {
           `Attach: callID ${callID} does not match any active calls. `
         );
 
-        trigger(
-          SwEvent.Warning,
+        triggerWarning(
+          session,
           {
             warning: createTelnyxWarning(UNKNOWN_REATTACHED_SESSION),
             callId: callID,

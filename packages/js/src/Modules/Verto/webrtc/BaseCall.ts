@@ -17,7 +17,7 @@ import {
 } from './CallRecorder';
 import { MediaDeviceCollector } from './MediaDeviceCollector';
 import type { CallTelemetry } from '@telnyx/webrtc-telemetry';
-import { callTelemetry, telemetryOf } from '../telemetry';
+import { callTelemetry, telemetryOf, triggerWarning } from '../telemetry';
 import {
   Answer,
   Attach,
@@ -565,8 +565,8 @@ export default abstract class BaseCall implements IWebRTCCall {
       (this.peer?.instance && this.peer.instance.signalingState !== 'closed')
     ) {
       const warning = createTelnyxWarning(ANSWER_WHILE_PEER_ACTIVE);
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this.session,
         { warning, callId: this.id, sessionId: this.session.sessionid },
         this.session.uuid
       );
@@ -1080,8 +1080,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         audioMuted: this._desiredAudioMuted,
         audioTrackId: this._getLocalAudioTrackId(),
       });
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this.session,
         {
           warning: createTelnyxWarning(AUDIO_INPUT_DEVICE_CHANGE_SKIPPED),
           callId: this.id,
@@ -1999,8 +1999,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     const warning = createTelnyxWarning(ONLY_HOST_ICE_CANDIDATES);
     logger.warn(`[${this.id}] Warning ${warning.code}: ${warning.message}`);
-    trigger(
-      SwEvent.Warning,
+    triggerWarning(
+      this.session,
       { warning, callId: this.id, sessionId: this.session.sessionid },
       this.session.uuid
     );
@@ -2476,8 +2476,8 @@ export default abstract class BaseCall implements IWebRTCCall {
 
     // Emit structured warning event (warning is an ITelnyxWarning from Peer.ts)
     if (data.warning) {
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this.session,
         {
           warning: data.warning,
           callId: this.id,
@@ -2540,8 +2540,8 @@ export default abstract class BaseCall implements IWebRTCCall {
     const existingCall = this.session.calls?.[this.id] as BaseCall | undefined;
     if (existingCall && existingCall !== this) {
       const warning = createTelnyxWarning(DUPLICATE_INBOUND_ANSWER);
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this.session,
         {
           warning,
           callId: this.id,
@@ -2713,8 +2713,8 @@ export default abstract class BaseCall implements IWebRTCCall {
         this._callRecorder._setHost(recorderHost);
       }
       this._callRecorder.onWarning = (warning) => {
-        trigger(
-          SwEvent.Warning,
+        triggerWarning(
+          this.session,
           {
             warning,
             callId: this.id,

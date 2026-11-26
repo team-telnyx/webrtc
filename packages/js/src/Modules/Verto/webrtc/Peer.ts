@@ -52,6 +52,7 @@ import {
   getUserMedia,
 } from './helpers';
 import { IPreferredCodec, IVertoCallOptions } from './interfaces';
+import { triggerWarning } from '../telemetry';
 
 export type RestartIceResult = {
   started: boolean;
@@ -433,8 +434,8 @@ export default class Peer {
       !this._session.markMissingRemoteAudioElementWarned(this.options.id)
     ) {
       const warning = createTelnyxWarning(REMOTE_AUDIO_ELEMENT_UNRESOLVED);
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this._session,
         {
           warning,
           callId: this.options.id,
@@ -486,8 +487,8 @@ export default class Peer {
 
     if (connectionState === 'disconnected') {
       const warning = createTelnyxWarning(ICE_CONNECTIVITY_LOST);
-      trigger(
-        SwEvent.Warning,
+      triggerWarning(
+        this._session,
         {
           warning,
           callId: this.options.id,
@@ -787,8 +788,8 @@ export default class Peer {
       if (this._gatheredCandidatesCount === 0) {
         // No candidates at all within timeout
         const warning = createTelnyxWarning(ICE_GATHERING_EMPTY);
-        trigger(
-          SwEvent.Warning,
+        triggerWarning(
+          this._session,
           {
             warning,
             callId: this.options.id,
@@ -799,8 +800,8 @@ export default class Peer {
       } else if (this.instance.iceGatheringState !== 'complete') {
         // Some candidates but gathering still stuck
         const warning = createTelnyxWarning(ICE_GATHERING_TIMEOUT);
-        trigger(
-          SwEvent.Warning,
+        triggerWarning(
+          this._session,
           {
             warning,
             callId: this.options.id,

@@ -13,6 +13,7 @@ import type {
 } from '../util/interfaces/SignalingHealth';
 import { Ping } from '../messages/verto/Ping';
 import { VertoMethod } from '../webrtc/constants';
+import { triggerWarning } from '../telemetry';
 
 /**
  * Threshold (ms) of WS silence during an active call before a health
@@ -662,8 +663,8 @@ export default class SignalingHealthMonitor {
     );
 
     const warning = createTelnyxWarning(SIGNALING_RECOVERY_REQUIRED);
-    trigger(
-      SwEvent.Warning,
+    triggerWarning(
+      this._session,
       { warning, reason, source, sessionId: this._session.sessionid },
       this._session.uuid
     );
@@ -713,8 +714,8 @@ export default class SignalingHealthMonitor {
     }
 
     const warning = createTelnyxWarning(MEDIA_RECOVERY_REQUIRED);
-    trigger(
-      SwEvent.Warning,
+    triggerWarning(
+      this._session,
       {
         warning,
         reason,

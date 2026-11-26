@@ -6,8 +6,13 @@ import {
 } from '@telnyx/webrtc-telemetry';
 import TelnyxRTC from '../../../../TelnyxRTC';
 import { register } from '../../services/Handler';
-import { telemetryOf } from '../../telemetry';
-import { SwEvent } from '../../util/constants';
+import { telemetryOf, triggerWarning } from '../../telemetry';
+import {
+  SIGNALING_RECOVERY_REQUIRED,
+  SwEvent,
+  UNKNOWN_REATTACHED_SESSION,
+} from '../../util/constants';
+import { createTelnyxWarning } from '../../util/errors';
 import logger from '../../util/logger';
 
 /** The SDK's side of Call Report V2: telemetry starts with the client and its hooks reach the package. */
@@ -152,6 +157,61 @@ describe('Call Report V2 hooks', () => {
     );
     getUserMedia.mockRestore();
     access.mockRestore();
+  });
+
+  it('every telnyx.warning the SDK emits also goes to the call report, with its call ID', () => {
+    const client = make({ login_token: 'jwt', telemetry: { url: 'ws://t' } });
+    const telemetry = telemetryOf(client);
+    const warning = jest.spyOn(telemetry, 'warning');
+    const appEvents: unknown[] = [];
+    register(
+      SwEvent.Warning,
+      (event: unknown) => appEvents.push(event),
+      client.uuid
+    );
+    const unhealthy = createTelnyxWarning(SIGNALING_RECOVERY_REQUIRED);
+    triggerWarning(client, {
+      warning: unhealthy,
+      reason: 'heartbeat_timeout',
+      sessionId: client.sessionid,
+    });
+    const reattach = createTelnyxWarning(UNKNOWN_REATTACHED_SESSION);
+    triggerWarning(client, {
+      warning: reattach,
+      callId: 'call-9',
+      sessionId: client.sessionid,
+    });
+    expect(warning).toHaveBeenNthCalledWith(
+      1,
+      unhealthy,
+      undefined,
+      undefined,
+      {
+        reason: 'heartbeat_timeout',
+      }
+    );
+    expect(warning).toHaveBeenNthCalledWith(
+      2,
+      reattach,
+      undefined,
+      'call-9',
+      {}
+    );
+    expect(appEvents).toEqual([
+      {
+        warning: unhealthy,
+        reason: 'heartbeat_timeout',
+        sessionId: client.sessionid,
+      },
+      { warning: reattach, callId: 'call-9', sessionId: client.sessionid },
+    ]);
+    // Telemetry failing never stops the app's event.
+    warning.mockImplementation(() => {
+      throw new Error('boom');
+    });
+    triggerWarning(client, { warning: unhealthy });
+    expect(appEvents).toHaveLength(3);
+    warning.mockRestore();
   });
 
   it('forwards every SDK log line to the live telemetry clients', () => {

@@ -18,6 +18,7 @@ import {
   TELEMETRY_CREDENTIALS_REJECTED,
 } from './util/constants';
 import { createTelnyxWarning } from './util/errors';
+import type { ITelnyxWarning } from './util/constants/warnings';
 import logger from './util/logger';
 import {
   observeCallMarks,
@@ -61,6 +62,30 @@ export function startTelemetry(
 /** The session's telemetry hooks; undefined when telemetry is off. */
 export const telemetryOf = (session: unknown): SessionTelemetry | undefined =>
   sessions.get(session as object);
+
+/**
+ * A `telnyx.warning` for the app, and the same warning in the call report
+ * (`warning`, with the call ID when there is one; the payload's other fields
+ * under `extra`). Telemetry can never stop the app's event.
+ */
+export function triggerWarning(
+  session: unknown,
+  data: { warning: ITelnyxWarning; callId?: string; [key: string]: unknown },
+  target?: string
+): void {
+  try {
+    const { warning, callId, ...rest } = data;
+    delete rest.sessionId; // the record carries the session's own IDs
+    telemetryOf(session)?.warning(warning, undefined, callId, rest);
+  } catch {
+    // Telemetry must not break the SDK.
+  }
+  trigger(
+    SwEvent.Warning,
+    data,
+    target ?? (session as { uuid?: string })?.uuid
+  );
+}
 
 /** A call's telemetry; null when telemetry is off. */
 export const callTelemetry = (
